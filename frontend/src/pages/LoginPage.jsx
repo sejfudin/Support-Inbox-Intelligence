@@ -62,16 +62,6 @@ export const LoginPage = () => {
               >
                 Login
               </Button>
-              {/* Register */}
-              <div className="text-center pt-4 text-gray-600">
-                Don’t have an account?
-                <a
-                  href="/register"
-                  className="pl-2 font-semibold text-gray-900 hover:text-gray-700 transition"
-                >
-                  Sign Up
-                </a>
-              </div>
             </form>
           </CardContent>
         </Card>

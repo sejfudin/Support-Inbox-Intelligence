@@ -3,13 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 const Register = () => {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("");
 
   const handleRegister = (e) => {
     e.preventDefault();
@@ -95,7 +102,36 @@ const Register = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
+              {/* Dropdown */}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                  Role
+                </label>
+                <Select value={role} onValueChange={setRole} required>
+                  <SelectTrigger className="h-14 bg-slate-900 text-white border-black">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
 
+                  <SelectContent
+                    position="popper"
+                    sideOffset={5}
+                    className="bg-gray-100 border border-gray-200 shadow-xl z-[100]"
+                  >
+                    <SelectItem
+                      value="agent"
+                      className="text-slate-900 focus:bg-slate-800 focus:text-white cursor-pointer py-3"
+                    >
+                      Agent
+                    </SelectItem>
+                    <SelectItem
+                      value="admin"
+                      className="text-slate-900 focus:bg-slate-800 focus:text-white cursor-pointer py-3"
+                    >
+                      Admin
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button
                 type="submit"
                 className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98]"
