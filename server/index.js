@@ -4,7 +4,6 @@ const connectDB = require("./config/db");
 
 const authRoutes = require("./routes/auth");
 const ticketRoutes = require("./routes/ticket");
-const aiRoutes = require("./routes/ai");
 const adminRoutes = require("./routes/admin");
 
 const PORT = process.env.PORT || 4000;
@@ -18,7 +17,6 @@ app.get("/", (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/tickets', ticketRoutes);
-app.use('/', aiRoutes);
 app.use('/admin', adminRoutes);
 
 
