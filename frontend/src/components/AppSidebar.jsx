@@ -1,35 +1,42 @@
 import { NavLink } from "react-router-dom";
-import { Inbox } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils"; // if you don't have this, tell me and I'll give a fallback
+import { cn } from "@/lib/utils";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
 
 export default function AppSidebar({ user, onSignOut }) {
-  const nav = [{ label: "Inbox", to: "/tickets", icon: Inbox }];
+  const nav = [{ label: "Inbox", to: "/tickets", icon: MessageCircle }];
 
   return (
-    <aside className="flex h-screen w-72 flex-col border-r bg-background">
-      {/* Top / Brand */}
-      <div className="px-6 pt-6">
+    <Sidebar>
+      <SidebarHeader className="px-6 pt-6">
         <div className="text-xl font-semibold tracking-tight">
           <span className="text-foreground">Support</span>
           <span className="text-blue-600">Inbox</span>
         </div>
-      </div>
+      </SidebarHeader>
 
-      {/* Nav */}
-      <nav className="mt-6 flex-1 px-3">
-        <ul className="space-y-1">
+      <SidebarContent className="px-3">
+        <SidebarMenu>
           {nav.map((item) => {
             const Icon = item.icon;
 
             return (
-              <li key={item.to}>
+              <SidebarMenuItem key={item.to}>
                 <NavLink
                   to={item.to}
                   end
                   className={({ isActive }) =>
                     cn(
-                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors w-full",
                       isActive
                         ? "bg-muted text-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -39,14 +46,13 @@ export default function AppSidebar({ user, onSignOut }) {
                   <Icon className="h-4 w-4" />
                   <span className="font-medium">{item.label}</span>
                 </NavLink>
-              </li>
+              </SidebarMenuItem>
             );
           })}
-        </ul>
-      </nav>
+        </SidebarMenu>
+      </SidebarContent>
 
-      {/* Bottom user card */}
-      <div className="p-4">
+      <SidebarFooter className="p-4">
         <div className="rounded-xl border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-semibold">
@@ -72,7 +78,7 @@ export default function AppSidebar({ user, onSignOut }) {
             Sign out
           </Button>
         </div>
-      </div>
-    </aside>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
