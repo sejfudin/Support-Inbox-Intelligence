@@ -24,6 +24,37 @@ const getAllTickets = async (req, res) => {
   }
 };
 
+const createTicket = async (req, res) => {
+  try {
+    const { subject, description, customerName, customerEmail } = req.body;
+    if (!subject || !customerName || !customerEmail) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Subject and customer details are required" 
+      });
+    }
+    const newTicket = await ticketService.createTicket({
+      subject,
+      description,
+      customerName,
+      customerEmail,
+      creatorId: req.user._id
+    });
+    res.status(201).json({
+      success: true,
+      data: newTicket
+    });
+  } catch (error) {
+    console.error("Error in createTicket Controller:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Server Error: Unable to create ticket",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   getAllTickets,
+  createTicket,
 };
