@@ -8,7 +8,7 @@ import { queryClient } from './lib/queryClient';
 import './index.css'
 import App from './App.jsx'
 
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById("root")).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
