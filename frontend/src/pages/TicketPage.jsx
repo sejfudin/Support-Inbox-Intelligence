@@ -5,17 +5,19 @@ import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTickets } from "@/queries/tickets";
 import {columns} from "@/components/columns/ticketColumns";
+import { useDebounce } from "use-debounce"; 
 
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const limit = 10;
+  const [debouncedSearch] = useDebounce(search, 500);
 
   const { data, isLoading, isError, isPlaceholderData } = useTickets({ 
       page, 
       limit, 
-      search,
+      search: debouncedSearch,
       status: activeTab === "all" ? "" : activeTab 
     });
   const tickets = data?.data || [];
@@ -48,8 +50,11 @@ export default function TicketPage() {
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex flex-shrink-0 items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setPage(1); 
+                }}              
+                className={`flex flex-shrink-0 items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab.key
                   ? "border-blue-600 text-blue-600"
                   : "border-transparent text-gray-600 hover:text-gray-900"
