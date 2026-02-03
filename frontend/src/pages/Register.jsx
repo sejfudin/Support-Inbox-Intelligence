@@ -11,13 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRegisterUser } from "@/queries/auth";
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 const Register = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [errorString, setErrorString] = useState("");
+  const { mutate, isPending } = useRegisterUser();
+
 
 const {
   register,
@@ -39,11 +41,19 @@ const {
 
   const password = watch("password");
 
-  const onSubmit = async (data) => {
-    setLoading(true);
+  const onSubmit = (data) => {
     setErrorString("");
-    console.log("Form Data Submitted: ", data);
-  };
+    mutate(data, {
+          onSuccess: () => {
+            
+            navigate("/login");
+          },
+          onError: (err) => {
+            const message = err?.response?.data?.message || "Registration failed";
+            setErrorString(message);
+          }
+        }); 
+   };
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -162,10 +172,10 @@ const {
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={isPending}
                 className="w-full h-12 text-lg font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all mt-4"
               >
-                {loading ? "Creating..." : "Register User"}
+                {isPending ? "Creating..." : "Register User"}
               </Button>
 
               <div className="text-center pt-2 text-sm text-gray-600">
