@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { DataTable } from "@/components/TicketsTable";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import UserEditModal from "@/components/UserEditModal";
 
 export const users = [
   {
@@ -69,44 +70,96 @@ const getRoleBadge = (role) => {
   );
 };
 
-export const columns = [
-  {
-    accessorKey: "user",
-    header: "USER",
-    cell: ({ row }) => (
-      <div className="flex justify-center flex-col">
-        <span className="font-semibold text-foreground">
-          {row.original.user}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {row.original.email}
-        </span>
-      </div>
-    ),
-  },
-  {
-    accessorKey: "role",
-    header: "ROLE",
-    cell: ({ row }) => getRoleBadge(row.original.role),
-  },
-  {
-    accessorKey: "status",
-    header: "STATUS",
-    cell: ({ row }) => getStatusBadge(row.original.status),
-  },
-  {
-    accessorKey: "action",
-    header: "ACTION",
-    cell: () => (
-      <button className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors">
-        Edit
-      </button>
-    ),
-  },
-];
-
 export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = React.useState("all");
+  const [editingUser, setEditingUser] = useState(null);
+  const [users, setUsers] = useState([
+    {
+      id: "1",
+      user: "Evil Hacker",
+      email: "hacker@example.com",
+      role: "Admin",
+      status: "Active",
+    },
+    {
+      id: "2",
+      user: "John Doe",
+      email: "john@example.com",
+      role: "Agent",
+      status: "Active",
+    },
+    {
+      id: "3",
+      user: "Sarah Smith",
+      email: "sarah@example.com",
+      role: "Agent",
+      status: "Inactive",
+    },
+    {
+      id: "4",
+      user: "Mike Brown",
+      email: "mike@example.com",
+      role: "Admin",
+      status: "Inactive",
+    },
+  ]);
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+  };
+
+  const handleSaveUser = (updatedUser) => {
+    // Ažuriraj korisnika u users array-u
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.id === updatedUser.id ? updatedUser : user,
+      ),
+    );
+    setEditingUser(null);
+  };
+
+  const handleCloseModal = () => {
+    setEditingUser(null);
+  };
+
+  const columns = [
+    {
+      accessorKey: "user",
+      header: "USER",
+      cell: ({ row }) => (
+        <div className="flex justify-center flex-col">
+          <span className="font-semibold text-foreground">
+            {row.original.user}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {row.original.email}
+          </span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "role",
+      header: "ROLE",
+      cell: ({ row }) => getRoleBadge(row.original.role),
+    },
+    {
+      accessorKey: "status",
+      header: "STATUS",
+      cell: ({ row }) => getStatusBadge(row.original.status),
+    },
+    {
+      accessorKey: "action",
+      header: "ACTION",
+      cell: ({ row }) => (
+        <button
+          onClick={() => handleEditUser(row.original)}
+          className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+        >
+          Edit
+        </button>
+      ),
+    },
+  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -120,6 +173,14 @@ export default function AdminUsersPage() {
           <DataTable columns={columns} data={users} />
         </div>
       </div>
+
+      {editingUser && (
+        <UserEditModal
+          user={editingUser}
+          onSave={handleSaveUser}
+          onClose={handleCloseModal}
+        />
+      )}
     </div>
   );
 }
