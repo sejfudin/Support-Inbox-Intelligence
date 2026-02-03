@@ -20,7 +20,8 @@ const getAllTickets= async ({ page = 1, limit = 10, search = "", status = "" })=
             .sort({ updatedAt: -1 })
             .skip(skip)
             .limit(limit)
-            .populate("creator", "fullName email"), 
+            .populate("creator", "fullname email")
+            .populate("assignedTo", "fullname email role"),
     Ticket.countDocuments(query),
     ]);
 return {
