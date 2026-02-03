@@ -72,11 +72,11 @@ export default function TicketPage() {
         <div className={`bg-white rounded-lg shadow min-h-[400px] ${isPlaceholderData ? "opacity-60" : ""}`}>
           {isLoading ? (
             <div className="flex items-center justify-center h-64 font-medium text-gray-500">
-                Učitavanje tiketa...
+                Loading tickets...
             </div>
           ) : isError ? (
             <div className="flex items-center justify-center h-64 text-red-500">
-                Greška pri učitavanju podataka.
+                Something went wrong.
             </div>
           ) : (
             <DataTable 
