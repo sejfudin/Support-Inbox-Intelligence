@@ -3,15 +3,36 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLoginUser } from "@/queries/auth";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const loginMutation = useLoginUser();
 
   const handleLogin = (e) => {
     e.preventDefault();
-    navigate("/dashboard");
+    setErrorMessage("");
+
+    loginMutation.mutate(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          localStorage.setItem("accessToken", data.accessToken);
+          
+          console.log("Login Successful", data);
+          navigate("/tickets");
+        },
+        onError: (error) => {
+          const msg = error.response?.data?.message || "Something went wrong";
+          setErrorMessage(msg);
+        }
+      }
+    );
+
   };
 
   return (
@@ -24,6 +45,11 @@ export const LoginPage = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-6 md:px-12 pb-12">
+            {errorMessage && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm font-medium text-center">
+                {errorMessage}
+              </div>
+            )}
             <form className="space-y-6" onSubmit={handleLogin}>
               {/* Email */}
               <div className="space-y-2">
@@ -60,7 +86,7 @@ export const LoginPage = () => {
                 type="submit"
                 className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98]"
               >
-                Login
+                {loginMutation.isPending ? "Signing in..." : "Login"}
               </Button>
             </form>
           </CardContent>

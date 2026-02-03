@@ -5,7 +5,6 @@ import React from "react";
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -19,24 +18,41 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function DataTable({ columns, data }) {
+export function DataTable({ columns, data, pagination, onPageChange }) {
   const [sorting, setSorting] = React.useState([]);
+  const currentPage = pagination?.page || 1;
+  const totalResults = pagination?.total || 0;
+  const limit = pagination?.limit || 10; 
+
+  const from = totalResults === 0 ? 0 : (currentPage - 1) * limit + 1;
+  const to = Math.min(currentPage * limit, totalResults);
 
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     state: {
       sorting,
     },
+    manualPagination: true, 
   });
+
+  const handleNext = () => {
+    if (pagination && pagination.page < pagination.pages) {
+      onPageChange(pagination.page + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (pagination && pagination.page > 1) {
+      onPageChange(pagination.page - 1);
+    }
+  };
 
   return (
     <div className="w-full">
-      {/* Table scroll on small screens */}
       <div className="w-full overflow-x-auto">
         <Table className="min-w-[900px]">
           <TableHeader>
@@ -91,20 +107,17 @@ export function DataTable({ columns, data }) {
         </Table>
       </div>
 
-      {/* Pagination (stack on mobile) */}
       <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="text-sm text-gray-600">
           Showing{" "}
-          {table.getState().pagination.pageIndex *
-            table.getState().pagination.pageSize +
-            1}{" "}
+          <span className="font-medium">
+            {from}
+          </span>{" "}
           to{" "}
-          {Math.min(
-            (table.getState().pagination.pageIndex + 1) *
-              table.getState().pagination.pageSize,
-            data.length,
-          )}{" "}
-          of {data.length} results
+          <span className="font-medium">
+            {to}         
+          </span>{" "}
+          of <span className="font-medium">{pagination?.total || 0}</span> results
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -112,8 +125,8 @@ export function DataTable({ columns, data }) {
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={handlePrevious}
+            disabled={!pagination || pagination.page <= 1}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -122,8 +135,8 @@ export function DataTable({ columns, data }) {
             variant="outline"
             size="icon"
             className="h-8 w-8"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={handleNext}
+            disabled={!pagination || pagination.page >= pagination.pages}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

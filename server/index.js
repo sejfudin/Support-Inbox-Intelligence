@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const connectDB = require("./config/db");
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 
 const authRoutes = require("./routes/auth");
@@ -21,6 +22,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.get("/", (req, res) => {
   res.send("API is running...");
