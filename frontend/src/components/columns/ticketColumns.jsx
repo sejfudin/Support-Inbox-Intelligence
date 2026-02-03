@@ -49,7 +49,7 @@ export const columns = [
   },
   {
     accessorKey: "creator",
-    header: "AGENT",
+    header: "USER",
     cell: ({ row }) => (
       <div className="text-sm">
         {row.original.creator?.fullName || "Unassigned"}
