@@ -5,6 +5,7 @@ import { Search, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import UserEditModal from "@/components/UserEditModal";
+import { useNavigate } from "react-router-dom";
 
 const getStatusBadge = (status) => {
   const s = status.toLowerCase();
@@ -40,6 +41,10 @@ const getRoleBadge = (role) => {
 };
 
 export default function AdminUsersPage() {
+  const navigate = useNavigate();
+  const handleRegister = (navigate) => {
+    navigate("/register");
+  };
   const [activeTab, setActiveTab] = React.useState("all");
   const [editingUser, setEditingUser] = useState(null);
   const [users, setUsers] = useState([
@@ -134,6 +139,7 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
         <h1 className="text-xl font-bold sm:text-2xl">User Management</h1>
+        <Button onClick={() => handleRegister(navigate)}>Add New User</Button>
       </div>
       {/* Content */}
       <div className="flex-1 p-4 sm:p-6 md:p-8">
