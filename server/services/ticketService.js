@@ -1,6 +1,6 @@
 const Ticket = require("../models/Ticket");
 
-const getAllTickets= async ({ page = 1, limit = 10, search = "" })=>{
+const getAllTickets= async ({ page = 1, limit = 10, search = "", status = "" })=>{
     const skip = (page - 1) * limit;
 
     const query = {};
@@ -10,6 +10,10 @@ const getAllTickets= async ({ page = 1, limit = 10, search = "" })=>{
             { description: { $regex: search, $options: 'i' } },
         ];
     }
+
+    if (status && status !== "all") {
+    query.status = status;
+  }
 
     const [tickets, total] = await Promise.all([
         Ticket.find(query)
@@ -21,10 +25,11 @@ const getAllTickets= async ({ page = 1, limit = 10, search = "" })=>{
     ]);
 return {
     tickets,
-    pagination: {
-      total,
-      page: Number(page),
-      pages: Math.ceil(total / limit),
+   pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit), 
+        pages: Math.ceil(total / limit),
     },
   };
 };

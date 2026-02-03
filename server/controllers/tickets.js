@@ -2,11 +2,12 @@ const ticketService = require("../services/ticketService");
 
 const getAllTickets = async (req, res) => { 
     try {
-        const { page, limit, search } = req.query;
+        const { page, limit, search, status } = req.query;
         const result = await ticketService.getAllTickets({ 
             page: parseInt(page) || 1,
             limit: parseInt(limit) || 10,
             search: search || "", 
+            status: status || "",
         });
         res.status(200).json({success: true,
         data: result.tickets,
