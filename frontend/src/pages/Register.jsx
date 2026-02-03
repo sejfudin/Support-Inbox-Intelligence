@@ -1,4 +1,5 @@
-import { useState } from "react";
+import React, { useState } from "react";
+import { useForm, Controller } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,143 +11,171 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
 const Register = () => {
   const navigate = useNavigate();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorString, setErrorString] = useState("");
 
-  const handleRegister = (e) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      alert("Passwords do not match!");
-      return;
-    }
-    console.log({ fullName, email, password });
-    navigate("/dashboard");
+const {
+  register,
+  handleSubmit,
+  watch,
+  control,
+  trigger,
+  formState: { errors },
+} = useForm({
+  mode: "onChange",
+  defaultValues: {
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "agent",
+  },
+});
+
+  const password = watch("password");
+
+  const onSubmit = async (data) => {
+    setLoading(true);
+    setErrorString("");
+    console.log("Form Data Submitted: ", data);
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-white flex flex-col items-center justify-center p-4">
+    <div className="fixed inset-0 w-screen h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md md:max-w-xl">
-        <Card className="shadow-2xl border-slate-200">
+        <Card className="shadow-2xl border-slate-200 bg-white">
           <CardHeader className="pt-10 pb-6">
             <CardTitle className="text-2xl md:text-3xl text-center font-extrabold text-gray-900">
-              Create your account
+              Create User Account
             </CardTitle>
           </CardHeader>
+          
           <CardContent className="px-6 md:px-12 pb-12">
-            <form className="space-y-6" onSubmit={handleRegister}>
+            {errorString && (
+              <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center">
+                {errorString}
+              </div>
+            )}
+
+            <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+              
               {/* Full Name */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                   Full Name
                 </label>
                 <Input
-                  id="fullName"
-                  type="text"
+                  {...register("fullName", { 
+                    required: "Full name is required",
+                    maxLength: { value: 50, message: "Max 50 characters" }
+                  })}
                   placeholder="John Doe"
-                  required
-                  className="h-14 text-lg border-slate-300 focus:ring-2"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  className={`h-12 ${errors.fullName ? "border-red-500" : "border-slate-300"}`}
                 />
+                {errors.fullName && <p className="text-red-500 text-xs">{errors.fullName.message}</p>}
               </div>
 
               {/* Email */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                  Email address
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Email Address
                 </label>
                 <Input
-                  id="email"
                   type="email"
-                  placeholder="your@email.com"
-                  required
-                  className="h-14 text-lg border-slate-300 focus:ring-2"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email", { 
+                    required: "Email is required",
+                    pattern: {
+                      value: EMAIL_REGEX,
+                      message: "Invalid email format"
+                    }
+                  })}
+                  placeholder="agent@company.com"
+                  className={`h-12 ${errors.email ? "border-red-500" : "border-slate-300"}`}
                 />
+                {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
               </div>
 
               {/* Password */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                  Password
-                </label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                  className="h-14 text-lg border-slate-300 focus:ring-2"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                Password
+              </label>
+              <Input
+                type="password"
+                {...register("password", { 
+                  required: "Password is required",
+                  minLength: { value: 6, message: "Min 6 characters" },
+                  onChange: () => {
+                    if (watch("confirmPassword")) {
+                      trigger("confirmPassword");
+                    }
+                  }
+                })}
+                placeholder="••••••••"
+                className={`h-12 ${errors.password ? "border-red-500" : "border-slate-300"}`}
+              />
+              {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
+            </div>
 
               {/* Confirm Password */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                   Confirm Password
                 </label>
                 <Input
-                  id="confirmPassword"
                   type="password"
+                  {...register("confirmPassword", { 
+                    required: "Please confirm password",
+                    validate: (val) => val === password || "Passwords do not match"
+                  })}
                   placeholder="••••••••"
-                  required
-                  className="h-14 text-lg border-slate-300 focus:ring-2"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`h-12 ${errors.confirmPassword ? "border-red-500" : "border-slate-300"}`}
                 />
+                {errors.confirmPassword && <p className="text-red-500 text-xs">{errors.confirmPassword.message}</p>}
               </div>
-              {/* Dropdown */}
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                   Role
                 </label>
-                <Select value={role} onValueChange={setRole} required>
-                  <SelectTrigger className="h-14 bg-slate-900 text-white border-black">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-
-                  <SelectContent
-                    position="popper"
-                    sideOffset={5}
-                    className="bg-gray-100 border border-gray-200 shadow-xl z-[100]"
-                  >
-                    <SelectItem
-                      value="agent"
-                      className="text-slate-900 focus:bg-slate-800 focus:text-white cursor-pointer py-3"
-                    >
-                      Agent
-                    </SelectItem>
-                    <SelectItem
-                      value="admin"
-                      className="text-slate-900 focus:bg-slate-800 focus:text-white cursor-pointer py-3"
-                    >
-                      Admin
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="role"
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger className="h-12 border-slate-300 bg-white text-slate-900">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="agent">Agent</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
+
               <Button
                 type="submit"
-                className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98]"
+                disabled={loading}
+                className="w-full h-12 text-lg font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all mt-4"
               >
-                Register
+                {loading ? "Creating..." : "Register User"}
               </Button>
 
-              <div className="text-center pt-4 text-gray-600">
-                Already have an account?
-                <a
-                  href="/login"
-                  className="pl-2 font-semibold text-gray-900 hover:text-gray-700 transition"
+              <div className="text-center pt-2 text-sm text-gray-600">
+                <button 
+                  type="button" 
+                  onClick={() => navigate("/dashboard")}
+                  className="font-semibold text-slate-900 hover:underline"
                 >
-                  Sign In
-                </a>
+                  Cancel and return
+                </button>
               </div>
             </form>
           </CardContent>
