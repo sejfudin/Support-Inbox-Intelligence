@@ -55,16 +55,25 @@ export const TicketDetailsPage = () => {
     
     const newMessage = {
       id: Date.now(),
-      sender: 'agent',
+      sender: 'agent', 
       text: replyText,
       timestamp: new Date().toISOString()
     };
     
-    setTicket(prev => ({
-      ...prev,
-      messages: [...prev.messages, newMessage],
-      status: prev.status === 'open' ? 'pending' : prev.status
-    }));
+    setTicket(prev => {
+      
+      let newStatus = prev.status;
+      if (prev.status === 'open') {
+        newStatus = 'pending';
+      }
+
+      return {
+        ...prev,
+        messages: [...prev.messages, newMessage],
+        status: newStatus,
+        updatedAt: new Date().toISOString() 
+      };
+    });
     
     setReplyText('');
   };
@@ -143,7 +152,6 @@ export const TicketDetailsPage = () => {
         </div>
       </header>
 
-      
       <main className="flex flex-1 gap-6 overflow-hidden">
         
         <section className="flex-1 flex flex-col bg-white rounded-lg border shadow-sm overflow-hidden">
