@@ -41,6 +41,7 @@ export const useGetMe = () => {
     queryKey: authKeys.me(),
     queryFn: () => getMe(),
     staleTime: 5 * 60 * 1000, 
+    enabled: !!localStorage.getItem('accessToken'),
     retry: false,
   })
 }
