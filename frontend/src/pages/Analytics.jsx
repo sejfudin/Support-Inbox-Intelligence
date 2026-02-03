@@ -1,28 +1,16 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { DataTable } from "../TicketsTable";
+import { DataTable } from "../components/TicketsTable";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "../ui/card";
-import { ChartContainer } from "../ui/chart";
-import { Badge } from "../ui/badge";
+} from "../components/ui/card";
+import { ChartContainer } from "../components/ui/chart";
+import { Badge } from "../components/ui/badge";
 import PageLayout from "@/layouts/PageLayout";
-
-const getStatusBadge = (status) => {
-  const variants = {
-    open: "destructive",
-    pending: "warning",
-    closed: "success",
-  };
-  return (
-    <Badge variant={variants[status]} className="capitalize">
-      {status}
-    </Badge>
-  );
-};
+import getStatusBadge from "@/helpers/getStatusBadge";
 
 export const activity = [
   {
@@ -111,7 +99,7 @@ const chartConfig = {
 
 export default function AiLogsPage() {
   return (
-    <PageLayout title="AI Logs & Analytics">
+    <PageLayout title="Analytics">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="h-full flex">
           <CardHeader className="my-auto">

@@ -4,7 +4,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import Register from "@/pages/Register";
 import TicketPage from "@/pages/TicketPage";
 import SidebarLayout from "@/layouts/SidebarLayout";
-import AiLogsPage from "@/components/admin-pages/AiLogsPage";
+import AiLogsPage from "@/pages/Analytics";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import { TicketDetailsPage } from "@/pages/TicketDetailsPage";
 

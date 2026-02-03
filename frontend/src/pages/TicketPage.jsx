@@ -3,6 +3,7 @@ import { DataTable } from "@/components/TicketsTable";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import getStatusBadge from "@/helpers/getStatusBadge";
 
 export const tickets = [
   {
@@ -42,19 +43,6 @@ export const tickets = [
     lastUpdated: "Jan 31, 10:43 PM",
   },
 ];
-
-const getStatusBadge = (status) => {
-  const variants = {
-    open: "destructive",
-    pending: "warning",
-    closed: "success",
-  };
-  return (
-    <Badge variant={variants[status]} className="capitalize">
-      {status}
-    </Badge>
-  );
-};
 
 export const columns = [
   {

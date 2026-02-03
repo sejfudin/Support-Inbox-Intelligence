@@ -28,7 +28,7 @@ export default function AppSidebar({ user, onSignOut }) {
       <SidebarHeader className="px-6 pt-6">
         <div className="text-xl font-semibold tracking-tight">
           <span className="text-foreground">Support</span>
-          <span className="text-blue-600">Inbox</span>
+          <span className="text-blue-600">Inbox</span>{" "}
           <span className="text-blue-600">Users</span>
         </div>
       </SidebarHeader>
