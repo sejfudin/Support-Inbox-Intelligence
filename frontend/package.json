@@ -19,11 +19,8 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-query-devtools": "^5.91.3",
-<<<<<<< HEAD
     "axios": "^1.13.4",
-=======
     "@tanstack/react-table": "^8.21.3",
->>>>>>> 8b5bd4cfb2cf69bd9ad0fb64d978f5f05e236b47
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
