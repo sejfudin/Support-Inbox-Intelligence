@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { Activity, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/sidebar";
 
 export default function AppSidebar({ user, onSignOut }) {
-  const nav = [{ label: "Inbox", to: "/tickets", icon: MessageCircle }];
+  const nav = [
+    { label: "Inbox", to: "/tickets", icon: MessageCircle },
+    { label: "AI Logs", to: "/ai-logs", icon: Activity },
+  ];
 
   return (
     <Sidebar>

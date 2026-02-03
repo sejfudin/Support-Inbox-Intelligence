@@ -107,6 +107,7 @@ export const columns = [
     ),
   },
 ];
+
 export default function TicketPage() {
   const [activeTab, setActiveTab] = React.useState("all");
 
