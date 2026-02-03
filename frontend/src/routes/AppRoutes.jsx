@@ -4,6 +4,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import Register from "@/pages/Register";
 import TicketPage from "@/pages/TicketPage";
 import SidebarLayout from "@/layouts/SidebarLayout";
+import { TicketDetailsPage } from "@/pages/TicketDetailsPage";
 
 export default function AppRoutes() {
   return (
@@ -14,6 +15,7 @@ export default function AppRoutes() {
 
       <Route element={<SidebarLayout />}>
         <Route path="/tickets" element={<TicketPage />} />
+        <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
       </Route>
     </Routes>
   );
