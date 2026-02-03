@@ -6,37 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import UserEditModal from "@/components/UserEditModal";
 
-export const users = [
-  {
-    id: "1",
-    user: "Evil Hacker",
-    email: "hacker@example.com",
-    role: "Admin",
-    status: "Active",
-  },
-  {
-    id: "2",
-    user: "John Doe",
-    email: "john@example.com",
-    role: "Agent",
-    status: "Active",
-  },
-  {
-    id: "3",
-    user: "Sarah Smith",
-    email: "sarah@example.com",
-    role: "Agent",
-    status: "Inactive",
-  },
-  {
-    id: "4",
-    user: "Mike Brown",
-    email: "mike@example.com",
-    role: "Admin",
-    status: "Inactive",
-  },
-];
-
 const getStatusBadge = (status) => {
   const s = status.toLowerCase();
   const style =
@@ -109,7 +78,6 @@ export default function AdminUsersPage() {
   };
 
   const handleSaveUser = (updatedUser) => {
-    // Ažuriraj korisnika u users array-u
     setUsers((prevUsers) =>
       prevUsers.map((user) =>
         user.id === updatedUser.id ? updatedUser : user,
