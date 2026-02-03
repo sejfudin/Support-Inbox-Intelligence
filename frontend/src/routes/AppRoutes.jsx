@@ -5,6 +5,7 @@ import Register from "@/pages/Register";
 import TicketPage from "@/pages/TicketPage";
 import SidebarLayout from "@/layouts/SidebarLayout";
 import AdminUsersPage from "@/pages/AdminUsersPage";
+import { TicketDetailsPage } from "@/pages/TicketDetailsPage";
 
 import ProfilePage from "@/pages/ProfilePage";
 export default function AppRoutes() {
@@ -17,6 +18,7 @@ export default function AppRoutes() {
       <Route element={<SidebarLayout />}>
         <Route path="/tickets" element={<TicketPage />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
+        <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
     </Routes>
