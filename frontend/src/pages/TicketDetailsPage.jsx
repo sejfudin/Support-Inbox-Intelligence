@@ -55,7 +55,7 @@ export const TicketDetailsPage = () => {
     
     const newMessage = {
       id: Date.now(),
-      sender: 'agent', 
+      sender: 'user', 
       text: replyText,
       timestamp: new Date().toISOString()
     };
@@ -159,11 +159,11 @@ export const TicketDetailsPage = () => {
             {ticket.messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex flex-col max-w-[85%] ${msg.sender === 'agent' ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                className={`flex flex-col max-w-[85%] ${msg.sender === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'}`}
               >
                 <div className="flex items-center gap-2 mb-1 px-1">
                   <span className="text-xs font-medium text-muted-foreground">
-                    {msg.sender === 'agent' ? 'You' : ticket.customerName}
+                    {msg.sender === 'user' ? 'You' : ticket.customerName}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(msg.timestamp), 'h:mm a')}
@@ -171,7 +171,7 @@ export const TicketDetailsPage = () => {
                 </div>
                 <div
                   className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
-                    msg.sender === 'agent'
+                    msg.sender === 'user'
                       ? 'bg-primary text-primary-foreground rounded-br-sm'
                       : 'bg-white border text-foreground rounded-bl-sm'
                   }`}

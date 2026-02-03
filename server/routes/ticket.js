@@ -9,12 +9,12 @@ const { getAllTickets } = require('../controllers/tickets');
 const { protect } = require('../middleware/auth');
 
  router.get('/', 
-    // protect, requireRole('admin', 'agent'), 
+    // protect, requireRole('admin', 'user'), 
     getAllTickets);
 
 // router.post('/', createTicket);
-// router.get('/:id', protect, requireRole('admin', 'agent'), getTicketById);
-// router.post('/:id/messages', protect, requireRole('admin', 'agent'), addMessage);
-// router.post('/:id/ai/generate', protect, requireRole('admin', 'agent'), generateAI);
+// router.get('/:id', protect, requireRole('admin', 'user'), getTicketById);
+// router.post('/:id/messages', protect, requireRole('admin', 'user'), addMessage);
+// router.post('/:id/ai/generate', protect, requireRole('admin', 'user'), generateAI);
 
 module.exports = router;

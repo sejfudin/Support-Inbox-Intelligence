@@ -34,7 +34,7 @@ const seedData = async () => {
       username: "agent_mark",
       email: "mark@test.com",
       password: agentPassword,
-      role: "agent",
+      role: "user",
       active: true,
     });
 
@@ -53,7 +53,7 @@ const seedData = async () => {
           text: "Hello, I have been charged twice for my subscription this month.",
         },
         {
-          senderType: "agent",
+          senderType: "user",
           sender: agent._id,
           text: "Hello Lena, we are checking the transactions. Please wait a few minutes.",
         },
