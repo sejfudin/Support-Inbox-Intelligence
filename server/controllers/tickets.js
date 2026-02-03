@@ -26,19 +26,22 @@ const getAllTickets = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const { subject, description, customerName, customerEmail } = req.body;
-    if (!subject || !customerName || !customerEmail) {
+    const { subject, description,assignedTo } = req.body;
+
+    const assignedAgents = assignedTo 
+      ? (Array.isArray(assignedTo) ? assignedTo : [assignedTo]) 
+      : [];
+    if (!subject) {
       return res.status(400).json({ 
         success: false, 
-        message: "Subject and customer details are required" 
+        message: "Subject details are required" 
       });
     }
     const newTicket = await ticketService.createTicket({
       subject,
       description,
-      customerName,
-      customerEmail,
-      creatorId: req.user._id
+      creatorId: req.user._id,
+      assignedTo: assignedAgents
     });
     res.status(201).json({
       success: true,

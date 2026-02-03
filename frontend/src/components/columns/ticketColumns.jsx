@@ -29,20 +29,6 @@ export const columns = [
     ),
   },
   {
-    accessorKey: "customer",
-    header: "CUSTOMER",
-    cell: ({ row }) => (
-      <div>
-        <div className="font-medium text-foreground">
-          {row.original.customer?.name}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {row.original.customer?.email}
-        </div>
-      </div>
-    ),
-  },
-  {
     accessorKey: "status",
     header: "STATUS",
     cell: ({ row }) => getStatusBadge(row.original.status),

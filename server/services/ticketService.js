@@ -39,17 +39,17 @@ const createTicket = async (ticketData) => {
   const ticket = new Ticket({
     subject: ticketData.subject,
     description: ticketData.description || "",
-    customer: {
-      name: ticketData.customerName,
-      email: ticketData.customerEmail,
-    },
     creator: ticketData.creatorId, 
     status: "pending", 
+    assignedTo: ticketData.assignedTo,
   });
-  
+
   await ticket.save();
 
-  return await ticket.populate("creator", "fullName email");
+  return await ticket.populate([
+    { path: "creator", select: "fullName email" },
+    { path: "assignedTo", select: "fullName email" }
+  ]);
 };
 
 module.exports = {
