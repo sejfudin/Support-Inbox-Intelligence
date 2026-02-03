@@ -3,7 +3,6 @@ import { DataTable } from "@/components/TicketsTable";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export const tickets = [
   {
@@ -127,10 +126,7 @@ export default function TicketPage() {
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* Header */}
       <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
-        <div className="flex items-center gap-3">
-          <SidebarTrigger className="md:hidden" />
-          <h1 className="text-xl font-bold sm:text-2xl">Inbox</h1>
-        </div>
+        <h1 className="text-xl font-bold sm:text-2xl">Inbox</h1>
 
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
