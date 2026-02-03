@@ -27,7 +27,7 @@ const processQueue = (error, token = null) => {
 
 apiClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('accessToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -71,7 +71,7 @@ apiClient.interceptors.response.use(
                     throw new Error("No token returned from refresh");
                 }
 
-                localStorage.setItem('authToken', token);
+                localStorage.setItem('accessToken', token);
                 apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
                 processQueue(null, token);
@@ -81,7 +81,7 @@ apiClient.interceptors.response.use(
 
             } catch (err) {
                 processQueue(err, null);
-                localStorage.removeItem('authToken');
+                localStorage.removeItem('accessToken');
                 window.location.href = '/login';
 
                 return Promise.reject(err);
