@@ -52,7 +52,7 @@ export const columns = [
     header: "USER",
     cell: ({ row }) => (
       <div className="text-sm">
-        {row.original.creator?.fullName || "Unassigned"}
+        {row.original.creator?.email || "Unassigned"}
       </div>
     ),
   },
