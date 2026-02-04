@@ -15,16 +15,38 @@ import {
 
 import { Plus, Search, X } from "lucide-react";
 
+export const STATUS_STYLES = {
+  todo: {
+    pill: "bg-slate-50 text-slate-600",
+    border: "border-slate-300",
+  },
+  inprogress: {
+    pill: "bg-blue-50 text-blue-600",
+    border: "border-blue-300",
+  },
+  blocked: {
+    pill: "bg-red-50 text-red-600",
+    border: "border-red-300",
+  },
+  staging: {
+    pill: "bg-purple-50 text-purple-600",
+    border: "border-purple-300",
+  },
+  done: {
+    pill: "bg-green-50 text-green-600",
+    border: "border-green-300",
+  },
+};
+
 const demoData = [
   {
     id: "todo",
     title: "To do",
     tasks: [
-      { id: "t1", title: "Auth UI", priority: "high", due: "Feb 10" },
+      { id: "t1", title: "Auth UI", due: "Feb 10" },
       {
         id: "t2",
         title: "Navbar responsive",
-        priority: "medium",
         due: "Feb 12",
       },
     ],
@@ -32,32 +54,24 @@ const demoData = [
   {
     id: "inprogress",
     title: "In progress",
-    tasks: [
-      { id: "t3", title: "Board layout", priority: "low", due: "Feb 08" },
-    ],
+    tasks: [{ id: "t3", title: "Board layout", due: "Feb 08" }],
+  },
+  {
+    id: "blocked",
+    title: "Blocked",
+    tasks: [{ id: "t4", title: "Project setup", due: "Feb 05" }],
+  },
+  {
+    id: "staging",
+    title: "On Staging",
+    tasks: [{ id: "t4", title: "Project setup", due: "Feb 05" }],
   },
   {
     id: "done",
     title: "Done",
-    tasks: [
-      { id: "t4", title: "Project setup", priority: "low", due: "Feb 05" },
-    ],
+    tasks: [{ id: "t4", title: "Project setup", due: "Feb 05" }],
   },
 ];
-
-function PriorityBadge({ p }) {
-  const classes = {
-    low: "bg-muted text-foreground border-muted-foreground/20",
-    medium: "bg-amber-100 text-amber-900 border-amber-200",
-    high: "bg-rose-100 text-rose-900 border-rose-200",
-  };
-
-  return (
-    <Badge variant="outline" className={`capitalize ${classes[p] ?? ""}`}>
-      {p}
-    </Badge>
-  );
-}
 
 function AvatarCircle({ letter = "T" }) {
   return (
@@ -81,7 +95,6 @@ function TaskCard({ task, onOpen }) {
           <p className="font-semibold leading-snug line-clamp-2">
             {task.title}
           </p>
-          <PriorityBadge p={task.priority} />
         </div>
 
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
@@ -94,12 +107,17 @@ function TaskCard({ task, onOpen }) {
 }
 
 function Column({ col, onOpen }) {
+  const style = STATUS_STYLES[col.id] ?? STATUS_STYLES.todo;
+
   return (
-    <Card className="w-[320px] shrink-0">
+    <Card className={`w-[320px] shrink-0 border-t-4 ${style.border}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">{col.title}</CardTitle>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">{col.title}</CardTitle>
+            </div>
+
             <p className="text-xs text-muted-foreground">
               {col.tasks.length} tasks
             </p>
@@ -134,7 +152,6 @@ function TaskModal({ task, onClose }) {
             <div>
               <DialogTitle className="text-xl">{task?.title}</DialogTitle>
               <DialogDescription className="mt-2 flex flex-wrap items-center gap-2">
-                {task?.priority && <PriorityBadge p={task.priority} />}
                 {task?.due && <span className="text-sm">Due: {task.due}</span>}
               </DialogDescription>
             </div>
@@ -175,23 +192,86 @@ function TaskModal({ task, onClose }) {
   );
 }
 
-export default function BoardPage() {
+export default function BoardPage({ tickets = [], isLoading, isError }) {
   const [query, setQuery] = useState("");
   const [selectedTask, setSelectedTask] = useState(null);
 
+  // Map DB statuses -> your UI column IDs
+  // Adjust these strings to match your DB values!
+  const STATUS_TO_COLUMN = {
+    open: "todo",
+    pending: "inprogress",
+    blocked: "blocked",
+    staging: "staging",
+    done: "done",
+    closed: "done",
+  };
+
   const columns = useMemo(() => {
-    if (!query.trim()) return demoData;
-    const q = query.toLowerCase();
-    return demoData.map((c) => ({
-      ...c,
-      tasks: c.tasks.filter((t) => t.title.toLowerCase().includes(q)),
-    }));
-  }, [query]);
+    // Base columns (same as your demoData columns)
+    const base = [
+      { id: "todo", title: "To do", tasks: [] },
+      { id: "inprogress", title: "In progress", tasks: [] },
+      { id: "blocked", title: "Blocked", tasks: [] },
+      { id: "staging", title: "On Staging", tasks: [] },
+      { id: "done", title: "Done", tasks: [] },
+    ];
+
+    const byId = Object.fromEntries(base.map((c) => [c.id, c]));
+
+    const q = query.trim().toLowerCase();
+
+    for (const t of tickets) {
+      const dbStatus = (t.status || "open").toLowerCase();
+      const colId = STATUS_TO_COLUMN[dbStatus] || "todo";
+
+      // keep UI task shape the same as before
+      const task = {
+        id: t._id || t.id,
+        title: t.title || t.subject || t.name || "Untitled",
+        due: t.dueDate ? new Date(t.dueDate).toLocaleDateString() : t.due || "",
+        // keep original ticket if you want later
+        _raw: t,
+      };
+
+      // optional search filter (same behavior you had)
+      if (q && !task.title.toLowerCase().includes(q)) continue;
+
+      byId[colId]?.tasks.push(task);
+    }
+
+    return base;
+  }, [tickets, query]);
+
+  // Optional: keep your page looking the same but show basic states
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto overflow-hidden px-4 py-6">
+          <div className="flex items-center justify-center h-64 font-medium text-gray-500">
+            Loading tickets...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto overflow-hidden px-4 py-6">
+          <div className="flex items-center justify-center h-64 text-red-500">
+            Something went wrong.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       {/* Board */}
-      <div className="mx-auto max-w-6xl px-4 py-6">
+      <div className="mx-auto overflow-hidden px-4 py-6">
         <ScrollArea className="w-full">
           <div className="flex gap-4 pb-4">
             {columns.map((c) => (

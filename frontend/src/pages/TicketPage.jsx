@@ -27,14 +27,14 @@ export default function TicketPage() {
   const pagination = data?.pagination;
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <div className="flex max-w-screen min-h-screen flex-col bg-gray-50">
       {/* Header */}
       <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
         <h1 className="text-xl font-bold sm:text-2xl">Inbox</h1>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
           {/* View Toggle */}
-          <div className="flex items-center border rounded-lg p-1">
+          <div className="flex items-center border rounded-lg p-1 shrink-0">
             <Button
               variant={viewMode === "list" ? "default" : "ghost"}
               size="sm"
@@ -55,29 +55,31 @@ export default function TicketPage() {
             </Button>
           </div>
 
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search tickets..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+            <div className="relative flex-1 sm:w-60 md:w-80">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search tickets..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+            <Button className="shrink-0">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New task</span>
+            </Button>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New task
-          </Button>
         </div>
       </div>
 
       {/* Conditional Content Based on View Mode */}
       {viewMode === "board" ? (
-        <BoardPage />
+        <BoardPage tickets={tickets} isLoading={isLoading} isError={isError} />
       ) : (
         <>
           {/* Tabs */}
