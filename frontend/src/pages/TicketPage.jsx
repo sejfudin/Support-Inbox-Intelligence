@@ -28,7 +28,7 @@ export default function TicketPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* Header */}
+      
       <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
         <h1 className="text-xl font-bold sm:text-2xl">Inbox</h1>
 
@@ -107,30 +107,28 @@ export default function TicketPage() {
             </div>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 p-4 sm:p-6 md:p-8">
-            <div
-              className={`bg-white rounded-lg shadow min-h-[400px] ${isPlaceholderData ? "opacity-60" : ""}`}
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center h-64 font-medium text-gray-500">
-                  Loading tickets...
-                </div>
-              ) : isError ? (
-                <div className="flex items-center justify-center h-64 text-red-500">
-                  Something went wrong.
-                </div>
-              ) : (
-                <DataTable
-                  columns={columns}
-                  data={tickets}
-                  pagination={pagination}
-                  onPageChange={(newPage) => setPage(newPage)}
-                />
-              )}
+      {/* Content */}
+      <div className="flex-1 p-4 sm:p-6 md:p-8">
+        <div className={`bg-white rounded-lg shadow min-h-[400px] ${isPlaceholderData ? "opacity-60" : ""}`}>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64 font-medium text-gray-500">
+                Loading tickets...
             </div>
-          </div>
-        </>
+          ) : isError ? (
+            <div className="flex items-center justify-center h-64 text-red-500">
+                Something went wrong.
+            </div>
+          ) : (
+            <DataTable 
+                columns={columns} 
+                data={tickets} 
+                pagination={pagination}
+                onPageChange={(newPage) => setPage(newPage)}
+            />
+          )}
+        </div>
+      </div>
+          </>
       )}
     </div>
   );

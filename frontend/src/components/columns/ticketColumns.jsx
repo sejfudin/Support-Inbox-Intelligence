@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Link } from 'react-router-dom';
 import { Avatar } from "../Avatar";
 
 const getStatusBadge = (status) => {
@@ -51,10 +52,16 @@ export const columns = [
   {
     accessorKey: "action",
     header: "ACTION",
-    cell: () => (
-      <a href="#" className="text-blue-600 hover:underline">
-        View
-      </a>
-    ),
+    cell: ({ row }) => {
+      const ticketId = row.original._id || row.original.id;
+      return (
+        <Link 
+          to={`/tickets/${ticketId}`} 
+          className="text-blue-600 hover:underline"
+        >
+          View
+        </Link>
+      );
+    },
   },
 ];

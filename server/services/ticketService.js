@@ -35,6 +35,20 @@ return {
   };
 };
 
+const getTicketById = async (ticketId) => {
+ 
+  const ticket = await Ticket.findById(ticketId)
+    .populate('assignedTo', 'fullname email role') 
+    .populate('creator', 'fullName');
+
+  if (!ticket) {
+    throw new Error('Ticket not found');
+  }
+
+  return ticket;
+};
+
+
 
 const createTicket = async (ticketData) => {
   const ticket = new Ticket({
@@ -56,4 +70,5 @@ const createTicket = async (ticketData) => {
 module.exports = {
   getAllTickets,
   createTicket,
+  getTicketById,
 };
