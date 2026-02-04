@@ -1,26 +1,29 @@
 const ticketService = require("../services/ticketService");
 
-const getAllTickets = async (req, res) => { 
-    try {
-        const { page, limit, search, status } = req.query;
-        const result = await ticketService.getAllTickets({ 
-            page: parseInt(page) || 1,
-            limit: parseInt(limit) || 10,
-            search: search || "", 
-            status: status || "",
-        });
-        res.status(200).json({success: true,
+const getAllTickets = async (req, res) => {
+  try {
+    const { page, limit, search, status } = req.query;
+    const result = await ticketService.getAllTickets({
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 10,
+      search: search || "",
+      status: status || "",
+    });
+    res
+      .status(200)
+      .json({
+        success: true,
         data: result.tickets,
-        pagination: result.pagination,});
+        pagination: result.pagination,
+      });
+  } catch (error) {
+    console.error("Error in getTickets Controller:", error.message);
 
-    } catch (error) {
-        console.error("Error in getTickets Controller:", error.message);
-        
-        res.status(500).json({
-        success: false,
-        message: "Server Error: Unable to fetch tickets",
-        error: error.message,
-        });
+    res.status(500).json({
+      success: false,
+      message: "Server Error: Unable to fetch tickets",
+      error: error.message,
+    });
   }
 };
 
@@ -63,26 +66,29 @@ const getTicketById = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const { subject, description,assignedTo } = req.body;
+    const { subject, description, assignedTo, status } = req.body;
 
-    const assignedAgents = assignedTo 
-      ? (Array.isArray(assignedTo) ? assignedTo : [assignedTo]) 
+    const assignedAgents = assignedTo
+      ? Array.isArray(assignedTo)
+        ? assignedTo
+        : [assignedTo]
       : [];
     if (!subject) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Subject details are required" 
+      return res.status(400).json({
+        success: false,
+        message: "Subject details are required",
       });
     }
     const newTicket = await ticketService.createTicket({
       subject,
       description,
       creatorId: req.user._id,
-      assignedTo: assignedAgents
+      assignedTo: assignedAgents,
+      status: status || "pending",
     });
     res.status(201).json({
       success: true,
-      data: newTicket
+      data: newTicket,
     });
   } catch (error) {
     console.error("Error in createTicket Controller:", error.message);
@@ -92,7 +98,7 @@ const createTicket = async (req, res) => {
       error: error.message,
     });
   }
-}
+};
 
 module.exports = {
   getAllTickets,
