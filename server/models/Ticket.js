@@ -56,10 +56,6 @@ const ticketSchema = new mongoose.Schema({
     },
     default: "open"
   },
- customer: {
-    name: { type: String, required: true },
-    email: { type: String, required: true, lowercase: true, trim: true }
-  },
   messages: [messageSchema],
   ai: aiAssistantSchema,
 creator: {
@@ -75,5 +71,4 @@ creator: {
   timestamps: true, 
 });
 ticketSchema.index({ status: 1, updatedAt: -1 });
-ticketSchema.index({ "customer.email": 1 });
 module.exports = mongoose.model("Ticket", ticketSchema);

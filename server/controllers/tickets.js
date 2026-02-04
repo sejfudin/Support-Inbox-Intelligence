@@ -24,6 +24,40 @@ const getAllTickets = async (req, res) => {
   }
 };
 
+const createTicket = async (req, res) => {
+  try {
+    const { subject, description,assignedTo } = req.body;
+
+    const assignedAgents = assignedTo 
+      ? (Array.isArray(assignedTo) ? assignedTo : [assignedTo]) 
+      : [];
+    if (!subject) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Subject details are required" 
+      });
+    }
+    const newTicket = await ticketService.createTicket({
+      subject,
+      description,
+      creatorId: req.user._id,
+      assignedTo: assignedAgents
+    });
+    res.status(201).json({
+      success: true,
+      data: newTicket
+    });
+  } catch (error) {
+    console.error("Error in createTicket Controller:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Server Error: Unable to create ticket",
+      error: error.message,
+    });
+  }
+}
+
 module.exports = {
   getAllTickets,
+  createTicket,
 };

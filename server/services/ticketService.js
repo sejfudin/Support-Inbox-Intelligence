@@ -34,6 +34,26 @@ return {
     },
   };
 };
+
+
+const createTicket = async (ticketData) => {
+  const ticket = new Ticket({
+    subject: ticketData.subject,
+    description: ticketData.description || "",
+    creator: ticketData.creatorId, 
+    status: "pending", 
+    assignedTo: ticketData.assignedTo,
+  });
+
+  await ticket.save();
+
+  return await ticket.populate([
+    { path: "creator", select: "fullName email" },
+    { path: "assignedTo", select: "fullName email" }
+  ]);
+};
+
 module.exports = {
   getAllTickets,
+  createTicket,
 };
