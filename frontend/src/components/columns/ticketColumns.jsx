@@ -1,19 +1,6 @@
-import { Badge } from "@/components/ui/badge";
-import { Link } from 'react-router-dom';
+import { Link } from "react-router-dom";
 import { Avatar } from "../Avatar";
-
-const getStatusBadge = (status) => {
-  const variants = {
-    open: "destructive",
-    pending: "warning",
-    closed: "success",
-  };
-  return (
-    <Badge variant={variants[status]} className="capitalize">
-      {status}
-    </Badge>
-  );
-};
+import { TicketStatusBadge } from "../StatusBadge";
 
 export const columns = [
    {
@@ -33,7 +20,7 @@ export const columns = [
   {
     accessorKey: "status",
     header: "STATUS",
-    cell: ({ row }) => getStatusBadge(row.original.status),
+    cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "creator",

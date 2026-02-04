@@ -75,37 +75,40 @@ export default function TicketPage() {
         </div>
       </div>
 
-      {/* Conditional Content Based on View Mode */}
+        {/* Conditional Content Based on View Mode */}
       {viewMode === "board" ? (
         <BoardPage />
       ) : (
         <>
-          {/* Tabs */}
-          <div className="border-b bg-white">
-            <div className="flex items-center gap-6 overflow-x-auto px-4 sm:px-6 md:px-8">
-              {[
-                { key: "all", label: "All" },
-                { key: "open", label: "Open" },
-                { key: "pending", label: "Pending" },
-                { key: "closed", label: "Closed" },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => {
-                    setActiveTab(tab.key);
-                    setPage(1);
-                  }}
-                  className={`flex flex-shrink-0 items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Tabs */}
+      <div className="border-b bg-white">
+        <div className="flex items-center gap-6 overflow-x-auto px-4 sm:px-6 md:px-8">
+          {[
+            { key: "all", label: "All" },
+            { key: "to do", label: "To do" },
+            { key: "in progress", label: "In progress" },
+            { key: "on staging", label: "On staging" },
+            { key: "blocked", label: "Blocked" },
+            { key: "done", label: "Done" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setPage(1); 
+                }}              
+                className={`flex flex-shrink-0 items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {tab.label}
+              
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Content */}
       <div className="flex-1 p-4 sm:p-6 md:p-8">

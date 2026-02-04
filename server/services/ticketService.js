@@ -55,7 +55,7 @@ const createTicket = async (ticketData) => {
     subject: ticketData.subject,
     description: ticketData.description || "",
     creator: ticketData.creatorId, 
-    status: "pending", 
+    status: "in progress", 
     assignedTo: ticketData.assignedTo,
   });
 
@@ -66,6 +66,8 @@ const createTicket = async (ticketData) => {
     { path: "assignedTo", select: "fullName email" }
   ]);
 };
+
+
 
 module.exports = {
   getAllTickets,
