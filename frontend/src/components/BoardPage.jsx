@@ -14,6 +14,7 @@ import {
 } from "../components/ui/dialog";
 
 import { Plus, Search, X } from "lucide-react";
+import { Avatar } from "./Avatar";
 
 export const STATUS_STYLES = {
   todo: {
@@ -73,14 +74,6 @@ const demoData = [
   },
 ];
 
-function AvatarCircle({ letter = "T" }) {
-  return (
-    <div className="h-7 w-7 rounded-full bg-foreground text-background grid place-items-center text-xs font-semibold">
-      {letter}
-    </div>
-  );
-}
-
 function TaskCard({ task, onOpen }) {
   return (
     <Card
@@ -98,8 +91,7 @@ function TaskCard({ task, onOpen }) {
         </div>
 
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Due: {task.due}</span>
-          <AvatarCircle letter="T" />
+          <Avatar users={task.assignedTo} />{" "}
         </div>
       </CardContent>
     </Card>
@@ -152,7 +144,6 @@ function TaskModal({ task, onClose }) {
             <div>
               <DialogTitle className="text-xl">{task?.title}</DialogTitle>
               <DialogDescription className="mt-2 flex flex-wrap items-center gap-2">
-                {task?.due && <span className="text-sm">Due: {task.due}</span>}
               </DialogDescription>
             </div>
 
@@ -230,6 +221,7 @@ export default function BoardPage({ tickets = [], isLoading, isError }) {
         id: t._id || t.id,
         title: t.title || t.subject || t.name || "Untitled",
         due: t.dueDate ? new Date(t.dueDate).toLocaleDateString() : t.due || "",
+        assignedTo: t.assignedTo,
         // keep original ticket if you want later
         _raw: t,
       };
@@ -269,7 +261,7 @@ export default function BoardPage({ tickets = [], isLoading, isError }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       {/* Board */}
       <div className="mx-auto overflow-hidden px-4 py-6">
         <ScrollArea className="w-full">
