@@ -73,10 +73,10 @@ export default function AppSidebar({ user, onSignOut }) {
 
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold">
-                {user?.name || "Alice Agent"}
+                {user?.name || "Alice User"}
               </div>
               <div className="text-xs text-muted-foreground">
-                {user?.role || "Agent"}
+                {user?.role || "User"}
               </div>
             </div>
           </div>
