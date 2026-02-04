@@ -11,8 +11,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
+import { useGetMe } from "@/queries/auth";
+import { Avatar } from "./Avatar";
+import { capitalizeFirst } from "@/helpers/capitalizeFirst";
 
-export default function AppSidebar({ user, onSignOut }) {
+export default function AppSidebar({  onSignOut }) {
   const nav = [
     {
       label: "Inbox",
@@ -25,6 +28,8 @@ export default function AppSidebar({ user, onSignOut }) {
       icon: MessageCircle, // you can use a different icon if you want
     },
   ];
+  
+  const {data:user, isPending, isError}=useGetMe();
 
   return (
     <Sidebar>
@@ -64,33 +69,52 @@ export default function AppSidebar({ user, onSignOut }) {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="rounded-xl border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-semibold">
-              {(user?.name?.[0] || "A").toUpperCase()}
-            </div>
-
-            <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">
-                {user?.name || "Alice Agent"}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {user?.role || "Agent"}
-              </div>
+     <SidebarFooter className="p-4">
+     <div className="rounded-xl border bg-card p-4 shadow-sm">
+        {isPending ? (
+          <div className="flex items-center gap-3 animate-pulse">
+            <div className="h-9 w-9 rounded-full bg-muted" />
+            <div className="space-y-2">
+              <div className="h-3 w-20 rounded bg-muted" />
+              <div className="h-2 w-12 rounded bg-muted" />
             </div>
           </div>
+        ) : isError ? (
+          <div className="text-center">
+            <p className="text-xs text-destructive mb-2">Session expired</p>
+            <Button size="sm" variant="outline" className="w-full" onClick={onSignOut}>
+              Log in again
+            </Button>
+          </div>
+        ) : (
+      <>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center rounded-full bg-muted text-sm font-semibold">
+           <Avatar users={[user]} />
+          </div>
 
-          <Button
-            variant="outline"
-            className="mt-4 w-full justify-start"
-            onClick={onSignOut}
-            type="button"
-          >
-            Sign out
-          </Button>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">
+              {user?.fullname || "Unknown User"}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {capitalizeFirst(user?.role) || "User"}
+            </div>
+          </div>
         </div>
-      </SidebarFooter>
+
+        <Button
+          variant="outline"
+          className="mt-4 w-full justify-start"
+          onClick={onSignOut}
+          type="button"
+        >
+          Sign out
+        </Button>
+      </>
+    )}
+  </div>
+</SidebarFooter>
     </Sidebar>
   );
 }

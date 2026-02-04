@@ -34,7 +34,7 @@ const seedData = async () => {
       username: "agent_mark",
       email: "mark@test.com",
       password: agentPassword,
-      role: "agent",
+      role: "user",
       active: true,
     });
 
@@ -43,23 +43,19 @@ const seedData = async () => {
     const ticket = await Ticket.create({
       subject: "Subscription billing issue",
       status: "pending",
-      customer: {
-        name: "Lena Client",
-        email: "lena@gmail.com",
-      },
       messages: [
         {
-          senderType: "customer",
+          senderType: "user",
           text: "Hello, I have been charged twice for my subscription this month.",
         },
         {
-          senderType: "agent",
+          senderType: "user",
           sender: agent._id,
           text: "Hello Lena, we are checking the transactions. Please wait a few minutes.",
         },
       ],
       ai: {
-        summary: "Customer reporting a double subscription charge.",
+        summary: "User reporting a double subscription charge.",
         category: "billing",
         suggestedReply:
           "We apologize for the inconvenience. We have identified an error with the processor and a refund will be issued within 3-5 business days.",

@@ -23,10 +23,10 @@ const userSchema=new mongoose.Schema({
   role: {
     type: String,
     enum: {
-      values: ["agent", "admin"],
+      values: ["user", "admin"],
       message: "{VALUE} is not a supported role" 
     },
-    default: "agent"
+    default: "user"
   },
   active: {
     type: Boolean,

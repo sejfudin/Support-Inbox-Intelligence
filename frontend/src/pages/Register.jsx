@@ -20,40 +20,38 @@ const Register = () => {
   const [errorString, setErrorString] = useState("");
   const { mutate, isPending } = useRegisterUser();
 
-
-const {
-  register,
-  handleSubmit,
-  watch,
-  control,
-  trigger,
-  formState: { errors },
-} = useForm({
-  mode: "onChange",
-  defaultValues: {
-    fullName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    role: "agent",
-  },
-});
+  const {
+    register,
+    handleSubmit,
+    watch,
+    control,
+    trigger,
+    formState: { errors },
+  } = useForm({
+    mode: "onChange",
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      role: "user",
+    },
+  });
 
   const password = watch("password");
 
   const onSubmit = (data) => {
     setErrorString("");
     mutate(data, {
-          onSuccess: () => {
-            
-            navigate("/login");
-          },
-          onError: (err) => {
-            const message = err?.response?.data?.message || "Registration failed";
-            setErrorString(message);
-          }
-        }); 
-   };
+      onSuccess: () => {
+        navigate("/admin/users");
+      },
+      onError: (err) => {
+        const message = err?.response?.data?.message || "Registration failed";
+        setErrorString(message);
+      },
+    });
+  };
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
@@ -64,7 +62,7 @@ const {
               Create User Account
             </CardTitle>
           </CardHeader>
-          
+
           <CardContent className="px-6 md:px-12 pb-12">
             {errorString && (
               <div className="mb-6 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm text-center">
@@ -73,21 +71,24 @@ const {
             )}
 
             <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-              
               {/* Full Name */}
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                   Full Name
                 </label>
                 <Input
-                  {...register("fullName", { 
+                  {...register("fullName", {
                     required: "Full name is required",
-                    maxLength: { value: 50, message: "Max 50 characters" }
+                    maxLength: { value: 50, message: "Max 50 characters" },
                   })}
                   placeholder="John Doe"
                   className={`h-12 ${errors.fullName ? "border-red-500" : "border-slate-300"}`}
                 />
-                {errors.fullName && <p className="text-red-500 text-xs">{errors.fullName.message}</p>}
+                {errors.fullName && (
+                  <p className="text-red-500 text-xs">
+                    {errors.fullName.message}
+                  </p>
+                )}
               </div>
 
               {/* Email */}
@@ -97,40 +98,46 @@ const {
                 </label>
                 <Input
                   type="email"
-                  {...register("email", { 
+                  {...register("email", {
                     required: "Email is required",
                     pattern: {
                       value: EMAIL_REGEX,
-                      message: "Invalid email format"
-                    }
+                      message: "Invalid email format",
+                    },
                   })}
-                  placeholder="agent@company.com"
+                  placeholder="user@company.com"
                   className={`h-12 ${errors.email ? "border-red-500" : "border-slate-300"}`}
                 />
-                {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
+                {errors.email && (
+                  <p className="text-red-500 text-xs">{errors.email.message}</p>
+                )}
               </div>
 
               {/* Password */}
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                Password
-              </label>
-              <Input
-                type="password"
-                {...register("password", { 
-                  required: "Password is required",
-                  minLength: { value: 6, message: "Min 6 characters" },
-                  onChange: () => {
-                    if (watch("confirmPassword")) {
-                      trigger("confirmPassword");
-                    }
-                  }
-                })}
-                placeholder="••••••••"
-                className={`h-12 ${errors.password ? "border-red-500" : "border-slate-300"}`}
-              />
-              {errors.password && <p className="text-red-500 text-xs">{errors.password.message}</p>}
-            </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  Password
+                </label>
+                <Input
+                  type="password"
+                  {...register("password", {
+                    required: "Password is required",
+                    minLength: { value: 6, message: "Min 6 characters" },
+                    onChange: () => {
+                      if (watch("confirmPassword")) {
+                        trigger("confirmPassword");
+                      }
+                    },
+                  })}
+                  placeholder="••••••••"
+                  className={`h-12 ${errors.password ? "border-red-500" : "border-slate-300"}`}
+                />
+                {errors.password && (
+                  <p className="text-red-500 text-xs">
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
 
               {/* Confirm Password */}
               <div className="space-y-1">
@@ -139,14 +146,19 @@ const {
                 </label>
                 <Input
                   type="password"
-                  {...register("confirmPassword", { 
+                  {...register("confirmPassword", {
                     required: "Please confirm password",
-                    validate: (val) => val === password || "Passwords do not match"
+                    validate: (val) =>
+                      val === password || "Passwords do not match",
                   })}
                   placeholder="••••••••"
                   className={`h-12 ${errors.confirmPassword ? "border-red-500" : "border-slate-300"}`}
                 />
-                {errors.confirmPassword && <p className="text-red-500 text-xs">{errors.confirmPassword.message}</p>}
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-xs">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -157,12 +169,15 @@ const {
                   name="role"
                   control={control}
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <SelectTrigger className="h-12 border-slate-300 bg-white text-slate-900">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="agent">Agent</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>
@@ -179,9 +194,9 @@ const {
               </Button>
 
               <div className="text-center pt-2 text-sm text-gray-600">
-                <button 
-                  type="button" 
-                  onClick={() => navigate("/dashboard")}
+                <button
+                  type="button"
+                  onClick={() => navigate("/admin/users")}
                   className="font-semibold text-slate-900 hover:underline"
                 >
                   Cancel and return

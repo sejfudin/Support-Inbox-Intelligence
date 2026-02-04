@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Link } from 'react-router-dom';
+import { Avatar } from "../Avatar";
 
 const getStatusBadge = (status) => {
   const variants = {
@@ -30,32 +31,23 @@ export const columns = [
     ),
   },
   {
-    accessorKey: "customer",
-    header: "CUSTOMER",
-    cell: ({ row }) => (
-      <div>
-        <div className="font-medium text-foreground">
-          {row.original.customer?.name}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {row.original.customer?.email}
-        </div>
-      </div>
-    ),
-  },
-  {
     accessorKey: "status",
     header: "STATUS",
     cell: ({ row }) => getStatusBadge(row.original.status),
   },
   {
     accessorKey: "creator",
-    header: "AGENT",
+    header: "Creator",
     cell: ({ row }) => (
       <div className="text-sm">
-        {row.original.creator?.fullName || "Unassigned"}
+        {row.original.creator?.email || "Unassigned"}
       </div>
     ),
+  },
+  {
+    accessorKey: "assignedTo",
+    header: "ASSIGNED TO",
+    cell: ({ row }) => <Avatar users={row.original.assignedTo} />,
   },
   {
     accessorKey: "action",
