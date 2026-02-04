@@ -27,6 +27,43 @@ const getAllTickets = async (req, res) => {
   }
 };
 
+const getTicketById = async (req, res) => {
+  try {
+    const { id } = req.params; // 1. Get the ID from the URL (e.g., /api/tickets/123)
+
+    // 2. Call the service layer
+    const ticket = await ticketService.getTicketById(id);
+
+    // 3. Handle case where ticket doesn't exist
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found",
+      });
+    }
+
+    // 4. Return success
+    res.status(200).json({
+      success: true,
+      data: ticket,
+    });
+
+  } catch (error) {
+    console.error("Error in getTicketById Controller:", error.message);
+    
+    // Check if error is because ID format is wrong (e.g. invalid MongoDB ObjectId)
+    if (error.kind === 'ObjectId') {
+        return res.status(404).json({ success: false, message: "Ticket not found" });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Server Error: Unable to fetch ticket details",
+      error: error.message,
+    });
+  }
+};
+
 const createTicket = async (req, res) => {
   try {
     const { subject, description, assignedTo, status } = req.body;
@@ -65,5 +102,6 @@ const createTicket = async (req, res) => {
 
 module.exports = {
   getAllTickets,
+  getTicketById,
   createTicket,
 };
