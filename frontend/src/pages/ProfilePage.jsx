@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, X, Eye, EyeOff } from "lucide-react"; // Dodali smo Eye ikone
+import { Pencil, X, Eye, EyeOff } from "lucide-react";
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // Za toggle vidljivosti
+  const [showPassword, setShowPassword] = useState(false);
 
   const [profile, setProfile] = useState({
     fullName: "John Doe",
@@ -21,7 +21,7 @@ const ProfilePage = () => {
   const handleSave = (e) => {
     e.preventDefault();
     setIsEditing(false);
-    // Logika: ako je profile.password prazan string, ne šalji ga u API
+
     console.log("Saving...", profile);
   };
 
@@ -46,7 +46,7 @@ const ProfilePage = () => {
     let style = "bg-slate-100 text-slate-700 border-slate-200";
     if (r === "admin")
       style = "bg-indigo-100 text-indigo-700 border-indigo-200";
-    if (r === "agent") style = "bg-amber-100 text-amber-700 border-amber-200";
+    if (r === "user") style = "bg-amber-100 text-amber-700 border-amber-200";
 
     return (
       <Badge
@@ -75,7 +75,7 @@ const ProfilePage = () => {
               variant="ghost"
               onClick={() => {
                 setIsEditing(!isEditing);
-                setProfile((prev) => ({ ...prev, password: "" })); // Resetiraj lozinku pri otkazivanju
+                setProfile((prev) => ({ ...prev, password: "" }));
               }}
               className="hover:bg-slate-100 text-slate-600 font-bold"
             >

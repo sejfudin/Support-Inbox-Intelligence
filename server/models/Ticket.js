@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const messageSchema = new mongoose.Schema({
 senderType: {
     type: String,
-    enum: ["admin", "agent"],
+    enum: ["admin", "user"],
     required: true
   },
 sender: {

@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Avatar } from "../Avatar";
 
 const getStatusBadge = (status) => {
   const variants = {
@@ -35,12 +36,17 @@ export const columns = [
   },
   {
     accessorKey: "creator",
-    header: "AGENT",
+    header: "Creator",
     cell: ({ row }) => (
       <div className="text-sm">
-        {row.original.creator?.fullName || "Unassigned"}
+        {row.original.creator?.email || "Unassigned"}
       </div>
     ),
+  },
+  {
+    accessorKey: "assignedTo",
+    header: "ASSIGNED TO",
+    cell: ({ row }) => <Avatar users={row.original.assignedTo} />,
   },
   {
     accessorKey: "action",
