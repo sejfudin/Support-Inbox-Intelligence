@@ -9,6 +9,8 @@ import { columns } from "@/components/columns/ticketColumns";
 import { useDebounce } from "use-debounce";
 import BoardPage from "@/components/BoardPage";
 import NewTickets from "@/components/NewTickets";
+import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
+
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
@@ -17,6 +19,8 @@ export default function TicketPage() {
   const limit = 10;
   const [debouncedSearch] = useDebounce(search, 500);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const isBoard = viewMode === "board";
 
@@ -41,6 +45,11 @@ export default function TicketPage() {
     },
     { enabled: isBoard },
   );
+
+  const handleOpenTicket = (id) => {
+    setSelectedTicketId(id);
+    setIsDetailsOpen(true);
+  };
 
   const activeQuery = isBoard ? boardQuery : listQuery;
 
@@ -157,8 +166,17 @@ export default function TicketPage() {
                   data={tickets}
                   pagination={pagination}
                   onPageChange={(newPage) => setPage(newPage)}
+                  meta={{ onOpenTicket: handleOpenTicket }}
                 />
               )}
+              <TicketDetailsModal
+                ticketId={selectedTicketId}
+                isOpen={isDetailsOpen}
+                onClose={() => {
+                  setIsDetailsOpen(false);
+                  setSelectedTicketId(null);
+                }}
+              />
             </div>
           </div>
         </>

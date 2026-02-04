@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { registerUser, loginUser, getMe } from "@/api/auth";
+import { registerUser, loginUser, getMe, logoutUser } from "@/api/auth";
+import { useNavigate } from "react-router-dom";
 
 export const authKeys = {
   all: ["auth"],
@@ -45,3 +46,26 @@ export const useGetMe = () => {
     retry: false,
   })
 }
+
+export const useLogoutUser = () => {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const clearAuth = () => {
+    queryClient.setQueryData(authKeys.me(), null);
+    queryClient.removeQueries({ queryKey: authKeys.all });
+    localStorage.removeItem('accessToken');
+    navigate('/login');
+  };
+
+  return useMutation({
+    mutationFn: logoutUser,
+    onSuccess: clearAuth,
+    onError: (error) => {
+      console.error("Logout failed on server:", error);
+      clearAuth();
+    },
+  });
+};
+
+

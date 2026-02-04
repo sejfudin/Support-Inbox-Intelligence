@@ -73,7 +73,10 @@ const refresh = async (token) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
     
-    const accessToken = generateAccessToken(decoded.id);
+    const user = await User.findById(decoded.id);
+    if (!user) throw new Error('User no longer exists');
+
+    const accessToken = generateAccessToken(user);
 
     return { accessToken };
   } catch (err) {
@@ -81,4 +84,15 @@ const refresh = async (token) => {
   }
 };
 
-module.exports = { register, login, refresh };
+const logout = async (refreshToken) => {
+  if (refreshToken) {
+    await RefreshToken.deleteOne({ token: refreshToken });
+  }
+
+  return {
+    success: true,
+    message: 'Logout successful',
+  };
+};
+
+module.exports = { register, login, refresh, logout };
