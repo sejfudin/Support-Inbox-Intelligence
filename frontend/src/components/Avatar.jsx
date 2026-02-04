@@ -24,7 +24,7 @@ export const Avatar = ({ users }) => {
         {displayUsers.map((user) => (
           <Tooltip key={user._id}>
             <TooltipTrigger asChild>
-              <div className={`inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-background text-[11px] font-bold cursor-help hover:z-10 transition-all hover:scale-110 ${getAvatarColor(user.fullName || user.email)}`}>
+              <div className={`inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-background text-[14px] font-bold cursor-help hover:z-10 transition-all hover:scale-110 ${getAvatarColor(user.fullName || user.email)}`}>
                 {user.fullName ? getInitials(user.fullName) : user.email[0].toUpperCase()}
               </div>
             </TooltipTrigger>
