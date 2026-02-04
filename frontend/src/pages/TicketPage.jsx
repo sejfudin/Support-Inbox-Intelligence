@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { DataTable } from "@/components/TicketsTable";
 import { columns } from "@/components/columns/ticketColumns";
 import { useTickets } from "@/queries/tickets";
-import { TicketDetailsModal } from "@/components/modals/TicketDetailsModal"; // Correct path
+import { TicketDetailsModal } from "@/components/modals/TicketDetailsModal";
 
 export default function TicketPage() {
   const [selectedTicketId, setSelectedTicketId] = useState(null);
