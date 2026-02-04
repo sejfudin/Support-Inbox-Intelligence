@@ -52,9 +52,9 @@ export const useLogoutUser = () => {
   const navigate = useNavigate();
 
   const clearAuth = () => {
-    localStorage.removeItem('accessToken');
     queryClient.setQueryData(authKeys.me(), null);
     queryClient.removeQueries({ queryKey: authKeys.all });
+    localStorage.removeItem('accessToken');
     navigate('/login');
   };
 
