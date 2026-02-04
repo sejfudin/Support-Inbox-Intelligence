@@ -1,52 +1,95 @@
 import React, { useState } from "react";
 import { DataTable } from "@/components/TicketsTable";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, LayoutList, LayoutGrid, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useTickets } from "@/queries/tickets";
-import {columns} from "@/components/columns/ticketColumns";
-import { useDebounce } from "use-debounce"; 
+import { columns } from "@/components/columns/ticketColumns";
+import { useDebounce } from "use-debounce";
+import BoardPage from "@/components/BoardPage";
 
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState("list");
   const limit = 10;
   const [debouncedSearch] = useDebounce(search, 500);
 
-  const { data, isLoading, isError, isPlaceholderData } = useTickets({ 
-      page, 
-      limit, 
-      search: debouncedSearch,
-      status: activeTab === "all" ? "" : activeTab 
-    });
+  const { data, isLoading, isError, isPlaceholderData } = useTickets({
+    page,
+    limit,
+    search: debouncedSearch,
+    status: activeTab === "all" ? "" : activeTab,
+  });
   const tickets = data?.data || [];
   const pagination = data?.pagination;
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* Header */}
+      
       <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
         <h1 className="text-xl font-bold sm:text-2xl">Inbox</h1>
 
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input type="text" placeholder="Search tickets..." className="pl-9" value={search}
-            onChange={(e) => {
+        <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center border rounded-lg p-1">
+            <Button
+              variant={viewMode === "list" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("list")}
+              className="gap-2"
+            >
+              <LayoutList className="h-4 w-4" />
+              <span className="hidden sm:inline">List</span>
+            </Button>
+            <Button
+              variant={viewMode === "board" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("board")}
+              className="gap-2"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">Board</span>
+            </Button>
+          </div>
+
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search tickets..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => {
                 setSearch(e.target.value);
-                setPage(1); 
-            }}/>
+                setPage(1);
+              }}
+            />
+          </div>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            New task
+          </Button>
         </div>
       </div>
 
+        {/* Conditional Content Based on View Mode */}
+      {viewMode === "board" ? (
+        <BoardPage />
+      ) : (
+        <>
       {/* Tabs */}
       <div className="border-b bg-white">
         <div className="flex items-center gap-6 overflow-x-auto px-4 sm:px-6 md:px-8">
           {[
             { key: "all", label: "All" },
-            { key: "done", label: "Done" },
-            { key: "inProgress", label: "In progress" },
+            { key: "to do", label: "To do" },
+            { key: "in progress", label: "In progress" },
+            { key: "on staging", label: "On staging" },
             { key: "blocked", label: "Blocked" },
+            { key: "done", label: "Done" },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -88,6 +131,8 @@ export default function TicketPage() {
           )}
         </div>
       </div>
+          </>
+      )}
     </div>
   );
 }
