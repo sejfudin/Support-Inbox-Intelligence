@@ -52,9 +52,34 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const logout = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.cookies;
+    
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch (dbError) {
+        console.error('Logout DB Error:', dbError); 
+      }
+    }
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
+
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   refresh,
-  getMe
+  getMe,
+  logout,
 };
