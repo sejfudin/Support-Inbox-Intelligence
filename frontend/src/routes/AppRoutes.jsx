@@ -6,21 +6,31 @@ import TicketPage from "@/pages/TicketPage";
 import SidebarLayout from "@/layouts/SidebarLayout";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import { TicketDetailsPage } from "@/pages/TicketDetailsPage";
-
 import ProfilePage from "@/pages/ProfilePage";
+import ProtectedRoute from "@/routes/ProtectedRoutes";
+
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<Register />} />
 
+      <Route element={<ProtectedRoute />}>
       <Route element={<SidebarLayout />}>
+      <Route path="/" element={<Navigate to="/tickets" replace />} />
         <Route path="/tickets" element={<TicketPage />} />
-        <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route element={<SidebarLayout />}>
+          
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/register" element={<Register />} />
+
+        </Route>
+      </Route>
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
