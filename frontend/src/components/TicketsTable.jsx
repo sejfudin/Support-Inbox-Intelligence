@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function DataTable({ columns, data, pagination, onPageChange }) {
+export function DataTable({ columns, data, pagination, onPageChange, meta }) {
   const [sorting, setSorting] = React.useState([]);
   const currentPage = pagination?.page || 1;
   const totalResults = pagination?.total || 0;
@@ -36,7 +36,8 @@ export function DataTable({ columns, data, pagination, onPageChange }) {
     state: {
       sorting,
     },
-    manualPagination: true, 
+    manualPagination: true,
+    meta: meta,
   });
 
   const handleNext = () => {
