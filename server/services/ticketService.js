@@ -96,9 +96,20 @@ const updateTicket = async (ticketId, updateData) => {
   }
 };
 
+const deleteTicket = async (ticketId) => {
+  const ticket = await Ticket.findByIdAndDelete(ticketId);
+
+  if (!ticket) {
+    throw new Error("Ticket not found");
+  }
+
+  return { message: "Ticket successfully deleted", id: ticketId };
+};
+
 module.exports = {
   getAllTickets,
   createTicket,
   getTicketById,
-  updateTicket
+  updateTicket,
+  deleteTicket,
 };
