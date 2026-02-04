@@ -28,7 +28,7 @@ const getRoleBadge = (role) => {
   const r = role.toLowerCase();
   let style = "bg-slate-100 text-slate-700 border-slate-200"; // Default
   if (r === "admin") style = "bg-indigo-100 text-indigo-700 border-indigo-200";
-  if (r === "agent") style = "bg-amber-100 text-amber-700 border-amber-200";
+  if (r === "user") style = "bg-amber-100 text-amber-700 border-amber-200";
 
   return (
     <Badge
@@ -59,14 +59,14 @@ export default function AdminUsersPage() {
       id: "2",
       user: "John Doe",
       email: "john@example.com",
-      role: "Agent",
+      role: "User",
       status: "Active",
     },
     {
       id: "3",
       user: "Sarah Smith",
       email: "sarah@example.com",
-      role: "Agent",
+      role: "User",
       status: "Inactive",
     },
     {

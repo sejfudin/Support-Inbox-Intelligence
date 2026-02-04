@@ -33,7 +33,7 @@ const register = async (userData) => {
     fullname: fullName,
     email,
     password: hashedPassword,
-    role: role || 'agent',
+    role: role || 'user',
     active: true
   });
 

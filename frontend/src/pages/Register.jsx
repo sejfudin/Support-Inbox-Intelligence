@@ -34,7 +34,7 @@ const Register = () => {
       email: "",
       password: "",
       confirmPassword: "",
-      role: "agent",
+      role: "user",
     },
   });
 
@@ -105,7 +105,7 @@ const Register = () => {
                       message: "Invalid email format",
                     },
                   })}
-                  placeholder="agent@company.com"
+                  placeholder="user@company.com"
                   className={`h-12 ${errors.email ? "border-red-500" : "border-slate-300"}`}
                 />
                 {errors.email && (
@@ -177,7 +177,7 @@ const Register = () => {
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent className="bg-white">
-                        <SelectItem value="agent">Agent</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
                       </SelectContent>
                     </Select>

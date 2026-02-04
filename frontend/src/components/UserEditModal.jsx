@@ -76,7 +76,7 @@ const UserEditModal = ({ user, onSave, onClose }) => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Agent">Agent</SelectItem>
+                      <SelectItem value="User">User</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
