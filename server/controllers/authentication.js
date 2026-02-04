@@ -2,11 +2,12 @@ const authService = require('../services/authService');
 
 const attachCookie = (res, refreshToken) => {
   const oneDay = 1000 * 60 * 60 * 24;
+  const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isSecureEnv,
     expires: new Date(Date.now() + oneDay * 7),
-    sameSite: 'strict',
+    sameSite: isSecureEnv ? 'none' : 'lax',
   });
 };
 
@@ -52,9 +53,36 @@ const getMe = async (req, res, next) => {
   }
 };
 
+const logout = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.cookies;
+    
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch (dbError) {
+        console.error('Logout DB Error:', dbError); 
+      }
+    }
+
+    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isSecureEnv,
+      sameSite: isSecureEnv ? 'none' : 'lax',
+    });
+
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
   refresh,
-  getMe
+  getMe,
+  logout,
 };

@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { useGetMe } from "@/queries/auth";
+import { useGetMe, useLogoutUser } from "@/queries/auth";
 import { Avatar } from "./Avatar";
 import { capitalizeFirst } from "@/helpers/capitalizeFirst";
 
@@ -25,11 +25,12 @@ export default function AppSidebar({  onSignOut }) {
     {
       label: "Users",
       to: "/admin/users",
-      icon: MessageCircle, // you can use a different icon if you want
+      icon: MessageCircle,
     },
   ];
   
   const {data:user, isPending, isError}=useGetMe();
+  const { mutate: logout } = useLogoutUser();
 
   return (
     <Sidebar>
@@ -82,7 +83,7 @@ export default function AppSidebar({  onSignOut }) {
         ) : isError ? (
           <div className="text-center">
             <p className="text-xs text-destructive mb-2">Session expired</p>
-            <Button size="sm" variant="outline" className="w-full" onClick={onSignOut}>
+            <Button size="sm" variant="outline" className="w-full" onClick={() => logout()}>
               Log in again
             </Button>
           </div>
@@ -106,10 +107,10 @@ export default function AppSidebar({  onSignOut }) {
         <Button
           variant="outline"
           className="mt-4 w-full justify-start"
-          onClick={onSignOut}
+          onClick={() => logout()}
           type="button"
         >
-          Sign out
+          Logout
         </Button>
       </>
     )}
