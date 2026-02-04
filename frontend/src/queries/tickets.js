@@ -1,11 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getAllTickets, getTicket, addMessage } from "@/api/tickets";
+import {
+  getAllTickets,
+  getTicket,
+  addMessage,
+  createTicket,
+} from "@/api/tickets";
 
 export const useTickets = (params) => {
   return useQuery({
     queryKey: ["tickets", params],
     queryFn: () => getAllTickets(params),
-    keepPreviousData: true, 
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -24,6 +29,16 @@ export const useAddMessage = () => {
     mutationFn: addMessage,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries(["ticket", variables.ticketId]);
+    },
+  });
+};
+export const useCreateTicket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: createTicket,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
     },
   });
 };
