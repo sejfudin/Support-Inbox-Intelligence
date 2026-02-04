@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { Activity, MessageCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -17,15 +17,12 @@ import { capitalizeFirst } from "@/helpers/capitalizeFirst";
 
 export default function AppSidebar({  onSignOut }) {
   const nav = [
-    {
-      label: "Inbox",
-      to: "/tickets",
-      icon: MessageCircle,
-    },
+    { label: "Inbox", to: "/tickets", icon: MessageCircle },
+    { label: "AI Logs", to: "/ai-logs", icon: Activity },
     {
       label: "Users",
       to: "/admin/users",
-      icon: MessageCircle, // you can use a different icon if you want
+      icon: User,
     },
   ];
   
@@ -36,7 +33,7 @@ export default function AppSidebar({  onSignOut }) {
       <SidebarHeader className="px-6 pt-6">
         <div className="text-xl font-semibold tracking-tight">
           <span className="text-foreground">Support</span>
-          <span className="text-blue-600">Inbox</span>
+          <span className="text-blue-600">Inbox</span>{" "}
           <span className="text-blue-600">Users</span>
         </div>
       </SidebarHeader>

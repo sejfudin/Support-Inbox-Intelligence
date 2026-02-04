@@ -4,6 +4,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import Register from "@/pages/Register";
 import TicketPage from "@/pages/TicketPage";
 import SidebarLayout from "@/layouts/SidebarLayout";
+import AiLogsPage from "@/pages/Analytics";
 import AdminUsersPage from "@/pages/AdminUsersPage";
 import { TicketDetailsPage } from "@/pages/TicketDetailsPage";
 
@@ -17,6 +18,7 @@ export default function AppRoutes() {
 
       <Route element={<SidebarLayout />}>
         <Route path="/tickets" element={<TicketPage />} />
+        <Route path="/ai-logs" element={<AiLogsPage />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
