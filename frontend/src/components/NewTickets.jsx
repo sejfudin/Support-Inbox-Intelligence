@@ -19,14 +19,13 @@ const NewTickets = ({ onClose }) => {
   const [newTicket, setNewTicket] = useState({
     subject: "",
     description: "",
-    status: "open",
+    status: "to_do",
     agent: "unassigned",
   });
 
   const handleCreate = (e) => {
     e.preventDefault();
 
-    // 3. Pozovi mutaciju
     createMutation.mutate(newTicket, {
       onSuccess: () => {
         onClose();
@@ -98,9 +97,11 @@ const NewTickets = ({ onClose }) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="to_do">To Do</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="on_staging">On Staging</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="blocked">Blocked</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

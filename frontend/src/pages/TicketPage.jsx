@@ -8,12 +8,8 @@ import { useTickets } from "@/queries/tickets";
 import { columns } from "@/components/columns/ticketColumns";
 import { useDebounce } from "use-debounce";
 import BoardPage from "@/components/BoardPage";
-
+import NewTickets from "@/components/NewTickets";
 export default function TicketPage() {
-  const navigate = useNavigate();
-  const handleNewTicket = () => {
-    navigate("/tickets/new");
-  };
   const [activeTab, setActiveTab] = useState("all");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -31,12 +27,12 @@ export default function TicketPage() {
   const tickets = data?.data || [];
   const pagination = data?.pagination;
 
-  const handleTicketCreated = (newTicketData) => {
-    console.log("Ticket Created:", newTicketData);
-    setIsModalOpen(false);
+  const handleNewTicket = () => {
+    setIsModalOpen(true);
   };
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
+      {isModalOpen && <NewTickets onClose={() => setIsModalOpen(false)} />}
       {/* Header */}
       <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
         <h1 className="text-xl font-bold sm:text-2xl">Inbox</h1>
@@ -77,7 +73,7 @@ export default function TicketPage() {
               }}
             />
           </div>
-          <Button>
+          <Button onClick={handleNewTicket}>
             <Plus className="h-4 w-4 mr-2" />
             New task
           </Button>
