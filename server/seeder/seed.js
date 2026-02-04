@@ -42,7 +42,7 @@ const seedData = async () => {
 
     const ticket = await Ticket.create({
       subject: "Subscription billing issue",
-      status: "pending",
+      status: "in progress",
       messages: [
         {
           senderType: "user",
