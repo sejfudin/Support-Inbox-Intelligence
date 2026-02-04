@@ -44,9 +44,9 @@ export default function TicketPage() {
         <div className="flex items-center gap-6 overflow-x-auto px-4 sm:px-6 md:px-8">
           {[
             { key: "all", label: "All" },
-            { key: "open", label: "Open" },
-            { key: "pending", label: "Pending" },
-            { key: "closed", label: "Closed" },
+            { key: "done", label: "Done" },
+            { key: "inProgress", label: "In progress" },
+            { key: "blocked", label: "Blocked" },
           ].map((tab) => (
             <button
               key={tab.key}
