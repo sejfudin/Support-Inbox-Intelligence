@@ -9,13 +9,11 @@ const getAllTickets = async (req, res) => {
       search: search || "",
       status: status || "",
     });
-    res
-      .status(200)
-      .json({
-        success: true,
-        data: result.tickets,
-        pagination: result.pagination,
-      });
+    res.status(200).json({
+      success: true,
+      data: result.tickets,
+      pagination: result.pagination,
+    });
   } catch (error) {
     console.error("Error in getTickets Controller:", error.message);
 
@@ -47,13 +45,14 @@ const getTicketById = async (req, res) => {
       success: true,
       data: ticket,
     });
-
   } catch (error) {
     console.error("Error in getTicketById Controller:", error.message);
-    
+
     // Check if error is because ID format is wrong (e.g. invalid MongoDB ObjectId)
-    if (error.kind === 'ObjectId') {
-        return res.status(404).json({ success: false, message: "Ticket not found" });
+    if (error.kind === "ObjectId") {
+      return res
+        .status(404)
+        .json({ success: false, message: "Ticket not found" });
     }
 
     res.status(500).json({
@@ -84,7 +83,7 @@ const createTicket = async (req, res) => {
       description,
       creatorId: req.user._id,
       assignedTo: assignedAgents,
-      status: status || "pending",
+      status: status || "to do",
     });
     res.status(201).json({
       success: true,

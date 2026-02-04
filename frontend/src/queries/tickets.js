@@ -6,11 +6,12 @@ import {
   createTicket,
 } from "@/api/tickets";
 
-export const useTickets = (params) => {
+export const useTickets = (params, options = {}) => {
   return useQuery({
     queryKey: ["tickets", params],
     queryFn: () => getAllTickets(params),
     placeholderData: (previousData) => previousData,
+    ...options,
   });
 };
 

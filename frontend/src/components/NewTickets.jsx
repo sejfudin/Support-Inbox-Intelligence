@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateTicket } from "@/queries/tickets";
+import { useUsers } from "@/queries/users";
 import {
   Select,
   SelectContent,
@@ -15,18 +16,25 @@ import {
 
 const NewTickets = ({ onClose }) => {
   const createMutation = useCreateTicket();
+  const { data: users, isLoading: usersLoading } = useUsers();
 
   const [newTicket, setNewTicket] = useState({
     subject: "",
     description: "",
-    status: "to_do",
-    agent: "unassigned",
+    status: "to do",
+    assignedTo: "unassigned",
   });
 
   const handleCreate = (e) => {
     e.preventDefault();
 
-    createMutation.mutate(newTicket, {
+    const ticketData = {
+      ...newTicket,
+      assignedTo:
+        newTicket.assignedTo === "unassigned" ? [] : [newTicket.assignedTo],
+    };
+
+    createMutation.mutate(ticketData, {
       onSuccess: () => {
         onClose();
       },
@@ -97,9 +105,9 @@ const NewTickets = ({ onClose }) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="to_do">To Do</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="on_staging">On Staging</SelectItem>
+                        <SelectItem value="to do">To Do</SelectItem>
+                        <SelectItem value="in progress">In Progress</SelectItem>
+                        <SelectItem value="on staging">On Staging</SelectItem>
                         <SelectItem value="done">Done</SelectItem>
                         <SelectItem value="blocked">Blocked</SelectItem>
                       </SelectContent>
@@ -111,9 +119,9 @@ const NewTickets = ({ onClose }) => {
                       Agent
                     </Label>
                     <Select
-                      value={newTicket.agent}
+                      value={newTicket.assignedTo}
                       onValueChange={(value) =>
-                        setNewTicket({ ...newTicket, agent: value })
+                        setNewTicket({ ...newTicket, assignedTo: value })
                       }
                     >
                       <SelectTrigger className="h-12">
@@ -121,7 +129,12 @@ const NewTickets = ({ onClose }) => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
-                        <SelectItem value="agent_1">Agent Smith</SelectItem>
+                        {!usersLoading &&
+                          users?.map((user) => (
+                            <SelectItem key={user._id} value={user._id}>
+                              {user.fullname || user.email}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>

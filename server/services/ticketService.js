@@ -57,7 +57,7 @@ const createTicket = async (ticketData) => {
     subject: ticketData.subject,
     description: ticketData.description || "",
     creator: ticketData.creatorId,
-    status: "in progress",
+    status: ticketData.status || "to do",
     assignedTo: ticketData.assignedTo,
   });
 

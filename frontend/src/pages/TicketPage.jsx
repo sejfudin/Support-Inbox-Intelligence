@@ -18,14 +18,38 @@ export default function TicketPage() {
   const [debouncedSearch] = useDebounce(search, 500);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data, isLoading, isError, isPlaceholderData } = useTickets({
-    page,
-    limit,
-    search: debouncedSearch,
-    status: activeTab === "all" ? "" : activeTab,
-  });
-  const tickets = data?.data || [];
-  const pagination = data?.pagination;
+  const isBoard = viewMode === "board";
+
+  // List = paginated
+  const listQuery = useTickets(
+    {
+      page,
+      limit: 10,
+      search: debouncedSearch,
+      status: activeTab === "all" ? "" : activeTab,
+    },
+    { enabled: !isBoard },
+  );
+
+  // Board = all
+  const boardQuery = useTickets(
+    {
+      page: 1,
+      limit: 10000, // all tickets
+      search: debouncedSearch,
+      status: activeTab === "all" ? "" : activeTab,
+    },
+    { enabled: isBoard },
+  );
+
+  const activeQuery = isBoard ? boardQuery : listQuery;
+
+  const tickets = activeQuery.data?.data || [];
+  const pagination = isBoard ? null : activeQuery.data?.pagination;
+
+  const isLoading = activeQuery.isLoading;
+  const isError = activeQuery.isError;
+  const isPlaceholderData = activeQuery.isPlaceholderData;
 
   const handleNewTicket = () => {
     setIsModalOpen(true);
@@ -73,7 +97,7 @@ export default function TicketPage() {
               }}
             />
           </div>
-          <Button>
+          <Button onClick={handleNewTicket}>
             <Plus className="h-4 w-4 mr-2" />
             New task
           </Button>
