@@ -29,12 +29,9 @@ const getAllTickets = async (req, res) => {
 
 const getTicketById = async (req, res) => {
   try {
-    const { id } = req.params; // 1. Get the ID from the URL (e.g., /api/tickets/123)
-
-    // 2. Call the service layer
+    const { id } = req.params; 
     const ticket = await ticketService.getTicketById(id);
 
-    // 3. Handle case where ticket doesn't exist
     if (!ticket) {
       return res.status(404).json({
         success: false,
@@ -42,7 +39,6 @@ const getTicketById = async (req, res) => {
       });
     }
 
-    // 4. Return success
     res.status(200).json({
       success: true,
       data: ticket,
@@ -51,7 +47,6 @@ const getTicketById = async (req, res) => {
   } catch (error) {
     console.error("Error in getTicketById Controller:", error.message);
     
-    // Check if error is because ID format is wrong (e.g. invalid MongoDB ObjectId)
     if (error.kind === 'ObjectId') {
         return res.status(404).json({ success: false, message: "Ticket not found" });
     }
@@ -100,8 +95,35 @@ const createTicket = async (req, res) => {
   }
 };
 
+const updateTicket = async (req, res, next) => {
+  try {
+    const updateData = req.body;
+
+    const allowedUpdates = ['subject', 'description', 'status', 'assignedTo'];
+    const filteredUpdate = Object.keys(updateData)
+      .filter(key => allowedUpdates.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = updateData[key];
+        return obj;
+      }, {});
+
+    const updatedTicket = await ticketService.updateTicket(updateData.id, filteredUpdate);
+
+    res.status(200).json({
+      success: true,
+      data: updatedTicket
+    });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getAllTickets,
   getTicketById,
   createTicket,
+  updateTicket
 };
