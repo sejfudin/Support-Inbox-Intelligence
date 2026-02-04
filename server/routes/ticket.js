@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { requireRole } = require('../middleware/role');
 
-// const { createTicket, getTickets, getTicketById, addMessage } = require('../controllers/ticket');
+const { createTicket, getTickets, getTicketById, addMessage } = require('../controllers/tickets');
 const { getAllTickets } = require('../controllers/tickets');
 
 // const { generateAI } = require('../controllers/ai');
@@ -13,7 +13,7 @@ const { protect } = require('../middleware/auth');
     getAllTickets);
 
 // router.post('/', createTicket);
-// router.get('/:id', protect, requireRole('admin', 'agent'), getTicketById);
+router.get('/:id', getTicketById);
 // router.post('/:id/messages', protect, requireRole('admin', 'agent'), addMessage);
 // router.post('/:id/ai/generate', protect, requireRole('admin', 'agent'), generateAI);
 
