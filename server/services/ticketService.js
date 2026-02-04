@@ -67,10 +67,36 @@ const createTicket = async (ticketData) => {
   ]);
 };
 
+const updateTicket = async (ticketId, updateData) => {
+  try {
+    const ticket = await Ticket.findByIdAndUpdate(
+      ticketId,
+      { $set: updateData },
+      { 
+        new: true,
+        runValidators: true 
+      }
+    )    
+    .populate('assignedTo', 'fullname email role') 
+    .populate('creator', 'fullName');
 
+
+    if (!ticket) {
+      throw new Error('Ticket not found');
+    }
+
+    return ticket;
+  } catch (error) {
+    if (error.name === 'ValidationError') {
+      throw new Error(`Validation failed: ${error.message}`);
+    }
+    throw error;
+  }
+};
 
 module.exports = {
   getAllTickets,
   createTicket,
   getTicketById,
+  updateTicket
 };
