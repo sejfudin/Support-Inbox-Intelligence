@@ -131,3 +131,5 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     </div>
   );
 };
+
+export default TicketDetailsModal;
