@@ -1,14 +1,14 @@
 import { TicketStatusBadge } from "../StatusBadge";
-import { Avatar } from "../Avatar";
+import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 
 export const columns = [
   {
-    accessorKey: "subject",
+    accessorKey: "title",
     header: "SUBJECT",
     cell: ({ row }) => (
       <div className="max-w-md">
         <div className="font-semibold text-foreground">
-          {row.original.subject}
+          {row.original.title}
         </div>
         <div className="text-sm text-muted-foreground mt-1 line-clamp-1">
           {row.original.description}
@@ -24,13 +24,13 @@ export const columns = [
   {
     accessorKey: "assignedTo",
     header: "ASSIGNED TO",
-    cell: ({ row }) => <Avatar users={row.original.assignedTo} />,
+    cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
   },
   {
     accessorKey: "action",
     header: "ACTION",
     cell: ({ row, table }) => {
-      const ticketId = row.original._id ?? row.original.id;
+      const ticketId = row.original.id ?? row.original._id;
 
       return (
         <button

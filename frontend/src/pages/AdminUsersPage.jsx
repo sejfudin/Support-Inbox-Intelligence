@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { DataTable } from "@/components/TicketsTable";
+import { DataTable } from "@/components/Tickets/TicketsTable";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

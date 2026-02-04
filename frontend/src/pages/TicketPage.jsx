@@ -1,15 +1,17 @@
-import React, { useState } from "react";
-import { DataTable } from "@/components/TicketsTable";
-import { Input } from "@/components/ui/input";
-import { Search, LayoutList, LayoutGrid, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import React, { useMemo, useState } from "react";
+import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTickets } from "@/queries/tickets";
 import { columns } from "@/components/columns/ticketColumns";
 import { useDebounce } from "use-debounce";
 import BoardPage from "@/components/BoardPage";
-import NewTickets from "@/components/NewTickets";
+import NewTickets from "@/components/Tickets/NewTickets";
 import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
+import TicketsState from "@/components/Tickets/TicketsState";
+import TicketsHeader from "@/components/Tickets/TicketsHeader";
+import TicketsTabs from "@/components/Tickets/TicketsTabs";
+import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
+import { normalizeTicket } from "@/helpers/normalizeTicket";
+import { useTicketModals } from "@/hooks/useTicketModals";
 
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
@@ -18,38 +20,28 @@ export default function TicketPage() {
   const [viewMode, setViewMode] = useState("list");
   const limit = 10;
   const [debouncedSearch] = useDebounce(search, 500);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTicketId, setSelectedTicketId] = useState(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const {
+    isNewOpen,
+    initialStatus,
+    selectedTicketId,
+    isDetailsOpen,
+    openNewTicket,
+    closeNewTicket,
+    openTicketDetails,
+    closeTicketDetails,
+  } = useTicketModals();
 
   const isBoard = viewMode === "board";
 
-  // List = paginated
-  const listQuery = useTickets(
-    {
-      page,
-      limit: 10,
-      search: debouncedSearch,
-      status: activeTab === "all" ? "" : activeTab,
-    },
-    { enabled: !isBoard },
-  );
+  const queryParams = getTicketsQueryParams({
+    page,
+    search: debouncedSearch,
+    activeTab,
+    listLimit: limit,
+  });
 
-  // Board = all
-  const boardQuery = useTickets(
-    {
-      page: 1,
-      limit: 10000, // all tickets
-      search: debouncedSearch,
-      status: activeTab === "all" ? "" : activeTab,
-    },
-    { enabled: isBoard },
-  );
-
-  const handleOpenTicket = (id) => {
-    setSelectedTicketId(id);
-    setIsDetailsOpen(true);
-  };
+  const listQuery = useTickets(queryParams.list, { enabled: !isBoard });
+  const boardQuery = useTickets(queryParams.board, { enabled: isBoard });
 
   const activeQuery = isBoard ? boardQuery : listQuery;
 
@@ -60,127 +52,78 @@ export default function TicketPage() {
   const isError = activeQuery.isError;
   const isPlaceholderData = activeQuery.isPlaceholderData;
 
-  const handleNewTicket = () => {
-    setIsModalOpen(true);
-  };
+  const normalizedTickets = useMemo(
+    () => tickets.map((ticket) => normalizeTicket(ticket)),
+    [tickets],
+  );
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      {isModalOpen && <NewTickets onClose={() => setIsModalOpen(false)} />}
-      {/* Header */}
-      <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
-        <h1 className="text-xl font-bold sm:text-2xl">Inbox</h1>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
-          {/* View Toggle */}
-          <div className="flex items-center border rounded-lg p-1 shrink-0">
-            <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("list")}
-              className="gap-2"
-            >
-              <LayoutList className="h-4 w-4" />
-              <span className="hidden sm:inline">List</span>
-            </Button>
-            <Button
-              variant={viewMode === "board" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("board")}
-              className="gap-2"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="hidden sm:inline">Board</span>
-            </Button>
-          </div>
-
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search tickets..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-          <Button onClick={handleNewTicket}>
-            <Plus className="h-4 w-4 mr-2" />
-            New task
-          </Button>
-        </div>
-      </div>
+      <NewTickets
+        isOpen={isNewOpen}
+        onClose={closeNewTicket}
+        initialStatus={initialStatus}
+      />
+      <TicketsHeader
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        search={search}
+        onSearch={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        onNewTicket={openNewTicket}
+      />
 
       {/* Conditional Content Based on View Mode */}
       {viewMode === "board" ? (
-        <BoardPage tickets={tickets} isLoading={isLoading} isError={isError} />
+        <BoardPage
+          tickets={normalizedTickets}
+          isLoading={isLoading}
+          isError={isError}
+          onNewTicket={openNewTicket}
+          onOpenTicket={openTicketDetails}
+        />
       ) : (
         <>
-          {/* Tabs */}
-          <div className="border-b bg-white">
-            <div className="flex items-center gap-6 overflow-x-auto px-4 sm:px-6 md:px-8">
-              {[
-                { key: "all", label: "All" },
-                { key: "to do", label: "To do" },
-                { key: "in progress", label: "In progress" },
-                { key: "on staging", label: "On staging" },
-                { key: "blocked", label: "Blocked" },
-                { key: "done", label: "Done" },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => {
-                    setActiveTab(tab.key);
-                    setPage(1);
-                  }}
-                  className={`flex flex-shrink-0 items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.key
-                      ? "border-blue-600 text-blue-600"
-                      : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Tabs - Only visible in list view */}
+          <TicketsTabs
+            activeTab={activeTab}
+            onChange={(tabKey) => {
+              setActiveTab(tabKey);
+              setPage(1);
+            }}
+          />
 
           {/* Content */}
           <div className="flex-1 p-4 sm:p-6 md:p-8">
             <div
               className={`bg-white rounded-lg shadow min-h-[400px] ${isPlaceholderData ? "opacity-60" : ""}`}
             >
-              {isLoading ? (
-                <div className="flex items-center justify-center h-64 font-medium text-gray-500">
-                  Loading tickets...
-                </div>
-              ) : isError ? (
-                <div className="flex items-center justify-center h-64 text-red-500">
-                  Something went wrong.
-                </div>
-              ) : (
+              <TicketsState
+                isLoading={isLoading}
+                isError={isError}
+                isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
+                emptyMessage="No tickets found."
+              >
                 <DataTable
                   columns={columns}
-                  data={tickets}
+                  data={normalizedTickets}
                   pagination={pagination}
                   onPageChange={(newPage) => setPage(newPage)}
-                  meta={{ onOpenTicket: handleOpenTicket }}
+                  meta={{ onOpenTicket: openTicketDetails }}
                 />
-              )}
-              <TicketDetailsModal
-                ticketId={selectedTicketId}
-                isOpen={isDetailsOpen}
-                onClose={() => {
-                  setIsDetailsOpen(false);
-                  setSelectedTicketId(null);
-                }}
-              />
+              </TicketsState>
             </div>
           </div>
         </>
       )}
+
+      {/* Modals - Always rendered */}
+      <TicketDetailsModal
+        ticketId={selectedTicketId}
+        isOpen={isDetailsOpen}
+        onClose={closeTicketDetails}
+      />
     </div>
   );
 }
