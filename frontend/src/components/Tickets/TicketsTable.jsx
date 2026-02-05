@@ -62,7 +62,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap"
+                    className={`text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap ${header.column.columnDef.meta?.headerClassName || ""}`}
                   >
                     {header.isPlaceholder
                       ? null
@@ -85,7 +85,10 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                   className="border-b hover:bg-gray-50"
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-4 align-top">
+                    <TableCell
+                      key={cell.id}
+                      className={`py-4 align-top ${cell.column.columnDef.meta?.cellClassName || ""}`}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
