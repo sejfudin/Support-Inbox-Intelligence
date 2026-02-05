@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns'; 
 import { Calendar, User, CircleDot, X, Save } from 'lucide-react';
-// 1. Import the mutation hook for saving
 import { useTicket, useUpdateTicket } from '@/queries/tickets';
 import StatusDropdown from "@/components/StatusDropdown";
 
@@ -9,10 +8,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
   const [currentStatus, setCurrentStatus] = useState("To Do");
 
-  // Fetch ticket data
   const { data: apiResponse, isLoading } = useTicket(ticketId);
   
-  // 2. Initialize the update mutation
   const updateTicketMutation = useUpdateTicket(); 
 
   useEffect(() => {
@@ -24,7 +21,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     }
   }, [apiResponse]);
 
-  // 3. One single, correct handleSave function
   const handleSave = () => {
     console.log("Saving changes...", { status: currentStatus, description });
 
@@ -74,7 +70,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       
       <div className="w-full max-w-[1200px] bg-white h-[90vh] rounded-xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
         
-        {/* HEADER */}
         <div className="flex items-center justify-between px-8 py-4 border-b bg-white">
           <div className="flex items-center gap-4">
             <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors">
@@ -110,7 +105,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 <CircleDot className="w-4 h-4" /> Status
               </div>
               
-              {/* 4. Swapped TicketStatusBadge for your new Dropdown */}
               <StatusDropdown 
                 status={currentStatus} 
                 onChange={(newStatus) => setCurrentStatus(newStatus)} 
