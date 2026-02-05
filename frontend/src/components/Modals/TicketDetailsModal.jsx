@@ -1,36 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns'; 
-import { 
-  Calendar, User, CircleDot, X, Save
-} from 'lucide-react';
-import { useTicket } from '@/queries/tickets';
+import { Calendar, User, CircleDot, X, Save } from 'lucide-react';
+// 1. Import the mutation hook for saving
+import { useTicket, useUpdateTicket } from '@/queries/tickets';
 import StatusDropdown from "@/components/StatusDropdown";
+
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
   const [currentStatus, setCurrentStatus] = useState("To Do");
 
+  // Fetch ticket data
   const { data: apiResponse, isLoading } = useTicket(ticketId);
+  
+  // 2. Initialize the update mutation
+  const updateTicketMutation = useUpdateTicket(); 
 
   useEffect(() => {
     const ticketData = apiResponse?.data || apiResponse;
     
     if (ticketData) {
-      if (ticketData.description) {
-        setDescription(ticketData.description);
-      }
-      if (ticketData.status) {
-        setCurrentStatus(ticketData.status);
-      }
+      if (ticketData.description) setDescription(ticketData.description);
+      if (ticketData.status) setCurrentStatus(ticketData.status);
     }
   }, [apiResponse]);
 
-  const handleStatusChange = (newStatus) => {
-    setCurrentStatus(newStatus);
-    console.log("Status changed to:", newStatus);
-  };
-
+  // 3. One single, correct handleSave function
   const handleSave = () => {
-    console.log("Saving changes:", { description, status: currentStatus });
+    console.log("Saving changes...", { status: currentStatus, description });
+
+    updateTicketMutation.mutate(
+      {
+        ticketId: ticketId,
+        updates: {
+          status: currentStatus,
+          description: description
+        }
+      },
+      {
+        onSuccess: () => {
+          console.log("Saved successfully!");
+          onClose(); 
+        },
+        onError: (error) => {
+          console.error("Failed to save:", error);
+          alert("Failed to save changes.");
+        }
+      }
+    );
   };
 
   if (!isOpen || !ticketId) return null;
@@ -50,6 +66,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     assignee: ticket?.assignedTo?.[0]?.email?.charAt(0).toUpperCase() || "NA",
     dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), 'MMM d') : "Start",
     dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), 'MMM d') : "Due",
+    priority: ticket?.priority || "Normal"
   };
 
   return (
@@ -57,6 +74,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       
       <div className="w-full max-w-[1200px] bg-white h-[90vh] rounded-xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
         
+        {/* HEADER */}
         <div className="flex items-center justify-between px-8 py-4 border-b bg-white">
           <div className="flex items-center gap-4">
             <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors">
@@ -67,9 +85,15 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           
           <button 
             onClick={handleSave}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm"
+            disabled={updateTicketMutation.isPending}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+              updateTicketMutation.isPending 
+                ? 'bg-blue-400 cursor-not-allowed text-white' 
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
           >
-            <Save className="w-4 h-4" /> Save Changes
+            <Save className="w-4 h-4" /> 
+            {updateTicketMutation.isPending ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
 
@@ -86,9 +110,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 <CircleDot className="w-4 h-4" /> Status
               </div>
               
+              {/* 4. Swapped TicketStatusBadge for your new Dropdown */}
               <StatusDropdown 
                 status={currentStatus} 
-                onChange={handleStatusChange} 
+                onChange={(newStatus) => setCurrentStatus(newStatus)} 
               />
             </div>
 
@@ -133,3 +158,5 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     </div>
   );
 };
+
+export default TicketDetailsModal;
