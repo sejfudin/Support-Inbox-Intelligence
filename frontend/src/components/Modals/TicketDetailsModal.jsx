@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns'; 
 import { 
-  Calendar, Flag, User, CircleDot, X, Save
+  Calendar, User, CircleDot, X, Save
 } from 'lucide-react';
 import { useTicket } from '@/queries/tickets';
-
+import StatusDropdown from "@/components/StatusDropdown";
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
+  const [currentStatus, setCurrentStatus] = useState("To Do");
 
-  const { data: apiResponse, isLoading, isError } = useTicket(ticketId);
+  const { data: apiResponse, isLoading } = useTicket(ticketId);
 
   useEffect(() => {
-    if (apiResponse?.data?.description || apiResponse?.description) {
-      setDescription(apiResponse?.data?.description || apiResponse?.description);
+    const ticketData = apiResponse?.data || apiResponse;
+    
+    if (ticketData) {
+      if (ticketData.description) {
+        setDescription(ticketData.description);
+      }
+      if (ticketData.status) {
+        setCurrentStatus(ticketData.status);
+      }
     }
   }, [apiResponse]);
+
+  const handleStatusChange = (newStatus) => {
+    setCurrentStatus(newStatus);
+    console.log("Status changed to:", newStatus);
+  };
+
+  const handleSave = () => {
+    console.log("Saving changes:", { description, status: currentStatus });
+  };
 
   if (!isOpen || !ticketId) return null;
 
@@ -30,24 +47,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   
   const task = {
     title: ticket?.subject || ticket?.title || "Untitled Task", 
-    status: ticket?.status || "To Do",
     assignee: ticket?.assignedTo?.[0]?.email?.charAt(0).toUpperCase() || "NA",
     dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), 'MMM d') : "Start",
     dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), 'MMM d') : "Due",
-    priority: ticket?.priority || "Normal"
-  };
-
-  const getStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
-        case 'closed': case 'done': return '#22c55e'; 
-        case 'pending': return '#eab308';
-        case 'in progress': return '#3b82f6'; 
-        default: return '#9E54B0';
-    }
-  };
-
-  const handleSave = () => {
-    console.log("Saving new description:", description);
   };
 
   return (
@@ -78,16 +80,16 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           </h1>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12 pb-10 border-b border-gray-100">
+            
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
               </div>
-              <div 
-                  className="w-fit text-white rounded-md text-[11px] font-bold uppercase px-4 py-1.5 shadow-sm"
-                  style={{ backgroundColor: getStatusColor(task.status) }}
-              >
-                  {task.status}
-              </div>
+              
+              <StatusDropdown 
+                status={currentStatus} 
+                onChange={handleStatusChange} 
+              />
             </div>
 
             <div className="space-y-3">
