@@ -121,9 +121,29 @@ const updateTicket = async (req, res, next) => {
   }
 };
 
+const deleteTicket = async (req, res, next) => {
+  try {
+    const { id } = req.body; 
+
+    const result = await ticketService.deleteTicket(id);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      id: result.id
+    });
+  } catch (error) {
+    if (error.message === "Ticket not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getAllTickets,
   getTicketById,
   createTicket,
-  updateTicket
+  updateTicket,
+  deleteTicket
 };
