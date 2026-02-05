@@ -1,14 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, X, Eye, EyeOff } from "lucide-react";
+import { UserStatusBadge } from "@/components/UserStatusBadge";
+import { RoleBadge } from "@/components/RoleBadge";
+import { useGetMe, useUpdateUser } from "@/queries/auth";
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { data: user, isLoading, isError } = useGetMe();
+  const updateUserMutation = useUpdateUser();
 
   const [profile, setProfile] = useState({
     fullName: "John Doe",
@@ -18,48 +23,46 @@ const ProfilePage = () => {
     password: "",
   });
 
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        fullName: user.fullname || "", 
+        email: user.email || "",
+        role: user.role || "User",
+        status: user.status || "Active",
+        password: "",
+      });
+    }
+  }, [user]);
+
   const handleSave = (e) => {
     e.preventDefault();
-    setIsEditing(false);
+    const id = user?.id || user?._id;
+    const payload = {
+      fullname: profile.fullName,
+    };
 
-    console.log("Saving...", profile);
-  };
+    if (profile.password) {
+      payload.password = profile.password;
+    }
 
-  const getStatusBadge = (status) => {
-    const s = status.toLowerCase();
-    const style =
-      s === "active"
-        ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-        : "bg-slate-100 text-slate-600 border-slate-200";
-
-    return (
-      <Badge
-        className={`${style} hover:${style} px-4 py-1 text-xs font-bold uppercase tracking-wider`}
-      >
-        {status}
-      </Badge>
+    updateUserMutation.mutate(
+      { id, data: payload },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+        },
+      }
     );
   };
+  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  if (isError) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
 
-  const getRoleBadge = (role) => {
-    const r = role.toLowerCase();
-    let style = "bg-slate-100 text-slate-700 border-slate-200";
-    if (r === "admin")
-      style = "bg-indigo-100 text-indigo-700 border-indigo-200";
-    if (r === "user") style = "bg-amber-100 text-amber-700 border-amber-200";
-
-    return (
-      <Badge
-        className={`${style} hover:${style} px-4 py-1 text-xs font-bold uppercase tracking-wider`}
-      >
-        {role}
-      </Badge>
-    );
-  };
+  const isFullNameValid = profile.fullName.trim().length > 0;
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-white flex flex-col items-center justify-center p-4 overflow-y-auto">
-      <div className="w-full max-w-md md:max-w-2xl my-auto">
+   <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 min-h-[calc(100vh-2rem)]">
+        <div className="w-full max-w-md md:max-w-2xl my-auto">
         <Card className="shadow-2xl border-slate-200">
           <CardHeader className="pt-10 pb-6 px-6 md:px-12 flex flex-row items-center justify-between">
             <div className="space-y-1">
@@ -111,7 +114,7 @@ const ProfilePage = () => {
                     Email Address
                   </Label>
                   <Input
-                    disabled={!isEditing}
+                    disabled={true}
                     className={`h-14 text-lg border-slate-300 focus:ring-2 ${!isEditing ? "bg-slate-50 text-slate-500 cursor-not-allowed" : "bg-white text-gray-900"}`}
                     value={profile.email}
                     onChange={(e) =>
@@ -158,14 +161,19 @@ const ProfilePage = () => {
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                         User Role
                       </span>
-                      {getRoleBadge(profile.role)}
+                     <RoleBadge role={profile.role} />
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center space-y-2">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                         Account Status
                       </span>
-                      {getStatusBadge(profile.status)}
+                      <UserStatusBadge status={profile.status} />
                     </div>
+                  </div>
+                )}
+                {isEditing && updateUserMutation.isError && (
+                  <div className="md:col-span-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm font-medium animate-in fade-in zoom-in duration-300">
+                    {updateUserMutation.error?.response?.data?.message || "Something went wrong. Please try again."}
                   </div>
                 )}
               </div>
@@ -173,9 +181,17 @@ const ProfilePage = () => {
               {isEditing && (
                 <Button
                   type="submit"
-                  className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98] mt-4 shadow-xl"
+                  disabled={updateUserMutation.isPending || !isFullNameValid}
+                  className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98] mt-4 shadow-xl flex items-center justify-center gap-2"
                 >
-                  Save Changes
+                  {updateUserMutation.isPending ? (
+                    <>
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </Button>
               )}
             </form>
