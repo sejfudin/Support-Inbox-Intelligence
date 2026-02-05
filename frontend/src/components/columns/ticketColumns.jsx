@@ -5,12 +5,22 @@ export const columns = [
   {
     accessorKey: "title",
     header: "SUBJECT",
+    meta: {
+      headerClassName: "w-[58%]",
+      cellClassName: "w-[58%]",
+    },
     cell: ({ row }) => (
-      <div className="max-w-md">
-        <div className="font-semibold text-foreground">
+      <div className="w-full min-w-0 max-w-full">
+        <div
+          className="truncate font-semibold text-foreground"
+          title={row.original.title}
+        >
           {row.original.title}
         </div>
-        <div className="text-sm text-muted-foreground mt-1 line-clamp-1">
+        <div
+          className="mt-1 line-clamp-1 text-sm text-muted-foreground break-words"
+          title={row.original.description}
+        >
           {row.original.description}
         </div>
       </div>
@@ -19,16 +29,28 @@ export const columns = [
   {
     accessorKey: "status",
     header: "STATUS",
+    meta: {
+      headerClassName: "w-[14%]",
+      cellClassName: "w-[14%] whitespace-nowrap",
+    },
     cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "assignedTo",
     header: "ASSIGNED TO",
+    meta: {
+      headerClassName: "w-[14%]",
+      cellClassName: "w-[14%] whitespace-nowrap",
+    },
     cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
   },
   {
     accessorKey: "action",
     header: "ACTION",
+    meta: {
+      headerClassName: "w-[14%]",
+      cellClassName: "w-[14%] whitespace-nowrap",
+    },
     cell: ({ row, table }) => {
       const ticketId = row.original.id ?? row.original._id;
 

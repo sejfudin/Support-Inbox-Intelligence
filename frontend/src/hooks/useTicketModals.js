@@ -7,7 +7,7 @@ export const useTicketModals = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const openNewTicket = useCallback((status = "to do") => {
-    setInitialStatus(status);
+    setInitialStatus(typeof status === "string" ? status : "to do");
     setIsNewOpen(true);
   }, []);
 
