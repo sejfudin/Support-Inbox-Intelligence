@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
 
     const token = localStorage.getItem('accessToken');
     const isAuthenticated = !!user && !isError;
-    const loading = isLoadingUser;
+    const loading = isLoadingUser && !!token;
 
     return (
         <AuthContext.Provider value={{ 

@@ -19,13 +19,13 @@ export default function AppRoutes() {
       <Route path="/" element={<Navigate to="/tickets" replace />} />
         <Route path="/tickets" element={<TicketPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-      </Route>
-      </Route>
+      
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/register" element={<Register />} />
-
+        </Route>
+              </Route>
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
