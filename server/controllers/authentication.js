@@ -79,10 +79,30 @@ const logout = async (req, res, next) => {
   }
 };
 
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params; 
+    const updateData = req.body; 
+    
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      return res.status(403).json({ 
+        message: "You are not authorized to update this profile" 
+      });
+    }
+    const user = await authService.updateUser(id, updateData);
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ 
+      message: error.message || "Internal server error" 
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   refresh,
   getMe,
   logout,
+  updateUser
 };

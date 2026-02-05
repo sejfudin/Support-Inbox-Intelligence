@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { registerUser, loginUser, getMe, logoutUser } from "@/api/auth";
+import { registerUser, loginUser, getMe, logoutUser, updateUser } from "@/api/auth";
 import { useNavigate } from "react-router-dom";
 
 export const authKeys = {
@@ -68,4 +68,25 @@ export const useLogoutUser = () => {
   });
 };
 
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient();
 
+  return useMutation({
+    mutationFn: ({ id, data }) => updateUser(id, data),
+    
+    onSuccess: (updatedUser, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.setQueryData(["user", variables.id], updatedUser);
+      
+      const currentMe = queryClient.getQueryData(authKeys.me());
+      const currentId = currentMe?.id || currentMe?._id;
+      
+      if (currentId === variables.id) {
+        queryClient.setQueryData(authKeys.me(), updatedUser);
+      }
+    },
+    onError: (error) => {
+      console.error("Update error:", error.response?.data?.message || error.message);
+    }
+  });
+};
