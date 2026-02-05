@@ -55,7 +55,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
   return (
     <div className="w-full">
       <div className="w-full overflow-x-auto">
-        <Table className="min-w-[900px]">
+        <Table className="min-w-[900px] table-fixed">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
