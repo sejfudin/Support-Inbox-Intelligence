@@ -1,10 +1,12 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateTicket } from "@/queries/tickets";
+import { useUsers } from "@/queries/users";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -12,22 +14,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { STATUS_OPTIONS } from "@/helpers/ticketStatus";
+import { useTicketForm } from "@/hooks/useTicketForm";
 
-const NewTickets = ({ onClose }) => {
+const NewTickets = ({ isOpen, onClose, initialStatus = "to do" }) => {
   const createMutation = useCreateTicket();
+  const { data: users, isLoading: usersLoading } = useUsers();
 
-  const [newTicket, setNewTicket] = useState({
-    subject: "",
-    description: "",
-    status: "to_do",
-    agent: "unassigned",
-  });
+  const { form: newTicket, updateField, resetForm } = useTicketForm(initialStatus);
 
   const handleCreate = (e) => {
     e.preventDefault();
 
-    createMutation.mutate(newTicket, {
+    const ticketData = {
+      ...newTicket,
+      assignedTo:
+        newTicket.assignedTo === "unassigned" ? [] : [newTicket.assignedTo],
+    };
+
+    createMutation.mutate(ticketData, {
       onSuccess: () => {
+        resetForm();
         onClose();
       },
       onError: (error) => {
@@ -37,16 +44,16 @@ const NewTickets = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto p-0">
         <Card className="border-0 shadow-none">
-          <CardHeader className="flex flex-row items-center justify-between border-b mb-4">
-            <CardTitle className="text-xl font-bold">
+          <DialogHeader className="px-6 pt-6 border-b mb-4">
+            <DialogTitle className="text-xl font-bold">
               Create New Ticket
-            </CardTitle>
-          </CardHeader>
+            </DialogTitle>
+          </DialogHeader>
 
-          <CardContent>
+          <CardContent className="px-6 pb-6">
             <form onSubmit={handleCreate} className="space-y-6">
               <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
@@ -56,9 +63,7 @@ const NewTickets = ({ onClose }) => {
                   <Input
                     placeholder="e.g. Technical problem with registration"
                     value={newTicket.subject}
-                    onChange={(e) =>
-                      setNewTicket({ ...newTicket, subject: e.target.value })
-                    }
+                    onChange={(e) => updateField("subject", e.target.value)}
                     className="h-12 text-base"
                     required
                   />
@@ -71,12 +76,7 @@ const NewTickets = ({ onClose }) => {
                   <Textarea
                     placeholder="Describe the issue..."
                     value={newTicket.description}
-                    onChange={(e) =>
-                      setNewTicket({
-                        ...newTicket,
-                        description: e.target.value,
-                      })
-                    }
+                    onChange={(e) => updateField("description", e.target.value)}
                     className="min-h-[120px] text-base"
                     required
                   />
@@ -89,19 +89,17 @@ const NewTickets = ({ onClose }) => {
                     </Label>
                     <Select
                       value={newTicket.status}
-                      onValueChange={(value) =>
-                        setNewTicket({ ...newTicket, status: value })
-                      }
+                      onValueChange={(value) => updateField("status", value)}
                     >
                       <SelectTrigger className="h-12">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="to_do">To Do</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="on_staging">On Staging</SelectItem>
-                        <SelectItem value="done">Done</SelectItem>
-                        <SelectItem value="blocked">Blocked</SelectItem>
+                        {STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -111,17 +109,20 @@ const NewTickets = ({ onClose }) => {
                       Agent
                     </Label>
                     <Select
-                      value={newTicket.agent}
-                      onValueChange={(value) =>
-                        setNewTicket({ ...newTicket, agent: value })
-                      }
+                      value={newTicket.assignedTo}
+                      onValueChange={(value) => updateField("assignedTo", value)}
                     >
                       <SelectTrigger className="h-12">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
-                        <SelectItem value="agent_1">Agent Smith</SelectItem>
+                        {!usersLoading &&
+                          users?.map((user) => (
+                            <SelectItem key={user._id} value={user._id}>
+                              {user.fullname || user.email}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -148,8 +149,8 @@ const NewTickets = ({ onClose }) => {
             </form>
           </CardContent>
         </Card>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
