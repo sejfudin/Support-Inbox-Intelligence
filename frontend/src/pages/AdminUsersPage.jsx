@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import UserEditModal from "@/components/UserEditModal";
 import { useNavigate } from "react-router-dom";
+import { useUsers } from "@/queries/users";
 
 const getStatusBadge = (status) => {
   const s = status.toLowerCase();
@@ -26,7 +27,7 @@ const getStatusBadge = (status) => {
 
 const getRoleBadge = (role) => {
   const r = role.toLowerCase();
-  let style = "bg-slate-100 text-slate-700 border-slate-200"; // Default
+  let style = "bg-slate-100 text-slate-700 border-slate-200";
   if (r === "admin") style = "bg-indigo-100 text-indigo-700 border-indigo-200";
   if (r === "user") style = "bg-amber-100 text-amber-700 border-amber-200";
 
@@ -42,53 +43,19 @@ const getRoleBadge = (role) => {
 
 export default function AdminUsersPage() {
   const navigate = useNavigate();
-  const handleRegister = (navigate) => {
-    navigate("/register");
-  };
-  const [activeTab, setActiveTab] = React.useState("all");
+  const { data: usersData, isLoading, isError } = useUsers();
   const [editingUser, setEditingUser] = useState(null);
-  const [users, setUsers] = useState([
-    {
-      id: "1",
-      user: "Evil Hacker",
-      email: "hacker@example.com",
-      role: "Admin",
-      status: "Active",
-    },
-    {
-      id: "2",
-      user: "John Doe",
-      email: "john@example.com",
-      role: "User",
-      status: "Active",
-    },
-    {
-      id: "3",
-      user: "Sarah Smith",
-      email: "sarah@example.com",
-      role: "User",
-      status: "Inactive",
-    },
-    {
-      id: "4",
-      user: "Mike Brown",
-      email: "mike@example.com",
-      role: "Admin",
-      status: "Inactive",
-    },
-  ]);
+  const users =
+    usersData?.map((u) => ({
+      id: u._id,
+      user: u.fullname || "No name",
+      email: u.email,
+      role: u.role,
+      status: u.active === true ? "Active" : "Inactive",
+    })) ?? [];
 
   const handleEditUser = (user) => {
     setEditingUser(user);
-  };
-
-  const handleSaveUser = (updatedUser) => {
-    setUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.id === updatedUser.id ? updatedUser : user,
-      ),
-    );
-    setEditingUser(null);
   };
 
   const handleCloseModal = () => {
@@ -100,7 +67,7 @@ export default function AdminUsersPage() {
       accessorKey: "user",
       header: "USER",
       cell: ({ row }) => (
-        <div className="flex justify-center flex-col">
+        <div className="flex flex-col">
           <span className="font-semibold text-foreground">
             {row.original.user}
           </span>
@@ -133,13 +100,28 @@ export default function AdminUsersPage() {
       ),
     },
   ];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span className="text-muted-foreground">Loading users...</span>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-red-500">
+        Failed to load users
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* Header */}
       <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
         <h1 className="text-xl font-bold sm:text-2xl">User Management</h1>
-        <Button onClick={() => handleRegister(navigate)}>Add New User</Button>
+        <Button onClick={() => navigate("/register")}>Add New User</Button>
       </div>
       {/* Content */}
       <div className="flex-1 p-4 sm:p-6 md:p-8">
@@ -148,12 +130,9 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* Edit modal */}
       {editingUser && (
-        <UserEditModal
-          user={editingUser}
-          onSave={handleSaveUser}
-          onClose={handleCloseModal}
-        />
+        <UserEditModal user={editingUser} onClose={handleCloseModal} />
       )}
     </div>
   );
