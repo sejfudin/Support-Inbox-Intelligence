@@ -27,3 +27,10 @@ export const createTicket = async (ticketData) => {
   const response = await apiClient.post("/tickets", ticketData);
   return response.data;
 };
+
+export const deleteTicket = async (ticketId) => {
+  const response = await apiClient.delete("/tickets", {
+    data: { ticketId },
+  });
+  return response.data;
+};
