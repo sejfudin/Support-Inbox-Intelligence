@@ -46,7 +46,7 @@ export default function TicketsHeader({
           />
         </div>
 
-        <Button onClick={onNewTicket}>
+        <Button onClick={() => onNewTicket()}>
           <Plus className="h-4 w-4 mr-2" />
           New task
         </Button>
