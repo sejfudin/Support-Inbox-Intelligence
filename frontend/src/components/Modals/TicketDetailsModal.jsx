@@ -11,6 +11,7 @@ import { DeleteConfirmModal } from './DeleteConfirmModal';
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   const { data: apiResponse, isLoading, isError } = useTicket(ticketId);
   const {mutate: deleteTicket, isPending:isDeleting} = useDeleteTicket();
@@ -21,6 +22,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
         setIsDeleteModalOpen(false);
         onClose(); 
         },
+      onError: (error) => {
+        setDeleteError(error?.response?.data?.message || "Failed to delete ticket. Please try again.");
+      }
       });
     };
 
@@ -83,12 +87,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-12 py-10">
-          
+
           <DeleteConfirmModal 
             isOpen={isDeleteModalOpen}
             onClose={() => setIsDeleteModalOpen(false)}
             onConfirm={handleConfirmDelete}
             isLoading={isDeleting}
+            errorMessage={deleteError}
           />
           
           <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight">

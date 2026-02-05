@@ -1,6 +1,6 @@
 import { AlertTriangle, X } from "lucide-react";
 
-export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading }) => {
+export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading, errorMessage }) => {
   if (!isOpen) return null;
 
   return (
@@ -21,6 +21,12 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isLoading }) =>
           <p className="text-sm text-gray-500 mt-2">
             Are you sure you want to delete this ticket? This action cannot be undone and all associated data will be lost.
           </p>
+
+          {errorMessage && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm animate-shake">
+            {errorMessage}
+            </div>
+         )}
 
           <div className="flex gap-3 mt-6">
             <button
