@@ -11,26 +11,29 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { useGetMe, useLogoutUser } from "@/queries/auth";
+import {  useLogoutUser } from "@/queries/auth";
 import { Avatar } from "./Avatar";
 import { capitalizeFirst } from "@/helpers/capitalizeFirst";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AppSidebar({  onSignOut }) {
+  const { user, isLoginPending } = useAuth();
+  const { mutate: logout } = useLogoutUser();
+
   const nav = [
     {
       label: "Inbox",
       to: "/tickets",
       icon: MessageCircle,
-    },
-    {
+    },{
       label: "Users",
       to: "/admin/users",
       icon: MessageCircle,
-    },
+      adminOnly: true,
+    }
   ];
   
-  const {data:user, isPending, isError}=useGetMe();
-  const { mutate: logout } = useLogoutUser();
+  
   const navigate=useNavigate();
   return (
     <Sidebar>
@@ -45,6 +48,9 @@ export default function AppSidebar({  onSignOut }) {
       <SidebarContent className="px-3">
         <SidebarMenu>
           {nav.map((item) => {
+            if (item.adminOnly && user?.role !== 'admin') {
+                return null;
+            }
             const Icon = item.icon;
 
             return (
@@ -72,20 +78,13 @@ export default function AppSidebar({  onSignOut }) {
 
       <SidebarFooter className="p-4">
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          {isPending ? (
+          {isLoginPending ? (
             <div className="p-4 flex items-center gap-3 animate-pulse">
               <div className="h-9 w-9 rounded-full bg-muted" />
               <div className="space-y-2">
                 <div className="h-3 w-20 rounded bg-muted" />
                 <div className="h-2 w-12 rounded bg-muted" />
               </div>
-            </div>
-          ) : isError ? (
-            <div className="p-4 text-center">
-              <p className="text-xs text-destructive mb-2">Session expired</p>
-              <Button size="sm" variant="outline" className="w-full" onClick={() => logout()}>
-                Log in again
-              </Button>
             </div>
           ) : (
             <>
