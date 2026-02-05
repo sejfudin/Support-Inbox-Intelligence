@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Calendar, User, CircleDot, X, Save } from "lucide-react";
-import { useTicket, useUpdateTicket } from "@/queries/tickets";
+import { Calendar, User, CircleDot, X, Save,
+  Trash2 } from "lucide-react";
+import { useDeleteTicket, useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
 
 const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
@@ -45,6 +49,19 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
+  const {mutate: deleteTicket, isPending:isDeleting} = useDeleteTicket();
+    
+  const handleConfirmDelete = () => {
+    deleteTicket(ticketId, {
+      onSuccess: () => {
+        setIsDeleteModalOpen(false);
+        onClose(); 
+        },
+      onError: (error) => {
+        setDeleteError(error?.response?.data?.message || "Failed to delete ticket. Please try again.");
+      }
+      });
+    };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -183,8 +200,15 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
             {updateTicketMutation.isPending ? "Saving..." : "Save Changes"}
           </button>
         </div>
-
         <div className="flex-1 overflow-y-auto px-12 py-10">
+
+          <DeleteConfirmModal 
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={handleConfirmDelete}
+            isLoading={isDeleting}
+            errorMessage={deleteError}
+          />
           <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight">
             {task.title}
           </h1>
