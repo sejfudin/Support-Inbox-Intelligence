@@ -35,32 +35,34 @@ const ProfilePage = () => {
     }
   }, [user]);
 
-const handleSave = (e) => {
-  e.preventDefault();
-  const id = user?.id || user?._id;
-  const payload = {
-    fullname: profile.fullName,
-  };
+  const handleSave = (e) => {
+    e.preventDefault();
+    const id = user?.id || user?._id;
+    const payload = {
+      fullname: profile.fullName,
+    };
 
-  if (profile.password) {
-    payload.password = profile.password;
-  }
-
-  updateUserMutation.mutate(
-    { id, data: payload },
-    {
-      onSuccess: () => {
-        setIsEditing(false);
-      },
+    if (profile.password) {
+      payload.password = profile.password;
     }
-  );
-};
-if (isLoading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+
+    updateUserMutation.mutate(
+      { id, data: payload },
+      {
+        onSuccess: () => {
+          setIsEditing(false);
+        },
+      }
+    );
+  };
+  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
   if (isError) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
 
+  const isFullNameValid = profile.fullName.trim().length > 0;
+
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-white flex flex-col items-center justify-center p-4 overflow-y-auto">
-      <div className="w-full max-w-md md:max-w-2xl my-auto">
+   <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 min-h-[calc(100vh-2rem)]">
+        <div className="w-full max-w-md md:max-w-2xl my-auto">
         <Card className="shadow-2xl border-slate-200">
           <CardHeader className="pt-10 pb-6 px-6 md:px-12 flex flex-row items-center justify-between">
             <div className="space-y-1">
@@ -179,7 +181,7 @@ if (isLoading) return <div className="flex h-screen items-center justify-center"
               {isEditing && (
                 <Button
                   type="submit"
-                  disabled={updateUserMutation.isPending}
+                  disabled={updateUserMutation.isPending || !isFullNameValid}
                   className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98] mt-4 shadow-xl flex items-center justify-center gap-2"
                 >
                   {updateUserMutation.isPending ? (
