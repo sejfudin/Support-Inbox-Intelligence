@@ -46,8 +46,16 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const ticket = apiResponse?.data || apiResponse;
   
+  const formatLongTitle = (text) => {
+    if (!text) return "";
+    const chunks = text.match(/.{1,200}/g) || [];
+    return chunks.join("\n");
+  };
+
+  const rawTitle = ticket?.subject || ticket?.title || "Untitled Task";
+
   const task = {
-    title: ticket?.subject || ticket?.title || "Untitled Task", 
+    title: formatLongTitle(rawTitle),
     status: ticket?.status || "To Do",
     assignee: ticket?.assignedTo?.[0]?.email?.charAt(0).toUpperCase() || "NA",
     dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), 'MMM d') : "Start",
@@ -96,7 +104,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             errorMessage={deleteError}
           />
           
-          <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight">
+          <h1 
+            className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap"
+            style={{ wordBreak: 'break-all' }}
+          >
             {task.title}
           </h1>
 
