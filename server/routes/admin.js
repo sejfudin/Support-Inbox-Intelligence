@@ -1,14 +1,15 @@
 const express = require('express');
-// const { getUsers, updateUserRole } = require('../controllers/admin');
+const { getUsers, updateUserRole } = require('../controllers/admin');
 
 const { protect } = require('../middleware/auth');
 const { requireRole } = require('../middleware/role');
 
 const router = express.Router();
 
-router.use(protect, requireRole('admin'));
+// All authenticated users can fetch users
+router.get('/users', protect, getUsers);
 
-// router.get('/users', getUsers);
-// router.patch('/users/:id/role', updateUserRole);
+// Only admins can update user roles
+router.patch('/users/:id/role', protect, requireRole('admin'), updateUserRole);
 
 module.exports = router;

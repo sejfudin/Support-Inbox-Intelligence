@@ -4,6 +4,7 @@ import {
   Calendar, Flag, User, CircleDot, X, Save
 } from 'lucide-react';
 import { useTicket } from '@/queries/tickets';
+import { TicketStatusBadge } from '@/components/StatusBadge';
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
@@ -35,15 +36,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), 'MMM d') : "Start",
     dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), 'MMM d') : "Due",
     priority: ticket?.priority || "Normal"
-  };
-
-  const getStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
-        case 'closed': case 'done': return '#22c55e'; 
-        case 'pending': return '#eab308';
-        case 'in progress': return '#3b82f6'; 
-        default: return '#9E54B0';
-    }
   };
 
   const handleSave = () => {
@@ -82,12 +74,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
               </div>
-              <div 
-                  className="w-fit text-white rounded-md text-[11px] font-bold uppercase px-4 py-1.5 shadow-sm"
-                  style={{ backgroundColor: getStatusColor(task.status) }}
-              >
-                  {task.status}
-              </div>
+              <TicketStatusBadge
+                status={task.status}
+                className="text-[11px] uppercase px-4 py-1.5"
+              />
             </div>
 
             <div className="space-y-3">
@@ -131,3 +121,5 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     </div>
   );
 };
+
+export default TicketDetailsModal;
