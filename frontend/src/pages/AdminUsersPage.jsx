@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { DataTable } from "@/components/Tickets/TicketsTable";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Search, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import UserEditModal from "@/components/UserEditModal";
 import { useNavigate } from "react-router-dom";
 import { useUsers } from "@/queries/users";
-import UserEditModal from "@/components/UserEditModal";
 
 const getStatusBadge = (status) => {
   const s = status.toLowerCase();
@@ -25,7 +27,7 @@ const getStatusBadge = (status) => {
 
 const getRoleBadge = (role) => {
   const r = role.toLowerCase();
-  let style = "bg-slate-100 text-slate-700 border-slate-200"; // default
+  let style = "bg-slate-100 text-slate-700 border-slate-200";
   if (r === "admin") style = "bg-indigo-100 text-indigo-700 border-indigo-200";
   if (r === "user") style = "bg-amber-100 text-amber-700 border-amber-200";
 
@@ -43,18 +45,22 @@ export default function AdminUsersPage() {
   const navigate = useNavigate();
   const { data: usersData, isLoading, isError } = useUsers();
   const [editingUser, setEditingUser] = useState(null);
-
   const users =
     usersData?.map((u) => ({
       id: u._id,
       user: u.fullname || "No name",
       email: u.email,
       role: u.role,
-      status: u.active ? "Active" : "Inactive",
+      status: u.active === true ? "Active" : "Inactive",
     })) ?? [];
 
-  const handleEditUser = (user) => setEditingUser(user);
-  const handleCloseModal = () => setEditingUser(null);
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+  };
+
+  const handleCloseModal = () => {
+    setEditingUser(null);
+  };
 
   const columns = [
     {
@@ -62,7 +68,9 @@ export default function AdminUsersPage() {
       header: "USER",
       cell: ({ row }) => (
         <div className="flex flex-col">
-          <span className="font-semibold">{row.original.user}</span>
+          <span className="font-semibold text-foreground">
+            {row.original.user}
+          </span>
           <span className="text-xs text-muted-foreground">
             {row.original.email}
           </span>
@@ -85,44 +93,44 @@ export default function AdminUsersPage() {
       cell: ({ row }) => (
         <button
           onClick={() => handleEditUser(row.original)}
-          className="text-sm font-medium text-blue-600 hover:text-blue-800"
+          className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
         >
           Edit
         </button>
       ),
     },
   ];
-
-  if (isLoading)
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        Loading users...
+        <span className="text-muted-foreground">Loading users...</span>
       </div>
     );
+  }
 
-  if (isError)
+  if (isError) {
     return (
       <div className="flex items-center justify-center min-h-screen text-red-500">
         Failed to load users
       </div>
     );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* Header */}
-      <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
         <h1 className="text-xl font-bold sm:text-2xl">User Management</h1>
         <Button onClick={() => navigate("/register")}>Add New User</Button>
       </div>
-
-      {/* Table */}
-      <div className="flex-1 p-4">
+      {/* Content */}
+      <div className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="bg-white rounded-lg shadow">
           <DataTable columns={columns} data={users} />
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit modal */}
       {editingUser && (
         <UserEditModal user={editingUser} onClose={handleCloseModal} />
       )}
