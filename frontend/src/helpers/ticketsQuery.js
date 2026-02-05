@@ -5,20 +5,20 @@ export const getTicketsQueryParams = ({
   listLimit = 10,
   boardLimit = 10000,
 }) => {
-  const status = activeTab === "all" ? "" : activeTab;
+  const listStatus = activeTab === "all" ? "" : activeTab;
 
   return {
     list: {
       page,
       limit: listLimit,
       search,
-      status,
+      status: listStatus,
     },
     board: {
       page: 1,
       limit: boardLimit,
       search,
-      status,
+      status: "",
     },
   };
 };

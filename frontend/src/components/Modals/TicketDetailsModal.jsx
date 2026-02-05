@@ -1,15 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns'; 
 import { 
-  Calendar, Flag, User, CircleDot, X, Save
+  Calendar, Flag, User, CircleDot, X, Save,
+  Trash2
 } from 'lucide-react';
-import { useTicket } from '@/queries/tickets';
+import { useDeleteTicket, useTicket } from '@/queries/tickets';
 import { TicketStatusBadge } from '@/components/StatusBadge';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   const { data: apiResponse, isLoading, isError } = useTicket(ticketId);
+  const {mutate: deleteTicket, isPending:isDeleting} = useDeleteTicket();
+    
+  const handleConfirmDelete = () => {
+    deleteTicket(ticketId, {
+      onSuccess: () => {
+        setIsDeleteModalOpen(false);
+        onClose(); 
+        },
+      onError: (error) => {
+        setDeleteError(error?.response?.data?.message || "Failed to delete ticket. Please try again.");
+      }
+      });
+    };
 
   useEffect(() => {
     if (apiResponse?.data?.description || apiResponse?.description) {
@@ -46,7 +63,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8 transition-opacity">
       
       <div className="w-full max-w-[1200px] bg-white h-[90vh] rounded-xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
-        
         <div className="flex items-center justify-between px-8 py-4 border-b bg-white">
           <div className="flex items-center gap-4">
             <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors">
@@ -54,16 +70,31 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </button>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ticket Details</span>
           </div>
-          
-          <button 
-            onClick={handleSave}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm"
-          >
-            <Save className="w-4 h-4" /> Save Changes
-          </button>
+  
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={handleSave}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm"
+            >
+              <Save className="w-4 h-4" /> Save Changes
+            </button>
+            <button 
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+            >
+              <Trash2 className="w-4 h-4" /> 
+            </button>
+          </div>
         </div>
-
         <div className="flex-1 overflow-y-auto px-12 py-10">
+
+          <DeleteConfirmModal 
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={handleConfirmDelete}
+            isLoading={isDeleting}
+            errorMessage={deleteError}
+          />
           
           <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight">
             {task.title}
