@@ -8,11 +8,18 @@ import AdminUsersPage from "@/pages/AdminUsersPage";
 
 import ProfilePage from "@/pages/ProfilePage";
 import ProtectedRoute from "@/routes/ProtectedRoutes";
+import { useAuth } from "@/context/AuthContext";
+
 
 export default function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+  
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route 
+        path="/login" 
+        element={isAuthenticated ? <Navigate to="/tickets" replace /> : <LoginPage />} 
+      />
 
       <Route element={<ProtectedRoute />}>
       <Route element={<SidebarLayout />}>
