@@ -123,14 +123,14 @@ const updateTicket = async (req, res, next) => {
 
 const deleteTicket = async (req, res, next) => {
   try {
-    const { id } = req.body; 
+    const { ticketId } = req.body; 
 
-    const result = await ticketService.deleteTicket(id);
+    const result = await ticketService.deleteTicket(ticketId);
 
     res.status(200).json({
       success: true,
       message: result.message,
-      id: result.id
+      id: result.ticketId
     });
   } catch (error) {
     if (error.message === "Ticket not found") {
