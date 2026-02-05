@@ -27,3 +27,8 @@ export const createTicket = async (ticketData) => {
   const response = await apiClient.post("/tickets", ticketData);
   return response.data;
 };
+
+export const updateTicket = async (ticketId, updates) => {
+  const response = await apiClient.patch(`/tickets/${ticketId}`, updates);
+  return response.data;
+};

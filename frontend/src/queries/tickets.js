@@ -4,6 +4,7 @@ import {
   getTicket,
   addMessage,
   createTicket,
+  updateTicket, 
 } from "@/api/tickets";
 
 export const useTickets = (params, options = {}) => {
@@ -39,6 +40,19 @@ export const useCreateTicket = () => {
   return useMutation({
     mutationFn: createTicket,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  });
+};
+
+export const useUpdateTicket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (vars) => updateTicket(vars.ticketId, vars.updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["ticket", variables.ticketId] });
+      
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
     },
   });
