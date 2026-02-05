@@ -14,23 +14,27 @@ import {
 import { useGetMe, useLogoutUser } from "@/queries/auth";
 import { Avatar } from "./Avatar";
 import { capitalizeFirst } from "@/helpers/capitalizeFirst";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AppSidebar({  onSignOut }) {
+  const { user } = useAuth();
+  const { isPending, isError}=useGetMe();
+  const { mutate: logout } = useLogoutUser();
+
   const nav = [
     {
       label: "Inbox",
       to: "/tickets",
       icon: MessageCircle,
-    },
-    {
+    },{
       label: "Users",
       to: "/admin/users",
       icon: MessageCircle,
-    },
+      adminOnly: true,
+    }
   ];
   
-  const {data:user, isPending, isError}=useGetMe();
-  const { mutate: logout } = useLogoutUser();
+  
 
   return (
     <Sidebar>
@@ -45,6 +49,9 @@ export default function AppSidebar({  onSignOut }) {
       <SidebarContent className="px-3">
         <SidebarMenu>
           {nav.map((item) => {
+            if (item.adminOnly && user?.role !== 'admin') {
+                return null;
+            }
             const Icon = item.icon;
 
             return (
