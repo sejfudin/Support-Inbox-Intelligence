@@ -50,7 +50,6 @@ export default function StatusDropdown({ status, onChange }) {
             <DropdownMenuItem
               key={optionLabel}
               onSelect={(e) => {
-              e.preventDefault();
               onChange(optionLabel);
             }}
 
