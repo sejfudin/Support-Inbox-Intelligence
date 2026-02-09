@@ -19,7 +19,8 @@ import { useTicketForm } from "@/hooks/useTicketForm";
 
 const NewTickets = ({ isOpen, onClose, initialStatus = "to do" }) => {
   const createMutation = useCreateTicket();
-  const { data: users, isLoading: usersLoading } = useUsers();
+  const { data: usersData, isLoading: usersLoading } = useUsers({ pagination: false });
+  const users = usersData?.users || [];
 
   const { form: newTicket, updateField, resetForm } = useTicketForm(initialStatus);
 
