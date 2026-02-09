@@ -19,3 +19,8 @@ export const logoutUser = async () => {
     const response = await apiClient.post('/auth/logout');
     return response.data;
 };
+
+export const updateUser = async (id, data) => {
+  const response = await apiClient.patch(`/auth/${id}`, data);
+  return response.data;
+};
