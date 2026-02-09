@@ -31,12 +31,13 @@ export default function TicketPage() {
   } = useTicketModals();
 
   const isBoard = viewMode === "board";
+  const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
 
   // List view data
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
-    additionalFilters: { archived: false, status: "not_null" },
+    additionalFilters: { archived: false, status: listStatusFilter },
   });
 
   // Board view data
@@ -48,6 +49,7 @@ export default function TicketPage() {
     search: debouncedSearch,
     activeTab,
     archived: false,
+    status: "not_null",
   });
 
   const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });
