@@ -1,9 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchUsers } from '@/api/users';
+import { useQuery } from "@tanstack/react-query";
+import { getUsers } from "@/api/users";
 
-export const useUsers = () => {
+export const useUsers = (filters = { page: 1, limit: 10, search: "", pagination:true }) => {
   return useQuery({
-    queryKey: ['users'],
-    queryFn: fetchUsers,
+    queryKey: ["users", filters],
+    queryFn: () => getUsers(filters),
+    keepPreviousData: true, 
   });
 };
