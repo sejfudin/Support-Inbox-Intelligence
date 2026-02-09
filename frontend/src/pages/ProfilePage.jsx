@@ -12,7 +12,7 @@ import { useGetMe, useUpdateUser } from "@/queries/auth";
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { data: user, isLoading, isError } = useGetMe();
+  const { data: user, isPending, isError } = useGetMe();
   const updateUserMutation = useUpdateUser();
 
   const [profile, setProfile] = useState({
@@ -55,7 +55,7 @@ const ProfilePage = () => {
       }
     );
   };
-  if (isLoading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  if (isPending) return <div className="flex h-screen items-center justify-center">Loading...</div>;
   if (isError) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
 
   const isFullNameValid = profile.fullName.trim().length > 0;
