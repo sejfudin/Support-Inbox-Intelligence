@@ -3,16 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Pencil, X, Eye, EyeOff } from "lucide-react";
 import { UserStatusBadge } from "@/components/UserStatusBadge";
 import { RoleBadge } from "@/components/RoleBadge";
-import { useGetMe, useUpdateUser } from "@/queries/auth";
+import { useUpdateUser } from "@/queries/auth";
+import { useAuth } from "@/context/AuthContext"; 
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { data: user, isPending, isError } = useGetMe();
+  
+  const { user, loading, refetchUser } = useAuth();
   const updateUserMutation = useUpdateUser();
 
   const [profile, setProfile] = useState({
@@ -51,12 +52,14 @@ const ProfilePage = () => {
       {
         onSuccess: () => {
           setIsEditing(false);
+          refetchUser(); 
         },
       }
     );
   };
-  if (isPending) return <div className="flex h-screen items-center justify-center">Loading...</div>;
-  if (isError) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
+
+  if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  if (!user) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
 
   const isFullNameValid = profile.fullName.trim().length > 0;
 
