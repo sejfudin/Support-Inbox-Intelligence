@@ -11,29 +11,24 @@ export const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const loginMutation = useLoginUser();
+const loginMutation = useLoginUser();
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setErrorMessage("");
+const handleLogin = (e) => {
+  e.preventDefault();
+  setErrorMessage("");
 
-    loginMutation.mutate(
-      { email, password },
-      {
-        onSuccess: (data) => {
-          localStorage.setItem("accessToken", data.accessToken);
-          
-          console.log("Login Successful", data);
-          navigate("/tickets");
-        },
-        onError: (error) => {
-          const msg = error.response?.data?.message || "Something went wrong";
-          setErrorMessage(msg);
-        }
+  loginMutation.mutate(
+    { email, password },
+    {
+      onError: (error) => {
+        const msg =
+          error.response?.data?.message ||
+          "Invalid email or password.";
+        setErrorMessage(msg);
       }
-    );
-
-  };
+    }
+  );
+};
 
   return (
     <div className="fixed inset-0 w-screen h-screen bg-white flex flex-col items-center justify-center p-4">

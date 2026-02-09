@@ -25,15 +25,23 @@ export const useRegisterUser = () => {
 
 export const useLoginUser = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   return useMutation({
-    mutationFn: (credentials) => loginUser(credentials),
-    onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: authKeys.me() });    },
-    
+    mutationFn: loginUser,
+
+    onSuccess: (data) => {
+      localStorage.setItem("accessToken", data.accessToken);
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+      navigate("/tickets");
+    },
+
     onError: (error) => {
-      console.error("Login error:", error.response?.data?.message || error.message);
-    }
+      console.error(
+        "Login error:",
+        error.response?.data?.message || error.message
+      );
+    },
   });
 };
 
