@@ -1,0 +1,74 @@
+import React, { useState } from "react";
+import { columns } from "@/components/columns/ticketColumns";
+import { useTicketList } from "@/hooks/useTicketList";
+import { DataTable } from "@/components/Tickets/TicketsTable";
+import { useTicketModals } from "@/hooks/useTicketModals";
+import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
+import TicketsState from "@/components/Tickets/TicketsState";
+import TicketsHeader from "@/components/Tickets/TicketsHeader";
+import TableSkeleton from "@/components/Skeletons/TableSkeleton";
+
+export default function ArchivePage() {
+  const [activeTab] = useState("all");
+
+  const {
+    tickets: normalizedTickets,
+    pagination,
+    isLoading,
+    isError,
+    isPlaceholderData,
+    search,
+    setSearch,
+    setPage,
+  } = useTicketList({ activeTab, additionalFilters: { archived: true } });
+
+  const {
+    selectedTicketId,
+    isDetailsOpen,
+    openTicketDetails,
+    closeTicketDetails,
+  } = useTicketModals();
+
+  return (
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <TicketsHeader
+        search={search}
+        onSearch={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        hideViewMode={true}
+        hideNewTicket={true}
+        title="Archive"
+      />
+      
+      <div className="flex-1 p-4 sm:p-6 md:p-8">
+        <div
+          className={`bg-white rounded-lg shadow min-h-[400px] ${isPlaceholderData ? "opacity-60" : ""}`}
+        >
+          <TicketsState
+            isLoading={isLoading}
+            isError={isError}
+            isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
+            emptyMessage="No archived tickets found."
+            loadingSlot={<TableSkeleton />}
+          >
+            <DataTable
+              columns={columns}
+              data={normalizedTickets}
+              pagination={pagination}
+              onPageChange={(newPage) => setPage(newPage)}
+              meta={{ onOpenTicket: openTicketDetails }}
+            />
+          </TicketsState>
+        </div>
+      </div>
+
+      <TicketDetailsModal
+        ticketId={selectedTicketId}
+        isOpen={isDetailsOpen}
+        onClose={closeTicketDetails}
+      />
+    </div>
+  );
+}

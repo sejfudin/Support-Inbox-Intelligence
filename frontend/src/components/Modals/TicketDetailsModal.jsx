@@ -1,10 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Calendar, User, CircleDot, X, Save,
-  Trash2 } from "lucide-react";
-import { useDeleteTicket, useTicket, useUpdateTicket } from "@/queries/tickets";
+import {
+  Calendar,
+  User,
+  CircleDot,
+  X,
+  Save,
+  Trash2,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
+import {  useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
-import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { DeleteConfirmModal } from "./DeleteConfirmModal";
+import { useArchiveTicket } from "@/queries/tickets";
 import { useUsers } from "@/queries/users";
 import {
   Popover,
@@ -16,10 +25,13 @@ import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState(null);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [isActionPending, setIsActionPending] = useState(false);
+  const [actionError, setActionError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
   const [selectedAgents, setSelectedAgents] = useState([]); 
+
+    const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
 
   const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
@@ -65,7 +77,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), "MMM d") : "Start",
       dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), "MMM d") : "Due",
     }),
-    [ticket]
+    [ticket],
   );
 
   useEffect(() => {
@@ -78,19 +90,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
-  const {mutate: deleteTicket, isPending:isDeleting} = useDeleteTicket();
-    
-  const handleConfirmDelete = () => {
-    deleteTicket(ticketId, {
-      onSuccess: () => {
-        setIsDeleteModalOpen(false);
-        onClose(); 
-        },
-      onError: (error) => {
-        setDeleteError(error?.response?.data?.message || "Failed to delete ticket. Please try again.");
-      }
-      });
-    };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -101,6 +100,33 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
+
+  const isArchived = Boolean(ticket?.isArchived);
+
+  const handleArchiveToggle = () => {
+    setIsActionModalOpen(true);
+  };
+
+  const handleConfirmAction = () => {
+    const action = archiveTicket;
+    setIsActionPending(true);
+    setActionError(null);
+
+    action(ticketId, {
+      onSuccess: () => {
+        setIsActionModalOpen(false);
+        setIsActionPending(false);
+        onClose();
+      },
+      onError: (error) => {
+        setIsActionPending(false);
+        setActionError(
+          error?.response?.data?.message ||
+            `Failed to archive ticket. Please try again.`,
+        );
+      },
+    });
+  };
 
   const handleSave = () => {
     if (!hasChanges || !ticketId) return;
@@ -120,7 +146,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           console.error("Failed to save:", error);
           alert("Failed to save changes.");
         },
-      }
+      },
     );
   };
 
@@ -136,9 +162,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       </div>
     );
   }
-    if (!ticket) return null;
+  if (!ticket) return null;
 
-    if (isError || usersError) {
+  if (isError || usersError) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
@@ -163,7 +189,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </h2>
 
             <p className="text-sm text-gray-600">
-              Please try again. If the issue persists, check your connection or contact support.
+              Please try again. If the issue persists, check your connection or
+              contact support.
             </p>
 
             {error?.message && (
@@ -214,33 +241,51 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={updateTicketMutation.isPending || !hasChanges}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
-              updateTicketMutation.isPending || !hasChanges
-                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-          >
-            <Save className="w-4 h-4" />
-            {updateTicketMutation.isPending ? "Saving..." : "Save Changes"}
-          </button>
+          <div className="flex items-center gap-3">
+            {!isArchived && (
+              <button
+                type="button"
+                onClick={handleArchiveToggle}
+                disabled={isArchiving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+                  isArchiving
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-gray-600 hover:bg-gray-700 text-white"
+                }`}
+              >
+                <Archive className="w-4 h-4" />
+                {isArchiving ? "Archiving..." : "Archive"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={updateTicketMutation.isPending || !hasChanges}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+                updateTicketMutation.isPending || !hasChanges
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              {updateTicketMutation.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto px-12 py-10">
-
-          <DeleteConfirmModal 
-            isOpen={isDeleteModalOpen}
-            onClose={() => setIsDeleteModalOpen(false)}
-            onConfirm={handleConfirmDelete}
-            isLoading={isDeleting}
-            errorMessage={deleteError}
+          <DeleteConfirmModal
+            isOpen={isActionModalOpen}
+            onClose={() => setIsActionModalOpen(false)}
+            onConfirm={handleConfirmAction}
+            isLoading={isActionPending}
+            errorMessage={actionError}
+            title="Archive Ticket"
+            description="Archive this ticket? You can restore it later from Backlog."
+            confirmLabel="Archive"
+            loadingLabel="Archiving..."
           />
-          
-          <h1 
-            className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap break-words"
-          >
+
+          <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap break-words">
             {task.title}
           </h1>
 
@@ -329,7 +374,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 <Calendar className="w-4 h-4" /> Dates
               </div>
               <div className="text-sm text-gray-700 font-medium bg-gray-50 w-fit px-3 py-1.5 rounded-md border border-gray-100">
-                {task.dateStart} <span className="text-gray-300 mx-2">→</span> {task.dateDue}
+                {task.dateStart} <span className="text-gray-300 mx-2">→</span>{" "}
+                {task.dateDue}
               </div>
             </div>
           </div>

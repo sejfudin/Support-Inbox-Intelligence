@@ -1,12 +1,19 @@
 import apiClient from "./axios";
 
-export const getAllTickets = async ({ page, limit, search, status }) => {
+export const getAllTickets = async ({
+  page,
+  limit,
+  search,
+  status,
+  archived,
+} = {}) => {
   const response = await apiClient.get("/tickets", {
     params: {
       page,
       limit,
       search,
       status,
+      archived,
     },
   });
   return response.data;
@@ -33,9 +40,7 @@ export const updateTicket = async (ticketId, updates) => {
   return response.data;
 };
 
-export const deleteTicket = async (ticketId) => {
-  const response = await apiClient.delete("/tickets", {
-    data: { ticketId },
-  });
+export const archiveTicket = async (ticketId) => {
+  const response = await apiClient.patch(`/tickets/${ticketId}/archive`);
   return response.data;
 };

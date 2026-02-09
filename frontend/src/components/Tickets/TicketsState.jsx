@@ -3,9 +3,11 @@ export default function TicketsState({
   isError,
   isEmpty,
   emptyMessage = "No results.",
+  loadingSlot = null,
   children,
 }) {
   if (isLoading) {
+    if (loadingSlot) return loadingSlot;
     return (
       <div className="flex items-center justify-center h-64 font-medium text-gray-500">
         Loading tickets...
