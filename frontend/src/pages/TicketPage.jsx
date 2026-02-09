@@ -36,7 +36,7 @@ export default function TicketPage() {
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
-    additionalFilters: { archived: false },
+    additionalFilters: { archived: false, status: "not_null" },
   });
 
   // Board view data
