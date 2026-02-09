@@ -5,34 +5,63 @@ import { Calendar, User, CircleDot, X, Save,
 import { useDeleteTicket, useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
 import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { useUsers } from "@/queries/users";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
+const [selectedAgents, setSelectedAgents] = useState([]); // Niz ID-eva
 
-const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
+  const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
-
   const ticket = apiResponse?.data ?? apiResponse;
+
+  const { data: usersData, isLoading: usersLoading, isError:usersError } = useUsers({ pagination: false });
+  const users = usersData?.users || [];
 
   useEffect(() => {
     if (!ticket || !isOpen) return;
 
     setDescription(ticket.description ?? "");
     setCurrentStatus(ticket.status ?? "To Do");
-  }, [isOpen, ticket?.id, ticket?.description, ticket?.status]);
 
-  const hasChanges =
-    !!ticket &&
-    (description !== (ticket.description ?? "") ||
-      currentStatus !== (ticket.status ?? "To Do"));
+    const existingAgentIds = ticket.assignedTo?.map(a => a._id || a) || [];
+      setSelectedAgents(existingAgentIds);    
+  }, 
+  [isOpen, ticket]);
+
+  const selectedUsersObjects = useMemo(() => {
+    return selectedAgents
+      .map(id => users.find(u => u._id === id))
+      .filter(Boolean);
+  }, 
+  [selectedAgents, users]);
+
+ const hasChanges = useMemo(() => {
+    if (!ticket) return false;
+    const initialDescription = ticket.description ?? "";
+    const initialStatus = ticket.status ?? "To Do";
+    const initialAgents = (ticket.assignedTo?.map(a => a._id || a) || []).sort();
+    const currentAgents = [...selectedAgents].sort();
+    return (
+      description !== initialDescription ||
+      currentStatus !== initialStatus ||
+      JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)   
+    );
+  }, [ticket, description, currentStatus, selectedAgents]);
 
   const task = useMemo(
     () => ({
       title: ticket?.subject || ticket?.title || "Untitled Task",
-      assignee: ticket?.assignedTo?.[0]?.email?.charAt(0)?.toUpperCase() || "NA",
       dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), "MMM d") : "Start",
       dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), "MMM d") : "Due",
     }),
@@ -82,6 +111,7 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
         updates: {
           status: currentStatus,
           description,
+          assignedTo: selectedAgents, 
         },
       },
       {
@@ -96,7 +126,7 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
 
   if (!isOpen || !ticketId) return null;
 
-  if (isLoading) {
+  if (isLoading || usersLoading) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
         <div className="bg-white p-8 rounded-xl shadow-xl animate-pulse flex flex-col items-center gap-4">
@@ -108,7 +138,7 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   }
     if (!ticket) return null;
 
-    if (isError) {
+    if (isError || usersError) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
@@ -222,20 +252,76 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
 
               <StatusDropdown
                 status={currentStatus}
-                onChange={(newStatus) => setCurrentStatus(newStatus)}
+                onChange={setCurrentStatus}
               />
             </div>
 
-            <div className="space-y-3">
+          <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <User className="w-4 h-4" /> Assignees
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold bg-blue-500 shadow-sm">
-                  {task.assignee}
-                </div>
-                <span className="text-sm text-gray-600 font-medium">Assigned to you</span>
-              </div>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1.5 rounded-xl border border-transparent transition-all min-h-[44px] w-fit">
+                    {selectedUsersObjects.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <AssigneesAvatar users={selectedUsersObjects} />
+                        <span className="text-[11px] text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
+                          {selectedUsersObjects.length}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
+                          <User className="w-3 h-3" />
+                        </div>
+                        <span className="text-sm text-gray-400 italic">Unassigned</span>
+                      </div>
+                    )}
+                  </div>
+                </PopoverTrigger>
+
+                <PopoverContent className="w-72 p-2 z-[110]" align="start">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assign Agents</span>
+                      {selectedAgents.length > 0 && (
+                        <button onClick={() => setSelectedAgents([])} className="text-[10px] text-red-500 hover:underline font-bold">Clear all</button>
+                      )}
+                    </div>
+                    
+                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                      {users.length > 0 ? (
+                        users.map((user) => {
+                          const isSelected = selectedAgents.includes(user._id);
+                          return (
+                            <div
+                              key={user._id}
+                              onClick={() => {
+                                setSelectedAgents(prev => 
+                                  isSelected ? prev.filter(id => id !== user._id) : [...prev, user._id]
+                                );
+                              }}
+                              className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                            >
+                              <Checkbox checked={isSelected} onCheckedChange={null} className="pointer-events-none" />
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
+                                  {user.fullName || user.fullname || user.email}
+                                </span>
+                                <span className="text-[10px] text-gray-400 truncate">{user.email}</span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="p-4 text-center text-xs text-gray-400">No users found</div>
+                      )}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-3 md:col-span-2">
