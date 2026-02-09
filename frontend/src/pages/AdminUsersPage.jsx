@@ -11,6 +11,7 @@ import { RoleBadge } from "@/components/RoleBadge";
 import { UserStatusBadge } from "@/components/UserStatusBadge";
 import { columns } from "@/components/columns/userColumns";
 import { useDebounce } from "use-debounce";
+import TableSkeleton from "@/components/Skeletons/TableSkeleton";
 
 
 export default function AdminUsersPage() {
@@ -41,14 +42,6 @@ const users =
   };
 
   
-  if (isPending) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <span className="text-muted-foreground">Loading users...</span>
-      </div>
-    );
-  }
-
   if (isError) {
     return (
       <div className="flex items-center justify-center min-h-screen text-red-500">
@@ -88,15 +81,19 @@ const users =
       {/* Content */}
       <div className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="bg-white rounded-lg shadow">
-      <DataTable
-            columns={columns}
-            data={users} 
-            pagination={pagination}
-          onPageChange={(newPage) => setPage(newPage)}
-            meta={{
-              onEditUser: handleEditUser 
-            }}
-          />       
+          {isPending ? (
+            <TableSkeleton columns={5} rows={6} minWidthClassName="min-w-[800px]" />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={users}
+              pagination={pagination}
+              onPageChange={(newPage) => setPage(newPage)}
+              meta={{
+                onEditUser: handleEditUser,
+              }}
+            />
+          )}
       </div>
       </div>
 
