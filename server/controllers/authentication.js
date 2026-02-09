@@ -82,6 +82,7 @@ const logout = async (req, res, next) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params; 
+    
     if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({ 
         message: "You are not authorized to update this profile" 
@@ -89,8 +90,23 @@ const updateUser = async (req, res) => {
     }
     
     const updateData = {};
+
     if (req.body.fullname) updateData.fullname = req.body.fullname;
     if (req.body.password) updateData.password = req.body.password;
+
+    if (req.user.role === 'admin') {
+      if (req.body.email) updateData.email = req.body.email;
+      if (req.body.role) updateData.role = req.body.role;
+      
+      if (req.body.active !== undefined) updateData.active = req.body.active;
+      if (req.body.status !== undefined) updateData.active = req.body.status === 'Active'; 
+    } else {
+      if (req.body.email || req.body.role || req.body.active !== undefined) {
+        return res.status(403).json({ 
+          message: "Only admins can change Email, Role, or Status." 
+        });
+      }
+    }
 
     const user = await authService.updateUser(id, updateData);
     res.status(200).json(user);
