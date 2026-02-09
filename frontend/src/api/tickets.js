@@ -51,8 +51,3 @@ export const archiveTicket = async (ticketId) => {
   const response = await apiClient.patch(`/tickets/${ticketId}/archive`);
   return response.data;
 };
-
-export const unarchiveTicket = async (ticketId) => {
-  const response = await apiClient.patch(`/tickets/${ticketId}/unarchive`);
-  return response.data;
-};

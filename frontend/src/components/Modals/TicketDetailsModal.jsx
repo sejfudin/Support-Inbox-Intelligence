@@ -13,7 +13,7 @@ import {
 import { useDeleteTicket, useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
-import { useArchiveTicket, useUnarchiveTicket } from "@/queries/tickets";
+import { useArchiveTicket } from "@/queries/tickets";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
@@ -25,8 +25,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [currentStatus, setCurrentStatus] = useState("To Do");
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
-  const { mutate: unarchiveTicket, isPending: isUnarchiving } =
-    useUnarchiveTicket();
 
   const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
@@ -104,7 +102,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   };
 
   const handleConfirmAction = () => {
-    const action = isArchived ? unarchiveTicket : archiveTicket;
+    const action = archiveTicket;
     setIsActionPending(true);
     setActionError(null);
 
@@ -118,7 +116,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
         setIsActionPending(false);
         setActionError(
           error?.response?.data?.message ||
-            `Failed to ${isArchived ? "restore" : "archive"} ticket. Please try again.`,
+            `Failed to archive ticket. Please try again.`,
         );
       },
     });
@@ -237,30 +235,21 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={handleArchiveToggle}
-              disabled={isArchiving || isUnarchiving}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
-                isArchiving || isUnarchiving
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : isArchived
-                    ? "bg-green-600 hover:bg-green-700 text-white"
+            {!isArchived && (
+              <button
+                type="button"
+                onClick={handleArchiveToggle}
+                disabled={isArchiving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+                  isArchiving
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-gray-600 hover:bg-gray-700 text-white"
-              }`}
-            >
-              {isArchived ? (
-                <>
-                  <ArchiveRestore className="w-4 h-4" />
-                  {isUnarchiving ? "Restoring..." : "Restore"}
-                </>
-              ) : (
-                <>
-                  <Archive className="w-4 h-4" />
-                  {isArchiving ? "Archiving..." : "Archive"}
-                </>
-              )}
-            </button>
+                }`}
+              >
+                <Archive className="w-4 h-4" />
+                {isArchiving ? "Archiving..." : "Archive"}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleSave}
@@ -283,14 +272,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             onConfirm={handleConfirmAction}
             isLoading={isActionPending}
             errorMessage={actionError}
-            title={isArchived ? "Restore Ticket" : "Archive Ticket"}
-            description={
-              isArchived
-                ? "Restore this ticket back to the inbox?"
-                : "Archive this ticket? You can restore it later from Backlog."
-            }
-            confirmLabel={isArchived ? "Restore" : "Archive"}
-            loadingLabel={isArchived ? "Restoring..." : "Archiving..."}
+            title="Archive Ticket"
+            description="Archive this ticket? You can restore it later from Backlog."
+            confirmLabel="Archive"
+            loadingLabel="Archiving..."
           />
 
           <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap break-words">
