@@ -10,7 +10,7 @@ import {
   Archive,
   ArchiveRestore,
 } from "lucide-react";
-import {  useTicket, useUpdateTicket } from "@/queries/tickets";
+import { useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { useArchiveTicket } from "@/queries/tickets";
@@ -31,7 +31,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [currentStatus, setCurrentStatus] = useState("To Do");
   const [selectedAgents, setSelectedAgents] = useState([]); 
 
-    const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
+  const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
 
   const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
