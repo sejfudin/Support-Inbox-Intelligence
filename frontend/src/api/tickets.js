@@ -28,6 +28,11 @@ export const createTicket = async (ticketData) => {
   return response.data;
 };
 
+export const updateTicket = async (ticketId, updates) => {
+  const response = await apiClient.patch(`/tickets/${ticketId}`, updates);
+  return response.data;
+};
+
 export const deleteTicket = async (ticketId) => {
   const response = await apiClient.delete("/tickets", {
     data: { ticketId },
