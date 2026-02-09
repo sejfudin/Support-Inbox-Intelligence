@@ -54,15 +54,6 @@ function Column({ col, onOpen, onNewTicket }) {
               {col.tasks.length} tasks
             </p>
           </div>
-
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8"
-            onClick={() => onNewTicket(COLUMN_TO_STATUS[col.id] || "to do")}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
         </div>
       </CardHeader>
 
@@ -70,15 +61,6 @@ function Column({ col, onOpen, onNewTicket }) {
         {col.tasks.map((t) => (
           <TaskCard key={t.id} task={t} onOpen={onOpen} />
         ))}
-
-        <Button
-          variant="outline"
-          className="w-full border-dashed"
-          onClick={() => onNewTicket(COLUMN_TO_STATUS[col.id] || "to do")}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add task
-        </Button>
       </CardContent>
     </Card>
   );

@@ -17,7 +17,12 @@ import {
 import { STATUS_OPTIONS } from "@/helpers/ticketStatus";
 import { useTicketForm } from "@/hooks/useTicketForm";
 
-const NewTickets = ({ isOpen, onClose, initialStatus = "to do" }) => {
+const NewTickets = ({
+  isOpen,
+  onClose,
+  initialStatus = "to do",
+  hideStatus = false,
+}) => {
   const createMutation = useCreateTicket();
   const { data: usersData, isLoading: usersLoading } = useUsers({ pagination: false });
   const users = usersData?.users || [];
@@ -32,6 +37,9 @@ const NewTickets = ({ isOpen, onClose, initialStatus = "to do" }) => {
       assignedTo:
         newTicket.assignedTo === "unassigned" ? [] : [newTicket.assignedTo],
     };
+    if (hideStatus) {
+      delete ticketData.status;
+    }
 
     createMutation.mutate(ticketData, {
       onSuccess: () => {
@@ -83,27 +91,31 @@ const NewTickets = ({ isOpen, onClose, initialStatus = "to do" }) => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                      Status
-                    </Label>
-                    <Select
-                      value={newTicket.status}
-                      onValueChange={(value) => updateField("status", value)}
-                    >
-                      <SelectTrigger className="h-12">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div
+                  className={`grid grid-cols-1 gap-6 ${hideStatus ? "" : "md:grid-cols-2"}`}
+                >
+                  {!hideStatus && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                        Status
+                      </Label>
+                      <Select
+                        value={newTicket.status}
+                        onValueChange={(value) => updateField("status", value)}
+                      >
+                        <SelectTrigger className="h-12">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUS_OPTIONS.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">

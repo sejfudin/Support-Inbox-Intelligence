@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, User, Archive, FileQuestionMark } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -28,7 +28,17 @@ export default function AppSidebar({  onSignOut }) {
     },{
       label: "Users",
       to: "/admin/users",
-      icon: MessageCircle,
+      icon: User,
+    },
+    {
+      label: "Archive",
+      to: "/admin/archive",
+      icon: Archive,
+    },
+    {
+      label: "Backlog",
+      to: "/admin/backlog",
+      icon: FileQuestionMark,
       adminOnly: true,
     }
   ];
@@ -39,9 +49,8 @@ export default function AppSidebar({  onSignOut }) {
     <Sidebar>
       <SidebarHeader className="px-6 pt-6">
         <div className="text-xl font-semibold tracking-tight">
-          <span className="text-foreground">Support</span>
-          <span className="text-blue-600">Inbox</span>
-          <span className="text-blue-600">Users</span>
+          <span className="text-foreground">Task</span>
+          <span className="text-blue-600">Manager</span>
         </div>
       </SidebarHeader>
 
