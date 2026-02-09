@@ -19,7 +19,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
-const [selectedAgents, setSelectedAgents] = useState([]); // Niz ID-eva
+  const [selectedAgents, setSelectedAgents] = useState([]); 
 
   const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
@@ -46,7 +46,7 @@ const [selectedAgents, setSelectedAgents] = useState([]); // Niz ID-eva
   }, 
   [selectedAgents, users]);
 
- const hasChanges = useMemo(() => {
+  const hasChanges = useMemo(() => {
     if (!ticket) return false;
     const initialDescription = ticket.description ?? "";
     const initialStatus = ticket.status ?? "To Do";
