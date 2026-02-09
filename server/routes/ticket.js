@@ -13,7 +13,7 @@ const { protect } = require('../middleware/auth');
 
 router.post('/',protect, createTicket);
 router.get('/:id', getTicketById);
-router.patch('/update',protect, updateTicket);
+router.patch('/:id',protect, updateTicket);
 router.delete('/', protect, deleteTicket);
 
 // router.post('/:id/messages', protect, requireRole('admin', 'agent'), addMessage);

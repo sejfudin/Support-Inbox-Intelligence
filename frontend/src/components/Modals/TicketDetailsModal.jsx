@@ -36,7 +36,7 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
       dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), "MMM d") : "Start",
       dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), "MMM d") : "Due",
     }),
-    [ticket?.subject, ticket?.title, ticket?.assignedTo, ticket?.createdAt, ticket?.dueDate]
+    [ticket]
   );
 
   useEffect(() => {
