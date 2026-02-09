@@ -97,17 +97,22 @@ const createTicket = async (req, res) => {
 
 const updateTicket = async (req, res, next) => {
   try {
+    const { id } = req.params;
     const updateData = req.body;
 
     const allowedUpdates = ['subject', 'description', 'status', 'assignedTo'];
     const filteredUpdate = Object.keys(updateData)
       .filter(key => allowedUpdates.includes(key))
       .reduce((obj, key) => {
-        obj[key] = updateData[key];
+        if (key === 'status' && typeof updateData[key] === 'string') {
+          obj[key] = updateData[key].toLowerCase();
+        } else {
+          obj[key] = updateData[key];
+        }
         return obj;
       }, {});
 
-    const updatedTicket = await ticketService.updateTicket(updateData.id, filteredUpdate);
+    const updatedTicket = await ticketService.updateTicket(id, filteredUpdate);
 
     res.status(200).json({
       success: true,
