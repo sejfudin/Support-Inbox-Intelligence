@@ -20,7 +20,7 @@ const { protect } = require('../middleware/auth');
 
 router.post('/',protect, createTicket);
 router.get('/:id', getTicketById);
-router.patch('/update',protect, updateTicket);
+router.patch('/:id',protect, updateTicket);
 router.patch('/:id/archive', protect, archiveTicket);
 router.patch('/:id/unarchive', protect, unarchiveTicket);
 router.delete('/', protect, deleteTicket);

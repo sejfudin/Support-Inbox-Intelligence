@@ -1,6 +1,8 @@
-import api from './axios';
+import apiClient from './axios';
 
-export const fetchUsers = async () => {
-  const { data } = await api.get('/admin/users');
-  return data;
+export const getUsers = async ({ page = 1, limit = 10, search = "", pagination=true }) => {
+  const response = await apiClient.get("/admin/users", {
+    params: { page, limit, search, pagination},
+  });
+  return response.data;
 };

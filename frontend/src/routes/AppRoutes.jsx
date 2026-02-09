@@ -9,20 +9,37 @@ import ArchivePage from "@/pages/Archive";
 import BacklogPage from "@/pages/Backlog";
 
 import ProfilePage from "@/pages/ProfilePage";
+import ProtectedRoute from "@/routes/ProtectedRoutes";
+import { useAuth } from "@/context/AuthContext";
+
+
 export default function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+  
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/tickets" />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<Register />} />
+      <Route 
+        path="/login" 
+        element={isAuthenticated ? <Navigate to="/tickets" replace /> : <LoginPage />} 
+      />
 
+      <Route element={<ProtectedRoute />}>
       <Route element={<SidebarLayout />}>
+      <Route path="/" element={<Navigate to="/tickets" replace />} />
         <Route path="/tickets" element={<TicketPage />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/backlog" element={<BacklogPage />} />
         <Route path="/admin/archive" element={<ArchivePage />} />
         <Route path="/profile" element={<ProfilePage />} />
+      
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          
+          <Route path="/admin/users" element={<AdminUsersPage />} />
+          <Route path="/register" element={<Register />} />
+        </Route>
+              </Route>
       </Route>
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

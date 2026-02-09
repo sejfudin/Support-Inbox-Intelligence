@@ -95,4 +95,25 @@ const logout = async (refreshToken) => {
   };
 };
 
-module.exports = { register, login, refresh, logout };
+ const updateUser= async (userId, updateData) => {
+  if (updateData.password) {
+    const salt = await bcrypt.genSalt(10);
+    updateData.password = await bcrypt.hash(updateData.password, salt);
+  } else {
+    delete updateData.password;
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  ).select("-password"); 
+
+  if (!updatedUser) {
+    throw new Error("User not found");
+  }
+
+  return updatedUser;
+};
+
+module.exports = { register, login, refresh, logout, updateUser };
