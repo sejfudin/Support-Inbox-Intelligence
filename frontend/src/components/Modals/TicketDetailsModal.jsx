@@ -1,18 +1,34 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Calendar, User, CircleDot, X, Save,
-  Trash2 } from "lucide-react";
+import {
+  Calendar,
+  User,
+  CircleDot,
+  X,
+  Save,
+  Trash2,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 import { useDeleteTicket, useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
-import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { DeleteConfirmModal } from "./DeleteConfirmModal";
+import { useArchiveTicket, useUnarchiveTicket } from "@/queries/tickets";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [description, setDescription] = useState("");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [isActionPending, setIsActionPending] = useState(false);
+  const [actionError, setActionError] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
 
-const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
+  const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
+  const { mutate: unarchiveTicket, isPending: isUnarchiving } =
+    useUnarchiveTicket();
+
+  const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
 
   const ticket = apiResponse?.data ?? apiResponse;
@@ -32,11 +48,16 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const task = useMemo(
     () => ({
       title: ticket?.subject || ticket?.title || "Untitled Task",
-      assignee: ticket?.assignedTo?.[0]?.email?.charAt(0)?.toUpperCase() || "NA",
-      dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), "MMM d") : "Start",
-      dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), "MMM d") : "Due",
+      assignee:
+        ticket?.assignedTo?.[0]?.email?.charAt(0)?.toUpperCase() || "NA",
+      dateStart: ticket?.createdAt
+        ? format(new Date(ticket.createdAt), "MMM d")
+        : "Start",
+      dateDue: ticket?.dueDate
+        ? format(new Date(ticket.dueDate), "MMM d")
+        : "Due",
     }),
-    [ticket]
+    [ticket],
   );
 
   useEffect(() => {
@@ -49,19 +70,22 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
-  const {mutate: deleteTicket, isPending:isDeleting} = useDeleteTicket();
-    
+  const { mutate: deleteTicket, isPending: isDeleting } = useDeleteTicket();
+
   const handleConfirmDelete = () => {
     deleteTicket(ticketId, {
       onSuccess: () => {
         setIsDeleteModalOpen(false);
-        onClose(); 
-        },
+        onClose();
+      },
       onError: (error) => {
-        setDeleteError(error?.response?.data?.message || "Failed to delete ticket. Please try again.");
-      }
-      });
-    };
+        setDeleteError(
+          error?.response?.data?.message ||
+            "Failed to delete ticket. Please try again.",
+        );
+      },
+    });
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -72,6 +96,33 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
+
+  const isArchived = Boolean(ticket?.isArchived);
+
+  const handleArchiveToggle = () => {
+    setIsActionModalOpen(true);
+  };
+
+  const handleConfirmAction = () => {
+    const action = isArchived ? unarchiveTicket : archiveTicket;
+    setIsActionPending(true);
+    setActionError(null);
+
+    action(ticketId, {
+      onSuccess: () => {
+        setIsActionModalOpen(false);
+        setIsActionPending(false);
+        onClose();
+      },
+      onError: (error) => {
+        setIsActionPending(false);
+        setActionError(
+          error?.response?.data?.message ||
+            `Failed to ${isArchived ? "restore" : "archive"} ticket. Please try again.`,
+        );
+      },
+    });
+  };
 
   const handleSave = () => {
     if (!hasChanges || !ticketId) return;
@@ -90,7 +141,7 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
           console.error("Failed to save:", error);
           alert("Failed to save changes.");
         },
-      }
+      },
     );
   };
 
@@ -106,9 +157,9 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
       </div>
     );
   }
-    if (!ticket) return null;
+  if (!ticket) return null;
 
-    if (isError) {
+  if (isError) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
         <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
@@ -133,7 +184,8 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
             </h2>
 
             <p className="text-sm text-gray-600">
-              Please try again. If the issue persists, check your connection or contact support.
+              Please try again. If the issue persists, check your connection or
+              contact support.
             </p>
 
             {error?.message && (
@@ -184,23 +236,48 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={updateTicketMutation.isPending || !hasChanges}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
-              updateTicketMutation.isPending || !hasChanges
-                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white"
-            }`}
-          >
-            <Save className="w-4 h-4" />
-            {updateTicketMutation.isPending ? "Saving..." : "Save Changes"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleArchiveToggle}
+              disabled={isArchiving || isUnarchiving}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+                isArchiving || isUnarchiving
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : isArchived
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-gray-600 hover:bg-gray-700 text-white"
+              }`}
+            >
+              {isArchived ? (
+                <>
+                  <ArchiveRestore className="w-4 h-4" />
+                  {isUnarchiving ? "Restoring..." : "Restore"}
+                </>
+              ) : (
+                <>
+                  <Archive className="w-4 h-4" />
+                  {isArchiving ? "Archiving..." : "Archive"}
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={updateTicketMutation.isPending || !hasChanges}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+                updateTicketMutation.isPending || !hasChanges
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              {updateTicketMutation.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto px-12 py-10">
-
-          <DeleteConfirmModal 
+          <DeleteConfirmModal
             isOpen={isActionModalOpen}
             onClose={() => setIsActionModalOpen(false)}
             onConfirm={handleConfirmAction}
@@ -215,10 +292,8 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
             confirmLabel={isArchived ? "Restore" : "Archive"}
             loadingLabel={isArchived ? "Restoring..." : "Archiving..."}
           />
-          
-          <h1 
-            className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap break-words"
-          >
+
+          <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap break-words">
             {task.title}
           </h1>
 
@@ -242,7 +317,9 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold bg-blue-500 shadow-sm">
                   {task.assignee}
                 </div>
-                <span className="text-sm text-gray-600 font-medium">Assigned to you</span>
+                <span className="text-sm text-gray-600 font-medium">
+                  Assigned to you
+                </span>
               </div>
             </div>
 
@@ -251,7 +328,8 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
                 <Calendar className="w-4 h-4" /> Dates
               </div>
               <div className="text-sm text-gray-700 font-medium bg-gray-50 w-fit px-3 py-1.5 rounded-md border border-gray-100">
-                {task.dateStart} <span className="text-gray-300 mx-2">→</span> {task.dateDue}
+                {task.dateStart} <span className="text-gray-300 mx-2">→</span>{" "}
+                {task.dateDue}
               </div>
             </div>
           </div>
