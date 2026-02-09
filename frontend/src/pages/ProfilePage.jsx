@@ -62,6 +62,8 @@ const ProfilePage = () => {
   if (!user) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
 
   const isFullNameValid = profile.fullName.trim().length > 0;
+  const isPasswordValid = profile.password.length === 0 || profile.password.length >= 6;
+  const isFormValid = isFullNameValid && isPasswordValid;
 
   return (
    <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 min-h-[calc(100vh-2rem)]">
@@ -154,6 +156,11 @@ const ProfilePage = () => {
                         )}
                       </button>
                     </div>
+                    {!isPasswordValid && (
+                      <p className="text-xs text-red-500 font-medium mt-1">
+                        Password must be at least 6 characters long.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -184,7 +191,7 @@ const ProfilePage = () => {
               {isEditing && (
                 <Button
                   type="submit"
-                  disabled={updateUserMutation.isPending || !isFullNameValid}
+                  disabled={updateUserMutation.isPending || !isFormValid}
                   className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98] mt-4 shadow-xl flex items-center justify-center gap-2"
                 >
                   {updateUserMutation.isPending ? (
