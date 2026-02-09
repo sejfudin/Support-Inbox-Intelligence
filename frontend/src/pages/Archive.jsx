@@ -6,6 +6,7 @@ import { useTicketModals } from "@/hooks/useTicketModals";
 import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import TicketsState from "@/components/Tickets/TicketsState";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
+import TableSkeleton from "@/components/Skeletons/TableSkeleton";
 
 export default function ArchivePage() {
   const [activeTab] = useState("all");
@@ -50,6 +51,7 @@ export default function ArchivePage() {
             isError={isError}
             isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
             emptyMessage="No archived tickets found."
+            loadingSlot={<TableSkeleton />}
           >
             <DataTable
               columns={columns}
