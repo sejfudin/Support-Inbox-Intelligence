@@ -156,8 +156,6 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
       </div>
     );
   }
-
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8 transition-opacity"
@@ -209,7 +207,10 @@ const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
             isLoading={isDeleting}
             errorMessage={deleteError}
           />
-          <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight">
+          
+          <h1 
+            className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap break-words"
+          >
             {task.title}
           </h1>
 
