@@ -116,23 +116,10 @@ const archiveTicket = async (ticketId) => {
   return ticket;
 };
 
-const unarchiveTicket = async (ticketId) => {
-  const ticket = await Ticket.findByIdAndUpdate(
-    ticketId,
-    { $set: { isArchived: false } },
-    { new: true },
-  );
-  if (!ticket) {
-    throw new Error("Ticket not found");
-  }
-  return ticket;
-};
-
 module.exports = {
   getAllTickets,
   createTicket,
   getTicketById,
   updateTicket,
   archiveTicket,
-  unarchiveTicket,
 };
