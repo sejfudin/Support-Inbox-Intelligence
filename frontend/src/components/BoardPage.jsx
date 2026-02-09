@@ -6,6 +6,7 @@ import { ScrollArea, ScrollBar } from "../components/ui/scroll-area";
 import { Plus } from "lucide-react";
 import TicketsState from "./Tickets/TicketsState";
 import AssigneesAvatar from "./Tickets/AssigneesAvatar";
+import BoardSkeleton from "./Skeletons/BoardSkeleton";
 import {
   BOARD_COLUMNS,
   STATUS_TO_COLUMN,
@@ -112,6 +113,7 @@ export default function BoardPage({
           isError={isError}
           isEmpty={!isLoading && !isError && columns.every((c) => c.tasks.length === 0)}
           emptyMessage="No tickets in the board."
+          loadingSlot={<BoardSkeleton />}
         >
           <ScrollArea className="w-full">
             <div className="flex gap-4 pb-4">

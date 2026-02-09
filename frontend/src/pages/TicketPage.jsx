@@ -9,6 +9,7 @@ import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import TicketsState from "@/components/Tickets/TicketsState";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
 import TicketsTabs from "@/components/Tickets/TicketsTabs";
+import TableSkeleton from "@/components/Skeletons/TableSkeleton";
 import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
 import { normalizeTicket } from "@/helpers/normalizeTicket";
 import { useTicketModals } from "@/hooks/useTicketModals";
@@ -121,6 +122,7 @@ export default function TicketPage() {
                   !isLoading && !isError && normalizedTickets.length === 0
                 }
                 emptyMessage="No tickets found."
+                loadingSlot={<TableSkeleton />}
               >
                 <DataTable
                   columns={columns}
