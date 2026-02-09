@@ -82,13 +82,16 @@ const logout = async (req, res, next) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params; 
-    const updateData = req.body; 
-    
     if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({ 
         message: "You are not authorized to update this profile" 
       });
     }
+    
+    const updateData = {};
+    if (req.body.fullname) updateData.fullname = req.body.fullname;
+    if (req.body.password) updateData.password = req.body.password;
+
     const user = await authService.updateUser(id, updateData);
     res.status(200).json(user);
   } catch (error) {
