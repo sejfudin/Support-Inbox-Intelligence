@@ -12,14 +12,12 @@ import TicketsTabs from "@/components/Tickets/TicketsTabs";
 import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
 import { normalizeTicket } from "@/helpers/normalizeTicket";
 import { useTicketModals } from "@/hooks/useTicketModals";
+import { useTicketList } from "@/hooks/useTicketList";
 
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("list");
-  const limit = 10;
-  const [debouncedSearch] = useDebounce(search, 500);
+
   const {
     isNewOpen,
     initialStatus,
@@ -33,29 +31,49 @@ export default function TicketPage() {
 
   const isBoard = viewMode === "board";
 
-  const queryParams = getTicketsQueryParams({
-    page,
-    search: debouncedSearch,
+  // List view data
+  const listData = useTicketList({
     activeTab,
-    listLimit: limit,
+    enabled: !isBoard,
+    additionalFilters: { archived: false },
   });
 
-  const listQuery = useTickets(queryParams.list, { enabled: !isBoard });
-  const boardQuery = useTickets(queryParams.board, { enabled: isBoard });
+  // Board view data
+  const [search, setSearch] = useState("");
+  const [debouncedSearch] = useDebounce(search, 500);
 
-  const activeQuery = isBoard ? boardQuery : listQuery;
+  const boardQueryParams = getTicketsQueryParams({
+    page: 1,
+    search: debouncedSearch,
+    activeTab,
+    archived: false,
+  });
 
-  const tickets = activeQuery.data?.data || [];
-  const pagination = isBoard ? null : activeQuery.data?.pagination;
+  const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });
 
-  const isLoading = activeQuery.isLoading;
-  const isError = activeQuery.isError;
-  const isPlaceholderData = activeQuery.isPlaceholderData;
-
-  const normalizedTickets = useMemo(
-    () => tickets.map((ticket) => normalizeTicket(ticket)),
-    [tickets],
+  const boardTickets = useMemo(
+    () =>
+      (boardQuery.data?.data || []).map((ticket) => normalizeTicket(ticket)),
+    [boardQuery.data?.data],
   );
+
+  // Use appropriate data based on view mode
+  const normalizedTickets = isBoard ? boardTickets : listData.tickets;
+  const pagination = isBoard ? null : listData.pagination;
+  const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
+  const isError = isBoard ? boardQuery.isError : listData.isError;
+  const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
+
+  const handleSearchChange = (value) => {
+    if (isBoard) {
+      setSearch(value);
+    } else {
+      listData.setSearch(value);
+      listData.setPage(1);
+    }
+  };
+
+  const currentSearch = isBoard ? search : listData.search;
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       <NewTickets
@@ -66,11 +84,8 @@ export default function TicketPage() {
       <TicketsHeader
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        search={search}
-        onSearch={(value) => {
-          setSearch(value);
-          setPage(1);
-        }}
+        search={currentSearch}
+        onSearch={handleSearchChange}
         onNewTicket={openNewTicket}
       />
 
@@ -90,7 +105,7 @@ export default function TicketPage() {
             activeTab={activeTab}
             onChange={(tabKey) => {
               setActiveTab(tabKey);
-              setPage(1);
+              listData.setPage(1);
             }}
           />
 
@@ -102,14 +117,16 @@ export default function TicketPage() {
               <TicketsState
                 isLoading={isLoading}
                 isError={isError}
-                isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
+                isEmpty={
+                  !isLoading && !isError && normalizedTickets.length === 0
+                }
                 emptyMessage="No tickets found."
               >
                 <DataTable
                   columns={columns}
                   data={normalizedTickets}
                   pagination={pagination}
-                  onPageChange={(newPage) => setPage(newPage)}
+                  onPageChange={(newPage) => listData.setPage(newPage)}
                   meta={{ onOpenTicket: openTicketDetails }}
                 />
               </TicketsState>

@@ -5,10 +5,14 @@ const getAllTickets = async ({
   limit = 10,
   search = "",
   status = "",
+  archived,
 }) => {
   const skip = (page - 1) * limit;
 
   const query = {};
+  if (archived !== undefined) {
+    query.isArchived = archived ? true : { $ne: true };
+  }
   if (search) {
     query.$or = [
       { subject: { $regex: search, $options: "i" } },
@@ -96,14 +100,28 @@ const updateTicket = async (ticketId, updateData) => {
   }
 };
 
-const deleteTicket = async (ticketId) => {
-  const ticket = await Ticket.findByIdAndDelete(ticketId);
-
+const archiveTicket = async (ticketId) => {
+  const ticket = await Ticket.findByIdAndUpdate(
+    ticketId,
+    { $set: { isArchived: true } },
+    { new: true },
+  );
   if (!ticket) {
     throw new Error("Ticket not found");
   }
+  return ticket;
+};
 
-  return { message: "Ticket successfully deleted", id: ticketId };
+const unarchiveTicket = async (ticketId) => {
+  const ticket = await Ticket.findByIdAndUpdate(
+    ticketId,
+    { $set: { isArchived: false } },
+    { new: true },
+  );
+  if (!ticket) {
+    throw new Error("Ticket not found");
+  }
+  return ticket;
 };
 
 module.exports = {
@@ -111,5 +129,6 @@ module.exports = {
   createTicket,
   getTicketById,
   updateTicket,
-  deleteTicket,
+  archiveTicket,
+  unarchiveTicket,
 };

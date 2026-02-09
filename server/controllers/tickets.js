@@ -2,12 +2,13 @@ const ticketService = require("../services/ticketService");
 
 const getAllTickets = async (req, res) => {
   try {
-    const { page, limit, search, status } = req.query;
+    const { page, limit, search, status, archived } = req.query;
     const result = await ticketService.getAllTickets({
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 10,
       search: search || "",
       status: status || "",
+      archived: archived === undefined ? undefined : archived === "true",
     });
     res.status(200).json({
       success: true,
@@ -27,7 +28,7 @@ const getAllTickets = async (req, res) => {
 
 const getTicketById = async (req, res) => {
   try {
-    const { id } = req.params; 
+    const { id } = req.params;
     const ticket = await ticketService.getTicketById(id);
 
     if (!ticket) {
@@ -99,22 +100,61 @@ const updateTicket = async (req, res, next) => {
   try {
     const updateData = req.body;
 
-    const allowedUpdates = ['subject', 'description', 'status', 'assignedTo'];
+    const allowedUpdates = ["subject", "description", "status", "assignedTo"];
     const filteredUpdate = Object.keys(updateData)
-      .filter(key => allowedUpdates.includes(key))
+      .filter((key) => allowedUpdates.includes(key))
       .reduce((obj, key) => {
         obj[key] = updateData[key];
         return obj;
       }, {});
 
-    const updatedTicket = await ticketService.updateTicket(updateData.id, filteredUpdate);
+    const updatedTicket = await ticketService.updateTicket(
+      updateData.id,
+      filteredUpdate,
+    );
 
     res.status(200).json({
       success: true,
-      data: updatedTicket
+      data: updatedTicket,
     });
   } catch (error) {
-    if (error.message === 'Ticket not found') {
+    if (error.message === "Ticket not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
+const archiveTicket = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const ticket = await ticketService.archiveTicket(id);
+
+    res.status(200).json({
+      success: true,
+      data: ticket,
+      message: "Ticket archived successfully",
+    });
+  } catch (error) {
+    if (error.message === "Ticket not found") {
+      return res.status(404).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
+const unarchiveTicket = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const ticket = await ticketService.unarchiveTicket(id);
+
+    res.status(200).json({
+      success: true,
+      data: ticket,
+      message: "Ticket restored successfully",
+    });
+  } catch (error) {
+    if (error.message === "Ticket not found") {
       return res.status(404).json({ message: error.message });
     }
     next(error);
@@ -123,14 +163,14 @@ const updateTicket = async (req, res, next) => {
 
 const deleteTicket = async (req, res, next) => {
   try {
-    const { ticketId } = req.body; 
+    const { ticketId } = req.body;
 
     const result = await ticketService.deleteTicket(ticketId);
 
     res.status(200).json({
       success: true,
       message: result.message,
-      id: result.ticketId
+      id: result.id,
     });
   } catch (error) {
     if (error.message === "Ticket not found") {
@@ -145,5 +185,7 @@ module.exports = {
   getTicketById,
   createTicket,
   updateTicket,
-  deleteTicket
+  archiveTicket,
+  unarchiveTicket,
+  deleteTicket,
 };

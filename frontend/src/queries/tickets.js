@@ -4,6 +4,8 @@ import {
   getTicket,
   addMessage,
   createTicket,
+  archiveTicket,
+  unarchiveTicket,
   deleteTicket,
 } from "@/api/tickets";
 
@@ -54,4 +56,28 @@ export const useDeleteTicket = () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] }); 
     }
   })
+};
+
+export const useArchiveTicket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: archiveTicket,
+    onSuccess: (_, ticketId) => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+    },
+  });
+};
+
+export const useUnarchiveTicket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: unarchiveTicket,
+    onSuccess: (_, ticketId) => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+    },
+  });
 };

@@ -2,6 +2,7 @@ export const getTicketsQueryParams = ({
   page,
   search,
   activeTab,
+  archived,
   listLimit = 10,
   boardLimit = 10000,
 }) => {
@@ -13,12 +14,14 @@ export const getTicketsQueryParams = ({
       limit: listLimit,
       search,
       status: listStatus,
+      archived,
     },
     board: {
       page: 1,
       limit: boardLimit,
       search,
       status: "",
+      archived,
     },
   };
 };

@@ -1,38 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns'; 
 import { 
-  Calendar, Flag, User, CircleDot, X, Save,
-  Trash2
+  Calendar, User, CircleDot, X, Save,
+  Archive
 } from 'lucide-react';
-import { useDeleteTicket, useTicket } from '@/queries/tickets';
+import { useArchiveTicket, useTicket, useUnarchiveTicket } from '@/queries/tickets';
 import { TicketStatusBadge } from '@/components/StatusBadge';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
-  const [description, setDescription] = useState("");
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState(null);
+  const [descriptionDraft, setDescriptionDraft] = useState(null);
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
-  const { data: apiResponse, isLoading, isError } = useTicket(ticketId);
-  const {mutate: deleteTicket, isPending:isDeleting} = useDeleteTicket();
-    
-  const handleConfirmDelete = () => {
-    deleteTicket(ticketId, {
-      onSuccess: () => {
-        setIsDeleteModalOpen(false);
-        onClose(); 
-        },
-      onError: (error) => {
-        setDeleteError(error?.response?.data?.message || "Failed to delete ticket. Please try again.");
-      }
-      });
-    };
-
-  useEffect(() => {
-    if (apiResponse?.data?.description || apiResponse?.description) {
-      setDescription(apiResponse?.data?.description || apiResponse?.description);
-    }
-  }, [apiResponse]);
+  const { data: apiResponse, isLoading } = useTicket(ticketId);
+  const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
+  const { mutate: unarchiveTicket, isPending: isUnarchiving } = useUnarchiveTicket();
 
   if (!isOpen || !ticketId) return null;
 
@@ -45,6 +28,31 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   }
 
   const ticket = apiResponse?.data || apiResponse;
+  const isArchived = Boolean(ticket?.isArchived);
+  const isActionPending = isArchiving || isUnarchiving;
+  const ticketDescription = ticket?.description || "";
+  const description = descriptionDraft ?? ticketDescription;
+
+  const handleClose = () => {
+    setDescriptionDraft(null);
+    onClose();
+  };
+
+  const handleConfirmAction = () => {
+    const action = isArchived ? unarchiveTicket : archiveTicket;
+
+    action(ticketId, {
+      onSuccess: () => {
+        setIsActionModalOpen(false);
+        handleClose();
+      },
+      onError: (error) => {
+        setActionError(
+          error?.response?.data?.message || "Failed to update ticket archive status. Please try again.",
+        );
+      },
+    });
+  };
   
   const task = {
     title: ticket?.subject || ticket?.title || "Untitled Task", 
@@ -65,7 +73,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       <div className="w-full max-w-[1200px] bg-white h-[90vh] rounded-xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden">
         <div className="flex items-center justify-between px-8 py-4 border-b bg-white">
           <div className="flex items-center gap-4">
-            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors">
+            <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors">
               <X className="w-5 h-5" />
             </button>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Ticket Details</span>
@@ -79,21 +87,37 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <Save className="w-4 h-4" /> Save Changes
             </button>
             <button 
-              onClick={() => setIsDeleteModalOpen(true)}
-              className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+              onClick={() => {
+                setActionError(null);
+                setIsActionModalOpen(true);
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                isArchived
+                  ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                  : "text-orange-600 bg-orange-50 hover:bg-orange-100"
+              }`}
             >
-              <Trash2 className="w-4 h-4" /> 
+              <Archive className="w-4 h-4" />
+              {isArchived ? "Restore" : "Archive"}
             </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-12 py-10">
 
           <DeleteConfirmModal 
-            isOpen={isDeleteModalOpen}
-            onClose={() => setIsDeleteModalOpen(false)}
-            onConfirm={handleConfirmDelete}
-            isLoading={isDeleting}
-            errorMessage={deleteError}
+            isOpen={isActionModalOpen}
+            onClose={() => setIsActionModalOpen(false)}
+            onConfirm={handleConfirmAction}
+            isLoading={isActionPending}
+            errorMessage={actionError}
+            title={isArchived ? "Restore Ticket" : "Archive Ticket"}
+            description={
+              isArchived
+                ? "Restore this ticket back to the inbox?"
+                : "Archive this ticket? You can restore it later from Backlog."
+            }
+            confirmLabel={isArchived ? "Restore" : "Archive"}
+            loadingLabel={isArchived ? "Restoring..." : "Archiving..."}
           />
           
           <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight">
@@ -141,7 +165,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
              
              <textarea 
                value={description}
-               onChange={(e) => setDescription(e.target.value)}
+               onChange={(e) => setDescriptionDraft(e.target.value)}
                placeholder="Write something more..."
                className="w-full border border-gray-200 rounded-xl p-8 min-h-[400px] text-gray-800 bg-white text-lg leading-relaxed shadow-sm focus:ring-4 focus:ring-blue-50 focus:border-blue-200 outline-none transition-all resize-none font-sans"
              />
