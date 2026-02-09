@@ -74,7 +74,7 @@ const users =
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
-                setPage(1); // Resetuj na prvu stranu pri kucanju
+                setPage(1); 
               }}
             />
           </div>
