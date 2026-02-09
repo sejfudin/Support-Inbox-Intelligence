@@ -1,33 +1,36 @@
-const User = require('../models/User');
+const userService = require('../services/adminService');
 
-exports.getUsers = async (req, res) => {
+exports.getUsers = async (req, res, next) => {
   try {
-    const users = await User.find().select('-password').sort({ createdAt: -1 });
-    res.json(users);
+    const { page, limit, search, pagination} = req.query;
+    
+    const result = await userService.getUsers({ 
+      page, 
+      limit, 
+      search,
+      pagination
+    });
+
+    res.json(result);
   } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ message: 'Server error' });
+    next(error);
   }
 };
-
-exports.updateUserRole = async (req, res) => {
+exports.updateUserRole = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { role },
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
+    const user = await userService.updateUserRole(id, role);
+    
     res.json(user);
   } catch (error) {
     console.error('Update user role error:', error);
-    res.status(500).json({ message: 'Server error' });
+    
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: error.message });
+    }
+    
+    next(error);
   }
 };
