@@ -4,12 +4,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
-const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: '15m' });
+const generateAccessToken = (id, tokenVersion) => {
+  return jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, { expiresIn: '1h' });
 };
 
-const createRefreshToken = async (userId) => {
-  const token = jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
+const createRefreshToken = async (userId, tokenVersion) => {
+  const token = jwt.sign({ id: userId, tokenVersion }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
   
   await RefreshToken.create({
     token: token,
@@ -52,8 +52,8 @@ const login = async ({ email, password }) => {
   if (user && (await bcrypt.compare(password, user.password))) {
     if (!user.active) throw new Error('Account deactivated');
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = await createRefreshToken(user._id);
+    const accessToken = generateAccessToken(user._id, user.tokenVersion || 0);
+    const refreshToken = await createRefreshToken(user._id, user.tokenVersion || 0);
 
     return { 
       id: user._id, fullName: user.fullName, email: user.email, role: user.role,
@@ -76,10 +76,15 @@ const refresh = async (token) => {
     const user = await User.findById(decoded.id);
     if (!user) throw new Error('User no longer exists');
 
-    const accessToken = generateAccessToken(user);
+    if (decoded.tokenVersion !== user.tokenVersion) {
+      throw new Error('Session expired. Please login again.');
+    }
+
+    const accessToken = generateAccessToken(user._id, user.tokenVersion);
 
     return { accessToken };
   } catch (err) {
+    if (storedToken) await RefreshToken.deleteOne({ token });
     throw new Error('Token expired or invalid');
   }
 };
@@ -96,16 +101,19 @@ const logout = async (refreshToken) => {
 };
 
  const updateUser= async (userId, updateData) => {
+  const updateOperation = { $set: updateData };
+
   if (updateData.password) {
     const salt = await bcrypt.genSalt(10);
     updateData.password = await bcrypt.hash(updateData.password, salt);
+    updateOperation.$inc = { tokenVersion: 1 };
   } else {
     delete updateData.password;
   }
 
   const updatedUser = await User.findByIdAndUpdate(
     userId,
-    { $set: updateData },
+    updateOperation,
     { new: true, runValidators: true }
   ).select("-password"); 
 
