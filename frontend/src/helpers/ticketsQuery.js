@@ -3,24 +3,27 @@ export const getTicketsQueryParams = ({
   search,
   activeTab,
   archived,
+  status,
   listLimit = 10,
   boardLimit = 10000,
 }) => {
-  const listStatus = activeTab === "all" ? "" : activeTab;
+  const listStatus =
+    status !== undefined ? status : activeTab === "all" ? "" : activeTab;
+  const normalizedStatus = listStatus === null ? "null" : listStatus;
 
   return {
     list: {
       page,
       limit: listLimit,
       search,
-      status: listStatus,
+      status: normalizedStatus,
       archived,
     },
     board: {
       page: 1,
       limit: boardLimit,
       search,
-      status: "",
+      status: status !== undefined ? normalizedStatus : "",
       archived,
     },
   };

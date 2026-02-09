@@ -35,7 +35,7 @@ export default function TicketPage() {
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
-    additionalFilters: { archived: false },
+    additionalFilters: { archived: false, status: "not_null" },
   });
 
   // Board view data
@@ -47,6 +47,7 @@ export default function TicketPage() {
     search: debouncedSearch,
     activeTab,
     archived: false,
+    status: "not_null",
   });
 
   const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });

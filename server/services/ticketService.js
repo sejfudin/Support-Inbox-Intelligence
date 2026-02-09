@@ -20,7 +20,11 @@ const getAllTickets = async ({
     ];
   }
 
-  if (status && status !== "all") {
+  if (status === "null" || status === null) {
+    query.status = null;
+  } else if (status === "not_null") {
+    query.status = { $ne: null };
+  } else if (status && status !== "all") {
     query.status = status;
   }
 
@@ -61,7 +65,7 @@ const createTicket = async (ticketData) => {
     subject: ticketData.subject,
     description: ticketData.description || "",
     creator: ticketData.creatorId,
-    status: ticketData.status || "to do",
+    status: ticketData.status === undefined ? "to do" : ticketData.status,
     assignedTo: ticketData.assignedTo,
   });
 

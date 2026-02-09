@@ -6,8 +6,6 @@ import { useTicketModals } from "@/hooks/useTicketModals";
 import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import TicketsState from "@/components/Tickets/TicketsState";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
-import NewTickets from "@/components/Tickets/NewTickets";
-import { useGetMe } from "@/queries/auth";
 
 export default function ArchivePage() {
   const [activeTab] = useState("all");
@@ -21,29 +19,17 @@ export default function ArchivePage() {
     search,
     setSearch,
     setPage,
-  } = useTicketList({ activeTab, additionalFilters: { status: null } });
+  } = useTicketList({ activeTab, additionalFilters: { archived: true } });
 
   const {
-    isNewOpen,
-    initialStatus,
     selectedTicketId,
     isDetailsOpen,
-    openNewTicket,
-    closeNewTicket,
     openTicketDetails,
     closeTicketDetails,
   } = useTicketModals();
-  const { data: me } = useGetMe();
-  const isAdmin = me?.role === "admin";
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
-      <NewTickets
-        isOpen={isNewOpen}
-        onClose={closeNewTicket}
-        initialStatus={initialStatus}
-        hideStatus={true}
-      />
       <TicketsHeader
         search={search}
         onSearch={(value) => {
@@ -51,9 +37,8 @@ export default function ArchivePage() {
           setPage(1);
         }}
         hideViewMode={true}
-        hideNewTicket={!isAdmin}
-        onNewTicket={() => openNewTicket(null)}
-        title="Backlog"
+        hideNewTicket={true}
+        title="Archive"
       />
       
       <div className="flex-1 p-4 sm:p-6 md:p-8">
