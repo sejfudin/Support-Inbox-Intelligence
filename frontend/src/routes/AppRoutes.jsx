@@ -11,33 +11,35 @@ import BacklogPage from "@/pages/Backlog";
 import ProfilePage from "@/pages/ProfilePage";
 import ProtectedRoute from "@/routes/ProtectedRoutes";
 import { useAuth } from "@/context/AuthContext";
-
+import UserWorkspace from "@/pages/UserWorkspace";
 
 export default function AppRoutes() {
   const { isAuthenticated } = useAuth();
-  
+
   return (
     <Routes>
-      <Route 
-        path="/login" 
-        element={isAuthenticated ? <Navigate to="/tickets" replace /> : <LoginPage />} 
+      <Route
+        path="/login"
+        element={
+          isAuthenticated ? <Navigate to="/tickets" replace /> : <LoginPage />
+        }
       />
 
       <Route element={<ProtectedRoute />}>
-      <Route element={<SidebarLayout />}>
-      <Route path="/" element={<Navigate to="/tickets" replace />} />
-        <Route path="/tickets" element={<TicketPage />} />
-        <Route path="/admin/users" element={<AdminUsersPage />} />
-        <Route path="/admin/backlog" element={<BacklogPage />} />
-        <Route path="/admin/archive" element={<ArchivePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-      
-      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-          
+        <Route element={<SidebarLayout />}>
+          <Route path="/" element={<Navigate to="/tickets" replace />} />
+          <Route path="/tickets" element={<TicketPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/admin/backlog" element={<BacklogPage />} />
+          <Route path="/admin/archive" element={<ArchivePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/workspace" element={<UserWorkspace />} />
+
+          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/register" element={<Register />} />
+          </Route>
         </Route>
-              </Route>
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
