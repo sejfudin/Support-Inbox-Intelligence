@@ -25,7 +25,6 @@ export default function UserWorkspace() {
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(search, 500);
 
-  // Filter tickets for the current user
   const myTickets = useMemo(() => {
     if (!ticketsData?.data || !user) return [];
 
@@ -49,12 +48,10 @@ export default function UserWorkspace() {
     });
   }, [myTickets, debouncedSearch]);
 
-  // Normalize tickets for the table
   const normalizedTickets = useMemo(() => {
     return filteredTickets.map((ticket) => normalizeTicket(ticket));
   }, [filteredTickets]);
 
-  // Create pagination object for display
   const pagination = useMemo(() => {
     const total = normalizedTickets.length;
     return {
@@ -68,7 +65,6 @@ export default function UserWorkspace() {
   const stats = useMemo(() => {
     if (myTickets.length === 0) return null;
 
-    // Calculate current month stats
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -103,7 +99,6 @@ export default function UserWorkspace() {
       );
     }).length;
 
-    // Calculate previous month for trends
     const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
@@ -122,7 +117,7 @@ export default function UserWorkspace() {
       completedThisMonth,
       blocked,
       monthLabel,
-      activeTrend: 0, // Could calculate based on weekly comparison if needed
+      activeTrend: 0,
       inProgressTrend: 0,
       completedTrend: completedThisMonth - completedLastMonth,
       blockedTrend: 0,
