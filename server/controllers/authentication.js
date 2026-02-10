@@ -32,7 +32,7 @@ const login = async (req, res, next) => {
   }
 };
 
-const refresh = async (req, res, next) => {
+/*const refresh = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken; 
     
@@ -42,6 +42,31 @@ const refresh = async (req, res, next) => {
     res.status(200).json(result);
   } catch (error) {
     next(error);
+  }
+};*/
+
+const refresh = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies.refreshToken; 
+    
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'No refresh token provided' });
+    }
+
+    const result = await authService.refresh(refreshToken);
+    res.status(200).json(result);
+
+  } catch (error) {
+    
+    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isSecureEnv,
+      sameSite: isSecureEnv ? 'none' : 'lax',
+    });
+
+    return res.status(403).json({ message: 'Session expired or invalid' });
   }
 };
 
