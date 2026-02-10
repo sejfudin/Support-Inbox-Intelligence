@@ -6,6 +6,7 @@ import { ScrollArea, ScrollBar } from "../components/ui/scroll-area";
 import { Plus } from "lucide-react";
 import TicketsState from "./Tickets/TicketsState";
 import AssigneesAvatar from "./Tickets/AssigneesAvatar";
+import BoardSkeleton from "./Skeletons/BoardSkeleton";
 import {
   BOARD_COLUMNS,
   STATUS_TO_COLUMN,
@@ -54,15 +55,6 @@ function Column({ col, onOpen, onNewTicket }) {
               {col.tasks.length} tasks
             </p>
           </div>
-
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-8 w-8"
-            onClick={() => onNewTicket(COLUMN_TO_STATUS[col.id] || "to do")}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
         </div>
       </CardHeader>
 
@@ -70,15 +62,6 @@ function Column({ col, onOpen, onNewTicket }) {
         {col.tasks.map((t) => (
           <TaskCard key={t.id} task={t} onOpen={onOpen} />
         ))}
-
-        <Button
-          variant="outline"
-          className="w-full border-dashed"
-          onClick={() => onNewTicket(COLUMN_TO_STATUS[col.id] || "to do")}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add task
-        </Button>
       </CardContent>
     </Card>
   );
@@ -130,6 +113,7 @@ export default function BoardPage({
           isError={isError}
           isEmpty={!isLoading && !isError && columns.every((c) => c.tasks.length === 0)}
           emptyMessage="No tickets in the board."
+          loadingSlot={<BoardSkeleton />}
         >
           <ScrollArea className="w-full">
             <div className="flex gap-4 pb-4">

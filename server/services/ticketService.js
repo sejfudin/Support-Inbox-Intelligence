@@ -5,10 +5,14 @@ const getAllTickets = async ({
   limit = 10,
   search = "",
   status = "",
+  archived,
 }) => {
   const skip = (page - 1) * limit;
 
   const query = {};
+  if (archived !== undefined) {
+    query.isArchived = archived ? true : { $ne: true };
+  }
   if (search) {
     query.$or = [
       { subject: { $regex: search, $options: "i" } },
@@ -16,7 +20,11 @@ const getAllTickets = async ({
     ];
   }
 
-  if (status && status !== "all") {
+  if (status === "null" || status === null) {
+    query.status = null;
+  } else if (status === "not_null") {
+    query.status = { $ne: null };
+  } else if (status && status !== "all") {
     query.status = status;
   }
 
@@ -57,7 +65,7 @@ const createTicket = async (ticketData) => {
     subject: ticketData.subject,
     description: ticketData.description || "",
     creator: ticketData.creatorId,
-    status: ticketData.status || "to do",
+    status: ticketData.status === undefined ? "to do" : ticketData.status,
     assignedTo: ticketData.assignedTo,
   });
 
@@ -96,14 +104,16 @@ const updateTicket = async (ticketId, updateData) => {
   }
 };
 
-const deleteTicket = async (ticketId) => {
-  const ticket = await Ticket.findByIdAndDelete(ticketId);
-
+const archiveTicket = async (ticketId) => {
+  const ticket = await Ticket.findByIdAndUpdate(
+    ticketId,
+    { $set: { isArchived: true } },
+    { new: true },
+  );
   if (!ticket) {
     throw new Error("Ticket not found");
   }
-
-  return { message: "Ticket successfully deleted", id: ticketId };
+  return ticket;
 };
 
 module.exports = {
@@ -111,5 +121,5 @@ module.exports = {
   createTicket,
   getTicketById,
   updateTicket,
-  deleteTicket,
+  archiveTicket,
 };

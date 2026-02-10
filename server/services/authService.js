@@ -6,7 +6,7 @@ const crypto = require('crypto');
 
 const generateAccessToken = (id, tokenVersion) => {
   return jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, { expiresIn: '1h' });
-};
+}
 
 const createRefreshToken = async (userId, tokenVersion) => {
   const token = jwt.sign({ id: userId, tokenVersion }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' });
@@ -107,6 +107,7 @@ const logout = async (refreshToken) => {
     const salt = await bcrypt.genSalt(10);
     updateData.password = await bcrypt.hash(updateData.password, salt);
     updateOperation.$inc = { tokenVersion: 1 };
+    await RefreshToken.deleteMany({ user: userId });
   } else {
     delete updateData.password;
   }
