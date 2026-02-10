@@ -51,7 +51,7 @@ const getAllTickets = async ({
 const getTicketById = async (ticketId) => {
   const ticket = await Ticket.findById(ticketId)
     .populate("assignedTo", "fullname email role")
-    .populate("creator", "fullName");
+    .populate("creator", "fullname email");
 
   if (!ticket) {
     throw new Error("Ticket not found");

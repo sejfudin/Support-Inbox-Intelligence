@@ -9,6 +9,7 @@ import {
   Trash2,
   Archive,
   ArchiveRestore,
+  UserPen,
 } from "lucide-react";
 import { useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
@@ -22,8 +23,10 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
+import { Avatar } from "../Avatar";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isActionPending, setIsActionPending] = useState(false);
@@ -43,6 +46,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   useEffect(() => {
     if (!ticket || !isOpen) return;
 
+    setTitle(ticket.subject || ticket.title || "Untitled Task");
     setDescription(ticket.description ?? "");
     setCurrentStatus(ticket.status ?? "To Do");
 
@@ -60,25 +64,18 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const hasChanges = useMemo(() => {
     if (!ticket) return false;
+    const initialTitle = ticket.subject || ticket.title || "Untitled Task";
     const initialDescription = ticket.description ?? "";
     const initialStatus = ticket.status ?? "To Do";
     const initialAgents = (ticket.assignedTo?.map(a => a._id || a) || []).sort();
     const currentAgents = [...selectedAgents].sort();
     return (
+      title !== initialTitle ||
       description !== initialDescription ||
       currentStatus !== initialStatus ||
       JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)   
     );
-  }, [ticket, description, currentStatus, selectedAgents]);
-
-  const task = useMemo(
-    () => ({
-      title: ticket?.subject || ticket?.title || "Untitled Task",
-      dateStart: ticket?.createdAt ? format(new Date(ticket.createdAt), "MMM d") : "Start",
-      dateDue: ticket?.dueDate ? format(new Date(ticket.dueDate), "MMM d") : "Due",
-    }),
-    [ticket],
-  );
+  }, [ticket, description, currentStatus, selectedAgents, title]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -135,6 +132,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       {
         ticketId,
         updates: {
+          subject: title,
           status: currentStatus,
           description,
           assignedTo: selectedAgents, 
@@ -260,9 +258,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <button
               type="button"
               onClick={handleSave}
-              disabled={updateTicketMutation.isPending || !hasChanges}
+              disabled={updateTicketMutation.isPending || !hasChanges || !title.trim()}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
-                updateTicketMutation.isPending || !hasChanges
+                updateTicketMutation.isPending || !hasChanges || !title.trim()
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
@@ -285,9 +283,29 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             loadingLabel="Archiving..."
           />
 
-          <h1 className="text-4xl font-bold text-gray-900 mb-10 tracking-tight whitespace-pre-wrap break-words">
-            {task.title}
-          </h1>
+          <div className="group relative mb-10">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={`w-full text-4xl font-bold tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 hover:bg-accent/50 rounded-md transition-all ${
+                !title.trim() ? "text-destructive" : "text-foreground"
+              }`}
+              placeholder="Enter ticket title..."
+            />
+            
+            <div className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-150 ${
+              !title.trim() 
+                ? "w-full bg-destructive" 
+                : "w-0 group-focus-within:w-full bg-blue-600" 
+            }`}></div>
+            
+            {!title.trim() && (
+              <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-destructive uppercase tracking-wider mt-1 animate-in fade-in slide-in-from-top-1">
+                Title is required
+              </p>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12 pb-10 border-b border-gray-100">
             <div className="space-y-3">
@@ -368,14 +386,26 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 </PopoverContent>
               </Popover>
             </div>
-
             <div className="space-y-3 md:col-span-2">
-              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-                <Calendar className="w-4 h-4" /> Dates
+              <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
+                <UserPen className="w-4 h-4" /> Created By
               </div>
-              <div className="text-sm text-gray-700 font-medium bg-gray-50 w-fit px-3 py-1.5 rounded-md border border-gray-100">
-                {task.dateStart} <span className="text-gray-300 mx-2">→</span>{" "}
-                {task.dateDue}
+
+              <div className="flex items-center gap-3 p-1.5 h-[44px] w-fit">
+                {ticket?.creator ? (
+                  <Avatar users={[ticket.creator]} />
+                ) : (
+                  <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+                )}
+
+                <div className="flex flex-col justify-center">
+                  <span className="text-sm font-semibold text-foreground leading-none">
+                    {ticket?.creator?.fullname || ticket?.creator?.fullName || "Unknown User"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-medium mt-1">
+                    {ticket?.createdAt ? format(new Date(ticket.createdAt), "MMM d, yyyy") : ""}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -384,9 +414,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <div className="flex items-center justify-between">
               <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
                 Description
-              </div>
-              <div className="text-[10px] text-blue-500 font-medium uppercase bg-blue-50 px-2 py-0.5 rounded">
-                Editor Mode
               </div>
             </div>
 
