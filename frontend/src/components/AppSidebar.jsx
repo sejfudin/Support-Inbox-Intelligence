@@ -29,6 +29,7 @@ export default function AppSidebar({  onSignOut }) {
       label: "Users",
       to: "/admin/users",
       icon: User,
+      adminOnly: true,
     },
     {
       label: "Archive",
