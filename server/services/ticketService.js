@@ -23,7 +23,7 @@ const getAllTickets = async ({
   if (status === "null" || status === null) {
     query.status = null;
   } else if (status === "not_null") {
-    query.status = { $ne: null };
+    query.status = { $ne: "backlog" };
   } else if (status && status !== "all") {
     query.status = status;
   }
