@@ -30,8 +30,9 @@ export default function TicketPage() {
     closeTicketDetails,
   } = useTicketModals();
 
-  const isBoard = viewMode === "board";
+  const isBoard = viewMode === "board";  
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
+
 
   // List view data
   const listData = useTicketList({
@@ -66,6 +67,9 @@ export default function TicketPage() {
   const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
   const isError = isBoard ? boardQuery.isError : listData.isError;
   const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
+  const visibleTickets = useMemo(() => {
+    return normalizedTickets.filter((ticket) => ticket.status !== 'backlog');
+  }, [normalizedTickets]);
 
   const handleSearchChange = (value) => {
     if (isBoard) {
@@ -95,7 +99,7 @@ export default function TicketPage() {
       {/* Conditional Content Based on View Mode */}
       {viewMode === "board" ? (
         <BoardPage
-          tickets={normalizedTickets}
+          tickets={visibleTickets}
           isLoading={isLoading}
           isError={isError}
           onNewTicket={openNewTicket}
@@ -128,7 +132,7 @@ export default function TicketPage() {
               >
                 <DataTable
                   columns={columns}
-                  data={normalizedTickets}
+                  data={visibleTickets}
                   pagination={pagination}
                   onPageChange={(newPage) => listData.setPage(newPage)}
                   meta={{ onOpenTicket: openTicketDetails }}
@@ -141,7 +145,7 @@ export default function TicketPage() {
 
       {/* Modals - Always rendered */}
       <TicketDetailsModal
-        ticketId={selectedTicketId}
+        ticketId={normalizedTickets}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
       />
