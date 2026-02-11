@@ -65,7 +65,7 @@ export default function ArchivePage() {
             isLoading={isLoading}
             isError={isError}
             isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
-            emptyMessage="No archived tickets found."
+            emptyMessage="No backlog tickets found."
             loadingSlot={<TableSkeleton />}
           >
             <DataTable
