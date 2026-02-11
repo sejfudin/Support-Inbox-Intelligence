@@ -255,6 +255,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 {isArchiving ? "Archiving..." : "Archive"}
               </button>
             )}
+            {!isArchived && (
             <button
               type="button"
               onClick={handleSave}
@@ -267,7 +268,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             >
               <Save className="w-4 h-4" />
               {updateTicketMutation.isPending ? "Saving..." : "Save Changes"}
-            </button>
+            </button>)}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-12 py-10">
@@ -278,7 +279,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             isLoading={isActionPending}
             errorMessage={actionError}
             title="Archive Ticket"
-            description="Archive this ticket? You can restore it later from Backlog."
+            description="Archive this ticket? This action cannot be undone."
             confirmLabel="Archive"
             loadingLabel="Archiving..."
           />
@@ -287,6 +288,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <input
               type="text"
               value={title}
+              readOnly={isArchived}
               onChange={(e) => setTitle(e.target.value)}
               className={`w-full text-4xl font-bold tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 hover:bg-accent/50 rounded-md transition-all ${
                 !title.trim() ? "text-destructive" : "text-foreground"
@@ -312,21 +314,28 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
               </div>
-
+            <div className={isArchived ? "pointer-events-none opacity-70" : ""}>
               <StatusDropdown
                 status={currentStatus}
                 onChange={setCurrentStatus}
               />
+              </div>
             </div>
 
-          <div className="space-y-3">
+            <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <User className="w-4 h-4" /> Assignees
               </div>
 
               <Popover>
-                <PopoverTrigger asChild>
-                  <div className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1.5 rounded-xl border border-transparent transition-all min-h-[44px] w-fit">
+                <PopoverTrigger asChild disabled={isArchived}>
+                  <div 
+                    className={`flex items-center gap-3 p-1.5 rounded-xl border border-transparent transition-all min-h-[44px] w-fit ${
+                      isArchived 
+                        ? "cursor-not-allowed opacity-70 pointer-events-none"
+                        : "cursor-pointer hover:bg-gray-50"
+                    }`}
+                  >
                     {selectedUsersObjects.length > 0 ? (
                       <div className="flex items-center gap-2">
                         <AssigneesAvatar users={selectedUsersObjects} />
@@ -345,45 +354,47 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   </div>
                 </PopoverTrigger>
 
-                <PopoverContent className="w-72 p-2 z-[110]" align="start">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assign Agents</span>
-                      {selectedAgents.length > 0 && (
-                        <button onClick={() => setSelectedAgents([])} className="text-[10px] text-red-500 hover:underline font-bold">Clear all</button>
-                      )}
-                    </div>
-                    
-                    <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
-                      {users.length > 0 ? (
-                        users.map((user) => {
-                          const isSelected = selectedAgents.includes(user._id);
-                          return (
-                            <div
-                              key={user._id}
-                              onClick={() => {
-                                setSelectedAgents(prev => 
-                                  isSelected ? prev.filter(id => id !== user._id) : [...prev, user._id]
-                                );
-                              }}
-                              className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
-                            >
-                              <Checkbox checked={isSelected} onCheckedChange={null} className="pointer-events-none" />
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
-                                  {user.fullName || user.fullname || user.email}
-                                </span>
-                                <span className="text-[10px] text-gray-400 truncate">{user.email}</span>
+                {!isArchived && (
+                  <PopoverContent className="w-72 p-2 z-[110]" align="start">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assign Agents</span>
+                        {selectedAgents.length > 0 && (
+                          <button onClick={() => setSelectedAgents([])} className="text-[10px] text-red-500 hover:underline font-bold">Clear all</button>
+                        )}
+                      </div>
+                      
+                      <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                        {users.length > 0 ? (
+                          users.map((user) => {
+                            const isSelected = selectedAgents.includes(user._id);
+                            return (
+                              <div
+                                key={user._id}
+                                onClick={() => {
+                                  setSelectedAgents(prev => 
+                                    isSelected ? prev.filter(id => id !== user._id) : [...prev, user._id]
+                                  );
+                                }}
+                                className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                              >
+                                <Checkbox checked={isSelected} onCheckedChange={null} className="pointer-events-none" />
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
+                                    {user.fullName || user.fullname || user.email}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 truncate">{user.email}</span>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })
-                      ) : (
-                        <div className="p-4 text-center text-xs text-gray-400">No users found</div>
-                      )}
+                            );
+                          })
+                        ) : (
+                          <div className="p-4 text-center text-xs text-gray-400">No users found</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </PopoverContent>
+                  </PopoverContent>
+                )}
               </Popover>
             </div>
             <div className="space-y-3 md:col-span-2">
@@ -419,6 +430,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
             <textarea
               value={description}
+              readOnly={isArchived}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Write something more..."
               className="w-full border border-gray-200 rounded-xl p-8 min-h-[400px] text-gray-800 bg-white text-lg leading-relaxed shadow-sm focus:ring-4 focus:ring-blue-50 focus:border-blue-200 outline-none transition-all resize-none font-sans"

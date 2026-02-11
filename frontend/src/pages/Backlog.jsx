@@ -59,7 +59,7 @@ export default function ArchivePage() {
       
       <div className="flex-1 p-4 sm:p-6 md:p-8">
         <div
-          className={`bg-white rounded-lg shadow min-h-[400px] ${isPlaceholderData ? "opacity-60" : ""}`}
+          className={`bg-white rounded-lg shadow overflow-hidden ${isPlaceholderData ? "opacity-60" : ""}`}
         >
           <TicketsState
             isLoading={isLoading}

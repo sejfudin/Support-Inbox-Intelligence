@@ -23,6 +23,10 @@ exports.protect = async (req, res, next) => {
         return res.status(401).json({ message: 'Not authorized, user not found' });
     }
 
+    if (decoded.tokenVersion !== user.tokenVersion) {
+        return res.status(401).json({ message: 'Session expired. Please log in again.' });
+    }
+
     req.user = user;
     next();
   } catch (error) {

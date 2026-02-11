@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/login')) {
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/login') && !originalRequest.url.includes('/auth/refresh')) {
 
             if (isRefreshing) {
                 return new Promise(function (resolve, reject) {
@@ -65,7 +65,8 @@ apiClient.interceptors.response.use(
                     { withCredentials: true }
                 );
 
-                const { token } = response.data;
+                const { accessToken } = response.data; 
+                const token = accessToken;
 
                 if (!token) {
                     throw new Error("No token returned from refresh");
