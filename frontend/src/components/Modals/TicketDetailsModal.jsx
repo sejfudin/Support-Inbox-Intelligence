@@ -24,6 +24,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 import { Avatar } from "../Avatar";
+import { toast } from "sonner";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [title, setTitle] = useState("");
@@ -114,13 +115,17 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
         setIsActionModalOpen(false);
         setIsActionPending(false);
         onClose();
+        toast.success("Ticket archived", {
+          description: "The ticket has been moved to archive and is now read-only.",
+        });
       },
       onError: (error) => {
         setIsActionPending(false);
-        setActionError(
-          error?.response?.data?.message ||
-            `Failed to archive ticket. Please try again.`,
-        );
+        const message = error?.response?.data?.message || "Failed to archive ticket. Please try again.";
+        setActionError(message);
+        toast.error("Action failed", {
+          description: message,
+        });
       },
     });
   };
@@ -138,13 +143,19 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           assignedTo: selectedAgents, 
         },
       },
-      {
-        onSuccess: () => onClose?.(),
-        onError: (error) => {
-          console.error("Failed to save:", error);
-          alert("Failed to save changes.");
-        },
-      },
+     {
+    onSuccess: () => {
+      onClose?.(); 
+      toast.success("Ticket updated", {
+        description: "Your changes have been saved successfully.",
+      });
+    },
+    onError: (error) => {
+      toast.error("Update failed", {
+        description: error?.response?.data?.message || "Could not save changes.",
+      });
+    },
+  }
     );
   };
 

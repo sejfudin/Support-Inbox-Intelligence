@@ -44,3 +44,10 @@ export const archiveTicket = async (ticketId) => {
   const response = await apiClient.patch(`/tickets/${ticketId}/archive`);
   return response.data;
 };
+
+export const getMyTickets = async ({ page, limit, search, status } = {}) => {
+  const response = await apiClient.get("/tickets/my-tickets", {
+    params: { page, limit, search, status },
+  });
+  return response.data;
+};
