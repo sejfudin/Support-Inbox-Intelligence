@@ -100,7 +100,7 @@ const logout = async (refreshToken) => {
   };
 };
 
- const updateUser= async (userId, updateData) => {
+const updateUser = async (userId, updateData) => {
   const updateOperation = { $set: updateData };
 
   if (updateData.password) {
@@ -112,17 +112,24 @@ const logout = async (refreshToken) => {
     delete updateData.password;
   }
 
-  const updatedUser = await User.findByIdAndUpdate(
-    userId,
-    updateOperation,
-    { new: true, runValidators: true }
-  ).select("-password"); 
-
-  if (!updatedUser) {
-    throw new Error("User not found");
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateOperation,
+      { new: true, runValidators: true }
+    ).select("-password"); 
+  
+    if (!updatedUser) {
+      throw new Error("User not found");
+    }
+  
+    return updatedUser;
+  } catch (error) {
+    if (error.code === 11000) {
+      throw new Error("This email is already in use by another user");
+    }
+    throw error;
   }
-
-  return updatedUser;
 };
 
 module.exports = { register, login, refresh, logout, updateUser };
