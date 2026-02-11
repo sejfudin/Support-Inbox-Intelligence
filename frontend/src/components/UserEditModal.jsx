@@ -10,14 +10,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUpdateUser } from "@/queries/auth";
 
-const UserEditModal = ({ user, onSave, onClose }) => {
-  const [editedUser, setEditedUser] = useState({ ...user });
+const UserEditModal = ({ user, onClose }) => {
+  const [editedUser, setEditedUser] = useState({
+    user: user.user || "", 
+    email: user.email || "", 
+    role: user.role || "user", 
+    status: user.status || "Active" 
+  });
 
-  const handleSave = (e) => {
+  const updateUserMutation = useUpdateUser();
+
+ const handleSave = (e) => {
     e.preventDefault();
-    onSave(editedUser);
-    onClose();
+
+    const payload = {
+      fullname: editedUser.user,
+      email: editedUser.email,
+      role: editedUser.role.toLowerCase(),
+      active: editedUser.status === "Active"
+    };
+
+    updateUserMutation.mutate(
+      { 
+        id: user.id, 
+        data: payload 
+      },
+      {
+        onSuccess: () => {
+          onClose(); 
+        },
+        onError: (err) => {
+          console.error("Failed to update", err);
+          alert("Failed to update user.");
+        }
+      }
+    );
   };
 
   return (
@@ -75,8 +104,8 @@ const UserEditModal = ({ user, onSave, onClose }) => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="User">User</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
