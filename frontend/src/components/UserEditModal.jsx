@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUpdateUser } from "@/queries/auth";
+import { toast } from "sonner"; 
 
 const UserEditModal = ({ user, onClose }) => {
   const [editedUser, setEditedUser] = useState({
@@ -22,7 +23,7 @@ const UserEditModal = ({ user, onClose }) => {
 
   const updateUserMutation = useUpdateUser();
 
- const handleSave = (e) => {
+  const handleSave = (e) => {
     e.preventDefault();
 
     const payload = {
@@ -32,6 +33,8 @@ const UserEditModal = ({ user, onClose }) => {
       active: editedUser.status === "Active"
     };
 
+    const toastId = toast.loading("Updating user...");
+
     updateUserMutation.mutate(
       { 
         id: user.id, 
@@ -39,11 +42,17 @@ const UserEditModal = ({ user, onClose }) => {
       },
       {
         onSuccess: () => {
+          toast.dismiss(toastId);
+          toast.success("User updated successfully");
           onClose(); 
         },
         onError: (err) => {
+          toast.dismiss(toastId);
           console.error("Failed to update", err);
-          alert("Failed to update user.");
+          
+          const errorMessage = err.response?.data?.message || "Failed to update user.";
+          
+          toast.error(errorMessage);
         }
       }
     );
@@ -60,7 +69,6 @@ const UserEditModal = ({ user, onClose }) => {
           <CardContent>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Full Name */}
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     Full Name
@@ -74,7 +82,6 @@ const UserEditModal = ({ user, onClose }) => {
                   />
                 </div>
 
-                {/* Email */}
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     Email
@@ -89,7 +96,6 @@ const UserEditModal = ({ user, onClose }) => {
                   />
                 </div>
 
-                {/* Role */}
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     Role
@@ -110,7 +116,6 @@ const UserEditModal = ({ user, onClose }) => {
                   </Select>
                 </div>
 
-                {/* Status */}
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     Status

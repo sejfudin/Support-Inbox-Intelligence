@@ -14,9 +14,13 @@ const attachCookie = (res, refreshToken) => {
 const register = async (req, res, next) => {
   try {
     const result = await authService.register(req.body);
-    
     res.status(201).json(result);
   } catch (error) {
+    if (error.code === 11000 || (error.message && error.message.includes('email'))) {
+      return res.status(409).json({ 
+        message: "This email address is already in use." 
+      });
+    }
     next(error);
   }
 };
@@ -32,19 +36,6 @@ const login = async (req, res, next) => {
   }
 };
 
-/*const refresh = async (req, res, next) => {
-  try {
-    const refreshToken = req.cookies.refreshToken; 
-    
-    if (!refreshToken) throw new Error('No refresh token provided');
-
-    const result = await authService.refresh(refreshToken);
-    res.status(200).json(result);
-  } catch (error) {
-    next(error);
-  }
-};*/
-
 const refresh = async (req, res, next) => {
   try {
     const refreshToken = req.cookies.refreshToken; 
@@ -57,7 +48,6 @@ const refresh = async (req, res, next) => {
     res.status(200).json(result);
 
   } catch (error) {
-    
     const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
     res.clearCookie('refreshToken', {
@@ -135,9 +125,11 @@ const updateUser = async (req, res) => {
     const user = await authService.updateUser(id, updateData);
     res.status(200).json(user);
   } catch (error) {
-
-    
-
+    if (error.message === "This email is already in use by another user") {
+      return res.status(409).json({ 
+        message: error.message 
+      });
+    }
 
     res.status(500).json({ 
       message: error.message || "Internal server error" 
