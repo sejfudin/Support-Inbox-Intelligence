@@ -45,7 +45,6 @@ const getTicketById = async (req, res) => {
   } catch (error) {
     console.error("Error in getTicketById Controller:", error.message);
 
-    // Check if error is because ID format is wrong (e.g. invalid MongoDB ObjectId)
     if (error.kind === "ObjectId") {
       return res
         .status(404)
@@ -68,7 +67,7 @@ const createTicket = async (req, res) => {
     const resolvedStatus = isAdmin
       ? hasStatus
         ? status
-        : null
+        : "backlog"
       : hasStatus
         ? status
         : "to do";
