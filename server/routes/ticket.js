@@ -8,11 +8,13 @@ const {
   updateTicket,
   archiveTicket,
   deleteTicket,
+  getMyTickets,
 } = require("../controllers/tickets");
 
 // const { generateAI } = require('../controllers/ai');
 const { protect } = require("../middleware/auth");
 
+router.get("/my-tickets", protect, getMyTickets);
 router.get(
   "/",
   // protect, requireRole('admin', 'user'),

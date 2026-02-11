@@ -5,7 +5,8 @@ import {
   addMessage,
   createTicket,
   archiveTicket,
-  updateTicket, 
+  updateTicket,
+  getMyTickets, 
 } from "@/api/tickets";
 
 export const useTickets = (params, options = {}) => {
@@ -68,5 +69,14 @@ export const useArchiveTicket = () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
     },
+  });
+};
+
+export const useMyTickets = (params, options = {}) => {
+  return useQuery({
+    queryKey: ["tickets", "workspace", params],
+    queryFn: () => getMyTickets(params),
+    placeholderData: (previousData) => previousData,
+    ...options,
   });
 };

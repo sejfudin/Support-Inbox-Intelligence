@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { STATUS_OPTIONS } from "@/helpers/ticketStatus";
 import { useTicketForm } from "@/hooks/useTicketForm";
+import { toast } from "sonner";
 
 const NewTickets = ({
   isOpen,
@@ -43,11 +44,16 @@ const NewTickets = ({
 
     createMutation.mutate(ticketData, {
       onSuccess: () => {
+        toast.success("Ticket created", {
+          description: `"${newTicket.subject}" has been added to the system.`,
+        });
         resetForm();
         onClose();
       },
       onError: (error) => {
-        console.error("Mutation error:", error);
+        toast.error("Failed to create ticket", {
+          description: error?.response?.data?.message || "Please check your connection and try again.",
+        });
       },
     });
   };

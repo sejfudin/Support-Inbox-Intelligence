@@ -8,6 +8,7 @@ import { UserStatusBadge } from "@/components/UserStatusBadge";
 import { RoleBadge } from "@/components/RoleBadge";
 import { useUpdateUser } from "@/queries/auth";
 import { useAuth } from "@/context/AuthContext"; 
+import { toast } from "sonner";
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -53,6 +54,9 @@ const ProfilePage = () => {
         onSuccess: () => {
           setIsEditing(false);
           refetchUser(); 
+          toast.success("Profile updated", {
+            description: "Your information has been successfully saved.",
+          });
         },
       }
     );

@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useRegisterUser } from "@/queries/auth";
+import { toast } from "sonner";
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
@@ -42,13 +43,25 @@ const Register = () => {
 
   const onSubmit = (data) => {
     setErrorString("");
+    const loadingToast = toast.loading("Creating user account...");
     mutate(data, {
       onSuccess: () => {
+        toast.dismiss(loadingToast); 
+        
+        toast.success("User registered successfully", {
+          description: `Account for ${data.fullName} has been created.`,
+        });
         navigate("/admin/users");
       },
       onError: (err) => {
+        toast.dismiss(loadingToast);
+        
         const message = err?.response?.data?.message || "Registration failed";
         setErrorString(message);
+        
+        toast.error("Error", {
+          description: message,
+        });
       },
     });
   };
