@@ -116,10 +116,118 @@ const archiveTicket = async (ticketId) => {
   return ticket;
 };
 
+const getMyTickets = async ({
+  userId,
+  page = 1,
+  limit = 10,
+  search = "",
+  status = "",
+}) => {
+  const skip = (page - 1) * limit;
+  const query = {
+    assignedTo: userId,
+    isArchived: { $ne: true },
+  };
+
+  if (search) {
+    query.$or = [
+      { subject: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  if (status && status !== "all") {
+    query.status = status;
+  }
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [tickets, total, statsArray] = await Promise.all([
+    Ticket.find(query)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate("creator", "fullname email")
+      .populate("assignedTo", "fullname email role"),
+
+    Ticket.countDocuments(query),
+
+    Ticket.aggregate([
+      { 
+        $match: { 
+          assignedTo: userId, 
+          isArchived: { $ne: true } 
+        } 
+      },
+      {
+        $group: {
+          _id: null,
+          activeTickets: {
+            $sum: {
+              $cond: [
+                { $in: ["$status", ["to do", "in progress", "on staging", "blocked"]] },
+                1,
+                0,
+              ],
+            },
+          },
+          inProgress: {
+            $sum: {
+              $cond: [
+                { $in: ["$status", ["in progress", "on staging"]] },
+                1,
+                0,
+              ],
+            },
+          },
+          blocked: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "blocked"] }, 1, 0],
+            },
+          },
+          completedThisMonth: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$status", "done"] },
+                    { $gte: ["$updatedAt", startOfMonth] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]),
+  ]);
+
+  const stats = statsArray[0] || {
+    activeTickets: 0,
+    inProgress: 0,
+    blocked: 0,
+    completedThisMonth: 0,
+  };
+
+  return {
+    tickets,
+    stats,
+    pagination: {
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      pages: Math.ceil(total / limit),
+    },
+  };
+};
+
 module.exports = {
   getAllTickets,
   createTicket,
   getTicketById,
   updateTicket,
   archiveTicket,
+  getMyTickets,
 };

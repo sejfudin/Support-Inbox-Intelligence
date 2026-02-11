@@ -2,165 +2,117 @@ import { useMemo, useState } from "react";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { columns } from "@/components/columns/ticketColumns";
 import { SectionCards } from "@/components/section-cards";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useAuth } from "@/context/AuthContext";
-import { useTickets } from "@/queries/tickets";
+import { useMyTickets } from "@/queries/tickets";
 import { normalizeTicket } from "@/helpers/normalizeTicket";
 import TicketsState from "@/components/Tickets/TicketsState";
 import TableSkeleton from "@/components/Skeletons/TableSkeleton";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
+import BoardPage from "@/components/BoardPage";
+import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
+import { useTicketModals } from "@/hooks/useTicketModals";
 import { useDebounce } from "use-debounce";
 
 export default function UserWorkspace() {
-  const { user } = useAuth();
-  const {
-    data: ticketsData,
-    isLoading,
-    isError,
-  } = useTickets({
-    limit: 1000,
-    archived: false,
-  });
-
+  const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState("list");
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(search, 500);
 
-  const myTickets = useMemo(() => {
-    if (!ticketsData?.data || !user) return [];
+  const {
+    selectedTicketId,
+    isDetailsOpen,
+    openTicketDetails,
+    closeTicketDetails,
+  } = useTicketModals();
 
-    const userId = user._id;
-    return ticketsData.data.filter((ticket) =>
-      ticket.assignedTo?.some((assignee) => assignee._id === userId),
-    );
-  }, [ticketsData, user]);
-
-  const filteredTickets = useMemo(() => {
-    const term = debouncedSearch.trim().toLowerCase();
-    if (!term) return myTickets;
-
-    return myTickets.filter((ticket) => {
-      const subject = ticket.subject ?? ticket.title ?? "";
-      const description = ticket.description ?? "";
-      return (
-        subject.toLowerCase().includes(term) ||
-        description.toLowerCase().includes(term)
-      );
-    });
-  }, [myTickets, debouncedSearch]);
+  const { data: ticketsData, isLoading, isError } = useMyTickets({
+    page,
+    limit: 10,
+    search: debouncedSearch,
+  });
 
   const normalizedTickets = useMemo(() => {
-    return filteredTickets.map((ticket) => normalizeTicket(ticket));
-  }, [filteredTickets]);
-
-  const pagination = useMemo(() => {
-    const total = normalizedTickets.length;
-    return {
-      page: 1,
-      limit: total || 10,
-      total: total,
-      pages: 1,
-    };
-  }, [normalizedTickets.length]);
+    return (ticketsData?.data || []).map((ticket) => normalizeTicket(ticket));
+  }, [ticketsData]);
 
   const stats = useMemo(() => {
-    if (myTickets.length === 0) return null;
+    if (!ticketsData?.stats) return null;
 
+    const { activeTickets, inProgress, blocked } = ticketsData.stats;
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
     const monthLabel = now.toLocaleString("default", { month: "short" });
 
-    const activeStatuses = new Set([
-      "to do",
-      "in progress",
-      "on staging",
-      "blocked",
-    ]);
-    const inProgressStatuses = new Set(["in progress", "on staging"]);
-
-    const activeTickets = myTickets.filter(
-      (t) => !t.isArchived && activeStatuses.has(t.status),
-    ).length;
-
-    const inProgress = myTickets.filter(
-      (t) => !t.isArchived && inProgressStatuses.has(t.status),
-    ).length;
-
-    const blocked = myTickets.filter(
-      (t) => t.status === "blocked" && !t.isArchived,
-    ).length;
-
-    const completedThisMonth = myTickets.filter((t) => {
-      if (t.status !== "done") return false;
-      const updatedAt = new Date(t.updatedAt);
-      return (
-        updatedAt.getMonth() === currentMonth &&
-        updatedAt.getFullYear() === currentYear
-      );
-    }).length;
-
-    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-
-    const completedLastMonth = myTickets.filter((t) => {
-      if (t.status !== "done") return false;
-      const updatedAt = new Date(t.updatedAt);
-      return (
-        updatedAt.getMonth() === lastMonth &&
-        updatedAt.getFullYear() === lastMonthYear
-      );
-    }).length;
-
     return {
-      activeTickets,
-      inProgress,
-      completedThisMonth,
-      blocked,
+      activeTickets: activeTickets || 0,
+      inProgress: inProgress || 0,
+      blocked: blocked || 0,
+      completedThisMonth: ticketsData.stats.completedThisMonth || 0,
       monthLabel,
       activeTrend: 0,
       inProgressTrend: 0,
-      completedTrend: completedThisMonth - completedLastMonth,
+      completedTrend: 0,
       blockedTrend: 0,
     };
-  }, [myTickets]);
+  }, [ticketsData]);
+
+  const isBoard = viewMode === "board";
 
   return (
-    <main>
+    <main className="flex min-h-screen flex-col bg-gray-50 font-sans">
       <TicketsHeader
-        hideViewMode={true}
+        title="My Workspace"
         hideNewTicket={true}
-        title="Workspace"
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         search={search}
-        onSearch={(value) => setSearch(value)}
+        onSearch={(value) => {
+          setSearch(value);
+          setPage(1); 
+        }}
       />
-      <div className="flex flex-1 flex-col">
-        <div className="@container/main flex flex-1 flex-col gap-2">
-          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <SectionCards stats={stats} isLoading={isLoading} />
 
-            <div className="px-4 lg:px-6">
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <TicketsState
-                  isLoading={isLoading}
-                  isError={isError}
-                  isEmpty={
-                    !isLoading && !isError && normalizedTickets.length === 0
-                  }
-                  emptyMessage="You have no assigned tickets."
-                  loadingSlot={<TableSkeleton />}
-                >
-                  <DataTable
-                    columns={columns}
-                    data={normalizedTickets}
-                    pagination={pagination}
-                    onPageChange={() => {}}
-                  />
-                </TicketsState>
+      <div className="flex flex-1 flex-col">
+        <div className="py-4 md:py-6">
+          <SectionCards stats={stats} isLoading={isLoading} />
+
+          <div className="mt-8">
+            {isBoard ? (
+              <BoardPage
+                tickets={normalizedTickets}
+                isLoading={isLoading}
+                isError={isError}
+                onOpenTicket={openTicketDetails}
+              />
+            ) : (
+              <div className="px-4 lg:px-6">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                  <TicketsState
+                    isLoading={isLoading}
+                    isError={isError}
+                    isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
+                    emptyMessage="No tickets assigned to you found."
+                    loadingSlot={<TableSkeleton />}
+                  >
+                    <DataTable
+                      columns={columns}
+                      data={normalizedTickets}
+                      pagination={ticketsData?.pagination}
+                      onPageChange={(newPage) => setPage(newPage)}
+                      meta={{ onOpenTicket: openTicketDetails }}
+                    />
+                  </TicketsState>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
+
+      <TicketDetailsModal
+        ticketId={selectedTicketId}
+        isOpen={isDetailsOpen}
+        onClose={closeTicketDetails}
+      />
     </main>
   );
 }

@@ -172,6 +172,27 @@ const deleteTicket = async (req, res, next) => {
   }
 };
 
+const getMyTickets = async (req, res) => {
+  try {
+    const result = await ticketService.getMyTickets({
+      userId: req.user._id,
+      page: parseInt(req.query.page) || 1,
+      limit: parseInt(req.query.limit) || 10,
+      search: req.query.search || "",
+      status: req.query.status || "",
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result.tickets,
+      stats: result.stats, 
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllTickets,
   getTicketById,
@@ -179,4 +200,5 @@ module.exports = {
   updateTicket,
   archiveTicket,
   deleteTicket,
+  getMyTickets,
 };
