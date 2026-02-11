@@ -31,12 +31,13 @@ export default function TicketPage() {
   } = useTicketModals();
 
   const isBoard = viewMode === "board";
+  const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
 
   // List view data
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
-    additionalFilters: { archived: false },
+    additionalFilters: { archived: false, status: listStatusFilter },
   });
 
   // Board view data
@@ -48,6 +49,7 @@ export default function TicketPage() {
     search: debouncedSearch,
     activeTab,
     archived: false,
+    status: "not_null",
   });
 
   const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });
@@ -113,7 +115,7 @@ export default function TicketPage() {
           {/* Content */}
           <div className="flex-1 p-4 sm:p-6 md:p-8">
             <div
-              className={`bg-white rounded-lg shadow min-h-[400px] ${isPlaceholderData ? "opacity-60" : ""}`}
+              className={`bg-white rounded-lg shadow overflow-hidden ${isPlaceholderData ? "opacity-60" : ""}`}
             >
               <TicketsState
                 isLoading={isLoading}

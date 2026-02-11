@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { MessageCircle, User, Archive, FileQuestionMark } from "lucide-react";
+import { MessageCircle, User, Archive, FileQuestionMark, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -11,12 +11,12 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import {  useLogoutUser } from "@/queries/auth";
+import { useLogoutUser } from "@/queries/auth";
 import { Avatar } from "./Avatar";
 import { capitalizeFirst } from "@/helpers/capitalizeFirst";
 import { useAuth } from "@/context/AuthContext";
 
-export default function AppSidebar({  onSignOut }) {
+export default function AppSidebar() {
   const { user, isLoginPending } = useAuth();
   const { mutate: logout } = useLogoutUser();
 
@@ -25,10 +25,17 @@ export default function AppSidebar({  onSignOut }) {
       label: "Inbox",
       to: "/tickets",
       icon: MessageCircle,
-    },{
+    },
+    {
+      label: "Workspace",
+      to: "/workspace",
+      icon: LayoutDashboard,
+    },
+    {
       label: "Users",
       to: "/admin/users",
       icon: User,
+      adminOnly: true,
     },
     {
       label: "Archive",
@@ -40,11 +47,10 @@ export default function AppSidebar({  onSignOut }) {
       to: "/admin/backlog",
       icon: FileQuestionMark,
       adminOnly: true,
-    }
+    },
   ];
-  
-  
-  const navigate=useNavigate();
+
+  const navigate = useNavigate();
   return (
     <Sidebar>
       <SidebarHeader className="px-6 pt-6">
@@ -57,8 +63,8 @@ export default function AppSidebar({  onSignOut }) {
       <SidebarContent className="px-3">
         <SidebarMenu>
           {nav.map((item) => {
-            if (item.adminOnly && user?.role !== 'admin') {
-                return null;
+            if (item.adminOnly && user?.role !== "admin") {
+              return null;
             }
             const Icon = item.icon;
 
@@ -97,7 +103,7 @@ export default function AppSidebar({  onSignOut }) {
             </div>
           ) : (
             <>
-              <div 
+              <div
                 onClick={() => navigate("/profile")}
                 className="p-4 flex items-center gap-3 cursor-pointer transition-colors hover:bg-muted/50"
               >
