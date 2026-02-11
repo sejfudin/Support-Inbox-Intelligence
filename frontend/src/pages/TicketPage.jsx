@@ -67,6 +67,7 @@ export default function TicketPage() {
   const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
   const isError = isBoard ? boardQuery.isError : listData.isError;
   const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
+  
   const visibleTickets = useMemo(() => {
     return normalizedTickets.filter((ticket) => ticket.status !== 'backlog');
   }, [normalizedTickets]);
@@ -125,7 +126,7 @@ export default function TicketPage() {
                 isLoading={isLoading}
                 isError={isError}
                 isEmpty={
-                  !isLoading && !isError && normalizedTickets.length === 0
+                  !isLoading && !isError && visibleTickets.length === 0
                 }
                 emptyMessage="No tickets found."
                 loadingSlot={<TableSkeleton />}
@@ -145,7 +146,7 @@ export default function TicketPage() {
 
       {/* Modals - Always rendered */}
       <TicketDetailsModal
-        ticketId={normalizedTickets}
+        ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
       />
