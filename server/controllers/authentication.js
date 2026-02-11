@@ -124,7 +124,6 @@ const updateUser = async (req, res) => {
       if (req.body.role) updateData.role = req.body.role;
       
       if (req.body.active !== undefined) updateData.active = req.body.active;
-      if (req.body.status !== undefined) updateData.active = req.body.status === 'Active'; 
     } else {
       if (req.body.email || req.body.role || req.body.active !== undefined) {
         return res.status(403).json({ 
@@ -136,6 +135,10 @@ const updateUser = async (req, res) => {
     const user = await authService.updateUser(id, updateData);
     res.status(200).json(user);
   } catch (error) {
+
+    
+
+
     res.status(500).json({ 
       message: error.message || "Internal server error" 
     });
