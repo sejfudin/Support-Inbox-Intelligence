@@ -152,7 +152,7 @@ const ProfilePage = () => {
                         setProfile({ ...profile, password: e.target.value })
                       }
                     />
-                                        {isEditing && (
+                    {isEditing && (
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
