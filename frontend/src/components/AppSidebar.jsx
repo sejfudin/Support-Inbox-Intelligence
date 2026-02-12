@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { MessageCircle, User, Archive, FileQuestionMark, LayoutDashboard } from "lucide-react";
+import { MessageCircle, User, Archive, FileQuestionMark, LayoutDashboard, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -22,14 +22,14 @@ export default function AppSidebar() {
 
   const nav = [
     {
-      label: "Inbox",
-      to: "/tickets",
-      icon: MessageCircle,
-    },
-    {
       label: "Workspace",
       to: "/workspace",
       icon: LayoutDashboard,
+    },
+    {
+      label: "Tickets",
+      to: "/tickets",
+      icon: ClipboardList,
     },
     {
       label: "Users",

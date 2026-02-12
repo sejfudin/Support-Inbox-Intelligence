@@ -21,13 +21,13 @@ export default function AppRoutes() {
       <Route
         path="/login"
         element={
-          isAuthenticated ? <Navigate to="/tickets" replace /> : <LoginPage />
+          isAuthenticated ? <Navigate to="/workspace" replace /> : <LoginPage />
         }
       />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<SidebarLayout />}>
-          <Route path="/" element={<Navigate to="/tickets" replace />} />
+          <Route path="/" element={<Navigate to="/workspace" replace />} />
           <Route path="/tickets" element={<TicketPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/backlog" element={<BacklogPage />} />
