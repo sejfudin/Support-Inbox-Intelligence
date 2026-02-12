@@ -10,7 +10,7 @@ export default function TicketsHeader({
   onNewTicket,
   hideViewMode = false,
   hideNewTicket = false,
-  title = "Inbox",
+  title = "Tickets",
 }) {
   return (
     <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">

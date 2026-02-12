@@ -33,7 +33,7 @@ export const useLoginUser = () => {
     onSuccess: (data) => {
       localStorage.setItem("accessToken", data.accessToken);
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
-      navigate("/tickets");
+      navigate("/workspace");
     },
 
     onError: (error) => {
@@ -62,6 +62,7 @@ export const useLogoutUser = () => {
   const clearAuth = () => {
     queryClient.setQueryData(authKeys.me(), null);
     queryClient.removeQueries({ queryKey: authKeys.all });
+    queryClient.removeQueries({ queryKey: ["tickets"] });
     localStorage.removeItem('accessToken');
     navigate('/login');
   };
