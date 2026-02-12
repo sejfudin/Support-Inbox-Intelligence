@@ -21,9 +21,6 @@ export default function GlobalSkeleton () {
             <Skeleton className="h-8 w-8 md:hidden" />
             <Skeleton className="h-6 w-32" />
           </div>
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-8 rounded-full" />
-          </div>
         </header>
 
         <main className="flex-1 p-6 space-y-6 bg-gray-50/50">
