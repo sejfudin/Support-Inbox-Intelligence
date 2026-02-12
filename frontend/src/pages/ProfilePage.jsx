@@ -133,40 +133,42 @@ const ProfilePage = () => {
                 </div>
 
                 {/* Password Field */}
-                {isEditing && (
-                  <div className="space-y-2 md:col-span-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                      New Password (Optional)
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Leave blank to keep current password"
-                        className="h-14 text-lg border-slate-300 focus:ring-2 pr-12"
-                        value={profile.password}
-                        onChange={(e) =>
-                          setProfile({ ...profile, password: e.target.value })
-                        }
-                      />
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                    {isEditing ? "New Password (Optional)" : "Password"}
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type={isEditing && showPassword ? "text" : "password"}
+                      disabled={!isEditing}
+                      placeholder={isEditing ? "Leave blank to keep current password" : ""}
+                      className={`h-14 text-lg border-slate-300 focus:ring-2 pr-12 ${
+                        !isEditing 
+                          ? "bg-slate-50 text-slate-500 cursor-not-allowed" 
+                          : "bg-white text-gray-900"
+                      }`}
+                      value={isEditing ? profile.password : "********"} 
+                      onChange={(e) =>
+                        setProfile({ ...profile, password: e.target.value })
+                      }
+                    />
+                                        {isEditing && (
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                       >
-                        {showPassword ? (
-                          <EyeOff size={20} />
-                        ) : (
-                          <Eye size={20} />
-                        )}
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                       </button>
-                    </div>
-                    {!isPasswordValid && (
-                      <p className="text-xs text-red-500 font-medium mt-1">
-                        Password must be at least 6 characters long.
-                      </p>
                     )}
                   </div>
-                )}
+                  
+                  {isEditing && !isPasswordValid && (
+                    <p className="text-xs text-red-500 font-medium mt-1">
+                      Password must be at least 6 characters long.
+                    </p>
+                  )}
+                </div>
 
                 {/* Badge */}
                 {!isEditing && (
