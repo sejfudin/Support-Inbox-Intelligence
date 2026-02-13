@@ -1,10 +1,13 @@
 import { Navigate, Outlet } from 'react-router';
 import { useAuth } from '../context/AuthContext';
+import GlobalSkeleton from '@/components/Skeletons/GlobalSkeleton';
 
 const ProtectedRoute = ({ allowedRoles = [] }) => {
     const { user, isAuthenticated, loading } = useAuth();
    if (loading) {
-        return <div>Loading...</div> ;
+        return (
+           <GlobalSkeleton />
+        );
     }
 
     if (!isAuthenticated) {
