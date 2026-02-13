@@ -26,6 +26,7 @@ export default function AppRoutes() {
         }
       />
 
+      <Route path="/set-password" element={<SetPassword />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<SidebarLayout />}>
           <Route path="/" element={<Navigate to="/workspace" replace />} />
@@ -35,7 +36,6 @@ export default function AppRoutes() {
           <Route path="/admin/archive" element={<ArchivePage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/workspace" element={<UserWorkspace />} />
-          <Route path="/set-password" element={<SetPassword />} />
 
           <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
             <Route path="/admin/users" element={<AdminUsersPage />} />
