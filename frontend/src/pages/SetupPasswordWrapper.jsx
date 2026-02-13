@@ -9,8 +9,6 @@ export default function SetupPasswordWrapper() {
   const token = params.get("token");
   const queryClient = useQueryClient();
 
-  // Immediately clear authentication if there's a token
-  // This runs synchronously before rendering
   if (token) {
     const currentToken = localStorage.getItem("accessToken");
     if (currentToken) {
