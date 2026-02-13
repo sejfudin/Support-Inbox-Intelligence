@@ -169,6 +169,16 @@ const clearInviteSetupCookie = (res) => {
 
 const verifyInvite = async (req, res) => {
   try {
+    // Clear any existing auth session before setting up invite
+    const isSecureEnv =
+      process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+    
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: isSecureEnv,
+      sameSite: isSecureEnv ? "none" : "lax",
+    });
+
     const { setupToken, user } = await authService.verifyInvite(req.body.token);
     attachInviteSetupCookie(res, setupToken);
 
