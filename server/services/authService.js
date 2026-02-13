@@ -3,6 +3,8 @@ const RefreshToken = require('../models/RefreshToken');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { sendTemplatedEmail } = require('./emailService');
+const { TEMPLATE_IDS } = require('../utils/constants');
 
 const generateAccessToken = (id, tokenVersion) => {
   return jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -36,6 +38,22 @@ const register = async (userData) => {
     role: role || 'user',
     active: true
   });
+  const emailResults = await Promise.allSettled([
+    sendTemplatedEmail(
+      user.email,
+      TEMPLATE_IDS.WELCOME_EMAIL,
+      {
+        fullName: user.fullname,
+        email: user.email,
+        password: password,
+        loginUrl: `${process.env.CLIENT_URL}/login`, 
+      }
+    )
+  ]);
+
+  if (emailResults[0].status === 'rejected') {
+    console.error('Welcome email failed to send:', emailResults[0].reason);
+  }
 
   const accessToken = generateAccessToken(user._id);
   const refreshToken = await createRefreshToken(user._id);
