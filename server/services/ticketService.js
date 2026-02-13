@@ -1,4 +1,6 @@
 const Ticket = require("../models/Ticket");
+const { TEMPLATE_IDS } = require("../utils/constants");
+const { sendTemplatedEmail } = require("./emailService");
 
 const getAllTickets = async ({
   page = 1,
@@ -79,6 +81,9 @@ const createTicket = async (ticketData) => {
 
 const updateTicket = async (ticketId, updateData) => {
   try {
+    const oldTicket = await Ticket.findById(ticketId);
+    if (!oldTicket) throw new Error('Ticket not found');
+
     const ticket = await Ticket.findByIdAndUpdate(
       ticketId,
       { $set: updateData },
@@ -93,6 +98,37 @@ const updateTicket = async (ticketId, updateData) => {
 
     if (!ticket) {
       throw new Error('Ticket not found');
+    }
+
+    if (updateData.assignedTo) {
+      const oldAssigneeIds = oldTicket.assignedTo.map(id => id.toString());
+      
+      const newlyAssigned = ticket.assignedTo.filter(
+        (agent) => !oldAssigneeIds.includes(agent._id.toString())
+      );
+console.log('Newly assigned agents:', newlyAssigned.map(a => a.email));
+      if (newlyAssigned.length > 0) {
+        Promise.allSettled(
+          newlyAssigned.map((agent) =>
+            sendTemplatedEmail(
+              agent.email,
+              TEMPLATE_IDS.TICKET_ASSIGNED, 
+              {
+                agentName: agent.fullname,
+                ticketSubject: ticket.subject,
+                creatorName: ticket.creator?.fullname || 'Administrator',
+                ticketUrl: `${process.env.CLIENT_URL}/workspace`,
+              }
+            )
+          )
+        ).then((results) => {
+          results.forEach((res, i) => {
+            if (res.status === 'rejected') {
+              console.error(`Failed to notify agent ${newlyAssigned[i].email}:`, res.reason);
+            }
+          });
+        });
+      }
     }
 
     return ticket;
