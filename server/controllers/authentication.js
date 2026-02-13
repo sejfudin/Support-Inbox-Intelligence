@@ -169,7 +169,6 @@ const clearInviteSetupCookie = (res) => {
 
 const verifyInvite = async (req, res) => {
   try {
-    // Clear any existing auth session before setting up invite
     const isSecureEnv =
       process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
     
