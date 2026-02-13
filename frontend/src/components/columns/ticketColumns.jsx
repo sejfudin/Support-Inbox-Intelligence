@@ -43,26 +43,5 @@ export const columns = [
       cellClassName: "w-[14%] whitespace-nowrap",
     },
     cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
-  },
-  {
-    accessorKey: "action",
-    header: "ACTION",
-    meta: {
-      headerClassName: "w-[14%]",
-      cellClassName: "w-[14%] whitespace-nowrap",
-    },
-    cell: ({ row, table }) => {
-      const ticketId = row.original.id ?? row.original._id;
-
-      return (
-        <button
-          type="button"
-          onClick={() => table.options.meta?.onOpenTicket?.(ticketId)}
-          className="text-blue-600 hover:underline font-medium cursor-pointer"
-        >
-          View
-        </button>
-      );
-    },
-  },
+  }
 ];

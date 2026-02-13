@@ -90,7 +90,7 @@ const users =
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{
-                onEditUser: handleEditUser,
+                onRowClick: (id, user) => handleEditUser(user),
               }}
             />
           )}

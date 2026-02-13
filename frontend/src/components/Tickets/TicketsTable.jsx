@@ -82,7 +82,11 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-b hover:bg-gray-50"
+                  className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                  onClick={() => {
+                    const id = row.original.id ?? row.original._id;
+                    table.options.meta?.onRowClick?.(id, row.original);
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
