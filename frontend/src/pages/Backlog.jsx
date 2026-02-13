@@ -22,7 +22,7 @@ export default function ArchivePage() {
     search,
     setSearch,
     setPage,
-  } = useTicketList({ activeTab, additionalFilters: { status: 'backlog' } });
+  } = useTicketList({ activeTab, additionalFilters: { archived: false, status: 'backlog' } });
 
   const {
     isNewOpen,
