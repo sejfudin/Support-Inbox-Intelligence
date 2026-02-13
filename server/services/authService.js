@@ -1,10 +1,10 @@
-const User = require("../models/User");
-const RefreshToken = require("../models/RefreshToken");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
-const { sendTemplatedEmail } = require("./emailService");
-const { TEMPLATE_IDS } = require("../utils/constants");
+const User = require('../models/User');
+const RefreshToken = require('../models/RefreshToken');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { sendTemplatedEmail } = require('./emailService');
+const { TEMPLATE_IDS } = require('../utils/constants');
 
 const generateAccessToken = (id, tokenVersion) => {
   return jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, {
@@ -45,6 +45,22 @@ const register = async (userData) => {
     active: false,
     status: "invited",
   });
+  const emailResults = await Promise.allSettled([
+    sendTemplatedEmail(
+      user.email,
+      TEMPLATE_IDS.WELCOME_EMAIL,
+      {
+        fullName: user.fullname,
+        email: user.email,
+        password: password,
+        loginUrl: `${process.env.CLIENT_URL}/login`, 
+      }
+    )
+  ]);
+
+  if (emailResults[0].status === 'rejected') {
+    console.error('Welcome email failed to send:', emailResults[0].reason);
+  }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
