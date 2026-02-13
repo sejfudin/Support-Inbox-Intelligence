@@ -45,22 +45,6 @@ const register = async (userData) => {
     active: false,
     status: "invited",
   });
-  const emailResults = await Promise.allSettled([
-    sendTemplatedEmail(
-      user.email,
-      TEMPLATE_IDS.WELCOME_EMAIL,
-      {
-        fullName: user.fullname,
-        email: user.email,
-        password: password,
-        loginUrl: `${process.env.CLIENT_URL}/login`, 
-      }
-    )
-  ]);
-
-  if (emailResults[0].status === 'rejected') {
-    console.error('Welcome email failed to send:', emailResults[0].reason);
-  }
 
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
@@ -70,10 +54,6 @@ const register = async (userData) => {
   await user.save();
 
   const inviteUrl = `${process.env.CLIENT_URL}/set-password?token=${rawToken}`;
-
-  console.log("Sending invite email to:", user.email);
-  console.log("Template:", TEMPLATE_IDS.INVITE_SET_PASSWORD);
-  console.log("From:", process.env.SENDGRID_FROM_EMAIL);
 
   await sendTemplatedEmail(user.email, TEMPLATE_IDS.INVITE_SET_PASSWORD, {
     fullName: user.fullname,
