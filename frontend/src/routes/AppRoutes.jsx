@@ -12,7 +12,7 @@ import ProfilePage from "@/pages/ProfilePage";
 import ProtectedRoute from "@/routes/ProtectedRoutes";
 import { useAuth } from "@/context/AuthContext";
 import UserWorkspace from "@/pages/UserWorkspace";
-import SetPassword from "@/pages/SetupPassword";
+import SetupPasswordWrapper from "@/pages/SetupPasswordWrapper";
 
 export default function AppRoutes() {
   const { isAuthenticated } = useAuth();
@@ -26,7 +26,7 @@ export default function AppRoutes() {
         }
       />
 
-      <Route path="/set-password" element={<SetPassword />} />
+      <Route path="/set-password" element={<SetupPasswordWrapper />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<SidebarLayout />}>
           <Route path="/" element={<Navigate to="/workspace" replace />} />
