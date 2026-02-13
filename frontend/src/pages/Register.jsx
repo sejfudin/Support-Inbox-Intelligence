@@ -24,22 +24,16 @@ const Register = () => {
   const {
     register,
     handleSubmit,
-    watch,
     control,
-    trigger,
     formState: { errors },
   } = useForm({
     mode: "onChange",
     defaultValues: {
       fullName: "",
       email: "",
-      password: "",
-      confirmPassword: "",
       role: "user",
     },
   });
-
-  const password = watch("password");
 
   const onSubmit = (data) => {
     setErrorString("");
@@ -123,54 +117,6 @@ const Register = () => {
                 />
                 {errors.email && (
                   <p className="text-red-500 text-xs">{errors.email.message}</p>
-                )}
-              </div>
-
-              {/* Password */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                  Password
-                </label>
-                <Input
-                  type="password"
-                  {...register("password", {
-                    required: "Password is required",
-                    minLength: { value: 6, message: "Min 6 characters" },
-                    onChange: () => {
-                      if (watch("confirmPassword")) {
-                        trigger("confirmPassword");
-                      }
-                    },
-                  })}
-                  placeholder="••••••••"
-                  className={`h-12 ${errors.password ? "border-red-500" : "border-slate-300"}`}
-                />
-                {errors.password && (
-                  <p className="text-red-500 text-xs">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                  Confirm Password
-                </label>
-                <Input
-                  type="password"
-                  {...register("confirmPassword", {
-                    required: "Please confirm password",
-                    validate: (val) =>
-                      val === password || "Passwords do not match",
-                  })}
-                  placeholder="••••••••"
-                  className={`h-12 ${errors.confirmPassword ? "border-red-500" : "border-slate-300"}`}
-                />
-                {errors.confirmPassword && (
-                  <p className="text-red-500 text-xs">
-                    {errors.confirmPassword.message}
-                  </p>
                 )}
               </div>
 
