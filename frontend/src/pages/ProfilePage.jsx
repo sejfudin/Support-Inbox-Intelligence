@@ -9,6 +9,7 @@ import { RoleBadge } from "@/components/RoleBadge";
 import { useUpdateUser } from "@/queries/auth";
 import { useAuth } from "@/context/AuthContext"; 
 import { toast } from "sonner";
+import TableSkeleton from "@/components/Skeletons/TableSkeleton";
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -62,7 +63,7 @@ const ProfilePage = () => {
     );
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  if (loading) return <TableSkeleton/>;
   if (!user) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
 
   const isFullNameValid = profile.fullName.trim().length > 0;
