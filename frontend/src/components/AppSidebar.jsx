@@ -1,5 +1,12 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { MessageCircle, User, Archive, FileQuestionMark, LayoutDashboard, ClipboardList } from "lucide-react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import {
+  MessageCircle,
+  User,
+  Archive,
+  FileQuestionMark,
+  LayoutDashboard,
+  ClipboardList,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -10,15 +17,26 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useLogoutUser } from "@/queries/auth";
 import { Avatar } from "./Avatar";
 import { capitalizeFirst } from "@/helpers/capitalizeFirst";
 import { useAuth } from "@/context/AuthContext";
+import { useEffect } from "react";
 
 export default function AppSidebar() {
   const { user, isLoginPending } = useAuth();
   const { mutate: logout } = useLogoutUser();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [location.pathname, isMobile, setOpenMobile]);
 
   const nav = [
     {
@@ -50,7 +68,6 @@ export default function AppSidebar() {
     },
   ];
 
-  const navigate = useNavigate();
   return (
     <Sidebar>
       <SidebarHeader className="px-6 pt-6">
