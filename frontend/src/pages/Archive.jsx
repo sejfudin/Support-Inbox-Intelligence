@@ -58,7 +58,7 @@ export default function ArchivePage() {
               data={normalizedTickets}
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
-              meta={{ onOpenTicket: openTicketDetails }}
+              meta={{ onRowClick: openTicketDetails }}
             />
           </TicketsState>
         </div>

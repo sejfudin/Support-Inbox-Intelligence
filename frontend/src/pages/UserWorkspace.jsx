@@ -98,7 +98,7 @@ export default function UserWorkspace() {
                       data={normalizedTickets}
                       pagination={ticketsData?.pagination}
                       onPageChange={(newPage) => setPage(newPage)}
-                      meta={{ onOpenTicket: openTicketDetails }}
+                      meta={{ onRowClick: openTicketDetails }}
                     />
                   </TicketsState>
                 </div>

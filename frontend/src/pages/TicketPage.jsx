@@ -136,7 +136,7 @@ export default function TicketPage() {
                   data={visibleTickets}
                   pagination={pagination}
                   onPageChange={(newPage) => listData.setPage(newPage)}
-                  meta={{ onOpenTicket: openTicketDetails }}
+                  meta={{ onRowClick: openTicketDetails }}
                 />
               </TicketsState>
             </div>
