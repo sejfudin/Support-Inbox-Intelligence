@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority";
-import { PanelLeft } from "lucide-react"
+import { Menu, PanelLeft } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -235,13 +235,17 @@ const SidebarTrigger = React.forwardRef(({ className, onClick, ...props }, ref) 
       data-sidebar="trigger"
       variant="ghost"
       size="icon"
-      className={cn("h-7 w-7", className)}
+      className={cn(
+        "h-10 w-10 p-2.5 transition-all duration-200 active:scale-95 hover:bg-gray-100", 
+        className
+      )}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
       }}
       {...props}>
-      <PanelLeft />
+      {/* Veća ikona (h-6 w-6) za bolju vidljivost */}
+      <Menu className="h-6 w-6 text-gray-700" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
