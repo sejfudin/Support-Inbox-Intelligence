@@ -5,8 +5,8 @@ const api = axios.create({
   withCredentials: true,
 });
 
-export const verifyInvite = async (token) => {
-  const res = await api.post("/auth/invite/verify", { token });
+export const verifyInvite = async ({ token, email }) => {
+  const res = await api.post("/auth/invite/verify", { token, email });
   return res.data;
 };
 

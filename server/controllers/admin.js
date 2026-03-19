@@ -3,13 +3,16 @@ const authService = require("../services/authService");
 
 exports.getUsers = async (req, res, next) => {
   try {
-    const { page, limit, search, pagination } = req.query;
+    const { page, limit, search, pagination, workspaceId: queryWorkspaceId } = req.query;
+    const isAdmin = req.user?.role === "admin";
+    const workspaceId = isAdmin ? queryWorkspaceId : req.user?.workspaceId;
 
     const result = await userService.getUsers({
       page,
       limit,
       search,
       pagination,
+      workspaceId,
     });
 
     res.json(result);

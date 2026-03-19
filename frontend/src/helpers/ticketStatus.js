@@ -32,14 +32,31 @@ export const BOARD_COLUMNS = STATUS_OPTIONS.map((s) => ({
 }));
 
 export const STATUS_STYLES = {
-  todo: { pill: "bg-slate-50 text-slate-600", border: "border-slate-300" },
-  inprogress: { pill: "bg-blue-50 text-blue-600", border: "border-blue-300" },
-  blocked: { pill: "bg-red-50 text-red-600", border: "border-red-300" },
+  todo: {
+    pill: "bg-slate-50 text-slate-600",
+    border: "border-slate-300",
+    card: "border-slate-200 shadow-[0_14px_28px_-24px_rgba(100,116,139,0.5)]",
+  },
+  inprogress: {
+    pill: "bg-blue-50 text-blue-600",
+    border: "border-blue-300",
+    card: "border-blue-200 shadow-[0_14px_28px_-24px_rgba(59,130,246,0.45)]",
+  },
+  blocked: {
+    pill: "bg-red-50 text-red-600",
+    border: "border-red-300",
+    card: "border-red-200 shadow-[0_14px_28px_-24px_rgba(239,68,68,0.4)]",
+  },
   staging: {
     pill: "bg-purple-50 text-purple-600",
     border: "border-purple-300",
+    card: "border-purple-200 shadow-[0_14px_28px_-24px_rgba(168,85,247,0.45)]",
   },
-  done: { pill: "bg-green-50 text-green-600", border: "border-green-300" },
+  done: {
+    pill: "bg-green-50 text-green-600",
+    border: "border-green-300",
+    card: "border-green-200 shadow-[0_14px_28px_-24px_rgba(34,197,94,0.45)]",
+  },
 };
 
 export const STATUS_BADGE_CONFIG = {

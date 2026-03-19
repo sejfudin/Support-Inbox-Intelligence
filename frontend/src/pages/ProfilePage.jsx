@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,35 +18,20 @@ const ProfilePage = () => {
   const { user, loading, refetchUser } = useAuth();
   const updateUserMutation = useUpdateUser();
 
-  const [profile, setProfile] = useState({
-    fullName: "John Doe",
-    email: "john.doe@example.com",
-    role: "Admin",
-    status: "Active",
+  const [draftProfile, setDraftProfile] = useState({
+    fullName: "",
     password: "",
   });
-
-  useEffect(() => {
-    if (user) {
-      setProfile({
-        fullName: user.fullname || "", 
-        email: user.email || "",
-        role: user.role || "User",
-        status: user.status || "Active",
-        password: "",
-      });
-    }
-  }, [user]);
 
   const handleSave = (e) => {
     e.preventDefault();
     const id = user?.id || user?._id;
     const payload = {
-      fullname: profile.fullName,
+      fullname: draftProfile.fullName,
     };
 
-    if (profile.password) {
-      payload.password = profile.password;
+    if (draftProfile.password) {
+      payload.password = draftProfile.password;
     }
 
     updateUserMutation.mutate(
@@ -54,6 +39,8 @@ const ProfilePage = () => {
       {
         onSuccess: () => {
           setIsEditing(false);
+          setShowPassword(false);
+          setDraftProfile({ fullName: "", password: "" });
           refetchUser(); 
           toast.success("Profile updated", {
             description: "Your information has been successfully saved.",
@@ -66,15 +53,23 @@ const ProfilePage = () => {
   if (loading) return <TableSkeleton/>;
   if (!user) return <div className="flex h-screen items-center justify-center text-red-500">Error Loading User Profile.</div>;
 
+  const profile = {
+    fullName: isEditing ? draftProfile.fullName : user.fullname || "",
+    email: user.email || "",
+    role: user.role || "User",
+    status: user.status || "Active",
+    password: isEditing ? draftProfile.password : "",
+  };
+
   const isFullNameValid = profile.fullName.trim().length > 0;
   const isPasswordValid = profile.password.length === 0 || profile.password.length >= 6;
   const isFormValid = isFullNameValid && isPasswordValid;
 
   return (
-   <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8 min-h-[calc(100vh-2rem)]">
+   <div className="flex min-h-[calc(100vh-2rem)] flex-1 flex-col items-center justify-center p-4 md:p-8">
         <div className="w-full max-w-md md:max-w-2xl my-auto">
         <Card className="shadow-2xl border-slate-200">
-          <CardHeader className="pt-10 pb-6 px-6 md:px-12 flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pb-6 pt-8 md:items-center md:px-12 md:pt-10">
             <div className="space-y-1">
               <CardTitle className="text-2xl md:text-3xl font-extrabold text-gray-900">
                 User Profile
@@ -87,8 +82,17 @@ const ProfilePage = () => {
             <Button
               variant="ghost"
               onClick={() => {
-                setIsEditing(!isEditing);
-                setProfile((prev) => ({ ...prev, password: "" }));
+                if (isEditing) {
+                  setIsEditing(false);
+                  setShowPassword(false);
+                  setDraftProfile({ fullName: "", password: "" });
+                } else {
+                  setIsEditing(true);
+                  setDraftProfile({
+                    fullName: user.fullname || "",
+                    password: "",
+                  });
+                }
               }}
               className="hover:bg-slate-100 text-slate-600 font-bold"
             >
@@ -113,7 +117,7 @@ const ProfilePage = () => {
                     className={`h-14 text-lg border-slate-300 focus:ring-2 ${!isEditing ? "bg-slate-50 text-slate-500 cursor-not-allowed" : "bg-white text-gray-900"}`}
                     value={profile.fullName}
                     onChange={(e) =>
-                      setProfile({ ...profile, fullName: e.target.value })
+                      setDraftProfile((current) => ({ ...current, fullName: e.target.value }))
                     }
                   />
                 </div>
@@ -127,9 +131,7 @@ const ProfilePage = () => {
                     disabled={true}
                     className={`h-14 text-lg border-slate-300 focus:ring-2 ${!isEditing ? "bg-slate-50 text-slate-500 cursor-not-allowed" : "bg-white text-gray-900"}`}
                     value={profile.email}
-                    onChange={(e) =>
-                      setProfile({ ...profile, email: e.target.value })
-                    }
+                    readOnly
                   />
                 </div>
 
@@ -143,14 +145,14 @@ const ProfilePage = () => {
                       type={isEditing && showPassword ? "text" : "password"}
                       disabled={!isEditing}
                       placeholder={isEditing ? "Leave blank to keep current password" : ""}
-                      className={`h-14 text-lg border-slate-300 focus:ring-2 pr-12 ${
+                    className={`h-14 text-lg border-slate-300 focus:ring-2 pr-12 ${
                         !isEditing 
                           ? "bg-slate-50 text-slate-500 cursor-not-allowed" 
                           : "bg-white text-gray-900"
                       }`}
                       value={isEditing ? profile.password : "********"} 
                       onChange={(e) =>
-                        setProfile({ ...profile, password: e.target.value })
+                        setDraftProfile((current) => ({ ...current, password: e.target.value }))
                       }
                     />
                     {isEditing && (
@@ -173,7 +175,7 @@ const ProfilePage = () => {
 
                 {/* Badge */}
                 {!isEditing && (
-                  <div className="md:col-span-2 grid grid-cols-2 gap-4 pt-4 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-1 gap-4 pt-4 animate-in fade-in duration-500 sm:grid-cols-2 md:col-span-2">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center space-y-2">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                         User Role

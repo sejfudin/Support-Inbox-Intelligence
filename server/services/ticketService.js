@@ -1,6 +1,4 @@
 const Ticket = require("../models/Ticket");
-const { TEMPLATE_IDS } = require("../utils/constants");
-const { sendTemplatedEmail } = require("./emailService");
 
 const getAllTickets = async ({
   page = 1,
@@ -8,10 +6,13 @@ const getAllTickets = async ({
   search = "",
   status = "",
   archived,
+  workspaceId,
 }) => {
+  if (!workspaceId) return { tickets: [], pagination: { total: 0, page: Number(page), limit: Number(limit), pages: 0 } };
+
   const skip = (page - 1) * limit;
 
-  const query = {};
+  const query = { workspace: workspaceId };
   if (archived !== undefined) {
     query.isArchived = archived ? true : { $ne: true };
   }
@@ -69,6 +70,7 @@ const createTicket = async (ticketData) => {
     creator: ticketData.creatorId,
     status: ticketData.status === undefined ? "to do" : ticketData.status,
     assignedTo: ticketData.assignedTo,
+    workspace: ticketData.workspaceId,
   });
 
   await ticket.save();
@@ -100,37 +102,6 @@ const updateTicket = async (ticketId, updateData) => {
       throw new Error('Ticket not found');
     }
 
-    if (updateData.assignedTo) {
-      const oldAssigneeIds = oldTicket.assignedTo.map(id => id.toString());
-      
-      const newlyAssigned = ticket.assignedTo.filter(
-        (agent) => !oldAssigneeIds.includes(agent._id.toString())
-      );
-console.log('Newly assigned agents:', newlyAssigned.map(a => a.email));
-      if (newlyAssigned.length > 0) {
-        Promise.allSettled(
-          newlyAssigned.map((agent) =>
-            sendTemplatedEmail(
-              agent.email,
-              TEMPLATE_IDS.TICKET_ASSIGNED, 
-              {
-                agentName: agent.fullname,
-                ticketSubject: ticket.subject,
-                creatorName: ticket.creator?.fullname || 'Administrator',
-                ticketUrl: `${process.env.CLIENT_URL}/workspace`,
-              }
-            )
-          )
-        ).then((results) => {
-          results.forEach((res, i) => {
-            if (res.status === 'rejected') {
-              console.error(`Failed to notify agent ${newlyAssigned[i].email}:`, res.reason);
-            }
-          });
-        });
-      }
-    }
-
     return ticket;
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -154,15 +125,19 @@ const archiveTicket = async (ticketId) => {
 
 const getMyTickets = async ({
   userId,
+  workspaceId,
   page = 1,
   limit = 10,
   search = "",
   status = "",
 }) => {
   const skip = (page - 1) * limit;
+  if (!workspaceId) return { tickets: [], stats: { activeTickets: 0, inProgress: 0, blocked: 0, completedThisMonth: 0 }, pagination: { total: 0, page: Number(page), limit: Number(limit), pages: 0 } };
+
   const query = {
     assignedTo: userId,
     isArchived: { $ne: true },
+    workspace: workspaceId,
   };
 
   if (search) {
@@ -189,11 +164,12 @@ const getMyTickets = async ({
     Ticket.countDocuments(query),
 
     Ticket.aggregate([
-      { 
-        $match: { 
-          assignedTo: userId, 
-          isArchived: { $ne: true } 
-        } 
+      {
+        $match: {
+          assignedTo: userId,
+          isArchived: { $ne: true },
+          workspace: workspaceId,
+        }
       },
       {
         $group: {

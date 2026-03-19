@@ -1,23 +1,22 @@
-import React from "react";
-import { useSearchParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { authKeys } from "@/queries/auth";
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import SetPassword from "./SetupPassword";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function SetupPasswordWrapper() {
-  const [params] = useSearchParams();
-  const token = params.get("token");
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const { isAuthenticated, loading } = useAuth();
 
-  if (token) {
-    const currentToken = localStorage.getItem("accessToken");
-    if (currentToken) {
-      localStorage.removeItem("accessToken");
-      queryClient.setQueryData(authKeys.me(), null);
-      queryClient.removeQueries({ queryKey: authKeys.all });
-      queryClient.removeQueries({ queryKey: ["tickets"] });
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      toast.error("Your account is already active. Please use the normal sign-in flow.");
+      navigate("/", { replace: true });
     }
-  }
+  }, [isAuthenticated, loading, navigate]);
+
+  if (loading) return null;
+  if (isAuthenticated) return null;
 
   return <SetPassword />;
 }

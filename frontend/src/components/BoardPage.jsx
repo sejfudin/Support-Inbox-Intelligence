@@ -1,28 +1,25 @@
 import { useMemo, useState } from "react";
 
-import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea, ScrollBar } from "../components/ui/scroll-area";
-import { Plus } from "lucide-react";
 import TicketsState from "./Tickets/TicketsState";
 import AssigneesAvatar from "./Tickets/AssigneesAvatar";
 import BoardSkeleton from "./Skeletons/BoardSkeleton";
 import {
   BOARD_COLUMNS,
   STATUS_TO_COLUMN,
-  COLUMN_TO_STATUS,
   STATUS_STYLES,
 } from "../helpers/ticketStatus";
 import { normalizeTicket } from "../helpers/normalizeTicket";
 
-function TaskCard({ task, onOpen }) {
+function TaskCard({ task, onOpen, cardClassName }) {
   return (
     <Card
       role="button"
       tabIndex={0}
       onClick={() => onOpen(task.id)}
       onKeyDown={(e) => e.key === "Enter" && onOpen(task.id)}
-      className="cursor-pointer hover:shadow-md transition-shadow"
+      className={`cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(108,105,255,0.55)] ${cardClassName}`}
     >
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2">
@@ -43,7 +40,7 @@ function Column({ col, onOpen, onNewTicket }) {
   const style = STATUS_STYLES[col.id] ?? STATUS_STYLES.todo;
 
   return (
-    <Card className={`w-[320px] shrink-0 border-t-4 ${style.border}`}>
+    <Card className={`w-[320px] shrink-0 border-white/70 bg-white/85 ${style.border} border-t-4`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -58,9 +55,9 @@ function Column({ col, onOpen, onNewTicket }) {
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 space-y-3">
+      <CardContent className="space-y-3 pt-0">
         {col.tasks.map((t) => (
-          <TaskCard key={t.id} task={t} onOpen={onOpen} />
+          <TaskCard key={t.id} task={t} onOpen={onOpen} cardClassName={style.card} />
         ))}
       </CardContent>
     </Card>
@@ -106,8 +103,8 @@ export default function BoardPage({
   }, [tickets, query]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto overflow-hidden px-4 py-6">
+    <div className="app-page">
+      <div className="app-page-content overflow-hidden pt-6">
         <TicketsState
           isLoading={isLoading}
           isError={isError}
@@ -115,19 +112,21 @@ export default function BoardPage({
           emptyMessage="No tickets in the board."
           loadingSlot={<BoardSkeleton />}
         >
-          <ScrollArea className="w-full">
-            <div className="flex gap-4 pb-4">
-              {columns.map((c) => (
-                <Column
+          <div className="app-panel app-grid-bg overflow-hidden p-4">
+            <ScrollArea className="w-full">
+              <div className="flex gap-4 pb-4">
+                {columns.map((c) => (
+                  <Column
                   key={c.id}
                   col={c}
                   onOpen={onOpenTicket}
                   onNewTicket={onNewTicket}
                 />
               ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </div>
         </TicketsState>
       </div>
     </div>

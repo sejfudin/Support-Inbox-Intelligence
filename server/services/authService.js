@@ -1,10 +1,10 @@
 const User = require('../models/User');
+const Workspace = require('../models/Workspace');
+const Invitation = require('../models/Invitation');
 const RefreshToken = require('../models/RefreshToken');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { sendTemplatedEmail } = require('./emailService');
-const { TEMPLATE_IDS } = require('../utils/constants');
 
 const generateAccessToken = (id, tokenVersion) => {
   return jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, {
@@ -15,6 +15,8 @@ const generateAccessToken = (id, tokenVersion) => {
 const generateInviteToken = () => crypto.randomBytes(32).toString("hex");
 const hashToken = (token) =>
   crypto.createHash("sha256").update(token).digest("hex");
+const buildSetupUrl = (token) =>
+  `${process.env.CLIENT_URL}/set-password?token=${token}`;
 
 const createRefreshToken = async (userId, tokenVersion) => {
   const token = jwt.sign(
@@ -33,36 +35,102 @@ const createRefreshToken = async (userId, tokenVersion) => {
 };
 
 const register = async (userData) => {
-  const { fullName, email, role } = userData;
-
-  const userExists = await User.findOne({ email });
-  if (userExists) throw new Error("User exists");
-
-  const user = await User.create({
-    fullname: fullName,
+  const {
+    fullName,
     email,
-    role: role || "user",
-    active: false,
-    status: "invited",
-  });
+    role,
+    workspaceId: rawWorkspaceId,
+    workspaceRole = "member",
+    inviterId,
+    inviterName,
+  } = userData;
+  const isGlobalAdmin = role === "admin";
+  const workspaceId = isGlobalAdmin ? undefined : rawWorkspaceId;
 
-  const rawToken = crypto.randomBytes(32).toString("hex");
-  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const normalizedEmail = String(email).trim().toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail });
+  let workspace = null;
 
-  user.inviteTokenHash = tokenHash;
-  user.inviteTokenExpires = Date.now() + 1000 * 60 * 60;
+  if (workspaceId) {
+    workspace = await Workspace.findById(workspaceId);
+    if (!workspace) throw new Error("Workspace not found");
+  }
+
+  if (user && user.status === "active" && !workspaceId) {
+    throw new Error("User already active!");
+  }
+
+  if (user && user.status === "active" && workspaceId) {
+    const alreadyMember = workspace.members.some(
+      (member) =>
+        member.user.toString() === user._id.toString() && member.status === "active"
+    );
+    if (alreadyMember) throw new Error("User is already a member of this workspace");
+
+    const pendingInvitation = await Invitation.findOne({
+      user: user._id,
+      workspace: workspaceId,
+      status: "pending",
+    });
+    if (pendingInvitation) {
+      throw new Error("User already has a pending invitation for this workspace");
+    }
+
+    await Invitation.create({
+      user: user._id,
+      workspace: workspaceId,
+      invitedBy: inviterId,
+      workspaceRole,
+    });
+
+    return { message: "Invitation sent in-app" };
+  }
+
+  if (!user) {
+    user = await User.create({
+      fullname: fullName,
+      email: normalizedEmail,
+      role: role || "user",
+      active: false,
+      status: "invited",
+    });
+  } else {
+    user.fullname = fullName;
+    user.role = role || user.role || "user";
+    user.active = false;
+    user.status = "invited";
+  }
+
+  user.inviteTokenHash = null;
+  user.inviteTokenExpires = null;
+  user.invitedBy = inviterId || null;
+  user.invitedAt = new Date();
+  user.inviteAcceptedAt = null;
+  user.inviteSetupSessionHash = null;
+  user.inviteSetupSessionExpires = null;
   await user.save();
 
-  const inviteUrl = `${process.env.CLIENT_URL}/set-password?token=${rawToken}`;
+  if (workspaceId) {
+    const pendingInvitation = await Invitation.findOne({
+      user: user._id,
+      workspace: workspaceId,
+      status: "pending",
+    });
 
-  await sendTemplatedEmail(user.email, TEMPLATE_IDS.INVITE_SET_PASSWORD, {
-    fullName: user.fullname,
-    inviterName: "Admin",
-    appName: "Support Inbox",
-    setPasswordUrl: inviteUrl,
-  });
+    if (!pendingInvitation) {
+      await Invitation.create({
+        user: user._id,
+        workspace: workspaceId,
+        invitedBy: inviterId,
+        workspaceRole,
+      });
+    }
+  }
 
-  return { message: "Invite sent" };
+  return {
+    message: "User created. They can activate their account by entering their email on the password setup screen.",
+    requiresPasswordSetup: true,
+  };
 };
 
 const login = async ({ email, password }) => {
@@ -189,9 +257,8 @@ const createUserInvite = async ({
     user.status = "invited";
   }
 
-  const rawInviteToken = generateInviteToken();
-  user.inviteTokenHash = hashToken(rawInviteToken);
-  user.inviteTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1h
+  user.inviteTokenHash = null;
+  user.inviteTokenExpires = null;
   user.invitedBy = inviterId;
   user.invitedAt = new Date();
   user.inviteAcceptedAt = null;
@@ -202,33 +269,37 @@ const createUserInvite = async ({
 
   await user.save();
 
-  const setPasswordUrl = `${process.env.CLIENT_URL}/set-password?token=${rawInviteToken}`;
-
-  console.log("Sending invite email to:", user.email);
-  console.log("Template:", TEMPLATE_IDS.INVITE_SET_PASSWORD);
-  console.log("From:", process.env.SENDGRID_FROM_EMAIL);
-
-  await sendTemplatedEmail(user.email, TEMPLATE_IDS.INVITE_SET_PASSWORD, {
-    fullName: user.fullname,
-    inviterName: inviterName || "Admin",
-    setPasswordUrl,
-  });
-
-  return { message: "Invite sent" };
+  return {
+    message: "User invite created. They can activate their account by entering their email on the password setup screen.",
+    requiresPasswordSetup: true,
+  };
 };
 
-const verifyInvite = async (token) => {
-  if (!token) throw new Error("Invalid invite");
+const verifyInvite = async ({ email, token }) => {
+  const normalizedEmail = email ? String(email).trim().toLowerCase() : null;
+  let user = null;
 
-  const tokenHash = hashToken(String(token));
+  if (normalizedEmail) {
+    const existingUser = await User.findOne({ email: normalizedEmail });
+    if (existingUser?.status === "active" || existingUser?.active) {
+      throw new Error("This account is already active. Please sign in.");
+    }
 
-  const user = await User.findOne({
-    inviteTokenHash: tokenHash,
-    inviteTokenExpires: { $gt: new Date() },
-    status: "invited",
-  });
+    user = await User.findOne({
+      email: normalizedEmail,
+      status: "invited",
+      active: false,
+    });
+  } else if (token) {
+    const tokenHash = hashToken(String(token));
+    user = await User.findOne({
+      inviteTokenHash: tokenHash,
+      inviteTokenExpires: { $gt: new Date() },
+      status: "invited",
+    });
+  }
 
-  if (!user) throw new Error("Invalid invite");
+  if (!user) throw new Error("No invited account found for this email.");
 
   const rawSetupToken = generateInviteToken();
   user.inviteSetupSessionHash = hashToken(rawSetupToken);
@@ -272,6 +343,14 @@ const setPasswordFromInvite = async ({ setupToken, password }) => {
   await RefreshToken.deleteMany({ user: user._id });
 
   await user.save();
+
+  // Activate workspace membership if the user was invited to one
+  if (user.workspaceId) {
+    await Workspace.updateOne(
+      { _id: user.workspaceId, 'members.user': user._id },
+      { $set: { 'members.$.status': 'active' } }
+    );
+  }
 
   const accessToken = generateAccessToken(user._id, user.tokenVersion);
   const refreshToken = await createRefreshToken(user._id, user.tokenVersion);

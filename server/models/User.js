@@ -75,6 +75,10 @@ const userSchema = new mongoose.Schema(
     passwordSetAt: {
       type: Date,
     },
+    workspaceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+    }
   },
   {
     timestamps: true,

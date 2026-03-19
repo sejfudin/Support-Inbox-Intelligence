@@ -2,17 +2,13 @@ import React, { useState } from "react";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { Input } from "@/components/ui/input";
 import { Search, UserPlus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import UserEditModal from "@/components/UserEditModal";
 import { useNavigate } from "react-router-dom";
 import { useUsers } from "@/queries/users";
-import { RoleBadge } from "@/components/RoleBadge";
-import { UserStatusBadge } from "@/components/UserStatusBadge";
 import { columns } from "@/components/columns/userColumns";
 import { useDebounce } from "use-debounce";
 import TableSkeleton from "@/components/Skeletons/TableSkeleton";
-
 
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
@@ -22,16 +18,17 @@ export default function AdminUsersPage() {
   const navigate = useNavigate();
   const { data: usersData, isPending, isError } = useUsers({ page, limit, search: debouncedSearch });
   const [editingUser, setEditingUser] = useState(null);
-const users =
-    usersData?.users?.map((u) => ({ 
-      id: u._id,
-      user: u.fullname || "No name",
-      email: u.email,
-      role: u.role,
-      status: u.active === true ? "Active" : "Inactive",
+  const users =
+    usersData?.users?.map((user) => ({
+      id: user._id,
+      fullName: user.fullname || "No name",
+      user: user.fullname || "No name",
+      email: user.email,
+      role: user.role,
+      status: user.status || (user.active === true ? "active" : "inactive"),
     })) ?? [];
 
-    const pagination = usersData?.pagination;
+  const pagination = usersData?.pagination;
 
   const handleEditUser = (user) => {
     setEditingUser(user);
@@ -51,36 +48,40 @@ const users =
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* Header */}
-     <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-5">
-        <h1 className="text-xl font-bold sm:text-2xl text-foreground">User Management</h1>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full md:w-auto">
-          {/* Search bar */}
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search users..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1); 
-              }}
-            />
+    <div className="app-page">
+      <div className="app-page-content space-y-6">
+        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
+          <div>
+            <div className="app-kicker mb-3">Admin directory</div>
+            <h1 className="app-title">All Users</h1>
+            <p className="app-subtitle">
+            Global user directory across the entire TaskManager app.
+            </p>
           </div>
+        
+          <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center md:w-auto">
+            <div className="relative w-full sm:flex-1 md:w-80 md:flex-none">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search users..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1); 
+                }}
+              />
+            </div>
 
-          <Button onClick={() => navigate("/register")}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add New User
-          </Button>
+            <Button onClick={() => navigate("/register")} className="w-full sm:w-auto">
+              <UserPlus className="mr-2 h-4 w-4" />
+              Create User
+            </Button>
+          </div>
         </div>
-      </div>
-      {/* Content */}
-      <div className="flex-1 p-4 sm:p-6 md:p-8">
-        <div className="bg-white rounded-lg shadow">
+
+        <div className="app-panel overflow-hidden">
           {isPending ? (
             <TableSkeleton columns={5} rows={6} minWidthClassName="min-w-[800px]" />
           ) : (
@@ -97,7 +98,6 @@ const users =
       </div>
       </div>
 
-      {/* Edit modal */}
       {editingUser && (
         <UserEditModal user={editingUser} onClose={handleCloseModal} />
       )}

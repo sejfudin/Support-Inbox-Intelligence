@@ -33,7 +33,7 @@ export const useLoginUser = () => {
     onSuccess: (data) => {
       localStorage.setItem("accessToken", data.accessToken);
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
-      navigate("/workspace");
+      navigate("/");
     },
 
     onError: (error) => {

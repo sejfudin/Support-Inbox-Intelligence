@@ -4,6 +4,7 @@ export const getTicketsQueryParams = ({
   activeTab,
   archived,
   status,
+  workspaceId,
   listLimit = 10,
   boardLimit = 10000,
 }) => {
@@ -18,6 +19,7 @@ export const getTicketsQueryParams = ({
       search,
       status: normalizedStatus,
       archived,
+      workspaceId,
     },
     board: {
       page: 1,
@@ -25,6 +27,7 @@ export const getTicketsQueryParams = ({
       search,
       status: status !== undefined ? normalizedStatus : "",
       archived,
+      workspaceId,
     },
   };
 };

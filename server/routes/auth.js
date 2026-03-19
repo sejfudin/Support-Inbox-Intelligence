@@ -11,9 +11,10 @@ const {
   setPasswordFromInvite,
 } = require("../controllers/authentication");
 const { protect } = require("../middleware/auth");
+const { requireRole } = require("../middleware/role");
 
 router.post("/login", login);
-router.post("/register", register);
+router.post("/register", protect, requireRole("admin"), register);
 router.get("/me", protect, getMe);
 router.post("/refresh", refresh);
 router.post("/logout", logout);

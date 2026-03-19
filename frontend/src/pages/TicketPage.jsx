@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTickets } from "@/queries/tickets";
 import { columns } from "@/components/columns/ticketColumns";
@@ -14,10 +15,19 @@ import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
 import { normalizeTicket } from "@/helpers/normalizeTicket";
 import { useTicketModals } from "@/hooks/useTicketModals";
 import { useTicketList } from "@/hooks/useTicketList";
+import { useWorkspace } from "@/queries/workspaces";
+import { ArrowLeft, Building2 } from "lucide-react";
+import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("list");
+  const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const overrideWorkspaceId = searchParams.get("workspaceId") || undefined;
+  const { data: overrideWorkspace } = useWorkspace(overrideWorkspaceId);
 
   const {
     isNewOpen,
@@ -33,12 +43,18 @@ export default function TicketPage() {
   const isBoard = viewMode === "board";  
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
 
+  useEffect(() => {
+    if (isMobile && viewMode === "board") {
+      setViewMode("list");
+    }
+  }, [isMobile, viewMode]);
+
 
   // List view data
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
-    additionalFilters: { archived: false, status: listStatusFilter },
+    additionalFilters: { archived: false, status: listStatusFilter, workspaceId: overrideWorkspaceId },
   });
 
   // Board view data
@@ -51,6 +67,7 @@ export default function TicketPage() {
     activeTab,
     archived: false,
     status: "not_null",
+    workspaceId: overrideWorkspaceId,
   });
 
   const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });
@@ -83,7 +100,24 @@ export default function TicketPage() {
 
   const currentSearch = isBoard ? search : listData.search;
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <PageShell>
+      {overrideWorkspaceId && (
+        <PageSection className="pb-0">
+          <div className="app-panel-soft flex items-center gap-3 px-5 py-3 text-sm text-blue-800">
+            <Building2 className="h-4 w-4 shrink-0" />
+            <span>
+              Viewing workspace: <strong>{overrideWorkspace?.name ?? overrideWorkspaceId}</strong>
+            </span>
+            <button
+              onClick={() => navigate(`/admin/workspaces/${overrideWorkspaceId}`)}
+              className="ml-auto flex items-center gap-1 text-xs text-blue-600 hover:underline"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Back to workspace
+            </button>
+          </div>
+        </PageSection>
+      )}
       <NewTickets
         isOpen={isNewOpen}
         onClose={closeNewTicket}
@@ -95,10 +129,11 @@ export default function TicketPage() {
         search={currentSearch}
         onSearch={handleSearchChange}
         onNewTicket={openNewTicket}
+        hideViewMode={isMobile}
       />
 
       {/* Conditional Content Based on View Mode */}
-      {viewMode === "board" ? (
+      {!isMobile && viewMode === "board" ? (
         <BoardPage
           tickets={visibleTickets}
           isLoading={isLoading}
@@ -118,10 +153,8 @@ export default function TicketPage() {
           />
 
           {/* Content */}
-          <div className="flex-1 p-4 sm:p-6 md:p-8">
-            <div
-              className={`bg-white rounded-lg shadow overflow-hidden ${isPlaceholderData ? "opacity-60" : ""}`}
-            >
+          <PageSection className="flex-1 pt-6">
+            <PagePanel className={isPlaceholderData ? "opacity-60" : ""}>
               <TicketsState
                 isLoading={isLoading}
                 isError={isError}
@@ -139,8 +172,8 @@ export default function TicketPage() {
                   meta={{ onRowClick: openTicketDetails }}
                 />
               </TicketsState>
-            </div>
-          </div>
+            </PagePanel>
+          </PageSection>
         </>
       )}
 
@@ -150,6 +183,6 @@ export default function TicketPage() {
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
       />
-    </div>
+    </PageShell>
   );
 }

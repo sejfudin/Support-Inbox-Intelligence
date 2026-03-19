@@ -1,4 +1,4 @@
-import { TrendingDownIcon, TrendingUpIcon, MinusIcon } from "lucide-react";
+import { TrendingDownIcon, TrendingUpIcon, MinusIcon, Activity, CircleDashed, CheckCircle2, AlertTriangle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function SectionCards({ stats, isLoading }) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-4 px-4 lg:grid-cols-4 lg:px-6">
+      <div className="grid grid-cols-1 gap-4 px-4 sm:grid-cols-2 lg:grid-cols-4 lg:px-6">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i} className="@container/card">
             <CardHeader className="relative">
@@ -38,6 +38,8 @@ export function SectionCards({ stats, isLoading }) {
       description:
         stats?.activeTrend >= 0 ? "Increasing workload" : "Workload decreasing",
       footer: "Assigned to you (not done)",
+      icon: Activity,
+      iconClassName: "bg-primary",
     },
     {
       title: "In Progress",
@@ -46,6 +48,8 @@ export function SectionCards({ stats, isLoading }) {
       description:
         stats?.inProgressTrend > 0 ? "Active development" : "Low activity",
       footer: "Currently being worked on",
+      icon: CircleDashed,
+      iconClassName: "bg-cyan-500",
     },
     {
       title: "Completed This Month",
@@ -54,6 +58,8 @@ export function SectionCards({ stats, isLoading }) {
       description:
         stats?.completedTrend >= 0 ? "Great progress" : "Below last month",
       footer: `Tickets completed in ${stats?.monthLabel || "this month"}`,
+      icon: CheckCircle2,
+      iconClassName: "bg-emerald-500",
     },
     {
       title: "Blocked",
@@ -62,11 +68,13 @@ export function SectionCards({ stats, isLoading }) {
       description:
         stats?.blockedTrend <= 0 ? "Issues being resolved" : "Needs attention",
       footer: "Tickets needing unblock",
+      icon: AlertTriangle,
+      iconClassName: "bg-amber-500",
     },
   ];
 
   return (
-    <div className="*:data-[slot=card]:shadow-xs grid grid-cols-2 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card lg:grid-cols-4 lg:px-6">
+    <div className="app-page-content grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card, index) => {
         const isPositive = card.trend > 0;
         const isNegative = card.trend < 0;
@@ -87,8 +95,11 @@ export function SectionCards({ stats, isLoading }) {
             : "bg-gray-50";
 
         return (
-          <Card key={index} className="@container/card">
-            <CardHeader className="relative">
+          <Card key={index} className="@container/card overflow-hidden border-white/70 bg-gradient-to-br from-white via-white to-primary/5">
+            <CardHeader className="relative pb-3">
+              <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-2xl ${card.iconClassName}`}>
+                <card.icon className="h-5 w-5 text-white" />
+              </div>
               <CardDescription>{card.title}</CardDescription>
               <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
                 {card.value}
@@ -97,7 +108,7 @@ export function SectionCards({ stats, isLoading }) {
                 <div className="absolute right-4 top-4">
                   <Badge
                     variant="outline"
-                    className={`flex gap-1 rounded-lg text-xs ${bgColor} ${trendColor} border-current`}
+                    className={`flex gap-1 rounded-full text-xs ${bgColor} ${trendColor} border-current`}
                   >
                     <TrendIcon className="size-3" />
                     {isPositive ? "+" : ""}

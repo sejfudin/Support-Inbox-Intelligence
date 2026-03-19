@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { columns } from "@/components/columns/ticketColumns";
 import { SectionCards } from "@/components/section-cards";
@@ -11,11 +11,13 @@ import BoardPage from "@/components/BoardPage";
 import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import { useTicketModals } from "@/hooks/useTicketModals";
 import { useDebounce } from "use-debounce";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-export default function UserWorkspace() {
+export default function UserDashboard() {
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState("list");
   const [search, setSearch] = useState("");
+  const isMobile = useIsMobile();
   const [debouncedSearch] = useDebounce(search, 500);
 
   const {
@@ -57,13 +59,20 @@ export default function UserWorkspace() {
 
   const isBoard = viewMode === "board";
 
+  useEffect(() => {
+    if (isMobile && viewMode === "board") {
+      setViewMode("list");
+    }
+  }, [isMobile, viewMode]);
+
   return (
-    <main className="flex min-h-screen flex-col bg-gray-50 font-sans">
+    <main className="app-page flex min-h-screen flex-col font-sans">
       <TicketsHeader
-        title="My Workspace"
+        title="Dashboard"
         hideNewTicket={true}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        hideViewMode={isMobile}
         search={search}
         onSearch={(value) => {
           setSearch(value);
@@ -75,8 +84,8 @@ export default function UserWorkspace() {
         <div className="py-4 md:py-6">
           <SectionCards stats={stats} isLoading={isLoading} />
 
-          <div className="mt-8">
-            {isBoard ? (
+          <div className="app-page-content mt-2">
+            {!isMobile && isBoard ? (
               <BoardPage
                 tickets={normalizedTickets}
                 isLoading={isLoading}
@@ -84,8 +93,8 @@ export default function UserWorkspace() {
                 onOpenTicket={openTicketDetails}
               />
             ) : (
-              <div className="px-4 lg:px-6">
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div>
+                <div className="app-panel overflow-hidden">
                   <TicketsState
                     isLoading={isLoading}
                     isError={isError}

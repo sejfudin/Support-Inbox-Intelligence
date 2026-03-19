@@ -62,7 +62,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className={`text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap ${header.column.columnDef.meta?.headerClassName || ""}`}
+                    className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ""}`}
                   >
                     {header.isPlaceholder
                       ? null
@@ -82,7 +82,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="cursor-pointer border-b border-border/70 transition-colors hover:bg-secondary/50"
                   onClick={() => {
                     const id = row.original.id ?? row.original._id;
                     table.options.meta?.onRowClick?.(id, row.original);
@@ -116,7 +116,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
       </div>
 
       <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-muted-foreground">
           Showing{" "}
           <span className="font-medium">
             {from}

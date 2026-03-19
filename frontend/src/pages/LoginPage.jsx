@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,11 +29,32 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-white flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md md:max-w-xl">
-        <Card className="shadow-2xl border-slate-200">
-          <CardHeader className="pt-10 pb-6">
-            <CardTitle className="text-2xl md:text-3xl text-center font-extrabold text-gray-900">
+    <div className="fixed inset-0 flex h-screen w-screen items-center justify-center overflow-y-auto bg-transparent p-4">
+      <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <Card className="hidden border-primary/10 bg-slate-950 text-white shadow-[0_32px_80px_-40px_rgba(35,39,92,0.95)] lg:block">
+          <CardHeader className="space-y-6 p-10">
+            <div className="app-kicker w-fit border-white/10 bg-white/10 text-white/90">TaskManager</div>
+            <div>
+              <CardTitle className="text-4xl font-semibold leading-tight text-white">
+                Stay on top of tickets, teams, and workspace operations.
+              </CardTitle>
+              <p className="mt-4 max-w-md text-sm leading-7 text-slate-300">
+                A calmer, faster way to manage support work with a single professional control
+                center for people, workflows, and progress.
+              </p>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card className="border-white/70 bg-white/92 shadow-[0_24px_60px_-30px_rgba(76,81,191,0.38)]">
+          <CardHeader className="space-y-4 pt-10 pb-6">
+            <div className="text-center">
+              <div className="text-3xl font-semibold tracking-tight">
+                <span className="text-foreground">Task</span>
+                <span className="text-primary">Manager</span>
+              </div>
+            </div>
+            <CardTitle className="text-center text-2xl font-semibold text-gray-900 md:text-3xl">
               Sign in
             </CardTitle>
           </CardHeader>
@@ -53,7 +75,7 @@ export const LoginPage = () => {
                   type="email"
                   placeholder="your@email.com"
                   required
-                  className="h-14 text-lg border-slate-300 focus:ring-2"
+                  className="h-14 text-lg"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -68,7 +90,7 @@ export const LoginPage = () => {
                   type="password"
                   placeholder="••••••••"
                   required
-                  className="h-14 text-lg border-slate-300 focus:ring-2"
+                  className="h-14 text-lg"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -76,10 +98,23 @@ export const LoginPage = () => {
 
               <Button
                 type="submit"
-                className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98]"
+                className="h-14 w-full text-xl font-semibold"
               >
                 {loginMutation.isPending ? "Signing in..." : "Login"}
               </Button>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+                <p className="text-sm font-semibold text-slate-900">First time here?</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  If your admin created your account, use your internal email to set your password.
+                </p>
+                <Link
+                  to="/set-password"
+                  className="mt-3 inline-flex text-sm font-semibold text-primary underline underline-offset-4"
+                >
+                  Set password
+                </Link>
+              </div>
             </form>
           </CardContent>
         </Card>
