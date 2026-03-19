@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCreateTicket } from "@/queries/tickets";
 import { useUsers } from "@/queries/users";
+import { useAuth } from "@/context/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Select,
@@ -33,7 +34,11 @@ const NewTickets = ({
   hideStatus = false,
 }) => {
   const createMutation = useCreateTicket();
-  const { data: usersData } = useUsers({ pagination: false });
+  const { user } = useAuth();
+  const { data: usersData } = useUsers({
+    pagination: false,
+    workspaceId: user?.workspaceId,
+  });
   const users = usersData?.users || [];
 
   const { form: newTicket, updateField, resetForm } = useTicketForm(initialStatus);

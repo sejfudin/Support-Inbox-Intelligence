@@ -16,6 +16,7 @@ import StatusDropdown from "@/components/StatusDropdown";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { useArchiveTicket } from "@/queries/tickets";
 import { useUsers } from "@/queries/users";
+import { useAuth } from "@/context/AuthContext";
 import {
   Popover,
   PopoverContent,
@@ -27,6 +28,7 @@ import { Avatar } from "../Avatar";
 import { toast } from "sonner";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -41,7 +43,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const updateTicketMutation = useUpdateTicket();
   const ticket = apiResponse?.data ?? apiResponse;
 
-  const { data: usersData, isLoading: usersLoading, isError:usersError } = useUsers({ pagination: false });
+  const { data: usersData, isLoading: usersLoading, isError:usersError } = useUsers({
+    pagination: false,
+    workspaceId: ticket?.workspace || user?.workspaceId,
+  });
   const users = usersData?.users || [];
 
   useEffect(() => {

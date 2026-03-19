@@ -100,6 +100,15 @@ const createTicket = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in createTicket Controller:", error.message);
+    if (
+      error.message === "Assigned users must be active members of this workspace" ||
+      error.message === "Workspace not found"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
     res.status(500).json({
       success: false,
       message: "Server Error: Unable to create ticket",
@@ -134,6 +143,12 @@ const updateTicket = async (req, res, next) => {
   } catch (error) {
     if (error.message === "Ticket not found") {
       return res.status(404).json({ message: error.message });
+    }
+    if (
+      error.message === "Assigned users must be active members of this workspace" ||
+      error.message === "Workspace not found"
+    ) {
+      return res.status(400).json({ message: error.message });
     }
     next(error);
   }

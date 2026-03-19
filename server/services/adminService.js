@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Workspace = require('../models/Workspace');
 
 const getUsers = async ({
   page = 1,
@@ -9,7 +10,28 @@ const getUsers = async ({
 }) => {
     const skip = (page - 1) * limit;
     const query = {};
-    if (workspaceId) query.workspaceId = workspaceId;
+    if (workspaceId) {
+      const workspace = await Workspace.findById(workspaceId).select('members.user members.status');
+      if (!workspace) {
+        return pagination === "false" || pagination === false
+          ? { users: [] }
+          : {
+              users: [],
+              pagination: {
+                total: 0,
+                page: Number(page),
+                limit: Number(limit),
+                pages: 0,
+              },
+            };
+      }
+
+      const memberIds = workspace.members
+        .filter((member) => member.status === 'active' && member.user)
+        .map((member) => member.user);
+
+      query._id = { $in: memberIds };
+    }
     if (search) {
         query.$or = [
         { fullname: { $regex: search, $options: "i" } },

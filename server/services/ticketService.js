@@ -1,4 +1,38 @@
 const Ticket = require("../models/Ticket");
+const Workspace = require("../models/Workspace");
+
+const INVALID_ASSIGNEE_ERROR =
+  "Assigned users must be active members of this workspace";
+
+const normalizeAssignedUserIds = (assignedTo = []) => {
+  const rawIds = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
+
+  return [...new Set(rawIds.filter(Boolean).map((id) => id.toString()))];
+};
+
+const ensureAssignableUsersBelongToWorkspace = async ({
+  workspaceId,
+  assignedTo = [],
+}) => {
+  const assignedUserIds = normalizeAssignedUserIds(assignedTo);
+  if (!workspaceId || assignedUserIds.length === 0) return;
+
+  const workspace = await Workspace.findById(workspaceId).select("members.user members.status");
+  if (!workspace) {
+    throw new Error("Workspace not found");
+  }
+
+  const activeMemberIds = new Set(
+    workspace.members
+      .filter((member) => member.status === "active" && member.user)
+      .map((member) => member.user.toString())
+  );
+
+  const hasInvalidAssignee = assignedUserIds.some((userId) => !activeMemberIds.has(userId));
+  if (hasInvalidAssignee) {
+    throw new Error(INVALID_ASSIGNEE_ERROR);
+  }
+};
 
 const getAllTickets = async ({
   page = 1,
@@ -64,6 +98,11 @@ const getTicketById = async (ticketId) => {
 };
 
 const createTicket = async (ticketData) => {
+  await ensureAssignableUsersBelongToWorkspace({
+    workspaceId: ticketData.workspaceId,
+    assignedTo: ticketData.assignedTo,
+  });
+
   const ticket = new Ticket({
     subject: ticketData.subject,
     description: ticketData.description || "",
@@ -85,6 +124,13 @@ const updateTicket = async (ticketId, updateData) => {
   try {
     const oldTicket = await Ticket.findById(ticketId);
     if (!oldTicket) throw new Error('Ticket not found');
+
+    if (Object.prototype.hasOwnProperty.call(updateData, "assignedTo")) {
+      await ensureAssignableUsersBelongToWorkspace({
+        workspaceId: oldTicket.workspace,
+        assignedTo: updateData.assignedTo,
+      });
+    }
 
     const ticket = await Ticket.findByIdAndUpdate(
       ticketId,
@@ -242,4 +288,5 @@ module.exports = {
   updateTicket,
   archiveTicket,
   getMyTickets,
+  INVALID_ASSIGNEE_ERROR,
 };
