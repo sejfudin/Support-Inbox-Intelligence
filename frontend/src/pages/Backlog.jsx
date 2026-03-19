@@ -9,8 +9,9 @@ import TicketsHeader from "@/components/Tickets/TicketsHeader";
 import NewTickets from "@/components/Tickets/NewTickets";
 import { useGetMe } from "@/queries/auth";
 import TableSkeleton from "@/components/Skeletons/TableSkeleton";
+import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
 
-export default function ArchivePage() {
+export default function BacklogPage() {
   const [activeTab] = useState("all");
 
   const {
@@ -38,7 +39,7 @@ export default function ArchivePage() {
   const isAdmin = me?.role === "admin";
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <PageShell>
       <NewTickets
         isOpen={isNewOpen}
         onClose={closeNewTicket}
@@ -57,10 +58,8 @@ export default function ArchivePage() {
         title="Backlog"
       />
       
-      <div className="flex-1 p-4 sm:p-6 md:p-8">
-        <div
-          className={`bg-white rounded-lg shadow overflow-hidden ${isPlaceholderData ? "opacity-60" : ""}`}
-        >
+      <PageSection className="flex-1 pt-6">
+        <PagePanel className={isPlaceholderData ? "opacity-60" : ""}>
           <TicketsState
             isLoading={isLoading}
             isError={isError}
@@ -74,16 +73,16 @@ export default function ArchivePage() {
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{ onRowClick: openTicketDetails }}
-            />
-          </TicketsState>
-        </div>
-      </div>
+                />
+              </TicketsState>
+        </PagePanel>
+      </PageSection>
 
       <TicketDetailsModal
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
       />
-    </div>
+    </PageShell>
   );
 }

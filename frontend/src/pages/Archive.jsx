@@ -7,6 +7,7 @@ import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import TicketsState from "@/components/Tickets/TicketsState";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
 import TableSkeleton from "@/components/Skeletons/TableSkeleton";
+import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
 
 export default function ArchivePage() {
   const [activeTab] = useState("all");
@@ -30,7 +31,7 @@ export default function ArchivePage() {
   } = useTicketModals();
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50">
+    <PageShell>
       <TicketsHeader
         search={search}
         onSearch={(value) => {
@@ -42,10 +43,8 @@ export default function ArchivePage() {
         title="Archive"
       />
       
-      <div className="flex-1 p-4 sm:p-6 md:p-8">
-        <div
-          className={`bg-white rounded-lg shadow overflow-hidden ${isPlaceholderData ? "opacity-60" : ""}`}
-        >
+      <PageSection className="flex-1 pt-6">
+        <PagePanel className={isPlaceholderData ? "opacity-60" : ""}>
           <TicketsState
             isLoading={isLoading}
             isError={isError}
@@ -59,16 +58,16 @@ export default function ArchivePage() {
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{ onRowClick: openTicketDetails }}
-            />
-          </TicketsState>
-        </div>
-      </div>
+                />
+              </TicketsState>
+        </PagePanel>
+      </PageSection>
 
       <TicketDetailsModal
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
       />
-    </div>
+    </PageShell>
   );
 }

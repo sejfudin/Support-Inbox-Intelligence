@@ -15,14 +15,10 @@ const {
 const { protect } = require("../middleware/auth");
 
 router.get("/my-tickets", protect, getMyTickets);
-router.get(
-  "/",
-  // protect, requireRole('admin', 'user'),
-  getAllTickets,
-);
+router.get("/", protect, getAllTickets);
 
 router.post("/", protect, createTicket);
-router.get("/:id", getTicketById);
+router.get("/:id", protect, getTicketById);
 router.patch("/:id", protect, updateTicket);
 router.patch("/:id/archive", protect, archiveTicket);
 router.delete("/", protect, deleteTicket);

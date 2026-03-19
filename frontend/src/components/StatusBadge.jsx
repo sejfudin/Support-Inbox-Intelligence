@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { STATUS_BADGE_CONFIG } from "@/helpers/ticketStatus";
 
-export function TicketStatusBadge({ status, className }) {
+export default function TicketStatusBadge({ status, className }) {
   const s = status?.toLowerCase();
   const current = STATUS_BADGE_CONFIG[s] || { variant: "outline", className: "" };
 

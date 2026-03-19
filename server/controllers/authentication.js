@@ -14,16 +14,25 @@ const attachCookie = (res, refreshToken) => {
 
 const register = async (req, res, next) => {
   try {
-    const result = await authService.register(req.body);
+    const result = await authService.register({
+      ...req.body,
+      inviterId: req.user._id,
+      inviterName: req.user.fullname,
+    });
     res.status(201).json(result);
   } catch (error) {
+    if (error.message === 'Workspace not found') {
+      return res.status(404).json({ message: error.message });
+    }
     if (
-      error.code === 11000 ||
-      (error.message && error.message.includes("email"))
+      error.message?.includes('already a member') ||
+      error.message?.includes('already active') ||
+      error.message?.includes('pending invitation')
     ) {
-      return res.status(409).json({
-        message: "This email address is already in use.",
-      });
+      return res.status(409).json({ message: error.message });
+    }
+    if (error.code === 11000) {
+      return res.status(409).json({ message: 'This email address is already in use.' });
     }
     next(error);
   }
@@ -178,7 +187,10 @@ const verifyInvite = async (req, res) => {
       sameSite: isSecureEnv ? "none" : "lax",
     });
 
-    const { setupToken, user } = await authService.verifyInvite(req.body.token);
+    const { setupToken, user } = await authService.verifyInvite({
+      email: req.body.email,
+      token: req.body.token,
+    });
     attachInviteSetupCookie(res, setupToken);
 
     res.json({
@@ -186,8 +198,10 @@ const verifyInvite = async (req, res) => {
       email: user.email,
       fullName: user.fullname,
     });
-  } catch {
-    res.status(400).json({ message: "Invalid or expired invite" });
+  } catch (error) {
+    const statusCode =
+      error.message === "This account is already active. Please sign in." ? 409 : 400;
+    res.status(statusCode).json({ message: error.message || "Invalid or expired invite" });
   }
 };
 

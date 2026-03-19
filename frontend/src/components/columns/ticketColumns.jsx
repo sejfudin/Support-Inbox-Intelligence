@@ -1,4 +1,4 @@
-import { TicketStatusBadge } from "../StatusBadge";
+import TicketStatusBadge  from "../StatusBadge";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 
 export const columns = [

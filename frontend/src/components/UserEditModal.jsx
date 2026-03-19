@@ -59,11 +59,11 @@ const UserEditModal = ({ user, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl sm:max-h-[90vh]">
         <Card className="border-0 shadow-none">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-xl">Edit : {user.user}</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 sm:items-center">
+            <CardTitle className="text-xl">Edit: {user.user}</CardTitle>
           </CardHeader>
 
           <CardContent>
@@ -136,7 +136,7 @@ const UserEditModal = ({ user, onClose }) => {
                   </Select>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
                 <Button type="submit" className="flex-1">
                   Save Changes
                 </Button>

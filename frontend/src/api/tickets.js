@@ -6,6 +6,7 @@ export const getAllTickets = async ({
   search,
   status,
   archived,
+  workspaceId,
 } = {}) => {
   const response = await apiClient.get("/tickets", {
     params: {
@@ -14,6 +15,7 @@ export const getAllTickets = async ({
       search,
       status,
       archived,
+      workspaceId,
     },
   });
   return response.data;

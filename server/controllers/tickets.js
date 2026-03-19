@@ -2,13 +2,16 @@ const ticketService = require("../services/ticketService");
 
 const getAllTickets = async (req, res) => {
   try {
-    const { page, limit, search, status, archived } = req.query;
+    const { page, limit, search, status, archived, workspaceId: queryWorkspaceId } = req.query;
+    const isAdmin = req.user?.role === "admin";
+    const workspaceId = isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
     const result = await ticketService.getAllTickets({
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 10,
       search: search || "",
       status: status || "",
       archived: archived === undefined ? undefined : archived === "true",
+      workspaceId,
     });
     res.status(200).json({
       success: true,
@@ -89,6 +92,7 @@ const createTicket = async (req, res) => {
       creatorId: req.user._id,
       assignedTo: assignedAgents,
       status: resolvedStatus,
+      workspaceId: req.user.workspaceId,
     });
     res.status(201).json({
       success: true,
@@ -176,6 +180,7 @@ const getMyTickets = async (req, res) => {
   try {
     const result = await ticketService.getMyTickets({
       userId: req.user._id,
+      workspaceId: req.user.workspaceId,
       page: parseInt(req.query.page) || 1,
       limit: parseInt(req.query.limit) || 10,
       search: req.query.search || "",

@@ -1,13 +1,15 @@
 const User = require('../models/User');
 
-const getUsers = async ({ 
-  page = 1, 
-  limit = 10, 
+const getUsers = async ({
+  page = 1,
+  limit = 10,
   search = "" ,
-  pagination = true 
+  pagination = true,
+  workspaceId,
 }) => {
     const skip = (page - 1) * limit;
     const query = {};
+    if (workspaceId) query.workspaceId = workspaceId;
     if (search) {
         query.$or = [
         { fullname: { $regex: search, $options: "i" } },
@@ -16,7 +18,7 @@ const getUsers = async ({
     }
 
     if (pagination === "false" || pagination === false) {
-    const users = await User.find(query).select('fullname email').sort({ fullname: 1 });
+    const users = await User.find(query).select('fullname email role status workspaceId').sort({ fullname: 1 });
     return { users }; 
   }
 

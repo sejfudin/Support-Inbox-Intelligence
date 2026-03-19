@@ -80,6 +80,11 @@ const ticketSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      required: true,
+    },
   },
   {
     timestamps: true,

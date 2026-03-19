@@ -1,12 +1,13 @@
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
-  MessageCircle,
   User,
   Archive,
   FileQuestionMark,
   LayoutDashboard,
   ClipboardList,
+  Building2,
 } from "lucide-react";
+import { useWorkspace } from "@/queries/workspaces";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -24,9 +25,11 @@ import { Avatar } from "./Avatar";
 import { capitalizeFirst } from "@/helpers/capitalizeFirst";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect } from "react";
+import { Separator } from "@/components/ui/separator";
 
 export default function AppSidebar() {
   const { user, isLoginPending } = useAuth();
+  const { data: workspace } = useWorkspace(user?.workspaceId);
   const { mutate: logout } = useLogoutUser();
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,22 +41,16 @@ export default function AppSidebar() {
     }
   }, [location.pathname, isMobile, setOpenMobile]);
 
-  const nav = [
+  const workspaceNav = [
     {
-      label: "Workspace",
-      to: "/workspace",
+      label: "Dashboard",
+      to: "/dashboard",
       icon: LayoutDashboard,
     },
     {
       label: "Tickets",
       to: "/tickets",
       icon: ClipboardList,
-    },
-    {
-      label: "Users",
-      to: "/admin/users",
-      icon: User,
-      adminOnly: true,
     },
     {
       label: "Archive",
@@ -68,48 +65,114 @@ export default function AppSidebar() {
     },
   ];
 
+  const adminNav = [
+    {
+      label: "All Users",
+      to: "/admin/users",
+      icon: User,
+    },
+    {
+      label: "All Workspaces",
+      to: "/admin/workspaces",
+      icon: Building2,
+    },
+  ];
+
+  const currentWorkspaceName = workspace?.name || (user?.role === "admin" ? "Global admin mode" : null);
+
   return (
-    <Sidebar>
-      <SidebarHeader className="px-6 pt-6">
-        <div className="text-xl font-semibold tracking-tight">
-          <span className="text-foreground">Task</span>
-          <span className="text-blue-600">Manager</span>
+    <Sidebar className="border-r border-white/60 bg-white/88 backdrop-blur-xl">
+      <SidebarHeader className="px-5 pt-6 pb-4">
+        <div className="rounded-[1.4rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-white px-4 py-4 shadow-[0_16px_40px_-32px_rgba(108,105,255,0.8)]">
+          <div className="text-xl font-semibold tracking-tight">
+            <span className="text-foreground">Task</span>
+            <span className="text-primary">Manager</span>
+          </div>
+          <div className="mt-2 text-xs font-medium text-muted-foreground">
+            Calm control for tickets, teams, and workspaces
+          </div>
         </div>
+        {currentWorkspaceName && (
+          <div className="mt-3 truncate px-1 text-xs font-medium text-muted-foreground">
+            {currentWorkspaceName}
+          </div>
+        )}
       </SidebarHeader>
 
-      <SidebarContent className="px-3">
-        <SidebarMenu>
-          {nav.map((item) => {
-            if (item.adminOnly && user?.role !== "admin") {
-              return null;
-            }
-            const Icon = item.icon;
+      <SidebarContent className="px-3 pb-2">
+        {user?.workspaceId && (
+          <div className="mb-4">
+            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Workspace
+            </div>
+            <SidebarMenu>
+              {workspaceNav.map((item) => {
+                if (item.adminOnly && user?.role !== "admin") {
+                  return null;
+                }
+                const Icon = item.icon;
 
-            return (
-              <SidebarMenuItem key={item.to}>
-                <NavLink
-                  to={item.to}
-                  end
-                  className={({ isActive }) =>
-                    cn(
-                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors w-full",
-                      isActive
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )
-                  }
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="font-medium">{item.label}</span>
-                </NavLink>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      end
+                      className={({ isActive }) =>
+                        cn(
+                          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]"
+                            : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">{item.label}</span>
+                    </NavLink>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </div>
+        )}
+
+        {user?.role === "admin" && (
+          <div>
+            {user?.workspaceId && <Separator className="mb-4" />}
+            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Admin
+            </div>
+            <SidebarMenu>
+              {adminNav.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      end
+                      className={({ isActive }) =>
+                        cn(
+                          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
+                          isActive
+                            ? "bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]"
+                            : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">{item.label}</span>
+                    </NavLink>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </div>
+        )}
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+      <SidebarFooter className="p-4 pt-3">
+        <div className="overflow-hidden rounded-[1.4rem] border border-white/70 bg-white/90 shadow-[0_18px_40px_-28px_rgba(76,81,191,0.35)]">
           {isLoginPending ? (
             <div className="p-4 flex items-center gap-3 animate-pulse">
               <div className="h-9 w-9 rounded-full bg-muted" />

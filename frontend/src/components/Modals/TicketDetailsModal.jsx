@@ -224,19 +224,19 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   }
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 md:p-8 transition-opacity"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 lg:p-8 transition-opacity"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="w-full max-w-[1200px] bg-white h-[90vh] rounded-xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden"
+        className="flex h-[92vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 sm:h-[90vh] sm:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Ticket details"
       >
-        <div className="flex items-center justify-between px-8 py-4 border-b bg-white">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={onClose}
@@ -250,13 +250,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
             {!isArchived && (
               <button
                 type="button"
                 onClick={handleArchiveToggle}
                 disabled={isArchiving}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+                className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
                   isArchiving
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-gray-600 hover:bg-gray-700 text-white"
@@ -271,7 +271,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               type="button"
               onClick={handleSave}
               disabled={updateTicketMutation.isPending || !hasChanges || !title.trim()}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm ${
+              className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
                 updateTicketMutation.isPending || !hasChanges || !title.trim()
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
@@ -282,7 +282,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </button>)}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-12 py-10">
+        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
           <DeleteConfirmModal
             isOpen={isActionModalOpen}
             onClose={() => setIsActionModalOpen(false)}
@@ -301,7 +301,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               value={title}
               readOnly={isArchived}
               onChange={(e) => setTitle(e.target.value)}
-              className={`w-full text-4xl font-bold tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 hover:bg-accent/50 rounded-md transition-all ${
+              className={`w-full rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all hover:bg-accent/50 focus:ring-0 sm:text-3xl lg:text-4xl ${
                 !title.trim() ? "text-destructive" : "text-foreground"
               }`}
               placeholder="Enter ticket title..."
@@ -320,7 +320,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12 pb-10 border-b border-gray-100">
+          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-4 xl:pb-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
@@ -408,12 +408,12 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 )}
               </Popover>
             </div>
-            <div className="space-y-3 md:col-span-2">
+            <div className="space-y-3 sm:col-span-2 xl:col-span-2">
               <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
                 <UserPen className="w-4 h-4" /> Created By
               </div>
 
-              <div className="flex items-center gap-3 p-1.5 h-[44px] w-fit">
+              <div className="flex min-h-[44px] w-full items-center gap-3 p-1.5 sm:w-fit">
                 {ticket?.creator ? (
                   <Avatar users={[ticket.creator]} />
                 ) : (
@@ -444,7 +444,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               readOnly={isArchived}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Write something more..."
-              className="w-full border border-gray-200 rounded-xl p-8 min-h-[400px] text-gray-800 bg-white text-lg leading-relaxed shadow-sm focus:ring-4 focus:ring-blue-50 focus:border-blue-200 outline-none transition-all resize-none font-sans"
+              className="min-h-[240px] w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 sm:min-h-[320px] sm:p-6 lg:min-h-[400px] lg:p-8 lg:text-lg"
             />
           </div>
         </div>
