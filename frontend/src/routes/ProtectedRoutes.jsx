@@ -15,10 +15,9 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
     }
 
     if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/workspace" replace />;
+    return <Navigate to="/" replace />;
     }
     return <Outlet />;
 };
 
 export default ProtectedRoute;
-

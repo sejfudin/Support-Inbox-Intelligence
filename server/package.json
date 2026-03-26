@@ -8,7 +8,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "build": "node -e \"console.log('server: no compile step');\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
