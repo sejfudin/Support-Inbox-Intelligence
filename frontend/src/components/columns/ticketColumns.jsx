@@ -9,22 +9,26 @@ export const columns = [
       headerClassName: "w-[58%]",
       cellClassName: "w-[58%]",
     },
-    cell: ({ row }) => (
-      <div className="w-full min-w-0 max-w-full">
-        <div
-          className="truncate font-semibold text-foreground"
-          title={row.original.title}
-        >
-          {row.original.title}
+   cell: ({ row }) => {
+
+      const taskNumber = row.original.taskNumber;
+      return (
+        <div className="flex flex-col w-full min-w-0 max-w-full gap-1">
+          <div 
+            className="truncate font-semibold text-foreground" 
+            title={`${taskNumber ? `#${taskNumber} ` : ""}${row.original.title}`}
+          >
+            {taskNumber ? `#${taskNumber} ${row.original.title}` : row.original.title}
+          </div>
+          <div
+            className="line-clamp-1 text-sm text-muted-foreground break-words"
+            title={row.original.description}
+          >
+            {row.original.description}
+          </div>
         </div>
-        <div
-          className="mt-1 line-clamp-1 text-sm text-muted-foreground break-words"
-          title={row.original.description}
-        >
-          {row.original.description}
-        </div>
-      </div>
-    ),
+      );
+    },
   },
   {
     accessorKey: "status",

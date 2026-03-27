@@ -301,25 +301,25 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           />
 
           <div className="group relative mb-10">
-            <input
-              type="text"
-              value={title}
-              readOnly={isArchived}
-              onChange={(e) => setTitle(e.target.value)}
-              className={`w-full rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all hover:bg-accent/50 focus:ring-0 sm:text-3xl lg:text-4xl ${
-                !title.trim() ? "text-destructive" : "text-foreground"
-              }`}
-              placeholder="Enter ticket title..."
-            />
-            
-            <div className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-150 ${
-              !title.trim() 
-                ? "w-full bg-destructive" 
-                : "w-0 group-focus-within:w-full bg-blue-600" 
-            }`}></div>
-            
+            <div className="flex items-center gap-3">
+              {ticket?.taskNumber && (
+                <span className="shrink-0 text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+                  #{ticket.taskNumber} 
+                </span>
+              )}
+              <input
+                type="text"
+                value={title}
+                readOnly={isArchived}
+                onChange={(e) => setTitle(e.target.value)}
+                className={`w-full rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all focus:ring-0 sm:text-3xl lg:text-4xl ${
+                  !title.trim() ? "text-destructive" : "text-foreground"
+                }`}
+                placeholder="Enter ticket title..."
+              />
+            </div>
             {!title.trim() && (
-              <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-destructive uppercase tracking-wider mt-1 animate-in fade-in slide-in-from-top-1">
+              <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-destructive uppercase tracking-wider mt-1">
                 Title is required
               </p>
             )}

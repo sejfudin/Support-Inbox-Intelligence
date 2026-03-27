@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const Counter = require("./Counter");
 
 const messageSchema = new mongoose.Schema(
   {
@@ -85,11 +86,36 @@ const ticketSchema = new mongoose.Schema(
       ref: "Workspace",
       required: true,
     },
+    taskNumber: {
+      type: Number,
+      immutable: true,
+    },
   },
   {
     timestamps: true,
   },
 );
+
+ticketSchema.pre("save", async function (next) {
+  if(this.isNew) {
+    try {
+      const counter = await Counter.findOneAndUpdate(
+        { workspace: this.workspace },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      this.taskNumber = counter.seq;
+    } catch (err) {
+      throw err;
+    }
+  } else {
+    next();
+  }
+});
+
+ticketSchema.set('toJSON', { virtuals: true });
+ticketSchema.set('toObject', { virtuals: true });
+
 ticketSchema.index({ status: 1, updatedAt: -1 });
 ticketSchema.index({ isArchived: 1, updatedAt: -1 });
 module.exports = mongoose.model("Ticket", ticketSchema);
