@@ -10,6 +10,7 @@ import {
   Archive,
   ArchiveRestore,
   UserPen,
+  Ticket,
 } from "lucide-react";
 import { useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
@@ -26,6 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 import { Avatar } from "../Avatar";
 import { toast } from "sonner";
+import TicketComments from "./TicketComents";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
@@ -437,7 +439,24 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="flex-[2] space-y-4">
+              <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
+                Description
+              </div>  
+              <textarea
+                value={description}
+                readOnly={isArchived}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Write something more..."
+                className="min-h-[240px] w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 sm:min-h-[320px] sm:p-6 lg:min-h-[400px] lg:p-8 lg:text-lg"
+            />
+            </div>
+            <div className="flex-[1] min-w-[320px]">
+                  <TicketComments ticketId={ticketId} isArchived={isArchived} />
+              </div>
+          </div>
+          {/*<div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
                 Description
@@ -452,6 +471,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               className="min-h-[240px] w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 sm:min-h-[320px] sm:p-6 lg:min-h-[400px] lg:p-8 lg:text-lg"
             />
           </div>
+          */}
+
+
         </div>
       </div>
     </div>
