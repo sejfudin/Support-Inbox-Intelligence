@@ -22,12 +22,11 @@ function TaskCard({ task, onOpen, cardClassName }) {
       className={`cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(108,105,255,0.55)] ${cardClassName}`}
     >
       <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">          
           <p className="font-semibold leading-snug line-clamp-2">
-            {task.title}
+            {task.taskNumber ? `#${task.taskNumber} ${task.title}` : task.title}
           </p>
         </div>
-
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <AssigneesAvatar users={task.assignedTo} />
         </div>
@@ -91,6 +90,7 @@ export default function BoardPage({
           ? new Date(normalized.dueDate).toLocaleDateString()
           : "",
         assignedTo: normalized.assignedTo,
+        taskNumber: normalized.taskNumber,
         _raw: normalized.raw,
       };
 

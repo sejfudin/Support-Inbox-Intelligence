@@ -8,7 +8,9 @@ export const normalizeTicket = (ticket = {}) => {
     : ticket.assignedTo
       ? [ticket.assignedTo]
       : [];
+  const taskNumber = ticket.taskNumber ?? null;
   const dueDate = ticket.dueDate ?? ticket.due ?? null;
+  
 
   return {
     id,
@@ -17,6 +19,7 @@ export const normalizeTicket = (ticket = {}) => {
     status,
     assignedTo,
     dueDate,
+    taskNumber,
     raw: ticket,
   };
 };
