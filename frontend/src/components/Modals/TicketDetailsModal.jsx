@@ -456,24 +456,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   <TicketComments ticketId={ticketId} isArchived={isArchived} />
               </div>
           </div>
-          {/*<div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
-                Description
-              </div>
-            </div>
-
-            <textarea
-              value={description}
-              readOnly={isArchived}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Write something more..."
-              className="min-h-[240px] w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 sm:min-h-[320px] sm:p-6 lg:min-h-[400px] lg:p-8 lg:text-lg"
-            />
-          </div>
-          */}
-
-
         </div>
       </div>
     </div>
