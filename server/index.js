@@ -10,6 +10,7 @@ const ticketRoutes = require("./routes/ticket");
 const adminRoutes = require("./routes/admin");
 const workspaceRoutes = require("./routes/workspace");
 const invitationRoutes = require("./routes/invitation");
+const commentRoutes = require("./routes/comment");
 
 const PORT = process.env.PORT || 4000;
 
@@ -35,6 +36,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/comment', commentRoutes);
 
 
 (async () => {
