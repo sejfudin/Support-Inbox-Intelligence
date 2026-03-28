@@ -76,7 +76,7 @@ export default function TicketComments() {
         <textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Napiši komentar..."
+            placeholder="Write a comment..."
             className="w-full min-h-[80px] rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm outline-none transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 resize-none"
         />
         
