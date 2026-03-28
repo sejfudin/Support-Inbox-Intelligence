@@ -2,13 +2,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
 import { Avatar } from "../Avatar";
 import { useComments, useCreateComment } from "@/queries/comments"; 
+import CommentsSkeleton from "../Skeletons/CommentsSkeleton";
 
 export default function TicketComments({ticketId}) {
 
     const [newComment, setNewComment] = useState("");
-  
     const { data: comments, isLoading } = useComments(ticketId);
-    
     const createMutation = useCreateComment();
 
     const handleSend = () => {
@@ -25,25 +24,17 @@ export default function TicketComments({ticketId}) {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex flex-col gap-4 p-4 animate-pulse">
-                <div className="h-4 w-24 bg-gray-100 rounded mb-2"></div>
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex gap-3">
-                        <div className="h-8 w-8 rounded-full bg-gray-200" />
-                        <div className="flex-1 space-y-2">
-                            <div className="h-3 w-32 bg-gray-200 rounded" />
-                            <div className="h-3 w-full bg-gray-100 rounded" />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        );
+        return <CommentsSkeleton/>;
     } 
 
     return (
-        <div className="p-4">
-            <ScrollArea className="h-[400px] w-full pr-4">
+        <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/30">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                Activity
+            </span>
+            </div>
+            <ScrollArea className="flex-1 p-4">
                 {comments.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-sm text-gray-500">
                         No comments yet.
@@ -74,7 +65,7 @@ export default function TicketComments({ticketId}) {
                 )}
             </ScrollArea>
 
-            <div className="mt-4 border-t pt-4 space-y-3">
+            <div className="p-4 border-t border-gray-100 bg-white">
                 <textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}

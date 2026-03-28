@@ -1,8 +1,6 @@
 import apiClient from "./axios";
 
 export const getCommentsByTicket = async(ticketId) => {
-  await new Promise(resolve => setTimeout(resolve, 3000));
-
     const response = await apiClient.get(`/comment/${ticketId}`);
     return response.data;
 };
