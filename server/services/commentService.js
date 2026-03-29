@@ -38,25 +38,33 @@ const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
     .sort({ createdAt: 1 });
 };
 
-const updateComment = async (commentId, { content }, userId) => {
+const updateComment = async (commentId, content, userId) => {
   const comment = await Comment.findById(commentId);
   if (!comment) throw new Error('Comment not found');
+
+  if (comment.author.toString() !== userId.toString()) {
+    throw new Error('Unauthorized: You can only edit your own comments');
+  }
 
   if (comment.author.toString() !== userId.toString()) {
     throw new Error('Unauthorized to update this comment');
   }
 
   comment.content = content;
+  comment.isEdited = true;
   await comment.save();
 
   return comment.populate('author', 'fullname email');
 };
 
-const deleteComment = async (commentId, userId) => {
+const deleteComment = async (commentId, userId, role) => {
   const comment = await Comment.findById(commentId);
   if (!comment) throw new Error('Comment not found');
 
-  if (comment.author.toString() !== userId.toString()) {
+  const isAuthor = comment.author.toString() === userId.toString();
+  const isAdmin = role === 'admin';
+
+  if (!isAuthor && !isAdmin) {
     throw new Error('Unauthorized to delete this comment');
   }
 

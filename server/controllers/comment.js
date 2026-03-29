@@ -35,13 +35,13 @@ exports.updateComment = async (req, res, next) => {
     const { commentId, content } = req.body;
     const comment = await commentService.updateComment(
         commentId,
-        { content },
+        content,
         req.user._id
     );
     res.json(comment);
   } catch (err) {
     if (err.message === 'Comment not found') return res.status(404).json({ message: err.message });
-    if (err.message === 'Unauthorized to update this comment') {
+    if (err.message.includes('Unauthorized')) {
       return res.status(403).json({ message: err.message });
     }
     next(err);
@@ -51,11 +51,11 @@ exports.updateComment = async (req, res, next) => {
 exports.deleteComment = async (req, res, next) => {
     try {
         const { commentId } = req.body;
-        const result = await commentService.deleteComment(commentId, req.user._id);
+        const result = await commentService.deleteComment(commentId, req.user._id, req.user.role);
         res.json(result);
     } catch(err) {
         if (err.message === 'Comment not found') return res.status(404).json({ message: err.message });
-        if (err.message === 'Unauthorized to delete this comment') return res.status(403).json({ message: err.message });
+        if (err.message.includes('Unauthorized')) return res.status(403).json({ message: err.message });
         next(err);
     }
 }

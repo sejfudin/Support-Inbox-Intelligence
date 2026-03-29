@@ -16,6 +16,10 @@ const commentSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
     },
+    isEdited: { 
+        type: Boolean, 
+        default: false 
+    }
 }, {timestamps: true });
 
 module.exports = mongoose.model('Comment', commentSchema);
