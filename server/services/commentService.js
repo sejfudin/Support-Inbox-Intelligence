@@ -7,6 +7,10 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
   const foundTicket = await Ticket.findById(ticket);
   if (!foundTicket) throw new Error('Ticket not found');
 
+  if (foundTicket.isArchived) {
+    throw new Error('Unauthorized: Cannot comment on an archived ticket');
+  }
+
   if(role!='admin'){
     if (foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
       throw new Error('Unauthorized: You do not belong to this workspace');
@@ -39,8 +43,12 @@ const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
 };
 
 const updateComment = async (commentId, content, userId) => {
-  const comment = await Comment.findById(commentId);
+  const comment = await Comment.findById(commentId).populate('ticket');
   if (!comment) throw new Error('Comment not found');
+
+  if (comment.ticket.isArchived) {
+    throw new Error('Unauthorized: Cannot edit comments on an archived ticket');
+  }
 
   if (comment.author.toString() !== userId.toString()) {
     throw new Error('Unauthorized: You can only edit your own comments');
@@ -58,8 +66,12 @@ const updateComment = async (commentId, content, userId) => {
 };
 
 const deleteComment = async (commentId, userId, role) => {
-  const comment = await Comment.findById(commentId);
+  const comment = await Comment.findById(commentId).populate('ticket');
   if (!comment) throw new Error('Comment not found');
+
+  if (comment.ticket.isArchived) {
+    throw new Error('Unauthorized: Cannot delete comments on an archived ticket');
+  }
 
   const isAuthor = comment.author.toString() === userId.toString();
   const isAdmin = role === 'admin';
