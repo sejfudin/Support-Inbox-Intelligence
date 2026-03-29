@@ -439,7 +439,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex flex-col lg:flex-row gap-8 h-[60vh]">
             <div className="flex-[2] space-y-4">
               <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
                 Description

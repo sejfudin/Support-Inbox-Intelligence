@@ -1,7 +1,17 @@
 const Comment = require('../models/Comment');
+const Ticket = require('../models/Ticket');
 
-const createComment = async ({ content, ticket, authorId }) => {
+const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
   if (!content) throw new Error('Comment content is required');
+
+  const foundTicket = await Ticket.findById(ticket);
+  if (!foundTicket) throw new Error('Ticket not found');
+
+  if(role!='admin'){
+    if (foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
+      throw new Error('Unauthorized: You do not belong to this workspace');
+    }
+  }
 
   let comment = await Comment.create({
     content,
@@ -9,17 +19,23 @@ const createComment = async ({ content, ticket, authorId }) => {
     author: authorId,
   });
 
-  comment = await comment.populate('author', 'fullname email');
+  return await comment.populate('author', 'fullname email');
 
-  return comment;
 };
 
-const getCommentsByTicketId = async (ticketId) => {
-  const comments = await Comment.find({ ticket: ticketId })
+const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
+
+  const foundTicket = await Ticket.findById(ticketId);
+  
+  if(role!='admin'){
+    if (!foundTicket || foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
+        throw new Error('Unauthorized to view comments for this ticket');
+    }
+  }
+  
+  return await Comment.find({ ticket: ticketId })
     .populate('author', 'fullname email')
     .sort({ createdAt: 1 });
-
-  return comments;
 };
 
 const updateComment = async (commentId, { content }, userId) => {

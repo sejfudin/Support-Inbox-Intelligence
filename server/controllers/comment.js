@@ -8,22 +8,24 @@ exports.createComment = async(req, res, next) => {
             content,
             ticket,
             authorId: req.user._id,
+            userWorkspaceId: req.user.workspaceId,
+            role: req.user.role,
         });
 
         res.status(201).json(comment);
     } catch(err) {
-        if (err.message === 'Comment content is required') {
-            return res.status(400).json({ message: err.message });
-        }
+        if (err.message === 'Comment content is required') return res.status(400).json({ message: err.message });
+        if (err.message.includes('Unauthorized')) return res.status(403).json({ message: err.message });
         next(err);
     }
 }
 
 exports.getCommentsByTicketId = async(req, res, next) => {
     try {
-        const comments = await commentService.getCommentsByTicketId(req.params.id)
+        const comments = await commentService.getCommentsByTicketId(req.params.id, req.user.workspaceId, req.user.role);
         res.json(comments);
     } catch(err) {
+        if (err.message.includes('Unauthorized')) return res.status(403).json({ message: err.message });
         next(err);
     }
 }
