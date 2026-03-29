@@ -6,6 +6,7 @@ import CommentsSkeleton from "../Skeletons/CommentsSkeleton";
 import { Trash2, Edit2, X, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { DeleteConfirmModal } from "../Modals/DeleteConfirmModal";
 
 export default function TicketComments({ ticketId, isArchived }) {
     const { user } = useAuth();
@@ -13,6 +14,9 @@ export default function TicketComments({ ticketId, isArchived }) {
     
     const [editingId, setEditingId] = useState(null);
     const [editContent, setEditContent] = useState("");
+
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(null);
+    const [commentToDelete, setCommentToDelete] = useState(null);
 
     const { data: comments = [], isLoading } = useComments(ticketId);
     const createMutation = useCreateComment();
@@ -36,12 +40,28 @@ export default function TicketComments({ ticketId, isArchived }) {
         });
     };
 
-    const handleDelete = (commentId) => {
-        if (window.confirm("Are you sure you want to delete this comment?")) {
-            deleteMutation.mutate(commentId, {
-                onSuccess: () => toast.success("Comment deleted")
-            });
-        }
+    const openDeleteModal = (commentId) => {
+        setCommentToDelete(commentId);
+        setIsDeleteModalOpen(true);
+    }
+
+    const closeDeleteModal = () => {
+        setIsDeleteModalOpen(false);
+        setCommentToDelete(null);
+    }
+
+    const handleConfirmDelete = () => {
+        if (!commentToDelete) return;
+
+        deleteMutation.mutate(commentToDelete, {
+            onSuccess: () => {
+                toast.success("Comment deleted");
+                closeDeleteModal();
+            },
+            onError: (error) => {
+                toast.error(error?.response?.data?.message || "Could not delete comment");
+            }
+        });
     };
 
     if (isLoading) return <CommentsSkeleton />;
@@ -91,7 +111,7 @@ export default function TicketComments({ ticketId, isArchived }) {
                                                     )}
                                                     {(isAuthor || isAdmin) && (
                                                         <button 
-                                                            onClick={() => handleDelete(comment._id)}
+                                                            onClick={() => openDeleteModal(comment._id)}
                                                             className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                                                         >
                                                             <Trash2 className="w-3.5 h-3.5" />
@@ -149,6 +169,16 @@ export default function TicketComments({ ticketId, isArchived }) {
                     </div>
                 </div>
             )}
+            <DeleteConfirmModal
+                isOpen={isDeleteModalOpen}
+                onClose={closeDeleteModal}
+                onConfirm={handleConfirmDelete}
+                isLoading={deleteMutation.isPending}
+                title="Delete Comment"
+                description="Are you sure you want to delete this comment? This action cannot be undone."
+                confirmLabel="Delete"
+                loadingLabel="Deleting..."
+            />
         </div>
     );
 }
