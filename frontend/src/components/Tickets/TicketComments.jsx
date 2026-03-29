@@ -1,9 +1,11 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button"; // Shadcn Button
+import { Textarea } from "@/components/ui/textarea"; // Shadcn Textarea
 import { Avatar } from "../Avatar";
 import { useComments, useCreateComment, useUpdateComment, useDeleteComment } from "@/queries/comments"; 
 import CommentsSkeleton from "../Skeletons/CommentsSkeleton";
-import { Trash2, Edit2, X, Check } from "lucide-react";
+import { Trash2, Edit2, X, Check, MessageSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { DeleteConfirmModal } from "../Modals/DeleteConfirmModal";
@@ -15,7 +17,7 @@ export default function TicketComments({ ticketId, isArchived }) {
     const [editingId, setEditingId] = useState(null);
     const [editContent, setEditContent] = useState("");
 
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [commentToDelete, setCommentToDelete] = useState(null);
 
     const { data: comments = [], isLoading } = useComments(ticketId);
@@ -43,16 +45,15 @@ export default function TicketComments({ ticketId, isArchived }) {
     const openDeleteModal = (commentId) => {
         setCommentToDelete(commentId);
         setIsDeleteModalOpen(true);
-    }
+    };
 
     const closeDeleteModal = () => {
         setIsDeleteModalOpen(false);
         setCommentToDelete(null);
-    }
+    };
 
     const handleConfirmDelete = () => {
         if (!commentToDelete) return;
-
         deleteMutation.mutate(commentToDelete, {
             onSuccess: () => {
                 toast.success("Comment deleted");
@@ -67,75 +68,83 @@ export default function TicketComments({ ticketId, isArchived }) {
     if (isLoading) return <CommentsSkeleton />;
 
     return (
-        <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-50 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/30">
+        <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2">
+                <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Activity</span>
             </div>
 
             <ScrollArea className="flex-1 p-4">
                 {comments.length === 0 ? (
-                    <div className="flex h-full items-center justify-center text-sm text-gray-500 italic">No comments yet.</div>
+                    <div className="flex h-full items-center justify-center text-sm text-gray-400 italic">No comments yet.</div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                         {comments.map((comment) => {
                             const isAuthor = user?._id === comment.author?._id;
                             const isAdmin = user?.role === 'admin';
                             const isEditing = editingId === comment._id;
 
                             return (
-                                <div key={comment._id} className="flex gap-4 group p-2 rounded-lg transition-colors hover:bg-gray-50/50">
-                                    <div className="flex-shrink-0 mt-1">
-                                        <Avatar users={[comment.author]} />
+                                <div key={comment._id} className="flex gap-4 group transition-all">
+                                    <div className="flex-shrink-0">
+                                        <Avatar users={[comment.author]} className="w-8 h-8" />
                                     </div>
                                     <div className="flex flex-col flex-1 min-w-0">
-                                        <div className="flex items-center justify-between mb-1">
-                                            <div className="flex items-center gap-2">
+                                        <div className="flex items-center justify-between group/header">
+                                            <div className="flex items-baseline gap-2">
                                                 <span className="text-sm font-semibold text-gray-900 truncate">
                                                     {comment.author?.fullname}
                                                 </span>
-                                                <span className="text-[10px] text-gray-400 font-medium">
+                                                <span className="text-[10px] text-gray-400">
                                                     {new Date(comment.createdAt).toLocaleDateString()}
-                                                    {comment.isEdited && <span className="ml-1 text-[9px] italic text-gray-300">(edited)</span>}
+                                                    {comment.isEdited && <span className="ml-1 italic opacity-70">(edited)</span>}
                                                 </span>
                                             </div>
 
                                             {!isArchived && !isEditing && (
-                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                     {isAuthor && (
-                                                        <button 
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7 text-gray-400 hover:text-blue-600"
                                                             onClick={() => { setEditingId(comment._id); setEditContent(comment.content); }}
-                                                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
                                                         >
                                                             <Edit2 className="w-3.5 h-3.5" />
-                                                        </button>
+                                                        </Button>
                                                     )}
                                                     {(isAuthor || isAdmin) && (
-                                                        <button 
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7 text-gray-400 hover:text-red-500"
                                                             onClick={() => openDeleteModal(comment._id)}
-                                                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
                                                         >
                                                             <Trash2 className="w-3.5 h-3.5" />
-                                                        </button>
+                                                        </Button>
                                                     )}
                                                 </div>
                                             )}
                                         </div>
 
                                         {isEditing ? (
-                                            <div className="space-y-2">
-                                                <textarea 
+                                            <div className="mt-2 space-y-2">
+                                                <Textarea 
                                                     value={editContent}
                                                     onChange={(e) => setEditContent(e.target.value)}
-                                                    className="w-full p-2 text-sm border rounded-lg focus:ring-1 focus:ring-blue-500 outline-none resize-none"
-                                                    rows={2}
+                                                    className="min-h-[60px] text-sm focus-visible:ring-blue-500"
                                                 />
-                                                <div className="flex justify-end gap-2">
-                                                    <button onClick={() => setEditingId(null)} className="p-1 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
-                                                    <button onClick={() => handleUpdate(comment._id)} className="p-1 text-blue-600 hover:text-blue-700"><Check className="w-4 h-4" /></button>
+                                                <div className="flex justify-end gap-1">
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => setEditingId(null)}>
+                                                        <X className="w-4 h-4 text-gray-400" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => handleUpdate(comment._id)}>
+                                                        <Check className="w-4 h-4 text-blue-600" />
+                                                    </Button>
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="text-sm text-gray-600 leading-relaxed break-words whitespace-pre-wrap">
+                                            <div className="mt-1 text-sm text-gray-600 leading-relaxed break-words whitespace-pre-wrap">
                                                 {comment.content}
                                             </div>
                                         )}
@@ -148,27 +157,26 @@ export default function TicketComments({ ticketId, isArchived }) {
             </ScrollArea>
 
             {!isArchived && (
-                <div className="p-4 border-t border-gray-100 bg-white">
-                    <textarea
+                <div className="p-4 border-t border-gray-100 bg-white space-y-3">
+                    <Textarea
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Write a comment..."
                         disabled={createMutation.isPending}
-                        className="w-full min-h-[80px] rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm outline-none transition-all focus:border-blue-300 focus:ring-2 focus:ring-blue-100 resize-none"
+                        className="min-h-[80px] bg-gray-50/50 border-gray-200 focus-visible:ring-blue-500 resize-none"
                     />
-                    <div className="flex justify-end mt-2">
-                        <button 
+                    <div className="flex justify-end">
+                        <Button 
                             disabled={!newComment.trim() || createMutation.isPending}
                             onClick={handleSend}
-                            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
-                                !newComment.trim() || createMutation.isPending ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                            }`}
+                            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
                         >
                             {createMutation.isPending ? "Posting..." : "Post Comment"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
+
             <DeleteConfirmModal
                 isOpen={isDeleteModalOpen}
                 onClose={closeDeleteModal}
@@ -176,8 +184,6 @@ export default function TicketComments({ ticketId, isArchived }) {
                 isLoading={deleteMutation.isPending}
                 title="Delete Comment"
                 description="Are you sure you want to delete this comment? This action cannot be undone."
-                confirmLabel="Delete"
-                loadingLabel="Deleting..."
             />
         </div>
     );
