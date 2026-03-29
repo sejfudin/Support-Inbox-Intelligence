@@ -27,7 +27,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 import { Avatar } from "../Avatar";
 import { toast } from "sonner";
-import TicketComments from "./TicketComents";
+import TicketComments from "../Tickets/TicketComments";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
