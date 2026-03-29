@@ -25,15 +25,14 @@ export const useCreateComment = () => {
     });
 };
 
-export const useUpdateComment = () => {
+export const useUpdateComment = (ticketId) => {
     const queryClient = useQueryClient();
-
-    return useMutation({
-        mutationFn: updateComment,
+    return useMutation({ 
+        mutationFn: ({ commentId, content }) => updateComment(commentId, content),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["comments", ticketId] });
         },
-    })
+    });
 };
 
 export const useDeleteComment = (ticketId) => {
