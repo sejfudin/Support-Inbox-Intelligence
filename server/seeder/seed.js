@@ -7,6 +7,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Workspace = require("../models/Workspace");
 const Ticket = require("../models/Ticket");
+const Counter = require("../models/Counter");
 // const AILog = require("../models/AILog");
 
 const seedData = async () => {
@@ -17,6 +18,7 @@ const seedData = async () => {
     await Ticket.deleteMany();
     await Workspace.deleteMany();
     await User.deleteMany();
+    await Counter.deleteMany();
 
     const salt = await bcrypt.genSalt(10);
     const adminPassword = await bcrypt.hash("admin123", salt);

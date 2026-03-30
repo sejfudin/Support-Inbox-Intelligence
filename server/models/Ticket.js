@@ -96,7 +96,7 @@ const ticketSchema = new mongoose.Schema(
   },
 );
 
-ticketSchema.pre("save", async function (next) {
+ticketSchema.pre("save", async function () {
   if(this.isNew) {
     try {
       const counter = await Counter.findOneAndUpdate(
@@ -105,7 +105,7 @@ ticketSchema.pre("save", async function (next) {
         { new: true, upsert: true }
       );
       this.taskNumber = counter.seq;
-    } catch (err) {
+      } catch (err) {
       throw err;
     }
   } else {
