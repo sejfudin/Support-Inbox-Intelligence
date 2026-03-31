@@ -106,10 +106,8 @@ ticketSchema.pre("save", async function () {
       );
       this.taskNumber = counter.seq;
       } catch (err) {
-      throw err;
+        throw(err);
     }
-  } else {
-    next();
   }
 });
 

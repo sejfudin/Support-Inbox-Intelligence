@@ -50,11 +50,19 @@ const getAllTickets = async ({
   if (archived !== undefined) {
     query.isArchived = archived ? true : { $ne: true };
   }
+
   if (search) {
-    query.$or = [
+    const searchConditions = [
       { subject: { $regex: search, $options: "i" } },
       { description: { $regex: search, $options: "i" } },
     ];
+
+    const searchAsNumber = Number(search);
+    if (!isNaN(searchAsNumber)) {
+      searchConditions.push({ taskNumber: searchAsNumber });
+    }
+
+    query.$or = searchConditions;
   }
 
   if (status === "null" || status === null) {
