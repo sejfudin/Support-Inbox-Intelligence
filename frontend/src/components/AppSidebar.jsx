@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Building2,
+  Settings,
 } from "lucide-react";
 import { useWorkspace } from "@/queries/workspaces";
 import { Button } from "@/components/ui/button";
@@ -63,6 +64,16 @@ export default function AppSidebar() {
       icon: FileQuestionMark,
       adminOnly: true,
     },
+    ...(user?.role === "admin" && user?.workspaceId
+      ? [
+          {
+            label: "Workspace Management",
+            to: `/admin/workspaces/${user.workspaceId}`,
+            icon: Settings,
+            adminOnly: true,
+          },
+        ]
+      : []),
   ];
 
   const adminNav = [
