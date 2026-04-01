@@ -158,6 +158,7 @@ export default function TicketComments({ ticketId, isArchived }) {
 
             {!isArchived && (
                 <div className="p-4 border-t border-gray-100 bg-white space-y-3">
+                  <div className="relative group/input">
                     <Textarea
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
@@ -165,15 +166,21 @@ export default function TicketComments({ ticketId, isArchived }) {
                         disabled={createMutation.isPending}
                         className="min-h-[80px] bg-gray-50/50 border-gray-200 focus-visible:ring-blue-500 resize-none"
                     />
-                    <div className="flex justify-end">
-                        <Button 
-                            disabled={!newComment.trim() || createMutation.isPending}
-                            onClick={handleSend}
-                            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[100px]"
-                        >
-                            {createMutation.isPending ? "Posting..." : "Post Comment"}
-                        </Button>
+                  <div className="absolute bottom-2 right-2">
+                    <Button 
+                        size="icon"
+                        disabled={!newComment.trim() || createMutation.isPending}
+                        onClick={handleSend}
+                        className="h-8 w-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-transform active:scale-95 disabled:bg-gray-200"
+                    >
+                        {createMutation.isPending ? (
+                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        ) : (
+                            <Check className="w-4 h-4" /> 
+                        )}
+                    </Button>
                     </div>
+                  </div>
                 </div>
             )}
 

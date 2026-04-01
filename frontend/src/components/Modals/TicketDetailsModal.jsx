@@ -439,8 +439,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8 h-[60vh]">
-            <div className="flex-[2] space-y-4">
+          <div className="flex flex-col lg:flex-row gap-8 h-[50vh] min-h-[400px]">
+            <div className="flex-[2] flex flex-col space-y-4">
               <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
                 Description
               </div>  
@@ -449,7 +449,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 readOnly={isArchived}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Write something more..."
-                className="min-h-[240px] w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 sm:min-h-[320px] sm:p-6 lg:min-h-[400px] lg:p-8 lg:text-lg"
+                className="flex-1 w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 lg:p-8 lg:text-lg"
             />
             </div>
             <div className="flex-[1] min-w-[320px]">
