@@ -85,6 +85,16 @@ const ticketSchema = new mongoose.Schema(
       ref: "Workspace",
       required: true,
     },
+    totalTimeSpent: {
+      type: Number,
+      default: 0,
+    },
+    inProgressAt: {
+      type: Date,
+    },
+    doneAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

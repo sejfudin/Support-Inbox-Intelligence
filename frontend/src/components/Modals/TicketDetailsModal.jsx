@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 import { Avatar } from "../Avatar";
 import { toast } from "sonner";
+import TimeSpent from "@/components/TimeSpent";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
@@ -413,7 +414,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 )}
               </Popover>
             </div>
-            <div className="space-y-3 sm:col-span-2 xl:col-span-2">
+
+            <TimeSpent ticket={ticket} />
+
+            <div className="space-y-3 sm:col-span-1 xl:col-span-1">
               <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
                 <UserPen className="w-4 h-4" /> Created By
               </div>
