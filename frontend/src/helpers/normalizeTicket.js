@@ -10,7 +10,9 @@ export const normalizeTicket = (ticket = {}) => {
       : [];
   const taskNumber = ticket.taskNumber ?? null;
   const dueDate = ticket.dueDate ?? ticket.due ?? null;
-  
+  const totalTimeSpent = ticket.totalTimeSpent ?? 0;
+  const inProgressAt = ticket.inProgressAt ?? null;
+  const doneAt = ticket.doneAt ?? null;
 
   return {
     id,
@@ -19,6 +21,9 @@ export const normalizeTicket = (ticket = {}) => {
     status,
     assignedTo,
     dueDate,
+    totalTimeSpent,
+    inProgressAt,
+    doneAt,
     taskNumber,
     raw: ticket,
   };
