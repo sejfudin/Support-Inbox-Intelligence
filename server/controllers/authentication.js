@@ -58,7 +58,9 @@ const refresh = async (req, res, next) => {
     }
 
     const result = await authService.refresh(refreshToken);
-    res.status(200).json(result);
+    attachCookie(res, result.refreshToken);
+    const { refreshToken: _refreshToken, ...payload } = result;
+    res.status(200).json(payload);
   } catch (error) {
     const isSecureEnv =
       process.env.NODE_ENV === "production" ||
@@ -180,7 +182,7 @@ const verifyInvite = async (req, res) => {
   try {
     const isSecureEnv =
       process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
-    
+
     res.clearCookie("refreshToken", {
       httpOnly: true,
       secure: isSecureEnv,
