@@ -22,11 +22,13 @@ function TaskCard({ task, onOpen, cardClassName }) {
       className={`cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(108,105,255,0.55)] ${cardClassName}`}
     >
     <CardContent className="p-3">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-[10px] font-black text-blue-600/70 bg-blue-50 px-1.5 py-0.5 rounded">
-          {task.taskNumber}
-        </span>
-      </div>
+      {task.taskNumber && (
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-[10px] font-black text-blue-600/70 bg-blue-50 px-1.5 py-0.5 rounded">
+            {task.taskNumber}
+          </span>
+        </div>
+      )}
       
       <p className="font-semibold text-sm leading-tight text-slate-800 line-clamp-2">
         {task.title}

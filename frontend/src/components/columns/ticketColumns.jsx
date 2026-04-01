@@ -12,7 +12,7 @@ export const columns = [
     },
     cell: ({ row }) => {
       const taskNumber = row.original.taskNumber;
-      return taskNumber ? `${taskNumber}` : "-";
+      return taskNumber ? `${taskNumber}` : "";
     },
   },
   {
