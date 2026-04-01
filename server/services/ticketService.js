@@ -111,6 +111,13 @@ const createTicket = async (ticketData) => {
     assignedTo: ticketData.assignedTo,
   });
 
+  const lastTicket = await Ticket.findOne({ workspace: ticketData.workspaceId })
+    .sort("-taskNumber")
+    .select("taskNumber")
+    .lean();
+
+  const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
+
   const status = ticketData.status === undefined ? "to do" : ticketData.status;
 
   const ticket = new Ticket({
@@ -120,6 +127,7 @@ const createTicket = async (ticketData) => {
     status,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
+    taskNumber: nextTaskNumber,
     inProgressAt: status === "in progress" ? new Date() : undefined,
   });
 
