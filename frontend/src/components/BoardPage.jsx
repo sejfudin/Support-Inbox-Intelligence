@@ -22,12 +22,19 @@ function TaskCard({ task, onOpen, cardClassName }) {
       className={`cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(108,105,255,0.55)] ${cardClassName}`}
     >
       <CardContent className="p-3">
+        {task.taskNumber && (
+          <div className="mb-1 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight">
+            {task.taskNumber}
+          </div>
+        )}
+        
         <div className="flex items-start justify-between gap-2">          
-          <p className="font-semibold leading-snug line-clamp-2">
-            {task.taskNumber ? `#${task.taskNumber} ${task.title}` : task.title}
+          <p className="font-semibold leading-snug line-clamp-2 text-foreground">
+            {task.title}
           </p>
         </div>
-        <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        
+        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
           <AssigneesAvatar users={task.assignedTo} />
         </div>
       </CardContent>
