@@ -1,20 +1,22 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const mongoose = require("mongoose");
 const connectDB = require("../config/db");
 const bcrypt = require("bcryptjs");
 
 const User = require("../models/User");
+const Workspace = require("../models/Workspace");
 const Ticket = require("../models/Ticket");
-const AILog = require("../models/AILog");
+// const AILog = require("../models/AILog");
 
 const seedData = async () => {
   try {
     await connectDB();
     console.log("🟢 Seed process: Connected to database.");
 
-    await User.deleteMany();
     await Ticket.deleteMany();
-    await AILog.deleteMany();
+    await Workspace.deleteMany();
+    await User.deleteMany();
 
     const salt = await bcrypt.genSalt(10);
     const adminPassword = await bcrypt.hash("admin123", salt);
@@ -26,7 +28,8 @@ const seedData = async () => {
       email: "admin@test.com",
       password: adminPassword,
       role: "admin",
-      active: true, 
+      active: true,
+      status: "active",
     });
 
     const agent = await User.create({
@@ -36,13 +39,42 @@ const seedData = async () => {
       password: agentPassword,
       role: "user",
       active: true,
+      status: "active",
     });
 
     console.log("✅ Users (Admin and Agent) created.");
 
+    const workspace = await Workspace.create({
+      name: "Support Inbox Demo",
+      description: "Seeded workspace for local development",
+      owner: admin._id,
+      members: [
+        {
+          user: admin._id,
+          role: "admin",
+          status: "active",
+          invitedBy: admin._id,
+        },
+        {
+          user: agent._id,
+          role: "member",
+          status: "active",
+          invitedBy: admin._id,
+        },
+      ],
+    });
+
+    await User.updateMany(
+      { _id: { $in: [admin._id, agent._id] } },
+      { $set: { workspaceId: workspace._id } },
+    );
+
+    console.log("✅ Workspace created.");
+
     const ticket = await Ticket.create({
       subject: "Subscription billing issue",
       status: "in progress",
+      workspace: workspace._id,
       messages: [
         {
           senderType: "user",
@@ -67,13 +99,13 @@ const seedData = async () => {
 
     console.log("✅ Ticket with messages created.");
 
-    await AILog.create({
-      ticketId: ticket._id,
-      userId: agent._id,
-      status: "success",
-      latencyMs: 1250,
-      errorMessage: "",
-    });
+    // await AILog.create({
+    //   ticketId: ticket._id,
+    //   userId: agent._id,
+    //   status: "success",
+    //   latencyMs: 1250,
+    //   errorMessage: "",
+    // });
 
     console.log("✅ AI Log created.");
 
