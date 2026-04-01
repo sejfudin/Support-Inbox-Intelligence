@@ -1,24 +1,34 @@
-import TicketStatusBadge  from "../StatusBadge";
+import TicketStatusBadge from "../StatusBadge";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 
 export const columns = [
   {
+    accessorKey: "taskNumber",
+    header: "ID", 
+    meta: {
+      headerClassName: "w-[8%]",
+      cellClassName: "w-[8%] font-medium text-muted-foreground",
+    },
+    cell: ({ row }) => {
+      const taskNumber = row.original.taskNumber;
+      return taskNumber ? `${taskNumber}` : "-";
+    },
+  },
+  {
     accessorKey: "title",
     header: "SUBJECT",
     meta: {
-      headerClassName: "w-[58%]",
-      cellClassName: "w-[58%]",
+      headerClassName: "w-[50%]", 
+      cellClassName: "w-[50%]",
     },
-   cell: ({ row }) => {
-
-      const taskNumber = row.original.taskNumber;
+    cell: ({ row }) => {
       return (
         <div className="flex flex-col w-full min-w-0 max-w-full gap-1">
           <div 
             className="truncate font-semibold text-foreground" 
-            title={`${taskNumber ? `#${taskNumber} ` : ""}${row.original.title}`}
+            title={row.original.title}
           >
-            {taskNumber ? `#${taskNumber} ${row.original.title}` : row.original.title}
+            {row.original.title}
           </div>
           <div
             className="line-clamp-1 text-sm text-muted-foreground break-words"
