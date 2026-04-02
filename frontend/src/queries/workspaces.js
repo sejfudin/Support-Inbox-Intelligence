@@ -8,6 +8,7 @@ import {
   inviteWorkspaceMember,
   removeWorkspaceMember,
   switchWorkspace,
+  deleteWorkspace,
 } from '@/api/workspaces';
 import { authKeys } from '@/queries/auth';
 
@@ -89,6 +90,19 @@ export const useSwitchWorkspace = () => {
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
       queryClient.removeQueries({ queryKey: ['tickets'] });
       queryClient.removeQueries({ queryKey: ['users'] });
+    },
+  });
+};
+
+export const useDeleteWorkspace = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteWorkspace,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
     },
   });
 };

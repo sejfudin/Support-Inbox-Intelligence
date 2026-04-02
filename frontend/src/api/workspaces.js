@@ -39,3 +39,8 @@ export const switchWorkspace = async (id) => {
   const response = await apiClient.post(`/workspaces/${id}/switch`);
   return response.data;
 };
+
+export const deleteWorkspace = async (id) => {
+  const response = await apiClient.delete(`/workspaces/${id}`);
+  return response.data;
+};

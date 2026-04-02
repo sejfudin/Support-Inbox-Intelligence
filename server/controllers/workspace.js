@@ -119,3 +119,13 @@ exports.switchWorkspace = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.deleteWorkspace = async (req, res, next) => {
+  try {
+    const result = await workspaceService.deleteWorkspace(req.params.id);
+    res.json(result);
+  } catch (err) {
+    if (err.message === 'Workspace not found') return res.status(404).json({ message: err.message });
+    next(err);
+  }
+};

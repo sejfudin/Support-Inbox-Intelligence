@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useEffect } from 'react';
-import { Users, Ticket, ArrowRight, Building2, Plus, CheckCircle2 } from 'lucide-react';
-import { useAllWorkspaces, useCreateWorkspace, useSwitchWorkspace } from '@/queries/workspaces';
+import { Users, Ticket, ArrowRight, Building2, Plus, CheckCircle2, Trash2 } from 'lucide-react';
+import { useAllWorkspaces, useCreateWorkspace, useSwitchWorkspace, useDeleteWorkspace } from '@/queries/workspaces';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
 
 export default function AdminWorkspacesPage() {
   const { setHeader } = useOutletContext() ?? {};
@@ -26,8 +27,12 @@ export default function AdminWorkspacesPage() {
   const [description, setDescription] = useState('');
   const [createError, setCreateError] = useState('');
 
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
+
   const createWorkspace = useCreateWorkspace();
   const switchWorkspace = useSwitchWorkspace();
+  const deleteWorkspace = useDeleteWorkspace();
   const currentUserId = user?._id || user?.id;
 
   useEffect(() => {
@@ -170,6 +175,17 @@ export default function AdminWorkspacesPage() {
                     >
                       Preview
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteError('');
+                        setDeleteTargetId(ws._id);
+                      }}
+                      className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -178,6 +194,28 @@ export default function AdminWorkspacesPage() {
           </div>
         )}
       </div>
+
+      <DeleteConfirmModal
+        isOpen={!!deleteTargetId}
+        onClose={() => { setDeleteTargetId(null); setDeleteError(''); }}
+        onConfirm={() => {
+          deleteWorkspace.mutate(deleteTargetId, {
+            onSuccess: () => {
+              setDeleteTargetId(null);
+              setDeleteError('');
+            },
+            onError: (err) => {
+              setDeleteError(err.response?.data?.message || 'Failed to delete workspace.');
+            },
+          });
+        }}
+        isLoading={deleteWorkspace.isPending}
+        errorMessage={deleteError}
+        title="Delete Workspace"
+        description="Are you sure you want to delete this workspace? If it has tickets, it will be archived. Otherwise it will be permanently removed."
+        confirmLabel="Delete"
+        loadingLabel="Deleting..."
+      />
 
       {/* Create Workspace Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={(open) => { setIsCreateOpen(open); setCreateError(''); }}>

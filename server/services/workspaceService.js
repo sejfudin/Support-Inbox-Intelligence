@@ -128,8 +128,22 @@ const removeMember = async ({ workspaceId, userId }) => {
   return { message: 'Member removed' };
 };
 
+const deleteWorkspace = async (workspaceId) => {
+  const ticketCount = await Ticket.countDocuments({ workspace: workspaceId });
+
+  if (ticketCount === 0) {
+    await Workspace.findByIdAndDelete(workspaceId);
+  } else {
+    await Ticket.updateMany({ workspace: workspaceId }, { $set: { isArchived: true } });
+    await Workspace.findByIdAndUpdate(workspaceId, { $set: { isArchived: true } });
+  }
+
+  await Invitation.deleteMany({ workspace: workspaceId });
+  await User.updateMany({ workspaceId, role: { $ne: 'admin' } }, { $unset: { workspaceId: '' } });
+};
+
 const getAllWorkspaces = async () => {
-  const workspaces = await Workspace.find()
+  const workspaces = await Workspace.find({ isArchived: { $ne: true } })
     .populate('owner', 'fullname email')
     .lean();
 
@@ -156,4 +170,5 @@ module.exports = {
   inviteMemberToWorkspace,
   removeMember,
   getAllWorkspaces,
+  deleteWorkspace,
 };
