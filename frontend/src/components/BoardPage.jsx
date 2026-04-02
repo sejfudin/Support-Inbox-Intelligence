@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ScrollArea, ScrollBar } from "../components/ui/scroll-area";
 import TicketsState from "./Tickets/TicketsState";
 import AssigneesAvatar from "./Tickets/AssigneesAvatar";
+import PriorityIndicator from "./PriorityIndicator";
 import BoardSkeleton from "./Skeletons/BoardSkeleton";
 import {
   BOARD_COLUMNS,
@@ -35,6 +36,7 @@ function TaskCard({ task, onOpen, cardClassName }) {
       </p>
 
       <div className="mt-3 pt-2 border-t border-slate-50 flex items-center justify-between">
+        <PriorityIndicator priority={task.priority} />
         <AssigneesAvatar users={task.assignedTo} />
       </div>
     </CardContent>
@@ -93,6 +95,7 @@ export default function BoardPage({
       const task = {
         id: normalized.id,
         title: normalized.title,
+        priority: normalized.priority,
         due: normalized.dueDate
           ? new Date(normalized.dueDate).toLocaleDateString()
           : "",

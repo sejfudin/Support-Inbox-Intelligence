@@ -2,7 +2,15 @@ const ticketService = require("../services/ticketService");
 
 const getAllTickets = async (req, res) => {
   try {
-    const { page, limit, search, status, archived, workspaceId: queryWorkspaceId } = req.query;
+    const {
+      page,
+      limit,
+      search,
+      status,
+      priority,
+      archived,
+      workspaceId: queryWorkspaceId,
+    } = req.query;
     const isAdmin = req.user?.role === "admin";
     const workspaceId = isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
     const result = await ticketService.getAllTickets({
@@ -10,6 +18,7 @@ const getAllTickets = async (req, res) => {
       limit: parseInt(limit) || 10,
       search: search || "",
       status: status || "",
+      priority: priority || "",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
     });
@@ -64,7 +73,7 @@ const getTicketById = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const { subject, description, assignedTo, status } = req.body;
+    const { subject, description, assignedTo, status, priority } = req.body;
     const isAdmin = req.user && req.user.role === "admin";
     const hasStatus = status !== undefined && status !== null && status !== "";
     const resolvedStatus = isAdmin
@@ -92,6 +101,7 @@ const createTicket = async (req, res) => {
       creatorId: req.user._id,
       assignedTo: assignedAgents,
       status: resolvedStatus,
+      priority: priority || "medium",
       workspaceId: req.user.workspaceId,
     });
     res.status(201).json({
@@ -122,11 +132,19 @@ const updateTicket = async (req, res, next) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const allowedUpdates = ["subject", "description", "status", "assignedTo"];
+    const allowedUpdates = [
+      "subject",
+      "description",
+      "status",
+      "assignedTo",
+      "priority",
+    ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
       .reduce((obj, key) => {
-        if (key === 'status' && typeof updateData[key] === 'string') {
+        if (key === "status" && typeof updateData[key] === "string") {
+          obj[key] = updateData[key].toLowerCase();
+        } else if (key === "priority" && typeof updateData[key] === "string") {
           obj[key] = updateData[key].toLowerCase();
         } else {
           obj[key] = updateData[key];
@@ -200,6 +218,7 @@ const getMyTickets = async (req, res) => {
       limit: parseInt(req.query.limit) || 10,
       search: req.query.search || "",
       status: req.query.status || "",
+      priority: req.query.priority || "",
     });
 
     res.status(200).json({

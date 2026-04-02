@@ -6,6 +6,7 @@ export const useTicketForm = (initialStatus = "to do") => {
       subject: "",
       description: "",
       status: initialStatus,
+      priority: "medium",
       assignedTo: "unassigned",
     }),
     [initialStatus],

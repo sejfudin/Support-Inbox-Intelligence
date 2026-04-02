@@ -5,6 +5,7 @@ export const getAllTickets = async ({
   limit,
   search,
   status,
+  priority,
   archived,
   workspaceId,
 } = {}) => {
@@ -14,6 +15,7 @@ export const getAllTickets = async ({
       limit,
       search,
       status,
+      priority,
       archived,
       workspaceId,
     },
@@ -47,9 +49,15 @@ export const archiveTicket = async (ticketId) => {
   return response.data;
 };
 
-export const getMyTickets = async ({ page, limit, search, status } = {}) => {
+export const getMyTickets = async ({
+  page,
+  limit,
+  search,
+  status,
+  priority,
+} = {}) => {
   const response = await apiClient.get("/tickets/my-tickets", {
-    params: { page, limit, search, status },
+    params: { page, limit, search, status, priority },
   });
   return response.data;
 };

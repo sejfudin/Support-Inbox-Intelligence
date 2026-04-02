@@ -1,4 +1,5 @@
 import TicketStatusBadge from "../StatusBadge";
+import PriorityIndicator from "../PriorityIndicator";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 import { formatDuration } from "../../helpers/formatDuration";
 
@@ -7,8 +8,8 @@ export const columns = [
     accessorKey: "taskNumber",
     header: "ID", 
     meta: {
-      headerClassName: "w-[8%]",
-      cellClassName: "w-[8%] font-medium text-muted-foreground",
+      headerClassName: "w-[5%]",
+      cellClassName: "w-[5%] font-medium text-muted-foreground",
     },
     cell: ({ row }) => {
       const taskNumber = row.original.taskNumber;
@@ -45,10 +46,19 @@ export const columns = [
     accessorKey: "status",
     header: "STATUS",
     meta: {
-      headerClassName: "w-[12%]",
-      cellClassName: "w-[12%] whitespace-nowrap",
+      headerClassName: "w-[10%]",
+      cellClassName: "w-[10%] whitespace-nowrap",
     },
     cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
+  },
+  {
+    accessorKey: "priority",
+    header: "PRIORITY",
+    meta: {
+      headerClassName: "w-[10%]",
+      cellClassName: "w-[10%] whitespace-nowrap",
+    },
+    cell: ({ row }) => <PriorityIndicator priority={row.original.priority} />,
   },
   {
     accessorKey: "totalTimeSpent",
