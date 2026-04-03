@@ -28,13 +28,12 @@ export default function TicketComments({ ticketId, isArchived }) {
 
     return (
         <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* Header */}
+            
             <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2">
                 <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Activity</span>
             </div>
 
-            {/* List Section */}
             <ScrollArea className="flex-1 p-4">
                 {comments.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-sm text-gray-400 italic">No comments yet.</div>
@@ -54,7 +53,6 @@ export default function TicketComments({ ticketId, isArchived }) {
                 )}
             </ScrollArea>
 
-            {/* Input Section */}
             {!isArchived && <CommentInput ticketId={ticketId} />}
 
             <DeleteConfirmModal

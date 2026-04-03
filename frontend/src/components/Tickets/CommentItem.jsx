@@ -2,9 +2,16 @@ import { useState } from "react";
 import { Avatar } from "../Avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider
+} from "@/components/ui/tooltip"
 import { Edit2, Trash2, X, Check } from "lucide-react";
 import { useUpdateComment, useDeleteComment } from "@/queries/comments";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
@@ -24,21 +31,44 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
         });
     };
 
+    const cancelEditing = () => {
+        setIsEditing(false);
+        setEditContent(comment.content);
+    }
+
     return (
         <div className="flex gap-4 group transition-all">
             <div className="flex-shrink-0">
                 <Avatar users={[comment.author]} className="w-8 h-8" />
             </div>
             <div className="flex flex-col flex-1 min-w-0">
-                <div className="flex items-center justify-between group/header">
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-semibold text-gray-900 truncate">
+                <div className="flex items-center justify-between group/header">                  
+                    <div className="flex flex-col gap-1"> 
+                        <span className="text-sm font-semibold text-gray-900 leading-tight">
                             {comment.author?.fullname}
                         </span>
-                        <span className="text-[10px] text-gray-400">
-                            {new Date(comment.createdAt).toLocaleDateString()}
-                            {comment.isEdited && <span className="ml-1 italic opacity-70">(edited)</span>}
-                        </span>
+
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 leading-none">
+                            <span>{format(new Date(comment.createdAt), "MMM d, yyyy 'at' HH:mm")}</span>
+                            
+                            {comment.isEdited && (
+                                <>
+                                    <span className="text-[8px] opacity-40">•</span>
+                                    <TooltipProvider>
+                                        <Tooltip delayDuration={200}>
+                                            <TooltipTrigger asChild>
+                                                <span className="italic cursor-help hover:text-blue-500 transition-colors">
+                                                    (edited)
+                                                </span>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="text-[11px]">
+                                                <p>Edited: {format(new Date(comment.updatedAt), "MMM d, yyyy 'at' HH:mm")}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </>
+                            )}
+                        </div>
                     </div>
 
                     {!isArchived && !isEditing && (
@@ -71,7 +101,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                             className="min-h-[60px] text-sm focus-visible:ring-blue-500"
                         />
                         <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                            <Button variant="ghost" size="sm" onClick={() => cancelEditing()}>
                                 <X className="w-4 h-4 text-gray-400" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={handleUpdate}>

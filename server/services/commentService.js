@@ -54,10 +54,6 @@ const updateComment = async (commentId, content, userId) => {
     throw new Error('Unauthorized: You can only edit your own comments');
   }
 
-  if (comment.author.toString() !== userId.toString()) {
-    throw new Error('Unauthorized to update this comment');
-  }
-
   comment.content = content;
   comment.isEdited = true;
   await comment.save();
