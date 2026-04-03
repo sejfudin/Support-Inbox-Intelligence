@@ -32,12 +32,14 @@ const NewTickets = ({
   onClose,
   initialStatus = "to do",
   hideStatus = false,
+  workspaceId: previewWorkspaceId,
 }) => {
   const createMutation = useCreateTicket();
   const { user } = useAuth();
+  const effectiveWorkspaceId = previewWorkspaceId || user?.workspaceId;
   const { data: usersData } = useUsers({
     pagination: false,
-    workspaceId: user?.workspaceId,
+    workspaceId: effectiveWorkspaceId,
   });
   const users = usersData?.users || [];
 
@@ -50,7 +52,10 @@ const NewTickets = ({
 
     const ticketData = {
       ...newTicket,
-      assignedTo: Array.isArray(newTicket.assignedTo) ? newTicket.assignedTo : [],
+      assignedTo: Array.isArray(newTicket.assignedTo)
+        ? newTicket.assignedTo
+        : [],
+      workspaceId: effectiveWorkspaceId,
     };
 
     if (hideStatus) {
