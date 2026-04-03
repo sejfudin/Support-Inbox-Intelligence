@@ -122,6 +122,7 @@ export default function TicketPage() {
         isOpen={isNewOpen}
         onClose={closeNewTicket}
         initialStatus={initialStatus}
+        workspaceId={overrideWorkspaceId}
       />
       <TicketsHeader
         viewMode={viewMode}

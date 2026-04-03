@@ -26,6 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 import { Avatar } from "../Avatar";
 import { toast } from "sonner";
+import TimeSpent from "@/components/TimeSpent";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
@@ -300,26 +301,30 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             loadingLabel="Archiving..."
           />
 
-          <div className="group relative mb-10">
-            <input
-              type="text"
-              value={title}
-              readOnly={isArchived}
-              onChange={(e) => setTitle(e.target.value)}
-              className={`w-full rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all hover:bg-accent/50 focus:ring-0 sm:text-3xl lg:text-4xl ${
-                !title.trim() ? "text-destructive" : "text-foreground"
-              }`}
-              placeholder="Enter ticket title..."
-            />
+          <div className="group relative mb-10 flex flex-col gap-3">
+            {ticket?.taskNumber && (
+              <div className="flex">
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-500 border border-gray-200 uppercase tracking-tight">
+                  Ticket {ticket.taskNumber}
+                </span>
+              </div>
+            )}
             
-            <div className={`absolute -bottom-1 left-0 h-0.5 transition-all duration-150 ${
-              !title.trim() 
-                ? "w-full bg-destructive" 
-                : "w-0 group-focus-within:w-full bg-blue-600" 
-            }`}></div>
+            <div className="flex items-center w-full">
+              <input
+                type="text"
+                value={title}
+                readOnly={isArchived}
+                onChange={(e) => setTitle(e.target.value)}
+                className={`w-full rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all focus:ring-0 sm:text-3xl lg:text-4xl ${
+                  !title.trim() ? "text-destructive" : "text-foreground"
+                } ${isArchived ? "cursor-default" : "cursor-text hover:bg-gray-50/50"}`}
+                placeholder="Enter ticket title..."
+              />
+            </div>
             
             {!title.trim() && (
-              <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-destructive uppercase tracking-wider mt-1 animate-in fade-in slide-in-from-top-1">
+              <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-destructive uppercase tracking-wider mt-1">
                 Title is required
               </p>
             )}
@@ -413,7 +418,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 )}
               </Popover>
             </div>
-            <div className="space-y-3 sm:col-span-2 xl:col-span-2">
+
+            <TimeSpent ticket={ticket} />
+
+            <div className="space-y-3 sm:col-span-1 xl:col-span-1">
               <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
                 <UserPen className="w-4 h-4" /> Created By
               </div>

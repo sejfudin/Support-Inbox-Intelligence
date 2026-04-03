@@ -50,11 +50,19 @@ const getAllTickets = async ({
   if (archived !== undefined) {
     query.isArchived = archived ? true : { $ne: true };
   }
+
   if (search) {
-    query.$or = [
+    const searchConditions = [
       { subject: { $regex: search, $options: "i" } },
       { description: { $regex: search, $options: "i" } },
     ];
+
+    const searchAsNumber = Number(search);
+    if (!isNaN(searchAsNumber)) {
+      searchConditions.push({ taskNumber: searchAsNumber });
+    }
+
+    query.$or = searchConditions;
   }
 
   if (status === "null" || status === null) {
@@ -103,13 +111,24 @@ const createTicket = async (ticketData) => {
     assignedTo: ticketData.assignedTo,
   });
 
+  const lastTicket = await Ticket.findOne({ workspace: ticketData.workspaceId })
+    .sort("-taskNumber")
+    .select("taskNumber")
+    .lean();
+
+  const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
+
+  const status = ticketData.status === undefined ? "to do" : ticketData.status;
+
   const ticket = new Ticket({
     subject: ticketData.subject,
     description: ticketData.description || "",
     creator: ticketData.creatorId,
-    status: ticketData.status === undefined ? "to do" : ticketData.status,
+    status,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
+    taskNumber: nextTaskNumber,
+    inProgressAt: status === "in progress" ? new Date() : undefined,
   });
 
   await ticket.save();
@@ -130,6 +149,28 @@ const updateTicket = async (ticketId, updateData) => {
         workspaceId: oldTicket.workspace,
         assignedTo: updateData.assignedTo,
       });
+    }
+
+    if (updateData.status && updateData.status !== oldTicket.status) {
+      const newStatus = updateData.status.toLowerCase();
+      const oldStatus = oldTicket.status.toLowerCase();
+      const now = new Date();
+
+      if (oldStatus === "in progress") {
+        if (oldTicket.inProgressAt) {
+          const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
+          updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
+          updateData.inProgressAt = null;
+        }
+      } else if (newStatus === "in progress") {
+        updateData.inProgressAt = now;
+      }
+
+      if (newStatus === "done") {
+        updateData.doneAt = now;
+      } else if (oldStatus === "done") {
+        updateData.doneAt = null;
+      }
     }
 
     const ticket = await Ticket.findByIdAndUpdate(
