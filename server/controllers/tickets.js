@@ -64,7 +64,7 @@ const getTicketById = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const { subject, description, assignedTo, status } = req.body;
+    const { subject, description, assignedTo, status, workspaceId: bodyWorkspaceId } = req.body;
     const isAdmin = req.user && req.user.role === "admin";
     const hasStatus = status !== undefined && status !== null && status !== "";
     const resolvedStatus = isAdmin
@@ -86,13 +86,16 @@ const createTicket = async (req, res) => {
         message: "Subject details are required",
       });
     }
+    
+    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
+
     const newTicket = await ticketService.createTicket({
       subject,
       description,
       creatorId: req.user._id,
       assignedTo: assignedAgents,
       status: resolvedStatus,
-      workspaceId: req.user.workspaceId,
+      workspaceId,
     });
     res.status(201).json({
       success: true,
