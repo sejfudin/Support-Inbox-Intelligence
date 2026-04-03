@@ -4,28 +4,42 @@ import { formatDuration } from "../../helpers/formatDuration";
 
 export const columns = [
   {
+    accessorKey: "taskNumber",
+    header: "ID", 
+    meta: {
+      headerClassName: "w-[8%]",
+      cellClassName: "w-[8%] font-medium text-muted-foreground",
+    },
+    cell: ({ row }) => {
+      const taskNumber = row.original.taskNumber;
+      return taskNumber ? `${taskNumber}` : "";
+    },
+  },
+  {
     accessorKey: "title",
     header: "SUBJECT",
     meta: {
       headerClassName: "w-[66%]",
       cellClassName: "w-[66%]",
     },
-    cell: ({ row }) => (
-      <div className="w-full min-w-0 max-w-full">
-        <div
-          className="truncate font-semibold text-foreground"
-          title={row.original.title}
-        >
-          {row.original.title}
+    cell: ({ row }) => {
+      return (
+        <div className="flex flex-col w-full min-w-0 max-w-full gap-1">
+          <div 
+            className="truncate font-semibold text-foreground" 
+            title={row.original.title}
+          >
+            {row.original.title}
+          </div>
+          <div
+            className="line-clamp-1 text-sm text-muted-foreground break-words"
+            title={row.original.description}
+          >
+            {row.original.description}
+          </div>
         </div>
-        <div
-          className="mt-1 line-clamp-1 text-sm text-muted-foreground break-words"
-          title={row.original.description}
-        >
-          {row.original.description}
-        </div>
-      </div>
-    ),
+      );
+    },
   },
   {
     accessorKey: "status",
