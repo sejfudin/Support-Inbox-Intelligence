@@ -22,8 +22,16 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
     const isAdmin = user?.role === "admin";
 
     const handleUpdate = () => {
-        if (!editContent.trim()) return;
-        updateMutation.mutate({ commentId: comment._id, content: editContent }, {
+        const trimmedContent = editContent.trim();
+        
+        if (!trimmedContent) return;
+
+        if (trimmedContent === comment.content) {
+            setIsEditing(false);
+            return;
+        }
+
+        updateMutation.mutate({ commentId: comment._id, content: trimmedContent }, {
             onSuccess: () => {
                 setIsEditing(false);
                 toast.success("Comment updated");
@@ -37,12 +45,12 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
     }
 
     return (
-        <div className="flex gap-4 group transition-all">
+        <div className="flex gap-4 group/comment transition-all">
             <div className="flex-shrink-0">
                 <Avatar users={[comment.author]} className="w-8 h-8" />
             </div>
             <div className="flex flex-col flex-1 min-w-0">
-                <div className="flex items-center justify-between group/header">                  
+                <div className="flex items-center justify-between">                  
                     <div className="flex flex-col gap-1"> 
                         <span className="text-sm font-semibold text-gray-900 leading-tight">
                             {comment.author?.fullname}
@@ -57,7 +65,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                                     <TooltipProvider>
                                         <Tooltip delayDuration={200}>
                                             <TooltipTrigger asChild>
-                                                <span className="italic cursor-help hover:text-blue-500 transition-colors">
+                                                <span className="italic cursor-pointer hover:text-blue-500 transition-colors">
                                                     (edited)
                                                 </span>
                                             </TooltipTrigger>
@@ -72,10 +80,12 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                     </div>
 
                     {!isArchived && !isEditing && (
-                        <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center opacity-0 invisible group-hover/comment:opacity-100 group-hover/comment:visible pointer-events-none group-hover/comment:pointer-events-auto">
                             {isAuthor && (
                                 <Button 
-                                    variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-blue-600"
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7 text-gray-400 hover:text-blue-600 transition-none"
                                     onClick={() => setIsEditing(true)}
                                 >
                                     <Edit2 className="w-3.5 h-3.5" />
@@ -83,7 +93,9 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                             )}
                             {(isAuthor || isAdmin) && (
                                 <Button 
-                                    variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-red-500"
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-7 w-7 text-gray-400 hover:text-red-500 transition-none"
                                     onClick={() => onOpenDelete(comment._id)}
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -94,11 +106,11 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 </div>
 
                 {isEditing ? (
-                    <div className="mt-2 space-y-2">
+                    <div className="mt-2 space-y-2 w-full p-1">
                         <Textarea 
                             value={editContent}
                             onChange={(e) => setEditContent(e.target.value)}
-                            className="min-h-[60px] text-sm focus-visible:ring-blue-500"
+                            className="min-h-[60px] text-sm focus-visible:ring-blue-500 w-full resize-none"
                         />
                         <div className="flex justify-end gap-1">
                             <Button variant="ghost" size="sm" onClick={() => cancelEditing()}>

@@ -34,7 +34,7 @@ export default function TicketComments({ ticketId, isArchived }) {
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Activity</span>
             </div>
 
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 p-6">
                 {comments.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-sm text-gray-400 italic">No comments yet.</div>
                 ) : (

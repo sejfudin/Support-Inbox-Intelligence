@@ -2,7 +2,7 @@ const Comment = require('../models/Comment');
 const Ticket = require('../models/Ticket');
 
 const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
-  if (!content) throw new Error('Comment content is required');
+  if (!content || !content.trim()) throw new Error('Comment content is required');
 
   const foundTicket = await Ticket.findById(ticket);
   if (!foundTicket) throw new Error('Ticket not found');
@@ -53,6 +53,8 @@ const updateComment = async (commentId, content, userId) => {
   if (comment.author.toString() !== userId.toString()) {
     throw new Error('Unauthorized: You can only edit your own comments');
   }
+
+  if (!content || !content.trim()) throw new Error('Comment content is required');
 
   comment.content = content;
   comment.isEdited = true;
