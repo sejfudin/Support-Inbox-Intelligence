@@ -39,7 +39,6 @@ const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
   
   return await Comment.find({ 
     ticket: ticketId, 
-    isDeleted: false 
   })
   .populate('author', 'fullname email')
   .sort({ createdAt: 1 });

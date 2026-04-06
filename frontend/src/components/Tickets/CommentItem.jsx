@@ -20,6 +20,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
     const updateMutation = useUpdateComment(ticketId);
     const isAuthor = user?._id === comment.author?._id;
     const isAdmin = user?.role === "admin";
+    const isDeleted = comment.isDeleted;
 
     const handleUpdate = () => {
         const trimmedContent = editContent.trim();
@@ -45,9 +46,9 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
     }
 
     return (
-        <div className="flex gap-4 group/comment transition-all">
+        <div className={`flex gap-4 group/comment transition-all ${isDeleted ? "opacity-60" : ""}`}>
             <div className="flex-shrink-0">
-                <Avatar users={[comment.author]} className="w-8 h-8" />
+                <Avatar users={[comment.author]} className={`w-8 h-8 ${isDeleted ? "grayscale" : ""}`} />
             </div>
             <div className="flex flex-col flex-1 min-w-0">
                 <div className="flex items-center justify-between">                  
@@ -58,8 +59,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
 
                         <div className="flex items-center gap-1.5 text-[10px] text-gray-400 leading-none">
                             <span>{format(new Date(comment.createdAt), "MMM d, yyyy 'at' HH:mm")}</span>
-                            
-                            {comment.isEdited && (
+                            {!isDeleted && comment.isEdited && (
                                 <>
                                     <span className="text-[8px] opacity-40">•</span>
                                     <TooltipProvider>
@@ -79,13 +79,13 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                         </div>
                     </div>
 
-                    {!isArchived && !isEditing && (
+                    {!isArchived && !isEditing && !isDeleted && (
                         <div className="flex items-center opacity-0 invisible group-hover/comment:opacity-100 group-hover/comment:visible pointer-events-none group-hover/comment:pointer-events-auto">
                             {isAuthor && (
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="h-7 w-7 text-gray-400 hover:text-blue-600 transition-none"
+                                    className="h-7 w-7 text-gray-400 hover:text-blue-600"
                                     onClick={() => setIsEditing(true)}
                                 >
                                     <Edit2 className="w-3.5 h-3.5" />
@@ -95,7 +95,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                                 <Button 
                                     variant="ghost" 
                                     size="icon" 
-                                    className="h-7 w-7 text-gray-400 hover:text-red-500 transition-none"
+                                    className="h-7 w-7 text-gray-400 hover:text-red-500"
                                     onClick={() => onOpenDelete(comment._id)}
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -122,8 +122,19 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                         </div>
                     </div>
                 ) : (
-                    <div className="mt-1 text-sm text-gray-600 leading-relaxed break-words whitespace-pre-wrap">
-                        {comment.content}
+                    <div className={`mt-1 text-sm leading-relaxed break-words whitespace-pre-wrap ${
+                        isDeleted 
+                        ? "text-gray-400 italic font-medium py-1" 
+                        : "text-gray-600"
+                    }`}>
+                        {isDeleted ? (
+                            <span className="flex items-center gap-1.5 italic">
+                                <Trash2 className="w-3 h-3 opacity-50" />
+                                This comment was deleted
+                            </span>
+                        ) : (
+                            comment.content
+                        )}
                     </div>
                 )}
             </div>
