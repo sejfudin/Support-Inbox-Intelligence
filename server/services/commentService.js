@@ -37,14 +37,17 @@ const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
     }
   }
   
-  return await Comment.find({ ticket: ticketId })
-    .populate('author', 'fullname email')
-    .sort({ createdAt: 1 });
+  return await Comment.find({ 
+    ticket: ticketId, 
+    isDeleted: false 
+  })
+  .populate('author', 'fullname email')
+  .sort({ createdAt: 1 });
 };
 
 const updateComment = async (commentId, content, userId) => {
   const comment = await Comment.findById(commentId).populate('ticket');
-  if (!comment) throw new Error('Comment not found');
+  if (!comment || comment.isDeleted) throw new Error('Comment not found');
 
   if (comment.ticket.isArchived) {
     throw new Error('Unauthorized: Cannot edit comments on an archived ticket');
@@ -78,7 +81,9 @@ const deleteComment = async (commentId, userId, role) => {
     throw new Error('Unauthorized to delete this comment');
   }
 
-  await comment.deleteOne();
+  comment.isDeleted = true;
+  await comment.save();
+
   return { message: 'Comment removed successfully' };
 };
 
