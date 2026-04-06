@@ -178,8 +178,10 @@ const refresh = async (token) => {
     }
 
     const accessToken = generateAccessToken(user._id, user.tokenVersion);
+    const refreshToken = await createRefreshToken(user._id, user.tokenVersion);
+    await RefreshToken.deleteOne({ token });
 
-    return { accessToken };
+    return { accessToken, refreshToken };
   } catch (err) {
     if (storedToken) await RefreshToken.deleteOne({ token });
     throw new Error("Token expired or invalid");

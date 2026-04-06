@@ -85,11 +85,30 @@ const ticketSchema = new mongoose.Schema(
       ref: "Workspace",
       required: true,
     },
+    totalTimeSpent: {
+      type: Number,
+      default: 0,
+    },
+    inProgressAt: {
+      type: Date,
+    },
+    doneAt: {
+      type: Date,
+    },
+    taskNumber: {
+      type: Number,
+      immutable: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
   },
 );
+
+ticketSchema.set('toJSON', { virtuals: true });
+ticketSchema.set('toObject', { virtuals: true });
+
 ticketSchema.index({ status: 1, updatedAt: -1 });
 ticketSchema.index({ isArchived: 1, updatedAt: -1 });
 module.exports = mongoose.model("Ticket", ticketSchema);

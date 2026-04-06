@@ -3,6 +3,7 @@ const express = require("express");
 const connectDB = require("./config/db");
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const path = require('path');
 
 
 const authRoutes = require("./routes/auth");
@@ -10,7 +11,6 @@ const ticketRoutes = require("./routes/ticket");
 const adminRoutes = require("./routes/admin");
 const workspaceRoutes = require("./routes/workspace");
 const invitationRoutes = require("./routes/invitation");
-const commentRoutes = require("./routes/comment");
 
 const PORT = process.env.PORT || 4000;
 
@@ -36,8 +36,14 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/invitations', invitationRoutes);
-app.use('/api/comment', commentRoutes);
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+});
 
 (async () => {
   try {
