@@ -68,7 +68,7 @@ const updateComment = async (commentId, content, userId) => {
 
 const deleteComment = async (commentId, userId, role) => {
   const comment = await Comment.findById(commentId).populate('ticket');
-  if (!comment) throw new Error('Comment not found');
+  if (!comment || comment.isDeleted) throw new Error('Comment not found');
 
   if (comment.ticket.isArchived) {
     throw new Error('Unauthorized: Cannot delete comments on an archived ticket');
