@@ -12,7 +12,8 @@ const getAllTickets = async (req, res) => {
       workspaceId: queryWorkspaceId,
     } = req.query;
     const isAdmin = req.user?.role === "admin";
-    const workspaceId = isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
+    const workspaceId =
+      isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
     const result = await ticketService.getAllTickets({
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 10,
@@ -73,7 +74,14 @@ const getTicketById = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const { subject, description, assignedTo, status, priority } = req.body;
+    const {
+      subject,
+      description,
+      assignedTo,
+      status,
+      workspaceId: bodyWorkspaceId,
+      priority,
+    } = req.body;
     const isAdmin = req.user && req.user.role === "admin";
     const hasStatus = status !== undefined && status !== null && status !== "";
     const resolvedStatus = isAdmin
@@ -95,14 +103,18 @@ const createTicket = async (req, res) => {
         message: "Subject details are required",
       });
     }
+
+    const workspaceId =
+      isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
+
     const newTicket = await ticketService.createTicket({
       subject,
       description,
       creatorId: req.user._id,
       assignedTo: assignedAgents,
       status: resolvedStatus,
+      workspaceId,
       priority: priority || "medium",
-      workspaceId: req.user.workspaceId,
     });
     res.status(201).json({
       success: true,
@@ -111,7 +123,8 @@ const createTicket = async (req, res) => {
   } catch (error) {
     console.error("Error in createTicket Controller:", error.message);
     if (
-      error.message === "Assigned users must be active members of this workspace" ||
+      error.message ===
+        "Assigned users must be active members of this workspace" ||
       error.message === "Workspace not found"
     ) {
       return res.status(400).json({
@@ -163,7 +176,8 @@ const updateTicket = async (req, res, next) => {
       return res.status(404).json({ message: error.message });
     }
     if (
-      error.message === "Assigned users must be active members of this workspace" ||
+      error.message ===
+        "Assigned users must be active members of this workspace" ||
       error.message === "Workspace not found"
     ) {
       return res.status(400).json({ message: error.message });
@@ -224,7 +238,7 @@ const getMyTickets = async (req, res) => {
     res.status(200).json({
       success: true,
       data: result.tickets,
-      stats: result.stats, 
+      stats: result.stats,
       pagination: result.pagination,
     });
   } catch (error) {
