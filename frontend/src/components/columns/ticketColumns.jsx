@@ -20,8 +20,8 @@ export const columns = [
     accessorKey: "title",
     header: "SUBJECT",
     meta: {
-      headerClassName: "w-[66%]",
-      cellClassName: "w-[66%]",
+      headerClassName: "w-[53%]",
+      cellClassName: "w-[53%]",
     },
     cell: ({ row }) => {
       return (
@@ -46,8 +46,8 @@ export const columns = [
     accessorKey: "status",
     header: "STATUS",
     meta: {
-      headerClassName: "w-[10%]",
-      cellClassName: "w-[10%] whitespace-nowrap",
+      headerClassName: "w-[11%]",
+      cellClassName: "w-[11%] whitespace-nowrap",
     },
     cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
   },
@@ -55,8 +55,8 @@ export const columns = [
     accessorKey: "priority",
     header: "PRIORITY",
     meta: {
-      headerClassName: "w-[10%]",
-      cellClassName: "w-[10%] whitespace-nowrap",
+      headerClassName: "w-[11%]",
+      cellClassName: "w-[11%] whitespace-nowrap",
     },
     cell: ({ row }) => <PriorityIndicator priority={row.original.priority} />,
   },
@@ -64,9 +64,9 @@ export const columns = [
     accessorKey: "totalTimeSpent",
     header: "TIME SPENT",
     meta: {
-      headerClassName: "w-[10%]",
+      headerClassName: "w-[11%]",
       cellClassName:
-        "w-[10%] whitespace-nowrap font-medium text-gray-500 text-xs",
+        "w-[11%] whitespace-nowrap font-medium text-gray-500 text-xs",
     },
     cell: ({ row }) => {
       let seconds = row.original.totalTimeSpent || 0;
