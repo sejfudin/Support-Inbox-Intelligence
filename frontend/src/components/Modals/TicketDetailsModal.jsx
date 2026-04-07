@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
+import PriorityDropdown from "@/components/PriorityDropdown";
 import { DeleteConfirmModal } from "./DeleteConfirmModal";
 import { useArchiveTicket } from "@/queries/tickets";
 import { useUsers } from "@/queries/users";
@@ -39,6 +40,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [isActionPending, setIsActionPending] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
+  const [currentPriority, setCurrentPriority] = useState("medium");
   const [selectedAgents, setSelectedAgents] = useState([]); 
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
@@ -59,6 +61,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     setTitle(ticket.subject || ticket.title || "Untitled Task");
     setDescription(ticket.description ?? "");
     setCurrentStatus(ticket.status ?? "To Do");
+    setCurrentPriority(ticket.priority ?? "medium");
 
     const existingAgentIds = ticket.assignedTo?.map(a => a._id || a) || [];
       setSelectedAgents(existingAgentIds);    
@@ -77,15 +80,26 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     const initialTitle = ticket.subject || ticket.title || "Untitled Task";
     const initialDescription = ticket.description ?? "";
     const initialStatus = ticket.status ?? "To Do";
-    const initialAgents = (ticket.assignedTo?.map(a => a._id || a) || []).sort();
+    const initialPriority = ticket.priority ?? "medium";
+    const initialAgents = (
+      ticket.assignedTo?.map((a) => a._id || a) || []
+    ).sort();
     const currentAgents = [...selectedAgents].sort();
     return (
       title !== initialTitle ||
       description !== initialDescription ||
       currentStatus !== initialStatus ||
+      currentPriority !== initialPriority ||
       JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)   
     );
-  }, [ticket, description, currentStatus, selectedAgents, title]);
+  }, [
+    ticket,
+    description,
+    currentStatus,
+    currentPriority,
+    selectedAgents,
+    title,
+  ]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -148,6 +162,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
         updates: {
           subject: title,
           status: currentStatus,
+          priority: currentPriority,
           description,
           assignedTo: selectedAgents, 
         },
@@ -333,7 +348,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-4 xl:pb-10">
+          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-5 xl:pb-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
@@ -420,6 +435,21 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   </PopoverContent>
                 )}
               </Popover>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                <CircleDot className="w-4 h-4" /> Priority
+              </div>
+              <div
+                className={isArchived ? "pointer-events-none opacity-70" : ""}
+              >
+                <PriorityDropdown
+                  priority={currentPriority}
+                  onChange={setCurrentPriority}
+                  disabled={isArchived}
+                />
+              </div>
             </div>
 
             <TimeSpent ticket={ticket} />

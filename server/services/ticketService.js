@@ -39,6 +39,7 @@ const getAllTickets = async ({
   limit = 10,
   search = "",
   status = "",
+  priority = "",
   archived,
   workspaceId,
 }) => {
@@ -71,6 +72,10 @@ const getAllTickets = async ({
     query.status = { $ne: "backlog" };
   } else if (status && status !== "all") {
     query.status = status;
+  }
+
+  if (priority && priority !== "all") {
+    query.priority = priority;
   }
 
   const [tickets, total] = await Promise.all([
@@ -125,6 +130,7 @@ const createTicket = async (ticketData) => {
     description: ticketData.description || "",
     creator: ticketData.creatorId,
     status,
+    priority: ticketData.priority || "medium",
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
@@ -217,6 +223,7 @@ const getMyTickets = async ({
   limit = 10,
   search = "",
   status = "",
+  priority = "",
 }) => {
   const skip = (page - 1) * limit;
   if (!workspaceId) return { tickets: [], stats: { activeTickets: 0, inProgress: 0, blocked: 0, completedThisMonth: 0 }, pagination: { total: 0, page: Number(page), limit: Number(limit), pages: 0 } };
@@ -237,6 +244,11 @@ const getMyTickets = async ({
   if (status && status !== "all") {
     query.status = status;
   }
+
+  if (priority && priority !== "all") {
+    query.priority = priority;
+  }
+
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 

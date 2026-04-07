@@ -63,6 +63,15 @@ const ticketSchema = new mongoose.Schema(
       default: "backlog",
       required: true,
     },
+    priority: {
+      type: String,
+      enum: {
+        values: ["low", "medium", "high", "critical"],
+        message: "{VALUE} is not a supported priority",
+      },
+      default: "medium",
+      required: true,
+    },
     isArchived: {
       type: Boolean,
       default: false,
