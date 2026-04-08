@@ -7,8 +7,9 @@ import {
   ClipboardList,
   Building2,
   Settings,
+  Mail,
 } from "lucide-react";
-import { useWorkspace } from "@/queries/workspaces";
+import { useWorkspace, useMyWorkspaces } from "@/queries/workspaces";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -22,6 +23,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useLogoutUser } from "@/queries/auth";
+import { useMyInvitations } from "@/queries/invitations";
 import { Avatar } from "./Avatar";
 import { capitalizeFirst } from "@/helpers/capitalizeFirst";
 import { useAuth } from "@/context/AuthContext";
@@ -35,6 +37,11 @@ export default function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { setOpenMobile, isMobile } = useSidebar();
+  const { data: invitations = [] } = useMyInvitations();
+  const { data: myWorkspaces = [] } = useMyWorkspaces();
+  const pendingCount = invitations.length;
+  const hasInvitations = pendingCount > 0;
+  const hasMultipleWorkspaces = myWorkspaces.length > 1;
 
   useEffect(() => {
     if (isMobile) {
@@ -71,6 +78,25 @@ export default function AppSidebar() {
             to: `/admin/workspaces/${user.workspaceId}`,
             icon: Settings,
             adminOnly: true,
+          },
+        ]
+      : []),
+    ...(hasMultipleWorkspaces
+      ? [
+          {
+            label: "My Workspaces",
+            to: "/my-workspaces",
+            icon: Building2,
+          },
+        ]
+      : []),
+    ...(hasInvitations
+      ? [
+          {
+            label: "Invitations",
+            to: "/invitations",
+            icon: Mail,
+            badge: pendingCount,
           },
         ]
       : []),
@@ -139,6 +165,11 @@ export default function AppSidebar() {
                     >
                       <Icon className="h-4 w-4" />
                       <span className="font-medium">{item.label}</span>
+                      {item.badge && (
+                        <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground px-1.5">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
                     </NavLink>
                   </SidebarMenuItem>
                 );
@@ -173,6 +204,11 @@ export default function AppSidebar() {
                     >
                       <Icon className="h-4 w-4" />
                       <span className="font-medium">{item.label}</span>
+                      {item.badge && (
+                        <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground px-1.5">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
                     </NavLink>
                   </SidebarMenuItem>
                 );
