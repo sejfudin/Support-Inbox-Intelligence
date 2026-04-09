@@ -19,6 +19,8 @@ import { useWorkspace } from "@/queries/workspaces";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUpdateTicket } from "@/queries/tickets";
 
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
@@ -42,6 +44,9 @@ export default function TicketPage() {
 
   const isBoard = viewMode === "board";  
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
+
+  const queryClient = useQueryClient(); 
+  const updateTicketMutation = useUpdateTicket();
 
   useEffect(() => {
     if (isMobile && viewMode === "board") {
@@ -98,6 +103,30 @@ export default function TicketPage() {
     }
   };
 
+  const handleStatusChange = (ticketId, columnId) => {
+
+    const columnToStatus = {
+      todo: "to do",          
+      inprogress: "in progress",
+      staging: "on staging",    
+      done: "done",
+      blocked: "blocked",
+      backlog: "backlog"
+    };
+
+    const newStatus = columnToStatus[columnId] || columnId;
+
+    console.log("Pokušavam mutate za:", ticketId, newStatus);
+
+    updateTicketMutation.mutate({
+      ticketId: ticketId,
+      updates: { status: newStatus }
+    }, {
+      onSuccess: () => console.log("MUTACIJA USPJELA NA SERVERU"),
+      onError: (err) => console.error("MUTACIJA DOŽIVJELA ERROR:", err)
+    });
+  };
+
   const currentSearch = isBoard ? search : listData.search;
   return (
     <PageShell>
@@ -141,6 +170,7 @@ export default function TicketPage() {
           isError={isError}
           onNewTicket={openNewTicket}
           onOpenTicket={openTicketDetails}
+          onStatusChange={handleStatusChange}
         />
       ) : (
         <>
