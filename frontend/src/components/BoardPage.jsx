@@ -70,13 +70,26 @@ function TaskCard({ task, onOpen, cardClassName }) {
 function Column({ col, onOpen, onNewTicket }) {
   const style = STATUS_STYLES[col.id] ?? STATUS_STYLES.todo;
 
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef, isOver, over } = useDroppable({
     id: col.id, 
   });
 
+  const isDroppingOver = useMemo(() => {
+    if (isOver) return true;
+    if (!over) return false;
+
+    return col.tasks.some(t => t.id === over.id);
+  }, [isOver, over, col.tasks]);
+
   return (
-    <Card ref={setNodeRef} className={`w-[320px] shrink-0 border-white/70 bg-white/85 ${style.border} border-t-4 transition-all duration-200 ${
-        isOver ? "bg-blue-50/50 ring-2 ring-blue-400/20 scale-[1.01]" : ""}`}>
+    <Card 
+          ref={setNodeRef} 
+          className={`w-[320px] shrink-0 border-white/70 bg-white/85 ${style.border} border-t-4 transition-all duration-300 ease-in-out ${
+            isDroppingOver 
+              ? "bg-blue-50/60 ring-4 ring-blue-400/20 scale-[1.02] shadow-lg z-10" 
+              : ""
+          }`}
+        >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
