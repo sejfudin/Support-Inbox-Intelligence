@@ -3,6 +3,7 @@ export const normalizeTicket = (ticket = {}) => {
   const title = ticket.subject ?? ticket.title ?? ticket.name ?? "Untitled";
   const description = ticket.description ?? "";
   const status = ticket.status ?? "open";
+  const priority = ticket.priority ?? "medium";
   const assignedTo = Array.isArray(ticket.assignedTo)
     ? ticket.assignedTo
     : ticket.assignedTo
@@ -19,6 +20,7 @@ export const normalizeTicket = (ticket = {}) => {
     title,
     description,
     status,
+    priority,
     assignedTo,
     dueDate,
     totalTimeSpent,

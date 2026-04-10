@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { STATUS_OPTIONS } from "@/helpers/ticketStatus";
+import { PRIORITY_OPTIONS } from "@/helpers/ticketPriority";
 import { useTicketForm } from "@/hooks/useTicketForm";
 import { toast } from "sonner";
 
@@ -174,89 +175,112 @@ const NewTickets = ({
 
                   <div className="space-y-2">
                     <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                      Agent
+                      Priority
                     </Label>
-                    
-                    <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen} modal={true}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          type="button" 
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={assigneePopoverOpen}
-                          className="w-full justify-between h-12 px-3 text-left font-normal"
-                        >
-                          <span className={currentAssignees.length === 0 ? "text-muted-foreground" : "text-foreground"}>
-                             {getAssigneeLabel()}
-                          </span>
-
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-
-                      <PopoverContent 
-                        className="w-72 p-2 z-[200]" 
-                        align="start"
-                        onWheel={(e) => e.stopPropagation()} 
-                      >
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                              Assign Agents
-                            </span>
-                            {currentAssignees.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    updateField("assignedTo", []);
-                                }}
-                                className="text-[10px] text-red-500 hover:underline font-bold"
-                              >
-                                Clear all
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="max-h-[250px] overflow-y-auto">
-                            {users.length > 0 ? (
-                              users.map((user) => {
-                                const isSelected = currentAssignees.includes(user._id);
-                                return (
-                                  <div
-                                    key={user._id}
-                                    onClick={(e) => handleAgentToggle(user._id, e)}
-                                    className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
-                                  >
-                                    <Checkbox
-                                      checked={isSelected}
-                                      className="pointer-events-none" 
-                                      onCheckedChange={() => {}}
-                                    />
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
-                                        {user.fullName || user.fullname || user.email}
-                                      </span>
-                                      <span className="text-[10px] text-gray-400 truncate">
-                                        {user.email}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <div className="p-4 text-center text-xs text-gray-400">
-                                No users found
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <Select
+                      value={newTicket.priority}
+                      onValueChange={(value) => updateField("priority", value)}
+                    >
+                      <SelectTrigger className="h-12">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRIORITY_OPTIONS.map((priority) => (
+                          <SelectItem
+                            key={priority.value}
+                            value={priority.value}
+                          >
+                            {priority.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-              </div>
 
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                    Agent
+                  </Label>
+                  
+                  <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen} modal={true}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button" 
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={assigneePopoverOpen}
+                        className="w-full justify-between h-12 px-3 text-left font-normal"
+                      >
+                        <span className={currentAssignees.length === 0 ? "text-muted-foreground" : "text-foreground"}>
+                           {getAssigneeLabel()}
+                        </span>
+
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+
+                    <PopoverContent 
+                      className="w-[var(--radix-popover-trigger-width)] p-2 z-[200]" 
+                      align="start"
+                      onWheel={(e) => e.stopPropagation()} 
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Assign Agents
+                          </span>
+                          {currentAssignees.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                  e.preventDefault();
+                                  updateField("assignedTo", []);
+                              }}
+                              className="text-[10px] text-red-500 hover:underline font-bold"
+                            >
+                              Clear all
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="max-h-[250px] overflow-y-auto">
+                          {users.length > 0 ? (
+                            users.map((user) => {
+                              const isSelected = currentAssignees.includes(user._id);
+                              return (
+                                <div
+                                  key={user._id}
+                                  onClick={(e) => handleAgentToggle(user._id, e)}
+                                  className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                >
+                                  <Checkbox
+                                    checked={isSelected}
+                                    className="pointer-events-none" 
+                                    onCheckedChange={() => {}}
+                                  />
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
+                                      {user.fullName || user.fullname || user.email}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 truncate">
+                                      {user.email}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="p-4 text-center text-xs text-gray-400">
+                              No users found
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
               <div className="flex gap-3 pt-4 border-t">
                 <Button
                   type="submit"

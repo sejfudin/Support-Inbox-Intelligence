@@ -2,14 +2,24 @@ const ticketService = require("../services/ticketService");
 
 const getAllTickets = async (req, res) => {
   try {
-    const { page, limit, search, status, archived, workspaceId: queryWorkspaceId } = req.query;
+    const {
+      page,
+      limit,
+      search,
+      status,
+      priority,
+      archived,
+      workspaceId: queryWorkspaceId,
+    } = req.query;
     const isAdmin = req.user?.role === "admin";
-    const workspaceId = isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
+    const workspaceId =
+      isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
     const result = await ticketService.getAllTickets({
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 10,
       search: search || "",
       status: status || "",
+      priority: priority || "",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
     });
@@ -64,7 +74,14 @@ const getTicketById = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const { subject, description, assignedTo, status, workspaceId: bodyWorkspaceId } = req.body;
+    const {
+      subject,
+      description,
+      assignedTo,
+      status,
+      workspaceId: bodyWorkspaceId,
+      priority,
+    } = req.body;
     const isAdmin = req.user && req.user.role === "admin";
     const hasStatus = status !== undefined && status !== null && status !== "";
     const resolvedStatus = isAdmin
@@ -86,8 +103,9 @@ const createTicket = async (req, res) => {
         message: "Subject details are required",
       });
     }
-    
-    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
+
+    const workspaceId =
+      isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
 
     const newTicket = await ticketService.createTicket({
       subject,
@@ -96,6 +114,7 @@ const createTicket = async (req, res) => {
       assignedTo: assignedAgents,
       status: resolvedStatus,
       workspaceId,
+      priority: priority || "medium",
     });
     res.status(201).json({
       success: true,
@@ -104,7 +123,8 @@ const createTicket = async (req, res) => {
   } catch (error) {
     console.error("Error in createTicket Controller:", error.message);
     if (
-      error.message === "Assigned users must be active members of this workspace" ||
+      error.message ===
+        "Assigned users must be active members of this workspace" ||
       error.message === "Workspace not found"
     ) {
       return res.status(400).json({
@@ -125,11 +145,19 @@ const updateTicket = async (req, res, next) => {
     const { id } = req.params;
     const updateData = req.body;
 
-    const allowedUpdates = ["subject", "description", "status", "assignedTo"];
+    const allowedUpdates = [
+      "subject",
+      "description",
+      "status",
+      "assignedTo",
+      "priority",
+    ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
       .reduce((obj, key) => {
-        if (key === 'status' && typeof updateData[key] === 'string') {
+        if (key === "status" && typeof updateData[key] === "string") {
+          obj[key] = updateData[key].toLowerCase();
+        } else if (key === "priority" && typeof updateData[key] === "string") {
           obj[key] = updateData[key].toLowerCase();
         } else {
           obj[key] = updateData[key];
@@ -148,7 +176,8 @@ const updateTicket = async (req, res, next) => {
       return res.status(404).json({ message: error.message });
     }
     if (
-      error.message === "Assigned users must be active members of this workspace" ||
+      error.message ===
+        "Assigned users must be active members of this workspace" ||
       error.message === "Workspace not found"
     ) {
       return res.status(400).json({ message: error.message });
@@ -203,12 +232,13 @@ const getMyTickets = async (req, res) => {
       limit: parseInt(req.query.limit) || 10,
       search: req.query.search || "",
       status: req.query.status || "",
+      priority: req.query.priority || "",
     });
 
     res.status(200).json({
       success: true,
       data: result.tickets,
-      stats: result.stats, 
+      stats: result.stats,
       pagination: result.pagination,
     });
   } catch (error) {

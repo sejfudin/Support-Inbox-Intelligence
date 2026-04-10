@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTickets } from "@/queries/tickets";
@@ -19,6 +19,17 @@ import { useWorkspace } from "@/queries/workspaces";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUpdateTicket } from "@/queries/tickets";
+
+function isEditableTarget(target) {
+  if (!target || !(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "input:not([type='button']):not([type='submit']):not([type='reset']), textarea, select, [contenteditable='true']",
+    ),
+  );
+}
 
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
@@ -40,8 +51,58 @@ export default function TicketPage() {
     closeTicketDetails,
   } = useTicketModals();
 
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === "Escape") {
+        if (isDetailsOpen) {
+          e.preventDefault();
+          closeTicketDetails();
+          return;
+        }
+        if (isNewOpen) {
+          e.preventDefault();
+          closeNewTicket();
+          return;
+        }
+        return;
+      }
+
+      if (isEditableTarget(e.target)) return;
+
+      if (isDetailsOpen || isNewOpen) return;
+
+      if (e.key === "/") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === "n") {
+        e.preventDefault();
+        openNewTicket();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    isDetailsOpen,
+    isNewOpen,
+    closeTicketDetails,
+    closeNewTicket,
+    openNewTicket,
+  ]);
+
   const isBoard = viewMode === "board";  
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
+
+  const queryClient = useQueryClient(); 
+  const updateTicketMutation = useUpdateTicket();
 
   useEffect(() => {
     if (isMobile && viewMode === "board") {
@@ -98,6 +159,30 @@ export default function TicketPage() {
     }
   };
 
+  const handleStatusChange = (ticketId, columnId) => {
+
+    const columnToStatus = {
+      todo: "to do",          
+      inprogress: "in progress",
+      staging: "on staging",    
+      done: "done",
+      blocked: "blocked",
+      backlog: "backlog"
+    };
+
+    const newStatus = columnToStatus[columnId] || columnId;
+
+    console.log("Pokušavam mutate za:", ticketId, newStatus);
+
+    updateTicketMutation.mutate({
+      ticketId: ticketId,
+      updates: { status: newStatus }
+    }, {
+      onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tickets'] }); },
+      onError: (err) => console.error("Error updating ticket: ", err)
+    });
+  };
+
   const currentSearch = isBoard ? search : listData.search;
   return (
     <PageShell>
@@ -130,6 +215,7 @@ export default function TicketPage() {
         search={currentSearch}
         onSearch={handleSearchChange}
         onNewTicket={openNewTicket}
+        searchInputRef={searchInputRef}
         hideViewMode={isMobile}
       />
 
@@ -141,6 +227,7 @@ export default function TicketPage() {
           isError={isError}
           onNewTicket={openNewTicket}
           onOpenTicket={openTicketDetails}
+          onStatusChange={handleStatusChange}
         />
       ) : (
         <>

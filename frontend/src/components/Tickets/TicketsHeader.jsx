@@ -8,6 +8,7 @@ export default function TicketsHeader({
   search,
   onSearch,
   onNewTicket,
+  searchInputRef,
   hideViewMode = false,
   disableBoardView = false,
   hideNewTicket = false,
@@ -49,11 +50,13 @@ export default function TicketsHeader({
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               type="text"
               placeholder="Search tickets..."
               className="pl-9"
               value={search}
               onChange={(e) => onSearch(e.target.value)}
+              aria-label="Search tickets"
             />
           </div>
 

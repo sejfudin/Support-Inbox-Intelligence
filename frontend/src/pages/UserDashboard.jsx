@@ -12,6 +12,8 @@ import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import { useTicketModals } from "@/hooks/useTicketModals";
 import { useDebounce } from "use-debounce";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useQueryClient } from "@tanstack/react-query";
+import { useUpdateTicket } from "@/queries/tickets";
 
 export default function UserDashboard() {
   const [page, setPage] = useState(1);
@@ -19,6 +21,8 @@ export default function UserDashboard() {
   const [search, setSearch] = useState("");
   const isMobile = useIsMobile();
   const [debouncedSearch] = useDebounce(search, 500);
+  const queryClient = useQueryClient();
+  const updateTicketMutation = useUpdateTicket();
 
   const {
     selectedTicketId,
@@ -59,6 +63,30 @@ export default function UserDashboard() {
 
   const isBoard = viewMode === "board";
 
+  const handleStatusChange = (ticketId, columnId) => {
+
+    const columnToStatus = {
+      todo: "to do",          
+      inprogress: "in progress",
+      staging: "on staging",    
+      done: "done",
+      blocked: "blocked",
+      backlog: "backlog"
+    };
+
+    const newStatus = columnToStatus[columnId] || columnId;
+
+    console.log("Pokušavam mutate za:", ticketId, newStatus);
+
+    updateTicketMutation.mutate({
+      ticketId: ticketId,
+      updates: { status: newStatus }
+    }, {
+      onSuccess: () => console.log("MUTACIJA USPJELA NA SERVERU"),
+      onError: (err) => console.error("MUTACIJA DOŽIVJELA ERROR:", err)
+    });
+  };
+
   useEffect(() => {
     if (isMobile && viewMode === "board") {
       setViewMode("list");
@@ -91,6 +119,7 @@ export default function UserDashboard() {
                 isLoading={isLoading}
                 isError={isError}
                 onOpenTicket={openTicketDetails}
+                onStatusChange={handleStatusChange}
               />
             ) : (
               <div>
