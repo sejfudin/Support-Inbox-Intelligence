@@ -9,6 +9,7 @@ const {
   removeMember,
   getAllWorkspaces,
   switchWorkspace,
+  deleteWorkspace,
 } = require('../controllers/workspace');
 const { protect } = require('../middleware/auth');
 const { requireRole } = require('../middleware/role');
@@ -19,6 +20,7 @@ router.post('/', protect, requireRole('admin'), createWorkspace);
 
 router.get('/:id', protect, getWorkspace);
 router.patch('/:id', protect, requireRole('admin'), updateWorkspace);
+router.delete('/:id', protect, requireRole('admin'), deleteWorkspace);
 
 router.post('/:id/switch', protect, switchWorkspace);
 router.post('/:id/invite', protect, requireRole('admin'), inviteMember);

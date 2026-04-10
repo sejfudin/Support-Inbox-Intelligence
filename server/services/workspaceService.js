@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
@@ -128,8 +129,39 @@ const removeMember = async ({ workspaceId, userId }) => {
   return { message: 'Member removed' };
 };
 
+const deleteWorkspace = async (workspaceId) => {
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace) throw new Error('Workspace not found');
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const ticketCount = await Ticket.countDocuments({ workspace: workspaceId }, { session });
+
+    if (ticketCount === 0) {
+      await Workspace.findByIdAndDelete(workspaceId, { session });
+    } else {
+      await Ticket.updateMany({ workspace: workspaceId }, { $set: { isArchived: true } }, { session });
+      await Workspace.findByIdAndUpdate(workspaceId, { $set: { isArchived: true } }, { session });
+    }
+
+    await Invitation.deleteMany({ workspace: workspaceId }, { session });
+    await User.updateMany({ workspaceId, role: { $ne: 'admin' } }, { $unset: { workspaceId: '' } }, { session });
+
+    await session.commitTransaction();
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
+  }
+
+  return { message: 'Workspace deleted' };
+};
+
 const getAllWorkspaces = async () => {
-  const workspaces = await Workspace.find()
+  const workspaces = await Workspace.find({ isArchived: { $ne: true } })
     .populate('owner', 'fullname email')
     .lean();
 
@@ -156,4 +188,5 @@ module.exports = {
   inviteMemberToWorkspace,
   removeMember,
   getAllWorkspaces,
+  deleteWorkspace,
 };
