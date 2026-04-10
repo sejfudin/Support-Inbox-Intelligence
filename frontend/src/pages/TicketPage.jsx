@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTickets } from "@/queries/tickets";
@@ -22,6 +22,15 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateTicket } from "@/queries/tickets";
 
+function isEditableTarget(target) {
+  if (!target || !(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "input:not([type='button']):not([type='submit']):not([type='reset']), textarea, select, [contenteditable='true']",
+    ),
+  );
+}
+
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("list");
@@ -41,6 +50,53 @@ export default function TicketPage() {
     openTicketDetails,
     closeTicketDetails,
   } = useTicketModals();
+
+  const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === "Escape") {
+        if (isDetailsOpen) {
+          e.preventDefault();
+          closeTicketDetails();
+          return;
+        }
+        if (isNewOpen) {
+          e.preventDefault();
+          closeNewTicket();
+          return;
+        }
+        return;
+      }
+
+      if (isEditableTarget(e.target)) return;
+
+      if (isDetailsOpen || isNewOpen) return;
+
+      if (e.key === "/") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === "n") {
+        e.preventDefault();
+        openNewTicket();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    isDetailsOpen,
+    isNewOpen,
+    closeTicketDetails,
+    closeNewTicket,
+    openNewTicket,
+  ]);
 
   const isBoard = viewMode === "board";  
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
@@ -159,6 +215,7 @@ export default function TicketPage() {
         search={currentSearch}
         onSearch={handleSearchChange}
         onNewTicket={openNewTicket}
+        searchInputRef={searchInputRef}
         hideViewMode={isMobile}
       />
 
