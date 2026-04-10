@@ -32,6 +32,8 @@ export const useAcceptInvitation = () => {
     onSuccess: () => {
       invalidateInvitationRelatedData(queryClient);
       queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
+      queryClient.removeQueries({ queryKey: ['tickets'] });
+      queryClient.removeQueries({ queryKey: ['users'] });
     },
   });
 };
