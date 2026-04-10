@@ -15,6 +15,8 @@ import SetupPasswordWrapper from "@/pages/SetupPasswordWrapper";
 import CreateWorkspacePage from "@/pages/CreateWorkspacePage";
 import AdminWorkspacesPage from "@/pages/AdminWorkspacesPage";
 import WorkspaceDetailPage from "@/pages/WorkspaceDetailPage";
+import MyWorkspacesPage from "@/pages/MyWorkspacesPage";
+import UserInvitationsPage from "@/pages/UserInvitationsPage";
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -75,6 +77,8 @@ export default function AppRoutes() {
             <Route path="/tickets" element={<TicketPage />} />
             <Route path="/admin/archive" element={<ArchivePage />} />
             <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/my-workspaces" element={<MyWorkspacesPage />} />
+            <Route path="/invitations" element={<UserInvitationsPage />} />
 
             <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
               <Route path="/admin/backlog" element={<BacklogPage />} />
