@@ -200,7 +200,6 @@ export default function BoardPage({
     }
 
     if (destinationColumnId && destinationColumnId !== currentColumnId) {
-      console.log(`Prebacujem task ${activeId} iz ${currentColumnId} u ${destinationColumnId}`);
       onStatusChange?.(activeId, destinationColumnId);
     }
   }

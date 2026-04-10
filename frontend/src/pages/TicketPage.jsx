@@ -122,8 +122,8 @@ export default function TicketPage() {
       ticketId: ticketId,
       updates: { status: newStatus }
     }, {
-      onSuccess: () => console.log("MUTACIJA USPJELA NA SERVERU"),
-      onError: (err) => console.error("MUTACIJA DOŽIVJELA ERROR:", err)
+      onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tickets'] }); },
+      onError: (err) => console.error("Error updating ticket: ", err)
     });
   };
 
