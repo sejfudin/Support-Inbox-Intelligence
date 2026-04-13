@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Crown, Mail, Search, Ticket, UserMinus, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, Building2, Crown, Mail, Search, Settings, Ticket, UserMinus, UserPlus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Avatar } from '@/components/Avatar';
@@ -199,6 +199,14 @@ export default function WorkspaceDetailPage() {
               {switchWorkspace.isPending ? 'Switching...' : 'Switch Workspace'}
             </Button>
           )}
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            Workspace Settings
+          </Button>
           <Button variant="outline" onClick={() => navigate(`/tickets?workspaceId=${id}`)} className="gap-2">
             <Ticket className="h-4 w-4" />
             View Tickets
