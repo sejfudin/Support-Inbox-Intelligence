@@ -37,6 +37,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
       sorting,
     },
     manualPagination: true,
+    manualSorting: true,
     meta: meta,
   });
 

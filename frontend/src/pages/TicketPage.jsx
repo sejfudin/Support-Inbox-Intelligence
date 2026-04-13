@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTickets } from "@/queries/tickets";
-import { columns } from "@/components/columns/ticketColumns";
+import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { useDebounce } from "use-debounce";
 import BoardPage from "@/components/BoardPage";
 import NewTickets from "@/components/Tickets/NewTickets";
@@ -117,6 +117,20 @@ export default function TicketPage() {
     enabled: !isBoard,
     additionalFilters: { archived: false, status: listStatusFilter, workspaceId: overrideWorkspaceId },
   });
+
+  const listColumns = useMemo(
+    () =>
+      createTicketColumns({
+        sortBy: listData.sortBy,
+        sortOrder: listData.sortOrder,
+        onDueDateSort: listData.toggleDueDateSort,
+      }),
+    [
+      listData.sortBy,
+      listData.sortOrder,
+      listData.toggleDueDateSort,
+    ],
+  );
 
   // Board view data
   const [search, setSearch] = useState("");
@@ -253,7 +267,7 @@ export default function TicketPage() {
                 loadingSlot={<TableSkeleton />}
               >
                 <DataTable
-                  columns={columns}
+                  columns={listColumns}
                   data={visibleTickets}
                   pagination={pagination}
                   onPageChange={(newPage) => listData.setPage(newPage)}

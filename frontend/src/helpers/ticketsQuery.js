@@ -7,6 +7,8 @@ export const getTicketsQueryParams = ({
   workspaceId,
   listLimit = 10,
   boardLimit = 10000,
+  sortBy = "dueDate",
+  sortOrder = "desc",
 }) => {
   const listStatus =
     status !== undefined ? status : activeTab === "all" ? "" : activeTab;
@@ -20,6 +22,8 @@ export const getTicketsQueryParams = ({
       status: normalizedStatus,
       archived,
       workspaceId,
+      sortBy,
+      sortOrder,
     },
     board: {
       page: 1,
@@ -28,6 +32,8 @@ export const getTicketsQueryParams = ({
       status: status !== undefined ? normalizedStatus : "",
       archived,
       workspaceId,
+      sortBy: "updatedAt",
+      sortOrder: "desc",
     },
   };
 };

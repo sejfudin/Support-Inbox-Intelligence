@@ -30,6 +30,7 @@ import { Avatar } from "../Avatar";
 import { toast } from "sonner";
 import TimeSpent from "@/components/TimeSpent";
 import TicketComments from "../Tickets/TicketComments";
+import { dueDateToInputValue } from "@/helpers/ticketDueDate";
 
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
@@ -41,7 +42,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [actionError, setActionError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
   const [currentPriority, setCurrentPriority] = useState("medium");
-  const [selectedAgents, setSelectedAgents] = useState([]); 
+  const [selectedAgents, setSelectedAgents] = useState([]);
+  const [dueDateInput, setDueDateInput] = useState("");
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
 
@@ -64,8 +66,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     setCurrentPriority(ticket.priority ?? "medium");
 
     const existingAgentIds = ticket.assignedTo?.map(a => a._id || a) || [];
-      setSelectedAgents(existingAgentIds);    
-  }, 
+    setSelectedAgents(existingAgentIds);
+    setDueDateInput(dueDateToInputValue(ticket.dueDate));
+  },
   [isOpen, ticket]);
 
   const selectedUsersObjects = useMemo(() => {
@@ -85,12 +88,14 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       ticket.assignedTo?.map((a) => a._id || a) || []
     ).sort();
     const currentAgents = [...selectedAgents].sort();
+    const initialDue = dueDateToInputValue(ticket.dueDate);
     return (
       title !== initialTitle ||
       description !== initialDescription ||
       currentStatus !== initialStatus ||
       currentPriority !== initialPriority ||
-      JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)   
+      dueDateInput !== initialDue ||
+      JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)
     );
   }, [
     ticket,
@@ -99,6 +104,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     currentPriority,
     selectedAgents,
     title,
+    dueDateInput,
   ]);
 
   useEffect(() => {
@@ -164,7 +170,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           status: currentStatus,
           priority: currentPriority,
           description,
-          assignedTo: selectedAgents, 
+          assignedTo: selectedAgents,
+          dueDate: dueDateInput
+            ? new Date(`${dueDateInput}T12:00:00`).toISOString()
+            : null,
         },
       },
      {
@@ -348,7 +357,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-5 xl:pb-10">
+          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-6 xl:pb-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
@@ -450,6 +459,21 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   disabled={isArchived}
                 />
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                <Calendar className="w-4 h-4" /> Due date
+              </div>
+              <input
+                type="date"
+                value={dueDateInput}
+                disabled={isArchived}
+                onChange={(e) => setDueDateInput(e.target.value)}
+                className={`h-10 w-full max-w-[11rem] rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 shadow-sm outline-none transition focus:border-blue-200 focus:ring-2 focus:ring-blue-50 ${
+                  isArchived ? "cursor-not-allowed opacity-70" : ""
+                }`}
+              />
             </div>
 
             <TimeSpent ticket={ticket} />
