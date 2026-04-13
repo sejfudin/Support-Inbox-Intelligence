@@ -10,6 +10,8 @@ const getAllTickets = async (req, res) => {
       priority,
       archived,
       workspaceId: queryWorkspaceId,
+      sortBy,
+      sortOrder,
     } = req.query;
     const isAdmin = req.user?.role === "admin";
     const workspaceId =
@@ -22,6 +24,8 @@ const getAllTickets = async (req, res) => {
       priority: priority || "",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
+      sortBy: sortBy || "dueDate",
+      sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
     res.status(200).json({
       success: true,
@@ -81,6 +85,7 @@ const createTicket = async (req, res) => {
       status,
       workspaceId: bodyWorkspaceId,
       priority,
+      dueDate,
     } = req.body;
     const isAdmin = req.user && req.user.role === "admin";
     const hasStatus = status !== undefined && status !== null && status !== "";
@@ -115,6 +120,7 @@ const createTicket = async (req, res) => {
       status: resolvedStatus,
       workspaceId,
       priority: priority || "medium",
+      dueDate,
     });
     res.status(201).json({
       success: true,
@@ -151,6 +157,7 @@ const updateTicket = async (req, res, next) => {
       "status",
       "assignedTo",
       "priority",
+      "dueDate",
     ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
@@ -159,6 +166,9 @@ const updateTicket = async (req, res, next) => {
           obj[key] = updateData[key].toLowerCase();
         } else if (key === "priority" && typeof updateData[key] === "string") {
           obj[key] = updateData[key].toLowerCase();
+        } else if (key === "dueDate") {
+          const v = updateData[key];
+          obj[key] = v === null || v === "" ? null : v;
         } else {
           obj[key] = updateData[key];
         }
@@ -233,6 +243,8 @@ const getMyTickets = async (req, res) => {
       search: req.query.search || "",
       status: req.query.status || "",
       priority: req.query.priority || "",
+      sortBy: req.query.sortBy || "dueDate",
+      sortOrder: req.query.sortOrder === "asc" ? "asc" : "desc",
     });
 
     res.status(200).json({

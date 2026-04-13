@@ -10,6 +10,24 @@ const normalizeAssignedUserIds = (assignedTo = []) => {
   return [...new Set(rawIds.filter(Boolean).map((id) => id.toString()))];
 };
 
+const parseOptionalDueDate = (value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d;
+};
+
+const ALLOWED_TICKET_SORT_FIELDS = new Set(["updatedAt", "dueDate"]);
+
+const buildTicketListSort = (sortBy = "dueDate", sortOrder = "desc") => {
+  const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : "dueDate";
+  const dir = sortOrder === "asc" ? 1 : -1;
+  if (field === "dueDate") {
+    return { dueDate: dir, updatedAt: -1 };
+  }
+  return { updatedAt: dir };
+};
+
 const ensureAssignableUsersBelongToWorkspace = async ({
   workspaceId,
   assignedTo = [],
@@ -42,6 +60,8 @@ const getAllTickets = async ({
   priority = "",
   archived,
   workspaceId,
+  sortBy,
+  sortOrder,
 }) => {
   if (!workspaceId) return { tickets: [], pagination: { total: 0, page: Number(page), limit: Number(limit), pages: 0 } };
 
@@ -78,9 +98,11 @@ const getAllTickets = async ({
     query.priority = priority;
   }
 
+  const sortSpec = buildTicketListSort(sortBy, sortOrder);
+
   const [tickets, total] = await Promise.all([
     Ticket.find(query)
-      .sort({ updatedAt: -1 })
+      .sort(sortSpec)
       .skip(skip)
       .limit(limit)
       .populate("creator", "fullname email")
@@ -125,6 +147,8 @@ const createTicket = async (ticketData) => {
 
   const status = ticketData.status === undefined ? "to do" : ticketData.status;
 
+  const dueDate = parseOptionalDueDate(ticketData.dueDate);
+
   const ticket = new Ticket({
     subject: ticketData.subject,
     description: ticketData.description || "",
@@ -135,6 +159,7 @@ const createTicket = async (ticketData) => {
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
     inProgressAt: status === "in progress" ? new Date() : undefined,
+    ...(dueDate !== undefined ? { dueDate } : {}),
   });
 
   await ticket.save();
@@ -155,6 +180,20 @@ const updateTicket = async (ticketId, updateData) => {
         workspaceId: oldTicket.workspace,
         assignedTo: updateData.assignedTo,
       });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, "dueDate")) {
+      const raw = updateData.dueDate;
+      if (raw === null || raw === "") {
+        updateData.dueDate = null;
+      } else {
+        const parsed = parseOptionalDueDate(raw);
+        if (parsed === undefined) {
+          delete updateData.dueDate;
+        } else {
+          updateData.dueDate = parsed;
+        }
+      }
     }
 
     if (updateData.status && updateData.status !== oldTicket.status) {
@@ -224,6 +263,8 @@ const getMyTickets = async ({
   search = "",
   status = "",
   priority = "",
+  sortBy,
+  sortOrder,
 }) => {
   const skip = (page - 1) * limit;
   if (!workspaceId) return { tickets: [], stats: { activeTickets: 0, inProgress: 0, blocked: 0, completedThisMonth: 0 }, pagination: { total: 0, page: Number(page), limit: Number(limit), pages: 0 } };
@@ -252,9 +293,11 @@ const getMyTickets = async ({
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+  const sortSpec = buildTicketListSort(sortBy, sortOrder);
+
   const [tickets, total, statsArray] = await Promise.all([
     Ticket.find(query)
-      .sort({ updatedAt: -1 })
+      .sort(sortSpec)
       .skip(skip)
       .limit(limit)
       .populate("creator", "fullname email")
