@@ -5,6 +5,7 @@ export const getTicketsQueryParams = ({
   archived,
   status,
   workspaceId,
+  queryFilters = {},
   listLimit = 10,
   boardLimit = 10000,
 }) => {
@@ -12,22 +13,25 @@ export const getTicketsQueryParams = ({
     status !== undefined ? status : activeTab === "all" ? "" : activeTab;
   const normalizedStatus = listStatus === null ? "null" : listStatus;
 
+  const sharedParams = {
+    search,
+    archived,
+    workspaceId,
+    ...queryFilters,
+  };
+
   return {
     list: {
       page,
       limit: listLimit,
-      search,
+      ...sharedParams,
       status: normalizedStatus,
-      archived,
-      workspaceId,
     },
     board: {
       page: 1,
       limit: boardLimit,
-      search,
+      ...sharedParams,
       status: status !== undefined ? normalizedStatus : "",
-      archived,
-      workspaceId,
     },
   };
 };

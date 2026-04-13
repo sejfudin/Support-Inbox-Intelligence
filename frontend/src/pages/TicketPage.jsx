@@ -21,6 +21,14 @@ import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateTicket } from "@/queries/tickets";
+import { useUsers } from "@/queries/users";
+import {
+  PRIORITY_FILTER_OPTIONS,
+  buildAssigneeFilterOptions,
+} from "@/helpers/ticketFilters";
+import { useAuth } from "@/context/AuthContext";
+import TicketFiltersPanel from "@/components/Tickets/TicketsFiltersPanel";
+import { useTicketFiltersControls } from "@/hooks/useTicketFiltersControls";
 
 function isEditableTarget(target) {
   if (!target || !(target instanceof Element)) return false;
@@ -34,11 +42,23 @@ function isEditableTarget(target) {
 export default function TicketPage() {
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("list");
+
   const isMobile = useIsMobile();
+  const effectiveViewMode = isMobile ? "list" : viewMode;
+  const isBoard = effectiveViewMode === "board";
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const overrideWorkspaceId = searchParams.get("workspaceId") || undefined;
+  const { user } = useAuth();
   const { data: overrideWorkspace } = useWorkspace(overrideWorkspaceId);
+
+  const effectiveWorkspaceId = overrideWorkspaceId || user?.workspaceId;
+
+  const { data: usersData } = useUsers({
+    pagination: false,
+    workspaceId: effectiveWorkspaceId,
+  });
 
   const {
     isNewOpen,
@@ -73,7 +93,6 @@ export default function TicketPage() {
       }
 
       if (isEditableTarget(e.target)) return;
-
       if (isDetailsOpen || isNewOpen) return;
 
       if (e.key === "/") {
@@ -90,35 +109,40 @@ export default function TicketPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    isDetailsOpen,
-    isNewOpen,
-    closeTicketDetails,
-    closeNewTicket,
-    openNewTicket,
-  ]);
+  }, [isDetailsOpen, isNewOpen, closeTicketDetails, closeNewTicket, openNewTicket]);
 
-  const isBoard = viewMode === "board";  
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
 
-  const queryClient = useQueryClient(); 
+  const queryClient = useQueryClient();
   const updateTicketMutation = useUpdateTicket();
 
-  useEffect(() => {
-    if (isMobile && viewMode === "board") {
-      setViewMode("list");
-    }
-  }, [isMobile, viewMode]);
+  const assigneeOptions = useMemo(
+    () => buildAssigneeFilterOptions(usersData?.users || []),
+    [usersData?.users],
+  );
 
+  const {
+    controls,
+    queryFilters,
+    activeFilterChips,
+    togglePriority,
+    toggleAssignee,
+    changePriorityOrder,
+    clearAllFilters,
+    removeFilterChip,
+  } = useTicketFiltersControls({ assigneeOptions });
 
-  // List view data
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
-    additionalFilters: { archived: false, status: listStatusFilter, workspaceId: overrideWorkspaceId },
+    queryFilters,
+    additionalFilters: {
+      archived: false,
+      status: listStatusFilter,
+      workspaceId: overrideWorkspaceId,
+    },
   });
 
-  // Board view data
   const [search, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(search, 500);
 
@@ -129,26 +153,33 @@ export default function TicketPage() {
     archived: false,
     status: "not_null",
     workspaceId: overrideWorkspaceId,
+    queryFilters,
   });
 
   const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });
 
   const boardTickets = useMemo(
-    () =>
-      (boardQuery.data?.data || []).map((ticket) => normalizeTicket(ticket)),
+    () => (boardQuery.data?.data || []).map((ticket) => normalizeTicket(ticket)),
     [boardQuery.data?.data],
   );
 
-  // Use appropriate data based on view mode
   const normalizedTickets = isBoard ? boardTickets : listData.tickets;
   const pagination = isBoard ? null : listData.pagination;
   const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
   const isError = isBoard ? boardQuery.isError : listData.isError;
   const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
-  
-  const visibleTickets = useMemo(() => {
-    return normalizedTickets.filter((ticket) => ticket.status !== 'backlog');
-  }, [normalizedTickets]);
+  const visibleTickets = normalizedTickets;
+
+  const runWithListReset = (callback) => (...args) => {
+    callback(...args);
+    if (!isBoard) listData.setPage(1);
+  };
+
+  const handlePriorityFilterChange = runWithListReset(togglePriority);
+  const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
+  const handlePriorityOrderChange = runWithListReset(changePriorityOrder);
+  const handleClearAllFilters = runWithListReset(clearAllFilters);
+  const handleRemoveFilterChip = runWithListReset(removeFilterChip);
 
   const handleSearchChange = (value) => {
     if (isBoard) {
@@ -160,30 +191,47 @@ export default function TicketPage() {
   };
 
   const handleStatusChange = (ticketId, columnId) => {
-
     const columnToStatus = {
-      todo: "to do",          
+      todo: "to do",
       inprogress: "in progress",
-      staging: "on staging",    
+      staging: "on staging",
       done: "done",
       blocked: "blocked",
-      backlog: "backlog"
+      backlog: "backlog",
     };
 
     const newStatus = columnToStatus[columnId] || columnId;
 
-    console.log("Pokušavam mutate za:", ticketId, newStatus);
+    updateTicketMutation.mutate(
+      {
+        ticketId,
+        updates: { status: newStatus },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ["tickets"] });
+        },
+        onError: (err) => console.error("Error updating ticket: ", err),
+      },
+    );
+  };
 
-    updateTicketMutation.mutate({
-      ticketId: ticketId,
-      updates: { status: newStatus }
-    }, {
-      onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tickets'] }); },
-      onError: (err) => console.error("Error updating ticket: ", err)
-    });
+  const ticketFiltersPanelProps = {
+    selectedPriorities: controls.priorities,
+    onTogglePriority: handlePriorityFilterChange,
+    priorityOptions: PRIORITY_FILTER_OPTIONS,
+    selectedAssigneeIds: controls.assigneeIds,
+    onToggleAssignee: handleAssigneeFilterChange,
+    assigneeOptions,
+    priorityOrder: controls.priorityOrder,
+    onPriorityOrderChange: handlePriorityOrderChange,
+    activeFilterChips,
+    onRemoveFilterChip: handleRemoveFilterChip,
+    onClearAllFilters: handleClearAllFilters,
   };
 
   const currentSearch = isBoard ? search : listData.search;
+
   return (
     <PageShell>
       {overrideWorkspaceId && (
@@ -203,14 +251,16 @@ export default function TicketPage() {
           </div>
         </PageSection>
       )}
+
       <NewTickets
         isOpen={isNewOpen}
         onClose={closeNewTicket}
         initialStatus={initialStatus}
         workspaceId={overrideWorkspaceId}
       />
+
       <TicketsHeader
-        viewMode={viewMode}
+        viewMode={effectiveViewMode}
         onViewModeChange={setViewMode}
         search={currentSearch}
         onSearch={handleSearchChange}
@@ -219,8 +269,23 @@ export default function TicketPage() {
         hideViewMode={isMobile}
       />
 
-      {/* Conditional Content Based on View Mode */}
-      {!isMobile && viewMode === "board" ? (
+      {!isBoard ? (
+        <TicketsTabs
+          activeTab={activeTab}
+          onChange={(tabKey) => {
+            setActiveTab(tabKey);
+            listData.setPage(1);
+          }}
+        />
+      ) : null}
+
+      <PageSection className="pt-4 pb-0">
+        <div className="flex w-full justify-start">
+          <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start" />
+        </div>
+      </PageSection>
+
+      {isBoard ? (
         <BoardPage
           tickets={visibleTickets}
           isLoading={isLoading}
@@ -230,42 +295,27 @@ export default function TicketPage() {
           onStatusChange={handleStatusChange}
         />
       ) : (
-        <>
-          {/* Tabs - Only visible in list view */}
-          <TicketsTabs
-            activeTab={activeTab}
-            onChange={(tabKey) => {
-              setActiveTab(tabKey);
-              listData.setPage(1);
-            }}
-          />
-
-          {/* Content */}
-          <PageSection className="flex-1 pt-6">
-            <PagePanel className={isPlaceholderData ? "opacity-60" : ""}>
-              <TicketsState
-                isLoading={isLoading}
-                isError={isError}
-                isEmpty={
-                  !isLoading && !isError && visibleTickets.length === 0
-                }
-                emptyMessage="No tickets found."
-                loadingSlot={<TableSkeleton />}
-              >
-                <DataTable
-                  columns={columns}
-                  data={visibleTickets}
-                  pagination={pagination}
-                  onPageChange={(newPage) => listData.setPage(newPage)}
-                  meta={{ onRowClick: openTicketDetails }}
-                />
-              </TicketsState>
-            </PagePanel>
-          </PageSection>
-        </>
+        <PageSection className="flex-1 pt-6">
+          <PagePanel className={isPlaceholderData ? "opacity-60" : ""}>
+            <TicketsState
+              isLoading={isLoading}
+              isError={isError}
+              isEmpty={!isLoading && !isError && visibleTickets.length === 0}
+              emptyMessage="No tickets found."
+              loadingSlot={<TableSkeleton />}
+            >
+              <DataTable
+                columns={columns}
+                data={visibleTickets}
+                pagination={pagination}
+                onPageChange={(newPage) => listData.setPage(newPage)}
+                meta={{ onRowClick: openTicketDetails }}
+              />
+            </TicketsState>
+          </PagePanel>
+        </PageSection>
       )}
 
-      {/* Modals - Always rendered */}
       <TicketDetailsModal
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}

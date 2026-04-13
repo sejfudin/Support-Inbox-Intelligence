@@ -7,22 +7,31 @@ const getAllTickets = async (req, res) => {
       limit,
       search,
       status,
-      priority,
+      priority, // backward-compat
+      priorities, // new: csv list
+      assigneeIds, // new: csv list
+      priorityOrder, // new: asc | desc | none
       archived,
       workspaceId: queryWorkspaceId,
     } = req.query;
+
     const isAdmin = req.user?.role === "admin";
     const workspaceId =
       isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
+
     const result = await ticketService.getAllTickets({
-      page: parseInt(page) || 1,
-      limit: parseInt(limit) || 10,
+      page: parseInt(page, 10) || 1,
+      limit: parseInt(limit, 10) || 10,
       search: search || "",
       status: status || "",
       priority: priority || "",
+      priorities: priorities || "",
+      assigneeIds: assigneeIds || "",
+      priorityOrder: priorityOrder || "none",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
     });
+
     res.status(200).json({
       success: true,
       data: result.tickets,
@@ -38,6 +47,7 @@ const getAllTickets = async (req, res) => {
     });
   }
 };
+
 
 const getTicketById = async (req, res) => {
   try {
@@ -223,16 +233,28 @@ const deleteTicket = async (req, res, next) => {
   }
 };
 
-const getMyTickets = async (req, res) => {
+const getMyTickets = async (req, res, next) => {
   try {
+    const {
+      page,
+      limit,
+      search,
+      status,
+      priority, 
+      priorities, 
+      priorityOrder, 
+    } = req.query;
+
     const result = await ticketService.getMyTickets({
       userId: req.user._id,
       workspaceId: req.user.workspaceId,
-      page: parseInt(req.query.page) || 1,
-      limit: parseInt(req.query.limit) || 10,
-      search: req.query.search || "",
-      status: req.query.status || "",
-      priority: req.query.priority || "",
+      page: parseInt(page, 10) || 1,
+      limit: parseInt(limit, 10) || 10,
+      search: search || "",
+      status: status || "",
+      priority: priority || "",
+      priorities: priorities || "",
+      priorityOrder: priorityOrder || "none",
     });
 
     res.status(200).json({
@@ -245,6 +267,7 @@ const getMyTickets = async (req, res) => {
     next(error);
   }
 };
+
 
 module.exports = {
   getAllTickets,
