@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useIntegration, useRepositories, useUpdateIntegration, useDisconnectIntegration, useInitiateGitHubInstallation } from "@/queries/github";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -182,11 +182,19 @@ export const IntegrationSettings = ({ workspaceId }) => {
           </SelectTrigger>
           <SelectContent>
             {repositories.map((repo) => (
-              <SelectItem key={repo.id} value={repo.fullName}>
+              <SelectItem
+                key={repo.id}
+                value={repo.fullName}
+                disabled={!repo.isAvailable}
+                className={!repo.isAvailable ? "opacity-50 cursor-not-allowed" : ""}
+              >
                 <div className="flex items-center gap-2">
-                  <span>{repo.fullName}</span>
-                  {repo.private && (
+                  <span className={!repo.isAvailable ? "text-gray-400" : ""}>{repo.fullName}</span>
+                  {repo.private && repo.isAvailable && (
                     <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">Private</span>
+                  )}
+                  {!repo.isAvailable && (
+                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Linked to another workspace</span>
                   )}
                 </div>
               </SelectItem>
@@ -302,13 +310,6 @@ export const IntegrationSettings = ({ workspaceId }) => {
             </div>
           )}
         </div>
-      </div>
-
-      <div className="flex items-start gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-        <p>
-          Manual ticket changes within 5 minutes of a webhook event will not be overridden by automation.
-        </p>
       </div>
     </div>
   );

@@ -194,10 +194,25 @@ const updateIntegration = async (req, res) => {
     }
 
     if (connectedRepo?.owner && connectedRepo?.name) {
+      const fullName = `${connectedRepo.owner}/${connectedRepo.name}`;
+
+      // Check if this repo is already linked to another workspace
+      const existingIntegration = await Integration.findOne({
+        "connectedRepo.fullName": fullName,
+        workspace: { $ne: workspaceId },
+      });
+
+      if (existingIntegration) {
+        return res.status(409).json({
+          success: false,
+          message: `Repository ${fullName} is already linked to another workspace`,
+        });
+      }
+
       updateData.connectedRepo = {
         owner: connectedRepo.owner,
         name: connectedRepo.name,
-        fullName: `${connectedRepo.owner}/${connectedRepo.name}`,
+        fullName: fullName,
         defaultBranch: connectedRepo.defaultBranch || "main",
       };
     }
@@ -246,6 +261,14 @@ const getRepositories = async (req, res) => {
 
     const repositories = await getInstallationRepositories(integration.githubAppInstallationId);
 
+    // Check which repos are already linked to other workspaces
+    const existingIntegrations = await Integration.find({
+      "connectedRepo.fullName": { $in: repositories.map((r) => r.full_name) },
+      workspace: { $ne: workspaceId },
+    }).select("connectedRepo.fullName");
+
+    const linkedRepoNames = new Set(existingIntegrations.map((i) => i.connectedRepo.fullName));
+
     const formattedRepos = repositories.map((repo) => ({
       id: repo.id,
       name: repo.name,
@@ -253,6 +276,7 @@ const getRepositories = async (req, res) => {
       fullName: repo.full_name,
       defaultBranch: repo.default_branch,
       private: repo.private,
+      isAvailable: !linkedRepoNames.has(repo.full_name),
     }));
 
     res.json({

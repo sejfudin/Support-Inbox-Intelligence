@@ -118,4 +118,7 @@ const integrationSchema = new mongoose.Schema(
 
 integrationSchema.index({ isConnected: 1, updatedAt: -1 });
 
+// Unique index on connectedRepo.fullName
+integrationSchema.index({ "connectedRepo.fullName": 1 }, { unique: true, sparse: true });
+
 module.exports = mongoose.model("Integration", integrationSchema);
