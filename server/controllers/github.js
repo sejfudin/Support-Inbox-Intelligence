@@ -61,12 +61,8 @@ const handleCallback = async (req, res) => {
     const { installation_id, state, setup_action } = req.query;
     let decodedState;
     try {
-      console.log("Callback started, installation_id:", installation_id);
       decodedState = jwt.verify(state, process.env.JWT_SECRET);
-      console.log("State verified, workspaceId:", decodedState.workspaceId);
-
-    } catch (error) {
-      console.error("Detailed error:", error.message, error.stack);
+    } catch {
       return res.redirect(`${process.env.CLIENT_URL}/my-workspaces?error=invalid_state`);
     }
     workspaceId = decodedState.workspaceId;
@@ -78,7 +74,6 @@ const handleCallback = async (req, res) => {
     }
 
     const installation = await getInstallation(parseInt(installation_id));
-    console.log("Got installation:", installation.account.login);
 
     await Integration.findOneAndUpdate(
       { workspace: workspaceId },
