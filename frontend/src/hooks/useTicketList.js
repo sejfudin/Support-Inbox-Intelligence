@@ -7,6 +7,7 @@ import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
 export function useTicketList({
   activeTab,
   additionalFilters = {},
+  queryFilters = {},
   enabled = true,
 }) {
   const [page, setPage] = useState(1);
@@ -19,6 +20,7 @@ export function useTicketList({
     search: debounceSearch,
     activeTab,
     listLimit: limit,
+    queryFilters,
     ...additionalFilters,
   });
 
