@@ -11,7 +11,7 @@ export default function TicketsTabs({
   tabsClassName,
 }) {
   return (
-    <div className={cn("pt-4", className)}>
+<div className={cn("app-page-content pt-4", className)}>
       <div className={cn("app-panel-soft overflow-hidden rounded-[1.35rem] px-5", panelClassName)}>
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-4">

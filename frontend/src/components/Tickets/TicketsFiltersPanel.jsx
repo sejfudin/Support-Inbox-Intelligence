@@ -56,7 +56,7 @@ export default function TicketFiltersPanel({
   const activeSortCount = priorityOrder !== PRIORITY_ORDER_VALUES.NONE ? 1 : 0;
   const hasActiveSelections = activeFilterCount > 0 || activeSortCount > 0;
   const hasActiveChips = activeFilterChips.length > 0;
-  const CONTROL_BUTTON_CLASS = "h-12 min-h-12 rounded-xl px-4 justify-between gap-2";
+  const CONTROL_BUTTON_CLASS = "rounded-xl px-4 justify-between gap-2";
 
   return (
     <div className={cn("flex w-full flex-col gap-2 md:w-auto md:items-start", className)}>
