@@ -10,7 +10,10 @@ const GITHUB_API_BASE = "https://api.github.com";
  */
 function generateGitHubAppJWT() {
   const appId = process.env.GITHUB_APP_ID;
-  const privateKey = process.env.GITHUB_PRIVATE_KEY.replace(/\\n/g, '\n');
+  const privateKey = process.env.GITHUB_PRIVATE_KEY
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\\n/g, "\n");
 
   if (!appId || !privateKey) {
     throw new Error("GITHUB_APP_ID and GITHUB_PRIVATE_KEY must be set");
