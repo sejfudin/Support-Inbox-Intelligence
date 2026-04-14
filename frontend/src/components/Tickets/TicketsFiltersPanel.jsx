@@ -56,13 +56,14 @@ export default function TicketFiltersPanel({
   const activeSortCount = priorityOrder !== PRIORITY_ORDER_VALUES.NONE ? 1 : 0;
   const hasActiveSelections = activeFilterCount > 0 || activeSortCount > 0;
   const hasActiveChips = activeFilterChips.length > 0;
+  const CONTROL_BUTTON_CLASS = "h-12 min-h-12 rounded-xl px-4 justify-between gap-2";
 
   return (
     <div className={cn("flex w-full flex-col gap-2 md:w-auto md:items-start", className)}>
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="justify-between gap-2">
+            <Button variant="outline" className={cn("w-full sm:w-auto", CONTROL_BUTTON_CLASS)}>
               <span className="inline-flex items-center gap-2">
                 <Filter className="h-4 w-4" />
                 <span>Filter</span>
@@ -143,7 +144,7 @@ export default function TicketFiltersPanel({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="justify-between gap-2">
+            <Button variant="outline" className={cn("w-full sm:w-auto", CONTROL_BUTTON_CLASS)}>
               <span className="inline-flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4" />
                 <span>Sort</span>

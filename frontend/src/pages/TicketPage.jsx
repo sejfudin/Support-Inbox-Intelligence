@@ -270,20 +270,32 @@ export default function TicketPage() {
       />
 
       {!isBoard ? (
+  <PageSection className="pt-4 pb-0">
+    <div className="flex w-full flex-col gap-3 md:flex-row md:items-start">
+      <div className="w-full md:w-auto md:flex-none">
+        <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start" />
+      </div>
+
+      <div className="min-w-0 w-full md:ml-auto md:max-w-[82%]">
         <TicketsTabs
           activeTab={activeTab}
           onChange={(tabKey) => {
             setActiveTab(tabKey);
             listData.setPage(1);
           }}
+          className="pt-0"
         />
-      ) : null}
+      </div>
+    </div>
+  </PageSection>
+) : (
+  <PageSection className="pt-4 pb-0">
+    <div className="flex w-full justify-start">
+      <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start" />
+    </div>
+  </PageSection>
+)}
 
-      <PageSection className="pt-4 pb-0">
-        <div className="flex w-full justify-start">
-          <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start" />
-        </div>
-      </PageSection>
 
       {isBoard ? (
         <BoardPage

@@ -7,10 +7,10 @@ const getAllTickets = async (req, res) => {
       limit,
       search,
       status,
-      priority, // backward-compat
-      priorities, // new: csv list
-      assigneeIds, // new: csv list
-      priorityOrder, // new: asc | desc | none
+      priority, 
+      priorities, 
+      assigneeIds, 
+      priorityOrder, 
       archived,
       workspaceId: queryWorkspaceId,
     } = req.query;

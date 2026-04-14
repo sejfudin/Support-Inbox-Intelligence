@@ -1,13 +1,22 @@
 import { STATUS_TABS } from "@/helpers/ticketStatus";
+import { cn } from "@/lib/utils";
 
-export default function TicketsTabs({ activeTab, onChange, rightSlot, bottomSlot }) {
+export default function TicketsTabs({
+  activeTab,
+  onChange,
+  rightSlot,
+  bottomSlot,
+  className,
+  panelClassName,
+  tabsClassName,
+}) {
   return (
-    <div className="app-page-content pt-4">
-      <div className="app-panel-soft overflow-hidden rounded-[1.35rem] px-5">
+    <div className={cn("pt-4", className)}>
+      <div className={cn("app-panel-soft overflow-hidden rounded-[1.35rem] px-5", panelClassName)}>
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-4">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-6 overflow-x-auto">
+              <div className={cn("flex items-center gap-6 overflow-x-auto pl-2 md:pl-3", tabsClassName)}>
                 {STATUS_TABS.map((tab) => (
                   <button
                     key={tab.key}
