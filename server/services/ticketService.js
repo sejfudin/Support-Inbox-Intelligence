@@ -268,6 +268,7 @@ const createTicket = async (ticketData) => {
     creator: ticketData.creatorId,
     status,
     priority: ticketData.priority || "medium",
+    storyPoints: ticketData.storyPoints ?? null,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,

@@ -2,6 +2,7 @@ import TicketStatusBadge from "../StatusBadge";
 import PriorityIndicator from "../PriorityIndicator";
 import AssigneesAvatar from "../Tickets/AssigneesAvatar";
 import { formatDuration } from "../../helpers/formatDuration";
+import StoryPointsIndicator from "../StoryPointsIndicator";
 
 export const columns = [
   {
@@ -45,28 +46,36 @@ export const columns = [
   {
     accessorKey: "status",
     header: "STATUS",
-    meta: {
-      headerClassName: "w-[11%]",
-      cellClassName: "w-[11%] whitespace-nowrap",
-    },
+   meta: {
+      headerClassName: "w-[12%] !pl-1 pr-4",
+      cellClassName: "w-[10%] !pl-1 pr-4 whitespace-nowrap",
+   },
     cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
   },
   {
     accessorKey: "priority",
     header: "PRIORITY",
     meta: {
-      headerClassName: "w-[11%]",
-      cellClassName: "w-[11%] whitespace-nowrap",
+      headerClassName: "w-[12%] !pl-1 pr-4",
+      cellClassName: "w-[10%] !pl-1 pr-4 whitespace-nowrap",
     },
     cell: ({ row }) => <PriorityIndicator priority={row.original.priority} />,
+  },
+  {
+    accessorKey: "storyPoints",
+    header: "STORY POINTS",
+    meta: {
+      headerClassName: "w-[14%] !pl-1 pr-6",
+      cellClassName: "w-[10%] !pl-1 pr-4 whitespace-nowrap",
+    },
+    cell: ({ row }) => <StoryPointsIndicator value={row.original.storyPoints} />,
   },
   {
     accessorKey: "totalTimeSpent",
     header: "TIME SPENT",
     meta: {
-      headerClassName: "w-[11%]",
-      cellClassName:
-        "w-[11%] whitespace-nowrap font-medium text-gray-500 text-xs",
+      headerClassName: "w-[12%] !pl-1 pr-4",
+      cellClassName: "w-[10%] !pl-1 pr-4 whitespace-nowrap",
     },
     cell: ({ row }) => {
       let seconds = row.original.totalTimeSpent || 0;
@@ -96,8 +105,8 @@ export const columns = [
     accessorKey: "assignedTo",
     header: "ASSIGNED TO",
     meta: {
-      headerClassName: "w-[12%]",
-      cellClassName: "w-[12%] whitespace-nowrap",
+      headerClassName: "w-[12%] !pl-1 pr-4",
+      cellClassName: "w-[10%] !pl-1 pr-4  whitespace-nowrap",
     },
     cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
   },
