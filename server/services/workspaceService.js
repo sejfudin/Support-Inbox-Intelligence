@@ -179,6 +179,149 @@ const getAllWorkspaces = async () => {
   return workspacesWithStats;
 };
 
+const getWorkspaceAnalytics = async ({ workspaceId, days = 30 }) => {
+  if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
+    throw new Error('Invalid workspaceId');
+  }
+
+  const parsedDays = Number.parseInt(days, 10);
+  const safeDays = Number.isNaN(parsedDays) || parsedDays <= 0 ? 30 : parsedDays;
+
+  const workspaceExists = await Workspace.exists({
+    _id: workspaceId,
+    isArchived: { $ne: true },
+  });
+
+  if (!workspaceExists) {
+    throw new Error('Workspace not found');
+  }
+
+  const now = new Date();
+  const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const startDate = new Date(todayUtc);
+  startDate.setUTCDate(startDate.getUTCDate() - (safeDays - 1));
+
+  const endExclusive = new Date(todayUtc);
+  endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+
+  const baseMatch = {
+    workspace: new mongoose.Types.ObjectId(workspaceId),
+    isArchived: { $ne: true },
+  };
+
+  const [throughputRaw, creationRaw, cycleRaw] = await Promise.all([
+    Ticket.aggregate([
+      {
+        $match: {
+          ...baseMatch,
+          status: 'done',
+          doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$doneAt', timezone: 'UTC' },
+          },
+          completed: { $sum: 1 },
+        },
+      },
+      { $project: { _id: 0, date: '$_id', completed: 1 } },
+      { $sort: { date: 1 } },
+    ]),
+    Ticket.aggregate([
+      {
+        $match: {
+          ...baseMatch,
+          createdAt: { $gte: startDate, $lt: endExclusive },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: 'UTC' },
+          },
+          created: { $sum: 1 },
+        },
+      },
+      { $project: { _id: 0, date: '$_id', created: 1 } },
+      { $sort: { date: 1 } },
+    ]),
+    Ticket.aggregate([
+      {
+        $match: {
+          ...baseMatch,
+          status: 'done',
+          doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
+          inProgressAt: { $ne: null },
+        },
+      },
+      {
+        $addFields: {
+          cycleMs: { $subtract: ['$doneAt', '$inProgressAt'] },
+        },
+      },
+      {
+        $match: {
+          cycleMs: { $gt: 0 },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: '%Y-%m-%d', date: '$doneAt', timezone: 'UTC' },
+          },
+          avgDays: {
+            $avg: {
+              $divide: ['$cycleMs', 1000 * 60 * 60 * 24],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: '$_id',
+          avgDays: { $round: ['$avgDays', 2] },
+        },
+      },
+      { $sort: { date: 1 } },
+    ]),
+  ]);
+
+  const dateSeries = [];
+  for (let i = 0; i < safeDays; i += 1) {
+    const current = new Date(startDate);
+    current.setUTCDate(startDate.getUTCDate() + i);
+    dateSeries.push(current.toISOString().slice(0, 10));
+  }
+
+  const throughputMap = new Map(throughputRaw.map((item) => [item.date, item.completed]));
+  const creationMap = new Map(creationRaw.map((item) => [item.date, item.created]));
+  const cycleMap = new Map(cycleRaw.map((item) => [item.date, item.avgDays]));
+
+  const throughput = dateSeries.map((date) => ({
+    date,
+    completed: throughputMap.get(date) || 0,
+  }));
+
+  const creationTrend = dateSeries.map((date) => ({
+    date,
+    created: creationMap.get(date) || 0,
+  }));
+
+  const averageCycleTime = dateSeries.map((date) => ({
+    date,
+    avgDays: cycleMap.get(date) || 0,
+  }));
+
+  return {
+    throughput,
+    creationTrend,
+    averageCycleTime,
+  };
+};
+
 module.exports = {
   createWorkspace,
   switchWorkspace,
@@ -189,4 +332,5 @@ module.exports = {
   removeMember,
   getAllWorkspaces,
   deleteWorkspace,
+  getWorkspaceAnalytics,
 };
