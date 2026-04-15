@@ -44,3 +44,10 @@ export const deleteWorkspace = async (id) => {
   const response = await apiClient.delete(`/workspaces/${id}`);
   return response.data;
 };
+
+export const getWorkspaceAnalytics = async (id, days = 30) => {
+  const response = await apiClient.get(`/workspaces/${id}/analytics`, {
+    params: { days },
+  });
+  return response.data;
+};

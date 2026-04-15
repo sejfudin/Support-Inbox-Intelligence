@@ -1,0 +1,297 @@
+import { useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { useWorkspaceAnalytics } from "@/queries/workspaces";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Line,
+  LineChart,
+  Area,
+  AreaChart,
+} from "recharts";
+import { ChartNoAxesCombined } from "lucide-react";
+
+const DAYS = 30;
+
+const formatShortDate = (value) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
+
+const formatTooltipDate = (value) => {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const throughputChartConfig = {
+  completed: {
+    label: "Completed",
+    color: "hsl(220 90% 56%)",
+  },
+};
+
+const creationChartConfig = {
+  created: {
+    label: "Created",
+    color: "hsl(152 70% 35%)",
+  },
+};
+
+const cycleChartConfig = {
+  avgDays: {
+    label: "Avg Days",
+    color: "hsl(39 92% 50%)",
+  },
+};
+
+function AnalyticsCardSkeleton() {
+  return (
+    <Card className="app-panel">
+      <CardHeader className="pb-3">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-3 w-44" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-[260px] w-full rounded-xl" />
+      </CardContent>
+    </Card>
+  );
+}
+
+function EmptyCard({ title, description }) {
+  return (
+    <Card className="app-panel">
+      <CardHeader>
+        <CardTitle className="text-lg">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex h-[260px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/80 bg-muted/30 text-muted-foreground">
+          <ChartNoAxesCombined className="h-8 w-8 opacity-50" />
+          <p className="text-sm font-medium">No activity in selected period</p>
+          <p className="text-xs">Try a longer date range or create/update tickets.</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function AnalyticsDashboard() {
+  const { user } = useAuth();
+  const workspaceId = user?.workspaceId;
+
+  const { data, isLoading, isError } = useWorkspaceAnalytics({
+    workspaceId,
+    days: DAYS,
+  });
+
+  const throughputData = data?.throughput || [];
+  const creationData = data?.creationTrend || [];
+  const cycleData = data?.averageCycleTime || [];
+
+  const hasThroughputData = useMemo(
+    () => throughputData.some((item) => item.completed > 0),
+    [throughputData],
+  );
+  const hasCreationData = useMemo(
+    () => creationData.some((item) => item.created > 0),
+    [creationData],
+  );
+  const hasCycleData = useMemo(
+    () => cycleData.some((item) => item.avgDays > 0),
+    [cycleData],
+  );
+
+  return (
+    <div className="app-page">
+      <div className="app-page-content space-y-6">
+        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
+          <div>
+            <div className="app-kicker mb-3">Insights</div>
+            <h1 className="app-title">Workspace Analytics</h1>
+            <p className="app-subtitle">Understand delivery pace, demand trend, and cycle performance.</p>
+          </div>
+
+          <div className="inline-flex items-center rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
+            Last {DAYS} Days
+          </div>
+        </div>
+
+        {isError ? (
+          <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-center text-sm text-destructive">
+            Failed to load analytics. Please try again.
+          </div>
+        ) : isLoading ? (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <AnalyticsCardSkeleton />
+            <AnalyticsCardSkeleton />
+            <div className="lg:col-span-2">
+              <AnalyticsCardSkeleton />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {hasThroughputData ? (
+              <Card className="app-panel">
+                <CardHeader>
+                  <CardTitle className="text-lg">Throughput</CardTitle>
+                  <CardDescription>Completed tasks per day</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={throughputChartConfig} className="h-[260px] w-full">
+                    <BarChart data={throughputData} margin={{ left: 6, right: 6, top: 12 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        minTickGap={30}
+                        tickFormatter={formatShortDate}
+                      />
+                      <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
+                      <ChartTooltip
+                        cursor={false}
+                        content={(
+                          <ChartTooltipContent labelFormatter={(value) => formatTooltipDate(value)} />
+                        )}
+                      />
+                      <Bar dataKey="completed" fill="var(--color-completed)" radius={[8, 8, 2, 2]} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            ) : (
+              <EmptyCard
+                title="Throughput"
+                description="Completed tasks per day"
+              />
+            )}
+
+            {hasCreationData ? (
+              <Card className="app-panel">
+                <CardHeader>
+                  <CardTitle className="text-lg">Creation Trend</CardTitle>
+                  <CardDescription>New tickets created per day</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={creationChartConfig} className="h-[260px] w-full">
+                    <LineChart data={creationData} margin={{ left: 6, right: 6, top: 12 }}>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        minTickGap={30}
+                        tickFormatter={formatShortDate}
+                      />
+                      <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
+                      <ChartTooltip
+                        content={(
+                          <ChartTooltipContent labelFormatter={(value) => formatTooltipDate(value)} />
+                        )}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="created"
+                        stroke="var(--color-created)"
+                        strokeWidth={2.5}
+                        dot={false}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            ) : (
+              <EmptyCard
+                title="Creation Trend"
+                description="New tickets created per day"
+              />
+            )}
+
+            {hasCycleData ? (
+              <Card className="app-panel lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-lg">Average Cycle Time</CardTitle>
+                  <CardDescription>Average days from in-progress to done</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer config={cycleChartConfig} className="h-[300px] w-full">
+                    <AreaChart data={cycleData} margin={{ left: 6, right: 6, top: 12 }}>
+                      <defs>
+                        <linearGradient id="cycleGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--color-avgDays)" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="var(--color-avgDays)" stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        minTickGap={28}
+                        tickFormatter={formatShortDate}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={40}
+                        tickFormatter={(v) => `${v}d`}
+                        allowDecimals={false}
+                      />
+                      <ChartTooltip
+                        content={(
+                          <ChartTooltipContent
+                            labelFormatter={(value) => formatTooltipDate(value)}
+                            formatter={(value) => `${Number(value).toFixed(2)} days`}
+                          />
+                        )}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="avgDays"
+                        stroke="var(--color-avgDays)"
+                        strokeWidth={2.5}
+                        fill="url(#cycleGradient)"
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="lg:col-span-2">
+                <EmptyCard
+                  title="Average Cycle Time"
+                  description="Average days from in-progress to done"
+                />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

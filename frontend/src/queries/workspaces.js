@@ -9,6 +9,7 @@ import {
   removeWorkspaceMember,
   switchWorkspace,
   deleteWorkspace,
+  getWorkspaceAnalytics,
 } from '@/api/workspaces';
 import { authKeys } from '@/queries/auth';
 
@@ -17,6 +18,7 @@ export const workspaceKeys = {
   mine: () => [...workspaceKeys.all, 'mine'],
   allAdmin: () => [...workspaceKeys.all, 'admin-all'],
   detail: (id) => [...workspaceKeys.all, id],
+  analytics: (id, days) => [...workspaceKeys.all, id, 'analytics', days],
 };
 
 export const useAllWorkspaces = () => {
@@ -115,5 +117,14 @@ export const useRemoveWorkspaceMember = (workspaceId) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) });
     },
+  });
+};
+
+export const useWorkspaceAnalytics = ({ workspaceId, days = 30 }) => {
+  return useQuery({
+    queryKey: workspaceKeys.analytics(workspaceId, days),
+    queryFn: () => getWorkspaceAnalytics(workspaceId, days),
+    enabled: !!workspaceId,
+    staleTime: 2 * 60 * 1000,
   });
 };
