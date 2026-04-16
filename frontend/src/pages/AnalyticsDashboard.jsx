@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChartContainer,
   ChartTooltip,
@@ -26,76 +25,16 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-import { ChartNoAxesCombined } from "lucide-react";
-
-const ANALYTICS_PERIODS = [7, 15, 30];
-
-const formatShortDate = (value) => {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-};
-
-const formatTooltipDate = (value) => {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return date.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-};
-
-const throughputChartConfig = {
-  completed: {
-    label: "Completed",
-    color: "hsl(220 90% 56%)",
-  },
-};
-
-const creationChartConfig = {
-  created: {
-    label: "Created",
-    color: "hsl(152 70% 35%)",
-  },
-};
-
-const cycleChartConfig = {
-  avgDays: {
-    label: "Avg Days",
-    color: "hsl(39 92% 50%)",
-  },
-};
-
-function AnalyticsCardSkeleton() {
-  return (
-    <Card className="app-panel">
-      <CardHeader className="pb-3">
-        <Skeleton className="h-4 w-28" />
-        <Skeleton className="h-3 w-44" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-[260px] w-full rounded-xl" />
-      </CardContent>
-    </Card>
-  );
-}
-
-function EmptyCard({ title, description }) {
-  return (
-    <Card className="app-panel">
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex h-[260px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/80 bg-muted/30 text-muted-foreground">
-          <ChartNoAxesCombined className="h-8 w-8 opacity-50" />
-          <p className="text-sm font-medium">No activity in selected period</p>
-          <p className="text-xs">Try a longer date range or create/update tickets.</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+import {
+  ANALYTICS_PERIODS,
+  formatShortDate,
+  formatTooltipDate,
+  throughputChartConfig,
+  creationChartConfig,
+  cycleChartConfig,
+} from "@/helpers/analyticsFormatters";
+import { AnalyticsCardSkeleton } from "@/components/Skeletons/AnalyticsCardSkeleton";
+import { AnalyticsEmptyCard } from "@/components/AnalyticsEmptyCard";
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
@@ -195,7 +134,7 @@ export default function AnalyticsDashboard() {
                 </CardContent>
               </Card>
             ) : (
-              <EmptyCard
+              <AnalyticsEmptyCard
                 title="Throughput"
                 description="Completed tasks per day"
               />
@@ -238,7 +177,7 @@ export default function AnalyticsDashboard() {
                 </CardContent>
               </Card>
             ) : (
-              <EmptyCard
+              <AnalyticsEmptyCard
                 title="Creation Trend"
                 description="New tickets created per day"
               />
@@ -296,7 +235,7 @@ export default function AnalyticsDashboard() {
               </Card>
             ) : (
               <div className="lg:col-span-2">
-                <EmptyCard
+                <AnalyticsEmptyCard
                   title="Average Cycle Time"
                   description="Average days from in-progress to done"
                 />
