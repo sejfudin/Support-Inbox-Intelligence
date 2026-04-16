@@ -1,9 +1,11 @@
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
 const connectDB = require("./config/db");
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const { initSocket } = require('./socket/socketServer');
 
 const authRoutes = require("./routes/auth");
 const ticketRoutes = require("./routes/ticket");
@@ -53,7 +55,10 @@ app.use((req, res, next) => {
 (async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
+    const server = http.createServer(app);
+    initSocket(server);
+
+    server.listen(PORT, () => {
       console.log(`🟢 Server is running at port: ${PORT}`);
     });
   } catch (error) {
