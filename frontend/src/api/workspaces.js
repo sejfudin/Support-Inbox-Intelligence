@@ -51,3 +51,10 @@ export const getWorkspaceAnalytics = async (id, days = 30) => {
   });
   return response.data;
 };
+
+export const getUserAnalytics = async ({ userId, workspaceId, days = 30 }) => {
+  const response = await apiClient.get(`/analytics/user/${userId}`, {
+    params: { workspaceId, days },
+  });
+  return response.data;
+};

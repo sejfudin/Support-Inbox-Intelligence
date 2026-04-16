@@ -18,6 +18,15 @@ const invalidateWorkspaceAnalytics = (queryClient) => {
   });
 };
 
+const invalidateUserAnalytics = (queryClient) => {
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) &&
+      query.queryKey[0] === "workspaces" &&
+      query.queryKey.includes("user-analytics"),
+  });
+};
+
 export const useTickets = (params, options = {}) => {
   return useQuery({
     queryKey: ["tickets", params],
@@ -53,6 +62,7 @@ export const useCreateTicket = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       invalidateWorkspaceAnalytics(queryClient);
+      invalidateUserAnalytics(queryClient);
     },
   });
 };
@@ -67,6 +77,7 @@ export const useUpdateTicket = () => {
       
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       invalidateWorkspaceAnalytics(queryClient);
+      invalidateUserAnalytics(queryClient);
     },
   });
 };
@@ -80,6 +91,7 @@ export const useArchiveTicket = () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
       invalidateWorkspaceAnalytics(queryClient);
+      invalidateUserAnalytics(queryClient);
     },
   });
 };

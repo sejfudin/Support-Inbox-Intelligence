@@ -10,6 +10,7 @@ import {
   switchWorkspace,
   deleteWorkspace,
   getWorkspaceAnalytics,
+  getUserAnalytics,
 } from '@/api/workspaces';
 import { authKeys } from '@/queries/auth';
 
@@ -19,6 +20,13 @@ export const workspaceKeys = {
   allAdmin: () => [...workspaceKeys.all, 'admin-all'],
   detail: (id) => [...workspaceKeys.all, id],
   analytics: (id, days) => [...workspaceKeys.all, id, 'analytics', days],
+  userAnalytics: ({ userId, workspaceId, days }) => [
+    ...workspaceKeys.all,
+    workspaceId,
+    'user-analytics',
+    userId,
+    days,
+  ],
 };
 
 export const useAllWorkspaces = () => {
@@ -126,5 +134,16 @@ export const useWorkspaceAnalytics = ({ workspaceId, days = 30 }) => {
     queryFn: () => getWorkspaceAnalytics(workspaceId, days),
     enabled: !!workspaceId,
     staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useUserAnalytics = ({ userId, workspaceId, days = 30 }) => {
+  return useQuery({
+    queryKey: workspaceKeys.userAnalytics({ userId, workspaceId, days }),
+    queryFn: () => getUserAnalytics({ userId, workspaceId, days }),
+    enabled: !!userId && !!workspaceId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 };
