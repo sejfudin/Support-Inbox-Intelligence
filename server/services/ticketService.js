@@ -299,11 +299,17 @@ const updateTicket = async (ticketId, updateData) => {
       const oldStatus = oldTicket.status.toLowerCase();
       const now = new Date();
 
+      if (newStatus === "in progress") {
+        if (!oldTicket.inProgressAt) {
+          updateData.inProgressAt = now;
+        }
+        updateData.doneAt = null; 
+      }      
+
       if (oldStatus === "in progress") {
         if (oldTicket.inProgressAt) {
           const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
           updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
-          updateData.inProgressAt = null;
         }
       } else if (newStatus === "in progress") {
         updateData.inProgressAt = now;
@@ -312,7 +318,6 @@ const updateTicket = async (ticketId, updateData) => {
       if (newStatus === "done") {
         updateData.doneAt = now;
       } else if (oldStatus === "done") {
-        updateData.doneAt = null;
       }
     }
 
