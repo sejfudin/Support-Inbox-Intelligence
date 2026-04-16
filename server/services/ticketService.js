@@ -311,13 +311,12 @@ const updateTicket = async (ticketId, updateData) => {
           const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
           updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
         }
-      } else if (newStatus === "in progress") {
-        updateData.inProgressAt = now;
       }
 
       if (newStatus === "done") {
         updateData.doneAt = now;
       } else if (oldStatus === "done") {
+        updateData.doneAt = null;
       }
     }
 
