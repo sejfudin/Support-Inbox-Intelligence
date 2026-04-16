@@ -11,6 +11,7 @@ import {
   ArchiveRestore,
   UserPen,
   Ticket,
+  Download,
 } from "lucide-react";
 import { useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
@@ -32,6 +33,19 @@ import TimeSpent from "@/components/TimeSpent";
 import TicketComments from "../Tickets/TicketComments";
 import StoryPointsField from "../StoryPointsField";
 import { normalizeStoryPoints } from "@/helpers/storyPoints";
+
+const escapeCsvCell = (value) => {
+  const str = String(value ?? "");
+  const escaped = str.replace(/"/g, '""');
+  return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+};
+
+const formatDate = (value) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString();
+};
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
@@ -132,6 +146,98 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const handleArchiveToggle = () => {
     setIsActionModalOpen(true);
+  };
+
+  const handleExportSingleCsv = () => {
+    if (!ticket) return;
+
+    try {
+      const numericId =
+        ticket.taskNumber ??
+        ticket.ticketNumber ??
+        null;
+      const rawId =
+        ticket.id ||
+        ticket._id ||
+        ticket.ticketId ||
+        "";
+      const id = numericId != null ? numericId : rawId || "ticket";
+      const titleValue = title || ticket.subject || ticket.title || "Untitled";
+      const shortSubject = String(titleValue)
+        .slice(0, 40)
+        .trim()
+        .replace(/\s+/g, "-");
+
+      const assignee = (ticket.assignedTo || [])
+        .map(
+          (p) => p?.fullname || p?.fullName || p?.email || "",
+        )
+        .filter(Boolean)
+        .join("; ") || "Unassigned";
+
+      const workspaceName =
+        ticket.workspace?.name ||
+        ticket.workspaceName ||
+        (typeof ticket.workspace === "string"
+          ? ticket.workspace
+          : ticket.workspace?._id || "");
+
+      const commentsCount =
+        (ticket.comments?.length ??
+          ticket.messages?.length ??
+          ticket.activity?.length) ?? "";
+
+      const header = [
+        "id",
+        "title",
+        "description",
+        "status",
+        "priority",
+        "assignee",
+        "workspace",
+        "commentsCount",
+        "createdAt",
+        "updatedAt",
+        "dueDate",
+      ].join(",");
+
+      const row = [
+        id,
+        titleValue,
+        description || ticket.description || "",
+        ticket.status || "",
+        ticket.priority || "",
+        assignee,
+        workspaceName,
+        commentsCount,
+        formatDate(ticket.createdAt),
+        formatDate(ticket.updatedAt),
+        ticket.dueDate || "",
+      ]
+        .map(escapeCsvCell)
+        .join(",");
+
+      const csv = `${header}\n${row}`;
+      const blob = new Blob([csv], {
+        type: "text/csv;charset=utf-8;",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const idPart = numericId != null ? `T${numericId}` : "";
+      const baseName = idPart
+        ? `ticket-${idPart}-${shortSubject || "export"}`
+        : `ticket-${shortSubject || "export"}`;
+      link.download = `${baseName}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success("Ticket exported to CSV.");
+    } catch (err) {
+      console.error("Failed to export ticket CSV", err);
+      toast.error("Failed to export ticket. Please try again.");
+    }
   };
 
   const handleConfirmAction = () => {
@@ -282,6 +388,15 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+            <button
+              type="button"
+              onClick={handleExportSingleCsv}
+              disabled={!ticket}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 sm:w-auto"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
             {!isArchived && (
               <button
                 type="button"
