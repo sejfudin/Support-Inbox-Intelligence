@@ -275,7 +275,7 @@ export default function AnalyticsDashboard() {
                         </Pie>
                         <ChartTooltip
                           content={(
-                            <ChartTooltipContent formatter={(value) => Number(value).toString()} />
+                            <ChartTooltipContent formatter={(value, name) => `${name}: ${Number(value)}`} />
                           )}
                         />
                       </PieChart>
