@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useWorkspaceAnalytics } from "@/queries/workspaces";
 import {
@@ -14,6 +14,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Bar,
   BarChart,
@@ -27,7 +28,7 @@ import {
 } from "recharts";
 import { ChartNoAxesCombined } from "lucide-react";
 
-const DAYS = 30;
+const ANALYTICS_PERIODS = [7, 15, 30];
 
 const formatShortDate = (value) => {
   const date = new Date(`${value}T00:00:00.000Z`);
@@ -99,10 +100,11 @@ function EmptyCard({ title, description }) {
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
   const workspaceId = user?.workspaceId;
+  const [days, setDays] = useState(30);
 
   const { data, isLoading, isError } = useWorkspaceAnalytics({
     workspaceId,
-    days: DAYS,
+    days,
   });
 
   const throughputData = data?.throughput || [];
@@ -132,8 +134,19 @@ export default function AnalyticsDashboard() {
             <p className="app-subtitle">Understand delivery pace, demand trend, and cycle performance.</p>
           </div>
 
-          <div className="inline-flex items-center rounded-full border border-primary/15 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary">
-            Last {DAYS} Days
+          <div className="flex items-center gap-3">
+            <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
+              <SelectTrigger className="w-[140px] rounded-full border-primary/15 bg-primary/10 text-primary">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ANALYTICS_PERIODS.map((period) => (
+                  <SelectItem key={period} value={String(period)}>
+                    Last {period} Days
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

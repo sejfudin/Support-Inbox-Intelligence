@@ -185,7 +185,8 @@ const getWorkspaceAnalytics = async ({ workspaceId, days = 30 }) => {
   }
 
   const parsedDays = Number.parseInt(days, 10);
-  const safeDays = Number.isNaN(parsedDays) || parsedDays <= 0 ? 30 : parsedDays;
+  const allowedDays = new Set([7, 15, 30]);
+  const safeDays = allowedDays.has(parsedDays) ? parsedDays : 30;
 
   const workspaceExists = await Workspace.exists({
     _id: workspaceId,
