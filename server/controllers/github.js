@@ -2,8 +2,19 @@ const jwt = require("jsonwebtoken");
 const nodeCrypto = require("crypto");
 const Integration = require("../models/Integration");
 const { encrypt } = require("../helpers/crypto");
-const { getInstallationRepositories, getInstallation } = require("../services/githubService");
-const { linkPullRequestToTicket, LINK_RESULT } = require("../services/autoLinkService");
+const {
+  getInstallationRepositories,
+  getInstallation,
+} = require("../services/githubService");
+const {
+  linkPullRequestToTicket,
+  LINK_RESULT,
+} = require("../services/autoLinkService");
+const {
+  handlePROpened,
+  handlePRMerged,
+  AUTOMATION_RESULT,
+} = require("../services/statusAutomationService");
 
 /**
  * Initiates GitHub App installation flow.
@@ -305,7 +316,7 @@ const handlePullRequestEvent = async (payload) => {
   const pr = payload.pull_request;
   if (!pr) return;
 
-  const relevantActions = ['opened', 'reopened', 'edited', 'synchronize'];
+  const relevantActions = ['opened', 'reopened', 'edited', 'synchronize', 'closed'];
   if (!relevantActions.includes(payload.action)) {
     return;
   }
@@ -333,25 +344,33 @@ const handlePullRequestEvent = async (payload) => {
 
   const result = await linkPullRequestToTicket(prData, integration.workspace);
 
-  switch (result.result) {
-    case LINK_RESULT.LINKED:
-      console.log(`Linked PR #${result.prNumber} to ticket ${result.taskNumber}`);
-      break;
-    case LINK_RESULT.ALREADY_LINKED:
-      console.log(`Updated PR #${result.prNumber} on ticket ${result.taskNumber}`);
-      break;
-    case LINK_RESULT.DIFFERENT_PR_LINKED:
-      console.log(`Cannot link PR #${result.requestedPrNumber} - ticket ${result.taskNumber} has PR #${result.existingPrNumber}`);
-      break;
-    case LINK_RESULT.TICKET_NOT_FOUND:
-      console.log(`No ticket found for taskNumber ${result.taskNumber} from PR #${pr.number}`);
-      break;
-    case LINK_RESULT.NO_TASK_NUMBER:
-      console.log(`No task number found in PR #${pr.number}`);
-      break;
-    case LINK_RESULT.ERROR:
-      console.error(`Error linking PR #${pr.number}:`, result.message);
-      break;
+  if (
+    result.ticketId &&
+    (result.result === LINK_RESULT.LINKED ||
+      result.result === LINK_RESULT.ALREADY_LINKED)
+  ) {
+    const eventTime = new Date();
+    let automationResult;
+
+    if (payload.action === "opened" || payload.action === "reopened") {
+      automationResult = await handlePROpened(
+        result.ticketId,
+        integration.workspace,
+        prData,
+        eventTime,
+      );
+    } else if (pr.merged && payload.action === "closed") {
+      automationResult = await handlePRMerged(
+        result.ticketId,
+        integration.workspace,
+        prData,
+        eventTime,
+      );
+    }
+
+    if (automationResult && automationResult.result === AUTOMATION_RESULT.ERROR) {
+      console.error(`Auto-move error for ticket ${result.taskNumber}:`, automationResult.message);
+    }
   }
 };
 
