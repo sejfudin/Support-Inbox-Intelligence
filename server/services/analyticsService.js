@@ -9,7 +9,7 @@ const roundTo = (value, decimals = 2) => {
   return Math.round((value + Number.EPSILON) * factor) / factor;
 };
 
-const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId }) => {
+const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, requesterRole }) => {
   if (!workspaceId) {
     throw new Error('WorkspaceId is required');
   }
@@ -42,20 +42,24 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId })
     throw new Error('Workspace not found');
   }
 
-  const isRequesterMember = workspace.members.some(
-    (member) => member.user && member.user.equals(requesterObjectId) && member.status === 'active',
-  );
+  const isAdminRequester = requesterRole === 'admin';
 
-  if (!isRequesterMember) {
-    throw new Error('Not a member of this workspace');
-  }
+  if (!isAdminRequester) {
+    const isRequesterMember = workspace.members.some(
+      (member) => member.user && member.user.equals(requesterObjectId) && member.status === 'active',
+    );
 
-  const isTargetUserMember = workspace.members.some(
-    (member) => member.user && member.user.equals(userObjectId) && member.status === 'active',
-  );
+    if (!isRequesterMember) {
+      throw new Error('Not a member of this workspace');
+    }
 
-  if (!isTargetUserMember) {
-    throw new Error('User is not an active member of this workspace');
+    const isTargetUserMember = workspace.members.some(
+      (member) => member.user && member.user.equals(userObjectId) && member.status === 'active',
+    );
+
+    if (!isTargetUserMember) {
+      throw new Error('User is not an active member of this workspace');
+    }
   }
 
   const now = new Date();

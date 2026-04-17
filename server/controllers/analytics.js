@@ -9,6 +9,7 @@ exports.getUserAnalytics = async (req, res, next) => {
       workspaceId,
       days,
       requesterId: req.user._id,
+      requesterRole: req.user.role,
     });
 
     res.status(200).json(analytics);
