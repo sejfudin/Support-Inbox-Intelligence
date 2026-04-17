@@ -300,9 +300,7 @@ const updateTicket = async (ticketId, updateData) => {
       const now = new Date();
 
       if (newStatus === "in progress") {
-        if (!oldTicket.inProgressAt) {
-          updateData.inProgressAt = now;
-        }
+        updateData.inProgressAt = now;
         updateData.doneAt = null; 
       }      
 
