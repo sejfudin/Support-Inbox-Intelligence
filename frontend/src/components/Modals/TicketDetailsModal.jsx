@@ -33,19 +33,7 @@ import TimeSpent from "@/components/TimeSpent";
 import TicketComments from "../Tickets/TicketComments";
 import StoryPointsField from "../StoryPointsField";
 import { normalizeStoryPoints } from "@/helpers/storyPoints";
-
-const escapeCsvCell = (value) => {
-  const str = String(value ?? "");
-  const escaped = str.replace(/"/g, '""');
-  return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
-};
-
-const formatDate = (value) => {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString();
-};
+import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
@@ -199,7 +187,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
         "createdAt",
         "updatedAt",
         "dueDate",
-      ].join(",");
+      ];
 
       const row = [
         id,
@@ -210,29 +198,17 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
         assignee,
         workspaceName,
         commentsCount,
-        formatDate(ticket.createdAt),
-        formatDate(ticket.updatedAt),
+        formatCsvDate(ticket.createdAt),
+        formatCsvDate(ticket.updatedAt),
         ticket.dueDate || "",
-      ]
-        .map(escapeCsvCell)
-        .join(",");
+      ];
 
-      const csv = `${header}\n${row}`;
-      const blob = new Blob([csv], {
-        type: "text/csv;charset=utf-8;",
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
       const idPart = numericId != null ? `T${numericId}` : "";
       const baseName = idPart
         ? `ticket-${idPart}-${shortSubject || "export"}`
         : `ticket-${shortSubject || "export"}`;
-      link.download = `${baseName}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const csv = buildCsv(header, [row]);
+      downloadCsvFile(`${baseName}.csv`, csv);
       toast.success("Ticket exported to CSV.");
     } catch (err) {
       console.error("Failed to export ticket CSV", err);
