@@ -2,7 +2,19 @@ const jwt = require("jsonwebtoken");
 const nodeCrypto = require("crypto");
 const Integration = require("../models/Integration");
 const { encrypt } = require("../helpers/crypto");
-const { getInstallationRepositories, getInstallation } = require("../services/githubService");
+const {
+  getInstallationRepositories,
+  getInstallation,
+} = require("../services/githubService");
+const {
+  linkPullRequestToTicket,
+  LINK_RESULT,
+} = require("../services/autoLinkService");
+const {
+  handlePROpened,
+  handlePRMerged,
+  AUTOMATION_RESULT,
+} = require("../services/statusAutomationService");
 
 /**
  * Initiates GitHub App installation flow.
@@ -301,8 +313,65 @@ const handlePullRequestEvent = async (payload) => {
     return;
   }
 
-  // TODO: Auto-link PR to ticket
-  console.log('Received pull_request event:', payload.action, 'for repo:', integration.connectedRepo.fullName);
+  const pr = payload.pull_request;
+  if (!pr) return;
+
+  const relevantActions = ['opened', 'reopened', 'edited', 'synchronize', 'closed'];
+  if (!relevantActions.includes(payload.action)) {
+    return;
+  }
+
+  const prData = {
+    prNumber: pr.number,
+    prTitle: pr.title,
+    title: pr.title,
+    branchName: pr.head?.ref,
+    state: pr.state === 'closed' ? (pr.merged ? 'merged' : 'closed') : 'open',
+    isDraft: pr.draft || false,
+    author: {
+      login: pr.user?.login,
+      avatarUrl: pr.user?.avatar_url,
+    },
+    url: pr.html_url,
+    createdAt: pr.created_at,
+    updatedAt: pr.updated_at,
+    mergedAt: pr.merged_at,
+    mergedBy: pr.merged_by ? {
+      login: pr.merged_by.login,
+      avatarUrl: pr.merged_by.avatar_url,
+    } : null,
+  };
+
+  const result = await linkPullRequestToTicket(prData, integration.workspace);
+
+  if (
+    result.ticketId &&
+    (result.result === LINK_RESULT.LINKED ||
+      result.result === LINK_RESULT.ALREADY_LINKED)
+  ) {
+    const eventTime = new Date();
+    let automationResult;
+
+    if (payload.action === "opened" || payload.action === "reopened") {
+      automationResult = await handlePROpened(
+        result.ticketId,
+        integration.workspace,
+        prData,
+        eventTime,
+      );
+    } else if (pr.merged && payload.action === "closed") {
+      automationResult = await handlePRMerged(
+        result.ticketId,
+        integration.workspace,
+        prData,
+        eventTime,
+      );
+    }
+
+    if (automationResult && automationResult.result === AUTOMATION_RESULT.ERROR) {
+      console.error(`Auto-move error for ticket ${result.taskNumber}:`, automationResult.message);
+    }
+  }
 };
 
 const handleWebhook = async (req, res) => {

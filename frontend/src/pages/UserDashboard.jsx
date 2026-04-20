@@ -76,8 +76,6 @@ export default function UserDashboard() {
 
     const newStatus = columnToStatus[columnId] || columnId;
 
-    console.log("Pokušavam mutate za:", ticketId, newStatus);
-
     updateTicketMutation.mutate({
       ticketId: ticketId,
       updates: { status: newStatus }

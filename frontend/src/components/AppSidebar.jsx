@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Building2,
+  ChartNoAxesCombined,
   Settings,
   Mail,
 } from "lucide-react";
@@ -54,6 +55,11 @@ export default function AppSidebar() {
       label: "Dashboard",
       to: "/dashboard",
       icon: LayoutDashboard,
+    },
+    {
+      label: "Analytics",
+      to: "/analytics",
+      icon: ChartNoAxesCombined,
     },
     {
       label: "Tickets",

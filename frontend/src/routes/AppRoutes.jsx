@@ -18,6 +18,7 @@ import WorkspaceDetailPage from "@/pages/WorkspaceDetailPage";
 import WorkspaceSettingsPage from "@/pages/WorkspaceSettingsPage";
 import MyWorkspacesPage from "@/pages/MyWorkspacesPage";
 import UserInvitationsPage from "@/pages/UserInvitationsPage";
+import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -79,6 +80,7 @@ export default function AppRoutes() {
             <Route path="/tickets" element={<TicketPage />} />
             <Route path="/admin/archive" element={<ArchivePage />} />
             <Route path="/dashboard" element={<UserDashboard />} />
+            <Route path="/analytics" element={<AnalyticsDashboard />} />
             <Route path="/my-workspaces" element={<MyWorkspacesPage />} />
             <Route path="/invitations" element={<UserInvitationsPage />} />
 
