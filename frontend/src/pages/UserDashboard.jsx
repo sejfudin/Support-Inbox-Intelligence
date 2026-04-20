@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DataTable } from "@/components/Tickets/TicketsTable";
-import { columns } from "@/components/columns/ticketColumns";
+import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { SectionCards } from "@/components/section-cards";
 import { useMyTickets } from "@/queries/tickets";
 import { normalizeTicket } from "@/helpers/normalizeTicket";
@@ -35,7 +35,11 @@ export default function UserDashboard() {
     page,
     limit: 10,
     search: debouncedSearch,
+    sortBy: "dueDate",
+    sortOrder: "desc",
   });
+
+  const columns = useMemo(() => createTicketColumns(), []);
 
   const normalizedTickets = useMemo(() => {
     return (ticketsData?.data || []).map((ticket) => normalizeTicket(ticket));
