@@ -268,6 +268,7 @@ const createTicket = async (ticketData) => {
     creator: ticketData.creatorId,
     status,
     priority: ticketData.priority || "medium",
+    storyPoints: ticketData.storyPoints ?? null,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
@@ -299,14 +300,16 @@ const updateTicket = async (ticketId, updateData) => {
       const oldStatus = oldTicket.status.toLowerCase();
       const now = new Date();
 
+      if (newStatus === "in progress") {
+        updateData.inProgressAt = now;
+        updateData.doneAt = null; 
+      }      
+
       if (oldStatus === "in progress") {
         if (oldTicket.inProgressAt) {
           const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
           updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
-          updateData.inProgressAt = null;
         }
-      } else if (newStatus === "in progress") {
-        updateData.inProgressAt = now;
       }
 
       if (newStatus === "done") {

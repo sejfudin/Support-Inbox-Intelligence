@@ -14,6 +14,7 @@ const workspaceRoutes = require("./routes/workspace");
 const invitationRoutes = require("./routes/invitation");
 const commentRoutes = require("./routes/comment");
 const githubRoutes = require("./routes/github");
+const analyticsRoutes = require("./routes/analytics");
 const { handleWebhook } = require("./controllers/github");
 
 const PORT = process.env.PORT || 4000;
@@ -43,6 +44,7 @@ app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/comment', commentRoutes);
 app.use('/api/github', githubRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {

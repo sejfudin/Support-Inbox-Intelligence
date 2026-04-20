@@ -62,7 +62,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ""}`}
+                    className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ""}`}
                   >
                     {header.isPlaceholder
                       ? null
