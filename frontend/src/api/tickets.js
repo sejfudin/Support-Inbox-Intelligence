@@ -11,6 +11,8 @@ export const getAllTickets = async ({
   priorityOrder, 
   archived,
   workspaceId,
+  sortBy,
+  sortOrder,
 } = {}) => {
   const response = await apiClient.get("/tickets", {
     params: {
@@ -24,6 +26,8 @@ export const getAllTickets = async ({
       priorityOrder,
       archived,
       workspaceId,
+      sortBy,
+      sortOrder,
     },
   });
   return response.data;
@@ -61,12 +65,24 @@ export const getMyTickets = async ({
   limit,
   search,
   status,
-  priority, 
-  priorities, 
-  priorityOrder, 
+  priority,
+  priorities,
+  priorityOrder,
+  sortBy,
+  sortOrder,
 } = {}) => {
   const response = await apiClient.get("/tickets/my-tickets", {
-    params: { page, limit, search, status, priority, priorities, priorityOrder },
+    params: {
+      page,
+      limit,
+      search,
+      status,
+      priority,
+      priorities,
+      priorityOrder,
+      sortBy,
+      sortOrder,
+    },
   });
   return response.data;
 };

@@ -15,6 +15,8 @@ const getAllTickets = async (req, res) => {
       priorityOrder, 
       archived,
       workspaceId: queryWorkspaceId,
+      sortBy,
+      sortOrder,
     } = req.query;
 
     const isAdmin = req.user?.role === "admin";
@@ -32,6 +34,8 @@ const getAllTickets = async (req, res) => {
       priorityOrder: priorityOrder || "none",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
+      sortBy: sortBy || "dueDate",
+      sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
 
     res.status(200).json({
@@ -93,6 +97,7 @@ const createTicket = async (req, res) => {
       status,
       workspaceId: bodyWorkspaceId,
       priority,
+      dueDate,
       storyPoints,
     } = req.body;
     const isAdmin = req.user && req.user.role === "admin";
@@ -130,6 +135,7 @@ const createTicket = async (req, res) => {
       status: resolvedStatus,
       workspaceId,
       priority: priority || "medium",
+      dueDate,
       storyPoints: normalizedStoryPoints,
     });
     res.status(201).json({
@@ -153,7 +159,7 @@ const createTicket = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: error.message,
-      })
+      });
     }
 
     res.status(500).json({
@@ -180,7 +186,8 @@ const updateTicket = async (req, res, next) => {
       "status",
       "assignedTo",
       "priority",
-      "storyPoints"
+      "dueDate",
+      "storyPoints",
     ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
@@ -189,9 +196,12 @@ const updateTicket = async (req, res, next) => {
           obj[key] = updateData[key].toLowerCase();
         } else if (key === "priority" && typeof updateData[key] === "string") {
           obj[key] = updateData[key].toLowerCase();
+        } else if (key === "dueDate") {
+          const v = updateData[key];
+          obj[key] = v === null || v === "" ? null : v;
         } else if (key === "storyPoints") {
           obj[key] = normalizedStoryPoints;
-        }else {
+        } else {
           obj[key] = updateData[key];
         }
         return obj;
@@ -267,9 +277,11 @@ const getMyTickets = async (req, res, next) => {
       limit,
       search,
       status,
-      priority, 
-      priorities, 
-      priorityOrder, 
+      priority,
+      priorities,
+      priorityOrder,
+      sortBy,
+      sortOrder,
     } = req.query;
 
     const result = await ticketService.getMyTickets({
@@ -282,6 +294,8 @@ const getMyTickets = async (req, res, next) => {
       priority: priority || "",
       priorities: priorities || "",
       priorityOrder: priorityOrder || "none",
+      sortBy: sortBy || "dueDate",
+      sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
 
     res.status(200).json({

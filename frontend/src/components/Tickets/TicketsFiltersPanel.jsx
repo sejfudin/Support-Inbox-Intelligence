@@ -20,6 +20,8 @@ import {
   ASSIGNEE_FILTER_VALUES,
   PRIORITY_ORDER_OPTIONS,
   PRIORITY_ORDER_VALUES,
+  DUE_DATE_ORDER_OPTIONS as DEFAULT_DUE_DATE_ORDER_OPTIONS,
+  DUE_DATE_ORDER_VALUES,
 } from "@/helpers/ticketFilters";
 import { PRIORITY_CONFIG } from "@/helpers/ticketPriority";
 
@@ -47,13 +49,19 @@ export default function TicketFiltersPanel({
   onPriorityOrderChange,
   priorityOrderOptions = PRIORITY_ORDER_OPTIONS,
 
+  dueDateOrder = DUE_DATE_ORDER_VALUES.DEFAULT,
+  onDueDateOrderChange,
+  dueDateOrderOptions = DEFAULT_DUE_DATE_ORDER_OPTIONS,
+
   activeFilterChips = [],
   onRemoveFilterChip,
   onClearAllFilters,
   className,
 }) {
   const activeFilterCount = selectedPriorities.length + selectedAssigneeIds.length;
-  const activeSortCount = priorityOrder !== PRIORITY_ORDER_VALUES.NONE ? 1 : 0;
+  const activeSortCount =
+    (priorityOrder !== PRIORITY_ORDER_VALUES.NONE ? 1 : 0) +
+    (dueDateOrder !== DUE_DATE_ORDER_VALUES.DEFAULT ? 1 : 0);
   const hasActiveSelections = activeFilterCount > 0 || activeSortCount > 0;
   const hasActiveChips = activeFilterChips.length > 0;
   const CONTROL_BUTTON_CLASS = "rounded-xl px-4 justify-between gap-2";
@@ -170,6 +178,22 @@ export default function TicketFiltersPanel({
                   onValueChange={(value) => onPriorityOrderChange?.(value)}
                 >
                   {priorityOrderOptions.map((option) => (
+                    <DropdownMenuRadioItem key={option.value} value={option.value}>
+                      {option.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Due date</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-56">
+                <DropdownMenuRadioGroup
+                  value={dueDateOrder}
+                  onValueChange={(value) => onDueDateOrderChange?.(value)}
+                >
+                  {dueDateOrderOptions.map((option) => (
                     <DropdownMenuRadioItem key={option.value} value={option.value}>
                       {option.label}
                     </DropdownMenuRadioItem>

@@ -63,6 +63,14 @@ const NewTickets = ({
       delete ticketData.status;
     }
 
+    if (ticketData.dueDate) {
+      ticketData.dueDate = new Date(
+        `${ticketData.dueDate}T12:00:00`,
+      ).toISOString();
+    } else {
+      delete ticketData.dueDate;
+    }
+
     createMutation.mutate(ticketData, {
       onSuccess: () => {
         toast.success("Ticket created", {
@@ -196,6 +204,18 @@ const NewTickets = ({
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                    Due date <span className="font-normal normal-case text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={newTicket.dueDate}
+                    onChange={(e) => updateField("dueDate", e.target.value)}
+                    className="h-12 text-base max-w-xs"
+                  />
                 </div>
 
                 <div className="space-y-2">

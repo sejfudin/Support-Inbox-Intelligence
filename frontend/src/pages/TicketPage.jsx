@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTickets } from "@/queries/tickets";
-import { columns } from "@/components/columns/ticketColumns";
+import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { useDebounce } from "use-debounce";
 import BoardPage from "@/components/BoardPage";
 import NewTickets from "@/components/Tickets/NewTickets";
@@ -152,6 +152,7 @@ export default function TicketPage() {
     togglePriority,
     toggleAssignee,
     changePriorityOrder,
+    changeDueDateOrder,
     clearAllFilters,
     removeFilterChip,
   } = useTicketFiltersControls({ assigneeOptions });
@@ -166,6 +167,8 @@ export default function TicketPage() {
       workspaceId: overrideWorkspaceId,
     },
   });
+
+  const listColumns = useMemo(() => createTicketColumns(), []);
 
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
@@ -209,6 +212,7 @@ export default function TicketPage() {
   const handlePriorityFilterChange = runWithListReset(togglePriority);
   const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
   const handlePriorityOrderChange = runWithListReset(changePriorityOrder);
+  const handleDueDateOrderChange = runWithListReset(changeDueDateOrder);
   const handleClearAllFilters = runWithListReset(clearAllFilters);
   const handleRemoveFilterChip = runWithListReset(removeFilterChip);
 
@@ -294,6 +298,8 @@ export default function TicketPage() {
     assigneeOptions,
     priorityOrder: controls.priorityOrder,
     onPriorityOrderChange: handlePriorityOrderChange,
+    dueDateOrder: controls.dueDateOrder,
+    onDueDateOrderChange: handleDueDateOrderChange,
     activeFilterChips,
     onRemoveFilterChip: handleRemoveFilterChip,
     onClearAllFilters: handleClearAllFilters,
@@ -373,7 +379,7 @@ export default function TicketPage() {
               loadingSlot={<TableSkeleton />}
             >
               <DataTable
-                columns={columns}
+                columns={listColumns}
                 data={visibleTickets}
                 pagination={pagination}
                 onPageChange={(newPage) => listData.setPage(newPage)}

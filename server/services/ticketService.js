@@ -45,6 +45,24 @@ const normalizeAssignedUserIds = (assignedTo = []) => {
   return [...new Set(rawIds.filter(Boolean).map((id) => id.toString()))];
 };
 
+const parseOptionalDueDate = (value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d;
+};
+
+const ALLOWED_TICKET_SORT_FIELDS = new Set(["updatedAt", "dueDate"]);
+
+const buildTicketListSort = (sortBy = "dueDate", sortOrder = "desc") => {
+  const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : "dueDate";
+  const dir = sortOrder === "asc" ? 1 : -1;
+  if (field === "dueDate") {
+    return { dueDate: dir, updatedAt: -1 };
+  }
+  return { updatedAt: dir };
+};
+
 const ensureAssignableUsersBelongToWorkspace = async ({
   workspaceId,
   assignedTo = [],
@@ -84,6 +102,8 @@ const getAllTickets = async ({
   priorityOrder = "none",
   archived,
   workspaceId,
+  sortBy,
+  sortOrder,
 }) => {
   if (!workspaceId) {
     return {
@@ -142,16 +162,14 @@ const getAllTickets = async ({
     );
 
     const selectedUserObjectIds = selectedUsers
-  .filter((id) => mongoose.Types.ObjectId.isValid(id))
-  .map((id) => new mongoose.Types.ObjectId(id));
-
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
 
     const assigneeOr = [];
 
     if (selectedUserObjectIds.length > 0) {
       assigneeOr.push({ assignedTo: { $in: selectedUserObjectIds } });
     }
-
 
     if (wantsUnassigned) {
       assigneeOr.push(
@@ -170,58 +188,71 @@ const getAllTickets = async ({
 
   const normalizedOrder = normalizePriorityOrder(priorityOrder);
 
-  const mongoSort =
-    normalizedOrder === "none"
-      ? { updatedAt: -1 }
-      : {
-          priorityRank: normalizedOrder === "desc" ? -1 : 1,
-          updatedAt: -1,
-        };
+  let tickets;
+  let total;
 
-  const [tickets, total] = await Promise.all([
-    Ticket.aggregate([
-      { $match: query },
-      {
-        $addFields: {
-          priorityRank: {
-            $switch: {
-              branches: [
-                { case: { $eq: ["$priority", "low"] }, then: PRIORITY_RANK.low },
-                { case: { $eq: ["$priority", "medium"] }, then: PRIORITY_RANK.medium },
-                { case: { $eq: ["$priority", "high"] }, then: PRIORITY_RANK.high },
-                { case: { $eq: ["$priority", "critical"] }, then: PRIORITY_RANK.critical },
-              ],
-              default: PRIORITY_RANK.medium,
+  if (normalizedOrder === "none") {
+    const sortSpec = buildTicketListSort(sortBy, sortOrder);
+    [tickets, total] = await Promise.all([
+      Ticket.find(query)
+        .sort(sortSpec)
+        .skip(skip)
+        .limit(safeLimit)
+        .populate("creator", "fullname email")
+        .populate("assignedTo", "fullname email role"),
+      Ticket.countDocuments(query),
+    ]);
+  } else {
+    const mongoSort = {
+      priorityRank: normalizedOrder === "desc" ? -1 : 1,
+      updatedAt: -1,
+    };
+
+    [tickets, total] = await Promise.all([
+      Ticket.aggregate([
+        { $match: query },
+        {
+          $addFields: {
+            priorityRank: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$priority", "low"] }, then: PRIORITY_RANK.low },
+                  { case: { $eq: ["$priority", "medium"] }, then: PRIORITY_RANK.medium },
+                  { case: { $eq: ["$priority", "high"] }, then: PRIORITY_RANK.high },
+                  { case: { $eq: ["$priority", "critical"] }, then: PRIORITY_RANK.critical },
+                ],
+                default: PRIORITY_RANK.medium,
+              },
             },
           },
         },
-      },
-      { $sort: mongoSort },
-      { $skip: skip },
-      { $limit: safeLimit },
-      {
-        $lookup: {
-          from: "users",
-          localField: "creator",
-          foreignField: "_id",
-          as: "creator",
-          pipeline: [{ $project: { fullname: 1, email: 1 } }],
+        { $sort: mongoSort },
+        { $skip: skip },
+        { $limit: safeLimit },
+        {
+          $lookup: {
+            from: "users",
+            localField: "creator",
+            foreignField: "_id",
+            as: "creator",
+            pipeline: [{ $project: { fullname: 1, email: 1 } }],
+          },
         },
-      },
-      { $unwind: { path: "$creator", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "assignedTo",
-          foreignField: "_id",
-          as: "assignedTo",
-          pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
+        { $unwind: { path: "$creator", preserveNullAndEmptyArrays: true } },
+        {
+          $lookup: {
+            from: "users",
+            localField: "assignedTo",
+            foreignField: "_id",
+            as: "assignedTo",
+            pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
+          },
         },
-      },
-      { $project: { priorityRank: 0 } },
-    ]),
-    Ticket.countDocuments(query),
-  ]);
+        { $project: { priorityRank: 0 } },
+      ]),
+      Ticket.countDocuments(query),
+    ]);
+  }
 
   return {
     tickets,
@@ -262,6 +293,8 @@ const createTicket = async (ticketData) => {
 
   const status = ticketData.status === undefined ? "to do" : ticketData.status;
 
+  const dueDate = parseOptionalDueDate(ticketData.dueDate);
+
   const ticket = new Ticket({
     subject: ticketData.subject,
     description: ticketData.description || "",
@@ -273,6 +306,7 @@ const createTicket = async (ticketData) => {
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
     inProgressAt: status === "in progress" ? new Date() : undefined,
+    ...(dueDate !== undefined ? { dueDate } : {}),
   });
 
   await ticket.save();
@@ -293,6 +327,20 @@ const updateTicket = async (ticketId, updateData) => {
         workspaceId: oldTicket.workspace,
         assignedTo: updateData.assignedTo,
       });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, "dueDate")) {
+      const raw = updateData.dueDate;
+      if (raw === null || raw === "") {
+        updateData.dueDate = null;
+      } else {
+        const parsed = parseOptionalDueDate(raw);
+        if (parsed === undefined) {
+          delete updateData.dueDate;
+        } else {
+          updateData.dueDate = parsed;
+        }
+      }
     }
 
     if (updateData.status && updateData.status !== oldTicket.status) {
@@ -365,6 +413,8 @@ const getMyTickets = async ({
   priority = "",
   priorities = "",
   priorityOrder = "none",
+  sortBy,
+  sortOrder,
 }) => {
   const safeLimit = Number(limit) || 10;
   const safePage = Number(page) || 1;
@@ -413,7 +463,7 @@ const getMyTickets = async ({
   const normalizedOrder = normalizePriorityOrder(priorityOrder);
   const sortStage =
     normalizedOrder === "none"
-      ? { updatedAt: -1 }
+      ? null
       : {
           priorityRank: normalizedOrder === "desc" ? -1 : 1,
           updatedAt: -1,
@@ -422,48 +472,60 @@ const getMyTickets = async ({
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [tickets, total, statsArray] = await Promise.all([
-    Ticket.aggregate([
-      { $match: query },
-      {
-        $addFields: {
-          priorityRank: {
-            $switch: {
-              branches: [
-                { case: { $eq: ["$priority", "low"] }, then: PRIORITY_RANK.low },
-                { case: { $eq: ["$priority", "medium"] }, then: PRIORITY_RANK.medium },
-                { case: { $eq: ["$priority", "high"] }, then: PRIORITY_RANK.high },
-                { case: { $eq: ["$priority", "critical"] }, then: PRIORITY_RANK.critical },
-              ],
-              default: PRIORITY_RANK.medium,
+  const sortSpec = buildTicketListSort(sortBy, sortOrder);
+
+  const ticketsQuery =
+    normalizedOrder === "none"
+      ? Ticket.find(query)
+          .sort(sortSpec)
+          .skip(skip)
+          .limit(safeLimit)
+          .populate("creator", "fullname email")
+          .populate("assignedTo", "fullname email role")
+      : Ticket.aggregate([
+          { $match: query },
+          {
+            $addFields: {
+              priorityRank: {
+                $switch: {
+                  branches: [
+                    { case: { $eq: ["$priority", "low"] }, then: PRIORITY_RANK.low },
+                    { case: { $eq: ["$priority", "medium"] }, then: PRIORITY_RANK.medium },
+                    { case: { $eq: ["$priority", "high"] }, then: PRIORITY_RANK.high },
+                    { case: { $eq: ["$priority", "critical"] }, then: PRIORITY_RANK.critical },
+                  ],
+                  default: PRIORITY_RANK.medium,
+                },
+              },
             },
           },
-        },
-      },
-      { $sort: sortStage },
-      { $skip: skip },
-      { $limit: safeLimit },
-      {
-        $lookup: {
-          from: "users",
-          localField: "creator",
-          foreignField: "_id",
-          as: "creator",
-          pipeline: [{ $project: { fullname: 1, email: 1 } }],
-        },
-      },
-      { $unwind: { path: "$creator", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "users",
-          localField: "assignedTo",
-          foreignField: "_id",
-          as: "assignedTo",
-          pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
-        },
-      },
-      { $project: { priorityRank: 0 } },
-    ]),
+          { $sort: sortStage },
+          { $skip: skip },
+          { $limit: safeLimit },
+          {
+            $lookup: {
+              from: "users",
+              localField: "creator",
+              foreignField: "_id",
+              as: "creator",
+              pipeline: [{ $project: { fullname: 1, email: 1 } }],
+            },
+          },
+          { $unwind: { path: "$creator", preserveNullAndEmptyArrays: true } },
+          {
+            $lookup: {
+              from: "users",
+              localField: "assignedTo",
+              foreignField: "_id",
+              as: "assignedTo",
+              pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
+            },
+          },
+          { $project: { priorityRank: 0 } },
+        ]);
+
+  const [tickets, total, statsArray] = await Promise.all([
+    ticketsQuery,
     Ticket.countDocuments(query),
     Ticket.aggregate([
       {

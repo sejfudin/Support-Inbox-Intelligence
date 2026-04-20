@@ -115,6 +115,10 @@ const ticketSchema = new mongoose.Schema(
       immutable: true,
       index: true,
     },
+    dueDate: {
+      type: Date,
+      default: null,
+    },
     linkedPullRequest: {
       type: {
         prNumber: {
