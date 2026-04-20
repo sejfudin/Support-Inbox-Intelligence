@@ -96,7 +96,14 @@ export const useSwitchWorkspace = () => {
 
   return useMutation({
     mutationFn: switchWorkspace,
-    onSuccess: () => {
+    onSuccess: (_, workspaceId) => {
+      queryClient.setQueryData(authKeys.me(), (currentUser) => {
+        if (!currentUser) return currentUser;
+        return {
+          ...currentUser,
+          workspaceId,
+        };
+      });
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
       queryClient.removeQueries({ queryKey: ['tickets'] });
       queryClient.removeQueries({ queryKey: ['users'] });

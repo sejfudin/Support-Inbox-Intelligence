@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useUserAnalytics, useWorkspaceAnalytics } from "@/queries/workspaces";
+import { useWorkspaceMembershipCheck } from "@/hooks/useWorkspaceMembershipCheck";
 import {
   Card,
   CardContent,
@@ -46,6 +47,20 @@ export default function AnalyticsDashboard() {
   const [days, setDays] = useState(30);
 
   const {
+    isWorkspaceMember,
+    isMembershipCheckPending,
+    isMembershipCheckError,
+  } = useWorkspaceMembershipCheck(workspaceId);
+
+  const shouldRenderPersonalPerformance = Boolean(
+    userId &&
+    workspaceId &&
+    !isMembershipCheckPending &&
+    !isMembershipCheckError &&
+    isWorkspaceMember,
+  );
+
+  const {
     data: workspaceAnalytics,
     isLoading: isWorkspaceLoading,
     isError: isWorkspaceError,
@@ -60,12 +75,17 @@ export default function AnalyticsDashboard() {
     isError: isUserError,
   } = useUserAnalytics({
     userId,
-    workspaceId,
+    workspaceId: shouldRenderPersonalPerformance ? workspaceId : null,
     days,
   });
 
-  const isLoading = isWorkspaceLoading || isUserLoading;
-  const isError = isWorkspaceError || isUserError;
+  const isLoading =
+    isWorkspaceLoading ||
+    isMembershipCheckPending ||
+    (shouldRenderPersonalPerformance && isUserLoading);
+  const isError =
+    isWorkspaceError ||
+    (shouldRenderPersonalPerformance && isUserError);
 
   const data = workspaceAnalytics;
 
@@ -169,126 +189,130 @@ export default function AnalyticsDashboard() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="app-panel px-5 py-5 md:px-6">
-              <div className="app-kicker mb-3">My Analytics</div>
-              <h2 className="text-2xl font-semibold tracking-tight">Personal Performance</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Your ticket load and completion trend in the selected period.</p>
-            </div>
+            {shouldRenderPersonalPerformance && (
+              <>
+                <div className="app-panel px-5 py-5 md:px-6">
+                  <div className="app-kicker mb-3">My Analytics</div>
+                  <h2 className="text-2xl font-semibold tracking-tight">Personal Performance</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Your ticket load and completion trend in the selected period.</p>
+                </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <Card className="app-panel xl:col-span-1">
-                <CardHeader className="pb-2">
-                  <CardDescription>Completed</CardDescription>
-                  <CardTitle className="text-3xl">{userSummary.completedTickets}</CardTitle>
-                </CardHeader>
-              </Card>
-              <Card className="app-panel xl:col-span-1">
-                <CardHeader className="pb-2">
-                  <CardDescription>In Progress</CardDescription>
-                  <CardTitle className="text-3xl">{userSummary.activeTickets}</CardTitle>
-                </CardHeader>
-              </Card>
-              <Card className="app-panel xl:col-span-1">
-                <CardHeader className="pb-2">
-                  <CardDescription>Blocked</CardDescription>
-                  <CardTitle className="text-3xl">{userSummary.blockedTickets}</CardTitle>
-                </CardHeader>
-              </Card>
-              <Card className="app-panel xl:col-span-1">
-                <CardHeader className="pb-2">
-                  <CardDescription>Avg Cycle Time</CardDescription>
-                  <CardTitle className="text-3xl">{userPerformance.averageCycleTimeDays.toFixed(2)}d</CardTitle>
-                </CardHeader>
-              </Card>
-              <Card className="app-panel xl:col-span-1">
-                <CardHeader className="pb-2">
-                  <CardDescription>Total Time</CardDescription>
-                  <CardTitle className="text-3xl">{userPerformance.totalTimeSpentHours.toFixed(1)}h</CardTitle>
-                </CardHeader>
-              </Card>
-            </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  <Card className="app-panel xl:col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Completed</CardDescription>
+                      <CardTitle className="text-3xl">{userSummary.completedTickets}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card className="app-panel xl:col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardDescription>In Progress</CardDescription>
+                      <CardTitle className="text-3xl">{userSummary.activeTickets}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card className="app-panel xl:col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Blocked</CardDescription>
+                      <CardTitle className="text-3xl">{userSummary.blockedTickets}</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card className="app-panel xl:col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Avg Cycle Time</CardDescription>
+                      <CardTitle className="text-3xl">{userPerformance.averageCycleTimeDays.toFixed(2)}d</CardTitle>
+                    </CardHeader>
+                  </Card>
+                  <Card className="app-panel xl:col-span-1">
+                    <CardHeader className="pb-2">
+                      <CardDescription>Total Time</CardDescription>
+                      <CardTitle className="text-3xl">{userPerformance.totalTimeSpentHours.toFixed(1)}h</CardTitle>
+                    </CardHeader>
+                  </Card>
+                </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {hasUserActivityData ? (
-                <Card className="app-panel">
-                  <CardHeader>
-                    <CardTitle className="text-lg">My Activity Trend</CardTitle>
-                    <CardDescription>Completed tickets per day</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={userActivityChartConfig} className="h-[260px] w-full">
-                      <LineChart data={userActivityData} margin={{ left: 6, right: 6, top: 12 }}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                          dataKey="date"
-                          tickLine={false}
-                          axisLine={false}
-                          tickMargin={8}
-                          minTickGap={30}
-                          tickFormatter={formatShortDate}
-                        />
-                        <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
-                        <ChartTooltip
-                          content={(
-                            <ChartTooltipContent labelFormatter={(value) => formatTooltipDate(value)} />
-                          )}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="completed"
-                          stroke="var(--color-completed)"
-                          strokeWidth={2.5}
-                          dot={false}
-                          activeDot={{ r: 5 }}
-                        />
-                      </LineChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-              ) : (
-                <AnalyticsEmptyCard
-                  title="My Activity Trend"
-                  description="Completed tickets per day"
-                />
-              )}
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {hasUserActivityData ? (
+                    <Card className="app-panel">
+                      <CardHeader>
+                        <CardTitle className="text-lg">My Activity Trend</CardTitle>
+                        <CardDescription>Completed tickets per day</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ChartContainer config={userActivityChartConfig} className="h-[260px] w-full">
+                          <LineChart data={userActivityData} margin={{ left: 6, right: 6, top: 12 }}>
+                            <CartesianGrid vertical={false} />
+                            <XAxis
+                              dataKey="date"
+                              tickLine={false}
+                              axisLine={false}
+                              tickMargin={8}
+                              minTickGap={30}
+                              tickFormatter={formatShortDate}
+                            />
+                            <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
+                            <ChartTooltip
+                              content={(
+                                <ChartTooltipContent labelFormatter={(value) => formatTooltipDate(value)} />
+                              )}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="completed"
+                              stroke="var(--color-completed)"
+                              strokeWidth={2.5}
+                              dot={false}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ChartContainer>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <AnalyticsEmptyCard
+                      title="My Activity Trend"
+                      description="Completed tickets per day"
+                    />
+                  )}
 
-              {hasUserWorkloadData ? (
-                <Card className="app-panel">
-                  <CardHeader>
-                    <CardTitle className="text-lg">My Workload Distribution</CardTitle>
-                    <CardDescription>Completed tickets by priority</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChartContainer config={userWorkloadChartConfig} className="h-[260px] w-full">
-                      <PieChart>
-                        <Pie
-                          data={userWorkloadData}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius={55}
-                          outerRadius={95}
-                          paddingAngle={4}
-                        >
-                          {userWorkloadData.map((entry) => (
-                            <Cell key={entry.name} fill={workloadColors[entry.name] || "hsl(215 16% 47%)"} />
-                          ))}
-                        </Pie>
-                        <ChartTooltip
-                          content={(
-                            <ChartTooltipContent formatter={(value, name) => `${name}: ${Number(value)}`} />
-                          )}
-                        />
-                      </PieChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-              ) : (
-                <AnalyticsEmptyCard
-                  title="My Workload Distribution"
-                  description="Completed tickets by priority"
-                />
-              )}
-            </div>
+                  {hasUserWorkloadData ? (
+                    <Card className="app-panel">
+                      <CardHeader>
+                        <CardTitle className="text-lg">My Workload Distribution</CardTitle>
+                        <CardDescription>Completed tickets by priority</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ChartContainer config={userWorkloadChartConfig} className="h-[260px] w-full">
+                          <PieChart>
+                            <Pie
+                              data={userWorkloadData}
+                              dataKey="value"
+                              nameKey="name"
+                              innerRadius={55}
+                              outerRadius={95}
+                              paddingAngle={4}
+                            >
+                              {userWorkloadData.map((entry) => (
+                                <Cell key={entry.name} fill={workloadColors[entry.name] || "hsl(215 16% 47%)"} />
+                              ))}
+                            </Pie>
+                            <ChartTooltip
+                              content={(
+                                <ChartTooltipContent formatter={(value, name) => `${name}: ${Number(value)}`} />
+                              )}
+                            />
+                          </PieChart>
+                        </ChartContainer>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <AnalyticsEmptyCard
+                      title="My Workload Distribution"
+                      description="Completed tickets by priority"
+                    />
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="app-panel px-5 py-5 md:px-6">
               <div className="app-kicker mb-3">Workspace Analytics</div>
