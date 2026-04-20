@@ -10,7 +10,6 @@ const {
   getAllWorkspaces,
   switchWorkspace,
   deleteWorkspace,
-  getWorkspaceAnalytics,
 } = require('../controllers/workspace');
 const { protect } = require('../middleware/auth');
 const { requireRole } = require('../middleware/role');
@@ -20,7 +19,6 @@ router.get('/all', protect, requireRole('admin'), getAllWorkspaces);
 router.post('/', protect, requireRole('admin'), createWorkspace);
 
 router.get('/:id', protect, getWorkspace);
-router.get('/:id/analytics', protect, getWorkspaceAnalytics);
 router.patch('/:id', protect, requireRole('admin'), updateWorkspace);
 router.delete('/:id', protect, requireRole('admin'), deleteWorkspace);
 

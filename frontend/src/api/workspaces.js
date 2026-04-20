@@ -46,7 +46,7 @@ export const deleteWorkspace = async (id) => {
 };
 
 export const getWorkspaceAnalytics = async (id, days = 30) => {
-  const response = await apiClient.get(`/workspaces/${id}/analytics`, {
+  const response = await apiClient.get(`/analytics/workspace/${id}`, {
     params: { days },
   });
   return response.data;

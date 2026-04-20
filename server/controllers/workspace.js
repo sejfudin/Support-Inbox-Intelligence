@@ -129,23 +129,3 @@ exports.deleteWorkspace = async (req, res, next) => {
     next(err);
   }
 };
-
-exports.getWorkspaceAnalytics = async (req, res, next) => {
-  try {
-    const { days } = req.query;
-    const analytics = await workspaceService.getWorkspaceAnalytics({
-      workspaceId: req.params.id,
-      days,
-    });
-
-    res.json(analytics);
-  } catch (err) {
-    if (err.message === 'Invalid workspaceId') {
-      return res.status(400).json({ message: err.message });
-    }
-    if (err.message === 'Workspace not found') {
-      return res.status(404).json({ message: err.message });
-    }
-    next(err);
-  }
-};
