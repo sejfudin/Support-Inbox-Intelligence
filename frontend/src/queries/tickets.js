@@ -9,6 +9,24 @@ import {
   getMyTickets, 
 } from "@/api/tickets";
 
+const invalidateWorkspaceAnalytics = (queryClient) => {
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) &&
+      query.queryKey[0] === "workspaces" &&
+      query.queryKey.includes("analytics"),
+  });
+};
+
+const invalidateUserAnalytics = (queryClient) => {
+  queryClient.invalidateQueries({
+    predicate: (query) =>
+      Array.isArray(query.queryKey) &&
+      query.queryKey[0] === "workspaces" &&
+      query.queryKey.includes("user-analytics"),
+  });
+};
+
 export const useTickets = (params, options = {}) => {
   return useQuery({
     queryKey: ["tickets", params],
@@ -43,6 +61,8 @@ export const useCreateTicket = () => {
     mutationFn: createTicket,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      invalidateWorkspaceAnalytics(queryClient);
+      invalidateUserAnalytics(queryClient);
     },
   });
 };
@@ -56,6 +76,8 @@ export const useUpdateTicket = () => {
       queryClient.invalidateQueries({ queryKey: ["ticket", variables.ticketId] });
       
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      invalidateWorkspaceAnalytics(queryClient);
+      invalidateUserAnalytics(queryClient);
     },
   });
 };
@@ -68,6 +90,8 @@ export const useArchiveTicket = () => {
     onSuccess: (_, ticketId) => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      invalidateWorkspaceAnalytics(queryClient);
+      invalidateUserAnalytics(queryClient);
     },
   });
 };
