@@ -3,6 +3,7 @@ const nodeCrypto = require("crypto");
 const Integration = require("../models/Integration");
 const { encrypt } = require("../helpers/crypto");
 const { getInstallationRepositories, getInstallation } = require("../services/githubService");
+const { linkPullRequestToTicket, LINK_RESULT } = require("../services/autoLinkService");
 
 /**
  * Initiates GitHub App installation flow.
@@ -301,8 +302,57 @@ const handlePullRequestEvent = async (payload) => {
     return;
   }
 
-  // TODO: Auto-link PR to ticket
-  console.log('Received pull_request event:', payload.action, 'for repo:', integration.connectedRepo.fullName);
+  const pr = payload.pull_request;
+  if (!pr) return;
+
+  const relevantActions = ['opened', 'reopened', 'edited', 'synchronize'];
+  if (!relevantActions.includes(payload.action)) {
+    return;
+  }
+
+  const prData = {
+    prNumber: pr.number,
+    prTitle: pr.title,
+    title: pr.title,
+    branchName: pr.head?.ref,
+    state: pr.state === 'closed' ? (pr.merged ? 'merged' : 'closed') : 'open',
+    isDraft: pr.draft || false,
+    author: {
+      login: pr.user?.login,
+      avatarUrl: pr.user?.avatar_url,
+    },
+    url: pr.html_url,
+    createdAt: pr.created_at,
+    updatedAt: pr.updated_at,
+    mergedAt: pr.merged_at,
+    mergedBy: pr.merged_by ? {
+      login: pr.merged_by.login,
+      avatarUrl: pr.merged_by.avatar_url,
+    } : null,
+  };
+
+  const result = await linkPullRequestToTicket(prData, integration.workspace);
+
+  switch (result.result) {
+    case LINK_RESULT.LINKED:
+      console.log(`Linked PR #${result.prNumber} to ticket ${result.taskNumber}`);
+      break;
+    case LINK_RESULT.ALREADY_LINKED:
+      console.log(`Updated PR #${result.prNumber} on ticket ${result.taskNumber}`);
+      break;
+    case LINK_RESULT.DIFFERENT_PR_LINKED:
+      console.log(`Cannot link PR #${result.requestedPrNumber} - ticket ${result.taskNumber} has PR #${result.existingPrNumber}`);
+      break;
+    case LINK_RESULT.TICKET_NOT_FOUND:
+      console.log(`No ticket found for taskNumber ${result.taskNumber} from PR #${pr.number}`);
+      break;
+    case LINK_RESULT.NO_TASK_NUMBER:
+      console.log(`No task number found in PR #${pr.number}`);
+      break;
+    case LINK_RESULT.ERROR:
+      console.error(`Error linking PR #${pr.number}:`, result.message);
+      break;
+  }
 };
 
 const handleWebhook = async (req, res) => {
