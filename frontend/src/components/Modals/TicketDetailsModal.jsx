@@ -30,7 +30,8 @@ import { Avatar } from "../Avatar";
 import { toast } from "sonner";
 import TimeSpent from "@/components/TimeSpent";
 import TicketComments from "../Tickets/TicketComments";
-
+import StoryPointsField from "../StoryPointsField";
+import { normalizeStoryPoints } from "@/helpers/storyPoints";
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [actionError, setActionError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
   const [currentPriority, setCurrentPriority] = useState("medium");
+  const [currentStoryPoints, setCurrentStoryPoints] = useState(null);
   const [selectedAgents, setSelectedAgents] = useState([]); 
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
@@ -62,6 +64,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     setDescription(ticket.description ?? "");
     setCurrentStatus(ticket.status ?? "To Do");
     setCurrentPriority(ticket.priority ?? "medium");
+    setCurrentStoryPoints(normalizeStoryPoints(ticket.storyPoints));
 
     const existingAgentIds = ticket.assignedTo?.map(a => a._id || a) || [];
       setSelectedAgents(existingAgentIds);    
@@ -81,6 +84,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     const initialDescription = ticket.description ?? "";
     const initialStatus = ticket.status ?? "To Do";
     const initialPriority = ticket.priority ?? "medium";
+    const initialStoryPoints = normalizeStoryPoints(ticket.storyPoints);
     const initialAgents = (
       ticket.assignedTo?.map((a) => a._id || a) || []
     ).sort();
@@ -90,6 +94,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       description !== initialDescription ||
       currentStatus !== initialStatus ||
       currentPriority !== initialPriority ||
+      currentStoryPoints !== initialStoryPoints ||
       JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)   
     );
   }, [
@@ -97,6 +102,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     description,
     currentStatus,
     currentPriority,
+    currentStoryPoints,
     selectedAgents,
     title,
   ]);
@@ -163,6 +169,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           subject: title,
           status: currentStatus,
           priority: currentPriority,
+          storyPoints: currentStoryPoints,
           description,
           assignedTo: selectedAgents, 
         },
@@ -348,7 +355,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-5 xl:pb-10">
+          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-6 xl:pb-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
@@ -451,6 +458,12 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 />
               </div>
             </div>
+
+                <StoryPointsField
+                  value={currentStoryPoints}
+                  onChange={setCurrentStoryPoints}
+                  disabled={isArchived}
+                />
 
             <TimeSpent ticket={ticket} />
 

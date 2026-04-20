@@ -72,6 +72,12 @@ const ticketSchema = new mongoose.Schema(
       default: "medium",
       required: true,
     },
+    storyPoints: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null
+    },
     isArchived: {
       type: Boolean,
       default: false,
