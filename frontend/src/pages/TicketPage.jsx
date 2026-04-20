@@ -39,15 +39,39 @@ function isEditableTarget(target) {
   );
 }
 
+const ALLOWED_TABS = [
+  "all",
+  "to do",
+  "in progress",
+  "on staging",
+  "blocked",
+  "done",
+];
+
+const decodeTabParam = (value) =>
+  value ? value.toLowerCase().replace(/_/g, " ") : "all";
+
+const encodeTabParam = (value) => value.replace(/\s+/g, "_");
+
 export default function TicketPage() {
-  const [activeTab, setActiveTab] = useState("all");
-  const [viewMode, setViewMode] = useState("list");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = decodeTabParam(searchParams.get("tab"));
+  const initialSearch = searchParams.get("search") || "";
+  const initialPage = Math.max(
+    parseInt(searchParams.get("page") || "1", 10) || 1,
+    1,
+  );
+  const initialView = searchParams.get("view") === "board" ? "board" : "list";
+  const [activeTab, setActiveTab] = useState(
+    ALLOWED_TABS.includes(initialTab) ? initialTab : "all",
+  );
+  const [viewMode, setViewMode] = useState(initialView);
 
   const isMobile = useIsMobile();
   const effectiveViewMode = isMobile ? "list" : viewMode;
   const isBoard = effectiveViewMode === "board";
 
-  const [searchParams] = useSearchParams();
+  const hasHydratedFromParamsRef = useRef(false);
   const navigate = useNavigate();
   const overrideWorkspaceId = searchParams.get("workspaceId") || undefined;
   const { user } = useAuth();
@@ -143,8 +167,15 @@ export default function TicketPage() {
     },
   });
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
+
+  useEffect(() => {
+    if (hasHydratedFromParamsRef.current) return;
+    listData.setSearch(initialSearch);
+    listData.setPage(initialPage);
+    hasHydratedFromParamsRef.current = true;
+  }, [initialSearch, initialPage, listData]);
 
   const boardQueryParams = getTicketsQueryParams({
     page: 1,
@@ -182,13 +213,51 @@ export default function TicketPage() {
   const handleRemoveFilterChip = runWithListReset(removeFilterChip);
 
   const handleSearchChange = (value) => {
-    if (isBoard) {
-      setSearch(value);
-    } else {
-      listData.setSearch(value);
-      listData.setPage(1);
-    }
+    setSearch(value);
+    listData.setSearch(value);
+    listData.setPage(1);
   };
+
+  useEffect(() => {
+    if (!hasHydratedFromParamsRef.current) return;
+
+    const next = new URLSearchParams(searchParams);
+
+    if (activeTab === "all") {
+      next.delete("tab");
+    } else {
+      next.set("tab", encodeTabParam(activeTab));
+    }
+
+    if (search.trim()) {
+      next.set("search", search.trim());
+    } else {
+      next.delete("search");
+    }
+
+    if (listData.page > 1) {
+      next.set("page", String(listData.page));
+    } else {
+      next.delete("page");
+    }
+
+    if (effectiveViewMode === "board") {
+      next.set("view", "board");
+    } else {
+      next.delete("view");
+    }
+
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [
+    activeTab,
+    search,
+    listData.page,
+    effectiveViewMode,
+    searchParams,
+    setSearchParams,
+  ]);
 
   const handleStatusChange = (ticketId, columnId) => {
     const columnToStatus = {
@@ -230,7 +299,7 @@ export default function TicketPage() {
     onClearAllFilters: handleClearAllFilters,
   };
 
-  const currentSearch = isBoard ? search : listData.search;
+  const currentSearch = search;
 
   return (
     <PageShell>
