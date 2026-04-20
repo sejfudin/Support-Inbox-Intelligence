@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { columns } from "@/components/columns/ticketColumns";
+import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { useTicketList } from "@/hooks/useTicketList";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTicketModals } from "@/hooks/useTicketModals";
@@ -24,6 +24,8 @@ export default function BacklogPage() {
     setSearch,
     setPage,
   } = useTicketList({ activeTab, additionalFilters: { archived: false, status: 'backlog' } });
+
+  const columns = createTicketColumns();
 
   const {
     isNewOpen,

@@ -29,10 +29,23 @@ export const PRIORITY_ORDER_OPTIONS = [
   { value: PRIORITY_ORDER_VALUES.ASC, label: "Lowest first" },
 ];
 
+export const DUE_DATE_ORDER_VALUES = {
+  DEFAULT: "default",
+  SOONEST: "soonest",
+  LATEST: "latest",
+};
+
+export const DUE_DATE_ORDER_OPTIONS = [
+  { value: DUE_DATE_ORDER_VALUES.DEFAULT, label: "Default" },
+  { value: DUE_DATE_ORDER_VALUES.SOONEST, label: "Soonest first" },
+  { value: DUE_DATE_ORDER_VALUES.LATEST, label: "Latest first" },
+];
+
 export const DEFAULT_TICKET_CONTROLS = {
   priorities: [],
   assigneeIds: [],
   priorityOrder: PRIORITY_ORDER_VALUES.NONE,
+  dueDateOrder: DUE_DATE_ORDER_VALUES.DEFAULT,
 };
 
 const PRIORITY_VALUE_SET = new Set(
@@ -60,6 +73,13 @@ const sanitizePriorityOrder = (value) => {
   return Object.values(PRIORITY_ORDER_VALUES).includes(safe)
     ? safe
     : PRIORITY_ORDER_VALUES.NONE;
+};
+
+const sanitizeDueDateOrder = (value) => {
+  const safe = normalizeLower(value || DUE_DATE_ORDER_VALUES.DEFAULT);
+  return Object.values(DUE_DATE_ORDER_VALUES).includes(safe)
+    ? safe
+    : DUE_DATE_ORDER_VALUES.DEFAULT;
 };
 
 export const serializeCsvParam = (values, { lowercase = false } = {}) => {
@@ -101,6 +121,7 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
   const priorities = sanitizePriorities(controls.priorities);
   const assigneeIds = sanitizeAssigneeIds(controls.assigneeIds);
   const priorityOrder = sanitizePriorityOrder(controls.priorityOrder);
+  const dueDateOrder = sanitizeDueDateOrder(controls.dueDateOrder);
 
   const params = {};
 
@@ -115,6 +136,10 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
   if (priorityOrder !== PRIORITY_ORDER_VALUES.NONE) {
     params.priorityOrder = priorityOrder;
   }
+
+  params.sortBy = "dueDate";
+  params.sortOrder =
+    dueDateOrder === DUE_DATE_ORDER_VALUES.SOONEST ? "asc" : "desc";
 
   return params;
 };
