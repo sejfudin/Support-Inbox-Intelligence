@@ -5,7 +5,10 @@ export const getAllTickets = async ({
   limit,
   search,
   status,
-  priority,
+  priority, 
+  priorities,
+  assigneeIds, 
+  priorityOrder, 
   archived,
   workspaceId,
   sortBy,
@@ -18,6 +21,9 @@ export const getAllTickets = async ({
       search,
       status,
       priority,
+      priorities,
+      assigneeIds,
+      priorityOrder,
       archived,
       workspaceId,
       sortBy,
@@ -38,6 +44,7 @@ export const addMessage = async ({ ticketId, text }) => {
   });
   return response.data;
 };
+
 export const createTicket = async (ticketData) => {
   const response = await apiClient.post("/tickets", ticketData);
   return response.data;
@@ -59,11 +66,23 @@ export const getMyTickets = async ({
   search,
   status,
   priority,
+  priorities,
+  priorityOrder,
   sortBy,
   sortOrder,
 } = {}) => {
   const response = await apiClient.get("/tickets/my-tickets", {
-    params: { page, limit, search, status, priority, sortBy, sortOrder },
+    params: {
+      page,
+      limit,
+      search,
+      status,
+      priority,
+      priorities,
+      priorityOrder,
+      sortBy,
+      sortOrder,
+    },
   });
   return response.data;
 };

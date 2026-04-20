@@ -72,6 +72,12 @@ const ticketSchema = new mongoose.Schema(
       default: "medium",
       required: true,
     },
+    storyPoints: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: null
+    },
     isArchived: {
       type: Boolean,
       default: false,
@@ -113,6 +119,44 @@ const ticketSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    linkedPullRequest: {
+      type: {
+        prNumber: {
+          type: Number,
+          required: true,
+        },
+        prTitle: {
+          type: String,
+          required: true,
+        },
+        branchName: {
+          type: String,
+          required: true,
+        },
+        state: {
+          type: String,
+          enum: ["open", "closed", "merged"],
+          required: true,
+        },
+        isDraft: {
+          type: Boolean,
+          default: false,
+        },
+        author: {
+          login: String,
+          avatarUrl: String,
+        },
+        url: String,
+        createdAt: Date,
+        updatedAt: Date,
+        mergedAt: Date,
+        mergedBy: {
+          login: String,
+          avatarUrl: String,
+        },
+      },
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -124,4 +168,6 @@ ticketSchema.set('toObject', { virtuals: true });
 
 ticketSchema.index({ status: 1, updatedAt: -1 });
 ticketSchema.index({ isArchived: 1, updatedAt: -1 });
+ticketSchema.index({ workspace: 1, taskNumber: 1 });
+ticketSchema.index({ "linkedPullRequest.prNumber": 1, workspace: 1 });
 module.exports = mongoose.model("Ticket", ticketSchema);

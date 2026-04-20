@@ -1,5 +1,7 @@
 const ticketService = require("../services/ticketService");
 
+const STORY_POINTS_ERROR = "Story points must be an integer between 1 and 5";
+
 const getAllTickets = async (req, res) => {
   try {
     const {
@@ -7,26 +9,35 @@ const getAllTickets = async (req, res) => {
       limit,
       search,
       status,
-      priority,
+      priority, 
+      priorities, 
+      assigneeIds, 
+      priorityOrder, 
       archived,
       workspaceId: queryWorkspaceId,
       sortBy,
       sortOrder,
     } = req.query;
+
     const isAdmin = req.user?.role === "admin";
     const workspaceId =
       isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
+
     const result = await ticketService.getAllTickets({
-      page: parseInt(page) || 1,
-      limit: parseInt(limit) || 10,
+      page: parseInt(page, 10) || 1,
+      limit: parseInt(limit, 10) || 10,
       search: search || "",
       status: status || "",
       priority: priority || "",
+      priorities: priorities || "",
+      assigneeIds: assigneeIds || "",
+      priorityOrder: priorityOrder || "none",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
       sortBy: sortBy || "dueDate",
       sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
+
     res.status(200).json({
       success: true,
       data: result.tickets,
@@ -42,6 +53,7 @@ const getAllTickets = async (req, res) => {
     });
   }
 };
+
 
 const getTicketById = async (req, res) => {
   try {
@@ -86,6 +98,7 @@ const createTicket = async (req, res) => {
       workspaceId: bodyWorkspaceId,
       priority,
       dueDate,
+      storyPoints,
     } = req.body;
     const isAdmin = req.user && req.user.role === "admin";
     const hasStatus = status !== undefined && status !== null && status !== "";
@@ -112,6 +125,8 @@ const createTicket = async (req, res) => {
     const workspaceId =
       isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
 
+    const normalizedStoryPoints = normalizeStoryPointsInput(storyPoints);
+
     const newTicket = await ticketService.createTicket({
       subject,
       description,
@@ -121,6 +136,7 @@ const createTicket = async (req, res) => {
       workspaceId,
       priority: priority || "medium",
       dueDate,
+      storyPoints: normalizedStoryPoints,
     });
     res.status(201).json({
       success: true,
@@ -138,11 +154,20 @@ const createTicket = async (req, res) => {
         message: error.message,
       });
     }
+
+    if (error.message === STORY_POINTS_ERROR) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Server Error: Unable to create ticket",
       error: error.message,
     });
+
   }
 };
 
@@ -151,6 +176,10 @@ const updateTicket = async (req, res, next) => {
     const { id } = req.params;
     const updateData = req.body;
 
+    const hasStoryPoints = Object.prototype.hasOwnProperty.call(updateData, "storyPoints");
+
+    const normalizedStoryPoints = hasStoryPoints ? normalizeStoryPointsInput(updateData.storyPoints) : undefined;
+
     const allowedUpdates = [
       "subject",
       "description",
@@ -158,6 +187,7 @@ const updateTicket = async (req, res, next) => {
       "assignedTo",
       "priority",
       "dueDate",
+      "storyPoints",
     ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
@@ -169,6 +199,8 @@ const updateTicket = async (req, res, next) => {
         } else if (key === "dueDate") {
           const v = updateData[key];
           obj[key] = v === null || v === "" ? null : v;
+        } else if (key === "storyPoints") {
+          obj[key] = normalizedStoryPoints;
         } else {
           obj[key] = updateData[key];
         }
@@ -192,6 +224,11 @@ const updateTicket = async (req, res, next) => {
     ) {
       return res.status(400).json({ message: error.message });
     }
+
+    if (error.message === STORY_POINTS_ERROR) {
+      return res.status(400).json({ message: error.message });
+    }
+
     next(error);
   }
 };
@@ -233,18 +270,32 @@ const deleteTicket = async (req, res, next) => {
   }
 };
 
-const getMyTickets = async (req, res) => {
+const getMyTickets = async (req, res, next) => {
   try {
+    const {
+      page,
+      limit,
+      search,
+      status,
+      priority,
+      priorities,
+      priorityOrder,
+      sortBy,
+      sortOrder,
+    } = req.query;
+
     const result = await ticketService.getMyTickets({
       userId: req.user._id,
       workspaceId: req.user.workspaceId,
-      page: parseInt(req.query.page) || 1,
-      limit: parseInt(req.query.limit) || 10,
-      search: req.query.search || "",
-      status: req.query.status || "",
-      priority: req.query.priority || "",
-      sortBy: req.query.sortBy || "dueDate",
-      sortOrder: req.query.sortOrder === "asc" ? "asc" : "desc",
+      page: parseInt(page, 10) || 1,
+      limit: parseInt(limit, 10) || 10,
+      search: search || "",
+      status: status || "",
+      priority: priority || "",
+      priorities: priorities || "",
+      priorityOrder: priorityOrder || "none",
+      sortBy: sortBy || "dueDate",
+      sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
 
     res.status(200).json({
@@ -256,6 +307,17 @@ const getMyTickets = async (req, res) => {
   } catch (error) {
     next(error);
   }
+};
+
+const normalizeStoryPointsInput = (value) => {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+
+  const parsed = Number(value);
+
+  if(!Number.isInteger(parsed) || parsed < 1 || parsed > 5) throw new Error(STORY_POINTS_ERROR);
+
+  return parsed;
 };
 
 module.exports = {

@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import StoryPointsIndicator from "../StoryPointsIndicator";
 
 /**
  * @param {{ sortBy?: string, sortOrder?: string, onDueDateSort?: () => void }} [options]
@@ -66,8 +67,8 @@ export function createTicketColumns({
       accessorKey: "title",
       header: "SUBJECT",
       meta: {
-        headerClassName: "w-[44%]",
-        cellClassName: "w-[44%]",
+        headerClassName: "w-[36%]",
+        cellClassName: "w-[36%]",
       },
       cell: ({ row }) => {
         return (
@@ -92,8 +93,8 @@ export function createTicketColumns({
       accessorKey: "status",
       header: "STATUS",
       meta: {
-        headerClassName: "w-[11%]",
-        cellClassName: "w-[11%] whitespace-nowrap",
+        headerClassName: "w-[10%]",
+        cellClassName: "w-[10%] whitespace-nowrap",
       },
       cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
     },
@@ -101,8 +102,8 @@ export function createTicketColumns({
       accessorKey: "priority",
       header: "PRIORITY",
       meta: {
-        headerClassName: "w-[11%]",
-        cellClassName: "w-[11%] whitespace-nowrap",
+        headerClassName: "w-[10%]",
+        cellClassName: "w-[10%] whitespace-nowrap",
       },
       cell: ({ row }) => <PriorityIndicator priority={row.original.priority} />,
     },
@@ -110,8 +111,8 @@ export function createTicketColumns({
       accessorKey: "dueDate",
       header: dueDateHeader,
       meta: {
-        headerClassName: "w-[12%]",
-        cellClassName: "w-[12%] whitespace-nowrap",
+        headerClassName: "w-[11%]",
+        cellClassName: "w-[11%] whitespace-nowrap",
       },
       cell: ({ row }) => {
         const due = row.original.dueDate;
@@ -124,7 +125,7 @@ export function createTicketColumns({
 
         return (
           <div className="flex flex-col gap-1">
-       <span
+            <span
               className={cn(
                 "text-xs",
                 overdue
@@ -147,12 +148,21 @@ export function createTicketColumns({
       },
     },
     {
+      accessorKey: "storyPoints",
+      header: "SP",
+      meta: {
+        headerClassName: "w-[7%]",
+        cellClassName: "w-[7%] whitespace-nowrap",
+      },
+      cell: ({ row }) => <StoryPointsIndicator value={row.original.storyPoints} />,
+    },
+    {
       accessorKey: "totalTimeSpent",
       header: "TIME SPENT",
       meta: {
-        headerClassName: "w-[10%]",
+        headerClassName: "w-[9%]",
         cellClassName:
-          "w-[10%] whitespace-nowrap font-medium text-gray-500 text-xs",
+          "w-[9%] whitespace-nowrap font-medium text-gray-500 text-xs",
       },
       cell: ({ row }) => {
         let seconds = row.original.totalTimeSpent || 0;
@@ -182,8 +192,8 @@ export function createTicketColumns({
       accessorKey: "assignedTo",
       header: "ASSIGNED TO",
       meta: {
-        headerClassName: "w-[11%]",
-        cellClassName: "w-[11%] whitespace-nowrap",
+        headerClassName: "w-[12%]",
+        cellClassName: "w-[12%] whitespace-nowrap",
       },
       cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
     },
