@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useDebounce } from "use-debounce";
 import { useTickets } from "@/queries/tickets";
 import { normalizeTicket } from "@/helpers/normalizeTicket";
@@ -13,19 +13,7 @@ export function useTicketList({
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [debounceSearch] = useDebounce(search, 500);
-  const [listSort, setListSort] = useState({
-    sortBy: "dueDate",
-    sortOrder: "desc",
-  });
   const limit = 10;
-
-  const toggleDueDateSort = useCallback(() => {
-    setPage(1);
-    setListSort((prev) => ({
-      sortBy: "dueDate",
-      sortOrder: prev.sortOrder === "desc" ? "asc" : "desc",
-    }));
-  }, []);
 
   const queryParams = getTicketsQueryParams({
     page,
@@ -33,8 +21,6 @@ export function useTicketList({
     activeTab,
     listLimit: limit,
     queryFilters,
-    sortBy: listSort.sortBy,
-    sortOrder: listSort.sortOrder,
     ...additionalFilters,
   });
 
@@ -55,8 +41,5 @@ export function useTicketList({
     setSearch,
     page,
     setPage,
-    sortBy: listSort.sortBy,
-    sortOrder: listSort.sortOrder,
-    toggleDueDateSort,
   };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { SectionCards } from "@/components/section-cards";
@@ -21,20 +21,8 @@ export default function UserDashboard() {
   const [search, setSearch] = useState("");
   const isMobile = useIsMobile();
   const [debouncedSearch] = useDebounce(search, 500);
-  const [listSort, setListSort] = useState({
-    sortBy: "dueDate",
-    sortOrder: "desc",
-  });
   const queryClient = useQueryClient();
   const updateTicketMutation = useUpdateTicket();
-
-  const toggleDueDateSort = useCallback(() => {
-    setPage(1);
-    setListSort((prev) => ({
-      sortBy: "dueDate",
-      sortOrder: prev.sortOrder === "desc" ? "asc" : "desc",
-    }));
-  }, []);
 
   const {
     selectedTicketId,
@@ -47,19 +35,11 @@ export default function UserDashboard() {
     page,
     limit: 10,
     search: debouncedSearch,
-    sortBy: listSort.sortBy,
-    sortOrder: listSort.sortOrder,
+    sortBy: "dueDate",
+    sortOrder: "desc",
   });
 
-  const columns = useMemo(
-    () =>
-      createTicketColumns({
-        sortBy: listSort.sortBy,
-        sortOrder: listSort.sortOrder,
-        onDueDateSort: toggleDueDateSort,
-      }),
-    [listSort.sortBy, listSort.sortOrder, toggleDueDateSort],
-  );
+  const columns = useMemo(() => createTicketColumns(), []);
 
   const normalizedTickets = useMemo(() => {
     return (ticketsData?.data || []).map((ticket) => normalizeTicket(ticket));

@@ -152,6 +152,7 @@ export default function TicketPage() {
     togglePriority,
     toggleAssignee,
     changePriorityOrder,
+    changeDueDateOrder,
     clearAllFilters,
     removeFilterChip,
   } = useTicketFiltersControls({ assigneeOptions });
@@ -167,19 +168,7 @@ export default function TicketPage() {
     },
   });
 
-  const listColumns = useMemo(
-    () =>
-      createTicketColumns({
-        sortBy: listData.sortBy,
-        sortOrder: listData.sortOrder,
-        onDueDateSort: listData.toggleDueDateSort,
-      }),
-    [
-      listData.sortBy,
-      listData.sortOrder,
-      listData.toggleDueDateSort,
-    ],
-  );
+  const listColumns = useMemo(() => createTicketColumns(), []);
 
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
@@ -223,6 +212,7 @@ export default function TicketPage() {
   const handlePriorityFilterChange = runWithListReset(togglePriority);
   const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
   const handlePriorityOrderChange = runWithListReset(changePriorityOrder);
+  const handleDueDateOrderChange = runWithListReset(changeDueDateOrder);
   const handleClearAllFilters = runWithListReset(clearAllFilters);
   const handleRemoveFilterChip = runWithListReset(removeFilterChip);
 
@@ -308,6 +298,8 @@ export default function TicketPage() {
     assigneeOptions,
     priorityOrder: controls.priorityOrder,
     onPriorityOrderChange: handlePriorityOrderChange,
+    dueDateOrder: controls.dueDateOrder,
+    onDueDateOrderChange: handleDueDateOrderChange,
     activeFilterChips,
     onRemoveFilterChip: handleRemoveFilterChip,
     onClearAllFilters: handleClearAllFilters,

@@ -8,48 +8,9 @@ import {
 } from "../../helpers/ticketDueDate";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ArrowDown, ArrowUp } from "lucide-react";
 import StoryPointsIndicator from "../StoryPointsIndicator";
 
-/**
- * @param {{ sortBy?: string, sortOrder?: string, onDueDateSort?: () => void }} [options]
- */
-export function createTicketColumns({
-  sortBy = "dueDate",
-  sortOrder = "desc",
-  onDueDateSort,
-} = {}) {
-  const dueDateHeader =
-    typeof onDueDateSort === "function" ? (
-      <button
-        type="button"
-        className="inline-flex items-center gap-1.5 font-semibold tracking-[0.18em] text-muted-foreground hover:text-foreground"
-        title={
-          sortOrder === "desc"
-            ? "Sorted by due date: latest first — click for earliest first"
-            : "Sorted by due date: earliest first — click for latest first"
-        }
-        aria-label={
-          sortOrder === "desc"
-            ? "Due date column, latest first. Click to sort earliest first."
-            : "Due date column, earliest first. Click to sort latest first."
-        }
-        onClick={(e) => {
-          e.stopPropagation();
-          onDueDateSort();
-        }}
-      >
-        DUE DATE
-        {sortOrder === "asc" ? (
-          <ArrowUp className="h-3.5 w-3.5 shrink-0 text-foreground" aria-hidden />
-        ) : (
-          <ArrowDown className="h-3.5 w-3.5 shrink-0 text-foreground" aria-hidden />
-        )}
-      </button>
-    ) : (
-      "DUE DATE"
-    );
-
+export function createTicketColumns() {
   return [
     {
       accessorKey: "taskNumber",
@@ -109,7 +70,7 @@ export function createTicketColumns({
     },
     {
       accessorKey: "dueDate",
-      header: dueDateHeader,
+      header: "DUE DATE",
       meta: {
         headerClassName: "w-[11%]",
         cellClassName: "w-[11%] whitespace-nowrap",

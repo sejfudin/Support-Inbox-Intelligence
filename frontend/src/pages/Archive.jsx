@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { useTicketList } from "@/hooks/useTicketList";
 import { DataTable } from "@/components/Tickets/TicketsTable";
@@ -21,20 +21,9 @@ export default function ArchivePage() {
     search,
     setSearch,
     setPage,
-    sortBy,
-    sortOrder,
-    toggleDueDateSort,
   } = useTicketList({ activeTab, additionalFilters: { archived: true } });
 
-  const columns = useMemo(
-    () =>
-      createTicketColumns({
-        sortBy,
-        sortOrder,
-        onDueDateSort: toggleDueDateSort,
-      }),
-    [sortBy, sortOrder, toggleDueDateSort],
-  );
+  const columns = createTicketColumns();
 
   const {
     selectedTicketId,

@@ -8,18 +8,22 @@ export const getTicketsQueryParams = ({
   queryFilters = {},
   listLimit = 10,
   boardLimit = 10000,
-  sortBy = "dueDate",
-  sortOrder = "desc",
 }) => {
   const listStatus =
     status !== undefined ? status : activeTab === "all" ? "" : activeTab;
   const normalizedStatus = listStatus === null ? "null" : listStatus;
 
+  const filterParams = { ...queryFilters };
+  const sortBy = filterParams.sortBy ?? "dueDate";
+  const sortOrder = filterParams.sortOrder === "asc" ? "asc" : "desc";
+  delete filterParams.sortBy;
+  delete filterParams.sortOrder;
+
   const sharedParams = {
     search,
     archived,
     workspaceId,
-    ...queryFilters,
+    ...filterParams,
   };
 
   return {
