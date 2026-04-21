@@ -1,4 +1,5 @@
 const ticketService = require("../services/ticketService");
+const { DUE_DATE_IN_PAST_ERROR } = ticketService;
 
 const STORY_POINTS_ERROR = "Story points must be an integer between 1 and 5";
 
@@ -162,6 +163,13 @@ const createTicket = async (req, res) => {
       });
     }
 
+    if (error.message === DUE_DATE_IN_PAST_ERROR) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: "Server Error: Unable to create ticket",
@@ -226,6 +234,10 @@ const updateTicket = async (req, res, next) => {
     }
 
     if (error.message === STORY_POINTS_ERROR) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (error.message === DUE_DATE_IN_PAST_ERROR) {
       return res.status(400).json({ message: error.message });
     }
 

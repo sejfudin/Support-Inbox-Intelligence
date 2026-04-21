@@ -19,6 +19,10 @@ import { STATUS_OPTIONS } from "@/helpers/ticketStatus";
 import { PRIORITY_OPTIONS } from "@/helpers/ticketPriority";
 import { useTicketForm } from "@/hooks/useTicketForm";
 import { toast } from "sonner";
+import {
+  minDueDateInputValue,
+  isDueDateInputInPast,
+} from "@/helpers/ticketDueDate";
 
 import { ChevronsUpDown } from "lucide-react";
 import {
@@ -50,6 +54,13 @@ const NewTickets = ({
 
   const handleCreate = (e) => {
     e.preventDefault();
+
+    if (newTicket.dueDate && isDueDateInputInPast(newTicket.dueDate)) {
+      toast.error("Invalid due date", {
+        description: "Due date cannot be in the past.",
+      });
+      return;
+    }
 
     const ticketData = {
       ...newTicket,
@@ -212,6 +223,7 @@ const NewTickets = ({
                   </Label>
                   <Input
                     type="date"
+                    min={minDueDateInputValue()}
                     value={newTicket.dueDate}
                     onChange={(e) => updateField("dueDate", e.target.value)}
                     className="h-12 text-base max-w-xs"

@@ -30,7 +30,11 @@ import { Avatar } from "../Avatar";
 import { toast } from "sonner";
 import TimeSpent from "@/components/TimeSpent";
 import TicketComments from "../Tickets/TicketComments";
-import { dueDateToInputValue } from "@/helpers/ticketDueDate";
+import {
+  dueDateToInputValue,
+  minDueDateInputValue,
+  isDueDateInputInPast,
+} from "@/helpers/ticketDueDate";
 import StoryPointsField from "../StoryPointsField";
 import { normalizeStoryPoints } from "@/helpers/storyPoints";
 
@@ -167,6 +171,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const handleSave = () => {
     if (!hasChanges || !ticketId) return;
+
+    if (dueDateInput && isDueDateInputInPast(dueDateInput)) {
+      toast.error("Invalid due date", {
+        description: "Due date cannot be in the past.",
+      });
+      return;
+    }
 
     updateTicketMutation.mutate(
       {
@@ -474,6 +485,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               </div>
               <input
                 type="date"
+                min={minDueDateInputValue()}
                 value={dueDateInput}
                 disabled={isArchived}
                 onChange={(e) => setDueDateInput(e.target.value)}

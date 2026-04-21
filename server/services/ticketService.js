@@ -52,6 +52,20 @@ const parseOptionalDueDate = (value) => {
   return d;
 };
 
+const DUE_DATE_IN_PAST_ERROR = "Due date cannot be in the past";
+
+const utcStartOfCalendarDay = (d) =>
+  Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+const assertDueDateNotInPast = (d) => {
+  if (!d || Number.isNaN(d.getTime())) return;
+  const dueDay = utcStartOfCalendarDay(d);
+  const today = utcStartOfCalendarDay(new Date());
+  if (dueDay < today) {
+    throw new Error(DUE_DATE_IN_PAST_ERROR);
+  }
+};
+
 const ALLOWED_TICKET_SORT_FIELDS = new Set(["updatedAt", "dueDate"]);
 
 const buildTicketListSort = (sortBy = "dueDate", sortOrder = "desc") => {
@@ -294,6 +308,9 @@ const createTicket = async (ticketData) => {
   const status = ticketData.status === undefined ? "to do" : ticketData.status;
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
+  if (dueDate !== undefined) {
+    assertDueDateNotInPast(dueDate);
+  }
 
   const ticket = new Ticket({
     subject: ticketData.subject,
@@ -338,6 +355,7 @@ const updateTicket = async (ticketId, updateData) => {
         if (parsed === undefined) {
           delete updateData.dueDate;
         } else {
+          assertDueDateNotInPast(parsed);
           updateData.dueDate = parsed;
         }
       }
@@ -603,4 +621,5 @@ module.exports = {
   archiveTicket,
   getMyTickets,
   INVALID_ASSIGNEE_ERROR,
+  DUE_DATE_IN_PAST_ERROR,
 };
