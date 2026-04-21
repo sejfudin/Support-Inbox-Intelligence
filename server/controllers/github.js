@@ -467,8 +467,11 @@ const refreshPR = async (req, res) => {
 const unlinkPR = async (req, res) => {
   try {
     const { ticketId } = req.params;
+    const userId = req.user._id.toString();
+    const userRole = req.user.role;
 
     const ticket = await Ticket.findById(ticketId);
+
     if (!ticket) {
       return res.status(404).json({
         success: false,
@@ -480,6 +483,19 @@ const unlinkPR = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Ticket has no linked PR",
+      });
+    }
+
+    const isAdmin = userRole === "admin";
+    const isCreator = ticket.creator?.toString() === userId;
+    const isAssigned = ticket.assignedTo?.some(
+      (id) => id.toString() === userId
+    );
+
+    if (!isAdmin && !isCreator && !isAssigned) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to unlink this PR",
       });
     }
 
