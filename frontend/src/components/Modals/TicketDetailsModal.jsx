@@ -46,6 +46,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isActionPending, setIsActionPending] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
+  const [unlinkError, setUnlinkError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
   const [currentPriority, setCurrentPriority] = useState("medium");
   const [currentStoryPoints, setCurrentStoryPoints] = useState(null);
@@ -245,15 +247,19 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   };
 
   const handleUnlinkPR = () => {
-    if (!ticket?.linkedPullRequest) return;
+    setIsUnlinkModalOpen(true);
+    setUnlinkError(null);
+  };
+
+  const handleConfirmUnlink = () => {
+    setUnlinkError(null);
     unlinkPR(ticketId, {
       onSuccess: () => {
+        setIsUnlinkModalOpen(false);
         toast.success("PR unlinked successfully");
       },
       onError: (error) => {
-        toast.error("Failed to unlink PR", {
-          description: error?.response?.data?.message || "Please try again",
-        });
+        setUnlinkError(error?.response?.data?.message || "Failed to unlink PR");
       },
     });
   };
@@ -460,6 +466,18 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             description="Archive this ticket? This action cannot be undone."
             confirmLabel="Archive"
             loadingLabel="Archiving..."
+          />
+
+          <DeleteConfirmModal
+            isOpen={isUnlinkModalOpen}
+            onClose={() => setIsUnlinkModalOpen(false)}
+            onConfirm={handleConfirmUnlink}
+            isLoading={isUnlinkingPR}
+            errorMessage={unlinkError}
+            title="Unlink Pull Request"
+            description={`Unlink PR #${ticket?.linkedPullRequest?.prNumber || ""} from this ticket? This will remove the PR association but won't affect the PR itself.`}
+            confirmLabel="Unlink"
+            loadingLabel="Unlinking..."
           />
 
           <div className="group relative mb-10 flex flex-col gap-3">
