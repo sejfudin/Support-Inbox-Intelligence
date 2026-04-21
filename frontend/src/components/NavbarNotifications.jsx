@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
-import { Bell, Check, ExternalLink, Loader2 } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,15 +8,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from "@/queries/notifications";
-
-const isMongoId = (value) =>
-  typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
+import { NotificationRow } from "@/components/NotificationRow";
+import { isMongoId } from "@/helpers/notificationUtils";
 
 export default function NavbarNotifications() {
   const [open, setOpen] = useState(false);
@@ -97,73 +94,15 @@ export default function NavbarNotifications() {
             </p>
           ) : (
             <ul className="divide-y">
-              {items.map((n) => {
-                const ticketId =
-                  typeof n.ticket === "string" ? n.ticket : n.ticket?._id || n.ticket;
-                const created = n.createdAt ? new Date(n.createdAt) : null;
-                const timeLabel =
-                  created && !Number.isNaN(created.getTime())
-                    ? formatDistanceToNow(created, { addSuffix: true })
-                    : "";
-
-                return (
-                  <li
-                    key={n._id}
-                    className={cn(
-                      "px-3 py-2.5 transition-colors",
-                      !n.read ? "bg-primary/5" : "bg-transparent",
-                    )}
-                  >
-                    <div className="flex flex-col gap-1">
-                      <p className="text-sm font-medium leading-snug text-foreground">
-                        {n.title}
-                      </p>
-                      {n.body ? (
-                        <p className="line-clamp-2 text-xs text-muted-foreground">{n.body}</p>
-                      ) : null}
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        {timeLabel ? (
-                          <span className="text-[10px] text-muted-foreground">{timeLabel}</span>
-                        ) : null}
-                        <div className="ml-auto flex flex-wrap items-center gap-1">
-                          {!n.read ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-7 gap-1 px-2 text-xs"
-                              disabled={markRead.isPending}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                markRead.mutate(n._id);
-                              }}
-                            >
-                              <Check className="h-3 w-3" />
-                              Read
-                            </Button>
-                          ) : null}
-                          {isMongoId(String(ticketId)) ? (
-                            <Button
-                              type="button"
-                              variant="default"
-                              size="sm"
-                              className="h-7 gap-1 px-2 text-xs"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                goToTicket(String(ticketId));
-                              }}
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              Open task
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
+              {items.map((n) => (
+                <NotificationRow
+                  key={n._id}
+                  notification={n}
+                  markReadPending={markRead.isPending}
+                  onMarkRead={(id) => markRead.mutate(id)}
+                  onOpenTicket={goToTicket}
+                />
+              ))}
             </ul>
           )}
         </ScrollArea>
