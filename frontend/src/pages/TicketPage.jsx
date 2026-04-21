@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/Tickets/TicketsTable";
 import { useTickets } from "@/queries/tickets";
-import { columns } from "@/components/columns/ticketColumns";
+import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { useDebounce } from "use-debounce";
 import BoardPage from "@/components/BoardPage";
 import NewTickets from "@/components/Tickets/NewTickets";
@@ -21,6 +21,7 @@ import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateTicket } from "@/queries/tickets";
+import { getAllTickets as getAllTicketsApi } from "@/api/tickets";
 import { useUsers } from "@/queries/users";
 import {
   PRIORITY_FILTER_OPTIONS,
@@ -29,6 +30,10 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import TicketFiltersPanel from "@/components/Tickets/TicketsFiltersPanel";
 import { useTicketFiltersControls } from "@/hooks/useTicketFiltersControls";
+import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 function isEditableTarget(target) {
   if (!target || !(target instanceof Element)) return false;
@@ -152,6 +157,7 @@ export default function TicketPage() {
     togglePriority,
     toggleAssignee,
     changePriorityOrder,
+    changeDueDateOrder,
     clearAllFilters,
     removeFilterChip,
   } = useTicketFiltersControls({ assigneeOptions });
@@ -167,8 +173,11 @@ export default function TicketPage() {
     },
   });
 
+  const listColumns = useMemo(() => createTicketColumns(), []);
+
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (hasHydratedFromParamsRef.current) return;
@@ -209,6 +218,7 @@ export default function TicketPage() {
   const handlePriorityFilterChange = runWithListReset(togglePriority);
   const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
   const handlePriorityOrderChange = runWithListReset(changePriorityOrder);
+  const handleDueDateOrderChange = runWithListReset(changeDueDateOrder);
   const handleClearAllFilters = runWithListReset(clearAllFilters);
   const handleRemoveFilterChip = runWithListReset(removeFilterChip);
 
@@ -294,12 +304,85 @@ export default function TicketPage() {
     assigneeOptions,
     priorityOrder: controls.priorityOrder,
     onPriorityOrderChange: handlePriorityOrderChange,
+    dueDateOrder: controls.dueDateOrder,
+    onDueDateOrderChange: handleDueDateOrderChange,
     activeFilterChips,
     onRemoveFilterChip: handleRemoveFilterChip,
     onClearAllFilters: handleClearAllFilters,
   };
 
   const currentSearch = search;
+
+  const toCsvRows = (tickets) => {
+    const header = [
+      "title",
+      "description",
+      "status",
+      "assignee",
+      "createdAt",
+      "updatedAt",
+      "dueDate",
+    ];
+    const rows = tickets.map((ticket) => {
+      const raw = ticket.raw || ticket;
+      const subject = raw.subject || ticket.title || "";
+      const description = raw.description || ticket.description || "";
+      const status = raw.status || ticket.status || "";
+      const assignee = (raw.assignedTo || [])
+        .map((person) => person?.fullname || person?.fullName || person?.email || "")
+        .filter(Boolean)
+        .join("; ") || "Unassigned";
+      const createdAt = formatCsvDate(raw.createdAt);
+      const updatedAt = formatCsvDate(raw.updatedAt);
+      const dueDate = raw.dueDate || raw.due || "";
+      return [subject, description, status, assignee, createdAt, updatedAt, dueDate];
+    });
+    return buildCsv(header, rows);
+  };
+
+  const downloadCsv = (csvString) => {
+    const stamp = new Date().toISOString().slice(0, 10);
+    const tabSlug = activeTab === "all" ? "all" : encodeTabParam(activeTab);
+    downloadCsvFile(`tickets-${tabSlug}-${stamp}.csv`, csvString);
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      setIsExporting(true);
+
+      let ticketsForExport = visibleTickets;
+      if (!isBoard) {
+        const exportParams = getTicketsQueryParams({
+          page: 1,
+          search: currentSearch,
+          activeTab,
+          archived: false,
+          status: listStatusFilter,
+          workspaceId: overrideWorkspaceId,
+          queryFilters,
+          listLimit: Math.max(listData.pagination?.total || 0, 1),
+        }).list;
+        const response = await getAllTicketsApi(exportParams);
+        ticketsForExport = (response?.data || []).map((ticket) =>
+          normalizeTicket(ticket),
+        );
+      }
+
+      if (!ticketsForExport.length) {
+        toast.info("No tickets to export for current filters.");
+        return;
+      }
+
+      const csv = toCsvRows(ticketsForExport);
+      downloadCsv(csv);
+      toast.success("Tickets exported to CSV.");
+    } catch (error) {
+      console.error("CSV export failed", error);
+      toast.error("Failed to export tickets. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <PageShell>
@@ -337,7 +420,21 @@ export default function TicketPage() {
         searchInputRef={searchInputRef}
         hideViewMode={isMobile}
         afterNewTicketSlot={
-          <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start"/>
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+            <TicketFiltersPanel
+              {...ticketFiltersPanelProps}
+              className="md:items-start"
+            />
+            <Button
+              variant="outline"
+              className="w-full md:w-auto"
+              onClick={handleExportCsv}
+              disabled={isExporting}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {isExporting ? "Exporting..." : "Export CSV"}
+            </Button>
+          </div>
         }
       />
 
@@ -373,7 +470,7 @@ export default function TicketPage() {
               loadingSlot={<TableSkeleton />}
             >
               <DataTable
-                columns={columns}
+                columns={listColumns}
                 data={visibleTickets}
                 pagination={pagination}
                 onPageChange={(newPage) => listData.setPage(newPage)}

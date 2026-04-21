@@ -11,6 +11,7 @@ import {
   ArchiveRestore,
   UserPen,
   Ticket,
+  Download,
   GitPullRequest,
 } from "lucide-react";
 import { useTicket, useUpdateTicket } from "@/queries/tickets";
@@ -31,8 +32,10 @@ import { Avatar } from "../Avatar";
 import { toast } from "sonner";
 import TimeSpent from "@/components/TimeSpent";
 import TicketComments from "../Tickets/TicketComments";
+import { dueDateToInputValue } from "@/helpers/ticketDueDate";
 import StoryPointsField from "../StoryPointsField";
 import { normalizeStoryPoints } from "@/helpers/storyPoints";
+import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
 import { PRCard } from "@/components/PRCard";
 import { useRefreshPR, useUnlinkPR } from "@/queries/github";
 
@@ -46,7 +49,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [currentStatus, setCurrentStatus] = useState("To Do");
   const [currentPriority, setCurrentPriority] = useState("medium");
   const [currentStoryPoints, setCurrentStoryPoints] = useState(null);
-  const [selectedAgents, setSelectedAgents] = useState([]); 
+  const [selectedAgents, setSelectedAgents] = useState([]);
+  const [dueDateInput, setDueDateInput] = useState("");
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
@@ -72,8 +76,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     setCurrentStoryPoints(normalizeStoryPoints(ticket.storyPoints));
 
     const existingAgentIds = ticket.assignedTo?.map(a => a._id || a) || [];
-      setSelectedAgents(existingAgentIds);    
-  }, 
+    setSelectedAgents(existingAgentIds);
+    setDueDateInput(dueDateToInputValue(ticket.dueDate));
+  },
   [isOpen, ticket]);
 
   const selectedUsersObjects = useMemo(() => {
@@ -94,13 +99,15 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       ticket.assignedTo?.map((a) => a._id || a) || []
     ).sort();
     const currentAgents = [...selectedAgents].sort();
+    const initialDue = dueDateToInputValue(ticket.dueDate);
     return (
       title !== initialTitle ||
       description !== initialDescription ||
       currentStatus !== initialStatus ||
       currentPriority !== initialPriority ||
       currentStoryPoints !== initialStoryPoints ||
-      JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)   
+      dueDateInput !== initialDue ||
+      JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)
     );
   }, [
     ticket,
@@ -110,6 +117,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     currentStoryPoints,
     selectedAgents,
     title,
+    dueDateInput,
   ]);
 
   useEffect(() => {
@@ -137,6 +145,86 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const handleArchiveToggle = () => {
     setIsActionModalOpen(true);
+  };
+
+  const handleExportSingleCsv = () => {
+    if (!ticket) return;
+
+    try {
+      const numericId =
+        ticket.taskNumber ??
+        ticket.ticketNumber ??
+        null;
+      const rawId =
+        ticket.id ||
+        ticket._id ||
+        ticket.ticketId ||
+        "";
+      const id = numericId != null ? numericId : rawId || "ticket";
+      const titleValue = title || ticket.subject || ticket.title || "Untitled";
+      const shortSubject = String(titleValue)
+        .slice(0, 40)
+        .trim()
+        .replace(/\s+/g, "-");
+
+      const assignee = (ticket.assignedTo || [])
+        .map(
+          (p) => p?.fullname || p?.fullName || p?.email || "",
+        )
+        .filter(Boolean)
+        .join("; ") || "Unassigned";
+
+      const workspaceName =
+        ticket.workspace?.name ||
+        ticket.workspaceName ||
+        (typeof ticket.workspace === "string"
+          ? ticket.workspace
+          : ticket.workspace?._id || "");
+
+      const commentsCount =
+        (ticket.comments?.length ??
+          ticket.messages?.length ??
+          ticket.activity?.length) ?? "";
+
+      const header = [
+        "id",
+        "title",
+        "description",
+        "status",
+        "priority",
+        "assignee",
+        "workspace",
+        "commentsCount",
+        "createdAt",
+        "updatedAt",
+        "dueDate",
+      ];
+
+      const row = [
+        id,
+        titleValue,
+        description || ticket.description || "",
+        ticket.status || "",
+        ticket.priority || "",
+        assignee,
+        workspaceName,
+        commentsCount,
+        formatCsvDate(ticket.createdAt),
+        formatCsvDate(ticket.updatedAt),
+        ticket.dueDate || "",
+      ];
+
+      const idPart = numericId != null ? `T${numericId}` : "";
+      const baseName = idPart
+        ? `ticket-${idPart}-${shortSubject || "export"}`
+        : `ticket-${shortSubject || "export"}`;
+      const csv = buildCsv(header, [row]);
+      downloadCsvFile(`${baseName}.csv`, csv);
+      toast.success("Ticket exported to CSV.");
+    } catch (err) {
+      console.error("Failed to export ticket CSV", err);
+      toast.error("Failed to export ticket. Please try again.");
+    }
   };
 
   const handleRefreshPR = () => {
@@ -207,7 +295,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           priority: currentPriority,
           storyPoints: currentStoryPoints,
           description,
-          assignedTo: selectedAgents, 
+          assignedTo: selectedAgents,
+          dueDate: dueDateInput
+            ? new Date(`${dueDateInput}T12:00:00`).toISOString()
+            : null,
         },
       },
      {
@@ -318,6 +409,15 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           </div>
 
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+            <button
+              type="button"
+              onClick={handleExportSingleCsv}
+              disabled={!ticket}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 sm:w-auto"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
             {!isArchived && (
               <button
                 type="button"
@@ -391,7 +491,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="mb-8 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-6 xl:pb-10">
+          <div className="mb-8 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-7 xl:pb-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
@@ -495,11 +595,26 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               </div>
             </div>
 
-                <StoryPointsField
-                  value={currentStoryPoints}
-                  onChange={setCurrentStoryPoints}
-                  disabled={isArchived}
-                />
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                <Calendar className="w-4 h-4" /> Due date
+              </div>
+              <input
+                type="date"
+                value={dueDateInput}
+                disabled={isArchived}
+                onChange={(e) => setDueDateInput(e.target.value)}
+                className={`h-10 w-full max-w-[11rem] rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 shadow-sm outline-none transition focus:border-blue-200 focus:ring-2 focus:ring-blue-50 ${
+                  isArchived ? "cursor-not-allowed opacity-70" : ""
+                }`}
+              />
+            </div>
+
+            <StoryPointsField
+              value={currentStoryPoints}
+              onChange={setCurrentStoryPoints}
+              disabled={isArchived}
+            />
 
             <TimeSpent ticket={ticket} />
 

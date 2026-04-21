@@ -8,6 +8,7 @@ export const useTicketForm = (initialStatus = "to do") => {
       status: initialStatus,
       priority: "medium",
       assignedTo: "unassigned",
+      dueDate: "",
     }),
     [initialStatus],
   );

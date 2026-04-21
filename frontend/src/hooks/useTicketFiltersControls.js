@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import {
   ASSIGNEE_FILTER_VALUES,
   DEFAULT_TICKET_CONTROLS,
+  DUE_DATE_ORDER_OPTIONS,
+  DUE_DATE_ORDER_VALUES,
   PRIORITY_FILTER_OPTIONS,
   PRIORITY_FILTER_VALUES,
   PRIORITY_ORDER_OPTIONS,
@@ -62,6 +64,17 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       });
     }
 
+    if (controls.dueDateOrder !== DUE_DATE_ORDER_VALUES.DEFAULT) {
+      const selectedDue = DUE_DATE_ORDER_OPTIONS.find(
+        (option) => option.value === controls.dueDateOrder,
+      );
+      chips.push({
+        key: "dueDateOrder",
+        label: `Due date: ${selectedDue?.label || controls.dueDateOrder}`,
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+      });
+    }
+
     return chips;
   }, [controls, assigneeOptions]);
 
@@ -110,6 +123,13 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     }));
   };
 
+  const changeDueDateOrder = (value) => {
+    setControls((prev) => ({
+      ...prev,
+      dueDateOrder: value || DUE_DATE_ORDER_VALUES.DEFAULT,
+    }));
+  };
+
   const clearAllFilters = () => {
     setControls({ ...DEFAULT_TICKET_CONTROLS });
   };
@@ -138,6 +158,14 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
         ...prev,
         priorityOrder: PRIORITY_ORDER_VALUES.NONE,
       }));
+      return;
+    }
+
+    if (chipKey === "dueDateOrder") {
+      setControls((prev) => ({
+        ...prev,
+        dueDateOrder: DUE_DATE_ORDER_VALUES.DEFAULT,
+      }));
     }
   };
 
@@ -148,6 +176,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     togglePriority,
     toggleAssignee,
     changePriorityOrder,
+    changeDueDateOrder,
     clearAllFilters,
     removeFilterChip,
   };
