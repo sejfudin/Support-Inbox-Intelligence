@@ -39,7 +39,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
             href={pr.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+            className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors overflow-hidden"
           >
             <span className="text-gray-500">#{pr.prNumber}</span>
             <span className="truncate">{pr.prTitle}</span>
