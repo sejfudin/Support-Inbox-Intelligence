@@ -26,3 +26,15 @@ export const getRepositories = async (workspaceId) => {
   const response = await apiClient.get(`/github/workspaces/${workspaceId}/repositories`);
   return response.data;
 };
+
+export const refreshPR = async (ticketId, workspaceId) => {
+  const response = await apiClient.post(`/github/tickets/${ticketId}/refresh-pr`, {}, {
+    params: { workspaceId },
+  });
+  return response.data;
+};
+
+export const unlinkPR = async (ticketId) => {
+  const response = await apiClient.delete(`/github/tickets/${ticketId}/unlink-pr`);
+  return response.data;
+};

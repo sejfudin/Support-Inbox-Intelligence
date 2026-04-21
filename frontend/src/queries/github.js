@@ -5,6 +5,8 @@ import {
   updateIntegration,
   disconnectIntegration,
   getRepositories,
+  refreshPR,
+  unlinkPR,
 } from "@/api/github";
 
 export const useIntegration = (workspaceId) => {
@@ -47,6 +49,28 @@ export const useDisconnectIntegration = () => {
     mutationFn: disconnectIntegration,
     onSuccess: (_, workspaceId) => {
       queryClient.invalidateQueries({ queryKey: ["integration", workspaceId] });
+    },
+  });
+};
+
+export const useRefreshPR = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ticketId, workspaceId }) => refreshPR(ticketId, workspaceId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["ticket", variables.ticketId] });
+    },
+  });
+};
+
+export const useUnlinkPR = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: unlinkPR,
+    onSuccess: (_, ticketId) => {
+      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
     },
   });
 };

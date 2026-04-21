@@ -2,9 +2,11 @@ const jwt = require("jsonwebtoken");
 const nodeCrypto = require("crypto");
 const Integration = require("../models/Integration");
 const { encrypt } = require("../helpers/crypto");
+const Ticket = require("../models/Ticket");
 const {
   getInstallationRepositories,
   getInstallation,
+  refreshPullRequest,
 } = require("../services/githubService");
 const {
   linkPullRequestToTicket,
@@ -403,6 +405,100 @@ const handleWebhook = async (req, res) => {
   res.status(200).json({ received: true });
 };
 
+/**
+ * Refreshes PR data for a ticket by fetching latest info from GitHub.
+ */
+const refreshPR = async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { workspaceId } = req.query;
+
+    const ticket = await Ticket.findById(ticketId);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found",
+      });
+    }
+
+    if (!ticket.linkedPullRequest) {
+      return res.status(400).json({
+        success: false,
+        message: "Ticket has no linked PR",
+      });
+    }
+
+    const integration = await Integration.findOne({ workspace: workspaceId || ticket.workspace });
+    if (!integration?.isConnected) {
+      return res.status(404).json({
+        success: false,
+        message: "GitHub integration not found or not connected",
+      });
+    }
+
+    const updatedPR = await refreshPullRequest(integration, ticket);
+
+    if (!updatedPR) {
+      return res.status(404).json({
+        success: false,
+        message: "PR not found on GitHub",
+      });
+    }
+
+    ticket.linkedPullRequest = updatedPR;
+    await ticket.save();
+
+    res.json({
+      success: true,
+      data: updatedPR,
+    });
+  } catch (error) {
+    console.error("Error refreshing PR:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to refresh PR data",
+    });
+  }
+};
+
+/**
+ * Unlinks PR from a ticket.
+ */
+const unlinkPR = async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    const ticket = await Ticket.findById(ticketId);
+    if (!ticket) {
+      return res.status(404).json({
+        success: false,
+        message: "Ticket not found",
+      });
+    }
+
+    if (!ticket.linkedPullRequest) {
+      return res.status(400).json({
+        success: false,
+        message: "Ticket has no linked PR",
+      });
+    }
+
+    ticket.linkedPullRequest = null;
+    await ticket.save();
+
+    res.json({
+      success: true,
+      message: "PR unlinked successfully",
+    });
+  } catch (error) {
+    console.error("Error unlinking PR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to unlink PR",
+    });
+  }
+};
+
 module.exports = {
   initiateInstallation,
   handleCallback,
@@ -411,4 +507,6 @@ module.exports = {
   updateIntegration,
   getRepositories,
   handleWebhook,
+  refreshPR,
+  unlinkPR,
 };
