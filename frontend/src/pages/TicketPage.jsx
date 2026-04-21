@@ -101,6 +101,49 @@ export default function TicketPage() {
   } = useTicketModals();
 
   const searchInputRef = useRef(null);
+  const prevDetailsOpenRef = useRef(false);
+
+  const isValidTicketParam = (value) =>
+    typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
+
+  useEffect(() => {
+    const tid = searchParams.get("ticket");
+    if (!isValidTicketParam(tid)) return;
+    if (isDetailsOpen && selectedTicketId === tid) return;
+    openTicketDetails(tid);
+  }, [
+    searchParams,
+    openTicketDetails,
+    isDetailsOpen,
+    selectedTicketId,
+  ]);
+
+  useEffect(() => {
+    if (!hasHydratedFromParamsRef.current) return;
+    if (!isDetailsOpen || !selectedTicketId) return;
+    if (searchParams.get("ticket") === selectedTicketId) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("ticket", selectedTicketId);
+    setSearchParams(next, { replace: true });
+  }, [
+    isDetailsOpen,
+    selectedTicketId,
+    searchParams,
+    setSearchParams,
+  ]);
+
+  useEffect(() => {
+    if (
+      prevDetailsOpenRef.current &&
+      !isDetailsOpen &&
+      searchParams.get("ticket")
+    ) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("ticket");
+      setSearchParams(next, { replace: true });
+    }
+    prevDetailsOpenRef.current = isDetailsOpen;
+  }, [isDetailsOpen, searchParams, setSearchParams]);
 
   useEffect(() => {
     const onKeyDown = (e) => {

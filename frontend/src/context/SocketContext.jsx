@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useAuth } from "@/context/AuthContext";
+import { queryClient } from "@/lib/queryClient";
+import { NOTIFICATIONS_QUERY_KEY } from "@/queries/notifications";
 
 const SocketContext = createContext(null);
 
@@ -102,6 +104,7 @@ export const SocketProvider = ({ children }) => {
 
     const onNewNotification = (payload) => {
       console.log("[socket] new_notification received:", payload);
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
     };
 
     socket.on("new_notification", onNewNotification);
