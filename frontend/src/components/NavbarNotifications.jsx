@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,16 +15,26 @@ import {
 } from "@/queries/notifications";
 import { NotificationRow } from "@/components/NotificationRow";
 import { isMongoId } from "@/helpers/notificationUtils";
+import { useAuth } from "@/context/AuthContext";
 
 export default function NavbarNotifications() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useNotifications();
+  const { user } = useAuth();
+  const { data, isLoading, isError, refetch } = useNotifications({
+    userId: user?._id || user?.id,
+  });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
   const items = data?.data ?? [];
   const unreadCount = data?.unreadCount ?? 0;
+
+  useEffect(() => {
+    if (open) {
+      refetch();
+    }
+  }, [open, refetch]);
 
   const goToTicket = useCallback(
     (ticketId) => {
