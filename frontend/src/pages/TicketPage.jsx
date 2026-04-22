@@ -109,14 +109,13 @@ export default function TicketPage() {
   useEffect(() => {
     const tid = searchParams.get("ticket");
     if (!isValidTicketParam(tid)) return;
+    
     if (isDetailsOpen && selectedTicketId === tid) return;
-    openTicketDetails(tid);
-  }, [
-    searchParams,
-    openTicketDetails,
-    isDetailsOpen,
-    selectedTicketId,
-  ]);
+
+    if (!isDetailsOpen && !prevDetailsOpenRef.current) {
+      openTicketDetails(tid);
+    }
+  }, [searchParams, openTicketDetails, isDetailsOpen, selectedTicketId]);
 
   useEffect(() => {
     if (!hasHydratedFromParamsRef.current) return;
@@ -133,14 +132,12 @@ export default function TicketPage() {
   ]);
 
   useEffect(() => {
-    if (
-      prevDetailsOpenRef.current &&
-      !isDetailsOpen &&
-      searchParams.get("ticket")
-    ) {
+    if (prevDetailsOpenRef.current && !isDetailsOpen) {
       const next = new URLSearchParams(searchParams);
-      next.delete("ticket");
-      setSearchParams(next, { replace: true });
+      if (next.has("ticket")) {
+        next.delete("ticket");
+        setSearchParams(next, { replace: true });
+      }
     }
     prevDetailsOpenRef.current = isDetailsOpen;
   }, [isDetailsOpen, searchParams, setSearchParams]);
