@@ -64,7 +64,7 @@ export default function CreateWorkspacePage() {
       <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col items-center justify-center py-6 sm:py-10">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 shadow-sm backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 shadow-sm">
               <Mail className="h-3.5 w-3.5" />
               Workspace Access
             </div>
