@@ -101,20 +101,27 @@ export default function TicketPage() {
   } = useTicketModals();
 
   const searchInputRef = useRef(null);
-  const prevDetailsOpenRef = useRef(false);
 
   const isValidTicketParam = (value) =>
     typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
 
+  const handleCloseTicketDetails = useMemo(
+    () => () => {
+      const next = new URLSearchParams(searchParams);
+      if (next.has("ticket")) {
+        next.delete("ticket");
+        setSearchParams(next, { replace: true });
+      }
+      closeTicketDetails();
+    },
+    [closeTicketDetails, searchParams, setSearchParams],
+  );
+
   useEffect(() => {
     const tid = searchParams.get("ticket");
     if (!isValidTicketParam(tid)) return;
-    
     if (isDetailsOpen && selectedTicketId === tid) return;
-
-    if (!isDetailsOpen && !prevDetailsOpenRef.current) {
-      openTicketDetails(tid);
-    }
+    openTicketDetails(tid);
   }, [searchParams, openTicketDetails, isDetailsOpen, selectedTicketId]);
 
   useEffect(() => {
@@ -132,28 +139,6 @@ export default function TicketPage() {
   ]);
 
   useEffect(() => {
-    if (prevDetailsOpenRef.current && !isDetailsOpen) {
-      const next = new URLSearchParams(searchParams);
-      if (next.has("ticket")) {
-        next.delete("ticket");
-        setSearchParams(next, { replace: true });
-      }
-    }
-    prevDetailsOpenRef.current = isDetailsOpen;
-  }, [isDetailsOpen, searchParams, setSearchParams]);
-
-  useEffect(() => {
-    if (prevDetailsOpenRef.current && !isDetailsOpen) {
-      const next = new URLSearchParams(searchParams);
-      if (next.has("ticket")) {
-        next.delete("ticket");
-        setSearchParams(next, { replace: true });
-      }
-    }
-    prevDetailsOpenRef.current = isDetailsOpen;
-  }, [isDetailsOpen, searchParams, setSearchParams]);
-
-  useEffect(() => {
     const onKeyDown = (e) => {
       if (e.defaultPrevented) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -161,7 +146,7 @@ export default function TicketPage() {
       if (e.key === "Escape") {
         if (isDetailsOpen) {
           e.preventDefault();
-          closeTicketDetails();
+          handleCloseTicketDetails();
           return;
         }
         if (isNewOpen) {
@@ -189,7 +174,13 @@ export default function TicketPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isDetailsOpen, isNewOpen, closeTicketDetails, closeNewTicket, openNewTicket]);
+  }, [
+    isDetailsOpen,
+    isNewOpen,
+    handleCloseTicketDetails,
+    closeNewTicket,
+    openNewTicket,
+  ]);
 
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
 
@@ -535,7 +526,7 @@ export default function TicketPage() {
       <TicketDetailsModal
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
-        onClose={closeTicketDetails}
+        onClose={handleCloseTicketDetails}
       />
     </PageShell>
   );
