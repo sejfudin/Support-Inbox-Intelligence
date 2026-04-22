@@ -325,7 +325,7 @@ const normalizeStoryPointsInput = (value) => {
   return parsed;
 };
 
-const suggestTicketMetadata = async (req, res, next) => {
+const suggestTicketMetadata = async (req, res) => {
   try {
     const { subject, description } = req.body || {};
 
@@ -344,12 +344,14 @@ const suggestTicketMetadata = async (req, res, next) => {
       data: suggestion,
     });
   } catch (error) {
-    next(error);
+    const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 503;
+
+    return res.status(statusCode).json({
+      success: false, 
+      message: error?.message || "AI suggestion is currently unavailable."
+    })
   }
 };
-
-
-
 
 module.exports = {
   getAllTickets,
@@ -361,3 +363,4 @@ module.exports = {
   getMyTickets,
   suggestTicketMetadata,
 };
+

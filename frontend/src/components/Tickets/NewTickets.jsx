@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
-import { useCreateTicket, useSuggestTicketMetadata } from "@/queries/tickets";
-import StoryPointsField from "@/components/StoryPointsField";
+import { useState } from "react";
+import { useCreateTicket } from "@/queries/tickets";
+import { useAiTicketSuggestion } from "@/hooks/useAiTicketSuggestion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,15 +24,21 @@ import {
 } from "@/components/ui/select";
 import { STATUS_OPTIONS } from "@/helpers/ticketStatus";
 import { PRIORITY_OPTIONS } from "@/helpers/ticketPriority";
+import {
+  STORY_POINTS_OPTIONS,
+  getStoryPointsStyle,
+  normalizeStoryPoints,
+} from "@/helpers/storyPoints";
 import { useTicketForm } from "@/hooks/useTicketForm";
 import { toast } from "sonner";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, Sparkles } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 const NewTickets = ({
   isOpen,
@@ -42,7 +48,6 @@ const NewTickets = ({
   workspaceId: previewWorkspaceId,
 }) => {
   const createMutation = useCreateTicket();
-  const suggestMetadataMutation = useSuggestTicketMetadata();
   const { user } = useAuth();
 
   const effectiveWorkspaceId = previewWorkspaceId || user?.workspaceId;
@@ -57,89 +62,47 @@ const NewTickets = ({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
-  const [lastSuggestionSource, setLastSuggestionSource] = useState(null);
 
-  const safeSubject = String(newTicket.subject || "").trim();
-  const safeDescription = String(newTicket.description || "").trim();
-  const latestSuggestionRequestIdRef = useRef(0);
+  const normalizedStoryPoints = normalizeStoryPoints(newTicket.storyPoints);
+  const storyPointsStyle = getStoryPointsStyle(normalizedStoryPoints);
+  const storyPointsLabel =
+    normalizedStoryPoints === null ? "No estimate" : `SP ${normalizedStoryPoints}`;
 
-  const hasSuggestibleInput =
-    safeSubject.length >= 3 && safeDescription.length >= 10;
-
-  const applySuggestion = (suggestion, { force = false } = {}) => {
-    if (!suggestion || typeof suggestion !== "object") return;
-
-    if ((force || !priorityLockedByUser) && suggestion.priority) {
-      updateField("priority", suggestion.priority);
-    }
-
-    if ((force || !storyPointsLockedByUser) && suggestion.storyPoints != null) {
-      updateField("storyPoints", suggestion.storyPoints);
-    }
-
-    if (suggestion.source) {
-      setLastSuggestionSource(suggestion.source);
-    }
-  };
-
-  const requestSuggestion = ({ force = false, showToast = false } = {}) => {
-    if (!hasSuggestibleInput) return;
-
-    const requestId = ++latestSuggestionRequestIdRef.current;
-
-    suggestMetadataMutation.mutate(
-      { subject: safeSubject, description: safeDescription },
-      {
-        onSuccess: (res) => {
-          if (requestId !== latestSuggestionRequestIdRef.current) return;
-          applySuggestion(res?.data, { force });
-          if (showToast) toast.success("AI suggestions applied.");
-        },
-        onError: () => {
-          if (requestId !== latestSuggestionRequestIdRef.current) return;
-          if (showToast) {
-            toast.error("Failed to get AI suggestion. Fallback may still apply.");
-          }
-        },
-      },
-    );
-  };
-
-
-  useEffect(() => {
-    if (!isOpen || !hasSuggestibleInput) return;
-
-    const timer = setTimeout(() => {
-      requestSuggestion({ force: false, showToast: false });
-    }, 700);
-
-
-    return () => clearTimeout(timer);
-  }, [
-    isOpen,
+  const {
     hasSuggestibleInput,
-    safeSubject,
-    safeDescription,
+    isSuggesting,
+    requestManualSuggestion,
+    resetSuggestionState: resetAiSuggestionState,
+  } = useAiTicketSuggestion({
+    isOpen,
+    subject: newTicket.subject,
+    description: newTicket.description,
     priorityLockedByUser,
     storyPointsLockedByUser,
-  ]);
+    updateField,
+  });
 
-  useEffect(() => {
-    if (isOpen) return;
+  const resetSuggestionState = () => {
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
-    setLastSuggestionSource(null);
-    latestSuggestionRequestIdRef.current = 0;
-  }, [isOpen]);
+    resetAiSuggestionState();
+  };
 
   const handleUseAiSuggestion = () => {
-    if (!hasSuggestibleInput) return;
+    if (!hasSuggestibleInput || isSuggesting) return;
 
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
 
-    requestSuggestion({ force: true, showToast: true });
+    requestManualSuggestion();
   };
+
+  const handleDialogOpenChange = (open) => {
+    if (open) return;
+    resetSuggestionState();
+    onClose();
+  };
+
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -168,9 +131,7 @@ const NewTickets = ({
           description: `"${newTicket.subject}" has been added to the system.`,
         });
         resetForm();
-        setPriorityLockedByUser(false);
-        setStoryPointsLockedByUser(false);
-        setLastSuggestionSource(null);
+        resetSuggestionState();
         onClose();
       },
       onError: (error) => {
@@ -218,7 +179,7 @@ const NewTickets = ({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto p-0">
         <Card className="border-0 shadow-none">
           <DialogHeader className="px-6 pt-6 border-b mb-4">
@@ -257,95 +218,149 @@ const NewTickets = ({
                   />
                 </div>
 
-                <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                  <span className="text-xs text-slate-600">
-                    {lastSuggestionSource
-                      ? `Last suggestion source: ${lastSuggestionSource}`
-                      : "AI can suggest priority and story points from title and description."}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleUseAiSuggestion}
-                    disabled={!hasSuggestibleInput || suggestMetadataMutation.isPending}
-                  >
-                    {suggestMetadataMutation.isPending ? "Thinking..." : "Use AI"}
-                  </Button>
-                </div>
+                <div className="space-y-6">
+                  <div className={`grid grid-cols-1 gap-6 ${hideStatus ? "" : "md:grid-cols-2"}`}>
+                    {!hideStatus && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                          Status
+                        </Label>
+                        <Select
+                          value={newTicket.status}
+                          onValueChange={(value) => updateField("status", value)}
+                        >
+                          <SelectTrigger className="h-12">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map((status) => (
+                              <SelectItem key={status.value} value={status.value}>
+                                {status.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
-                <div className={`grid grid-cols-1 gap-6 ${hideStatus ? "" : "md:grid-cols-2"}`}>
-                  {!hideStatus && (
-                    <div className="space-y-2">
-                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                        Status
+                    <div className="relative space-y-2">
+                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide pr-8">
+                        Priority
                       </Label>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleUseAiSuggestion}
+                        disabled={!hasSuggestibleInput || isSuggesting}
+                        className="absolute -right-1 -top-2 h-7 w-7 p-0 text-slate-500 hover:text-slate-700 [&_svg]:size-5"
+                        aria-label="Regenerate AI suggestion"
+                        title="Regenerate AI suggestion"
+                      >
+                        <Sparkles className={isSuggesting ? "animate-pulse" : ""} />
+                      </Button>
+
                       <Select
-                        value={newTicket.status}
-                        onValueChange={(value) => updateField("status", value)}
+                        value={newTicket.priority}
+                        onValueChange={(value) => {
+                          setPriorityLockedByUser(true);
+                          updateField("priority", value);
+                        }}
                       >
                         <SelectTrigger className="h-12">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {STATUS_OPTIONS.map((status) => (
-                            <SelectItem key={status.value} value={status.value}>
-                              {status.label}
+                          {PRIORITY_OPTIONS.map((priority) => (
+                            <SelectItem key={priority.value} value={priority.value}>
+                              {priority.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                      Priority
-                    </Label>
-                    <Select
-                      value={newTicket.priority}
-                      onValueChange={(value) => {
-                        setPriorityLockedByUser(true);
-                        updateField("priority", value);
-                      }}
-                    >
-                      <SelectTrigger className="h-12">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRIORITY_OPTIONS.map((priority) => (
-                          <SelectItem key={priority.value} value={priority.value}>
-                            {priority.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <StoryPointsField
-                    value={newTicket.storyPoints}
-                    onChange={(value) => {
-                      setStoryPointsLockedByUser(true);
-                      updateField("storyPoints", value);
-                    }}
-                  />
-                </div>
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                        Due date{" "}
+                        <span className="font-normal normal-case text-muted-foreground">
+                          (optional)
+                        </span>
+                      </Label>
+                      <Input
+                        type="date"
+                        value={newTicket.dueDate}
+                        onChange={(e) => updateField("dueDate", e.target.value)}
+                        className="h-12 text-base w-full"
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Due date{" "}
-                    <span className="font-normal normal-case text-muted-foreground">
-                      (optional)
-                    </span>
-                  </Label>
-                  <Input
-                    type="date"
-                    value={newTicket.dueDate}
-                    onChange={(e) => updateField("dueDate", e.target.value)}
-                    className="h-12 text-base max-w-xs"
-                  />
+                    <div className="space-y-2">
+                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                        Story points
+                      </Label>
+                      <Select
+                        value={
+                          normalizedStoryPoints === null
+                            ? "none"
+                            : String(normalizedStoryPoints)
+                        }
+                        onValueChange={(value) => {
+                          setStoryPointsLockedByUser(true);
+                          updateField(
+                            "storyPoints",
+                            value === "none" ? null : Number(value),
+                          );
+                        }}
+                      >
+                        <SelectTrigger className="h-12">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-2 rounded-md border px-2 py-1 text-xs font-bold uppercase",
+                              storyPointsStyle.indicator,
+                            )}
+                          >
+                            <span
+                              className={cn("h-2 w-2 rounded-full", storyPointsStyle.dot)}
+                            />
+                            {storyPointsLabel}
+                          </span>
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="none">
+                            <span className="inline-flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-gray-400" />
+                              No estimate
+                            </span>
+                          </SelectItem>
+
+                          {STORY_POINTS_OPTIONS.map((option) => {
+                            const optionStyle = getStoryPointsStyle(option.value);
+
+                            return (
+                              <SelectItem key={option.value} value={String(option.value)}>
+                                <span
+                                  className={cn(
+                                    "inline-flex items-center gap-2 rounded-md border px-2 py-0.5 text-xs font-bold uppercase",
+                                    optionStyle.indicator,
+                                  )}
+                                >
+                                  <span
+                                    className={cn("h-2 w-2 rounded-full", optionStyle.dot)}
+                                  />
+                                  {`SP ${option.label}`}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -455,7 +470,7 @@ const NewTickets = ({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={onClose}
+                  onClick={() => handleDialogOpenChange(false)}
                   className="flex-1"
                 >
                   Cancel
