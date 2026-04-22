@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { useTicketList } from "@/hooks/useTicketList";
 import { DataTable } from "@/components/Tickets/TicketsTable";
-import { useTicketModals } from "@/hooks/useTicketModals";
+import { useTicketModalContext } from "@/context/TicketModalContext";
 import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import TicketsState from "@/components/Tickets/TicketsState";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
@@ -36,7 +36,7 @@ export default function BacklogPage() {
     closeNewTicket,
     openTicketDetails,
     closeTicketDetails,
-  } = useTicketModals();
+  } = useTicketModalContext();
   const { data: me } = useGetMe();
   const isAdmin = me?.role === "admin";
 
