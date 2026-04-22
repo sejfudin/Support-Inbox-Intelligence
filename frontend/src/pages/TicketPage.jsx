@@ -101,12 +101,14 @@ export default function TicketPage() {
   } = useTicketModals();
 
   const searchInputRef = useRef(null);
+  const isClosingDetailsRef = useRef(false);
 
   const isValidTicketParam = (value) =>
     typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
 
   const handleCloseTicketDetails = useMemo(
     () => () => {
+      isClosingDetailsRef.current = true;
       const next = new URLSearchParams(searchParams);
       if (next.has("ticket")) {
         next.delete("ticket");
@@ -119,7 +121,12 @@ export default function TicketPage() {
 
   useEffect(() => {
     const tid = searchParams.get("ticket");
-    if (!isValidTicketParam(tid)) return;
+    if (!isValidTicketParam(tid)) {
+      // URL is cleaned, allow normal modal opening again.
+      if (!tid) isClosingDetailsRef.current = false;
+      return;
+    }
+    if (isClosingDetailsRef.current) return;
     if (isDetailsOpen && selectedTicketId === tid) return;
     openTicketDetails(tid);
   }, [searchParams, openTicketDetails, isDetailsOpen, selectedTicketId]);
