@@ -3,6 +3,17 @@ const { sendToUser } = require("../socket/socketServer");
 
 const MAX_LIST = 50;
 
+const toRecipientId = (value) => {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  if (typeof value === "object") {
+    if (value._id) return toRecipientId(value._id);
+    if (value.id) return String(value.id);
+  }
+  return null;
+};
+
 const listForUser = async (userId, { limit = 30 } = {}) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 30, 1), MAX_LIST);
   const [items, unreadCount] = await Promise.all([
@@ -45,9 +56,11 @@ const notifyNewTicketComment = async ({
   if (!ticket || !ticket._id) return;
 
   const recipientIds = new Set();
-  if (ticket.creator) recipientIds.add(String(ticket.creator));
+  const creatorId = toRecipientId(ticket.creator);
+  if (creatorId) recipientIds.add(creatorId);
   (ticket.assignedTo || []).forEach((id) => {
-    if (id) recipientIds.add(String(id));
+    const normalized = toRecipientId(id);
+    if (normalized) recipientIds.add(normalized);
   });
   recipientIds.delete(String(authorId));
 
@@ -80,9 +93,44 @@ const notifyNewTicketComment = async ({
   }
 };
 
+const notifyTicketAssigned = async ({
+  ticket,
+  assignedUserIds = [],
+}) => {
+  if (!ticket || !ticket._id) return;
+
+  const recipientIds = [
+    ...new Set((assignedUserIds || []).map(toRecipientId).filter(Boolean)),
+  ];
+  if (recipientIds.length === 0) return;
+
+  const taskLabel = ticket.taskNumber ? `#${ticket.taskNumber}` : "ticket";
+  const title = `Assigned to ${taskLabel}`;
+  const body = ticket.subject ? `Task: ${ticket.subject}` : "";
+  const workspaceId = ticket.workspace;
+
+  for (const rid of recipientIds) {
+    const n = await Notification.create({
+      recipient: rid,
+      read: false,
+      type: "ticket_assigned",
+      title,
+      body,
+      ticket: ticket._id,
+      workspace: workspaceId,
+    });
+
+    sendToUser(rid, "new_notification", {
+      notification: n.toObject(),
+      unreadDelta: 1,
+    });
+  }
+};
+
 module.exports = {
   listForUser,
   markRead,
   markAllRead,
   notifyNewTicketComment,
+  notifyTicketAssigned,
 };

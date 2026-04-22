@@ -1,6 +1,7 @@
 const Ticket = require("../models/Ticket");
 const Workspace = require("../models/Workspace");
 const mongoose = require("mongoose");
+const { notifyTicketAssigned } = require("./notificationService");
 
 
 const PRIORITY_RANK = {
@@ -40,9 +41,33 @@ const normalizePriorityOrder = (value) => {
 const INVALID_ASSIGNEE_ERROR =
   "Assigned users must be active members of this workspace";
 
+const extractUserId = (value) => {
+  if (!value) return null;
+
+  if (typeof value === "string") return value;
+
+  if (value instanceof mongoose.Types.ObjectId) {
+    return value.toString();
+  }
+
+  if (typeof value === "object") {
+    if (value._id) return extractUserId(value._id);
+    if (value.id) return String(value.id);
+  }
+
+  return null;
+};
+
 const normalizeAssignedUserIds = (assignedTo = []) => {
   const rawIds = Array.isArray(assignedTo) ? assignedTo : [assignedTo];
-  return [...new Set(rawIds.filter(Boolean).map((id) => id.toString()))];
+  return [...new Set(rawIds.map(extractUserId).filter(Boolean))];
+};
+
+const getNewAssigneeIds = ({ previousAssignedTo = [], nextAssignedTo = [] }) => {
+  const previousSet = new Set(normalizeAssignedUserIds(previousAssignedTo));
+  return normalizeAssignedUserIds(nextAssignedTo).filter(
+    (userId) => !previousSet.has(userId),
+  );
 };
 
 const parseOptionalDueDate = (value) => {
@@ -311,6 +336,14 @@ const createTicket = async (ticketData) => {
 
   await ticket.save();
 
+  const newlyAssignedUserIds = normalizeAssignedUserIds(ticketData.assignedTo);
+  if (newlyAssignedUserIds.length > 0) {
+    await notifyTicketAssigned({
+      ticket,
+      assignedUserIds: newlyAssignedUserIds,
+    });
+  }
+
   return await ticket.populate([
     { path: "creator", select: "fullName email" },
     { path: "assignedTo", select: "fullName email" },
@@ -321,6 +354,8 @@ const updateTicket = async (ticketId, updateData) => {
   try {
     const oldTicket = await Ticket.findById(ticketId);
     if (!oldTicket) throw new Error("Ticket not found");
+
+    const previousAssignedTo = oldTicket.assignedTo || [];
 
     if (Object.prototype.hasOwnProperty.call(updateData, "assignedTo")) {
       await ensureAssignableUsersBelongToWorkspace({
@@ -380,6 +415,20 @@ const updateTicket = async (ticketId, updateData) => {
 
     if (!ticket) {
       throw new Error("Ticket not found");
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, "assignedTo")) {
+      const newlyAssignedUserIds = getNewAssigneeIds({
+        previousAssignedTo,
+        nextAssignedTo: ticket.assignedTo || [],
+      });
+
+      if (newlyAssignedUserIds.length > 0) {
+        await notifyTicketAssigned({
+          ticket,
+          assignedUserIds: newlyAssignedUserIds,
+        });
+      }
     }
 
     return ticket;
