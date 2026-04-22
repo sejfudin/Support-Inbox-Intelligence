@@ -31,7 +31,7 @@ export default function SidebarLayout() {
             </PageHeader>
           ) : (
             <>
-              <PageHeader className="border-b-0 bg-transparent backdrop-blur-0 md:hidden">
+              <PageHeader className="border-b-0 bg-transparent md:hidden">
                 <div className="flex w-full items-center gap-2">
                   <SidebarTrigger className="-ml-1 shrink-0" />
                   <div className="ml-auto shrink-0">
@@ -39,7 +39,7 @@ export default function SidebarLayout() {
                   </div>
                 </div>
               </PageHeader>
-              <PageHeader className="sticky top-0 z-20 hidden shrink-0 border-b border-white/60 bg-white/80 backdrop-blur-xl md:flex">
+              <PageHeader className="sticky top-0 z-20 hidden shrink-0 border-b border-white/60 bg-white/80 md:flex">
                 <div className="flex w-full items-center justify-end px-4 sm:px-6 lg:px-8">
                   {isAuthenticated ? <NavbarNotifications /> : null}
                 </div>
