@@ -78,7 +78,7 @@ export default function NavbarNotifications() {
           ) : null}
         </div>
 
-        <ScrollArea className="max-h-80">
+        <ScrollArea className="h-80 max-h-[calc(100vh-10rem)]">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
