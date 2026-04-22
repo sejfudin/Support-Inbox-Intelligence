@@ -143,6 +143,17 @@ export default function TicketPage() {
   }, [isDetailsOpen, searchParams, setSearchParams]);
 
   useEffect(() => {
+    if (prevDetailsOpenRef.current && !isDetailsOpen) {
+      const next = new URLSearchParams(searchParams);
+      if (next.has("ticket")) {
+        next.delete("ticket");
+        setSearchParams(next, { replace: true });
+      }
+    }
+    prevDetailsOpenRef.current = isDetailsOpen;
+  }, [isDetailsOpen, searchParams, setSearchParams]);
+
+  useEffect(() => {
     const onKeyDown = (e) => {
       if (e.defaultPrevented) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
