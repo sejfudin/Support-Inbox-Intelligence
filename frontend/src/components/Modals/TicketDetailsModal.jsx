@@ -327,7 +327,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   if (isLoading || usersLoading) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
         <div className="bg-white p-8 rounded-xl shadow-xl animate-pulse flex flex-col items-center gap-4">
           <div className="h-6 w-48 bg-gray-200 rounded"></div>
           <div className="h-4 w-32 bg-gray-100 rounded"></div>
@@ -339,7 +339,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   if (isError || usersError) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
         <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div className="text-sm font-bold text-gray-700 uppercase tracking-widest">
@@ -348,7 +348,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation(); 
+                onClose();
+              }}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close error modal"
             >
@@ -375,7 +378,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <div className="pt-2 flex justify-end">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
               >
                 Close
@@ -388,7 +394,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   }
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 lg:p-8 transition-opacity"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 sm:p-4 lg:p-8 transition-opacity"
       onClick={onClose}
       role="presentation"
     >
@@ -403,7 +409,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => { onClose();}}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close ticket details"
             >
