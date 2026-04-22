@@ -125,4 +125,8 @@
       linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
     background-size: 22px 22px;
   }
+
+  .app-with-floating-notifications .app-page-content {
+    @apply md:pr-20 lg:pr-24;
+  }
 }
