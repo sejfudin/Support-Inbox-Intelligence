@@ -348,7 +348,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation(); 
+                onClose();
+              }}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close error modal"
             >
@@ -375,7 +378,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <div className="pt-2 flex justify-end">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
               >
                 Close
@@ -403,7 +409,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => { onClose();}}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close ticket details"
             >

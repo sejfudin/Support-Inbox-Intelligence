@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,14 +15,13 @@ import {
 } from "@/queries/notifications";
 import { NotificationRow } from "@/components/NotificationRow";
 import { isMongoId } from "@/helpers/notificationUtils";
-import { useTicketModalContext } from "@/context/TicketModalContext";
 
 export default function NavbarNotifications() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const { data, isLoading, isError } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
-  const { openTicketDetails } = useTicketModalContext();
 
   const items = data?.data ?? [];
   const unreadCount = data?.unreadCount ?? 0;
@@ -30,9 +30,9 @@ export default function NavbarNotifications() {
     (ticketId) => {
       if (!isMongoId(ticketId)) return;
       setOpen(false);
-      openTicketDetails(ticketId);
+      navigate(`/tickets?ticket=${ticketId}`);
     },
-    [openTicketDetails],
+    [navigate],
   );
 
   return (

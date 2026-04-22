@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { createTicketColumns } from "@/components/columns/ticketColumns";
 import { useTicketList } from "@/hooks/useTicketList";
 import { DataTable } from "@/components/Tickets/TicketsTable";
-import { useTicketModalContext } from "@/context/TicketModalContext";
+import { useTicketModals } from "@/hooks/useTicketModals";
 import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import TicketsState from "@/components/Tickets/TicketsState";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
@@ -30,7 +30,7 @@ export default function ArchivePage() {
     isDetailsOpen,
     openTicketDetails,
     closeTicketDetails,
-  } = useTicketModalContext();
+  } = useTicketModals();
 
   return (
     <PageShell>

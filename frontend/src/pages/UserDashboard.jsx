@@ -9,7 +9,7 @@ import TableSkeleton from "@/components/Skeletons/TableSkeleton";
 import TicketsHeader from "@/components/Tickets/TicketsHeader";
 import BoardPage from "@/components/BoardPage";
 import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
-import { useTicketModalContext } from "@/context/TicketModalContext";
+import { useTicketModals } from "@/hooks/useTicketModals";
 import { useDebounce } from "use-debounce";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useQueryClient } from "@tanstack/react-query";
@@ -29,7 +29,7 @@ export default function UserDashboard() {
     isDetailsOpen,
     openTicketDetails,
     closeTicketDetails,
-  } = useTicketModalContext();
+  } = useTicketModals();
 
   const { data: ticketsData, isLoading, isError } = useMyTickets({
     page,

@@ -13,7 +13,7 @@ import TicketsTabs from "@/components/Tickets/TicketsTabs";
 import TableSkeleton from "@/components/Skeletons/TableSkeleton";
 import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
 import { normalizeTicket } from "@/helpers/normalizeTicket";
-import { useTicketModalContext } from "@/context/TicketModalContext";
+import { useTicketModals } from "@/hooks/useTicketModals";
 import { useTicketList } from "@/hooks/useTicketList";
 import { useWorkspace } from "@/queries/workspaces";
 import { ArrowLeft, Building2 } from "lucide-react";
@@ -98,13 +98,60 @@ export default function TicketPage() {
     closeNewTicket,
     openTicketDetails,
     closeTicketDetails,
-  } = useTicketModalContext();
+  } = useTicketModals();
 
   const searchInputRef = useRef(null);
+  const prevDetailsOpenRef = useRef(false);
 
+  const isValidTicketParam = (value) =>
+    typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
 
+  useEffect(() => {
+    const tid = searchParams.get("ticket");
+    if (!isValidTicketParam(tid)) return;
+    
+    if (isDetailsOpen && selectedTicketId === tid) return;
 
+    if (!isDetailsOpen && !prevDetailsOpenRef.current) {
+      openTicketDetails(tid);
+    }
+  }, [searchParams, openTicketDetails, isDetailsOpen, selectedTicketId]);
 
+  useEffect(() => {
+    if (!hasHydratedFromParamsRef.current) return;
+    if (!isDetailsOpen || !selectedTicketId) return;
+    if (searchParams.get("ticket") === selectedTicketId) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("ticket", selectedTicketId);
+    setSearchParams(next, { replace: true });
+  }, [
+    isDetailsOpen,
+    selectedTicketId,
+    searchParams,
+    setSearchParams,
+  ]);
+
+  useEffect(() => {
+    if (prevDetailsOpenRef.current && !isDetailsOpen) {
+      const next = new URLSearchParams(searchParams);
+      if (next.has("ticket")) {
+        next.delete("ticket");
+        setSearchParams(next, { replace: true });
+      }
+    }
+    prevDetailsOpenRef.current = isDetailsOpen;
+  }, [isDetailsOpen, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (prevDetailsOpenRef.current && !isDetailsOpen) {
+      const next = new URLSearchParams(searchParams);
+      if (next.has("ticket")) {
+        next.delete("ticket");
+        setSearchParams(next, { replace: true });
+      }
+    }
+    prevDetailsOpenRef.current = isDetailsOpen;
+  }, [isDetailsOpen, searchParams, setSearchParams]);
 
   useEffect(() => {
     const onKeyDown = (e) => {
