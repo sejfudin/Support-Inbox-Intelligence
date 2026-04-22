@@ -2,7 +2,6 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 let io;
-const userSocketMap = {};
 
 const parseCookieHeader = (cookieHeader = '') => {
   return cookieHeader
@@ -77,40 +76,40 @@ const initSocket = (httpServer) => {
 
   io.on('connection', (socket) => {
     const userId = socket.data?.userId;
-    userSocketMap[userId] = socket.id;
 
-    socket.on('disconnect', (reason) => {
-      const { userId } = socket.data || {};
-
-      if (userId && userSocketMap[userId] === socket.id) {
-        delete userSocketMap[userId];
-      }
-
-    });
+    if (userId) {
+      socket.join(`user:${userId}`);
+    }
   });
 
   return io;
 };
 
-const sendToUser = (userId, eventName, data) => {
+const getUserRoomName = (userId) => `user:${String(userId)}`;
+
+const isUserOnline = async (userId) => {
   if (!io) {
     return false;
   }
 
-  const normalizedUserId = String(userId);
-  const socketId = userSocketMap[normalizedUserId];
-  if (!socketId) {
+  const sockets = await io.in(getUserRoomName(userId)).fetchSockets();
+  return sockets.length > 0;
+};
+
+const sendToUser = async (userId, eventName, data) => {
+  if (!io) {
     return false;
   }
 
-  const targetSocket = io.sockets.sockets.get(socketId);
-  if (!targetSocket) {
-    delete userSocketMap[normalizedUserId];
+  const roomName = getUserRoomName(userId);
+  const online = await isUserOnline(userId);
+
+  if (!online) {
     return false;
   }
 
   try {
-    targetSocket.emit(eventName, data);
+    io.to(roomName).emit(eventName, data);
     return true;
   } catch (error) {
     return false;
@@ -120,5 +119,5 @@ const sendToUser = (userId, eventName, data) => {
 module.exports = {
   initSocket,
   sendToUser,
-  userSocketMap,
+  isUserOnline,
 };
