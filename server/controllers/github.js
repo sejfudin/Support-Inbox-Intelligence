@@ -308,10 +308,23 @@ const getRepositories = async (req, res) => {
 
 const handlePullRequestEvent = async (payload) => {
   const installationId = payload.installation?.id;
-  if (!installationId) return;
+  const repoFullName = payload.repository?.full_name;
+  if (!installationId || !repoFullName) return;
 
-  const integration = await Integration.findOne({ githubAppInstallationId: installationId });
-  if (!integration?.isConnected || !integration?.connectedRepo?.fullName) {
+  const integrations = await Integration.find({
+    githubAppInstallationId: installationId,
+    isConnected: true,
+  });
+
+  if (!integrations || integrations.length === 0) {
+    return;
+  }
+
+  const integration = integrations.find(
+    (integ) => integ.connectedRepo?.fullName === repoFullName,
+  );
+
+  if (!integration) {
     return;
   }
 
