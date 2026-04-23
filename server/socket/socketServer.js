@@ -83,7 +83,6 @@ const initSocket = (httpServer) => {
           return next(new Error('unauthorized'));
         }
 
-        // Svaki put kad korisnik uradi socket.emit('nešto'), ovo se okida:
         jwt.verify(token, process.env.JWT_SECRET);
         
         next(); 
@@ -98,10 +97,9 @@ const initSocket = (httpServer) => {
       socket.join(`user:${userId}`);
     }
 
-    // Ovdje tvoji ostali listeneri...
     socket.on('error', (err) => {
       if (err.message === 'unauthorized') {
-        socket.disconnect(); // Izbaci ga ako nema validan token
+        socket.disconnect(); 
       }
     });
   });
@@ -140,8 +138,34 @@ const sendToUser = async (userId, eventName, data) => {
   }
 };
 
+const broadcastToUserRoom = (
+  userId,
+  eventName,
+  data,
+  { excludeSocketId } = {},
+) => {
+  if (!io) {
+    return false;
+  }
+
+  const roomName = getUserRoomName(userId);
+
+  try {
+    if (excludeSocketId) {
+      io.to(roomName).except(excludeSocketId).emit(eventName, data);
+    } else {
+      io.to(roomName).emit(eventName, data);
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 module.exports = {
   initSocket,
   sendToUser,
   isUserOnline,
+  broadcastToUserRoom,
 };

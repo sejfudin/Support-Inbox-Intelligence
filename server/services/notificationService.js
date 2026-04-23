@@ -8,8 +8,19 @@ const toRecipientId = (value) => {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
   if (typeof value === "object") {
-    if (value._id) return toRecipientId(value._id);
+    if (typeof value.toHexString === "function") {
+      return value.toHexString();
+    }
+
+    if (value._id && value._id !== value) return toRecipientId(value._id);
     if (value.id) return String(value.id);
+
+    if (typeof value.toString === "function") {
+      const normalized = value.toString();
+      if (normalized && normalized !== "[object Object]") {
+        return normalized;
+      }
+    }
   }
   return null;
 };
@@ -30,7 +41,7 @@ const markRead = async (notificationId, userId) => {
   const doc = await Notification.findOneAndUpdate(
     { _id: notificationId, recipient: userId },
     { $set: { read: true } },
-    { new: true },
+    { returnDocument: "after" },
   ).lean();
   if (!doc) {
     const err = new Error("Notification not found");
@@ -41,11 +52,23 @@ const markRead = async (notificationId, userId) => {
 };
 
 const markAllRead = async (userId) => {
-  await Notification.updateMany(
+  const unreadNotifications = await Notification.find(
     { recipient: userId, read: false },
+    { _id: 1 },
+  ).lean();
+
+  if (unreadNotifications.length === 0) {
+    return { ok: true, notificationIds: [] };
+  }
+
+  const notificationIds = unreadNotifications.map((item) => String(item._id));
+
+  await Notification.updateMany(
+    { _id: { $in: notificationIds }, recipient: userId, read: false },
     { $set: { read: true } },
   );
-  return { ok: true };
+
+  return { ok: true, notificationIds };
 };
 
 const notifyNewTicketComment = async ({
@@ -96,11 +119,18 @@ const notifyNewTicketComment = async ({
 const notifyTicketAssigned = async ({
   ticket,
   assignedUserIds = [],
+  actorUserId,
 }) => {
   if (!ticket || !ticket._id) return;
 
+  const actorId = toRecipientId(actorUserId);
+
   const recipientIds = [
-    ...new Set((assignedUserIds || []).map(toRecipientId).filter(Boolean)),
+    ...new Set(
+      (assignedUserIds || [])
+        .map(toRecipientId)
+        .filter((recipientId) => Boolean(recipientId) && recipientId !== actorId),
+    ),
   ];
   if (recipientIds.length === 0) return;
 

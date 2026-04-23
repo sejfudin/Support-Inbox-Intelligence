@@ -341,6 +341,7 @@ const createTicket = async (ticketData) => {
     await notifyTicketAssigned({
       ticket,
       assignedUserIds: newlyAssignedUserIds,
+      actorUserId: ticketData.actorUserId || ticketData.creatorId,
     });
   }
 
@@ -350,7 +351,7 @@ const createTicket = async (ticketData) => {
   ]);
 };
 
-const updateTicket = async (ticketId, updateData) => {
+const updateTicket = async (ticketId, updateData, actorUserId) => {
   try {
     const oldTicket = await Ticket.findById(ticketId);
     if (!oldTicket) throw new Error("Ticket not found");
@@ -427,6 +428,7 @@ const updateTicket = async (ticketId, updateData) => {
         await notifyTicketAssigned({
           ticket,
           assignedUserIds: newlyAssignedUserIds,
+          actorUserId,
         });
       }
     }

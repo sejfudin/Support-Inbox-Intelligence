@@ -3,6 +3,7 @@ import { io } from "socket.io-client";
 import { useAuth } from "@/context/AuthContext";
 import { queryClient } from "@/lib/queryClient";
 import { NOTIFICATIONS_QUERY_KEY } from "@/queries/notifications";
+import { setActiveSocketId } from "@/lib/socketSession";
 
 const SocketContext = createContext(null);
 
@@ -74,11 +75,13 @@ export const SocketProvider = ({ children }) => {
 
       const onConnect = () => {
         setIsConnected(true);
+        setActiveSocketId(socket.id);
         console.log(`[socket] Connected: ${socket.id}`);
       };
 
       const onDisconnect = (reason) => {
         setIsConnected(false);
+        setActiveSocketId(null);
         console.log(`[socket] Disconnected: ${reason}`);
       };
 
@@ -96,10 +99,61 @@ export const SocketProvider = ({ children }) => {
         queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
       };
 
+      const onNotificationMarkedAsRead = (payload) => {
+        const notificationIds = Array.isArray(payload?.notificationIds)
+          ? payload.notificationIds.map((id) => String(id))
+          : payload?.notificationId
+            ? [String(payload.notificationId)]
+            : [];
+
+        if (notificationIds.length === 0) {
+          return;
+        }
+
+        const idSet = new Set(notificationIds);
+
+        queryClient.setQueriesData({ queryKey: NOTIFICATIONS_QUERY_KEY }, (currentData) => {
+          if (!currentData || !Array.isArray(currentData.data)) {
+            return currentData;
+          }
+
+          let changedUnreadItems = 0;
+          const nextItems = currentData.data.map((notification) => {
+            const notificationId = String(notification?._id || notification?.id || "");
+
+            if (!idSet.has(notificationId) || notification.read) {
+              return notification;
+            }
+
+            changedUnreadItems += 1;
+            return {
+              ...notification,
+              read: true,
+            };
+          });
+
+          if (changedUnreadItems === 0) {
+            return currentData;
+          }
+
+          const nextUnreadCount = Math.max(
+            (Number(currentData.unreadCount) || 0) - changedUnreadItems,
+            0,
+          );
+
+          return {
+            ...currentData,
+            data: nextItems,
+            unreadCount: nextUnreadCount,
+          };
+        });
+      };
+
       socket.on("connect", onConnect);
       socket.on("disconnect", onDisconnect);
       socket.on("connect_error", onConnectError);
       socket.on("new_notification", onNewNotification);
+      socket.on("NOTIFICATION_MARKED_AS_READ", onNotificationMarkedAsRead);
 
       socketRef.current = socket;
       tokenRef.current = accessToken;
@@ -126,6 +180,7 @@ export const SocketProvider = ({ children }) => {
         socket.disconnect();
         socketRef.current = null;
         tokenRef.current = "";
+        setActiveSocketId(null);
         setIsConnected(false);
       }
     };
@@ -139,6 +194,7 @@ export const SocketProvider = ({ children }) => {
         socketRef.current = null;
       }
       tokenRef.current = "";
+      setActiveSocketId(null);
       setIsConnected(false);
     };
   }, []);
