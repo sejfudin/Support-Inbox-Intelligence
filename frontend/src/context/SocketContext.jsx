@@ -84,6 +84,11 @@ export const SocketProvider = ({ children }) => {
 
       const onConnectError = (error) => {
         console.log("[socket] Connection error:", error.message);
+        if (error.message === "unauthorized" || error.message === "Authentication error") {
+          setTimeout(() => {
+            socket.connect();
+          }, 1000);
+        }
       };
 
       const onNewNotification = (payload) => {
@@ -103,16 +108,12 @@ export const SocketProvider = ({ children }) => {
     const socket = socketRef.current;
     const tokenChanged = tokenRef.current !== accessToken;
 
-    if (tokenChanged) {
+    if (tokenChanged && socket) {
       tokenRef.current = accessToken;
       socket.auth = {
         ...(socket.auth || {}),
         token: accessToken,
       };
-
-      if (socket.connected) {
-        socket.disconnect();
-      }
     }
 
     if (!socket.connected) {

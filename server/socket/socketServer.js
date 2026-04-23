@@ -75,11 +75,35 @@ const initSocket = (httpServer) => {
   });
 
   io.on('connection', (socket) => {
-    const userId = socket.data?.userId;
+    socket.use(([event, ...args], next) => {
+      try {
+        const token = extractTokenFromHandshake(socket);
+        
+        if (!token) {
+          return next(new Error('unauthorized'));
+        }
 
+        // Svaki put kad korisnik uradi socket.emit('nešto'), ovo se okida:
+        jwt.verify(token, process.env.JWT_SECRET);
+        
+        next(); 
+      } catch (error) {
+        console.log(`[socket] Auth failed for event: ${event}`);
+        next(new Error('unauthorized'));
+      }
+    });
+
+    const userId = socket.data?.userId;
     if (userId) {
       socket.join(`user:${userId}`);
     }
+
+    // Ovdje tvoji ostali listeneri...
+    socket.on('error', (err) => {
+      if (err.message === 'unauthorized') {
+        socket.disconnect(); // Izbaci ga ako nema validan token
+      }
+    });
   });
 
   return io;
