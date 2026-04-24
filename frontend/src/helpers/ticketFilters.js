@@ -137,7 +137,7 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
     params.priorityOrder = priorityOrder;
   }
 
-  params.sortBy = "dueDate";
+  params.sortBy = "updatedAt";
   params.sortOrder =
     dueDateOrder === DUE_DATE_ORDER_VALUES.SOONEST ? "asc" : "desc";
 

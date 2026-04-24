@@ -35,7 +35,7 @@ export default function UserDashboard() {
     page,
     limit: 10,
     search: debouncedSearch,
-    sortBy: "dueDate",
+    sortBy: "updatedAt",
     sortOrder: "desc",
   });
 
