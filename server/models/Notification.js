@@ -15,7 +15,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["ticket_comment"],
+      enum: ["ticket_comment", "ticket_assigned"],
       required: true,
     },
     title: {

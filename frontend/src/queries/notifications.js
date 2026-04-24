@@ -7,10 +7,16 @@ import {
 
 export const NOTIFICATIONS_QUERY_KEY = ["notifications"];
 
-export function useNotifications(options = {}) {
+export function useNotifications({ userId, ...options } = {}) {
+  const queryKey = userId
+    ? [...NOTIFICATIONS_QUERY_KEY, String(userId)]
+    : NOTIFICATIONS_QUERY_KEY;
+
   return useQuery({
-    queryKey: NOTIFICATIONS_QUERY_KEY,
+    queryKey,
     queryFn: () => getNotifications({ limit: 30 }),
+    staleTime: 0,
+    refetchOnMount: "always",
     ...options,
   });
 }
