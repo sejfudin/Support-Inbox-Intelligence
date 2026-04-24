@@ -34,7 +34,7 @@ const getAllTickets = async (req, res) => {
       priorityOrder: priorityOrder || "none",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
-      sortBy: sortBy || "dueDate",
+      sortBy: sortBy || "updatedAt",
       sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
 
@@ -299,7 +299,7 @@ const getMyTickets = async (req, res, next) => {
       priority: priority || "",
       priorities: priorities || "",
       priorityOrder: priorityOrder || "none",
-      sortBy: sortBy || "dueDate",
+      sortBy: sortBy || "updatedAt",
       sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
 
