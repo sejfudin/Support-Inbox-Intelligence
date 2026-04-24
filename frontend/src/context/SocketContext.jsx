@@ -3,8 +3,11 @@ import { io } from "socket.io-client";
 import { useAuth } from "@/context/AuthContext";
 import { queryClient } from "@/lib/queryClient";
 import { NOTIFICATIONS_QUERY_KEY } from "@/queries/notifications";
+import { setActiveSocketId } from "@/lib/socketSession";
 
 const SocketContext = createContext(null);
+
+const getAccessToken = () => localStorage.getItem("accessToken") || "";
 
 const getSocketUrl = () => {
   const apiBase = import.meta.env.VITE_API_BASE_URL;
@@ -23,94 +26,176 @@ const getSocketUrl = () => {
 };
 
 export const SocketProvider = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
+  const [accessToken, setAccessToken] = useState(getAccessToken);
   const socketRef = useRef(null);
+  const tokenRef = useRef(accessToken);
 
   useEffect(() => {
-    const socket = io(getSocketUrl(), {
-      autoConnect: false,
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
-
-    socketRef.current = socket;
-
-    const onConnect = () => {
-      setIsConnected(true);
-      console.log(`[socket] Connected: ${socket.id}`);
+    const syncToken = () => {
+      const nextToken = getAccessToken();
+      setAccessToken((currentToken) => (currentToken === nextToken ? currentToken : nextToken));
     };
 
-    const onDisconnect = (reason) => {
-      setIsConnected(false);
-      console.log(`[socket] Disconnected: ${reason}`);
-    };
-
-    const onConnectError = (error) => {
-      console.log("[socket] Connection error:", error.message);
-    };
-
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
-    socket.on("connect_error", onConnectError);
+    const intervalId = window.setInterval(syncToken, 1000);
+    window.addEventListener("storage", syncToken);
+    window.addEventListener("focus", syncToken);
 
     return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-      socket.off("connect_error", onConnectError);
-      socket.disconnect();
-      socketRef.current = null;
-      setIsConnected(false);
+      window.clearInterval(intervalId);
+      window.removeEventListener("storage", syncToken);
+      window.removeEventListener("focus", syncToken);
     };
   }, []);
 
   useEffect(() => {
-    const socket = socketRef.current;
-    const userId = user?._id || user?.id;
+    const shouldConnect = isAuthenticated && !!accessToken;
 
-    if (!socket) {
+    if (!shouldConnect) {
+      if (socketRef.current) {
+        socketRef.current.off();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      tokenRef.current = "";
+      setIsConnected(false);
       return;
     }
 
-    if (!isAuthenticated || !userId) {
-      if (socket.connected) {
-        socket.disconnect();
-      }
-      return;
+    if (!socketRef.current) {
+      const socket = io(getSocketUrl(), {
+        autoConnect: false,
+        withCredentials: true,
+        transports: ["websocket", "polling"],
+        auth: {
+          token: accessToken,
+        },
+      });
+
+      const onConnect = () => {
+        setIsConnected(true);
+        setActiveSocketId(socket.id);
+        console.log(`[socket] Connected: ${socket.id}`);
+      };
+
+      const onDisconnect = (reason) => {
+        setIsConnected(false);
+        setActiveSocketId(null);
+        console.log(`[socket] Disconnected: ${reason}`);
+      };
+
+      const onConnectError = (error) => {
+        console.log("[socket] Connection error:", error.message);
+        if (error.message === "unauthorized" || error.message === "Authentication error") {
+          setTimeout(() => {
+            socket.connect();
+          }, 1000);
+        }
+      };
+
+      const onNewNotification = (payload) => {
+        console.log("[socket] new_notification received:", payload);
+        queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+      };
+
+      const onNotificationMarkedAsRead = (payload) => {
+        const notificationIds = Array.isArray(payload?.notificationIds)
+          ? payload.notificationIds.map((id) => String(id))
+          : payload?.notificationId
+            ? [String(payload.notificationId)]
+            : [];
+
+        if (notificationIds.length === 0) {
+          return;
+        }
+
+        const idSet = new Set(notificationIds);
+
+        queryClient.setQueriesData({ queryKey: NOTIFICATIONS_QUERY_KEY }, (currentData) => {
+          if (!currentData || !Array.isArray(currentData.data)) {
+            return currentData;
+          }
+
+          let changedUnreadItems = 0;
+          const nextItems = currentData.data.map((notification) => {
+            const notificationId = String(notification?._id || notification?.id || "");
+
+            if (!idSet.has(notificationId) || notification.read) {
+              return notification;
+            }
+
+            changedUnreadItems += 1;
+            return {
+              ...notification,
+              read: true,
+            };
+          });
+
+          if (changedUnreadItems === 0) {
+            return currentData;
+          }
+
+          const nextUnreadCount = Math.max(
+            (Number(currentData.unreadCount) || 0) - changedUnreadItems,
+            0,
+          );
+
+          return {
+            ...currentData,
+            data: nextItems,
+            unreadCount: nextUnreadCount,
+          };
+        });
+      };
+
+      socket.on("connect", onConnect);
+      socket.on("disconnect", onDisconnect);
+      socket.on("connect_error", onConnectError);
+      socket.on("new_notification", onNewNotification);
+      socket.on("NOTIFICATION_MARKED_AS_READ", onNotificationMarkedAsRead);
+
+      socketRef.current = socket;
+      tokenRef.current = accessToken;
+    }
+
+    const socket = socketRef.current;
+    const tokenChanged = tokenRef.current !== accessToken;
+
+    if (tokenChanged && socket) {
+      tokenRef.current = accessToken;
+      socket.auth = {
+        ...(socket.auth || {}),
+        token: accessToken,
+      };
     }
 
     if (!socket.connected) {
       socket.connect();
     }
 
-    const registerCurrentUser = () => {
-      socket.emit("register_user", String(userId));
-      console.log(`[socket] register_user emitted for user ${userId}`);
-    };
-
-    registerCurrentUser();
-    socket.on("connect", registerCurrentUser);
-
     return () => {
-      socket.off("connect", registerCurrentUser);
+      if (!isAuthenticated || !accessToken) {
+        socket.off();
+        socket.disconnect();
+        socketRef.current = null;
+        tokenRef.current = "";
+        setActiveSocketId(null);
+        setIsConnected(false);
+      }
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, accessToken]);
 
   useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) {
-      return;
-    }
-
-    const onNewNotification = (payload) => {
-      console.log("[socket] new_notification received:", payload);
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
-    };
-
-    socket.on("new_notification", onNewNotification);
-
     return () => {
-      socket.off("new_notification", onNewNotification);
+      if (socketRef.current) {
+        socketRef.current.off();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      tokenRef.current = "";
+      setActiveSocketId(null);
+      setIsConnected(false);
     };
   }, []);
 

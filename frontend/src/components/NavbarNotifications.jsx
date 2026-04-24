@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,16 +15,26 @@ import {
 } from "@/queries/notifications";
 import { NotificationRow } from "@/components/NotificationRow";
 import { isMongoId } from "@/helpers/notificationUtils";
+import { useAuth } from "@/context/AuthContext";
 
 export default function NavbarNotifications() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
-  const { data, isLoading, isError } = useNotifications();
+  const { user } = useAuth();
+  const { data, isLoading, isError, refetch } = useNotifications({
+    userId: user?._id || user?.id,
+  });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
   const items = data?.data ?? [];
   const unreadCount = data?.unreadCount ?? 0;
+
+  useEffect(() => {
+    if (open) {
+      refetch();
+    }
+  }, [open, refetch]);
 
   const goToTicket = useCallback(
     (ticketId) => {
@@ -42,14 +52,12 @@ export default function NavbarNotifications() {
           type="button"
           variant="ghost"
           size="icon"
-          className="relative h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+          className="relative h-12 w-12 shrink-0 rounded-full border border-black/5 bg-white text-primary shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)] hover:bg-white hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
           aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
+            <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-white" />
           ) : null}
         </Button>
       </DropdownMenuTrigger>
@@ -78,7 +86,7 @@ export default function NavbarNotifications() {
           ) : null}
         </div>
 
-        <ScrollArea className="max-h-80">
+        <ScrollArea className="h-80">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />

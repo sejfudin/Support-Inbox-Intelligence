@@ -131,6 +131,7 @@ const createTicket = async (req, res) => {
       subject,
       description,
       creatorId: req.user._id,
+      actorUserId: req.user._id,
       assignedTo: assignedAgents,
       status: resolvedStatus,
       workspaceId,
@@ -207,7 +208,11 @@ const updateTicket = async (req, res, next) => {
         return obj;
       }, {});
 
-    const updatedTicket = await ticketService.updateTicket(id, filteredUpdate);
+    const updatedTicket = await ticketService.updateTicket(
+      id,
+      filteredUpdate,
+      req.user._id,
+    );
 
     res.status(200).json({
       success: true,

@@ -1,7 +1,48 @@
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 let io;
-const userSocketMap = {};
+
+const parseCookieHeader = (cookieHeader = '') => {
+  return cookieHeader
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce((acc, pair) => {
+      const separatorIndex = pair.indexOf('=');
+      if (separatorIndex === -1) return acc;
+
+      const key = pair.slice(0, separatorIndex).trim();
+      const value = pair.slice(separatorIndex + 1).trim();
+      if (!key) return acc;
+
+      acc[key] = decodeURIComponent(value);
+      return acc;
+    }, {});
+};
+
+const normalizeBearerToken = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  if (value.startsWith('Bearer ')) {
+    return value.slice(7).trim() || null;
+  }
+  return value.trim() || null;
+};
+
+const extractTokenFromHandshake = (socket) => {
+  const authToken = normalizeBearerToken(socket.handshake?.auth?.token);
+  if (authToken) return authToken;
+
+  const cookieHeader = socket.handshake?.headers?.cookie;
+  if (!cookieHeader) return null;
+
+  const cookies = parseCookieHeader(cookieHeader);
+  return (
+    normalizeBearerToken(cookies.accessToken) ||
+    normalizeBearerToken(cookies.token) ||
+    null
+  );
+};
 
 const initSocket = (httpServer) => {
   io = new Server(httpServer, {
@@ -12,56 +53,119 @@ const initSocket = (httpServer) => {
     },
   });
 
-  io.on('connection', (socket) => {
-    console.log(`[socket] connected: ${socket.id}`);
-
-    socket.on('register_user', (userId) => {
-      if (!userId) {
-        console.log(`[socket] register_user skipped for socket ${socket.id}: missing userId`);
-        return;
+  io.use((socket, next) => {
+    try {
+      const token = extractTokenFromHandshake(socket);
+      if (!token) {
+        return next(new Error('Authentication error'));
       }
 
-      const normalizedUserId = String(userId);
-      userSocketMap[normalizedUserId] = socket.id;
-      socket.data.userId = normalizedUserId;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decodedUserId = decoded?.id || decoded?._id || decoded?.userId;
 
-      console.log(`[socket] user registered: userId=${normalizedUserId}, socketId=${socket.id}`);
+      if (!decodedUserId) {
+        return next(new Error('Authentication error'));
+      }
+
+      socket.data.userId = String(decodedUserId);
+      return next();
+    } catch (error) {
+      return next(new Error('Authentication error'));
+    }
+  });
+
+  io.on('connection', (socket) => {
+    socket.use(([event, ...args], next) => {
+      try {
+        const token = extractTokenFromHandshake(socket);
+        
+        if (!token) {
+          return next(new Error('unauthorized'));
+        }
+
+        jwt.verify(token, process.env.JWT_SECRET);
+        
+        next(); 
+      } catch (error) {
+        console.log(`[socket] Auth failed for event: ${event}`);
+        next(new Error('unauthorized'));
+      }
     });
 
-    socket.on('disconnect', (reason) => {
-      const { userId } = socket.data || {};
+    const userId = socket.data?.userId;
+    if (userId) {
+      socket.join(`user:${userId}`);
+    }
 
-      if (userId && userSocketMap[userId] === socket.id) {
-        delete userSocketMap[userId];
-        console.log(`[socket] user removed from map: userId=${userId}, socketId=${socket.id}`);
+    socket.on('error', (err) => {
+      if (err.message === 'unauthorized') {
+        socket.disconnect(); 
       }
-
-      console.log(`[socket] disconnected: ${socket.id}, reason=${reason}`);
     });
   });
 
   return io;
 };
 
-const sendToUser = (userId, eventName, data) => {
+const getUserRoomName = (userId) => `user:${String(userId)}`;
+
+const isUserOnline = async (userId) => {
   if (!io) {
-    console.log('[socket] sendToUser skipped: io is not initialized');
     return false;
   }
 
-  const socketId = userSocketMap[String(userId)];
-  if (!socketId) {
-    console.log(`[socket] sendToUser skipped: user ${userId} is offline`);
+  const sockets = await io.in(getUserRoomName(userId)).fetchSockets();
+  return sockets.length > 0;
+};
+
+const sendToUser = async (userId, eventName, data) => {
+  if (!io) {
     return false;
   }
 
-  io.to(socketId).emit(eventName, data);
-  console.log(`[socket] sent event "${eventName}" to user ${userId} on socket ${socketId}`);
-  return true;
+  const roomName = getUserRoomName(userId);
+  const online = await isUserOnline(userId);
+
+  if (!online) {
+    return false;
+  }
+
+  try {
+    io.to(roomName).emit(eventName, data);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+const broadcastToUserRoom = (
+  userId,
+  eventName,
+  data,
+  { excludeSocketId } = {},
+) => {
+  if (!io) {
+    return false;
+  }
+
+  const roomName = getUserRoomName(userId);
+
+  try {
+    if (excludeSocketId) {
+      io.to(roomName).except(excludeSocketId).emit(eventName, data);
+    } else {
+      io.to(roomName).emit(eventName, data);
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 module.exports = {
   initSocket,
   sendToUser,
-  userSocketMap,
+  isUserOnline,
+  broadcastToUserRoom,
 };

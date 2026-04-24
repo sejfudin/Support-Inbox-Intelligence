@@ -1,4 +1,15 @@
 const notificationService = require("../services/notificationService");
+const { broadcastToUserRoom } = require("../socket/socketServer");
+
+const getRequesterSocketId = (req) => {
+  const rawSocketId = req.headers["x-socket-id"];
+  if (!rawSocketId || typeof rawSocketId !== "string") {
+    return null;
+  }
+
+  const trimmed = rawSocketId.trim();
+  return trimmed || null;
+};
 
 const getNotifications = async (req, res, next) => {
   try {
@@ -23,6 +34,13 @@ const markNotificationRead = async (req, res, next) => {
       req.params.id,
       req.user._id,
     );
+
+    broadcastToUserRoom(req.user._id, "NOTIFICATION_MARKED_AS_READ", {
+      notificationIds: [String(doc._id)],
+    }, {
+      excludeSocketId: getRequesterSocketId(req),
+    });
+
     res.status(200).json({ success: true, data: doc });
   } catch (err) {
     if (err.statusCode === 404) {
@@ -34,7 +52,16 @@ const markNotificationRead = async (req, res, next) => {
 
 const markAllNotificationsRead = async (req, res, next) => {
   try {
-    await notificationService.markAllRead(req.user._id);
+    const result = await notificationService.markAllRead(req.user._id);
+
+    if (result.notificationIds.length > 0) {
+      broadcastToUserRoom(req.user._id, "NOTIFICATION_MARKED_AS_READ", {
+        notificationIds: result.notificationIds,
+      }, {
+        excludeSocketId: getRequesterSocketId(req),
+      });
+    }
+
     res.status(200).json({ success: true });
   } catch (err) {
     next(err);
