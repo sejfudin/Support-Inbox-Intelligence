@@ -86,3 +86,11 @@ export const getMyTickets = async ({
   });
   return response.data;
 };
+
+export const suggestTicketMetadata = async ({ subject, description }) => {
+  const response = await apiClient.post("/tickets/suggest-metadata", {
+    subject,
+    description,
+  });
+  return response.data;
+};

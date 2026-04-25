@@ -1,6 +1,11 @@
 const ticketService = require("../services/ticketService");
+const {
+  validateSuggestionInput,
+  suggestTicketMetadata: suggestTicketMetadataService,
+} = require("../services/ticketMetadataSuggestionService");
 
 const STORY_POINTS_ERROR = "Story points must be an integer between 1 and 5";
+
 
 const getAllTickets = async (req, res) => {
   try {
@@ -325,6 +330,34 @@ const normalizeStoryPointsInput = (value) => {
   return parsed;
 };
 
+const suggestTicketMetadata = async (req, res) => {
+  try {
+    const { subject, description } = req.body || {};
+
+    const validationError = validateSuggestionInput({ subject, description });
+    if (validationError) {
+      return res.status(400).json({
+        success: false,
+        message: validationError,
+      });
+    }
+
+    const suggestion = await suggestTicketMetadataService({ subject, description });
+
+    return res.status(200).json({
+      success: true,
+      data: suggestion,
+    });
+  } catch (error) {
+    const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 503;
+
+    return res.status(statusCode).json({
+      success: false, 
+      message: error?.message || "AI suggestion is currently unavailable."
+    })
+  }
+};
+
 module.exports = {
   getAllTickets,
   getTicketById,
@@ -333,4 +366,6 @@ module.exports = {
   archiveTicket,
   deleteTicket,
   getMyTickets,
+  suggestTicketMetadata,
 };
+
