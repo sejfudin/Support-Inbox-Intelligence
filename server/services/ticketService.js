@@ -82,13 +82,16 @@ const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeTicketSubject = (value) =>
   String(value || "").replace(SUBJECT_PREFIX_RE, "").trim();
 
-const ALLOWED_TICKET_SORT_FIELDS = new Set(["updatedAt", "dueDate"]);
+const ALLOWED_TICKET_SORT_FIELDS = new Set(["updatedAt", "dueDate", "taskNumber"]);
 
 const buildTicketListSort = (sortBy = "dueDate", sortOrder = "desc") => {
   const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : "dueDate";
   const dir = sortOrder === "asc" ? 1 : -1;
   if (field === "dueDate") {
     return { dueDate: dir, updatedAt: -1 };
+  }
+  if (field === "taskNumber") {
+    return { taskNumber: dir, updatedAt: -1 };
   }
   return { updatedAt: dir };
 };
