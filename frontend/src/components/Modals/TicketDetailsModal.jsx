@@ -39,6 +39,10 @@ import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
 import { PRCard } from "@/components/PRCard";
 import { useRefreshPR, useUnlinkPR } from "@/queries/github";
 
+const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
+const sanitizeDisplaySubject = (value) =>
+  String(value || "").replace(SUBJECT_PREFIX_RE, "").trim();
+
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
   const [title, setTitle] = useState("");
@@ -71,7 +75,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   useEffect(() => {
     if (!ticket || !isOpen) return;
 
-    setTitle(ticket.subject || ticket.title || "Untitled Task");
+    const displayTitle = sanitizeDisplaySubject(ticket.subject || ticket.title);
+    setTitle(displayTitle || "Untitled Task");
     setDescription(ticket.description ?? "");
     setCurrentStatus(ticket.status ?? "To Do");
     setCurrentPriority(ticket.priority ?? "medium");
@@ -92,7 +97,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const hasChanges = useMemo(() => {
     if (!ticket) return false;
-    const initialTitle = ticket.subject || ticket.title || "Untitled Task";
+    const initialTitle =
+      sanitizeDisplaySubject(ticket.subject || ticket.title) || "Untitled Task";
     const initialDescription = ticket.description ?? "";
     const initialStatus = ticket.status ?? "To Do";
     const initialPriority = ticket.priority ?? "medium";
