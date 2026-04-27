@@ -38,6 +38,11 @@ import { normalizeStoryPoints } from "@/helpers/storyPoints";
 import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
 import { PRCard } from "@/components/PRCard";
 import { useRefreshPR, useUnlinkPR } from "@/queries/github";
+import {
+  RichTextEditor,
+  RichTextEditorContent,
+  RichTextEditorToolbar,
+} from "@/components/ui/rich-text-editor";
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
@@ -676,14 +681,16 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <div className="flex-[2] flex flex-col space-y-4 min-h-[500px]">
               <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
                 Description
-              </div>  
-              <textarea
+              </div>
+              <RichTextEditor
                 value={description}
-                readOnly={isArchived}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Write something more..."
-                className="flex-1 w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 lg:p-8 lg:text-lg"
-            />
+                onChange={setDescription}
+                className="flex-1 min-h-[300px]"
+                editable={!isArchived}
+              >
+                <RichTextEditorToolbar />
+                <RichTextEditorContent />
+              </RichTextEditor>
             </div>
             <div className="flex-[1] min-w-[320px] flex flex-col gap-6 min-h-[500px]">
               {ticket?.linkedPullRequest && (
