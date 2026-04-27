@@ -12,16 +12,14 @@ import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
 import { useTicketModals } from "@/hooks/useTicketModals";
 import { useDebounce } from "use-debounce";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateTicket } from "@/queries/tickets";
 
 export default function UserDashboard() {
-  const [page, setPage] = useState(1);
+  const [requestedPage, setPage] = useState(1);
   const [viewMode, setViewMode] = useState("list");
   const [search, setSearch] = useState("");
   const isMobile = useIsMobile();
   const [debouncedSearch] = useDebounce(search, 500);
-  const queryClient = useQueryClient();
   const updateTicketMutation = useUpdateTicket();
 
   const {
@@ -32,12 +30,20 @@ export default function UserDashboard() {
   } = useTicketModals();
 
   const { data: ticketsData, isLoading, isError } = useMyTickets({
-    page,
+    page: requestedPage,
     limit: 10,
     search: debouncedSearch,
     sortBy: "updatedAt",
     sortOrder: "desc",
   });
+
+  const pagination = ticketsData?.pagination;
+
+  useEffect(() => {
+    if (pagination && pagination.page > pagination.pages && pagination.pages > 0) {
+      setPage(pagination.pages);
+    }
+  }, [pagination]);
 
   const columns = useMemo(() => createTicketColumns(), []);
 
@@ -136,7 +142,7 @@ export default function UserDashboard() {
                     <DataTable
                       columns={columns}
                       data={normalizedTickets}
-                      pagination={ticketsData?.pagination}
+                      pagination={pagination}
                       onPageChange={(newPage) => setPage(newPage)}
                       meta={{ onRowClick: openTicketDetails }}
                     />
