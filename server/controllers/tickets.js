@@ -148,7 +148,8 @@ const createTicket = async (req, res) => {
     if (
       error.message ===
         "Assigned users must be active members of this workspace" ||
-      error.message === "Workspace not found"
+      error.message === "Workspace not found" ||
+      error.message === "Subject details are required"
     ) {
       return res.status(400).json({
         success: false,
@@ -225,7 +226,8 @@ const updateTicket = async (req, res, next) => {
     if (
       error.message ===
         "Assigned users must be active members of this workspace" ||
-      error.message === "Workspace not found"
+      error.message === "Workspace not found" ||
+      error.message === "Subject details are required"
     ) {
       return res.status(400).json({ message: error.message });
     }

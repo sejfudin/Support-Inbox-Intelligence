@@ -77,6 +77,11 @@ const parseOptionalDueDate = (value) => {
   return d;
 };
 
+const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
+
+const sanitizeTicketSubject = (value) =>
+  String(value || "").replace(SUBJECT_PREFIX_RE, "").trim();
+
 const ALLOWED_TICKET_SORT_FIELDS = new Set(["updatedAt", "dueDate"]);
 
 const buildTicketListSort = (sortBy = "dueDate", sortOrder = "desc") => {
@@ -320,8 +325,13 @@ const createTicket = async (ticketData) => {
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
+  const sanitizedSubject = sanitizeTicketSubject(ticketData.subject);
+  if (!sanitizedSubject) {
+    throw new Error("Subject details are required");
+  }
+
   const ticket = new Ticket({
-    subject: ticketData.subject,
+    subject: sanitizedSubject,
     description: ticketData.description || "",
     creator: ticketData.creatorId,
     status,
@@ -353,6 +363,14 @@ const createTicket = async (ticketData) => {
 
 const updateTicket = async (ticketId, updateData, actorUserId) => {
   try {
+    if (Object.prototype.hasOwnProperty.call(updateData, "subject")) {
+      const sanitizedSubject = sanitizeTicketSubject(updateData.subject);
+      if (!sanitizedSubject) {
+        throw new Error("Subject details are required");
+      }
+      updateData.subject = sanitizedSubject;
+    }
+
     const oldTicket = await Ticket.findById(ticketId);
     if (!oldTicket) throw new Error("Ticket not found");
 
