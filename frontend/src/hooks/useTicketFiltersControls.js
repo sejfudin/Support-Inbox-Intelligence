@@ -8,6 +8,8 @@ import {
   PRIORITY_FILTER_VALUES,
   PRIORITY_ORDER_OPTIONS,
   PRIORITY_ORDER_VALUES,
+  TICKET_ID_ORDER_OPTIONS,
+  TICKET_ID_ORDER_VALUES,
   buildTicketQueryParamsFromControls,
 } from "@/helpers/ticketFilters";
 import { PRIORITY_CONFIG } from "@/helpers/ticketPriority";
@@ -75,6 +77,17 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       });
     }
 
+    if (controls.ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE) {
+      const selectedTicketIdOrder = TICKET_ID_ORDER_OPTIONS.find(
+        (option) => option.value === controls.ticketIdOrder,
+      );
+      chips.push({
+        key: "ticketIdOrder",
+        label: `Ticket ID: ${selectedTicketIdOrder?.label || controls.ticketIdOrder}`,
+        className: "border-blue-200 bg-blue-50 text-blue-700",
+      });
+    }
+
     return chips;
   }, [controls, assigneeOptions]);
 
@@ -130,6 +143,13 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     }));
   };
 
+  const changeTicketIdOrder = (value) => {
+    setControls((prev) => ({
+      ...prev,
+      ticketIdOrder: value || TICKET_ID_ORDER_VALUES.NONE,
+    }));
+  };
+
   const clearAllFilters = () => {
     setControls({ ...DEFAULT_TICKET_CONTROLS });
   };
@@ -166,6 +186,14 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
         ...prev,
         dueDateOrder: DUE_DATE_ORDER_VALUES.DEFAULT,
       }));
+      return;
+    }
+
+    if (chipKey === "ticketIdOrder") {
+      setControls((prev) => ({
+        ...prev,
+        ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,
+      }));
     }
   };
 
@@ -177,7 +205,9 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     toggleAssignee,
     changePriorityOrder,
     changeDueDateOrder,
+    changeTicketIdOrder,
     clearAllFilters,
     removeFilterChip,
+    setControls,
   };
 }

@@ -41,11 +41,24 @@ export const DUE_DATE_ORDER_OPTIONS = [
   { value: DUE_DATE_ORDER_VALUES.LATEST, label: "Latest first" },
 ];
 
+export const TICKET_ID_ORDER_VALUES = {
+  NONE: "none",
+  ASC: "asc",
+  DESC: "desc",
+};
+
+export const TICKET_ID_ORDER_OPTIONS = [
+  { value: TICKET_ID_ORDER_VALUES.NONE, label: "Default" },
+  { value: TICKET_ID_ORDER_VALUES.ASC, label: "Oldest first (1 -> N)" },
+  { value: TICKET_ID_ORDER_VALUES.DESC, label: "Newest first (N -> 1)" },
+];
+
 export const DEFAULT_TICKET_CONTROLS = {
   priorities: [],
   assigneeIds: [],
   priorityOrder: PRIORITY_ORDER_VALUES.NONE,
   dueDateOrder: DUE_DATE_ORDER_VALUES.DEFAULT,
+  ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,
 };
 
 const PRIORITY_VALUE_SET = new Set(
@@ -80,6 +93,13 @@ const sanitizeDueDateOrder = (value) => {
   return Object.values(DUE_DATE_ORDER_VALUES).includes(safe)
     ? safe
     : DUE_DATE_ORDER_VALUES.DEFAULT;
+};
+
+const sanitizeTicketIdOrder = (value) => {
+  const safe = normalizeLower(value || TICKET_ID_ORDER_VALUES.NONE);
+  return Object.values(TICKET_ID_ORDER_VALUES).includes(safe)
+    ? safe
+    : TICKET_ID_ORDER_VALUES.NONE;
 };
 
 export const serializeCsvParam = (values, { lowercase = false } = {}) => {
@@ -122,6 +142,7 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
   const assigneeIds = sanitizeAssigneeIds(controls.assigneeIds);
   const priorityOrder = sanitizePriorityOrder(controls.priorityOrder);
   const dueDateOrder = sanitizeDueDateOrder(controls.dueDateOrder);
+  const ticketIdOrder = sanitizeTicketIdOrder(controls.ticketIdOrder);
 
   const params = {};
 
@@ -137,9 +158,14 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
     params.priorityOrder = priorityOrder;
   }
 
-  params.sortBy = "updatedAt";
-  params.sortOrder =
-    dueDateOrder === DUE_DATE_ORDER_VALUES.SOONEST ? "asc" : "desc";
+  if (ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE) {
+    params.sortBy = "taskNumber";
+    params.sortOrder = ticketIdOrder;
+  } else {
+    params.sortBy = "updatedAt";
+    params.sortOrder =
+      dueDateOrder === DUE_DATE_ORDER_VALUES.SOONEST ? "asc" : "desc";
+  }
 
   return params;
 };

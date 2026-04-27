@@ -24,6 +24,7 @@ import { useUpdateTicket } from "@/queries/tickets";
 import { getAllTickets as getAllTicketsApi } from "@/api/tickets";
 import { useUsers } from "@/queries/users";
 import {
+  TICKET_ID_ORDER_VALUES,
   PRIORITY_FILTER_OPTIONS,
   buildAssigneeFilterOptions,
 } from "@/helpers/ticketFilters";
@@ -57,6 +58,7 @@ const decodeTabParam = (value) =>
   value ? value.toLowerCase().replace(/_/g, " ") : "all";
 
 const encodeTabParam = (value) => value.replace(/\s+/g, "_");
+const URL_TICKET_ID_SORT_PARAM = "ticketIdSort";
 
 export default function TicketPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -67,6 +69,14 @@ export default function TicketPage() {
     1,
   );
   const initialView = searchParams.get("view") === "board" ? "board" : "list";
+  const initialTicketIdSortRaw = String(
+    searchParams.get(URL_TICKET_ID_SORT_PARAM) || "",
+  ).toLowerCase();
+  const initialTicketIdSort =
+    initialTicketIdSortRaw === TICKET_ID_ORDER_VALUES.ASC ||
+    initialTicketIdSortRaw === TICKET_ID_ORDER_VALUES.DESC
+      ? initialTicketIdSortRaw
+      : TICKET_ID_ORDER_VALUES.NONE;
   const [activeTab, setActiveTab] = useState(
     ALLOWED_TABS.includes(initialTab) ? initialTab : "all",
   );
@@ -207,9 +217,22 @@ export default function TicketPage() {
     toggleAssignee,
     changePriorityOrder,
     changeDueDateOrder,
+    changeTicketIdOrder,
     clearAllFilters,
     removeFilterChip,
+    setControls,
   } = useTicketFiltersControls({ assigneeOptions });
+
+  useEffect(() => {
+    setControls((prev) =>
+      prev.ticketIdOrder === initialTicketIdSort
+        ? prev
+        : {
+            ...prev,
+            ticketIdOrder: initialTicketIdSort,
+          },
+    );
+  }, [initialTicketIdSort, setControls]);
 
   const listData = useTicketList({
     activeTab,
@@ -268,6 +291,7 @@ export default function TicketPage() {
   const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
   const handlePriorityOrderChange = runWithListReset(changePriorityOrder);
   const handleDueDateOrderChange = runWithListReset(changeDueDateOrder);
+  const handleTicketIdOrderChange = runWithListReset(changeTicketIdOrder);
   const handleClearAllFilters = runWithListReset(clearAllFilters);
   const handleRemoveFilterChip = runWithListReset(removeFilterChip);
 
@@ -306,6 +330,12 @@ export default function TicketPage() {
       next.delete("view");
     }
 
+    if (controls.ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE) {
+      next.set(URL_TICKET_ID_SORT_PARAM, controls.ticketIdOrder);
+    } else {
+      next.delete(URL_TICKET_ID_SORT_PARAM);
+    }
+
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
@@ -314,6 +344,7 @@ export default function TicketPage() {
     search,
     listData.page,
     effectiveViewMode,
+    controls.ticketIdOrder,
     searchParams,
     setSearchParams,
   ]);
@@ -355,6 +386,8 @@ export default function TicketPage() {
     onPriorityOrderChange: handlePriorityOrderChange,
     dueDateOrder: controls.dueDateOrder,
     onDueDateOrderChange: handleDueDateOrderChange,
+    ticketIdOrder: controls.ticketIdOrder,
+    onTicketIdOrderChange: handleTicketIdOrderChange,
     activeFilterChips,
     onRemoveFilterChip: handleRemoveFilterChip,
     onClearAllFilters: handleClearAllFilters,
