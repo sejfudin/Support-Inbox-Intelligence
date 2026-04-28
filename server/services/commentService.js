@@ -1,5 +1,6 @@
 const Comment = require("../models/Comment");
 const Ticket = require("../models/Ticket");
+const notificationService = require("./notificationService");
 
 const createComment = async ({
   content,
@@ -33,7 +34,19 @@ const createComment = async ({
     author: authorId,
   });
 
-  return await comment.populate("author", "fullname email");
+  const populated = await comment.populate("author", "fullname email");
+
+  try {
+    await notificationService.notifyNewTicketComment({
+      ticket: foundTicket,
+      authorId,
+      commentPreview: content.trim(),
+    });
+  } catch (err) {
+    console.error("[notifications] notifyNewTicketComment failed:", err.message);
+  }
+
+  return populated;
 };
 
 const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {

@@ -14,7 +14,7 @@ export const DeleteConfirmModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex justify-end p-2">
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full text-gray-400">

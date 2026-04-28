@@ -5,7 +5,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  RichTextEditor,
+  RichTextEditorContent,
+  RichTextEditorToolbar,
+} from "@/components/ui/rich-text-editor";
 import { useUsers } from "@/queries/users";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -106,6 +110,18 @@ const NewTickets = ({
 
   const handleCreate = (e) => {
     e.preventDefault();
+
+    const stripHtml = (html) => {
+      if (!html) return "";
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      return tmp.textContent || tmp.innerText || "";
+    };
+    const plainDescription = stripHtml(newTicket.description).trim();
+    if (!plainDescription) {
+      toast.error("Description is required");
+      return;
+    }
 
     const ticketData = {
       ...newTicket,
@@ -209,13 +225,14 @@ const NewTickets = ({
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     Description
                   </Label>
-                  <Textarea
-                    placeholder="Describe the issue..."
+                  <RichTextEditor
                     value={newTicket.description}
-                    onChange={(e) => updateField("description", e.target.value)}
-                    className="min-h-[120px] text-base"
-                    required
-                  />
+                    onChange={(html) => updateField("description", html)}
+                    className="min-h-[180px]"
+                  >
+                    <RichTextEditorToolbar />
+                    <RichTextEditorContent />
+                  </RichTextEditor>
                 </div>
 
                 <div className="space-y-6">

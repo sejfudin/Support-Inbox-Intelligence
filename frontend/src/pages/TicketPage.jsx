@@ -101,6 +101,49 @@ export default function TicketPage() {
   } = useTicketModals();
 
   const searchInputRef = useRef(null);
+  const isClosingDetailsRef = useRef(false);
+
+  const isValidTicketParam = (value) =>
+    typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
+
+  const handleCloseTicketDetails = useMemo(
+    () => () => {
+      isClosingDetailsRef.current = true;
+      const next = new URLSearchParams(searchParams);
+      if (next.has("ticket")) {
+        next.delete("ticket");
+        setSearchParams(next, { replace: true });
+      }
+      closeTicketDetails();
+    },
+    [closeTicketDetails, searchParams, setSearchParams],
+  );
+
+  useEffect(() => {
+    const tid = searchParams.get("ticket");
+    if (!isValidTicketParam(tid)) {
+      // URL is cleaned, allow normal modal opening again.
+      if (!tid) isClosingDetailsRef.current = false;
+      return;
+    }
+    if (isClosingDetailsRef.current) return;
+    if (isDetailsOpen && selectedTicketId === tid) return;
+    openTicketDetails(tid);
+  }, [searchParams, openTicketDetails, isDetailsOpen, selectedTicketId]);
+
+  useEffect(() => {
+    if (!hasHydratedFromParamsRef.current) return;
+    if (!isDetailsOpen || !selectedTicketId) return;
+    if (searchParams.get("ticket") === selectedTicketId) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("ticket", selectedTicketId);
+    setSearchParams(next, { replace: true });
+  }, [
+    isDetailsOpen,
+    selectedTicketId,
+    searchParams,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -110,7 +153,7 @@ export default function TicketPage() {
       if (e.key === "Escape") {
         if (isDetailsOpen) {
           e.preventDefault();
-          closeTicketDetails();
+          handleCloseTicketDetails();
           return;
         }
         if (isNewOpen) {
@@ -138,7 +181,13 @@ export default function TicketPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isDetailsOpen, isNewOpen, closeTicketDetails, closeNewTicket, openNewTicket]);
+  }, [
+    isDetailsOpen,
+    isNewOpen,
+    handleCloseTicketDetails,
+    closeNewTicket,
+    openNewTicket,
+  ]);
 
   const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
 
@@ -484,7 +533,7 @@ export default function TicketPage() {
       <TicketDetailsModal
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
-        onClose={closeTicketDetails}
+        onClose={handleCloseTicketDetails}
       />
     </PageShell>
   );

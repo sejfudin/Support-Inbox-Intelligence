@@ -39,7 +39,7 @@ const getAllTickets = async (req, res) => {
       priorityOrder: priorityOrder || "none",
       archived: archived === undefined ? undefined : archived === "true",
       workspaceId,
-      sortBy: sortBy || "dueDate",
+      sortBy: sortBy || "updatedAt",
       sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
 
@@ -136,6 +136,7 @@ const createTicket = async (req, res) => {
       subject,
       description,
       creatorId: req.user._id,
+      actorUserId: req.user._id,
       assignedTo: assignedAgents,
       status: resolvedStatus,
       workspaceId,
@@ -152,7 +153,8 @@ const createTicket = async (req, res) => {
     if (
       error.message ===
         "Assigned users must be active members of this workspace" ||
-      error.message === "Workspace not found"
+      error.message === "Workspace not found" ||
+      error.message === "Subject details are required"
     ) {
       return res.status(400).json({
         success: false,
@@ -212,7 +214,11 @@ const updateTicket = async (req, res, next) => {
         return obj;
       }, {});
 
-    const updatedTicket = await ticketService.updateTicket(id, filteredUpdate);
+    const updatedTicket = await ticketService.updateTicket(
+      id,
+      filteredUpdate,
+      req.user._id,
+    );
 
     res.status(200).json({
       success: true,
@@ -225,7 +231,8 @@ const updateTicket = async (req, res, next) => {
     if (
       error.message ===
         "Assigned users must be active members of this workspace" ||
-      error.message === "Workspace not found"
+      error.message === "Workspace not found" ||
+      error.message === "Subject details are required"
     ) {
       return res.status(400).json({ message: error.message });
     }
@@ -299,7 +306,7 @@ const getMyTickets = async (req, res, next) => {
       priority: priority || "",
       priorities: priorities || "",
       priorityOrder: priorityOrder || "none",
-      sortBy: sortBy || "dueDate",
+      sortBy: sortBy || "updatedAt",
       sortOrder: sortOrder === "asc" ? "asc" : "desc",
     });
 

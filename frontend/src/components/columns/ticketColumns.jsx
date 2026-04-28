@@ -32,6 +32,22 @@ export function createTicketColumns() {
         cellClassName: "w-[36%]",
       },
       cell: ({ row }) => {
+        const stripHtml = (html) => {
+          if (!html) return "";
+          
+          const spacedHtml = html
+            .replace(/</g, " <")
+            .replace(/>/g, "> ")
+            .replace(/\s+/g, " ");
+          
+          const tmp = document.createElement("div");
+          tmp.innerHTML = spacedHtml;
+          
+          const text = tmp.textContent || tmp.innerText || "";
+          return text.replace(/\s+/g, " ").trim();
+        };
+        const plainDescription = stripHtml(row.original.description);
+
         return (
           <div className="flex flex-col w-full min-w-0 max-w-full gap-1">
             <div
@@ -42,9 +58,9 @@ export function createTicketColumns() {
             </div>
             <div
               className="line-clamp-1 text-sm text-muted-foreground break-words"
-              title={row.original.description}
+              title={plainDescription}
             >
-              {row.original.description}
+              {plainDescription}
             </div>
           </div>
         );

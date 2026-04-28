@@ -124,7 +124,7 @@ export default function AppSidebar() {
   const currentWorkspaceName = workspace?.name || (user?.role === "admin" ? "Global admin mode" : null);
 
   return (
-    <Sidebar className="border-r border-white/60 bg-white/88 backdrop-blur-xl">
+    <Sidebar className="border-r border-white/60 bg-white/88">
       <SidebarHeader className="px-5 pt-6 pb-4">
         <div className="rounded-[1.4rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-white px-4 py-4 shadow-[0_16px_40px_-32px_rgba(108,105,255,0.8)]">
           <div className="text-xl font-semibold tracking-tight">

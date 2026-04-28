@@ -194,10 +194,57 @@ async function getIntegrationToken(integration) {
   return token;
 }
 
+/**
+ * Refreshes PR data for a ticket by fetching latest info from GitHub.
+ *
+ * @param {Object} integration - Integration document
+ * @param {Object} ticket - Ticket document with linkedPullRequest
+ * @returns {Promise<Object|null>} - Updated PR data or null
+ */
+async function refreshPullRequest(integration, ticket) {
+  if (!ticket.linkedPullRequest) return null;
+
+  const token = await getIntegrationToken(integration);
+  const { url } = ticket.linkedPullRequest;
+
+  const urlMatch = url?.match(/github\.com\/([^\/]+)\/([^\/]+)\/pull\/(\d+)/);
+  if (!urlMatch) {
+    throw new Error("Invalid PR URL format");
+  }
+
+  const [, owner, repo, number] = urlMatch;
+
+  const prData = await getPullRequest(token, owner, repo, number);
+  if (!prData) return null;
+
+  return {
+    prNumber: prData.number,
+    prTitle: prData.title,
+    branchName: prData.head?.ref || ticket.linkedPullRequest.branchName,
+    state: prData.merged ? "merged" : prData.state,
+    isDraft: prData.draft,
+    author: {
+      login: prData.user?.login,
+      avatarUrl: prData.user?.avatar_url,
+    },
+    url: prData.html_url,
+    createdAt: prData.created_at,
+    updatedAt: prData.updated_at,
+    mergedAt: prData.merged_at,
+    mergedBy: prData.merged_by
+      ? {
+          login: prData.merged_by.login,
+          avatarUrl: prData.merged_by.avatar_url,
+        }
+      : null,
+  };
+}
+
 module.exports = {
   getInstallationToken,
   getPullRequest,
   getInstallationRepositories,
   getInstallation,
   getIntegrationToken,
+  refreshPullRequest,
 };

@@ -4,7 +4,7 @@ export default function PageHeader({ children, className }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 shrink-0 border-b border-white/60 bg-white/80 backdrop-blur-xl",
+        "sticky top-0 z-20 shrink-0 border-b border-white/60 bg-white/80",
         className,
       )}
     >

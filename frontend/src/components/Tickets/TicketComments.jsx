@@ -27,7 +27,7 @@ export default function TicketComments({ ticketId, isArchived }) {
   if (isLoading) return <CommentsSkeleton />;
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="flex flex-col flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden min-h-0">
       <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 flex items-center gap-2">
         <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">

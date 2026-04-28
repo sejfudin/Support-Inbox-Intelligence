@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,12 @@ import { useUpdateUser } from "@/queries/auth";
 import { useAuth } from "@/context/AuthContext"; 
 import { toast } from "sonner";
 import TableSkeleton from "@/components/Skeletons/TableSkeleton";
+import { useNavigate } from "react-router-dom";
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
   
   const { user, loading, refetchUser } = useAuth();
   const updateUserMutation = useUpdateUser();
@@ -22,6 +24,24 @@ const ProfilePage = () => {
     fullName: "",
     password: "",
   });
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== "Escape") return;
+
+      if (isEditing) {
+        setIsEditing(false);
+        setShowPassword(false);
+        setDraftProfile({ fullName: "", password: "" });
+        return;
+      }
+
+      navigate(-1);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isEditing, navigate]);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -79,29 +99,41 @@ const ProfilePage = () => {
               </p>
             </div>
 
-            <Button
-              variant="ghost"
-              onClick={() => {
-                if (isEditing) {
-                  setIsEditing(false);
-                  setShowPassword(false);
-                  setDraftProfile({ fullName: "", password: "" });
-                } else {
-                  setIsEditing(true);
-                  setDraftProfile({
-                    fullName: user.fullname || "",
-                    password: "",
-                  });
-                }
-              }}
-              className="hover:bg-slate-100 text-slate-600 font-bold"
-            >
-              {isEditing ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Pencil className="h-5 w-5" />
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (isEditing) {
+                    setIsEditing(false);
+                    setShowPassword(false);
+                    setDraftProfile({ fullName: "", password: "" });
+                  } else {
+                    setIsEditing(true);
+                    setDraftProfile({
+                      fullName: user.fullname || "",
+                      password: "",
+                    });
+                  }
+                }}
+                className="hover:bg-slate-100 text-slate-600 font-bold"
+                aria-label={isEditing ? "Cancel editing profile" : "Edit profile"}
+              >
+                {isEditing ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Pencil className="h-5 w-5" />
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="hover:bg-slate-100 text-slate-600 font-bold"
+                onClick={() => navigate(-1)}
+                aria-label="Close profile"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </CardHeader>
 
           <CardContent className="px-6 md:px-12 pb-12">
@@ -198,20 +230,34 @@ const ProfilePage = () => {
               </div>
 
               {isEditing && (
-                <Button
-                  type="submit"
-                  disabled={updateUserMutation.isPending || !isFormValid}
-                  className="w-full h-14 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98] mt-4 shadow-xl flex items-center justify-center gap-2"
-                >
-                  {updateUserMutation.isPending ? (
-                    <>
-                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Changes"
-                  )}
-                </Button>
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    type="submit"
+                    disabled={updateUserMutation.isPending || !isFormValid}
+                    className="h-14 flex-1 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98] shadow-xl flex items-center justify-center gap-2"
+                  >
+                    {updateUserMutation.isPending ? (
+                      <>
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-14 flex-1"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setShowPassword(false);
+                      setDraftProfile({ fullName: "", password: "" });
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               )}
             </form>
           </CardContent>

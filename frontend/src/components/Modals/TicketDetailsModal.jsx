@@ -12,6 +12,7 @@ import {
   UserPen,
   Ticket,
   Download,
+  GitPullRequest,
 } from "lucide-react";
 import { useTicket, useUpdateTicket } from "@/queries/tickets";
 import StatusDropdown from "@/components/StatusDropdown";
@@ -35,6 +36,17 @@ import { dueDateToInputValue } from "@/helpers/ticketDueDate";
 import StoryPointsField from "../StoryPointsField";
 import { normalizeStoryPoints } from "@/helpers/storyPoints";
 import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
+import { PRCard } from "@/components/PRCard";
+import { useRefreshPR, useUnlinkPR } from "@/queries/github";
+import {
+  RichTextEditor,
+  RichTextEditorContent,
+  RichTextEditorToolbar,
+} from "@/components/ui/rich-text-editor";
+
+const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
+const sanitizeDisplaySubject = (value) =>
+  String(value || "").replace(SUBJECT_PREFIX_RE, "").trim();
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
@@ -43,6 +55,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isActionPending, setIsActionPending] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
+  const [unlinkError, setUnlinkError] = useState(null);
   const [currentStatus, setCurrentStatus] = useState("To Do");
   const [currentPriority, setCurrentPriority] = useState("medium");
   const [currentStoryPoints, setCurrentStoryPoints] = useState(null);
@@ -50,6 +64,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [dueDateInput, setDueDateInput] = useState("");
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
+  const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
+  const { mutate: unlinkPR, isPending: isUnlinkingPR } = useUnlinkPR();
 
   const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
@@ -64,7 +80,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   useEffect(() => {
     if (!ticket || !isOpen) return;
 
-    setTitle(ticket.subject || ticket.title || "Untitled Task");
+    const displayTitle = sanitizeDisplaySubject(ticket.subject || ticket.title);
+    setTitle(displayTitle || "Untitled Task");
     setDescription(ticket.description ?? "");
     setCurrentStatus(ticket.status ?? "To Do");
     setCurrentPriority(ticket.priority ?? "medium");
@@ -85,7 +102,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const hasChanges = useMemo(() => {
     if (!ticket) return false;
-    const initialTitle = ticket.subject || ticket.title || "Untitled Task";
+    const initialTitle =
+      sanitizeDisplaySubject(ticket.subject || ticket.title) || "Untitled Task";
     const initialDescription = ticket.description ?? "";
     const initialStatus = ticket.status ?? "To Do";
     const initialPriority = ticket.priority ?? "medium";
@@ -222,6 +240,41 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     }
   };
 
+  const handleRefreshPR = () => {
+    if (!ticket?.linkedPullRequest) return;
+    refreshPR(
+      { ticketId, workspaceId: ticket?.workspace },
+      {
+        onSuccess: () => {
+          toast.success("PR status refreshed");
+        },
+        onError: (error) => {
+          toast.error("Failed to refresh PR", {
+            description: error?.response?.data?.message || "Please try again",
+          });
+        },
+      }
+    );
+  };
+
+  const handleUnlinkPR = () => {
+    setIsUnlinkModalOpen(true);
+    setUnlinkError(null);
+  };
+
+  const handleConfirmUnlink = () => {
+    setUnlinkError(null);
+    unlinkPR(ticketId, {
+      onSuccess: () => {
+        setIsUnlinkModalOpen(false);
+        toast.success("PR unlinked successfully");
+      },
+      onError: (error) => {
+        setUnlinkError(error?.response?.data?.message || "Failed to unlink PR");
+      },
+    });
+  };
+
   const handleConfirmAction = () => {
     const action = archiveTicket;
     setIsActionPending(true);
@@ -285,7 +338,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   if (isLoading || usersLoading) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
         <div className="bg-white p-8 rounded-xl shadow-xl animate-pulse flex flex-col items-center gap-4">
           <div className="h-6 w-48 bg-gray-200 rounded"></div>
           <div className="h-4 w-32 bg-gray-100 rounded"></div>
@@ -297,7 +350,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   if (isError || usersError) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
         <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div className="text-sm font-bold text-gray-700 uppercase tracking-widest">
@@ -306,7 +359,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.stopPropagation(); 
+                onClose();
+              }}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close error modal"
             >
@@ -333,7 +389,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <div className="pt-2 flex justify-end">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
               >
                 Close
@@ -346,7 +405,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   }
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 lg:p-8 transition-opacity"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 sm:p-4 lg:p-8 transition-opacity"
       onClick={onClose}
       role="presentation"
     >
@@ -361,7 +420,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => { onClose();}}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close ticket details"
             >
@@ -426,6 +485,18 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             loadingLabel="Archiving..."
           />
 
+          <DeleteConfirmModal
+            isOpen={isUnlinkModalOpen}
+            onClose={() => setIsUnlinkModalOpen(false)}
+            onConfirm={handleConfirmUnlink}
+            isLoading={isUnlinkingPR}
+            errorMessage={unlinkError}
+            title="Unlink Pull Request"
+            description={`Unlink PR #${ticket?.linkedPullRequest?.prNumber || ""} from this ticket? This will remove the PR association but won't affect the PR itself.`}
+            confirmLabel="Unlink"
+            loadingLabel="Unlinking..."
+          />
+
           <div className="group relative mb-10 flex flex-col gap-3">
             {ticket?.taskNumber && (
               <div className="flex">
@@ -455,7 +526,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="mb-10 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-7 xl:pb-10">
+          <div className="mb-8 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-7 xl:pb-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
@@ -606,22 +677,40 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             </div>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8 h-[50vh] min-h-[400px]">
-            <div className="flex-[2] flex flex-col space-y-4">
+          <div className="flex flex-col lg:flex-row gap-8 mb-4">
+            <div className="flex-[2] flex flex-col space-y-4 min-h-[500px]">
               <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
                 Description
-              </div>  
-              <textarea
-                value={description}
-                readOnly={isArchived}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Write something more..."
-                className="flex-1 w-full resize-none rounded-xl border border-gray-200 bg-white p-4 text-base leading-relaxed text-gray-800 shadow-sm outline-none transition-all focus:border-blue-200 focus:ring-4 focus:ring-blue-50 lg:p-8 lg:text-lg"
-            />
-            </div>
-            <div className="flex-[1] min-w-[320px]">
-                  <TicketComments ticketId={ticketId} isArchived={isArchived} />
               </div>
+              <RichTextEditor
+                value={description}
+                onChange={setDescription}
+                className="flex-1 min-h-[300px]"
+                editable={!isArchived}
+              >
+                <RichTextEditorToolbar />
+                <RichTextEditorContent />
+              </RichTextEditor>
+            </div>
+            <div className="flex-[1] min-w-[320px] flex flex-col gap-6 min-h-[500px]">
+              {ticket?.linkedPullRequest && (
+                <div className="flex-shrink-0">
+                  <div className="flex items-center gap-2 text-gray-400 text-sm font-bold uppercase tracking-wider mb-4">
+                    <GitPullRequest className="w-4 h-4" /> Linked Pull Request
+                  </div>
+                  <PRCard
+                    pr={ticket.linkedPullRequest}
+                    onRefresh={handleRefreshPR}
+                    isRefreshing={isRefreshingPR}
+                    onUnlink={handleUnlinkPR}
+                    isUnlinking={isUnlinkingPR}
+                  />
+                </div>
+              )}
+              <div className="flex-1 min-h-0 flex flex-col">
+                <TicketComments ticketId={ticketId} isArchived={isArchived} />
+              </div>
+            </div>
           </div>
         </div>
       </div>

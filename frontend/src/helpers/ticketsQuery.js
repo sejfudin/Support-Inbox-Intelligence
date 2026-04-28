@@ -14,7 +14,7 @@ export const getTicketsQueryParams = ({
   const normalizedStatus = listStatus === null ? "null" : listStatus;
 
   const filterParams = { ...queryFilters };
-  const sortBy = filterParams.sortBy ?? "dueDate";
+  const sortBy = filterParams.sortBy ?? "updatedAt";
   const sortOrder = filterParams.sortOrder === "asc" ? "asc" : "desc";
   delete filterParams.sortBy;
   delete filterParams.sortOrder;
