@@ -3,9 +3,9 @@ const PRIORITY_SET = new Set(ALLOWED_PRIORITIES);
 
 const STORY_POINTS_MIN = 1;
 const STORY_POINTS_MAX = 5;
+const DEFAULT_GROQ_URL = "https://api.groq.com/openai/v1/responses";
 
-
-const GROQ_URL = "https://api.groq.com/openai/v1/responses";
+const { buildTicketMetadataSuggestionPrompt } = require("../prompts/ticketPrompts");
 
 function createSuggestionError(message, statusCode = 503) {
   const error = new Error(message);
@@ -74,26 +74,24 @@ function getGroqTimeoutMs() {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 6000;
 }
 
-function buildSuggestionPrompt({ subject, description }) {
-  return [
-    "You are a ticket triage assistant.",
-    "Return ONLY valid JSON with exact shape:",
-    '{"priority":"low|medium|high|critical","storyPoints":1}',
-    "Rules:",
-    "- priority must be one of low, medium, high, critical",
-    "- storyPoints must be an integer from 1 to 5",
-    "- base urgency on impact, risk, and production severity",
-    "- base storyPoints on complexity, unknowns, and implementation effort",
-    "",
-    `Subject: ${subject}`,
-    `Description: ${description}`,
-  ].join("\n");
+function getGroqUrl() {
+  const safeUrl = String(process.env.GROQ_URL || DEFAULT_GROQ_URL).trim();
+
+  try {
+    const parsed = new URL(safeUrl);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("Invalid protocol");
+    }
+    return parsed.toString();
+  } catch {
+    throw createSuggestionError("Invalid GROQ_URL configuration on server.", 503);
+  }
 }
 
 function buildGroqRequestBody({ subject, description }) {
   return {
     model: getGroqModel(),
-    input: buildSuggestionPrompt({ subject, description }),
+    input: buildTicketMetadataSuggestionPrompt({ subject, description }),
   };
 }
 
@@ -129,9 +127,9 @@ function extractJsonObject(text) {
   }
 }
 
-async function requestGroqSuggestion({ subject, description }) {
+async function requestGroqSuggestion({ subject, description, groqUrl }) {
   try {
-    const response = await fetch(GROQ_URL, {
+    const response = await fetch(groqUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -180,9 +178,12 @@ async function suggestTicketMetadata({ subject, description }) {
     throw createSuggestionError("AI is not configured on server.", 503);
   }
 
+  const groqUrl = getGroqUrl();
+
   return requestGroqSuggestion({
     subject: safeSubject,
     description: safeDescription,
+    groqUrl,
   });
 }
 
