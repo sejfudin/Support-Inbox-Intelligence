@@ -1,6 +1,7 @@
 const Comment = require("../models/Comment");
 const Ticket = require("../models/Ticket");
 const notificationService = require("./notificationService");
+const historyService = require("./historyService");
 
 const createComment = async ({
   content,
@@ -33,6 +34,8 @@ const createComment = async ({
     ticket,
     author: authorId,
   });
+
+  historyService.logEvent(ticket, authorId, "Comment Added");
 
   const populated = await comment.populate("author", "fullname email");
 
