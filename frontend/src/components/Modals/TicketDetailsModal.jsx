@@ -32,6 +32,7 @@ import { Avatar } from "../Avatar";
 import { toast } from "sonner";
 import TimeSpent from "@/components/TimeSpent";
 import TicketComments from "../Tickets/TicketComments";
+import TicketHistory from "../Tickets/TicketHistory";
 import { dueDateToInputValue } from "@/helpers/ticketDueDate";
 import StoryPointsField from "../StoryPointsField";
 import { normalizeStoryPoints } from "@/helpers/storyPoints";
@@ -691,6 +692,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 <RichTextEditorToolbar />
                 <RichTextEditorContent />
               </RichTextEditor>
+              <TicketHistory ticketId={ticketId} />
             </div>
             <div className="flex-[1] min-w-[320px] flex flex-col gap-6 min-h-[500px]">
               {ticket?.linkedPullRequest && (
