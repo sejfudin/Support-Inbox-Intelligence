@@ -68,14 +68,47 @@ const getUserWorkspaces = async (userId) => {
   return workspaces;
 };
 
-const updateWorkspace = async (workspaceId, { name, description }) => {
-  const workspace = await Workspace.findByIdAndUpdate(
-    workspaceId,
-    { $set: { name, description } },
-    { new: true, runValidators: true }
-  );
-
+const updateWorkspace = async (workspaceId, { name, description, owner }, requestingUserId) => {
+  const workspace = await Workspace.findById(workspaceId);
   if (!workspace) throw new Error('Workspace not found');
+
+  const updates = {};
+
+  if (name !== undefined) updates.name = name;
+  if (description !== undefined) updates.description = description;
+
+  if (owner !== undefined && owner !== workspace.owner?.toString()) {
+    if (workspace.owner?.toString() !== requestingUserId?.toString()) {
+      throw new Error('Only the workspace owner can transfer ownership');
+    }
+
+    const isActiveMember = workspace.members.some(
+      (m) => m.user.toString() === owner && m.status === 'active'
+    );
+    if (!isActiveMember) {
+      throw new Error('New owner must be an active member of the workspace');
+    }
+
+    updates.owner = owner;
+
+    await Workspace.findByIdAndUpdate(workspaceId, {
+      $set: updates,
+    });
+
+    return Workspace.findById(workspaceId)
+      .populate('owner', 'fullname email')
+      .populate('members.user', 'fullname email role status');
+  }
+
+  if (Object.keys(updates).length > 0) {
+    const updatedWorkspace = await Workspace.findByIdAndUpdate(
+      workspaceId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+    return updatedWorkspace;
+  }
+
   return workspace;
 };
 

@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import StatusBadge from '@/components/StatusBadge';
 import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useAuth } from '@/context/AuthContext';
@@ -32,6 +31,7 @@ import {
   useInviteWorkspaceMember,
   useRemoveWorkspaceMember,
   useSwitchWorkspace,
+  useUpdateWorkspace,
   useWorkspace,
 } from '@/queries/workspaces';
 
@@ -49,10 +49,13 @@ export default function WorkspaceDetailPage() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState(initialInviteForm);
   const [inviteError, setInviteError] = useState('');
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [selectedNewOwner, setSelectedNewOwner] = useState('');
 
   const { data: workspace, isLoading: loadingWorkspace } = useWorkspace(id);
   const { data: usersData, isLoading: loadingUsers } = useUsers({ pagination: false });
-  const { data: ticketsData, isLoading: loadingTickets } = useTickets(
+  const { data: ticketsData } = useTickets(
     { workspaceId: id, limit: 5 },
     { enabled: !!id }
   );
@@ -60,9 +63,9 @@ export default function WorkspaceDetailPage() {
   const inviteMember = useInviteWorkspaceMember(id);
   const removeMember = useRemoveWorkspaceMember(id);
   const switchWorkspace = useSwitchWorkspace();
+  const updateWorkspace = useUpdateWorkspace(id);
 
   const currentUserId = user?._id || user?.id;
-  const tickets = ticketsData?.data ?? [];
   const allUsers = usersData?.users ?? [];
 
   const members = workspace?.members ?? [];
@@ -232,153 +235,122 @@ export default function WorkspaceDetailPage() {
           <p className="mt-1 text-2xl font-bold">{ticketsData?.pagination?.total ?? 0}</p>
         </div>
         <div className="app-panel-soft p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Owner</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Owner</p>
+            {workspace.owner?._id?.toString() === currentUserId?.toString() &&
+              activeMembers.length > 1 && (
+              <button
+                onClick={() => setIsTransferOpen(true)}
+                className="text-xs font-medium text-blue-600 hover:underline"
+              >
+                Transfer
+              </button>
+            )}
+          </div>
           <p className="mt-1 truncate text-sm font-semibold">
             {workspace.owner?.fullname || workspace.owner?.email || '—'}
           </p>
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
-          <section className="app-panel overflow-hidden">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Workspace Members</h2>
-              </div>
-              <p className="text-xs text-muted-foreground">People with active access</p>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="app-panel overflow-hidden">
+          <div className="flex items-center justify-between border-b px-5 py-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Workspace Members</h2>
             </div>
+            <p className="text-xs text-muted-foreground">People with active access</p>
+          </div>
 
-            <ul className="divide-y">
-              {activeMembers.length === 0 ? (
-                <li className="px-5 py-4 text-sm text-muted-foreground">No active members yet.</li>
-              ) : (
-                activeMembers.map((member) => {
-                  const memberUser = member.user;
-                  const memberId = memberUser?._id || memberUser;
-                  const isOwner = workspace.owner?._id === memberId;
-                  const isCurrentUser = memberId?.toString() === currentUserId?.toString();
+          <ul className="divide-y">
+            {activeMembers.length === 0 ? (
+              <li className="px-5 py-4 text-sm text-muted-foreground">No active members yet.</li>
+            ) : (
+              activeMembers.map((member) => {
+                const memberUser = member.user;
+                const memberId = memberUser?._id || memberUser;
+                const isOwner = workspace.owner?._id === memberId;
+                const isCurrentUser = memberId?.toString() === currentUserId?.toString();
 
-                  return (
-                    <li key={member._id} className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap">
-                      <Avatar users={[memberUser]} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          <span className="truncate">{memberUser?.fullname || 'Unnamed user'}</span>
-                          {isOwner && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
-                        </div>
-                        <div className="truncate text-xs text-muted-foreground">{memberUser?.email}</div>
-                      </div>
-                      <div className="hidden shrink-0 md:block">
-                        <RoleBadge role={capitalizeFirst(member.role)} />
-                      </div>
-                      {!isOwner && !isCurrentUser && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveMember(member)}
-                          disabled={removeMember.isPending}
-                          className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
-                        >
-                          <UserMinus className="h-4 w-4" />
-                          Remove
-                        </Button>
-                      )}
-                    </li>
-                  );
-                })
-              )}
-            </ul>
-          </section>
-
-          <section className="app-panel overflow-hidden">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Pending Invitations</h2>
-              </div>
-              <p className="text-xs text-muted-foreground">Users who still need to accept</p>
-            </div>
-
-            <ul className="divide-y">
-              {pendingInvitations.length === 0 ? (
-                <li className="px-5 py-4 text-sm text-muted-foreground">No pending invites.</li>
-              ) : (
-                pendingInvitations.map((invitation) => (
-                  <li key={invitation._id} className="flex items-center gap-3 px-5 py-4">
-                    <Avatar users={[invitation.user]} />
+                return (
+                  <li key={member._id} className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap">
+                    <Avatar users={[memberUser]} />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-foreground">
-                        {invitation.user?.fullname || 'Pending user'}
+                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <span className="truncate">{memberUser?.fullname || 'Unnamed user'}</span>
+                        {isOwner && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
                       </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {invitation.user?.email}
-                      </div>
+                      <div className="truncate text-xs text-muted-foreground">{memberUser?.email}</div>
                     </div>
                     <div className="hidden shrink-0 md:block">
-                      <RoleBadge role={capitalizeFirst(invitation.workspaceRole)} />
+                      <RoleBadge role={capitalizeFirst(member.role)} />
                     </div>
-                    <div className="hidden shrink-0 md:block">
-                      <UserStatusBadge status="invited" />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveMember({ user: invitation.user })}
-                      disabled={removeMember.isPending}
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                    >
-                      <UserMinus className="h-4 w-4" />
-                      Cancel
-                    </Button>
+                    {!isOwner && !isCurrentUser && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveMember(member)}
+                        disabled={removeMember.isPending}
+                        className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
+                      >
+                        <UserMinus className="h-4 w-4" />
+                        Remove
+                      </Button>
+                    )}
                   </li>
-                ))
-              )}
-            </ul>
-          </section>
-        </div>
+                );
+              })
+            )}
+          </ul>
+        </section>
 
         <section className="app-panel overflow-hidden">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <div className="flex items-center gap-2">
-              <Ticket className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Recent Tickets</h2>
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Pending Invitations</h2>
             </div>
-            <button
-              onClick={() => navigate(`/tickets?workspaceId=${id}`)}
-              className="text-xs font-medium text-blue-600 hover:underline"
-            >
-              See all
-            </button>
+            <p className="text-xs text-muted-foreground">Users who still need to accept</p>
           </div>
 
-          {loadingTickets ? (
-            <div className="space-y-2 p-5">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : tickets.length === 0 ? (
-            <p className="px-5 py-4 text-sm text-muted-foreground">No tickets in this workspace yet.</p>
-          ) : (
-            <ul className="divide-y">
-              {tickets.map((ticket) => (
-                <li key={ticket._id} className="flex items-center justify-between gap-4 px-5 py-4">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-foreground">{ticket.subject}</div>
+          <ul className="divide-y">
+            {pendingInvitations.length === 0 ? (
+              <li className="px-5 py-4 text-sm text-muted-foreground">No pending invites.</li>
+            ) : (
+              pendingInvitations.map((invitation) => (
+                <li key={invitation._id} className="flex items-center gap-3 px-5 py-4">
+                  <Avatar users={[invitation.user]} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-foreground">
+                      {invitation.user?.fullname || 'Pending user'}
+                    </div>
                     <div className="truncate text-xs text-muted-foreground">
-                      {ticket.creator?.fullname || ticket.creator?.email || 'Unknown creator'}
+                      {invitation.user?.email}
                     </div>
                   </div>
-                  <StatusBadge status={ticket.status} />
+                  <div className="hidden shrink-0 md:block">
+                    <RoleBadge role={capitalizeFirst(invitation.workspaceRole)} />
+                  </div>
+                  <div className="hidden shrink-0 md:block">
+                    <UserStatusBadge status="invited" />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveMember({ user: invitation.user })}
+                    disabled={removeMember.isPending}
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <UserMinus className="h-4 w-4" />
+                    Cancel
+                  </Button>
                 </li>
-              ))}
-            </ul>
-          )}
+              ))
+            )}
+          </ul>
         </section>
       </div>
-
       </div>
 
       <Dialog
@@ -471,6 +443,125 @@ export default function WorkspaceDetailPage() {
                 disabled={inviteMember.isPending || !inviteForm.userId}
               >
                 {inviteMember.isPending ? 'Saving...' : 'Save Member'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isTransferOpen}
+        onOpenChange={(open) => {
+          setIsTransferOpen(open);
+          setTransferError('');
+          if (!open) {
+            setSelectedNewOwner('');
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Transfer Workspace Ownership</DialogTitle>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setTransferError('');
+
+              if (!selectedNewOwner) {
+                setTransferError('Please select a new owner');
+                return;
+              }
+
+              const newOwner = activeMembers.find(
+                (m) => (m.user?._id || m.user)?.toString() === selectedNewOwner
+              )?.user;
+
+              if (!newOwner) {
+                setTransferError('Selected user not found');
+                return;
+              }
+
+              const loadingToast = toast.loading('Transferring ownership...');
+
+              updateWorkspace.mutate(
+                { owner: selectedNewOwner },
+                {
+                  onSuccess: () => {
+                    toast.dismiss(loadingToast);
+                    toast.success(`Workspace ownership transferred to ${newOwner.fullname || newOwner.email}`);
+                    setIsTransferOpen(false);
+                    setSelectedNewOwner('');
+                  },
+                  onError: (error) => {
+                    toast.dismiss(loadingToast);
+                    const message = error.response?.data?.message || 'Failed to transfer ownership';
+                    setTransferError(message);
+                    toast.error(message);
+                  },
+                }
+              );
+            }}
+            className="space-y-4"
+          >
+            {transferError && (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+                {transferError}
+              </p>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">New Owner</label>
+              <Select
+                value={selectedNewOwner}
+                onValueChange={(value) => setSelectedNewOwner(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a new owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeMembers.filter((m) => {
+                    const memberId = (m.user?._id || m.user)?.toString();
+                    return memberId !== workspace.owner?._id?.toString();
+                  }).length === 0 ? (
+                    <SelectItem value="no-members" disabled>
+                      No eligible members found
+                    </SelectItem>
+                  ) : (
+                    activeMembers
+                      .filter((m) => {
+                        const memberId = (m.user?._id || m.user)?.toString();
+                        return memberId !== workspace.owner?._id?.toString();
+                      })
+                      .map((member) => {
+                        const memberUser = member.user;
+                        const memberId = memberUser?._id || memberUser;
+                        return (
+                          <SelectItem key={memberId} value={memberId?.toString()}>
+                            {memberUser?.fullname || 'Unnamed'} ({memberUser?.email})
+                          </SelectItem>
+                        );
+                      })
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <p className="font-medium">Warning</p>
+              <p className="mt-1">
+                Transferring ownership will give full control of this workspace to the selected user.
+                You will be downgraded to an admin role.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setIsTransferOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updateWorkspace.isPending || !selectedNewOwner}>
+                {updateWorkspace.isPending ? 'Transferring...' : 'Transfer Ownership'}
               </Button>
             </DialogFooter>
           </form>

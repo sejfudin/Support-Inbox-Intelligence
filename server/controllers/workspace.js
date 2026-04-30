@@ -40,12 +40,22 @@ exports.getWorkspace = async (req, res, next) => {
 
 exports.updateWorkspace = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
-    const workspace = await workspaceService.updateWorkspace(req.params.id, { name, description });
+    const { name, description, owner } = req.body;
+    const workspace = await workspaceService.updateWorkspace(
+      req.params.id,
+      { name, description, owner },
+      req.user._id
+    );
     res.json(workspace);
   } catch (err) {
     if (err.message === 'Workspace not found') {
       return res.status(404).json({ message: err.message });
+    }
+    if (err.message === 'Only the workspace owner can transfer ownership') {
+      return res.status(403).json({ message: err.message });
+    }
+    if (err.message === 'New owner must be an active member of the workspace') {
+      return res.status(400).json({ message: err.message });
     }
     next(err);
   }
