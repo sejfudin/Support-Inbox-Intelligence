@@ -552,7 +552,6 @@ export default function WorkspaceDetailPage() {
               <p className="font-medium">Warning</p>
               <p className="mt-1">
                 Transferring ownership will give full control of this workspace to the selected user.
-                You will be downgraded to an admin role.
               </p>
             </div>
 
