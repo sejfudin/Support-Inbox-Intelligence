@@ -5,8 +5,7 @@ import {
   AI_PROMPT_MIN_LENGTH,
   extractAiPromptFromDescriptionHtml,
 } from "@/helpers/aiDescriptionPrompt";
-
-const SUBJECT_MIN_LENGTH = 3;
+import { MIN_SUBJECT_LENGTH } from "@/helpers/aiValidationRules";
 
 export const useAiDescriptionGenerator = ({
   isOpen,

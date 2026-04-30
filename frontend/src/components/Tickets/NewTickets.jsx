@@ -45,6 +45,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useAiDescriptionGenerator } from "@/hooks/useAiDescriptionGenerator";
 import { htmlToPlainText } from "@/helpers/aiDescriptionPrompt";
+import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from "@/helpers/aiValidationRules";
 
 
 const NewTickets = ({
@@ -270,7 +271,7 @@ const NewTickets = ({
 
                       {!canGenerateDescription && (
                         <p className="mt-1 text-xs text-amber-700">
-                          Subject must be at least 3 chars and prompt after /ai must be at least 10 chars.
+                          Subject must be at least {MIN_SUBJECT_LENGTH} chars and prompt after /ai must be at least {MIN_TEXT_LENGTH} chars.
                         </p>
                       )}
 

@@ -1,4 +1,6 @@
-export const AI_PROMPT_MIN_LENGTH = 10;
+import { MIN_TEXT_LENGTH } from "@/helpers/aiValidationRules";
+
+export const AI_PROMPT_MIN_LENGTH = MIN_TEXT_LENGTH;
 const AI_PROMPT_REGEX = /^\s*\/ai\b([\s\S]*)$/i;
 
 export function htmlToPlainText(html) {

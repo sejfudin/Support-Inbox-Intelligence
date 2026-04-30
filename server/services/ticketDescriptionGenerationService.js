@@ -1,16 +1,19 @@
 const sanitizeHtml = require("sanitize-html");
 const { buildTicketDescriptionGenerationPrompt } = require("../prompts/ticketPrompts");
 const {
+  MIN_SUBJECT_LENGTH,
+  MIN_TEXT_LENGTH,
+  DESCRIPTION_ALLOWED_TAGS,
+} = require("../helpers/aiValidationRules");
+const {
   createAiServiceError,
   extractJsonObject,
   requestGroqOutputText,
 } = require("./groqAiClient");
 
-const MIN_SUBJECT_LENGTH = 3;
-const MIN_PROMPT_LENGTH = 10;
 
 const SANITIZE_OPTIONS = {
-  allowedTags: ["p", "br", "ul", "ol", "li", "strong", "em", "code", "blockquote", "h3"],
+  allowedTags: DESCRIPTION_ALLOWED_TAGS,
   allowedAttributes: {},
   disallowedTagsMode: "discard",
 };
@@ -24,11 +27,11 @@ function validateDescriptionGenerationInput({ subject, prompt }) {
   const safePrompt = normalizeText(prompt);
 
   if (safeSubject.length < MIN_SUBJECT_LENGTH) {
-    return "Subject must be at least 3 characters long";
+    return `Subject must be at least ${MIN_SUBJECT_LENGTH} characters long`;
   }
 
-  if (safePrompt.length < MIN_PROMPT_LENGTH) {
-    return "Prompt must be at least 10 characters long";
+  if (safePrompt.length < MIN_TEXT_LENGTH) {
+    return `Prompt must be at least ${MIN_TEXT_LENGTH} characters long`;
   }
 
   return null;

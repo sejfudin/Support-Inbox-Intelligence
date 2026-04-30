@@ -3,6 +3,7 @@ const PRIORITY_SET = new Set(ALLOWED_PRIORITIES);
 
 const STORY_POINTS_MIN = 1;
 const STORY_POINTS_MAX = 5;
+const { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } = require("../helpers/aiValidationRules");
 
 const { buildTicketMetadataSuggestionPrompt } = require("../prompts/ticketPrompts");
 const {
@@ -20,12 +21,12 @@ function validateSuggestionInput({ subject, description }) {
   const safeSubject = normalizeText(subject);
   const safeDescription = normalizeText(description);
 
-  if (safeSubject.length < 3) {
-    return "Subject must be at least 3 characters long";
+  if (safeSubject.length < MIN_SUBJECT_LENGTH) {
+    return `Subject must be at least ${MIN_SUBJECT_LENGTH} characters long`;
   }
 
-  if (safeDescription.length < 10) {
-    return "Description must be at least 10 characters long";
+  if (safeDescription.length < MIN_TEXT_LENGTH) {
+    return `Description must be at least ${MIN_TEXT_LENGTH} characters long`;
   }
 
   return null;
@@ -84,4 +85,3 @@ module.exports = {
   STORY_POINTS_MIN,
   STORY_POINTS_MAX,
 };
-

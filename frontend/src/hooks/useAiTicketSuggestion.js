@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useSuggestTicketMetadata } from "@/queries/tickets";
+import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from "@/helpers/aiValidationRules";
 
 export const useAiTicketSuggestion = ({
   isOpen,
@@ -21,7 +22,9 @@ export const useAiTicketSuggestion = ({
   const safeDescription = String(description || "").trim();
 
   const hasSuggestibleInput =
-    !isPaused && safeSubject.length >= 3 && safeDescription.length >= 10;
+    !isPaused &&
+    safeSubject.length >= MIN_SUBJECT_LENGTH &&
+    safeDescription.length >= MIN_TEXT_LENGTH;
 
   const resetSuggestionState = useCallback(() => {
     latestSuggestionRequestIdRef.current = 0;
@@ -143,5 +146,4 @@ export const useAiTicketSuggestion = ({
     resetSuggestionState,
   };
 };
-
 
