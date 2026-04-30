@@ -7,7 +7,8 @@ import {
   archiveTicket,
   updateTicket,
   getMyTickets, 
-  suggestTicketMetadata
+  suggestTicketMetadata,
+  generateTicketDescription
 } from "@/api/tickets";
 
 const invalidateWorkspaceAnalytics = (queryClient) => {
@@ -111,3 +112,10 @@ export const useSuggestTicketMetadata = () => {
     mutationFn: suggestTicketMetadata,
   });
 };
+
+export const useGenerateTicketDescription = () => {
+  return useMutation({
+    mutationFn: generateTicketDescription,
+  })
+};
+
