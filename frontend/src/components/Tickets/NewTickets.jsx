@@ -43,6 +43,9 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { useAiDescriptionGenerator } from "@/hooks/useAiDescriptionGenerator";
+import { htmlToPlainText } from "@/helpers/aiDescriptionPrompt";
+
 
 const NewTickets = ({
   isOpen,
@@ -73,10 +76,28 @@ const NewTickets = ({
     normalizedStoryPoints === null ? "No estimate" : `SP ${normalizedStoryPoints}`;
 
   const {
+    isPromptPanelVisible,
+    promptLength,
+    canGenerateDescription,
+    isGeneratingDescription,
+    isDescriptionDraftActive,
+    shouldPauseMetadataSuggestion,
+    generateDescription,
+    acceptGeneratedDescription,
+    cancelGeneratedDescription,
+    resetDescriptionGenerationState,
+  } = useAiDescriptionGenerator({
+    isOpen,
+    subject: newTicket.subject,
+    descriptionHtml: newTicket.description,
+    updateField,
+  });
+
+  const {
     hasSuggestibleInput,
     isSuggesting,
     requestManualSuggestion,
-    resetSuggestionState: resetAiSuggestionState,
+    resetSuggestionState: resetMetadataSuggestionState,
   } = useAiTicketSuggestion({
     isOpen,
     subject: newTicket.subject,
@@ -84,15 +105,18 @@ const NewTickets = ({
     priorityLockedByUser,
     storyPointsLockedByUser,
     updateField,
+    isPaused: shouldPauseMetadataSuggestion,
   });
 
   const resetSuggestionState = () => {
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
-    resetAiSuggestionState();
+    resetMetadataSuggestionState();
+    resetDescriptionGenerationState();
   };
 
   const handleUseAiSuggestion = () => {
+    if (shouldPauseMetadataSuggestion) return;
     if (!hasSuggestibleInput || isSuggesting) return;
 
     setPriorityLockedByUser(false);
@@ -111,15 +135,19 @@ const NewTickets = ({
   const handleCreate = (e) => {
     e.preventDefault();
 
-    const stripHtml = (html) => {
-      if (!html) return "";
-      const tmp = document.createElement("div");
-      tmp.innerHTML = html;
-      return tmp.textContent || tmp.innerText || "";
-    };
-    const plainDescription = stripHtml(newTicket.description).trim();
+    if (isGeneratingDescription) {
+      toast.error("Please wait for AI generation to finish.");
+      return;
+    }
+
+
+    if (isDescriptionDraftActive) {
+      acceptGeneratedDescription();
+    }
+
+    const plainDescription = htmlToPlainText(newTicket.description).trim();
     if (!plainDescription) {
-      toast.error("Description is required");
+      toast.error("Description is required.");
       return;
     }
 
@@ -233,6 +261,64 @@ const NewTickets = ({
                     <RichTextEditorToolbar />
                     <RichTextEditorContent />
                   </RichTextEditor>
+
+                  {isPromptPanelVisible && (
+                    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs text-slate-600">
+                        AI prompt mode is active. Prompt length: {promptLength} characters.
+                      </p>
+
+                      {!canGenerateDescription && (
+                        <p className="mt-1 text-xs text-amber-700">
+                          Subject must be at least 3 chars and prompt after /ai must be at least 10 chars.
+                        </p>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => generateDescription({ showToast: true })}
+                          disabled={
+                            !canGenerateDescription ||
+                            createMutation.isPending ||
+                            isGeneratingDescription
+                          }
+                        >
+                          {isGeneratingDescription
+                            ? "Generating..."
+                            : isDescriptionDraftActive
+                              ? "Regenerate Description"
+                              : "Generate Description"}
+                        </Button>
+
+                        {isDescriptionDraftActive && (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              onClick={acceptGeneratedDescription}
+                              disabled={isGeneratingDescription}
+                            >
+                              Accept
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={cancelGeneratedDescription}
+                              disabled={isGeneratingDescription}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
 
                 <div className="space-y-6">
@@ -480,7 +566,7 @@ const NewTickets = ({
                 <Button
                   type="submit"
                   className="flex-1"
-                  disabled={createMutation.isPending}
+                  disabled={createMutation.isPending || isGeneratingDescription}
                 >
                   {createMutation.isPending ? "Creating..." : "Create Ticket"}
                 </Button>
