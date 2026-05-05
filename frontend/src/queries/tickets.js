@@ -7,6 +7,8 @@ import {
   archiveTicket,
   updateTicket,
   getMyTickets, 
+  suggestTicketMetadata,
+  generateTicketDescription
 } from "@/api/tickets";
 
 const invalidateWorkspaceAnalytics = (queryClient) => {
@@ -74,7 +76,7 @@ export const useUpdateTicket = () => {
     mutationFn: (vars) => updateTicket(vars.ticketId, vars.updates),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["ticket", variables.ticketId] });
-      
+      queryClient.invalidateQueries({ queryKey: ["ticket-history", variables.ticketId] });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       invalidateWorkspaceAnalytics(queryClient);
       invalidateUserAnalytics(queryClient);
@@ -104,3 +106,16 @@ export const useMyTickets = (params, options = {}) => {
     ...options,
   });
 };
+
+export const useSuggestTicketMetadata = () => {
+  return useMutation({
+    mutationFn: suggestTicketMetadata,
+  });
+};
+
+export const useGenerateTicketDescription = () => {
+  return useMutation({
+    mutationFn: generateTicketDescription,
+  })
+};
+

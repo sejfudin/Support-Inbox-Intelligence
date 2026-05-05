@@ -9,6 +9,8 @@ const {
   archiveTicket,
   deleteTicket,
   getMyTickets,
+  suggestTicketMetadata,
+  generateTicketDescription,
 } = require("../controllers/tickets");
 
 // const { generateAI } = require('../controllers/ai');
@@ -18,6 +20,8 @@ router.get("/my-tickets", protect, getMyTickets);
 router.get("/", protect, getAllTickets);
 
 router.post("/", protect, createTicket);
+router.post("/suggest-metadata", protect, suggestTicketMetadata);
+router.post("/generate-description", protect, generateTicketDescription);
 router.get("/:id", protect, getTicketById);
 router.patch("/:id", protect, updateTicket);
 router.patch("/:id/archive", protect, archiveTicket);

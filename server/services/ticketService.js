@@ -2,6 +2,7 @@ const Ticket = require("../models/Ticket");
 const Workspace = require("../models/Workspace");
 const mongoose = require("mongoose");
 const { notifyTicketAssigned } = require("./notificationService");
+const historyService = require("./historyService");
 
 
 const PRIORITY_RANK = {
@@ -349,6 +350,8 @@ const createTicket = async (ticketData) => {
 
   await ticket.save();
 
+  historyService.logEvent(ticket._id, ticketData.creatorId, "Ticket Created");
+
   const newlyAssignedUserIds = normalizeAssignedUserIds(ticketData.assignedTo);
   if (newlyAssignedUserIds.length > 0) {
     await notifyTicketAssigned({
@@ -407,8 +410,8 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
 
       if (newStatus === "in progress") {
         updateData.inProgressAt = now;
-        updateData.doneAt = null; 
-      }      
+        updateData.doneAt = null;
+      }
 
       if (oldStatus === "in progress") {
         if (oldTicket.inProgressAt) {
@@ -422,6 +425,8 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       } else if (oldStatus === "done") {
         updateData.doneAt = null;
       }
+
+      historyService.logEvent(ticketId, actorUserId, `Status changed to ${updateData.status}`);
     }
 
     const ticket = await Ticket.findByIdAndUpdate(
@@ -445,13 +450,29 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         nextAssignedTo: ticket.assignedTo || [],
       });
 
-      if (newlyAssignedUserIds.length > 0) {
-        await notifyTicketAssigned({
-          ticket,
-          assignedUserIds: newlyAssignedUserIds,
-          actorUserId,
-        });
+      const prevIds = normalizeAssignedUserIds(previousAssignedTo).sort();
+      const nextIds = normalizeAssignedUserIds(updateData.assignedTo).sort();
+      const assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
+
+      if (assigneesChanged) {
+        if (newlyAssignedUserIds.length > 0) {
+          await notifyTicketAssigned({
+            ticket,
+            assignedUserIds: newlyAssignedUserIds,
+            actorUserId,
+          });
+          historyService.logEvent(ticketId, actorUserId, "Ticket Assigned");
+        } else {
+          historyService.logEvent(ticketId, actorUserId, "Ticket Reassigned");
+        }
       }
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(updateData, "description") &&
+      updateData.description !== oldTicket.description
+    ) {
+      historyService.logEvent(ticketId, actorUserId, "Description Updated");
     }
 
     return ticket;
