@@ -511,9 +511,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   value={title}
                   readOnly={isArchived}
                   onChange={(e) => setTitle(e.target.value)}
-                  className={`w-full min-w-0 rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all focus:ring-0 sm:text-3xl lg:text-4xl ${
+                  className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-2xl font-bold tracking-tight outline-none transition sm:text-3xl lg:text-4xl ${
                     !title.trim() ? 'text-destructive' : 'text-foreground'
-                  } ${isArchived ? 'cursor-default' : 'cursor-text hover:bg-gray-50/50'}`}
+                  } ${
+                    isArchived
+                      ? 'cursor-default'
+                      : 'cursor-text hover:bg-gray-50 focus:bg-gray-50 focus:border-gray-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white'
+                  }`}
                   placeholder="Enter ticket title..."
                 />
               </div>
