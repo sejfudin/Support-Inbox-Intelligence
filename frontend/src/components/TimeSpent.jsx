@@ -4,8 +4,10 @@ import { formatDuration } from '@/helpers/formatDuration';
 export const TimeSpent = ({ ticket }) => {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
-        <Clock className="w-4 h-4" /> Time Spent
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          Time Spent
+        </span>
       </div>
       <div className="flex min-h-[44px] items-center px-1.5">
         <span className="text-lg font-bold text-foreground">

@@ -19,8 +19,10 @@ export default function StoryPointsField({ value, onChange, disabled = false, cl
 
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-        <BarChart3 className="w-4 h-4" /> Story Points
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          Story Points
+        </span>
       </div>
 
       <DropdownMenu>
@@ -29,14 +31,16 @@ export default function StoryPointsField({ value, onChange, disabled = false, cl
             type="button"
             disabled={disabled}
             className={cn(
-              'flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-0 focus-visible:ring-0',
+              'flex w-full items-center justify-between gap-2 px-3 py-3 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200',
               disabled && 'cursor-not-allowed opacity-60'
             )}
             aria-label={`Change story points (current: ${currentLabel})`}
           >
-            <span className={cn('h-2 w-2 rounded-full', currentStyle.dot)} />
-            {currentLabel}
-            <ChevronDown className="w-3 h-3 opacity-50" />
+            <span className="flex items-center gap-2 min-w-0">
+              <span className={cn('h-2 w-2 rounded-full', currentStyle.dot)} />
+              <span className="min-w-0 truncate">{currentLabel}</span>
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 opacity-50" />
           </button>
         </DropdownMenuTrigger>
 
