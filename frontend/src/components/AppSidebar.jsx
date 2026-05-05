@@ -1,4 +1,4 @@
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   User,
   Archive,
@@ -9,10 +9,10 @@ import {
   ChartNoAxesCombined,
   Settings,
   Mail,
-} from "lucide-react";
-import { useWorkspace, useMyWorkspaces } from "@/queries/workspaces";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+} from 'lucide-react';
+import { useWorkspace, useMyWorkspaces } from '@/queries/workspaces';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   Sidebar,
   SidebarContent,
@@ -22,14 +22,14 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { useLogoutUser } from "@/queries/auth";
-import { useMyInvitations } from "@/queries/invitations";
-import { Avatar } from "./Avatar";
-import { capitalizeFirst } from "@/helpers/capitalizeFirst";
-import { useAuth } from "@/context/AuthContext";
-import { useEffect } from "react";
-import { Separator } from "@/components/ui/separator";
+} from '@/components/ui/sidebar';
+import { useLogoutUser } from '@/queries/auth';
+import { useMyInvitations } from '@/queries/invitations';
+import { Avatar } from './Avatar';
+import { capitalizeFirst } from '@/helpers/capitalizeFirst';
+import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
+import { Separator } from '@/components/ui/separator';
 
 export default function AppSidebar() {
   const { user, isLoginPending } = useAuth();
@@ -52,35 +52,35 @@ export default function AppSidebar() {
 
   const workspaceNav = [
     {
-      label: "Dashboard",
-      to: "/dashboard",
+      label: 'Dashboard',
+      to: '/dashboard',
       icon: LayoutDashboard,
     },
     {
-      label: "Analytics",
-      to: "/analytics",
+      label: 'Analytics',
+      to: '/analytics',
       icon: ChartNoAxesCombined,
     },
     {
-      label: "Tickets",
-      to: "/tickets",
+      label: 'Tickets',
+      to: '/tickets',
       icon: ClipboardList,
     },
     {
-      label: "Archive",
-      to: "/admin/archive",
+      label: 'Archive',
+      to: '/admin/archive',
       icon: Archive,
     },
     {
-      label: "Backlog",
-      to: "/admin/backlog",
+      label: 'Backlog',
+      to: '/admin/backlog',
       icon: FileQuestionMark,
       adminOnly: true,
     },
-    ...(user?.role === "admin" && user?.workspaceId
+    ...(user?.role === 'admin' && user?.workspaceId
       ? [
           {
-            label: "Workspace Management",
+            label: 'Workspace Management',
             to: `/admin/workspaces/${user.workspaceId}`,
             icon: Settings,
             adminOnly: true,
@@ -90,8 +90,8 @@ export default function AppSidebar() {
     ...(hasMultipleWorkspaces
       ? [
           {
-            label: "My Workspaces",
-            to: "/my-workspaces",
+            label: 'My Workspaces',
+            to: '/my-workspaces',
             icon: Building2,
           },
         ]
@@ -99,8 +99,8 @@ export default function AppSidebar() {
     ...(hasInvitations
       ? [
           {
-            label: "Invitations",
-            to: "/invitations",
+            label: 'Invitations',
+            to: '/invitations',
             icon: Mail,
             badge: pendingCount,
           },
@@ -110,18 +110,19 @@ export default function AppSidebar() {
 
   const adminNav = [
     {
-      label: "All Users",
-      to: "/admin/users",
+      label: 'All Users',
+      to: '/admin/users',
       icon: User,
     },
     {
-      label: "All Workspaces",
-      to: "/admin/workspaces",
+      label: 'All Workspaces',
+      to: '/admin/workspaces',
       icon: Building2,
     },
   ];
 
-  const currentWorkspaceName = workspace?.name || (user?.role === "admin" ? "Global admin mode" : null);
+  const currentWorkspaceName =
+    workspace?.name || (user?.role === 'admin' ? 'Global admin mode' : null);
 
   return (
     <Sidebar className="border-r border-white/60 bg-white/88">
@@ -150,7 +151,7 @@ export default function AppSidebar() {
             </div>
             <SidebarMenu>
               {workspaceNav.map((item) => {
-                if (item.adminOnly && user?.role !== "admin") {
+                if (item.adminOnly && user?.role !== 'admin') {
                   return null;
                 }
                 const Icon = item.icon;
@@ -162,10 +163,10 @@ export default function AppSidebar() {
                       end
                       className={({ isActive }) =>
                         cn(
-                          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
+                          'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                           isActive
-                            ? "bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]"
-                            : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                            ? 'bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]'
+                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
                         )
                       }
                     >
@@ -184,7 +185,7 @@ export default function AppSidebar() {
           </div>
         )}
 
-        {user?.role === "admin" && (
+        {user?.role === 'admin' && (
           <div>
             {user?.workspaceId && <Separator className="mb-4" />}
             <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -201,10 +202,10 @@ export default function AppSidebar() {
                       end
                       className={({ isActive }) =>
                         cn(
-                          "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
+                          'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                           isActive
-                            ? "bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]"
-                            : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                            ? 'bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]'
+                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
                         )
                       }
                     >
@@ -237,7 +238,7 @@ export default function AppSidebar() {
           ) : (
             <>
               <div
-                onClick={() => navigate("/profile")}
+                onClick={() => navigate('/profile')}
                 className="p-4 flex items-center gap-3 cursor-pointer transition-colors hover:bg-muted/50"
               >
                 <div className="flex items-center justify-center rounded-full bg-muted text-sm font-semibold">
@@ -246,10 +247,10 @@ export default function AppSidebar() {
 
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">
-                    {user?.fullname || "Unknown User"}
+                    {user?.fullname || 'Unknown User'}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {capitalizeFirst(user?.role) || "User"}
+                    {capitalizeFirst(user?.role) || 'User'}
                   </div>
                 </div>
               </div>

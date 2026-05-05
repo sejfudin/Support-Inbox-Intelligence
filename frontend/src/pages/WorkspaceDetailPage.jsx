@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Crown, Mail, Search, Settings, Ticket, UserMinus, UserPlus, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  Building2,
+  Crown,
+  Mail,
+  Search,
+  Settings,
+  Ticket,
+  UserMinus,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Avatar } from '@/components/Avatar';
@@ -55,10 +66,7 @@ export default function WorkspaceDetailPage() {
 
   const { data: workspace, isLoading: loadingWorkspace } = useWorkspace(id);
   const { data: usersData, isLoading: loadingUsers } = useUsers({ pagination: false });
-  const { data: ticketsData } = useTickets(
-    { workspaceId: id, limit: 5 },
-    { enabled: !!id }
-  );
+  const { data: ticketsData } = useTickets({ workspaceId: id, limit: 5 }, { enabled: !!id });
 
   const inviteMember = useInviteWorkspaceMember(id);
   const removeMember = useRemoveWorkspaceMember(id);
@@ -86,7 +94,9 @@ export default function WorkspaceDetailPage() {
     const platformUserId = platformUser._id?.toString();
     return platformUserId && !unavailableUserIds.has(platformUserId);
   });
-  const selectedUser = availableUsers.find((platformUser) => platformUser._id === inviteForm.userId);
+  const selectedUser = availableUsers.find(
+    (platformUser) => platformUser._id === inviteForm.userId
+  );
 
   useEffect(() => {
     if (!setHeader) return undefined;
@@ -173,184 +183,201 @@ export default function WorkspaceDetailPage() {
   }
 
   if (!workspace) {
-    return <div className="app-page-content text-center text-muted-foreground">Workspace not found.</div>;
+    return (
+      <div className="app-page-content text-center text-muted-foreground">Workspace not found.</div>
+    );
   }
 
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-primary/10 sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
-            <Building2 className="h-7 w-7 text-primary" />
-          </div>
-          <div className="min-w-0">
-            <div className="app-kicker mb-3">Workspace management</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="break-words text-2xl font-bold text-gray-900">{workspace.name}</h1>
-              {isActiveWorkspace && <UserStatusBadge status="active" />}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-primary/10 sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
+              <Building2 className="h-7 w-7 text-primary" />
             </div>
-            {workspace.description && (
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{workspace.description}</p>
-            )}
+            <div className="min-w-0">
+              <div className="app-kicker mb-3">Workspace management</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="break-words text-2xl font-bold text-gray-900">{workspace.name}</h1>
+                {isActiveWorkspace && <UserStatusBadge status="active" />}
+              </div>
+              {workspace.description && (
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  {workspace.description}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-          {!isActiveWorkspace && canSwitchToWorkspace && (
-            <Button variant="outline" onClick={handleSwitchWorkspace} disabled={switchWorkspace.isPending}>
-              {switchWorkspace.isPending ? 'Switching...' : 'Switch Workspace'}
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
-            className="gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            Workspace Settings
-          </Button>
-          <Button variant="outline" onClick={() => navigate(`/tickets?workspaceId=${id}`)} className="gap-2">
-            <Ticket className="h-4 w-4" />
-            View Tickets
-          </Button>
-          <Button onClick={() => setIsInviteOpen(true)} className="gap-2">
-            <UserPlus className="h-4 w-4" />
-            Add Existing User
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="app-panel-soft p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Active Members</p>
-          <p className="mt-1 text-2xl font-bold">{activeMembers.length}</p>
-        </div>
-        <div className="app-panel-soft p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending Invites</p>
-          <p className="mt-1 text-2xl font-bold">{pendingInvitations.length}</p>
-        </div>
-        <div className="app-panel-soft p-4">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Open Tickets</p>
-          <p className="mt-1 text-2xl font-bold">{ticketsData?.pagination?.total ?? 0}</p>
-        </div>
-        <div className="app-panel-soft p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Owner</p>
-            {workspace.owner?._id?.toString() === currentUserId?.toString() &&
-              activeMembers.length > 1 && (
-              <button
-                onClick={() => setIsTransferOpen(true)}
-                className="text-xs font-medium text-blue-600 hover:underline"
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+            {!isActiveWorkspace && canSwitchToWorkspace && (
+              <Button
+                variant="outline"
+                onClick={handleSwitchWorkspace}
+                disabled={switchWorkspace.isPending}
               >
-                Transfer
-              </button>
+                {switchWorkspace.isPending ? 'Switching...' : 'Switch Workspace'}
+              </Button>
             )}
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Workspace Settings
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/tickets?workspaceId=${id}`)}
+              className="gap-2"
+            >
+              <Ticket className="h-4 w-4" />
+              View Tickets
+            </Button>
+            <Button onClick={() => setIsInviteOpen(true)} className="gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add Existing User
+            </Button>
           </div>
-          <p className="mt-1 truncate text-sm font-semibold">
-            {workspace.owner?.fullname || workspace.owner?.email || '—'}
-          </p>
         </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="app-panel overflow-hidden">
-          <div className="flex items-center justify-between border-b px-5 py-4">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Workspace Members</h2>
-            </div>
-            <p className="text-xs text-muted-foreground">People with active access</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="app-panel-soft p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Active Members</p>
+            <p className="mt-1 text-2xl font-bold">{activeMembers.length}</p>
           </div>
+          <div className="app-panel-soft p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending Invites</p>
+            <p className="mt-1 text-2xl font-bold">{pendingInvitations.length}</p>
+          </div>
+          <div className="app-panel-soft p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Open Tickets</p>
+            <p className="mt-1 text-2xl font-bold">{ticketsData?.pagination?.total ?? 0}</p>
+          </div>
+          <div className="app-panel-soft p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Owner</p>
+              {workspace.owner?._id?.toString() === currentUserId?.toString() &&
+                activeMembers.length > 1 && (
+                  <button
+                    onClick={() => setIsTransferOpen(true)}
+                    className="text-xs font-medium text-blue-600 hover:underline"
+                  >
+                    Transfer
+                  </button>
+                )}
+            </div>
+            <p className="mt-1 truncate text-sm font-semibold">
+              {workspace.owner?.fullname || workspace.owner?.email || '—'}
+            </p>
+          </div>
+        </div>
 
-          <ul className="divide-y">
-            {activeMembers.length === 0 ? (
-              <li className="px-5 py-4 text-sm text-muted-foreground">No active members yet.</li>
-            ) : (
-              activeMembers.map((member) => {
-                const memberUser = member.user;
-                const memberId = memberUser?._id || memberUser;
-                const isOwner = workspace.owner?._id === memberId;
-                const isCurrentUser = memberId?.toString() === currentUserId?.toString();
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="app-panel overflow-hidden">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Workspace Members</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">People with active access</p>
+            </div>
 
-                return (
-                  <li key={member._id} className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap">
-                    <Avatar users={[memberUser]} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <span className="truncate">{memberUser?.fullname || 'Unnamed user'}</span>
-                        {isOwner && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
+            <ul className="divide-y">
+              {activeMembers.length === 0 ? (
+                <li className="px-5 py-4 text-sm text-muted-foreground">No active members yet.</li>
+              ) : (
+                activeMembers.map((member) => {
+                  const memberUser = member.user;
+                  const memberId = memberUser?._id || memberUser;
+                  const isOwner = workspace.owner?._id === memberId;
+                  const isCurrentUser = memberId?.toString() === currentUserId?.toString();
+
+                  return (
+                    <li
+                      key={member._id}
+                      className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap"
+                    >
+                      <Avatar users={[memberUser]} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                          <span className="truncate">{memberUser?.fullname || 'Unnamed user'}</span>
+                          {isOwner && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {memberUser?.email}
+                        </div>
                       </div>
-                      <div className="truncate text-xs text-muted-foreground">{memberUser?.email}</div>
+                      <div className="hidden shrink-0 md:block">
+                        <RoleBadge role={capitalizeFirst(member.role)} />
+                      </div>
+                      {!isOwner && !isCurrentUser && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveMember(member)}
+                          disabled={removeMember.isPending}
+                          className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
+                        >
+                          <UserMinus className="h-4 w-4" />
+                          Remove
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </section>
+
+          <section className="app-panel overflow-hidden">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-semibold">Pending Invitations</h2>
+              </div>
+              <p className="text-xs text-muted-foreground">Users who still need to accept</p>
+            </div>
+
+            <ul className="divide-y">
+              {pendingInvitations.length === 0 ? (
+                <li className="px-5 py-4 text-sm text-muted-foreground">No pending invites.</li>
+              ) : (
+                pendingInvitations.map((invitation) => (
+                  <li key={invitation._id} className="flex items-center gap-3 px-5 py-4">
+                    <Avatar users={[invitation.user]} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {invitation.user?.fullname || 'Pending user'}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {invitation.user?.email}
+                      </div>
                     </div>
                     <div className="hidden shrink-0 md:block">
-                      <RoleBadge role={capitalizeFirst(member.role)} />
+                      <RoleBadge role={capitalizeFirst(invitation.workspaceRole)} />
                     </div>
-                    {!isOwner && !isCurrentUser && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveMember(member)}
-                        disabled={removeMember.isPending}
-                        className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
-                      >
-                        <UserMinus className="h-4 w-4" />
-                        Remove
-                      </Button>
-                    )}
+                    <div className="hidden shrink-0 md:block">
+                      <UserStatusBadge status="invited" />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveMember({ user: invitation.user })}
+                      disabled={removeMember.isPending}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    >
+                      <UserMinus className="h-4 w-4" />
+                      Cancel
+                    </Button>
                   </li>
-                );
-              })
-            )}
-          </ul>
-        </section>
-
-        <section className="app-panel overflow-hidden">
-          <div className="flex items-center justify-between border-b px-5 py-4">
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Pending Invitations</h2>
-            </div>
-            <p className="text-xs text-muted-foreground">Users who still need to accept</p>
-          </div>
-
-          <ul className="divide-y">
-            {pendingInvitations.length === 0 ? (
-              <li className="px-5 py-4 text-sm text-muted-foreground">No pending invites.</li>
-            ) : (
-              pendingInvitations.map((invitation) => (
-                <li key={invitation._id} className="flex items-center gap-3 px-5 py-4">
-                  <Avatar users={[invitation.user]} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-foreground">
-                      {invitation.user?.fullname || 'Pending user'}
-                    </div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {invitation.user?.email}
-                    </div>
-                  </div>
-                  <div className="hidden shrink-0 md:block">
-                    <RoleBadge role={capitalizeFirst(invitation.workspaceRole)} />
-                  </div>
-                  <div className="hidden shrink-0 md:block">
-                    <UserStatusBadge status="invited" />
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveMember({ user: invitation.user })}
-                    disabled={removeMember.isPending}
-                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                  >
-                    <UserMinus className="h-4 w-4" />
-                    Cancel
-                  </Button>
-                </li>
-              ))
-            )}
-          </ul>
-        </section>
-      </div>
+                ))
+              )}
+            </ul>
+          </section>
+        </div>
       </div>
 
       <Dialog
@@ -379,10 +406,14 @@ export default function WorkspaceDetailPage() {
               <label className="text-sm font-medium">Registered user</label>
               <Select
                 value={inviteForm.userId}
-                onValueChange={(value) => setInviteForm((current) => ({ ...current, userId: value }))}
+                onValueChange={(value) =>
+                  setInviteForm((current) => ({ ...current, userId: value }))
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={loadingUsers ? 'Loading users...' : 'Choose a registered user'} />
+                  <SelectValue
+                    placeholder={loadingUsers ? 'Loading users...' : 'Choose a registered user'}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {availableUsers.length === 0 ? (
@@ -438,10 +469,7 @@ export default function WorkspaceDetailPage() {
               <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={inviteMember.isPending || !inviteForm.userId}
-              >
+              <Button type="submit" disabled={inviteMember.isPending || !inviteForm.userId}>
                 {inviteMember.isPending ? 'Saving...' : 'Save Member'}
               </Button>
             </DialogFooter>
@@ -490,7 +518,9 @@ export default function WorkspaceDetailPage() {
                 {
                   onSuccess: () => {
                     toast.dismiss(loadingToast);
-                    toast.success(`Workspace ownership transferred to ${newOwner.fullname || newOwner.email}`);
+                    toast.success(
+                      `Workspace ownership transferred to ${newOwner.fullname || newOwner.email}`
+                    );
                     setIsTransferOpen(false);
                     setSelectedNewOwner('');
                   },
@@ -551,7 +581,8 @@ export default function WorkspaceDetailPage() {
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               <p className="font-medium">Warning</p>
               <p className="mt-1">
-                Transferring ownership will give full control of this workspace to the selected user.
+                Transferring ownership will give full control of this workspace to the selected
+                user.
               </p>
             </div>
 

@@ -2,7 +2,7 @@ export default function TicketsState({
   isLoading,
   isError,
   isEmpty,
-  emptyMessage = "No results.",
+  emptyMessage = 'No results.',
   loadingSlot = null,
   children,
 }) {

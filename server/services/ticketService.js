@@ -1,9 +1,8 @@
-const Ticket = require("../models/Ticket");
-const Workspace = require("../models/Workspace");
-const mongoose = require("mongoose");
-const { notifyTicketAssigned } = require("./notificationService");
-const historyService = require("./historyService");
-
+const Ticket = require('../models/Ticket');
+const Workspace = require('../models/Workspace');
+const mongoose = require('mongoose');
+const { notifyTicketAssigned } = require('./notificationService');
+const historyService = require('./historyService');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -12,11 +11,11 @@ const PRIORITY_RANK = {
   critical: 4,
 };
 
-const parseCsvList = (raw = "", { lowercase = false } = {}) => {
-  const source = Array.isArray(raw) ? raw.join(",") : String(raw || "");
+const parseCsvList = (raw = '', { lowercase = false } = {}) => {
+  const source = Array.isArray(raw) ? raw.join(',') : String(raw || '');
   const values = source
-    .split(",")
-    .map((v) => String(v || "").trim())
+    .split(',')
+    .map((v) => String(v || '').trim())
     .filter(Boolean)
     .map((v) => (lowercase ? v.toLowerCase() : v));
 
@@ -27,31 +26,34 @@ const normalizePriorityList = ({ priorities, priority }) => {
   const parsed = parseCsvList(priorities, { lowercase: true });
   if (parsed.length > 0) return parsed;
 
-  const legacy = String(priority || "").trim().toLowerCase();
-  if (!legacy || legacy === "all") return [];
+  const legacy = String(priority || '')
+    .trim()
+    .toLowerCase();
+  if (!legacy || legacy === 'all') return [];
 
   return [legacy];
 };
 
 const normalizePriorityOrder = (value) => {
-  const safe = String(value || "").trim().toLowerCase();
-  if (safe === "asc" || safe === "desc") return safe;
-  return "none";
+  const safe = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (safe === 'asc' || safe === 'desc') return safe;
+  return 'none';
 };
 
-const INVALID_ASSIGNEE_ERROR =
-  "Assigned users must be active members of this workspace";
+const INVALID_ASSIGNEE_ERROR = 'Assigned users must be active members of this workspace';
 
 const extractUserId = (value) => {
   if (!value) return null;
 
-  if (typeof value === "string") return value;
+  if (typeof value === 'string') return value;
 
   if (value instanceof mongoose.Types.ObjectId) {
     return value.toString();
   }
 
-  if (typeof value === "object") {
+  if (typeof value === 'object') {
     if (value._id) return extractUserId(value._id);
     if (value.id) return String(value.id);
   }
@@ -66,13 +68,11 @@ const normalizeAssignedUserIds = (assignedTo = []) => {
 
 const getNewAssigneeIds = ({ previousAssignedTo = [], nextAssignedTo = [] }) => {
   const previousSet = new Set(normalizeAssignedUserIds(previousAssignedTo));
-  return normalizeAssignedUserIds(nextAssignedTo).filter(
-    (userId) => !previousSet.has(userId),
-  );
+  return normalizeAssignedUserIds(nextAssignedTo).filter((userId) => !previousSet.has(userId));
 };
 
 const parseOptionalDueDate = (value) => {
-  if (value === undefined || value === null || value === "") return undefined;
+  if (value === undefined || value === null || value === '') return undefined;
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return undefined;
   return d;
@@ -81,45 +81,40 @@ const parseOptionalDueDate = (value) => {
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 
 const sanitizeTicketSubject = (value) =>
-  String(value || "").replace(SUBJECT_PREFIX_RE, "").trim();
+  String(value || '')
+    .replace(SUBJECT_PREFIX_RE, '')
+    .trim();
 
-const ALLOWED_TICKET_SORT_FIELDS = new Set(["updatedAt", "dueDate", "taskNumber"]);
+const ALLOWED_TICKET_SORT_FIELDS = new Set(['updatedAt', 'dueDate', 'taskNumber']);
 
-const buildTicketListSort = (sortBy = "dueDate", sortOrder = "desc") => {
-  const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : "dueDate";
-  const dir = sortOrder === "asc" ? 1 : -1;
-  if (field === "dueDate") {
+const buildTicketListSort = (sortBy = 'dueDate', sortOrder = 'desc') => {
+  const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : 'dueDate';
+  const dir = sortOrder === 'asc' ? 1 : -1;
+  if (field === 'dueDate') {
     return { dueDate: dir, updatedAt: -1 };
   }
-  if (field === "taskNumber") {
+  if (field === 'taskNumber') {
     return { taskNumber: dir, updatedAt: -1 };
   }
   return { updatedAt: dir };
 };
 
-const ensureAssignableUsersBelongToWorkspace = async ({
-  workspaceId,
-  assignedTo = [],
-}) => {
+const ensureAssignableUsersBelongToWorkspace = async ({ workspaceId, assignedTo = [] }) => {
   const assignedUserIds = normalizeAssignedUserIds(assignedTo);
   if (!workspaceId || assignedUserIds.length === 0) return;
 
-  const workspace = await Workspace.findById(workspaceId).select(
-    "members.user members.status",
-  );
+  const workspace = await Workspace.findById(workspaceId).select('members.user members.status');
   if (!workspace) {
-    throw new Error("Workspace not found");
+    throw new Error('Workspace not found');
   }
 
   const activeMemberIds = new Set(
     workspace.members
-      .filter((member) => member.status === "active" && member.user)
-      .map((member) => member.user.toString()),
+      .filter((member) => member.status === 'active' && member.user)
+      .map((member) => member.user.toString())
   );
 
-  const hasInvalidAssignee = assignedUserIds.some(
-    (userId) => !activeMemberIds.has(userId),
-  );
+  const hasInvalidAssignee = assignedUserIds.some((userId) => !activeMemberIds.has(userId));
   if (hasInvalidAssignee) {
     throw new Error(INVALID_ASSIGNEE_ERROR);
   }
@@ -128,12 +123,12 @@ const ensureAssignableUsersBelongToWorkspace = async ({
 const getAllTickets = async ({
   page = 1,
   limit = 10,
-  search = "",
-  status = "",
-  priority = "",
-  priorities = "",
-  assigneeIds = "",
-  priorityOrder = "none",
+  search = '',
+  status = '',
+  priority = '',
+  priorities = '',
+  assigneeIds = '',
+  priorityOrder = 'none',
   archived,
   workspaceId,
   sortBy,
@@ -163,8 +158,8 @@ const getAllTickets = async ({
 
   if (search) {
     const searchConditions = [
-      { subject: { $regex: search, $options: "i" } },
-      { description: { $regex: search, $options: "i" } },
+      { subject: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
     ];
 
     const searchAsNumber = Number(search);
@@ -175,11 +170,11 @@ const getAllTickets = async ({
     query.$or = searchConditions;
   }
 
-  if (status === "null" || status === null) {
+  if (status === 'null' || status === null) {
     query.status = null;
-  } else if (status === "not_null") {
-    query.status = { $ne: "backlog" };
-  } else if (status && status !== "all") {
+  } else if (status === 'not_null') {
+    query.status = { $ne: 'backlog' };
+  } else if (status && status !== 'all') {
     query.status = status;
   }
 
@@ -190,10 +185,8 @@ const getAllTickets = async ({
 
   const selectedAssigneeIds = parseCsvList(assigneeIds, { lowercase: false });
   if (selectedAssigneeIds.length > 0) {
-    const wantsUnassigned = selectedAssigneeIds.includes("unassigned");
-    const selectedUsers = selectedAssigneeIds.filter(
-      (id) => id !== "unassigned",
-    );
+    const wantsUnassigned = selectedAssigneeIds.includes('unassigned');
+    const selectedUsers = selectedAssigneeIds.filter((id) => id !== 'unassigned');
 
     const selectedUserObjectIds = selectedUsers
       .filter((id) => mongoose.Types.ObjectId.isValid(id))
@@ -206,10 +199,7 @@ const getAllTickets = async ({
     }
 
     if (wantsUnassigned) {
-      assigneeOr.push(
-        { assignedTo: { $exists: false } },
-        { assignedTo: { $size: 0 } },
-      );
+      assigneeOr.push({ assignedTo: { $exists: false } }, { assignedTo: { $size: 0 } });
     }
 
     if (assigneeOr.length === 1) {
@@ -225,20 +215,20 @@ const getAllTickets = async ({
   let tickets;
   let total;
 
-  if (normalizedOrder === "none") {
+  if (normalizedOrder === 'none') {
     const sortSpec = buildTicketListSort(sortBy, sortOrder);
     [tickets, total] = await Promise.all([
       Ticket.find(query)
         .sort(sortSpec)
         .skip(skip)
         .limit(safeLimit)
-        .populate("creator", "fullname email")
-        .populate("assignedTo", "fullname email role"),
+        .populate('creator', 'fullname email')
+        .populate('assignedTo', 'fullname email role'),
       Ticket.countDocuments(query),
     ]);
   } else {
     const mongoSort = {
-      priorityRank: normalizedOrder === "desc" ? -1 : 1,
+      priorityRank: normalizedOrder === 'desc' ? -1 : 1,
       updatedAt: -1,
     };
 
@@ -250,10 +240,10 @@ const getAllTickets = async ({
             priorityRank: {
               $switch: {
                 branches: [
-                  { case: { $eq: ["$priority", "low"] }, then: PRIORITY_RANK.low },
-                  { case: { $eq: ["$priority", "medium"] }, then: PRIORITY_RANK.medium },
-                  { case: { $eq: ["$priority", "high"] }, then: PRIORITY_RANK.high },
-                  { case: { $eq: ["$priority", "critical"] }, then: PRIORITY_RANK.critical },
+                  { case: { $eq: ['$priority', 'low'] }, then: PRIORITY_RANK.low },
+                  { case: { $eq: ['$priority', 'medium'] }, then: PRIORITY_RANK.medium },
+                  { case: { $eq: ['$priority', 'high'] }, then: PRIORITY_RANK.high },
+                  { case: { $eq: ['$priority', 'critical'] }, then: PRIORITY_RANK.critical },
                 ],
                 default: PRIORITY_RANK.medium,
               },
@@ -265,20 +255,20 @@ const getAllTickets = async ({
         { $limit: safeLimit },
         {
           $lookup: {
-            from: "users",
-            localField: "creator",
-            foreignField: "_id",
-            as: "creator",
+            from: 'users',
+            localField: 'creator',
+            foreignField: '_id',
+            as: 'creator',
             pipeline: [{ $project: { fullname: 1, email: 1 } }],
           },
         },
-        { $unwind: { path: "$creator", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
         {
           $lookup: {
-            from: "users",
-            localField: "assignedTo",
-            foreignField: "_id",
-            as: "assignedTo",
+            from: 'users',
+            localField: 'assignedTo',
+            foreignField: '_id',
+            as: 'assignedTo',
             pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
           },
         },
@@ -301,11 +291,11 @@ const getAllTickets = async ({
 
 const getTicketById = async (ticketId) => {
   const ticket = await Ticket.findById(ticketId)
-    .populate("assignedTo", "fullname email role")
-    .populate("creator", "fullname email");
+    .populate('assignedTo', 'fullname email role')
+    .populate('creator', 'fullname email');
 
   if (!ticket) {
-    throw new Error("Ticket not found");
+    throw new Error('Ticket not found');
   }
 
   return ticket;
@@ -318,39 +308,38 @@ const createTicket = async (ticketData) => {
   });
 
   const lastTicket = await Ticket.findOne({ workspace: ticketData.workspaceId })
-    .sort("-taskNumber")
-    .select("taskNumber")
+    .sort('-taskNumber')
+    .select('taskNumber')
     .lean();
 
-  const nextTaskNumber =
-    lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
+  const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
 
-  const status = ticketData.status === undefined ? "to do" : ticketData.status;
+  const status = ticketData.status === undefined ? 'to do' : ticketData.status;
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
   const sanitizedSubject = sanitizeTicketSubject(ticketData.subject);
   if (!sanitizedSubject) {
-    throw new Error("Subject details are required");
+    throw new Error('Subject details are required');
   }
 
   const ticket = new Ticket({
     subject: sanitizedSubject,
-    description: ticketData.description || "",
+    description: ticketData.description || '',
     creator: ticketData.creatorId,
     status,
-    priority: ticketData.priority || "medium",
+    priority: ticketData.priority || 'medium',
     storyPoints: ticketData.storyPoints ?? null,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
-    inProgressAt: status === "in progress" ? new Date() : undefined,
+    inProgressAt: status === 'in progress' ? new Date() : undefined,
     ...(dueDate !== undefined ? { dueDate } : {}),
   });
 
   await ticket.save();
 
-  historyService.logEvent(ticket._id, ticketData.creatorId, "Ticket Created");
+  historyService.logEvent(ticket._id, ticketData.creatorId, 'Ticket Created');
 
   const newlyAssignedUserIds = normalizeAssignedUserIds(ticketData.assignedTo);
   if (newlyAssignedUserIds.length > 0) {
@@ -362,36 +351,36 @@ const createTicket = async (ticketData) => {
   }
 
   return await ticket.populate([
-    { path: "creator", select: "fullName email" },
-    { path: "assignedTo", select: "fullName email" },
+    { path: 'creator', select: 'fullName email' },
+    { path: 'assignedTo', select: 'fullName email' },
   ]);
 };
 
 const updateTicket = async (ticketId, updateData, actorUserId) => {
   try {
-    if (Object.prototype.hasOwnProperty.call(updateData, "subject")) {
+    if (Object.prototype.hasOwnProperty.call(updateData, 'subject')) {
       const sanitizedSubject = sanitizeTicketSubject(updateData.subject);
       if (!sanitizedSubject) {
-        throw new Error("Subject details are required");
+        throw new Error('Subject details are required');
       }
       updateData.subject = sanitizedSubject;
     }
 
     const oldTicket = await Ticket.findById(ticketId);
-    if (!oldTicket) throw new Error("Ticket not found");
+    if (!oldTicket) throw new Error('Ticket not found');
 
     const previousAssignedTo = oldTicket.assignedTo || [];
 
-    if (Object.prototype.hasOwnProperty.call(updateData, "assignedTo")) {
+    if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
       await ensureAssignableUsersBelongToWorkspace({
         workspaceId: oldTicket.workspace,
         assignedTo: updateData.assignedTo,
       });
     }
 
-    if (Object.prototype.hasOwnProperty.call(updateData, "dueDate")) {
+    if (Object.prototype.hasOwnProperty.call(updateData, 'dueDate')) {
       const raw = updateData.dueDate;
-      if (raw === null || raw === "") {
+      if (raw === null || raw === '') {
         updateData.dueDate = null;
       } else {
         const parsed = parseOptionalDueDate(raw);
@@ -408,21 +397,21 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       const oldStatus = oldTicket.status.toLowerCase();
       const now = new Date();
 
-      if (newStatus === "in progress") {
+      if (newStatus === 'in progress') {
         updateData.inProgressAt = now;
         updateData.doneAt = null;
       }
 
-      if (oldStatus === "in progress") {
+      if (oldStatus === 'in progress') {
         if (oldTicket.inProgressAt) {
           const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
           updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
         }
       }
 
-      if (newStatus === "done") {
+      if (newStatus === 'done') {
         updateData.doneAt = now;
-      } else if (oldStatus === "done") {
+      } else if (oldStatus === 'done') {
         updateData.doneAt = null;
       }
 
@@ -435,16 +424,16 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       {
         new: true,
         runValidators: true,
-      },
+      }
     )
-      .populate("assignedTo", "fullname email role")
-      .populate("creator", "fullName");
+      .populate('assignedTo', 'fullname email role')
+      .populate('creator', 'fullName');
 
     if (!ticket) {
-      throw new Error("Ticket not found");
+      throw new Error('Ticket not found');
     }
 
-    if (Object.prototype.hasOwnProperty.call(updateData, "assignedTo")) {
+    if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
       const newlyAssignedUserIds = getNewAssigneeIds({
         previousAssignedTo,
         nextAssignedTo: ticket.assignedTo || [],
@@ -461,23 +450,23 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
             assignedUserIds: newlyAssignedUserIds,
             actorUserId,
           });
-          historyService.logEvent(ticketId, actorUserId, "Ticket Assigned");
+          historyService.logEvent(ticketId, actorUserId, 'Ticket Assigned');
         } else {
-          historyService.logEvent(ticketId, actorUserId, "Ticket Reassigned");
+          historyService.logEvent(ticketId, actorUserId, 'Ticket Reassigned');
         }
       }
     }
 
     if (
-      Object.prototype.hasOwnProperty.call(updateData, "description") &&
+      Object.prototype.hasOwnProperty.call(updateData, 'description') &&
       updateData.description !== oldTicket.description
     ) {
-      historyService.logEvent(ticketId, actorUserId, "Description Updated");
+      historyService.logEvent(ticketId, actorUserId, 'Description Updated');
     }
 
     return ticket;
   } catch (error) {
-    if (error.name === "ValidationError") {
+    if (error.name === 'ValidationError') {
       throw new Error(`Validation failed: ${error.message}`);
     }
     throw error;
@@ -488,10 +477,10 @@ const archiveTicket = async (ticketId) => {
   const ticket = await Ticket.findByIdAndUpdate(
     ticketId,
     { $set: { isArchived: true } },
-    { new: true },
+    { new: true }
   );
   if (!ticket) {
-    throw new Error("Ticket not found");
+    throw new Error('Ticket not found');
   }
   return ticket;
 };
@@ -501,11 +490,11 @@ const getMyTickets = async ({
   workspaceId,
   page = 1,
   limit = 10,
-  search = "",
-  status = "",
-  priority = "",
-  priorities = "",
-  priorityOrder = "none",
+  search = '',
+  status = '',
+  priority = '',
+  priorities = '',
+  priorityOrder = 'none',
   sortBy,
   sortOrder,
 }) => {
@@ -539,12 +528,12 @@ const getMyTickets = async ({
 
   if (search) {
     query.$or = [
-      { subject: { $regex: search, $options: "i" } },
-      { description: { $regex: search, $options: "i" } },
+      { subject: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } },
     ];
   }
 
-  if (status && status !== "all") {
+  if (status && status !== 'all') {
     query.status = status;
   }
 
@@ -555,10 +544,10 @@ const getMyTickets = async ({
 
   const normalizedOrder = normalizePriorityOrder(priorityOrder);
   const sortStage =
-    normalizedOrder === "none"
+    normalizedOrder === 'none'
       ? null
       : {
-          priorityRank: normalizedOrder === "desc" ? -1 : 1,
+          priorityRank: normalizedOrder === 'desc' ? -1 : 1,
           updatedAt: -1,
         };
 
@@ -568,13 +557,13 @@ const getMyTickets = async ({
   const sortSpec = buildTicketListSort(sortBy, sortOrder);
 
   const ticketsQuery =
-    normalizedOrder === "none"
+    normalizedOrder === 'none'
       ? Ticket.find(query)
           .sort(sortSpec)
           .skip(skip)
           .limit(safeLimit)
-          .populate("creator", "fullname email")
-          .populate("assignedTo", "fullname email role")
+          .populate('creator', 'fullname email')
+          .populate('assignedTo', 'fullname email role')
       : Ticket.aggregate([
           { $match: query },
           {
@@ -582,10 +571,10 @@ const getMyTickets = async ({
               priorityRank: {
                 $switch: {
                   branches: [
-                    { case: { $eq: ["$priority", "low"] }, then: PRIORITY_RANK.low },
-                    { case: { $eq: ["$priority", "medium"] }, then: PRIORITY_RANK.medium },
-                    { case: { $eq: ["$priority", "high"] }, then: PRIORITY_RANK.high },
-                    { case: { $eq: ["$priority", "critical"] }, then: PRIORITY_RANK.critical },
+                    { case: { $eq: ['$priority', 'low'] }, then: PRIORITY_RANK.low },
+                    { case: { $eq: ['$priority', 'medium'] }, then: PRIORITY_RANK.medium },
+                    { case: { $eq: ['$priority', 'high'] }, then: PRIORITY_RANK.high },
+                    { case: { $eq: ['$priority', 'critical'] }, then: PRIORITY_RANK.critical },
                   ],
                   default: PRIORITY_RANK.medium,
                 },
@@ -597,20 +586,20 @@ const getMyTickets = async ({
           { $limit: safeLimit },
           {
             $lookup: {
-              from: "users",
-              localField: "creator",
-              foreignField: "_id",
-              as: "creator",
+              from: 'users',
+              localField: 'creator',
+              foreignField: '_id',
+              as: 'creator',
               pipeline: [{ $project: { fullname: 1, email: 1 } }],
             },
           },
-          { $unwind: { path: "$creator", preserveNullAndEmptyArrays: true } },
+          { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
           {
             $lookup: {
-              from: "users",
-              localField: "assignedTo",
-              foreignField: "_id",
-              as: "assignedTo",
+              from: 'users',
+              localField: 'assignedTo',
+              foreignField: '_id',
+              as: 'assignedTo',
               pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
             },
           },
@@ -634,7 +623,7 @@ const getMyTickets = async ({
           activeTickets: {
             $sum: {
               $cond: [
-                { $in: ["$status", ["to do", "in progress", "on staging", "blocked"]] },
+                { $in: ['$status', ['to do', 'in progress', 'on staging', 'blocked']] },
                 1,
                 0,
               ],
@@ -642,22 +631,19 @@ const getMyTickets = async ({
           },
           inProgress: {
             $sum: {
-              $cond: [{ $in: ["$status", ["in progress", "on staging"]] }, 1, 0],
+              $cond: [{ $in: ['$status', ['in progress', 'on staging']] }, 1, 0],
             },
           },
           blocked: {
             $sum: {
-              $cond: [{ $eq: ["$status", "blocked"] }, 1, 0],
+              $cond: [{ $eq: ['$status', 'blocked'] }, 1, 0],
             },
           },
           completedThisMonth: {
             $sum: {
               $cond: [
                 {
-                  $and: [
-                    { $eq: ["$status", "done"] },
-                    { $gte: ["$updatedAt", startOfMonth] },
-                  ],
+                  $and: [{ $eq: ['$status', 'done'] }, { $gte: ['$updatedAt', startOfMonth] }],
                 },
                 1,
                 0,

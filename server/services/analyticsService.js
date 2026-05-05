@@ -190,7 +190,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
 
   if (!isAdminRequester) {
     const isRequesterMember = workspace.members.some(
-      (member) => member.user && member.user.equals(requesterObjectId) && member.status === 'active',
+      (member) => member.user && member.user.equals(requesterObjectId) && member.status === 'active'
     );
 
     if (!isRequesterMember) {
@@ -198,7 +198,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
     }
 
     const isTargetUserMember = workspace.members.some(
-      (member) => member.user && member.user.equals(userObjectId) && member.status === 'active',
+      (member) => member.user && member.user.equals(userObjectId) && member.status === 'active'
     );
 
     if (!isTargetUserMember) {
@@ -279,10 +279,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
           cycleMs: {
             $cond: [
               {
-                $and: [
-                  { $ne: ['$doneAt', null] },
-                  { $ne: ['$inProgressAt', null] },
-                ],
+                $and: [{ $ne: ['$doneAt', null] }, { $ne: ['$inProgressAt', null] }],
               },
               { $subtract: ['$doneAt', '$inProgressAt'] },
               null,
@@ -393,9 +390,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
   };
 
   const workloadMap = new Map(
-    workloadRaw
-      .filter((item) => item.priority)
-      .map((item) => [item.priority, item.value]),
+    workloadRaw.filter((item) => item.priority).map((item) => [item.priority, item.value])
   );
 
   const workloadDistribution = Object.keys(priorityLabels).map((priorityKey) => ({

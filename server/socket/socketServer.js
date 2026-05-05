@@ -37,11 +37,7 @@ const extractTokenFromHandshake = (socket) => {
   if (!cookieHeader) return null;
 
   const cookies = parseCookieHeader(cookieHeader);
-  return (
-    normalizeBearerToken(cookies.accessToken) ||
-    normalizeBearerToken(cookies.token) ||
-    null
-  );
+  return normalizeBearerToken(cookies.accessToken) || normalizeBearerToken(cookies.token) || null;
 };
 
 const initSocket = (httpServer) => {
@@ -78,16 +74,15 @@ const initSocket = (httpServer) => {
     socket.use(([event, ...args], next) => {
       try {
         const token = extractTokenFromHandshake(socket);
-        
+
         if (!token) {
           return next(new Error('unauthorized'));
         }
 
         jwt.verify(token, process.env.JWT_SECRET);
-        
-        next(); 
+
+        next();
       } catch (error) {
-        console.log(`[socket] Auth failed for event: ${event}`);
         next(new Error('unauthorized'));
       }
     });
@@ -99,7 +94,7 @@ const initSocket = (httpServer) => {
 
     socket.on('error', (err) => {
       if (err.message === 'unauthorized') {
-        socket.disconnect(); 
+        socket.disconnect();
       }
     });
   });
@@ -138,12 +133,7 @@ const sendToUser = async (userId, eventName, data) => {
   }
 };
 
-const broadcastToUserRoom = (
-  userId,
-  eventName,
-  data,
-  { excludeSocketId } = {},
-) => {
+const broadcastToUserRoom = (userId, eventName, data, { excludeSocketId } = {}) => {
   if (!io) {
     return false;
   }

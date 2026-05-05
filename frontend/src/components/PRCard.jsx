@@ -1,27 +1,27 @@
-import React from "react";
-import { ExternalLink, RefreshCw, GitPullRequest, GitMerge, GitBranch, Unlink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { ExternalLink, RefreshCw, GitPullRequest, GitMerge, GitBranch, Unlink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const PR_STATE_CONFIG = {
   open: {
-    variant: "success",
+    variant: 'success',
     icon: GitPullRequest,
-    label: "Open",
-    className: "bg-green-100 text-green-700 border-green-200",
+    label: 'Open',
+    className: 'bg-green-100 text-green-700 border-green-200',
   },
   closed: {
-    variant: "destructive",
+    variant: 'destructive',
     icon: GitPullRequest,
-    label: "Closed",
-    className: "bg-red-100 text-red-700 border-red-200",
+    label: 'Closed',
+    className: 'bg-red-100 text-red-700 border-red-200',
   },
   merged: {
-    variant: "default",
+    variant: 'default',
     icon: GitMerge,
-    label: "Merged",
-    className: "bg-purple-100 text-purple-700 border-purple-200",
+    label: 'Merged',
+    className: 'bg-purple-100 text-purple-700 border-purple-200',
   },
 };
 
@@ -51,7 +51,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
           <Badge
             variant="outline"
             className={cn(
-              "text-xs font-semibold px-2 py-0.5 border flex items-center gap-1",
+              'text-xs font-semibold px-2 py-0.5 border flex items-center gap-1',
               stateConfig.className
             )}
           >
@@ -72,9 +72,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
               <GitBranch className="w-3.5 h-3.5" />
-              <span className="font-medium truncate max-w-[150px]">
-                {pr.branchName}
-              </span>
+              <span className="font-medium truncate max-w-[150px]">{pr.branchName}</span>
             </div>
 
             {pr.author && (
@@ -99,7 +97,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
                 className="h-7 w-7 p-0"
                 title="Refresh PR status"
               >
-                <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
+                <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} />
               </Button>
             )}
             {onUnlink && (
@@ -111,13 +109,13 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
                 className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                 title="Unlink PR"
               >
-                <Unlink className={cn("w-3.5 h-3.5", isUnlinking && "animate-pulse")} />
+                <Unlink className={cn('w-3.5 h-3.5', isUnlinking && 'animate-pulse')} />
               </Button>
             )}
           </div>
         </div>
 
-        {pr.mergedBy && pr.state === "merged" && (
+        {pr.mergedBy && pr.state === 'merged' && (
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <span>merged by</span>
             <img

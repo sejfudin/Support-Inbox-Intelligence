@@ -1,4 +1,4 @@
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, X } from 'lucide-react';
 
 export const DeleteConfirmModal = ({
   isOpen,
@@ -6,10 +6,10 @@ export const DeleteConfirmModal = ({
   onConfirm,
   isLoading,
   errorMessage,
-  title = "Delete Ticket",
-  description = "Are you sure you want to delete this ticket? This action cannot be undone and all associated data will be lost.",
-  confirmLabel = "Delete",
-  loadingLabel = "Deleting...",
+  title = 'Delete Ticket',
+  description = 'Are you sure you want to delete this ticket? This action cannot be undone and all associated data will be lost.',
+  confirmLabel = 'Delete',
+  loadingLabel = 'Deleting...',
 }) => {
   if (!isOpen) return null;
 
@@ -21,20 +21,20 @@ export const DeleteConfirmModal = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <div className="px-6 pb-6 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mb-4">
             <AlertTriangle className="h-6 w-6 text-red-600" />
           </div>
-          
+
           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
           <p className="text-sm text-gray-500 mt-2">{description}</p>
 
           {errorMessage && (
             <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm animate-shake">
-            {errorMessage}
+              {errorMessage}
             </div>
-         )}
+          )}
 
           <div className="flex gap-3 mt-6">
             <button

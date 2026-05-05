@@ -1,14 +1,14 @@
-const Ticket = require("../models/Ticket");
-const { extractTaskNumber } = require("../helpers/taskExtractor");
+const Ticket = require('../models/Ticket');
+const { extractTaskNumber } = require('../helpers/taskExtractor');
 
 const LINK_RESULT = {
-  LINKED: "linked",
-  ALREADY_LINKED: "already_linked",
-  TICKET_NOT_FOUND: "ticket_not_found",
-  NO_TASK_NUMBER: "no_task_number",
-  DIFFERENT_PR_LINKED: "different_pr_linked",
-  UNLINKED_AND_LINKED: "unlinked_and_linked",
-  ERROR: "error",
+  LINKED: 'linked',
+  ALREADY_LINKED: 'already_linked',
+  TICKET_NOT_FOUND: 'ticket_not_found',
+  NO_TASK_NUMBER: 'no_task_number',
+  DIFFERENT_PR_LINKED: 'different_pr_linked',
+  UNLINKED_AND_LINKED: 'unlinked_and_linked',
+  ERROR: 'error',
 };
 
 /**
@@ -24,7 +24,7 @@ async function findTicketByPrData(prData, workspaceId) {
   const taskNumber = extractTaskNumber({ branchName, title });
 
   if (!taskNumber) {
-    return { ticket: null, taskNumber: null, reason: "No task number found in PR" };
+    return { ticket: null, taskNumber: null, reason: 'No task number found in PR' };
   }
 
   const ticket = await Ticket.findOne({
@@ -100,12 +100,12 @@ function buildPrPayload(prData) {
 
   return {
     prNumber,
-    prTitle: prTitle || "Untitled PR",
-    branchName: branchName || "unknown",
-    state: state || "open",
+    prTitle: prTitle || 'Untitled PR',
+    branchName: branchName || 'unknown',
+    state: state || 'open',
     isDraft: isDraft || false,
-    author: author || { login: "unknown" },
-    url: url || "",
+    author: author || { login: 'unknown' },
+    url: url || '',
     createdAt: createdAt || new Date(),
     updatedAt: updatedAt || new Date(),
     mergedAt: mergedAt || null,
@@ -183,7 +183,7 @@ async function linkPullRequestToTicket(prData, workspaceId) {
       existingPr,
     };
   } catch (error) {
-    console.error("Error linking PR to ticket:", error);
+    console.error('Error linking PR to ticket:', error);
     return {
       result: LINK_RESULT.ERROR,
       message: error.message,
@@ -229,14 +229,14 @@ async function replaceLinkedPullRequest(prData, workspaceId) {
 
     return {
       result: LINK_RESULT.UNLINKED_AND_LINKED,
-      message: `Replaced PR #${previousPr?.prNumber || "none"} with PR #${prData.prNumber}`,
+      message: `Replaced PR #${previousPr?.prNumber || 'none'} with PR #${prData.prNumber}`,
       ticketId: ticket._id,
       taskNumber,
       previousPrNumber: previousPr?.prNumber,
       newPrNumber: prData.prNumber,
     };
   } catch (error) {
-    console.error("Error replacing linked PR:", error);
+    console.error('Error replacing linked PR:', error);
     return {
       result: LINK_RESULT.ERROR,
       message: error.message,
@@ -259,7 +259,7 @@ async function unlinkPullRequest(ticketId, prNumber = null) {
     if (!ticket) {
       return {
         success: false,
-        message: "Ticket not found",
+        message: 'Ticket not found',
       };
     }
 
@@ -275,7 +275,7 @@ async function unlinkPullRequest(ticketId, prNumber = null) {
     if (!ticket.linkedPullRequest) {
       return {
         success: false,
-        message: "No PR is currently linked to this ticket",
+        message: 'No PR is currently linked to this ticket',
       };
     }
 
@@ -292,7 +292,7 @@ async function unlinkPullRequest(ticketId, prNumber = null) {
       ticketId,
     };
   } catch (error) {
-    console.error("Error unlinking PR:", error);
+    console.error('Error unlinking PR:', error);
     return {
       success: false,
       message: error.message,

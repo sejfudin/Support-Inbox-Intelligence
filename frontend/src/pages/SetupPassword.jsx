@@ -1,14 +1,14 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, KeyRound, Mail, ShieldCheck } from "lucide-react";
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { ArrowLeft, CheckCircle2, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { verifyInvite, setPasswordFromInvite } from "@/api/invite";
-import { useAuth } from "@/context/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { verifyInvite, setPasswordFromInvite } from '@/api/invite';
+import { useAuth } from '@/context/AuthContext';
 
 const MIN_LEN = 6;
 
@@ -16,35 +16,34 @@ export default function SetPassword() {
   const navigate = useNavigate();
   const { refetchUser, isAuthenticated, loading } = useAuth();
   const [inviteInfo, setInviteInfo] = useState(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [emailChecking, setEmailChecking] = useState(false);
 
   const emailForm = useForm({
-    mode: "onChange",
-    defaultValues: { email: "" },
+    mode: 'onChange',
+    defaultValues: { email: '' },
   });
 
   const passwordForm = useForm({
-    mode: "onChange",
-    defaultValues: { password: "", confirmPassword: "" },
+    mode: 'onChange',
+    defaultValues: { password: '', confirmPassword: '' },
   });
 
-  const password = passwordForm.watch("password");
+  const password = passwordForm.watch('password');
 
   const onEmailSubmit = async ({ email }) => {
-    setError("");
+    setError('');
     setEmailChecking(true);
 
     try {
       const data = await verifyInvite({ email });
       setInviteInfo(data);
-      toast.success("Account found", {
-        description: "You can now create your password.",
+      toast.success('Account found', {
+        description: 'You can now create your password.',
       });
     } catch (e) {
       const message =
-        e?.response?.data?.message ||
-        "No invited account was found for that email address.";
+        e?.response?.data?.message || 'No invited account was found for that email address.';
       setError(message);
     } finally {
       setEmailChecking(false);
@@ -52,28 +51,27 @@ export default function SetPassword() {
   };
 
   const onPasswordSubmit = async ({ password }) => {
-    setError("");
-    const loadingToast = toast.loading("Activating your account...");
+    setError('');
+    const loadingToast = toast.loading('Activating your account...');
 
     try {
       const data = await setPasswordFromInvite(password);
 
-      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem('accessToken', data.accessToken);
       await refetchUser();
 
       toast.dismiss(loadingToast);
-      toast.success("Account activated", {
-        description: "You are now logged in.",
+      toast.success('Account activated', {
+        description: 'You are now logged in.',
       });
 
-      navigate("/");
+      navigate('/');
     } catch (e) {
       toast.dismiss(loadingToast);
       const message =
-        e?.response?.data?.message ||
-        "Setup session expired. Enter your email again.";
+        e?.response?.data?.message || 'Setup session expired. Enter your email again.';
       setError(message);
-      toast.error("Error", { description: message });
+      toast.error('Error', { description: message });
     }
   };
 
@@ -105,7 +103,8 @@ export default function SetPassword() {
                 </CardTitle>
                 <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
                   Enter the email address your admin used when creating your account. If it exists
-                  in the system as an invited user, you&apos;ll be able to set your password right away.
+                  in the system as an invited user, you&apos;ll be able to set your password right
+                  away.
                 </p>
               </div>
             </CardHeader>
@@ -130,14 +129,14 @@ export default function SetPassword() {
             <CardHeader className="space-y-3 border-b border-slate-100 pb-6">
               <button
                 type="button"
-                onClick={() => navigate("/login")}
+                onClick={() => navigate('/login')}
                 className="inline-flex w-fit items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to login
               </button>
               <CardTitle className="text-2xl font-bold text-slate-900 md:text-3xl">
-                {inviteInfo ? "Create Your Password" : "Find Your Account"}
+                {inviteInfo ? 'Create Your Password' : 'Find Your Account'}
               </CardTitle>
             </CardHeader>
 
@@ -158,10 +157,10 @@ export default function SetPassword() {
                       type="email"
                       placeholder="your@company.com"
                       className={`h-12 ${
-                        emailForm.formState.errors.email ? "border-red-500" : "border-slate-300"
+                        emailForm.formState.errors.email ? 'border-red-500' : 'border-slate-300'
                       }`}
-                      {...emailForm.register("email", {
-                        required: "Email is required",
+                      {...emailForm.register('email', {
+                        required: 'Email is required',
                       })}
                     />
                     {emailForm.formState.errors.email && (
@@ -171,8 +170,12 @@ export default function SetPassword() {
                     )}
                   </div>
 
-                  <Button type="submit" disabled={emailChecking} className="h-12 w-full text-base font-semibold">
-                    {emailChecking ? "Checking account..." : "Continue"}
+                  <Button
+                    type="submit"
+                    disabled={emailChecking}
+                    className="h-12 w-full text-base font-semibold"
+                  >
+                    {emailChecking ? 'Checking account...' : 'Continue'}
                   </Button>
                 </form>
               ) : (
@@ -189,7 +192,10 @@ export default function SetPassword() {
                     </div>
                   </div>
 
-                  <form className="space-y-5" onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
+                  <form
+                    className="space-y-5"
+                    onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
+                  >
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase tracking-wide text-slate-700">
                         Password
@@ -198,10 +204,12 @@ export default function SetPassword() {
                         type="password"
                         placeholder="••••••"
                         className={`h-12 ${
-                          passwordForm.formState.errors.password ? "border-red-500" : "border-slate-300"
+                          passwordForm.formState.errors.password
+                            ? 'border-red-500'
+                            : 'border-slate-300'
                         }`}
-                        {...passwordForm.register("password", {
-                          required: "Password is required",
+                        {...passwordForm.register('password', {
+                          required: 'Password is required',
                           minLength: {
                             value: MIN_LEN,
                             message: `Min ${MIN_LEN} characters`,
@@ -223,11 +231,13 @@ export default function SetPassword() {
                         type="password"
                         placeholder="••••••"
                         className={`h-12 ${
-                          passwordForm.formState.errors.confirmPassword ? "border-red-500" : "border-slate-300"
+                          passwordForm.formState.errors.confirmPassword
+                            ? 'border-red-500'
+                            : 'border-slate-300'
                         }`}
-                        {...passwordForm.register("confirmPassword", {
-                          required: "Please confirm password",
-                          validate: (val) => val === password || "Passwords do not match",
+                        {...passwordForm.register('confirmPassword', {
+                          required: 'Please confirm password',
+                          validate: (val) => val === password || 'Passwords do not match',
                         })}
                       />
                       {passwordForm.formState.errors.confirmPassword && (
@@ -245,7 +255,7 @@ export default function SetPassword() {
                       type="button"
                       onClick={() => {
                         setInviteInfo(null);
-                        setError("");
+                        setError('');
                         passwordForm.reset();
                       }}
                       className="w-full text-sm font-medium text-slate-500 underline underline-offset-4 hover:text-slate-900"

@@ -1,5 +1,5 @@
-import { ChartNoAxesCombined } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartNoAxesCombined } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function AnalyticsEmptyCard({ title, description }) {
   return (

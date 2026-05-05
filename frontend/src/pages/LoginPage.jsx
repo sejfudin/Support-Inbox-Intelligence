@@ -1,30 +1,29 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useLoginUser } from "@/queries/auth";
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useLoginUser } from '@/queries/auth';
 
 export const LoginPage = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const loginMutation = useLoginUser();
 
   const handleLogin = (e) => {
     e.preventDefault();
-    setErrorMessage("");
+    setErrorMessage('');
 
     loginMutation.mutate(
       { email, password },
       {
         onError: (error) => {
-          const msg =
-            error.response?.data?.message || "Invalid email or password.";
+          const msg = error.response?.data?.message || 'Invalid email or password.';
           setErrorMessage(msg);
         },
-      },
+      }
     );
   };
 
@@ -33,7 +32,9 @@ export const LoginPage = () => {
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card className="hidden border-primary/10 bg-slate-950 text-white shadow-[0_32px_80px_-40px_rgba(35,39,92,0.95)] lg:block">
           <CardHeader className="space-y-6 p-10">
-            <div className="app-kicker w-fit border-white/10 bg-white/10 text-white/90">TaskManager</div>
+            <div className="app-kicker w-fit border-white/10 bg-white/10 text-white/90">
+              TaskManager
+            </div>
             <div>
               <CardTitle className="text-4xl font-semibold leading-tight text-white">
                 Stay on top of tickets, teams, and workspace operations.
@@ -65,7 +66,6 @@ export const LoginPage = () => {
               </div>
             )}
             <form className="space-y-6" onSubmit={handleLogin}>
-              {/* Email */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                   Email address
@@ -80,7 +80,6 @@ export const LoginPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              {/* Password */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                   Password
@@ -96,11 +95,8 @@ export const LoginPage = () => {
                 />
               </div>
 
-              <Button
-                type="submit"
-                className="h-14 w-full text-xl font-semibold"
-              >
-                {loginMutation.isPending ? "Signing in..." : "Login"}
+              <Button type="submit" className="h-14 w-full text-xl font-semibold">
+                {loginMutation.isPending ? 'Signing in...' : 'Login'}
               </Button>
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">

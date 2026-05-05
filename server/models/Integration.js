@@ -1,11 +1,11 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const integrationSchema = new mongoose.Schema(
   {
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Workspace",
-      required: [true, "Workspace is required"],
+      ref: 'Workspace',
+      required: [true, 'Workspace is required'],
       unique: true,
       index: true,
     },
@@ -27,7 +27,7 @@ const integrationSchema = new mongoose.Schema(
 
     githubAccountType: {
       type: String,
-      enum: ["User", "Organization"],
+      enum: ['User', 'Organization'],
       required: function () {
         return this.isConnected;
       },
@@ -54,7 +54,7 @@ const integrationSchema = new mongoose.Schema(
       },
       defaultBranch: {
         type: String,
-        default: "main",
+        default: 'main',
       },
     },
 
@@ -88,13 +88,13 @@ const integrationSchema = new mongoose.Schema(
       },
       onPROpenTargetStatus: {
         type: String,
-        enum: ["backlog", "to do", "in progress", "on staging", "blocked", "done"],
-        default: "on staging",
+        enum: ['backlog', 'to do', 'in progress', 'on staging', 'blocked', 'done'],
+        default: 'on staging',
       },
       onMergeTargetStatus: {
         type: String,
-        enum: ["backlog", "to do", "in progress", "on staging", "blocked", "done"],
-        default: "done",
+        enum: ['backlog', 'to do', 'in progress', 'on staging', 'blocked', 'done'],
+        default: 'done',
       },
     },
 
@@ -119,6 +119,6 @@ const integrationSchema = new mongoose.Schema(
 integrationSchema.index({ isConnected: 1, updatedAt: -1 });
 
 // Unique index on connectedRepo.fullName
-integrationSchema.index({ "connectedRepo.fullName": 1 }, { unique: true, sparse: true });
+integrationSchema.index({ 'connectedRepo.fullName': 1 }, { unique: true, sparse: true });
 
-module.exports = mongoose.model("Integration", integrationSchema);
+module.exports = mongoose.model('Integration', integrationSchema);

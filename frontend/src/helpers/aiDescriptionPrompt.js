@@ -1,19 +1,22 @@
-import { MIN_TEXT_LENGTH } from "@/helpers/aiValidationRules";
+import { MIN_TEXT_LENGTH } from '@/helpers/aiValidationRules';
 
 export const AI_PROMPT_MIN_LENGTH = MIN_TEXT_LENGTH;
 const AI_PROMPT_REGEX = /^\s*\/ai\b([\s\S]*)$/i;
 
 export function htmlToPlainText(html) {
-  const safeHtml = String(html || "");
+  const safeHtml = String(html || '');
 
-  if (typeof document === "undefined") {
-    return safeHtml.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  if (typeof document === 'undefined') {
+    return safeHtml
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
-  const tmp = document.createElement("div");
+  const tmp = document.createElement('div');
   tmp.innerHTML = safeHtml;
-  return String(tmp.textContent || tmp.innerText || "")
-    .replace(/\u00a0/g, " ")
+  return String(tmp.textContent || tmp.innerText || '')
+    .replace(/\u00a0/g, ' ')
     .trim();
 }
 
@@ -24,14 +27,14 @@ export function extractAiPromptFromDescriptionHtml(descriptionHtml) {
   if (!match) {
     return {
       isAiPromptMode: false,
-      prompt: "",
+      prompt: '',
       plainText,
     };
   }
 
   return {
     isAiPromptMode: true,
-    prompt: String(match[1] || "").trim(),
+    prompt: String(match[1] || '').trim(),
     plainText,
   };
 }

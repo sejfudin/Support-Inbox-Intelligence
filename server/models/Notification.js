@@ -1,10 +1,10 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema(
   {
     recipient: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
       index: true,
     },
@@ -15,7 +15,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["ticket_comment", "ticket_assigned"],
+      enum: ['ticket_comment', 'ticket_assigned'],
       required: true,
     },
     title: {
@@ -28,24 +28,24 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       maxlength: 500,
-      default: "",
+      default: '',
     },
     ticket: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Ticket",
+      ref: 'Ticket',
       required: true,
       index: true,
     },
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Workspace",
+      ref: 'Workspace',
       required: true,
     },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, read: 1 });
 
-module.exports = mongoose.model("Notification", notificationSchema);
+module.exports = mongoose.model('Notification', notificationSchema);

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMyWorkspaces } from "@/queries/workspaces";
+import { useEffect, useMemo, useState } from 'react';
+import { useMyWorkspaces } from '@/queries/workspaces';
 
 export function useWorkspaceMembershipCheck(workspaceId) {
   const {
@@ -40,11 +40,10 @@ export function useWorkspaceMembershipCheck(workspaceId) {
   }, [myWorkspaces, workspaceId]);
 
   const isMembershipCheckPending = Boolean(
-    workspaceId && (
-      isMyWorkspacesLoading ||
+    workspaceId &&
+    (isMyWorkspacesLoading ||
       isMyWorkspacesFetching ||
-      membershipCheckWorkspaceId !== workspaceId.toString()
-    ),
+      membershipCheckWorkspaceId !== workspaceId.toString())
   );
 
   return {

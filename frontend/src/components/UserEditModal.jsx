@@ -1,24 +1,24 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { useUpdateUser } from "@/queries/auth";
-import { toast } from "sonner"; 
+} from '@/components/ui/select';
+import { useUpdateUser } from '@/queries/auth';
+import { toast } from 'sonner';
 
 const UserEditModal = ({ user, onClose }) => {
   const [editedUser, setEditedUser] = useState({
-    user: user.user || "", 
-    email: user.email || "", 
-    role: user.role || "user", 
-    status: user.status || "Active" 
+    user: user.user || '',
+    email: user.email || '',
+    role: user.role || 'user',
+    status: user.status || 'Active',
   });
 
   const updateUserMutation = useUpdateUser();
@@ -30,30 +30,29 @@ const UserEditModal = ({ user, onClose }) => {
       fullname: editedUser.user,
       email: editedUser.email,
       role: editedUser.role.toLowerCase(),
-      active: editedUser.status === "Active"
+      active: editedUser.status === 'Active',
     };
 
-    const toastId = toast.loading("Updating user...");
+    const toastId = toast.loading('Updating user...');
 
     updateUserMutation.mutate(
-      { 
-        id: user.id, 
-        data: payload 
+      {
+        id: user.id,
+        data: payload,
       },
       {
         onSuccess: () => {
           toast.dismiss(toastId);
-          toast.success("User updated successfully");
-          onClose(); 
+          toast.success('User updated successfully');
+          onClose();
         },
         onError: (err) => {
           toast.dismiss(toastId);
-          console.error("Failed to update", err);
-          
-          const errorMessage = err.response?.data?.message || "Failed to update user.";
-          
+
+          const errorMessage = err.response?.data?.message || 'Failed to update user.';
+
           toast.error(errorMessage);
-        }
+        },
       }
     );
   };
@@ -75,9 +74,7 @@ const UserEditModal = ({ user, onClose }) => {
                   </Label>
                   <Input
                     value={editedUser.user}
-                    onChange={(e) =>
-                      setEditedUser({ ...editedUser, user: e.target.value })
-                    }
+                    onChange={(e) => setEditedUser({ ...editedUser, user: e.target.value })}
                     className="h-12 text-base"
                   />
                 </div>
@@ -89,9 +86,7 @@ const UserEditModal = ({ user, onClose }) => {
                   <Input
                     type="email"
                     value={editedUser.email}
-                    onChange={(e) =>
-                      setEditedUser({ ...editedUser, email: e.target.value })
-                    }
+                    onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
                     className="h-12 text-base"
                   />
                 </div>
@@ -102,9 +97,7 @@ const UserEditModal = ({ user, onClose }) => {
                   </Label>
                   <Select
                     value={editedUser.role}
-                    onValueChange={(value) =>
-                      setEditedUser({ ...editedUser, role: value })
-                    }
+                    onValueChange={(value) => setEditedUser({ ...editedUser, role: value })}
                   >
                     <SelectTrigger className="h-12">
                       <SelectValue />
@@ -122,9 +115,7 @@ const UserEditModal = ({ user, onClose }) => {
                   </Label>
                   <Select
                     value={editedUser.status}
-                    onValueChange={(value) =>
-                      setEditedUser({ ...editedUser, status: value })
-                    }
+                    onValueChange={(value) => setEditedUser({ ...editedUser, status: value })}
                   >
                     <SelectTrigger className="h-12">
                       <SelectValue />
@@ -140,12 +131,7 @@ const UserEditModal = ({ user, onClose }) => {
                 <Button type="submit" className="flex-1">
                   Save Changes
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onClose}
-                  className="flex-1"
-                >
+                <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                   Cancel
                 </Button>
               </div>

@@ -1,24 +1,24 @@
-import React from "react";
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { LoginPage } from "@/pages/LoginPage";
-import Register from "@/pages/Register";
-import TicketPage from "@/pages/TicketPage";
-import SidebarLayout from "@/layouts/SidebarLayout";
-import AdminUsersPage from "@/pages/AdminUsersPage";
-import ArchivePage from "@/pages/Archive";
-import BacklogPage from "@/pages/Backlog";
-import ProfilePage from "@/pages/ProfilePage";
-import ProtectedRoute from "@/routes/ProtectedRoutes";
-import { useAuth } from "@/context/AuthContext";
-import UserDashboard from "@/pages/UserDashboard";
-import SetupPasswordWrapper from "@/pages/SetupPasswordWrapper";
-import CreateWorkspacePage from "@/pages/CreateWorkspacePage";
-import AdminWorkspacesPage from "@/pages/AdminWorkspacesPage";
-import WorkspaceDetailPage from "@/pages/WorkspaceDetailPage";
-import WorkspaceSettingsPage from "@/pages/WorkspaceSettingsPage";
-import MyWorkspacesPage from "@/pages/MyWorkspacesPage";
-import UserInvitationsPage from "@/pages/UserInvitationsPage";
-import AnalyticsDashboard from "@/pages/AnalyticsDashboard";
+import React from 'react';
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { LoginPage } from '@/pages/LoginPage';
+import Register from '@/pages/Register';
+import TicketPage from '@/pages/TicketPage';
+import SidebarLayout from '@/layouts/SidebarLayout';
+import AdminUsersPage from '@/pages/AdminUsersPage';
+import ArchivePage from '@/pages/Archive';
+import BacklogPage from '@/pages/Backlog';
+import ProfilePage from '@/pages/ProfilePage';
+import ProtectedRoute from '@/routes/ProtectedRoutes';
+import { useAuth } from '@/context/AuthContext';
+import UserDashboard from '@/pages/UserDashboard';
+import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
+import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
+import AdminWorkspacesPage from '@/pages/AdminWorkspacesPage';
+import WorkspaceDetailPage from '@/pages/WorkspaceDetailPage';
+import WorkspaceSettingsPage from '@/pages/WorkspaceSettingsPage';
+import MyWorkspacesPage from '@/pages/MyWorkspacesPage';
+import UserInvitationsPage from '@/pages/UserInvitationsPage';
+import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -33,7 +33,7 @@ const HomeRedirect = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (user?.role === "admin") {
+  if (user?.role === 'admin') {
     return <Navigate to="/admin/workspaces" replace />;
   }
 
@@ -47,9 +47,7 @@ export default function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={
-          isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />
-        }
+        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
       />
 
       <Route path="/set-password" element={<SetupPasswordWrapper />} />
@@ -58,9 +56,7 @@ export default function AppRoutes() {
         <Route
           path="/create-workspace"
           element={
-            user?.workspaceId
-              ? <Navigate to="/dashboard" replace />
-              : <CreateWorkspacePage />
+            user?.workspaceId ? <Navigate to="/dashboard" replace /> : <CreateWorkspacePage />
           }
         />
 
@@ -68,7 +64,7 @@ export default function AppRoutes() {
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/profile" element={<ProfilePage />} />
 
-          <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/workspaces" element={<AdminWorkspacesPage />} />
             <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
@@ -84,7 +80,7 @@ export default function AppRoutes() {
             <Route path="/my-workspaces" element={<MyWorkspacesPage />} />
             <Route path="/invitations" element={<UserInvitationsPage />} />
 
-            <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
+            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/admin/backlog" element={<BacklogPage />} />
             </Route>
           </Route>

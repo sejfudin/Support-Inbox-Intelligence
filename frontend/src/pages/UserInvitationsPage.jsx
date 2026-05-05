@@ -3,11 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import InvitationInbox from '@/components/InvitationInbox';
-import {
-  useMyInvitations,
-  useAcceptInvitation,
-  useDeclineInvitation,
-} from '@/queries/invitations';
+import { useMyInvitations, useAcceptInvitation, useDeclineInvitation } from '@/queries/invitations';
 
 export default function UserInvitationsPage() {
   const navigate = useNavigate();
@@ -60,9 +56,7 @@ export default function UserInvitationsPage() {
           <div>
             <div className="app-kicker mb-3">Workspace</div>
             <h1 className="app-title">Invitations</h1>
-            <p className="app-subtitle">
-              Review and respond to workspace invitations.
-            </p>
+            <p className="app-subtitle">Review and respond to workspace invitations.</p>
           </div>
         </div>
 

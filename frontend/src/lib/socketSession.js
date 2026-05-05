@@ -1,7 +1,7 @@
 let activeSocketId = null;
 
 export const setActiveSocketId = (socketId) => {
-  if (!socketId || typeof socketId !== "string") {
+  if (!socketId || typeof socketId !== 'string') {
     activeSocketId = null;
     return;
   }

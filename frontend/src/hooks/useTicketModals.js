@@ -1,13 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState } from 'react';
 
 export const useTicketModals = () => {
   const [isNewOpen, setIsNewOpen] = useState(false);
-  const [initialStatus, setInitialStatus] = useState("to do");
+  const [initialStatus, setInitialStatus] = useState('to do');
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  const openNewTicket = useCallback((status = "to do") => {
-    setInitialStatus(status === undefined ? "to do" : status);
+  const openNewTicket = useCallback((status = 'to do') => {
+    setInitialStatus(status === undefined ? 'to do' : status);
     setIsNewOpen(true);
   }, []);
 

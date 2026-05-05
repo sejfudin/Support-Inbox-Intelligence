@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { ArrowUpDown, ChevronDown, Filter, X } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { ArrowUpDown, ChevronDown, Filter, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -12,8 +12,8 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuCheckboxItem,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import {
   PRIORITY_FILTER_OPTIONS as DEFAULT_PRIORITY_OPTIONS,
   PRIORITY_FILTER_VALUES,
@@ -24,18 +24,18 @@ import {
   DUE_DATE_ORDER_VALUES,
   TICKET_ID_ORDER_OPTIONS as DEFAULT_TICKET_ID_ORDER_OPTIONS,
   TICKET_ID_ORDER_VALUES,
-} from "@/helpers/ticketFilters";
-import { PRIORITY_CONFIG } from "@/helpers/ticketPriority";
+} from '@/helpers/ticketFilters';
+import { PRIORITY_CONFIG } from '@/helpers/ticketPriority';
 
 const getPriorityVisual = (value) => {
   const normalized = String(value || PRIORITY_FILTER_VALUES.ALL).toLowerCase();
   const config = PRIORITY_CONFIG[normalized];
 
   return normalized === PRIORITY_FILTER_VALUES.ALL
-    ? { dot: "bg-slate-400" }
+    ? { dot: 'bg-slate-400' }
     : config
       ? { dot: config.dot }
-      : { dot: "bg-slate-400" };
+      : { dot: 'bg-slate-400' };
 };
 
 export default function TicketFiltersPanel({
@@ -71,14 +71,14 @@ export default function TicketFiltersPanel({
     (ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE ? 1 : 0);
   const hasActiveSelections = activeFilterCount > 0 || activeSortCount > 0;
   const hasActiveChips = activeFilterChips.length > 0;
-  const CONTROL_BUTTON_CLASS = "rounded-xl px-4 justify-between gap-2";
+  const CONTROL_BUTTON_CLASS = 'rounded-xl px-4 justify-between gap-2';
 
   return (
-    <div className={cn("flex w-full flex-col gap-2 md:w-auto md:items-start", className)}>
+    <div className={cn('flex w-full flex-col gap-2 md:w-auto md:items-start', className)}>
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className={cn("w-full sm:w-auto", CONTROL_BUTTON_CLASS)}>
+            <Button variant="outline" className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}>
               <span className="inline-flex items-center gap-2">
                 <Filter className="h-4 w-4" />
                 <span>Filter</span>
@@ -120,7 +120,7 @@ export default function TicketFiltersPanel({
                         onSelect={(e) => e.preventDefault()}
                       >
                         <span className="flex items-center gap-2">
-                          <span className={cn("h-2 w-2 rounded-full", visual.dot)} />
+                          <span className={cn('h-2 w-2 rounded-full', visual.dot)} />
                           <span>{option.label}</span>
                         </span>
                       </DropdownMenuCheckboxItem>
@@ -159,7 +159,7 @@ export default function TicketFiltersPanel({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className={cn("w-full sm:w-auto", CONTROL_BUTTON_CLASS)}>
+            <Button variant="outline" className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}>
               <span className="inline-flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4" />
                 <span>Sort</span>
@@ -234,11 +234,13 @@ export default function TicketFiltersPanel({
             <span
               key={chip.key}
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs",
-                chip.className || "border-border/80 bg-secondary/70 text-foreground",
+                'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs',
+                chip.className || 'border-border/80 bg-secondary/70 text-foreground'
               )}
             >
-              {chip.dotClass ? <span className={cn("h-2 w-2 rounded-full", chip.dotClass)} /> : null}
+              {chip.dotClass ? (
+                <span className={cn('h-2 w-2 rounded-full', chip.dotClass)} />
+              ) : null}
               <span>{chip.label}</span>
               <button
                 type="button"

@@ -1,26 +1,23 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
   {
     fullname: {
       type: String,
-      required: [true, "Please enter your full name"],
-      maxlength: [50, "Name cannot be longer than 50 characters"],
+      required: [true, 'Please enter your full name'],
+      maxlength: [50, 'Name cannot be longer than 50 characters'],
     },
     email: {
       type: String,
-      required: [true, "Please enter your email"],
+      required: [true, 'Please enter your email'],
       unique: true,
       trim: true,
       lowercase: true,
-      match: [
-        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/,
-        "Please enter a valid email address",
-      ],
+      match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,})+$/, 'Please enter a valid email address'],
     },
     password: {
       type: String,
-      minlength: [6, "Password must have at least 6 characters."],
+      minlength: [6, 'Password must have at least 6 characters.'],
       select: false,
       required: function () {
         // this requires password only when the user is active
@@ -30,10 +27,10 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: {
-        values: ["user", "admin"],
-        message: "{VALUE} is not a supported role",
+        values: ['user', 'admin'],
+        message: '{VALUE} is not a supported role',
       },
-      default: "user",
+      default: 'user',
     },
     active: {
       type: Boolean,
@@ -41,8 +38,8 @@ const userSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "invited", "disabled"],
-      default: "invited",
+      enum: ['active', 'invited', 'disabled'],
+      default: 'invited',
     },
     tokenVersion: {
       type: Number,
@@ -57,7 +54,7 @@ const userSchema = new mongoose.Schema(
     },
     invitedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
     invitedAt: {
       type: Date,
@@ -77,13 +74,13 @@ const userSchema = new mongoose.Schema(
     },
     workspaceId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Workspace",
-    }
+      ref: 'Workspace',
+    },
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 userSchema.index({ active: 1, updatedAt: -1 });
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model('User', userSchema);

@@ -1,10 +1,10 @@
-const userService = require("../services/adminService");
-const authService = require("../services/authService");
+const userService = require('../services/adminService');
+const authService = require('../services/authService');
 
 exports.getUsers = async (req, res, next) => {
   try {
     const { page, limit, search, pagination, workspaceId: queryWorkspaceId } = req.query;
-    const isAdmin = req.user?.role === "admin";
+    const isAdmin = req.user?.role === 'admin';
     const workspaceId = isAdmin ? queryWorkspaceId : req.user?.workspaceId;
 
     const result = await userService.getUsers({
@@ -30,9 +30,7 @@ exports.updateUserRole = async (req, res, next) => {
 
     res.json(user);
   } catch (error) {
-    console.error("Update user role error:", error);
-
-    if (error.message === "User not found") {
+    if (error.message === 'User not found') {
       return res.status(404).json({ message: error.message });
     }
 

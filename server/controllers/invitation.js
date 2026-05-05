@@ -1,4 +1,4 @@
-const invitationService = require("../services/invitationService");
+const invitationService = require('../services/invitationService');
 
 exports.getMyInvitations = async (req, res, next) => {
   try {
@@ -17,10 +17,10 @@ exports.acceptInvitation = async (req, res, next) => {
     });
     res.json(result);
   } catch (error) {
-    if (error.message === "Invitation not found") {
+    if (error.message === 'Invitation not found') {
       return res.status(404).json({ message: error.message });
     }
-    if (error.message === "Workspace not found") {
+    if (error.message === 'Workspace not found') {
       return res.status(404).json({ message: error.message });
     }
     next(error);
@@ -35,7 +35,7 @@ exports.declineInvitation = async (req, res, next) => {
     });
     res.json(result);
   } catch (error) {
-    if (error.message === "Invitation not found") {
+    if (error.message === 'Invitation not found') {
       return res.status(404).json({ message: error.message });
     }
     next(error);

@@ -1,14 +1,14 @@
 const PATTERNS = {
   // Branch patterns - strict prefix separators
-  BRANCH_SLASH_PREFIX: /^[^/]+\/(\d+)(?:-|$)/,           // feature/87-xyz, bugfix/123
-  BRANCH_HYPHEN_PREFIX: /^[a-z]+-(\d+)(?:-|$)/i,          // TICK-123, BUG-456
-  BRANCH_UNDERSCORE_PREFIX: /^[a-z]+_(\d+)(?:_|$)/i,     // TICK_123, issue_456
+  BRANCH_SLASH_PREFIX: /^[^/]+\/(\d+)(?:-|$)/, // feature/87-xyz, bugfix/123
+  BRANCH_HYPHEN_PREFIX: /^[a-z]+-(\d+)(?:-|$)/i, // TICK-123, BUG-456
+  BRANCH_UNDERSCORE_PREFIX: /^[a-z]+_(\d+)(?:_|$)/i, // TICK_123, issue_456
 
   // Text patterns - with markers
-  HASH_PREFIX: /#(\d+)/,                                 // #87, #123
-  TICK_PREFIX: /\btick(?:et)?-?(\d+)/i,                  // TICK-87, TICKET-123, tick456
-  TASK_PREFIX: /\btask[-\s]?#?(\d+)/i,                  // Task #87, Task-123, Task 16
-  ISSUE_PREFIX: /\bissue[-\s]?#?(\d+)/i,                // Issue #87, Issue-123
+  HASH_PREFIX: /#(\d+)/, // #87, #123
+  TICK_PREFIX: /\btick(?:et)?-?(\d+)/i, // TICK-87, TICKET-123, tick456
+  TASK_PREFIX: /\btask[-\s]?#?(\d+)/i, // Task #87, Task-123, Task 16
+  ISSUE_PREFIX: /\bissue[-\s]?#?(\d+)/i, // Issue #87, Issue-123
 
   // Word boundary patterns - standalone numbers
   BOUNDED_NUMBER: /\b(\d{1,6})\b/,

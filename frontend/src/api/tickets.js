@@ -1,20 +1,20 @@
-import apiClient from "./axios";
+import apiClient from './axios';
 
 export const getAllTickets = async ({
   page,
   limit,
   search,
   status,
-  priority, 
+  priority,
   priorities,
-  assigneeIds, 
-  priorityOrder, 
+  assigneeIds,
+  priorityOrder,
   archived,
   workspaceId,
   sortBy,
   sortOrder,
 } = {}) => {
-  const response = await apiClient.get("/tickets", {
+  const response = await apiClient.get('/tickets', {
     params: {
       page,
       limit,
@@ -46,7 +46,7 @@ export const addMessage = async ({ ticketId, text }) => {
 };
 
 export const createTicket = async (ticketData) => {
-  const response = await apiClient.post("/tickets", ticketData);
+  const response = await apiClient.post('/tickets', ticketData);
   return response.data;
 };
 
@@ -71,7 +71,7 @@ export const getMyTickets = async ({
   sortBy,
   sortOrder,
 } = {}) => {
-  const response = await apiClient.get("/tickets/my-tickets", {
+  const response = await apiClient.get('/tickets/my-tickets', {
     params: {
       page,
       limit,
@@ -88,18 +88,17 @@ export const getMyTickets = async ({
 };
 
 export const suggestTicketMetadata = async ({ subject, description }) => {
-  const response = await apiClient.post("/tickets/suggest-metadata", {
+  const response = await apiClient.post('/tickets/suggest-metadata', {
     subject,
     description,
   });
   return response.data;
 };
 
-export const generateTicketDescription = async({ subject, prompt }) => {
-  const response = await apiClient.post("/tickets/generate-description", {
+export const generateTicketDescription = async ({ subject, prompt }) => {
+  const response = await apiClient.post('/tickets/generate-description', {
     subject,
-    prompt
+    prompt,
   });
   return response.data;
 };
-
