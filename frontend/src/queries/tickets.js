@@ -76,7 +76,7 @@ export const useUpdateTicket = () => {
     mutationFn: (vars) => updateTicket(vars.ticketId, vars.updates),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["ticket", variables.ticketId] });
-      
+      queryClient.invalidateQueries({ queryKey: ["ticket-history", variables.ticketId] });
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       invalidateWorkspaceAnalytics(queryClient);
       invalidateUserAnalytics(queryClient);

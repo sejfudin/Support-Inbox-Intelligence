@@ -21,6 +21,7 @@ export const useCreateComment = () => {
         mutationFn: createComment,
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ["comments", variables.ticketId] });
+            queryClient.invalidateQueries({ queryKey: ["ticket-history", variables.ticketId] });
         },
     });
 };
