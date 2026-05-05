@@ -37,13 +37,13 @@ export default function TicketComments({ ticketId, isArchived }) {
     <Accordion
       type="single"
       collapsible
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
+      className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden"
     >
       <AccordionItem value="activity" className="border-none">
         <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <MessageSquare className="w-3.5 h-3.5 text-gray-500" />
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
               Comments
             </span>
             {commentCount > 0 && (
@@ -57,7 +57,7 @@ export default function TicketComments({ ticketId, isArchived }) {
         <AccordionContent className="p-0 data-[state=closed]:hidden">
           <ScrollArea className="max-h-[480px] p-6">
             {comments.length === 0 ? (
-              <div className="flex items-center justify-center text-sm text-gray-400 italic py-8">
+              <div className="flex items-center justify-center text-sm text-gray-500 italic py-8">
                 No comments yet.
               </div>
             ) : (

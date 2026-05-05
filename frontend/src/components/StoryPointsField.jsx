@@ -20,7 +20,7 @@ export default function StoryPointsField({ value, onChange, disabled = false, cl
   return (
     <div className={cn('space-y-3', className)}>
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
           Story Points
         </span>
       </div>
@@ -46,7 +46,7 @@ export default function StoryPointsField({ value, onChange, disabled = false, cl
 
         <DropdownMenuContent align="start" className="w-44 z-[200]">
           <DropdownMenuItem onSelect={() => onChange?.(null)} className="cursor-pointer">
-            <span className="h-2 w-2 rounded-full bg-gray-400 mr-2" />
+            <span className="h-2 w-2 rounded-full bg-gray-500 mr-2" />
             <span className="flex-1">No estimate</span>
             {currentValue === null ? <Check className="w-4 h-4 opacity-80 ml-2" /> : null}
           </DropdownMenuItem>

@@ -415,7 +415,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             >
               <X className="w-5 h-5" />
             </button>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
               Ticket Details
             </span>
           </div>
@@ -524,7 +524,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 }`}
               >
                 <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                     Assignees
                   </div>
 
@@ -628,7 +628,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 </div>
 
                 <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                     Status
                   </div>
                   <StatusDropdown
@@ -639,7 +639,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 </div>
 
                 <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                     Priority
                   </div>
                   <PriorityDropdown
@@ -661,7 +661,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
             <div className="space-y-6 min-w-0">
-              <section className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+              <section className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden">
                 <RichTextEditor
                   value={description}
                   onChange={setDescription}
@@ -670,8 +670,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 >
                   <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-gray-50 bg-gray-50/30">
                     <div className="flex items-center gap-2">
-                      <Ticket className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <Ticket className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                         Description
                       </span>
                     </div>
@@ -690,13 +690,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <Accordion
                 type="single"
                 collapsible
-                className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden"
+                className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
               >
                 <AccordionItem value="details" className="border-none">
                   <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
                     <div className="flex items-center gap-2">
-                      <Ticket className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <Ticket className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                         Details
                       </span>
                     </div>
@@ -705,7 +705,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                             Due date
                           </span>
                         </div>
@@ -714,7 +714,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                           value={dueDateInput}
                           disabled={isArchived}
                           onChange={(e) => setDueDateInput(e.target.value)}
-                          className={`h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 shadow-sm outline-none transition focus:border-blue-200 focus:ring-2 focus:ring-blue-50 ${
+                          className={`h-10 w-full rounded-md border border-transparent bg-gray-100 px-3 text-sm font-semibold text-gray-800 shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white ${
                             isArchived ? 'cursor-not-allowed opacity-70' : ''
                           }`}
                         />
@@ -734,13 +734,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <Accordion
                 type="single"
                 collapsible
-                className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden"
+                className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
               >
                 <AccordionItem value="tracking" className="border-none">
                   <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <Clock className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                         Tracking
                       </span>
                     </div>
@@ -751,12 +751,12 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                             Created By
                           </span>
                         </div>
 
-                        <div className="flex min-h-[44px] w-full items-center gap-3 p-1.5">
+                        <div className="flex min-h-[44px] w-full items-center gap-3 px-1.5 py-2">
                           {ticket?.creator ? (
                             <Avatar users={[ticket.creator]} size="md" />
                           ) : (
@@ -764,12 +764,12 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                           )}
 
                           <div className="flex flex-col justify-center min-w-0">
-                            <span className="text-sm font-semibold text-foreground leading-none truncate">
+                            <span className="text-sm font-semibold text-gray-900 leading-none truncate">
                               {ticket?.creator?.fullname ||
                                 ticket?.creator?.fullName ||
                                 'Unknown User'}
                             </span>
-                            <span className="text-[10px] text-muted-foreground font-medium mt-1">
+                            <span className="text-[10px] text-gray-500 font-medium mt-1">
                               {ticket?.createdAt
                                 ? format(new Date(ticket.createdAt), 'MMM d, yyyy')
                                 : ''}
@@ -786,13 +786,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 <Accordion
                   type="single"
                   collapsible
-                  className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden"
+                  className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
                 >
                   <AccordionItem value="pr" className="border-none">
                     <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
                       <div className="flex items-center gap-2">
-                        <GitPullRequest className="w-3.5 h-3.5 text-gray-400" />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                        <GitPullRequest className="w-3.5 h-3.5 text-gray-500" />
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                           Linked Pull Request
                         </span>
                       </div>

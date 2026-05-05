@@ -5,12 +5,18 @@ export const TimeSpent = ({ ticket }) => {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
           Time Spent
         </span>
       </div>
-      <div className="flex min-h-[44px] items-center px-1.5">
-        <span className="text-lg font-bold text-foreground">
+      <div className="flex min-h-[44px] items-center gap-2 px-1.5 py-2">
+        {ticket?.status?.toLowerCase() === 'in progress' && (
+          <span
+            className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"
+            title="In progress timer active"
+          />
+        )}
+        <span className="text-base font-semibold text-gray-900">
           {(() => {
             let seconds = ticket?.totalTimeSpent || 0;
             if (ticket?.status?.toLowerCase() === 'in progress' && ticket?.inProgressAt) {
@@ -21,12 +27,6 @@ export const TimeSpent = ({ ticket }) => {
             return formatDuration(seconds);
           })()}
         </span>
-        {ticket?.status?.toLowerCase() === 'in progress' && (
-          <span
-            className="ml-2 inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"
-            title="In progress timer active"
-          />
-        )}
       </div>
     </div>
   );
