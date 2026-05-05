@@ -22,6 +22,8 @@ import {
   PRIORITY_ORDER_VALUES,
   DUE_DATE_ORDER_OPTIONS as DEFAULT_DUE_DATE_ORDER_OPTIONS,
   DUE_DATE_ORDER_VALUES,
+  TICKET_ID_ORDER_OPTIONS as DEFAULT_TICKET_ID_ORDER_OPTIONS,
+  TICKET_ID_ORDER_VALUES,
 } from "@/helpers/ticketFilters";
 import { PRIORITY_CONFIG } from "@/helpers/ticketPriority";
 
@@ -53,6 +55,10 @@ export default function TicketFiltersPanel({
   onDueDateOrderChange,
   dueDateOrderOptions = DEFAULT_DUE_DATE_ORDER_OPTIONS,
 
+  ticketIdOrder = TICKET_ID_ORDER_VALUES.NONE,
+  onTicketIdOrderChange,
+  ticketIdOrderOptions = DEFAULT_TICKET_ID_ORDER_OPTIONS,
+
   activeFilterChips = [],
   onRemoveFilterChip,
   onClearAllFilters,
@@ -61,7 +67,8 @@ export default function TicketFiltersPanel({
   const activeFilterCount = selectedPriorities.length + selectedAssigneeIds.length;
   const activeSortCount =
     (priorityOrder !== PRIORITY_ORDER_VALUES.NONE ? 1 : 0) +
-    (dueDateOrder !== DUE_DATE_ORDER_VALUES.DEFAULT ? 1 : 0);
+    (dueDateOrder !== DUE_DATE_ORDER_VALUES.DEFAULT ? 1 : 0) +
+    (ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE ? 1 : 0);
   const hasActiveSelections = activeFilterCount > 0 || activeSortCount > 0;
   const hasActiveChips = activeFilterChips.length > 0;
   const CONTROL_BUTTON_CLASS = "rounded-xl px-4 justify-between gap-2";
@@ -194,6 +201,22 @@ export default function TicketFiltersPanel({
                   onValueChange={(value) => onDueDateOrderChange?.(value)}
                 >
                   {dueDateOrderOptions.map((option) => (
+                    <DropdownMenuRadioItem key={option.value} value={option.value}>
+                      {option.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>Ticket ID</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-56">
+                <DropdownMenuRadioGroup
+                  value={ticketIdOrder}
+                  onValueChange={(value) => onTicketIdOrderChange?.(value)}
+                >
+                  {ticketIdOrderOptions.map((option) => (
                     <DropdownMenuRadioItem key={option.value} value={option.value}>
                       {option.label}
                     </DropdownMenuRadioItem>
