@@ -51,7 +51,6 @@ const getAllTickets = async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-
     res.status(500).json({
       success: false,
       message: 'Server Error: Unable to fetch tickets',
@@ -77,7 +76,6 @@ const getTicketById = async (req, res) => {
       data: ticket,
     });
   } catch (error) {
-
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ success: false, message: 'Ticket not found' });
     }

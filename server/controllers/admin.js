@@ -30,7 +30,6 @@ exports.updateUserRole = async (req, res, next) => {
 
     res.json(user);
   } catch (error) {
-
     if (error.message === 'User not found') {
       return res.status(404).json({ message: error.message });
     }
