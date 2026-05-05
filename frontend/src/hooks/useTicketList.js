@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
-import { useDebounce } from "use-debounce";
-import { useTickets } from "@/queries/tickets";
-import { normalizeTicket } from "@/helpers/normalizeTicket";
-import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
+import { useState, useMemo, useEffect } from 'react';
+import { useDebounce } from 'use-debounce';
+import { useTickets } from '@/queries/tickets';
+import { normalizeTicket } from '@/helpers/normalizeTicket';
+import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
 
 export function useTicketList({
   activeTab,
@@ -11,7 +11,7 @@ export function useTicketList({
   enabled = true,
 }) {
   const [requestedPage, setPage] = useState(1);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [debounceSearch] = useDebounce(search, 500);
   const limit = 10;
 
@@ -28,7 +28,7 @@ export function useTicketList({
 
   const normalizedTickets = useMemo(
     () => (query.data?.data || []).map(normalizeTicket),
-    [query.data?.data],
+    [query.data?.data]
   );
 
   const pagination = query.data?.pagination;

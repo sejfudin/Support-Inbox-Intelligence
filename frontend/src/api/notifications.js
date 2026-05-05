@@ -1,5 +1,5 @@
-import apiClient from "./axios";
-import { getActiveSocketId } from "@/lib/socketSession";
+import apiClient from './axios';
+import { getActiveSocketId } from '@/lib/socketSession';
 
 const buildSocketAwareConfig = () => {
   const socketId = getActiveSocketId();
@@ -9,13 +9,13 @@ const buildSocketAwareConfig = () => {
 
   return {
     headers: {
-      "x-socket-id": socketId,
+      'x-socket-id': socketId,
     },
   };
 };
 
 export const getNotifications = async (params = {}) => {
-  const response = await apiClient.get("/notifications", { params });
+  const response = await apiClient.get('/notifications', { params });
   return response.data;
 };
 
@@ -23,16 +23,16 @@ export const markNotificationRead = async (id) => {
   const response = await apiClient.patch(
     `/notifications/${id}/read`,
     undefined,
-    buildSocketAwareConfig(),
+    buildSocketAwareConfig()
   );
   return response.data;
 };
 
 export const markAllNotificationsRead = async () => {
   const response = await apiClient.patch(
-    "/notifications/read-all",
+    '/notifications/read-all',
     undefined,
-    buildSocketAwareConfig(),
+    buildSocketAwareConfig()
   );
   return response.data;
 };

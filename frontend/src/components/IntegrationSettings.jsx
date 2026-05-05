@@ -1,19 +1,39 @@
-import { useState } from "react";
-import { useIntegration, useRepositories, useUpdateIntegration, useDisconnectIntegration, useInitiateGitHubInstallation } from "@/queries/github";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Github, Loader2, AlertCircle, Check, ExternalLink, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { useState } from 'react';
+import {
+  useIntegration,
+  useRepositories,
+  useUpdateIntegration,
+  useDisconnectIntegration,
+  useInitiateGitHubInstallation,
+} from '@/queries/github';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Github, Loader2, AlertCircle, Check, ExternalLink, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-const VALID_STATUSES = ["backlog", "to do", "in progress", "on staging", "blocked", "done"];
+const VALID_STATUSES = ['backlog', 'to do', 'in progress', 'on staging', 'blocked', 'done'];
 
 export const IntegrationSettings = ({ workspaceId }) => {
   const { data: integrationData, isLoading: isLoadingIntegration } = useIntegration(workspaceId);
   const { data: reposData, isLoading: isLoadingRepos } = useRepositories(
-    workspaceId, 
+    workspaceId,
     !!integrationData?.data?.isConnected
   );
   const updateIntegration = useUpdateIntegration();
@@ -28,8 +48,8 @@ export const IntegrationSettings = ({ workspaceId }) => {
     autoLinkEnabled: true,
     autoMoveOnPROpenEnabled: false,
     autoMoveOnMergeEnabled: false,
-    onPROpenTargetStatus: "on staging",
-    onMergeTargetStatus: "done",
+    onPROpenTargetStatus: 'on staging',
+    onMergeTargetStatus: 'done',
   };
 
   const selectedRepo = integration?.connectedRepo?.fullName || null;
@@ -41,21 +61,21 @@ export const IntegrationSettings = ({ workspaceId }) => {
         window.location.href = result.data.url;
       }
     } catch {
-      toast.error("Failed to initiate GitHub connection");
+      toast.error('Failed to initiate GitHub connection');
     }
   };
 
   const handleRepoChange = async (fullName) => {
-    const [owner, name] = fullName.split("/");
+    const [owner, name] = fullName.split('/');
 
     try {
       await updateIntegration.mutateAsync({
         workspaceId,
         data: { connectedRepo: { owner, name } },
       });
-      toast.success("Repository connected");
+      toast.success('Repository connected');
     } catch {
-      toast.error("Failed to connect repository");
+      toast.error('Failed to connect repository');
     }
   };
 
@@ -67,9 +87,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
         workspaceId,
         data: { settings: newSettings },
       });
-      toast.success("Settings updated");
+      toast.success('Settings updated');
     } catch {
-      toast.error("Failed to update settings");
+      toast.error('Failed to update settings');
     }
   };
 
@@ -77,9 +97,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
     try {
       await disconnectIntegration.mutateAsync(workspaceId);
       setIsDisconnectDialogOpen(false);
-      toast.success("GitHub integration disconnected");
+      toast.success('GitHub integration disconnected');
     } catch {
-      toast.error("Failed to disconnect");
+      toast.error('Failed to disconnect');
     }
   };
 
@@ -101,7 +121,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
           </div>
           <div>
             <h3 className="font-medium text-gray-900">GitHub Integration</h3>
-            <p className="text-sm text-gray-500">Connect your workspace to GitHub for automatic PR linking</p>
+            <p className="text-sm text-gray-500">
+              Connect your workspace to GitHub for automatic PR linking
+            </p>
           </div>
         </div>
 
@@ -140,7 +162,8 @@ export const IntegrationSettings = ({ workspaceId }) => {
           <div>
             <h3 className="font-medium text-gray-900">GitHub Connected</h3>
             <p className="text-sm text-gray-500">
-              Connected as {integration.githubAccountType} <strong>{integration.githubAccountLogin}</strong>
+              Connected as {integration.githubAccountType}{' '}
+              <strong>{integration.githubAccountLogin}</strong>
             </p>
           </div>
         </div>
@@ -156,17 +179,15 @@ export const IntegrationSettings = ({ workspaceId }) => {
             <DialogHeader>
               <DialogTitle>Disconnect GitHub?</DialogTitle>
               <DialogDescription>
-                This will remove the integration for this workspace. Existing PR links will remain but no new PRs will be linked automatically.
+                This will remove the integration for this workspace. Existing PR links will remain
+                but no new PRs will be linked automatically.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDisconnectDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleDisconnect}
-                variant="destructive"
-              >
+              <Button onClick={handleDisconnect} variant="destructive">
                 Disconnect
               </Button>
             </DialogFooter>
@@ -178,7 +199,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
         <Label htmlFor="repo-select">Connected Repository</Label>
         <Select value={selectedRepo} onValueChange={handleRepoChange} disabled={isLoadingRepos}>
           <SelectTrigger id="repo-select" className="w-full">
-            <SelectValue placeholder={isLoadingRepos ? "Loading repositories..." : "Select a repository"} />
+            <SelectValue
+              placeholder={isLoadingRepos ? 'Loading repositories...' : 'Select a repository'}
+            />
           </SelectTrigger>
           <SelectContent>
             {repositories.map((repo) => (
@@ -186,15 +209,19 @@ export const IntegrationSettings = ({ workspaceId }) => {
                 key={repo.id}
                 value={repo.fullName}
                 disabled={!repo.isAvailable}
-                className={!repo.isAvailable ? "opacity-50 cursor-not-allowed" : ""}
+                className={!repo.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}
               >
                 <div className="flex items-center gap-2">
-                  <span className={!repo.isAvailable ? "text-gray-400" : ""}>{repo.fullName}</span>
+                  <span className={!repo.isAvailable ? 'text-gray-400' : ''}>{repo.fullName}</span>
                   {repo.private && repo.isAvailable && (
-                    <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">Private</span>
+                    <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                      Private
+                    </span>
                   )}
                   {!repo.isAvailable && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Linked to another workspace</span>
+                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                      Linked to another workspace
+                    </span>
                   )}
                 </div>
               </SelectItem>
@@ -225,22 +252,27 @@ export const IntegrationSettings = ({ workspaceId }) => {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="auto-link" className="cursor-pointer">Auto-link pull requests</Label>
+              <Label htmlFor="auto-link" className="cursor-pointer">
+                Auto-link pull requests
+              </Label>
               <p className="text-xs text-gray-500">
-                Automatically link PRs to tickets based on branch names like &quot;feature/87-...&quot;
+                Automatically link PRs to tickets based on branch names like
+                &quot;feature/87-...&quot;
               </p>
             </div>
             <Checkbox
               id="auto-link"
               checked={settings.autoLinkEnabled}
-              onCheckedChange={(checked) => handleSettingChange("autoLinkEnabled", checked)}
+              onCheckedChange={(checked) => handleSettingChange('autoLinkEnabled', checked)}
               disabled={!selectedRepo}
             />
           </div>
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="auto-move-open" className="cursor-pointer">Move ticket when PR opened</Label>
+              <Label htmlFor="auto-move-open" className="cursor-pointer">
+                Move ticket when PR opened
+              </Label>
               <p className="text-xs text-gray-500">
                 Automatically change ticket status when a PR is opened
               </p>
@@ -248,17 +280,19 @@ export const IntegrationSettings = ({ workspaceId }) => {
             <Checkbox
               id="auto-move-open"
               checked={settings.autoMoveOnPROpenEnabled}
-              onCheckedChange={(checked) => handleSettingChange("autoMoveOnPROpenEnabled", checked)}
+              onCheckedChange={(checked) => handleSettingChange('autoMoveOnPROpenEnabled', checked)}
               disabled={!selectedRepo}
             />
           </div>
 
           {settings.autoMoveOnPROpenEnabled && (
             <div className="ml-6">
-              <Label htmlFor="open-status" className="text-xs">Target status when PR opened</Label>
+              <Label htmlFor="open-status" className="text-xs">
+                Target status when PR opened
+              </Label>
               <Select
                 value={settings.onPROpenTargetStatus}
-                onValueChange={(value) => handleSettingChange("onPROpenTargetStatus", value)}
+                onValueChange={(value) => handleSettingChange('onPROpenTargetStatus', value)}
               >
                 <SelectTrigger id="open-status" className="w-full mt-1">
                   <SelectValue />
@@ -276,7 +310,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
 
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="auto-move-merge" className="cursor-pointer">Move ticket when PR merged</Label>
+              <Label htmlFor="auto-move-merge" className="cursor-pointer">
+                Move ticket when PR merged
+              </Label>
               <p className="text-xs text-gray-500">
                 Automatically change ticket status when a PR is merged
               </p>
@@ -284,17 +320,19 @@ export const IntegrationSettings = ({ workspaceId }) => {
             <Checkbox
               id="auto-move-merge"
               checked={settings.autoMoveOnMergeEnabled}
-              onCheckedChange={(checked) => handleSettingChange("autoMoveOnMergeEnabled", checked)}
+              onCheckedChange={(checked) => handleSettingChange('autoMoveOnMergeEnabled', checked)}
               disabled={!selectedRepo}
             />
           </div>
 
           {settings.autoMoveOnMergeEnabled && (
             <div className="ml-6">
-              <Label htmlFor="merge-status" className="text-xs">Target status when PR merged</Label>
+              <Label htmlFor="merge-status" className="text-xs">
+                Target status when PR merged
+              </Label>
               <Select
                 value={settings.onMergeTargetStatus}
-                onValueChange={(value) => handleSettingChange("onMergeTargetStatus", value)}
+                onValueChange={(value) => handleSettingChange('onMergeTargetStatus', value)}
               >
                 <SelectTrigger id="merge-status" className="w-full mt-1">
                   <SelectValue />

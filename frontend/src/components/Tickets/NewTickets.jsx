@@ -1,57 +1,52 @@
-import { useState } from "react";
-import { useCreateTicket } from "@/queries/tickets";
-import { useAiTicketSuggestion } from "@/hooks/useAiTicketSuggestion";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState } from 'react';
+import { useCreateTicket } from '@/queries/tickets';
+import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   RichTextEditor,
   RichTextEditorContent,
   RichTextEditorToolbar,
-} from "@/components/ui/rich-text-editor";
-import { useUsers } from "@/queries/users";
-import { useAuth } from "@/context/AuthContext";
+} from '@/components/ui/rich-text-editor';
+import { useUsers } from '@/queries/users';
+import { useAuth } from '@/context/AuthContext';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { STATUS_OPTIONS } from "@/helpers/ticketStatus";
-import { PRIORITY_OPTIONS } from "@/helpers/ticketPriority";
+} from '@/components/ui/select';
+import { STATUS_OPTIONS } from '@/helpers/ticketStatus';
+import { PRIORITY_OPTIONS } from '@/helpers/ticketPriority';
 import {
   STORY_POINTS_OPTIONS,
   getStoryPointsStyle,
   normalizeStoryPoints,
-} from "@/helpers/storyPoints";
-import { useTicketForm } from "@/hooks/useTicketForm";
-import { toast } from "sonner";
-import { ChevronsUpDown, Sparkles } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
-import { useAiDescriptionGenerator } from "@/hooks/useAiDescriptionGenerator";
-import { htmlToPlainText } from "@/helpers/aiDescriptionPrompt";
-import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from "@/helpers/aiValidationRules";
-
+} from '@/helpers/storyPoints';
+import { useTicketForm } from '@/hooks/useTicketForm';
+import { toast } from 'sonner';
+import { ChevronsUpDown, Sparkles } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
+import { htmlToPlainText } from '@/helpers/aiDescriptionPrompt';
+import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from '@/helpers/aiValidationRules';
 
 const NewTickets = ({
   isOpen,
   onClose,
-  initialStatus = "to do",
+  initialStatus = 'to do',
   hideStatus = false,
   workspaceId: previewWorkspaceId,
 }) => {
@@ -74,7 +69,7 @@ const NewTickets = ({
   const normalizedStoryPoints = normalizeStoryPoints(newTicket.storyPoints);
   const storyPointsStyle = getStoryPointsStyle(normalizedStoryPoints);
   const storyPointsLabel =
-    normalizedStoryPoints === null ? "No estimate" : `SP ${normalizedStoryPoints}`;
+    normalizedStoryPoints === null ? 'No estimate' : `SP ${normalizedStoryPoints}`;
 
   const {
     isPromptPanelVisible,
@@ -132,15 +127,13 @@ const NewTickets = ({
     onClose();
   };
 
-
   const handleCreate = (e) => {
     e.preventDefault();
 
     if (isGeneratingDescription) {
-      toast.error("Please wait for AI generation to finish.");
+      toast.error('Please wait for AI generation to finish.');
       return;
     }
-
 
     if (isDescriptionDraftActive) {
       acceptGeneratedDescription();
@@ -148,15 +141,13 @@ const NewTickets = ({
 
     const plainDescription = htmlToPlainText(newTicket.description).trim();
     if (!plainDescription) {
-      toast.error("Description is required.");
+      toast.error('Description is required.');
       return;
     }
 
     const ticketData = {
       ...newTicket,
-      assignedTo: Array.isArray(newTicket.assignedTo)
-        ? newTicket.assignedTo
-        : [],
+      assignedTo: Array.isArray(newTicket.assignedTo) ? newTicket.assignedTo : [],
       workspaceId: effectiveWorkspaceId,
     };
 
@@ -172,7 +163,7 @@ const NewTickets = ({
 
     createMutation.mutate(ticketData, {
       onSuccess: () => {
-        toast.success("Ticket created", {
+        toast.success('Ticket created', {
           description: `"${newTicket.subject}" has been added to the system.`,
         });
         resetForm();
@@ -180,18 +171,15 @@ const NewTickets = ({
         onClose();
       },
       onError: (error) => {
-        toast.error("Failed to create ticket", {
+        toast.error('Failed to create ticket', {
           description:
-            error?.response?.data?.message ||
-            "Please check your connection and try again.",
+            error?.response?.data?.message || 'Please check your connection and try again.',
         });
       },
     });
   };
 
-  const currentAssignees = Array.isArray(newTicket.assignedTo)
-    ? newTicket.assignedTo
-    : [];
+  const currentAssignees = Array.isArray(newTicket.assignedTo) ? newTicket.assignedTo : [];
 
   const handleAgentToggle = (userId, e) => {
     if (e) {
@@ -201,24 +189,19 @@ const NewTickets = ({
 
     if (currentAssignees.includes(userId)) {
       updateField(
-        "assignedTo",
-        currentAssignees.filter((id) => id !== userId),
+        'assignedTo',
+        currentAssignees.filter((id) => id !== userId)
       );
     } else {
-      updateField("assignedTo", [...currentAssignees, userId]);
+      updateField('assignedTo', [...currentAssignees, userId]);
     }
   };
 
   const getAssigneeLabel = () => {
-    if (currentAssignees.length === 0) return "Unassigned";
+    if (currentAssignees.length === 0) return 'Unassigned';
     if (currentAssignees.length === 1) {
       const selectedUser = users.find((u) => u._id === currentAssignees[0]);
-      return (
-        selectedUser?.fullName ||
-        selectedUser?.fullname ||
-        selectedUser?.email ||
-        "1 Agent"
-      );
+      return selectedUser?.fullName || selectedUser?.fullname || selectedUser?.email || '1 Agent';
     }
     return `${currentAssignees.length} Agents Selected`;
   };
@@ -244,7 +227,7 @@ const NewTickets = ({
                   <Input
                     placeholder="e.g. Technical problem with registration"
                     value={newTicket.subject}
-                    onChange={(e) => updateField("subject", e.target.value)}
+                    onChange={(e) => updateField('subject', e.target.value)}
                     className="h-12 text-base"
                     required
                   />
@@ -256,7 +239,7 @@ const NewTickets = ({
                   </Label>
                   <RichTextEditor
                     value={newTicket.description}
-                    onChange={(html) => updateField("description", html)}
+                    onChange={(html) => updateField('description', html)}
                     className="min-h-[180px]"
                   >
                     <RichTextEditorToolbar />
@@ -271,7 +254,8 @@ const NewTickets = ({
 
                       {!canGenerateDescription && (
                         <p className="mt-1 text-xs text-amber-700">
-                          Subject must be at least {MIN_SUBJECT_LENGTH} chars and prompt after /ai must be at least {MIN_TEXT_LENGTH} chars.
+                          Subject must be at least {MIN_SUBJECT_LENGTH} chars and prompt after /ai
+                          must be at least {MIN_TEXT_LENGTH} chars.
                         </p>
                       )}
 
@@ -287,10 +271,10 @@ const NewTickets = ({
                           }
                         >
                           {isGeneratingDescription
-                            ? "Generating..."
+                            ? 'Generating...'
                             : isDescriptionDraftActive
-                              ? "Regenerate Description"
-                              : "Generate Description"}
+                              ? 'Regenerate Description'
+                              : 'Generate Description'}
                         </Button>
 
                         {isDescriptionDraftActive && (
@@ -319,11 +303,10 @@ const NewTickets = ({
                       </div>
                     </div>
                   )}
-
                 </div>
 
                 <div className="space-y-6">
-                  <div className={`grid grid-cols-1 gap-6 ${hideStatus ? "" : "md:grid-cols-2"}`}>
+                  <div className={`grid grid-cols-1 gap-6 ${hideStatus ? '' : 'md:grid-cols-2'}`}>
                     {!hideStatus && (
                       <div className="space-y-2">
                         <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
@@ -331,7 +314,7 @@ const NewTickets = ({
                         </Label>
                         <Select
                           value={newTicket.status}
-                          onValueChange={(value) => updateField("status", value)}
+                          onValueChange={(value) => updateField('status', value)}
                         >
                           <SelectTrigger className="h-12">
                             <SelectValue />
@@ -362,14 +345,14 @@ const NewTickets = ({
                         aria-label="Regenerate AI suggestion"
                         title="Regenerate AI suggestion"
                       >
-                        <Sparkles className={isSuggesting ? "animate-pulse" : ""} />
+                        <Sparkles className={isSuggesting ? 'animate-pulse' : ''} />
                       </Button>
 
                       <Select
                         value={newTicket.priority}
                         onValueChange={(value) => {
                           setPriorityLockedByUser(true);
-                          updateField("priority", value);
+                          updateField('priority', value);
                         }}
                       >
                         <SelectTrigger className="h-12">
@@ -389,7 +372,7 @@ const NewTickets = ({
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                        Due date{" "}
+                        Due date{' '}
                         <span className="font-normal normal-case text-muted-foreground">
                           (optional)
                         </span>
@@ -397,7 +380,7 @@ const NewTickets = ({
                       <Input
                         type="date"
                         value={newTicket.dueDate}
-                        onChange={(e) => updateField("dueDate", e.target.value)}
+                        onChange={(e) => updateField('dueDate', e.target.value)}
                         className="h-12 text-base w-full"
                       />
                     </div>
@@ -408,28 +391,21 @@ const NewTickets = ({
                       </Label>
                       <Select
                         value={
-                          normalizedStoryPoints === null
-                            ? "none"
-                            : String(normalizedStoryPoints)
+                          normalizedStoryPoints === null ? 'none' : String(normalizedStoryPoints)
                         }
                         onValueChange={(value) => {
                           setStoryPointsLockedByUser(true);
-                          updateField(
-                            "storyPoints",
-                            value === "none" ? null : Number(value),
-                          );
+                          updateField('storyPoints', value === 'none' ? null : Number(value));
                         }}
                       >
                         <SelectTrigger className="h-12">
                           <span
                             className={cn(
-                              "inline-flex items-center gap-2 rounded-md border px-2 py-1 text-xs font-bold uppercase",
-                              storyPointsStyle.indicator,
+                              'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-xs font-bold uppercase',
+                              storyPointsStyle.indicator
                             )}
                           >
-                            <span
-                              className={cn("h-2 w-2 rounded-full", storyPointsStyle.dot)}
-                            />
+                            <span className={cn('h-2 w-2 rounded-full', storyPointsStyle.dot)} />
                             {storyPointsLabel}
                           </span>
                         </SelectTrigger>
@@ -449,13 +425,11 @@ const NewTickets = ({
                               <SelectItem key={option.value} value={String(option.value)}>
                                 <span
                                   className={cn(
-                                    "inline-flex items-center gap-2 rounded-md border px-2 py-0.5 text-xs font-bold uppercase",
-                                    optionStyle.indicator,
+                                    'inline-flex items-center gap-2 rounded-md border px-2 py-0.5 text-xs font-bold uppercase',
+                                    optionStyle.indicator
                                   )}
                                 >
-                                  <span
-                                    className={cn("h-2 w-2 rounded-full", optionStyle.dot)}
-                                  />
+                                  <span className={cn('h-2 w-2 rounded-full', optionStyle.dot)} />
                                   {`SP ${option.label}`}
                                 </span>
                               </SelectItem>
@@ -472,11 +446,7 @@ const NewTickets = ({
                     Agent
                   </Label>
 
-                  <Popover
-                    open={assigneePopoverOpen}
-                    onOpenChange={setAssigneePopoverOpen}
-                    modal
-                  >
+                  <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen} modal>
                     <PopoverTrigger asChild>
                       <Button
                         type="button"
@@ -488,8 +458,8 @@ const NewTickets = ({
                         <span
                           className={
                             currentAssignees.length === 0
-                              ? "text-muted-foreground"
-                              : "text-foreground"
+                              ? 'text-muted-foreground'
+                              : 'text-foreground'
                           }
                         >
                           {getAssigneeLabel()}
@@ -513,7 +483,7 @@ const NewTickets = ({
                               type="button"
                               onClick={(e) => {
                                 e.preventDefault();
-                                updateField("assignedTo", []);
+                                updateField('assignedTo', []);
                               }}
                               className="text-[10px] text-red-500 hover:underline font-bold"
                             >
@@ -540,9 +510,7 @@ const NewTickets = ({
                                   />
                                   <div className="flex flex-col min-w-0">
                                     <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
-                                      {listUser.fullName ||
-                                        listUser.fullname ||
-                                        listUser.email}
+                                      {listUser.fullName || listUser.fullname || listUser.email}
                                     </span>
                                     <span className="text-[10px] text-gray-400 truncate">
                                       {listUser.email}
@@ -569,7 +537,7 @@ const NewTickets = ({
                   className="flex-1"
                   disabled={createMutation.isPending || isGeneratingDescription}
                 >
-                  {createMutation.isPending ? "Creating..." : "Create Ticket"}
+                  {createMutation.isPending ? 'Creating...' : 'Create Ticket'}
                 </Button>
                 <Button
                   type="button"

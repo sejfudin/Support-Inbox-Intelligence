@@ -1,14 +1,13 @@
-const authService = require("../services/authService");
+const authService = require('../services/authService');
 
 const attachCookie = (res, refreshToken) => {
   const oneDay = 1000 * 60 * 60 * 24;
-  const isSecureEnv =
-    process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
-  res.cookie("refreshToken", refreshToken, {
+  const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
+  res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: isSecureEnv,
     expires: new Date(Date.now() + oneDay * 7),
-    sameSite: isSecureEnv ? "none" : "lax",
+    sameSite: isSecureEnv ? 'none' : 'lax',
   });
 };
 
@@ -54,7 +53,7 @@ const refresh = async (req, res, next) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
-      return res.status(401).json({ message: "No refresh token provided" });
+      return res.status(401).json({ message: 'No refresh token provided' });
     }
 
     const result = await authService.refresh(refreshToken);
@@ -62,17 +61,15 @@ const refresh = async (req, res, next) => {
     const { refreshToken: _refreshToken, ...payload } = result;
     res.status(200).json(payload);
   } catch (error) {
-    const isSecureEnv =
-      process.env.NODE_ENV === "production" ||
-      process.env.NODE_ENV === "staging";
+    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
-    res.clearCookie("refreshToken", {
+    res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: isSecureEnv,
-      sameSite: isSecureEnv ? "none" : "lax",
+      sameSite: isSecureEnv ? 'none' : 'lax',
     });
 
-    return res.status(403).json({ message: "Session expired or invalid" });
+    return res.status(403).json({ message: 'Session expired or invalid' });
   }
 };
 
@@ -92,21 +89,19 @@ const logout = async (req, res, next) => {
       try {
         await authService.logout(refreshToken);
       } catch (dbError) {
-        console.error("Logout DB Error:", dbError);
+        console.error('Logout DB Error:', dbError);
       }
     }
 
-    const isSecureEnv =
-      process.env.NODE_ENV === "production" ||
-      process.env.NODE_ENV === "staging";
+    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
-    res.clearCookie("refreshToken", {
+    res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: isSecureEnv,
-      sameSite: isSecureEnv ? "none" : "lax",
+      sameSite: isSecureEnv ? 'none' : 'lax',
     });
 
-    res.status(200).json({ message: "Logged out successfully" });
+    res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
     next(error);
   }
@@ -116,9 +111,9 @@ const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (req.user.role !== "admin" && req.user.id !== id) {
+    if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({
-        message: "You are not authorized to update this profile",
+        message: 'You are not authorized to update this profile',
       });
     }
 
@@ -127,7 +122,7 @@ const updateUser = async (req, res) => {
     if (req.body.fullname) updateData.fullname = req.body.fullname;
     if (req.body.password) updateData.password = req.body.password;
 
-    if (req.user.role === "admin") {
+    if (req.user.role === 'admin') {
       if (req.body.email) updateData.email = req.body.email;
       if (req.body.role) updateData.role = req.body.role;
 
@@ -135,7 +130,7 @@ const updateUser = async (req, res) => {
     } else {
       if (req.body.email || req.body.role || req.body.active !== undefined) {
         return res.status(403).json({
-          message: "Only admins can change Email, Role, or Status.",
+          message: 'Only admins can change Email, Role, or Status.',
         });
       }
     }
@@ -143,50 +138,47 @@ const updateUser = async (req, res) => {
     const user = await authService.updateUser(id, updateData);
     res.status(200).json(user);
   } catch (error) {
-    if (error.message === "This email is already in use by another user") {
+    if (error.message === 'This email is already in use by another user') {
       return res.status(409).json({
         message: error.message,
       });
     }
 
     res.status(500).json({
-      message: error.message || "Internal server error",
+      message: error.message || 'Internal server error',
     });
   }
 };
 
 const attachInviteSetupCookie = (res, setupToken) => {
-  const isSecureEnv =
-    process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+  const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
-  res.cookie("invite_setup", setupToken, {
+  res.cookie('invite_setup', setupToken, {
     httpOnly: true,
     secure: isSecureEnv,
-    sameSite: isSecureEnv ? "none" : "lax",
+    sameSite: isSecureEnv ? 'none' : 'lax',
     expires: new Date(Date.now() + 15 * 60 * 1000),
   });
 };
 
 const clearInviteSetupCookie = (res) => {
-  const isSecureEnv =
-    process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+  const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
-  res.clearCookie("invite_setup", {
+  res.clearCookie('invite_setup', {
     httpOnly: true,
     secure: isSecureEnv,
-    sameSite: isSecureEnv ? "none" : "lax",
+    sameSite: isSecureEnv ? 'none' : 'lax',
   });
 };
 
 const verifyInvite = async (req, res) => {
   try {
-    const isSecureEnv =
-      process.env.NODE_ENV === "production" || process.env.NODE_ENV === "staging";
+    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
 
-    res.clearCookie("refreshToken", {
+    res.clearCookie('refreshToken', {
       httpOnly: true,
       secure: isSecureEnv,
-      sameSite: isSecureEnv ? "none" : "lax",
+      sameSite: isSecureEnv ? 'none' : 'lax',
     });
 
     const { setupToken, user } = await authService.verifyInvite({
@@ -196,14 +188,14 @@ const verifyInvite = async (req, res) => {
     attachInviteSetupCookie(res, setupToken);
 
     res.json({
-      message: "Invite verified",
+      message: 'Invite verified',
       email: user.email,
       fullName: user.fullname,
     });
   } catch (error) {
     const statusCode =
-      error.message === "This account is already active. Please sign in." ? 409 : 400;
-    res.status(statusCode).json({ message: error.message || "Invalid or expired invite" });
+      error.message === 'This account is already active. Please sign in.' ? 409 : 400;
+    res.status(statusCode).json({ message: error.message || 'Invalid or expired invite' });
   }
 };
 
@@ -220,7 +212,7 @@ const setPasswordFromInvite = async (req, res) => {
     const { refreshToken, ...userData } = result;
     res.json(userData);
   } catch (e) {
-    res.status(401).json({ message: e.message || "Setup session expired" });
+    res.status(401).json({ message: e.message || 'Setup session expired' });
   }
 };
 

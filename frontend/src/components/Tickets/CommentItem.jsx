@@ -1,31 +1,20 @@
-import { useState } from "react";
-import { Avatar } from "../Avatar";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
-import { Edit2, Trash2, X, Check } from "lucide-react";
-import { useUpdateComment, useDeleteComment } from "@/queries/comments";
-import { toast } from "sonner";
-import { format } from "date-fns";
+import { useState } from 'react';
+import { Avatar } from '../Avatar';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Edit2, Trash2, X, Check } from 'lucide-react';
+import { useUpdateComment, useDeleteComment } from '@/queries/comments';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 
-export const CommentItem = ({
-  comment,
-  ticketId,
-  user,
-  isArchived,
-  onOpenDelete,
-}) => {
+export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
 
   const updateMutation = useUpdateComment(ticketId);
   const isAuthor = user?._id === comment.author?._id;
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === 'admin';
   const isDeleted = comment.isDeleted;
 
   const handleUpdate = () => {
@@ -43,9 +32,9 @@ export const CommentItem = ({
       {
         onSuccess: () => {
           setIsEditing(false);
-          toast.success("Comment updated");
+          toast.success('Comment updated');
         },
-      },
+      }
     );
   };
 
@@ -55,14 +44,9 @@ export const CommentItem = ({
   };
 
   return (
-    <div
-      className={`flex gap-4 group/comment transition-all ${isDeleted ? "opacity-60" : ""}`}
-    >
+    <div className={`flex gap-4 group/comment transition-all ${isDeleted ? 'opacity-60' : ''}`}>
       <div className="flex-shrink-0">
-        <Avatar
-          users={[comment.author]}
-          className={`w-8 h-8 ${isDeleted ? "grayscale" : ""}`}
-        />
+        <Avatar users={[comment.author]} className={`w-8 h-8 ${isDeleted ? 'grayscale' : ''}`} />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex items-center justify-between">
@@ -72,9 +56,7 @@ export const CommentItem = ({
             </span>
 
             <div className="flex items-center gap-1.5 text-[10px] text-gray-400 leading-none">
-              <span>
-                {format(new Date(comment.createdAt), "MMM d, yyyy 'at' HH:mm")}
-              </span>
+              <span>{format(new Date(comment.createdAt), "MMM d, yyyy 'at' HH:mm")}</span>
               {!isDeleted && comment.isEdited && (
                 <>
                   <span className="text-[8px] opacity-40">•</span>
@@ -87,11 +69,7 @@ export const CommentItem = ({
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-[11px]">
                         <p>
-                          Edited:{" "}
-                          {format(
-                            new Date(comment.updatedAt),
-                            "MMM d, yyyy 'at' HH:mm",
-                          )}
+                          Edited: {format(new Date(comment.updatedAt), "MMM d, yyyy 'at' HH:mm")}
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -146,9 +124,7 @@ export const CommentItem = ({
         ) : (
           <div
             className={`mt-1 text-sm leading-relaxed whitespace-pre-wrap [word-break:break-word] break-words ${
-              isDeleted
-                ? "text-gray-400 italic font-medium py-1"
-                : "text-gray-600"
+              isDeleted ? 'text-gray-400 italic font-medium py-1' : 'text-gray-600'
             }`}
           >
             {isDeleted ? (

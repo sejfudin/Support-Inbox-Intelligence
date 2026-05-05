@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Bell, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   useNotifications,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
-} from "@/queries/notifications";
-import { NotificationRow } from "@/components/NotificationRow";
-import { isMongoId } from "@/helpers/notificationUtils";
-import { useAuth } from "@/context/AuthContext";
+} from '@/queries/notifications';
+import { NotificationRow } from '@/components/NotificationRow';
+import { isMongoId } from '@/helpers/notificationUtils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function NavbarNotifications() {
   const [open, setOpen] = useState(false);
@@ -42,7 +42,7 @@ export default function NavbarNotifications() {
       setOpen(false);
       navigate(`/tickets?ticket=${ticketId}`);
     },
-    [navigate],
+    [navigate]
   );
 
   return (
@@ -53,7 +53,7 @@ export default function NavbarNotifications() {
           variant="ghost"
           size="icon"
           className="relative h-12 w-12 shrink-0 rounded-full border border-black/5 bg-white text-primary shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)] hover:bg-white hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
-          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+          aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 ? (
@@ -80,7 +80,7 @@ export default function NavbarNotifications() {
               {markAllRead.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                "Mark all read"
+                'Mark all read'
               )}
             </Button>
           ) : null}

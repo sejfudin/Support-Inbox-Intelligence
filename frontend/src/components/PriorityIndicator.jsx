@@ -1,7 +1,7 @@
-import { PRIORITY_CONFIG } from "@/helpers/ticketPriority";
+import { PRIORITY_CONFIG } from '@/helpers/ticketPriority';
 
 export default function PriorityIndicator({ priority }) {
-  const p = priority?.toLowerCase() || "medium";
+  const p = priority?.toLowerCase() || 'medium';
   const config = PRIORITY_CONFIG[p];
 
   if (!config || !config.showAlways) {

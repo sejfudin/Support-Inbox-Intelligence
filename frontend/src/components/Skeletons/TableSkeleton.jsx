@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -6,14 +6,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 
 const buildArray = (length) => Array.from({ length });
 
 export default function TableSkeleton({
   columns = 5,
   rows = 6,
-  minWidthClassName = "min-w-[900px]",
+  minWidthClassName = 'min-w-[900px]',
 }) {
   const colItems = buildArray(columns);
   const rowItems = buildArray(rows);

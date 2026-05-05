@@ -1,14 +1,9 @@
-import React from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import React from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-import { getInitials } from "@/helpers/getInitials";
-import { getAvatarColor } from "@/helpers/avatarColor";
-import { capitalizeFirst } from "@/helpers/capitalizeFirst";
+import { getInitials } from '@/helpers/getInitials';
+import { getAvatarColor } from '@/helpers/avatarColor';
+import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 export const Avatar = ({ users }) => {
   const safeUsers = (users || []).filter(Boolean);
 
@@ -20,20 +15,22 @@ export const Avatar = ({ users }) => {
   const remainingCount = safeUsers.length - maxVisible;
 
   return (
-  <TooltipProvider delayDuration={200}>
+    <TooltipProvider delayDuration={200}>
       <div className="flex -space-x-2 items-center">
         {displayUsers.map((user) => (
           <Tooltip key={user._id || user.email || user.fullname || user.fullName}>
             <TooltipTrigger asChild>
-              <div className={`inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-background text-[14px] font-bold cursor-help hover:z-10 transition-all hover:scale-110 ${getAvatarColor(user.fullname || user.fullName || user.email || "?")}`}>
+              <div
+                className={`inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-background text-[14px] font-bold cursor-help hover:z-10 transition-all hover:scale-110 ${getAvatarColor(user.fullname || user.fullName || user.email || '?')}`}
+              >
                 {user.fullname || user.fullName
                   ? getInitials(user.fullname || user.fullName)
-                  : user.email?.[0]?.toUpperCase() || "?"}
+                  : user.email?.[0]?.toUpperCase() || '?'}
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="font-bold text-xs">{capitalizeFirst(user.role || "user")}</p>
-              <p className="text-[10px] opacity-80">{user.email || "Unknown email"}</p>
+              <p className="font-bold text-xs">{capitalizeFirst(user.role || 'user')}</p>
+              <p className="text-[10px] opacity-80">{user.email || 'Unknown email'}</p>
             </TooltipContent>
           </Tooltip>
         ))}

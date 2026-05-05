@@ -1,7 +1,7 @@
-import apiClient from "./axios";
+import apiClient from './axios';
 
 export const initiateGitHubInstallation = async (workspaceId) => {
-  const response = await apiClient.get("/github/install", {
+  const response = await apiClient.get('/github/install', {
     params: { workspaceId },
   });
   return response.data;
@@ -28,9 +28,13 @@ export const getRepositories = async (workspaceId) => {
 };
 
 export const refreshPR = async (ticketId, workspaceId) => {
-  const response = await apiClient.post(`/github/tickets/${ticketId}/refresh-pr`, {}, {
-    params: { workspaceId },
-  });
+  const response = await apiClient.post(
+    `/github/tickets/${ticketId}/refresh-pr`,
+    {},
+    {
+      params: { workspaceId },
+    }
+  );
   return response.data;
 };
 

@@ -1,6 +1,6 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default function GlobalSkeleton () {
+export default function GlobalSkeleton() {
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
       <div className="hidden w-64 border-r bg-slate-50/50 p-4 md:flex flex-col gap-6">
@@ -24,7 +24,7 @@ export default function GlobalSkeleton () {
         </header>
 
         <main className="flex-1 p-6 space-y-6 bg-gray-50/50">
-        <div className="bg-white border rounded-lg p-4 space-y-4">
+          <div className="bg-white border rounded-lg p-4 space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
               <Skeleton key={i} className="h-12 w-full rounded-md" />
             ))}
@@ -33,4 +33,4 @@ export default function GlobalSkeleton () {
       </div>
     </div>
   );
-};
+}

@@ -1,40 +1,40 @@
-import { useEffect, useMemo, useState } from "react";
-import { DataTable } from "@/components/Tickets/TicketsTable";
-import { createTicketColumns } from "@/components/columns/ticketColumns";
-import { SectionCards } from "@/components/section-cards";
-import { useMyTickets } from "@/queries/tickets";
-import { normalizeTicket } from "@/helpers/normalizeTicket";
-import TicketsState from "@/components/Tickets/TicketsState";
-import TableSkeleton from "@/components/Skeletons/TableSkeleton";
-import TicketsHeader from "@/components/Tickets/TicketsHeader";
-import BoardPage from "@/components/BoardPage";
-import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
-import { useTicketModals } from "@/hooks/useTicketModals";
-import { useDebounce } from "use-debounce";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useUpdateTicket } from "@/queries/tickets";
+import { useEffect, useMemo, useState } from 'react';
+import { DataTable } from '@/components/Tickets/TicketsTable';
+import { createTicketColumns } from '@/components/columns/ticketColumns';
+import { SectionCards } from '@/components/section-cards';
+import { useMyTickets } from '@/queries/tickets';
+import { normalizeTicket } from '@/helpers/normalizeTicket';
+import TicketsState from '@/components/Tickets/TicketsState';
+import TableSkeleton from '@/components/Skeletons/TableSkeleton';
+import TicketsHeader from '@/components/Tickets/TicketsHeader';
+import BoardPage from '@/components/BoardPage';
+import TicketDetailsModal from '@/components/Modals/TicketDetailsModal';
+import { useTicketModals } from '@/hooks/useTicketModals';
+import { useDebounce } from 'use-debounce';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useUpdateTicket } from '@/queries/tickets';
 
 export default function UserDashboard() {
   const [requestedPage, setPage] = useState(1);
-  const [viewMode, setViewMode] = useState("list");
-  const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState('list');
+  const [search, setSearch] = useState('');
   const isMobile = useIsMobile();
   const [debouncedSearch] = useDebounce(search, 500);
   const updateTicketMutation = useUpdateTicket();
 
-  const {
-    selectedTicketId,
-    isDetailsOpen,
-    openTicketDetails,
-    closeTicketDetails,
-  } = useTicketModals();
+  const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
+    useTicketModals();
 
-  const { data: ticketsData, isLoading, isError } = useMyTickets({
+  const {
+    data: ticketsData,
+    isLoading,
+    isError,
+  } = useMyTickets({
     page: requestedPage,
     limit: 10,
     search: debouncedSearch,
-    sortBy: "updatedAt",
-    sortOrder: "desc",
+    sortBy: 'updatedAt',
+    sortOrder: 'desc',
   });
 
   const pagination = ticketsData?.pagination;
@@ -56,7 +56,7 @@ export default function UserDashboard() {
 
     const { activeTickets, inProgress, blocked } = ticketsData.stats;
     const now = new Date();
-    const monthLabel = now.toLocaleString("default", { month: "short" });
+    const monthLabel = now.toLocaleString('default', { month: 'short' });
 
     return {
       activeTickets: activeTickets || 0,
@@ -71,33 +71,35 @@ export default function UserDashboard() {
     };
   }, [ticketsData]);
 
-  const isBoard = viewMode === "board";
+  const isBoard = viewMode === 'board';
 
   const handleStatusChange = (ticketId, columnId) => {
-
     const columnToStatus = {
-      todo: "to do",          
-      inprogress: "in progress",
-      staging: "on staging",    
-      done: "done",
-      blocked: "blocked",
-      backlog: "backlog"
+      todo: 'to do',
+      inprogress: 'in progress',
+      staging: 'on staging',
+      done: 'done',
+      blocked: 'blocked',
+      backlog: 'backlog',
     };
 
     const newStatus = columnToStatus[columnId] || columnId;
 
-    updateTicketMutation.mutate({
-      ticketId: ticketId,
-      updates: { status: newStatus }
-    }, {
-      onSuccess: () => console.log("MUTACIJA USPJELA NA SERVERU"),
-      onError: (err) => console.error("MUTACIJA DOŽIVJELA ERROR:", err)
-    });
+    updateTicketMutation.mutate(
+      {
+        ticketId: ticketId,
+        updates: { status: newStatus },
+      },
+      {
+        onSuccess: () => {},
+        onError: () => {},
+      }
+    );
   };
 
   useEffect(() => {
-    if (isMobile && viewMode === "board") {
-      setViewMode("list");
+    if (isMobile && viewMode === 'board') {
+      setViewMode('list');
     }
   }, [isMobile, viewMode]);
 
@@ -112,7 +114,7 @@ export default function UserDashboard() {
         search={search}
         onSearch={(value) => {
           setSearch(value);
-          setPage(1); 
+          setPage(1);
         }}
       />
 
