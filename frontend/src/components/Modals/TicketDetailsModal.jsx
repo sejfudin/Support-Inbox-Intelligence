@@ -392,19 +392,19 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   }
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 sm:p-4 lg:p-8 transition-opacity"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:p-4 lg:p-8 transition-opacity"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="flex h-[92vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 sm:h-[90vh] sm:rounded-[28px]"
+        className="flex h-[92vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[90vh] sm:max-h-none sm:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Ticket details"
       >
-        <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex shrink-0 flex-col gap-3 border-b bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={(e) => {
@@ -415,18 +415,18 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             >
               <X className="w-5 h-5" />
             </button>
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+            <span className="hidden text-xs font-bold text-gray-500 uppercase tracking-widest sm:inline">
               Ticket Details
             </span>
           </div>
 
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+          <div className="flex w-full flex-row flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-3">
             {!isArchived && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 sm:w-auto"
+                    className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50"
                     aria-label="Ticket actions"
                     title="Ticket actions"
                   >
@@ -458,7 +458,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 type="button"
                 onClick={handleSave}
                 disabled={updateTicketMutation.isPending || !hasChanges || !title.trim()}
-                className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
+                className={`flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto sm:flex-initial ${
                   updateTicketMutation.isPending || !hasChanges || !title.trim()
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -470,7 +470,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
           <DeleteConfirmModal
             isOpen={isActionModalOpen}
             onClose={() => setIsActionModalOpen(false)}
@@ -511,7 +511,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   value={title}
                   readOnly={isArchived}
                   onChange={(e) => setTitle(e.target.value)}
-                  className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-2xl font-bold tracking-tight outline-none transition sm:text-3xl lg:text-4xl ${
+                  className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
                     !title.trim() ? 'text-destructive' : 'text-foreground'
                   } ${
                     isArchived
@@ -523,7 +523,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               </div>
 
               <div
-                className={`grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-3 lg:w-[420px] ${
+                className={`grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px] ${
                   isArchived ? 'pointer-events-none opacity-70' : ''
                 }`}
               >
@@ -536,7 +536,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                     <PopoverTrigger asChild disabled={isArchived}>
                       <button
                         type="button"
-                        className={`flex w-full items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200 justify-between ${
+                        className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200 justify-between ${
                           isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
                         }`}
                         aria-label="Change assignees"
@@ -571,7 +571,11 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                     </PopoverTrigger>
 
                     {!isArchived && (
-                      <PopoverContent className="w-72 p-2 z-[110]" align="start">
+                      <PopoverContent
+                        className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
+                        align="center"
+                        sideOffset={8}
+                      >
                         <div className="space-y-1">
                           <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -663,25 +667,29 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
             <div className="space-y-6 min-w-0">
               <section className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden">
                 <RichTextEditor
                   value={description}
                   onChange={setDescription}
-                  className="min-h-[360px] border-0 rounded-none divide-y-0"
+                  className="min-h-[220px] border-0 rounded-none divide-y-0 sm:min-h-[300px] lg:min-h-[360px]"
                   editable={!isArchived}
                 >
-                  <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-gray-50 bg-gray-50/30">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-2 border-b border-gray-50 bg-gray-50/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Ticket className="w-3.5 h-3.5 text-gray-500" />
                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                         Description
                       </span>
                     </div>
-                    <RichTextEditorToolbar className="p-0" />
+                    <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
+                      <div className="w-max">
+                        <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
+                      </div>
+                    </div>
                   </div>
-                  <RichTextEditorContent className="p-4" />
+                  <RichTextEditorContent className="p-3 sm:p-4" />
                 </RichTextEditor>
               </section>
 
@@ -706,7 +714,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
@@ -750,7 +758,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
                       <TimeSpent ticket={ticket} />
 
                       <div className="space-y-3">

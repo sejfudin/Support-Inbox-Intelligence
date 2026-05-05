@@ -34,7 +34,7 @@ export default function StatusDropdown({ status, onChange, className }) {
         <button
           type="button"
           className={cn(
-            'flex items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 whitespace-nowrap',
+            'flex items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 whitespace-nowrap',
             className,
             config.badge
           )}
