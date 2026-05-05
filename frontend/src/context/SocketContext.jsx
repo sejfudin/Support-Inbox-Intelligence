@@ -20,7 +20,6 @@ const getSocketUrl = () => {
     const parsed = new URL(apiBase, window.location.origin);
     return `${parsed.protocol}//${parsed.host}`;
   } catch (error) {
-    console.log("[socket] Failed to parse VITE_API_BASE_URL, fallback to current origin", error);
     return window.location.origin;
   }
 };
@@ -76,17 +75,14 @@ export const SocketProvider = ({ children }) => {
       const onConnect = () => {
         setIsConnected(true);
         setActiveSocketId(socket.id);
-        console.log(`[socket] Connected: ${socket.id}`);
       };
 
       const onDisconnect = (reason) => {
         setIsConnected(false);
         setActiveSocketId(null);
-        console.log(`[socket] Disconnected: ${reason}`);
       };
 
       const onConnectError = (error) => {
-        console.log("[socket] Connection error:", error.message);
         if (error.message === "unauthorized" || error.message === "Authentication error") {
           setTimeout(() => {
             socket.connect();
@@ -95,7 +91,6 @@ export const SocketProvider = ({ children }) => {
       };
 
       const onNewNotification = (payload) => {
-        console.log("[socket] new_notification received:", payload);
         queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
       };
 

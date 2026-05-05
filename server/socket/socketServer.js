@@ -87,7 +87,6 @@ const initSocket = (httpServer) => {
         
         next(); 
       } catch (error) {
-        console.log(`[socket] Auth failed for event: ${event}`);
         next(new Error('unauthorized'));
       }
     });

@@ -86,13 +86,16 @@ export default function UserDashboard() {
 
     const newStatus = columnToStatus[columnId] || columnId;
 
-    updateTicketMutation.mutate({
-      ticketId: ticketId,
-      updates: { status: newStatus }
-    }, {
-      onSuccess: () => console.log("MUTACIJA USPJELA NA SERVERU"),
-      onError: (err) => console.error("MUTACIJA DOŽIVJELA ERROR:", err)
-    });
+    updateTicketMutation.mutate(
+      {
+        ticketId: ticketId,
+        updates: { status: newStatus },
+      },
+      {
+        onSuccess: () => {},
+        onError: () => {},
+      }
+    );
   };
 
   useEffect(() => {
