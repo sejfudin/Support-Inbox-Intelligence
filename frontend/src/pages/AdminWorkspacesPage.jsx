@@ -228,7 +228,6 @@ export default function AdminWorkspacesPage() {
         loadingLabel="Deleting..."
       />
 
-      {/* Create Workspace Dialog */}
       <Dialog
         open={isCreateOpen}
         onOpenChange={(open) => {

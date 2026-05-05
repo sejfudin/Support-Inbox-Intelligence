@@ -191,7 +191,6 @@ const Sidebar = React.forwardRef(
         data-variant={variant}
         data-side={side}
       >
-        {/* This is what handles the sidebar gap on desktop */}
         <div
           className={cn(
             'relative w-[--sidebar-width] bg-transparent transition-[width] duration-200 ease-linear',
@@ -248,7 +247,6 @@ const SidebarTrigger = React.forwardRef(({ className, onClick, ...props }, ref) 
       }}
       {...props}
     >
-      {/* Veća ikona (h-6 w-6) za bolju vidljivost */}
       <Menu className="h-6 w-6 text-gray-700" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>

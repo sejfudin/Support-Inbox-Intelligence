@@ -354,7 +354,6 @@ const Register = () => {
               )}
 
               <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-                {/* Full Name */}
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                     Full Name
@@ -372,7 +371,6 @@ const Register = () => {
                   )}
                 </div>
 
-                {/* Email */}
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
                     Email Address

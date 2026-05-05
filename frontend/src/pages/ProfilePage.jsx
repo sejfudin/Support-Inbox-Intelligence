@@ -140,7 +140,6 @@ const ProfilePage = () => {
           <CardContent className="px-6 md:px-12 pb-12">
             <form className="space-y-6" onSubmit={handleSave}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Full Name */}
                 <div className="space-y-2 md:col-span-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     Full Name
@@ -155,7 +154,6 @@ const ProfilePage = () => {
                   />
                 </div>
 
-                {/* Email Address */}
                 <div className="space-y-2 md:col-span-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     Email Address
@@ -168,7 +166,6 @@ const ProfilePage = () => {
                   />
                 </div>
 
-                {/* Password Field */}
                 <div className="space-y-2 md:col-span-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                     {isEditing ? 'New Password (Optional)' : 'Password'}
@@ -206,7 +203,6 @@ const ProfilePage = () => {
                   )}
                 </div>
 
-                {/* Badge */}
                 {!isEditing && (
                   <div className="grid grid-cols-1 gap-4 pt-4 animate-in fade-in duration-500 sm:grid-cols-2 md:col-span-2">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center space-y-2">

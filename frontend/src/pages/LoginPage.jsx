@@ -66,7 +66,6 @@ export const LoginPage = () => {
               </div>
             )}
             <form className="space-y-6" onSubmit={handleLogin}>
-              {/* Email */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                   Email address
@@ -81,7 +80,6 @@ export const LoginPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              {/* Password */}
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
                   Password
