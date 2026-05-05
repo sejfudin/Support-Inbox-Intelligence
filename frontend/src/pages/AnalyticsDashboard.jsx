@@ -1,20 +1,16 @@
-import { useMemo, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { useUserAnalytics, useWorkspaceAnalytics } from "@/queries/workspaces";
-import { useWorkspaceMembershipCheck } from "@/hooks/useWorkspaceMembershipCheck";
+import { useMemo, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useUserAnalytics, useWorkspaceAnalytics } from '@/queries/workspaces';
+import { useWorkspaceMembershipCheck } from '@/hooks/useWorkspaceMembershipCheck';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Bar,
   BarChart,
@@ -28,7 +24,7 @@ import {
   Area,
   AreaChart,
   Cell,
-} from "recharts";
+} from 'recharts';
 import {
   ANALYTICS_PERIODS,
   formatShortDate,
@@ -36,9 +32,9 @@ import {
   throughputChartConfig,
   creationChartConfig,
   cycleChartConfig,
-} from "@/helpers/analyticsFormatters";
-import { AnalyticsCardSkeleton } from "@/components/Skeletons/AnalyticsCardSkeleton";
-import { AnalyticsEmptyCard } from "@/components/AnalyticsEmptyCard";
+} from '@/helpers/analyticsFormatters';
+import { AnalyticsCardSkeleton } from '@/components/Skeletons/AnalyticsCardSkeleton';
+import { AnalyticsEmptyCard } from '@/components/AnalyticsEmptyCard';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
@@ -46,18 +42,15 @@ export default function AnalyticsDashboard() {
   const userId = user?._id || user?.id;
   const [days, setDays] = useState(30);
 
-  const {
-    isWorkspaceMember,
-    isMembershipCheckPending,
-    isMembershipCheckError,
-  } = useWorkspaceMembershipCheck(workspaceId);
+  const { isWorkspaceMember, isMembershipCheckPending, isMembershipCheckError } =
+    useWorkspaceMembershipCheck(workspaceId);
 
   const shouldRenderPersonalPerformance = Boolean(
     userId &&
     workspaceId &&
     !isMembershipCheckPending &&
     !isMembershipCheckError &&
-    isWorkspaceMember,
+    isWorkspaceMember
   );
 
   const {
@@ -83,9 +76,7 @@ export default function AnalyticsDashboard() {
     isWorkspaceLoading ||
     isMembershipCheckPending ||
     (shouldRenderPersonalPerformance && isUserLoading);
-  const isError =
-    isWorkspaceError ||
-    (shouldRenderPersonalPerformance && isUserError);
+  const isError = isWorkspaceError || (shouldRenderPersonalPerformance && isUserError);
 
   const data = workspaceAnalytics;
 
@@ -108,45 +99,42 @@ export default function AnalyticsDashboard() {
   const userActivityData = userAnalytics?.activityTrend || [];
 
   const workloadColors = {
-    Low: "hsl(210 40% 62%)",
-    Medium: "hsl(215 87% 52%)",
-    High: "hsl(31 95% 52%)",
-    Critical: "hsl(0 84% 60%)",
+    Low: 'hsl(210 40% 62%)',
+    Medium: 'hsl(215 87% 52%)',
+    High: 'hsl(31 95% 52%)',
+    Critical: 'hsl(0 84% 60%)',
   };
 
   const userWorkloadChartConfig = {
-    Low: { label: "Low", color: workloadColors.Low },
-    Medium: { label: "Medium", color: workloadColors.Medium },
-    High: { label: "High", color: workloadColors.High },
-    Critical: { label: "Critical", color: workloadColors.Critical },
+    Low: { label: 'Low', color: workloadColors.Low },
+    Medium: { label: 'Medium', color: workloadColors.Medium },
+    High: { label: 'High', color: workloadColors.High },
+    Critical: { label: 'Critical', color: workloadColors.Critical },
   };
 
   const userActivityChartConfig = {
     completed: {
-      label: "Completed",
-      color: "hsl(178 82% 35%)",
+      label: 'Completed',
+      color: 'hsl(178 82% 35%)',
     },
   };
 
   const hasThroughputData = useMemo(
     () => throughputData.some((item) => item.completed > 0),
-    [throughputData],
+    [throughputData]
   );
   const hasCreationData = useMemo(
     () => creationData.some((item) => item.created > 0),
-    [creationData],
+    [creationData]
   );
-  const hasCycleData = useMemo(
-    () => cycleData.some((item) => item.avgDays > 0),
-    [cycleData],
-  );
+  const hasCycleData = useMemo(() => cycleData.some((item) => item.avgDays > 0), [cycleData]);
   const hasUserWorkloadData = useMemo(
     () => userWorkloadData.some((item) => item.value > 0),
-    [userWorkloadData],
+    [userWorkloadData]
   );
   const hasUserActivityData = useMemo(
     () => userActivityData.some((item) => item.completed > 0),
-    [userActivityData],
+    [userActivityData]
   );
 
   return (
@@ -156,7 +144,9 @@ export default function AnalyticsDashboard() {
           <div>
             <div className="app-kicker mb-3">Insights</div>
             <h1 className="app-title">Workspace Analytics</h1>
-            <p className="app-subtitle">Understand delivery pace, demand trend, and cycle performance.</p>
+            <p className="app-subtitle">
+              Understand delivery pace, demand trend, and cycle performance.
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -194,7 +184,9 @@ export default function AnalyticsDashboard() {
                 <div className="app-panel px-5 py-5 md:px-6">
                   <div className="app-kicker mb-3">My Analytics</div>
                   <h2 className="text-2xl font-semibold tracking-tight">Personal Performance</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Your ticket load and completion trend in the selected period.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Your ticket load and completion trend in the selected period.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -219,13 +211,17 @@ export default function AnalyticsDashboard() {
                   <Card className="app-panel xl:col-span-1">
                     <CardHeader className="pb-2">
                       <CardDescription>Avg Cycle Time</CardDescription>
-                      <CardTitle className="text-3xl">{userPerformance.averageCycleTimeDays.toFixed(2)}d</CardTitle>
+                      <CardTitle className="text-3xl">
+                        {userPerformance.averageCycleTimeDays.toFixed(2)}d
+                      </CardTitle>
                     </CardHeader>
                   </Card>
                   <Card className="app-panel xl:col-span-1">
                     <CardHeader className="pb-2">
                       <CardDescription>Total Time</CardDescription>
-                      <CardTitle className="text-3xl">{userPerformance.totalTimeSpentHours.toFixed(1)}h</CardTitle>
+                      <CardTitle className="text-3xl">
+                        {userPerformance.totalTimeSpentHours.toFixed(1)}h
+                      </CardTitle>
                     </CardHeader>
                   </Card>
                 </div>
@@ -238,8 +234,14 @@ export default function AnalyticsDashboard() {
                         <CardDescription>Completed tickets per day</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <ChartContainer config={userActivityChartConfig} className="h-[260px] w-full">
-                          <LineChart data={userActivityData} margin={{ left: 6, right: 6, top: 12 }}>
+                        <ChartContainer
+                          config={userActivityChartConfig}
+                          className="h-[260px] w-full"
+                        >
+                          <LineChart
+                            data={userActivityData}
+                            margin={{ left: 6, right: 6, top: 12 }}
+                          >
                             <CartesianGrid vertical={false} />
                             <XAxis
                               dataKey="date"
@@ -249,11 +251,18 @@ export default function AnalyticsDashboard() {
                               minTickGap={30}
                               tickFormatter={formatShortDate}
                             />
-                            <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
+                            <YAxis
+                              tickLine={false}
+                              axisLine={false}
+                              width={32}
+                              allowDecimals={false}
+                            />
                             <ChartTooltip
-                              content={(
-                                <ChartTooltipContent labelFormatter={(value) => formatTooltipDate(value)} />
-                              )}
+                              content={
+                                <ChartTooltipContent
+                                  labelFormatter={(value) => formatTooltipDate(value)}
+                                />
+                              }
                             />
                             <Line
                               type="monotone"
@@ -281,7 +290,10 @@ export default function AnalyticsDashboard() {
                         <CardDescription>Completed tickets by priority</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <ChartContainer config={userWorkloadChartConfig} className="h-[260px] w-full">
+                        <ChartContainer
+                          config={userWorkloadChartConfig}
+                          className="h-[260px] w-full"
+                        >
                           <PieChart>
                             <Pie
                               data={userWorkloadData}
@@ -292,13 +304,18 @@ export default function AnalyticsDashboard() {
                               paddingAngle={4}
                             >
                               {userWorkloadData.map((entry) => (
-                                <Cell key={entry.name} fill={workloadColors[entry.name] || "hsl(215 16% 47%)"} />
+                                <Cell
+                                  key={entry.name}
+                                  fill={workloadColors[entry.name] || 'hsl(215 16% 47%)'}
+                                />
                               ))}
                             </Pie>
                             <ChartTooltip
-                              content={(
-                                <ChartTooltipContent formatter={(value, name) => `${name}: ${Number(value)}`} />
-                              )}
+                              content={
+                                <ChartTooltipContent
+                                  formatter={(value, name) => `${name}: ${Number(value)}`}
+                                />
+                              }
                             />
                           </PieChart>
                         </ChartContainer>
@@ -317,7 +334,9 @@ export default function AnalyticsDashboard() {
             <div className="app-panel px-5 py-5 md:px-6">
               <div className="app-kicker mb-3">Workspace Analytics</div>
               <h2 className="text-2xl font-semibold tracking-tight">Team Delivery Signals</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Overall workspace throughput, demand and cycle behavior.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Overall workspace throughput, demand and cycle behavior.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -342,20 +361,23 @@ export default function AnalyticsDashboard() {
                         <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
                         <ChartTooltip
                           cursor={false}
-                          content={(
-                            <ChartTooltipContent labelFormatter={(value) => formatTooltipDate(value)} />
-                          )}
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(value) => formatTooltipDate(value)}
+                            />
+                          }
                         />
-                        <Bar dataKey="completed" fill="var(--color-completed)" radius={[8, 8, 2, 2]} />
+                        <Bar
+                          dataKey="completed"
+                          fill="var(--color-completed)"
+                          radius={[8, 8, 2, 2]}
+                        />
                       </BarChart>
                     </ChartContainer>
                   </CardContent>
                 </Card>
               ) : (
-                <AnalyticsEmptyCard
-                  title="Throughput"
-                  description="Completed tasks per day"
-                />
+                <AnalyticsEmptyCard title="Throughput" description="Completed tasks per day" />
               )}
 
               {hasCreationData ? (
@@ -378,9 +400,11 @@ export default function AnalyticsDashboard() {
                         />
                         <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
                         <ChartTooltip
-                          content={(
-                            <ChartTooltipContent labelFormatter={(value) => formatTooltipDate(value)} />
-                          )}
+                          content={
+                            <ChartTooltipContent
+                              labelFormatter={(value) => formatTooltipDate(value)}
+                            />
+                          }
                         />
                         <Line
                           type="monotone"
@@ -413,7 +437,11 @@ export default function AnalyticsDashboard() {
                         <defs>
                           <linearGradient id="cycleGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="var(--color-avgDays)" stopOpacity={0.4} />
-                            <stop offset="95%" stopColor="var(--color-avgDays)" stopOpacity={0.05} />
+                            <stop
+                              offset="95%"
+                              stopColor="var(--color-avgDays)"
+                              stopOpacity={0.05}
+                            />
                           </linearGradient>
                         </defs>
                         <CartesianGrid vertical={false} />
@@ -433,12 +461,12 @@ export default function AnalyticsDashboard() {
                           allowDecimals={false}
                         />
                         <ChartTooltip
-                          content={(
+                          content={
                             <ChartTooltipContent
                               labelFormatter={(value) => formatTooltipDate(value)}
                               formatter={(value) => `${Number(value).toFixed(2)} days`}
                             />
-                          )}
+                          }
                         />
                         <Area
                           type="monotone"

@@ -29,9 +29,7 @@ export default function MyWorkspacesPage() {
           <div>
             <div className="app-kicker mb-3">Workspace</div>
             <h1 className="app-title">My Workspaces</h1>
-            <p className="app-subtitle">
-              View and switch between your workspaces.
-            </p>
+            <p className="app-subtitle">View and switch between your workspaces.</p>
           </div>
         </div>
 
@@ -47,10 +45,7 @@ export default function MyWorkspacesPage() {
               const isActive = currentWorkspaceId === ws._id?.toString();
 
               return (
-                <div
-                  key={ws._id}
-                  className="app-panel flex flex-col justify-between gap-4 p-5"
-                >
+                <div key={ws._id} className="app-panel flex flex-col justify-between gap-4 p-5">
                   <div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -64,9 +59,7 @@ export default function MyWorkspacesPage() {
                       )}
                     </div>
 
-                    <h3 className="mt-3 text-lg font-semibold text-foreground">
-                      {ws.name}
-                    </h3>
+                    <h3 className="mt-3 text-lg font-semibold text-foreground">{ws.name}</h3>
                     {ws.description && (
                       <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                         {ws.description}

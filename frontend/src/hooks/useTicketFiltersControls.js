@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react';
 import {
   ASSIGNEE_FILTER_VALUES,
   DEFAULT_TICKET_CONTROLS,
@@ -11,23 +11,20 @@ import {
   TICKET_ID_ORDER_OPTIONS,
   TICKET_ID_ORDER_VALUES,
   buildTicketQueryParamsFromControls,
-} from "@/helpers/ticketFilters";
-import { PRIORITY_CONFIG } from "@/helpers/ticketPriority";
+} from '@/helpers/ticketFilters';
+import { PRIORITY_CONFIG } from '@/helpers/ticketPriority';
 
 export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
   const [controls, setControls] = useState(() => ({ ...DEFAULT_TICKET_CONTROLS }));
 
-  const queryFilters = useMemo(
-    () => buildTicketQueryParamsFromControls(controls),
-    [controls],
-  );
+  const queryFilters = useMemo(() => buildTicketQueryParamsFromControls(controls), [controls]);
 
   const activeFilterChips = useMemo(() => {
     const chips = [];
 
     controls.priorities.forEach((priorityValue) => {
       const selectedPriority = PRIORITY_FILTER_OPTIONS.find(
-        (option) => option.value === priorityValue,
+        (option) => option.value === priorityValue
       );
       const visual = PRIORITY_CONFIG[priorityValue];
 
@@ -36,55 +33,52 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
         label: `Priority: ${selectedPriority?.label || priorityValue}`,
         className: visual
           ? `border-transparent ${visual.badge}`
-          : "border-border/80 bg-secondary/70 text-foreground",
+          : 'border-border/80 bg-secondary/70 text-foreground',
         dotClass: visual?.dot,
       });
     });
 
     controls.assigneeIds.forEach((assigneeId) => {
-      const selectedAssignee = assigneeOptions.find(
-        (option) => option.value === assigneeId,
-      );
-      const fallback =
-        assigneeId === ASSIGNEE_FILTER_VALUES.UNASSIGNED ? "Unassigned" : "Unknown";
+      const selectedAssignee = assigneeOptions.find((option) => option.value === assigneeId);
+      const fallback = assigneeId === ASSIGNEE_FILTER_VALUES.UNASSIGNED ? 'Unassigned' : 'Unknown';
 
       chips.push({
         key: `assignee:${assigneeId}`,
         label: `Assigned: ${selectedAssignee?.label || fallback}`,
-        className: "border-border/80 bg-secondary/70 text-foreground",
+        className: 'border-border/80 bg-secondary/70 text-foreground',
       });
     });
 
     if (controls.priorityOrder !== PRIORITY_ORDER_VALUES.NONE) {
       const selectedOrder = PRIORITY_ORDER_OPTIONS.find(
-        (option) => option.value === controls.priorityOrder,
+        (option) => option.value === controls.priorityOrder
       );
       chips.push({
-        key: "priorityOrder",
+        key: 'priorityOrder',
         label: `Sort: ${selectedOrder?.label || controls.priorityOrder}`,
-        className: "border-blue-200 bg-blue-50 text-blue-700",
+        className: 'border-blue-200 bg-blue-50 text-blue-700',
       });
     }
 
     if (controls.dueDateOrder !== DUE_DATE_ORDER_VALUES.DEFAULT) {
       const selectedDue = DUE_DATE_ORDER_OPTIONS.find(
-        (option) => option.value === controls.dueDateOrder,
+        (option) => option.value === controls.dueDateOrder
       );
       chips.push({
-        key: "dueDateOrder",
+        key: 'dueDateOrder',
         label: `Due date: ${selectedDue?.label || controls.dueDateOrder}`,
-        className: "border-blue-200 bg-blue-50 text-blue-700",
+        className: 'border-blue-200 bg-blue-50 text-blue-700',
       });
     }
 
     if (controls.ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE) {
       const selectedTicketIdOrder = TICKET_ID_ORDER_OPTIONS.find(
-        (option) => option.value === controls.ticketIdOrder,
+        (option) => option.value === controls.ticketIdOrder
       );
       chips.push({
-        key: "ticketIdOrder",
+        key: 'ticketIdOrder',
         label: `Ticket ID: ${selectedTicketIdOrder?.label || controls.ticketIdOrder}`,
-        className: "border-blue-200 bg-blue-50 text-blue-700",
+        className: 'border-blue-200 bg-blue-50 text-blue-700',
       });
     }
 
@@ -92,7 +86,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
   }, [controls, assigneeOptions]);
 
   const togglePriority = (value) => {
-    const normalized = String(value || "").toLowerCase();
+    const normalized = String(value || '').toLowerCase();
 
     setControls((prev) => {
       if (normalized === PRIORITY_FILTER_VALUES.ALL) {
@@ -111,7 +105,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
   };
 
   const toggleAssignee = (value) => {
-    const nextValue = String(value || "");
+    const nextValue = String(value || '');
 
     setControls((prev) => {
       if (nextValue === ASSIGNEE_FILTER_VALUES.ALL) {
@@ -155,8 +149,8 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
   };
 
   const removeFilterChip = (chipKey) => {
-    if (chipKey.startsWith("priority:")) {
-      const value = chipKey.replace("priority:", "");
+    if (chipKey.startsWith('priority:')) {
+      const value = chipKey.replace('priority:', '');
       setControls((prev) => ({
         ...prev,
         priorities: prev.priorities.filter((p) => p !== value),
@@ -164,8 +158,8 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       return;
     }
 
-    if (chipKey.startsWith("assignee:")) {
-      const value = chipKey.replace("assignee:", "");
+    if (chipKey.startsWith('assignee:')) {
+      const value = chipKey.replace('assignee:', '');
       setControls((prev) => ({
         ...prev,
         assigneeIds: prev.assigneeIds.filter((id) => id !== value),
@@ -173,7 +167,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       return;
     }
 
-    if (chipKey === "priorityOrder") {
+    if (chipKey === 'priorityOrder') {
       setControls((prev) => ({
         ...prev,
         priorityOrder: PRIORITY_ORDER_VALUES.NONE,
@@ -181,7 +175,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       return;
     }
 
-    if (chipKey === "dueDateOrder") {
+    if (chipKey === 'dueDateOrder') {
       setControls((prev) => ({
         ...prev,
         dueDateOrder: DUE_DATE_ORDER_VALUES.DEFAULT,
@@ -189,7 +183,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       return;
     }
 
-    if (chipKey === "ticketIdOrder") {
+    if (chipKey === 'ticketIdOrder') {
       setControls((prev) => ({
         ...prev,
         ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,

@@ -1,22 +1,22 @@
-import { PRIORITY_OPTIONS } from "./ticketPriority";
+import { PRIORITY_OPTIONS } from './ticketPriority';
 
 export const PRIORITY_FILTER_VALUES = {
-  ALL: "all",
+  ALL: 'all',
 };
 
 export const ASSIGNEE_FILTER_VALUES = {
-  ALL: "all",
-  UNASSIGNED: "unassigned",
+  ALL: 'all',
+  UNASSIGNED: 'unassigned',
 };
 
 export const PRIORITY_ORDER_VALUES = {
-  NONE: "none",
-  DESC: "desc",
-  ASC: "asc",
+  NONE: 'none',
+  DESC: 'desc',
+  ASC: 'asc',
 };
 
 export const PRIORITY_FILTER_OPTIONS = [
-  { value: PRIORITY_FILTER_VALUES.ALL, label: "All priorities" },
+  { value: PRIORITY_FILTER_VALUES.ALL, label: 'All priorities' },
   ...PRIORITY_OPTIONS.map((priority) => ({
     value: priority.value,
     label: priority.label,
@@ -24,33 +24,33 @@ export const PRIORITY_FILTER_OPTIONS = [
 ];
 
 export const PRIORITY_ORDER_OPTIONS = [
-  { value: PRIORITY_ORDER_VALUES.NONE, label: "Default" },
-  { value: PRIORITY_ORDER_VALUES.DESC, label: "Highest first" },
-  { value: PRIORITY_ORDER_VALUES.ASC, label: "Lowest first" },
+  { value: PRIORITY_ORDER_VALUES.NONE, label: 'Default' },
+  { value: PRIORITY_ORDER_VALUES.DESC, label: 'Highest first' },
+  { value: PRIORITY_ORDER_VALUES.ASC, label: 'Lowest first' },
 ];
 
 export const DUE_DATE_ORDER_VALUES = {
-  DEFAULT: "default",
-  SOONEST: "soonest",
-  LATEST: "latest",
+  DEFAULT: 'default',
+  SOONEST: 'soonest',
+  LATEST: 'latest',
 };
 
 export const DUE_DATE_ORDER_OPTIONS = [
-  { value: DUE_DATE_ORDER_VALUES.DEFAULT, label: "Default" },
-  { value: DUE_DATE_ORDER_VALUES.SOONEST, label: "Soonest first" },
-  { value: DUE_DATE_ORDER_VALUES.LATEST, label: "Latest first" },
+  { value: DUE_DATE_ORDER_VALUES.DEFAULT, label: 'Default' },
+  { value: DUE_DATE_ORDER_VALUES.SOONEST, label: 'Soonest first' },
+  { value: DUE_DATE_ORDER_VALUES.LATEST, label: 'Latest first' },
 ];
 
 export const TICKET_ID_ORDER_VALUES = {
-  NONE: "none",
-  ASC: "asc",
-  DESC: "desc",
+  NONE: 'none',
+  ASC: 'asc',
+  DESC: 'desc',
 };
 
 export const TICKET_ID_ORDER_OPTIONS = [
-  { value: TICKET_ID_ORDER_VALUES.NONE, label: "Default" },
-  { value: TICKET_ID_ORDER_VALUES.ASC, label: "Oldest first (1 -> N)" },
-  { value: TICKET_ID_ORDER_VALUES.DESC, label: "Newest first (N -> 1)" },
+  { value: TICKET_ID_ORDER_VALUES.NONE, label: 'Default' },
+  { value: TICKET_ID_ORDER_VALUES.ASC, label: 'Oldest first (1 -> N)' },
+  { value: TICKET_ID_ORDER_VALUES.DESC, label: 'Newest first (N -> 1)' },
 ];
 
 export const DEFAULT_TICKET_CONTROLS = {
@@ -62,66 +62,63 @@ export const DEFAULT_TICKET_CONTROLS = {
 };
 
 const PRIORITY_VALUE_SET = new Set(
-  PRIORITY_OPTIONS.map((priority) => priority.value.toLowerCase()),
+  PRIORITY_OPTIONS.map((priority) => priority.value.toLowerCase())
 );
 
 const unique = (list = []) => Array.from(new Set(list.filter(Boolean)));
 
-const normalizeLower = (value) => String(value || "").trim().toLowerCase();
+const normalizeLower = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase();
 
 const sanitizePriorities = (values = []) =>
   unique((Array.isArray(values) ? values : []).map(normalizeLower)).filter((value) =>
-    PRIORITY_VALUE_SET.has(value),
+    PRIORITY_VALUE_SET.has(value)
   );
 
 const sanitizeAssigneeIds = (values = []) =>
   unique(
     (Array.isArray(values) ? values : [])
-      .map((id) => String(id || "").trim())
-      .filter((id) => id && id !== ASSIGNEE_FILTER_VALUES.ALL),
+      .map((id) => String(id || '').trim())
+      .filter((id) => id && id !== ASSIGNEE_FILTER_VALUES.ALL)
   );
 
 const sanitizePriorityOrder = (value) => {
   const safe = normalizeLower(value || PRIORITY_ORDER_VALUES.NONE);
-  return Object.values(PRIORITY_ORDER_VALUES).includes(safe)
-    ? safe
-    : PRIORITY_ORDER_VALUES.NONE;
+  return Object.values(PRIORITY_ORDER_VALUES).includes(safe) ? safe : PRIORITY_ORDER_VALUES.NONE;
 };
 
 const sanitizeDueDateOrder = (value) => {
   const safe = normalizeLower(value || DUE_DATE_ORDER_VALUES.DEFAULT);
-  return Object.values(DUE_DATE_ORDER_VALUES).includes(safe)
-    ? safe
-    : DUE_DATE_ORDER_VALUES.DEFAULT;
+  return Object.values(DUE_DATE_ORDER_VALUES).includes(safe) ? safe : DUE_DATE_ORDER_VALUES.DEFAULT;
 };
 
 const sanitizeTicketIdOrder = (value) => {
   const safe = normalizeLower(value || TICKET_ID_ORDER_VALUES.NONE);
-  return Object.values(TICKET_ID_ORDER_VALUES).includes(safe)
-    ? safe
-    : TICKET_ID_ORDER_VALUES.NONE;
+  return Object.values(TICKET_ID_ORDER_VALUES).includes(safe) ? safe : TICKET_ID_ORDER_VALUES.NONE;
 };
 
 export const serializeCsvParam = (values, { lowercase = false } = {}) => {
   const safe = unique(
     (Array.isArray(values) ? values : [])
-      .map((v) => String(v || "").trim())
+      .map((v) => String(v || '').trim())
       .filter(Boolean)
-      .map((v) => (lowercase ? v.toLowerCase() : v)),
+      .map((v) => (lowercase ? v.toLowerCase() : v))
   );
-  return safe.join(",");
+  return safe.join(',');
 };
 
 const getUserId = (user) => {
   if (!user) return null;
-  if (typeof user === "string") return user;
+  if (typeof user === 'string') return user;
   return user._id || user.id || null;
 };
 
 export const buildAssigneeFilterOptions = (users = []) => {
   const base = [
-    { value: ASSIGNEE_FILTER_VALUES.ALL, label: "All assignees" },
-    { value: ASSIGNEE_FILTER_VALUES.UNASSIGNED, label: "Unassigned" },
+    { value: ASSIGNEE_FILTER_VALUES.ALL, label: 'All assignees' },
+    { value: ASSIGNEE_FILTER_VALUES.UNASSIGNED, label: 'Unassigned' },
   ];
 
   const uniqueUsers = new Map();
@@ -130,7 +127,7 @@ export const buildAssigneeFilterOptions = (users = []) => {
     const id = getUserId(user);
     if (!id) return;
 
-    const label = user.fullname || user.fullName || user.email || "Unknown user";
+    const label = user.fullname || user.fullName || user.email || 'Unknown user';
     uniqueUsers.set(String(id), { value: String(id), label });
   });
 
@@ -159,12 +156,11 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
   }
 
   if (ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE) {
-    params.sortBy = "taskNumber";
+    params.sortBy = 'taskNumber';
     params.sortOrder = ticketIdOrder;
   } else {
-    params.sortBy = "updatedAt";
-    params.sortOrder =
-      dueDateOrder === DUE_DATE_ORDER_VALUES.SOONEST ? "asc" : "desc";
+    params.sortBy = 'updatedAt';
+    params.sortOrder = dueDateOrder === DUE_DATE_ORDER_VALUES.SOONEST ? 'asc' : 'desc';
   }
 
   return params;

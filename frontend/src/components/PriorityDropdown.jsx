@@ -1,23 +1,15 @@
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  PRIORITY_OPTIONS,
-  PRIORITY_CONFIG,
-} from "@/helpers/ticketPriority";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/dropdown-menu';
+import { PRIORITY_OPTIONS, PRIORITY_CONFIG } from '@/helpers/ticketPriority';
+import { cn } from '@/lib/utils';
 
-export default function PriorityDropdown({
-  priority,
-  onChange,
-  disabled = false,
-  className,
-}) {
-  const currentPriority = priority?.toLowerCase() || "medium";
+export default function PriorityDropdown({ priority, onChange, disabled = false, className }) {
+  const currentPriority = priority?.toLowerCase() || 'medium';
   const currentConfig = PRIORITY_CONFIG[currentPriority] || PRIORITY_CONFIG.medium;
 
   return (
@@ -27,12 +19,13 @@ export default function PriorityDropdown({
           type="button"
           disabled={disabled}
           className={cn(
-            "flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2",
-            disabled && "cursor-not-allowed opacity-60",
-            className, currentConfig.badge
+            'flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2',
+            disabled && 'cursor-not-allowed opacity-60',
+            className,
+            currentConfig.badge
           )}
         >
-          <span className={cn("w-2 h-2 rounded-full", currentConfig.dot)} />
+          <span className={cn('w-2 h-2 rounded-full', currentConfig.dot)} />
           {currentConfig.label}
           <ChevronDown className="w-3 h-3 opacity-50" />
         </button>
@@ -49,7 +42,7 @@ export default function PriorityDropdown({
               onSelect={() => onChange?.(option.value)}
               className="cursor-pointer flex items-center gap-2"
             >
-              <span className={cn("w-2 h-2 rounded-full", config.dot)} />
+              <span className={cn('w-2 h-2 rounded-full', config.dot)} />
               <span className="flex-1">{option.label}</span>
               {isSelected && <Check className="w-4 h-4 opacity-80" />}
             </DropdownMenuItem>

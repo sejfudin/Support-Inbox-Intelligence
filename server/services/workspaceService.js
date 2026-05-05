@@ -112,12 +112,7 @@ const updateWorkspace = async (workspaceId, { name, description, owner }, reques
   return workspace;
 };
 
-const inviteMemberToWorkspace = async ({
-  workspaceId,
-  userId,
-  role = 'member',
-  inviterId,
-}) => {
+const inviteMemberToWorkspace = async ({ workspaceId, userId, role = 'member', inviterId }) => {
   if (!userId) throw new Error('User is required');
 
   const workspaceRole = role === 'admin' ? 'admin' : 'member';
@@ -139,9 +134,7 @@ const removeMember = async ({ workspaceId, userId }) => {
     throw new Error('Cannot remove the workspace owner');
   }
 
-  workspace.members = workspace.members.filter(
-    (m) => m.user.toString() !== userId
-  );
+  workspace.members = workspace.members.filter((m) => m.user.toString() !== userId);
   await workspace.save();
   await cancelWorkspaceInvitationsForUser({ workspaceId, userId });
 
@@ -175,12 +168,20 @@ const deleteWorkspace = async (workspaceId) => {
     if (ticketCount === 0) {
       await Workspace.findByIdAndDelete(workspaceId, { session });
     } else {
-      await Ticket.updateMany({ workspace: workspaceId }, { $set: { isArchived: true } }, { session });
+      await Ticket.updateMany(
+        { workspace: workspaceId },
+        { $set: { isArchived: true } },
+        { session }
+      );
       await Workspace.findByIdAndUpdate(workspaceId, { $set: { isArchived: true } }, { session });
     }
 
     await Invitation.deleteMany({ workspace: workspaceId }, { session });
-    await User.updateMany({ workspaceId, role: { $ne: 'admin' } }, { $unset: { workspaceId: '' } }, { session });
+    await User.updateMany(
+      { workspaceId, role: { $ne: 'admin' } },
+      { $unset: { workspaceId: '' } },
+      { session }
+    );
 
     await session.commitTransaction();
   } catch (err) {

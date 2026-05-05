@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
+import React, { useEffect, useMemo, useState } from 'react';
+import { format } from 'date-fns';
 import {
   Calendar,
   User,
@@ -13,56 +13,54 @@ import {
   Ticket,
   Download,
   GitPullRequest,
-} from "lucide-react";
-import { useTicket, useUpdateTicket } from "@/queries/tickets";
-import StatusDropdown from "@/components/StatusDropdown";
-import PriorityDropdown from "@/components/PriorityDropdown";
-import { DeleteConfirmModal } from "./DeleteConfirmModal";
-import { useArchiveTicket } from "@/queries/tickets";
-import { useUsers } from "@/queries/users";
-import { useAuth } from "@/context/AuthContext";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import AssigneesAvatar from "../Tickets/AssigneesAvatar";
-import { Avatar } from "../Avatar";
-import { toast } from "sonner";
-import TimeSpent from "@/components/TimeSpent";
-import TicketComments from "../Tickets/TicketComments";
-import TicketHistory from "../Tickets/TicketHistory";
-import { dueDateToInputValue } from "@/helpers/ticketDueDate";
-import StoryPointsField from "../StoryPointsField";
-import { normalizeStoryPoints } from "@/helpers/storyPoints";
-import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
-import { PRCard } from "@/components/PRCard";
-import { useRefreshPR, useUnlinkPR } from "@/queries/github";
+} from 'lucide-react';
+import { useTicket, useUpdateTicket } from '@/queries/tickets';
+import StatusDropdown from '@/components/StatusDropdown';
+import PriorityDropdown from '@/components/PriorityDropdown';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { useArchiveTicket } from '@/queries/tickets';
+import { useUsers } from '@/queries/users';
+import { useAuth } from '@/context/AuthContext';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import AssigneesAvatar from '../Tickets/AssigneesAvatar';
+import { Avatar } from '../Avatar';
+import { toast } from 'sonner';
+import TimeSpent from '@/components/TimeSpent';
+import TicketComments from '../Tickets/TicketComments';
+import TicketHistory from '../Tickets/TicketHistory';
+import { dueDateToInputValue } from '@/helpers/ticketDueDate';
+import StoryPointsField from '../StoryPointsField';
+import { normalizeStoryPoints } from '@/helpers/storyPoints';
+import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
+import { PRCard } from '@/components/PRCard';
+import { useRefreshPR, useUnlinkPR } from '@/queries/github';
 import {
   RichTextEditor,
   RichTextEditorContent,
   RichTextEditorToolbar,
-} from "@/components/ui/rich-text-editor";
+} from '@/components/ui/rich-text-editor';
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
-  String(value || "").replace(SUBJECT_PREFIX_RE, "").trim();
+  String(value || '')
+    .replace(SUBJECT_PREFIX_RE, '')
+    .trim();
 
 export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { user } = useAuth();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isActionPending, setIsActionPending] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
   const [unlinkError, setUnlinkError] = useState(null);
-  const [currentStatus, setCurrentStatus] = useState("To Do");
-  const [currentPriority, setCurrentPriority] = useState("medium");
+  const [currentStatus, setCurrentStatus] = useState('To Do');
+  const [currentPriority, setCurrentPriority] = useState('medium');
   const [currentStoryPoints, setCurrentStoryPoints] = useState(null);
   const [selectedAgents, setSelectedAgents] = useState([]);
-  const [dueDateInput, setDueDateInput] = useState("");
+  const [dueDateInput, setDueDateInput] = useState('');
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
@@ -72,7 +70,11 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const updateTicketMutation = useUpdateTicket();
   const ticket = apiResponse?.data ?? apiResponse;
 
-  const { data: usersData, isLoading: usersLoading, isError:usersError } = useUsers({
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+    isError: usersError,
+  } = useUsers({
     pagination: false,
     workspaceId: ticket?.workspace || user?.workspaceId,
   });
@@ -82,36 +84,29 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     if (!ticket || !isOpen) return;
 
     const displayTitle = sanitizeDisplaySubject(ticket.subject || ticket.title);
-    setTitle(displayTitle || "Untitled Task");
-    setDescription(ticket.description ?? "");
-    setCurrentStatus(ticket.status ?? "To Do");
-    setCurrentPriority(ticket.priority ?? "medium");
+    setTitle(displayTitle || 'Untitled Task');
+    setDescription(ticket.description ?? '');
+    setCurrentStatus(ticket.status ?? 'To Do');
+    setCurrentPriority(ticket.priority ?? 'medium');
     setCurrentStoryPoints(normalizeStoryPoints(ticket.storyPoints));
 
-    const existingAgentIds = ticket.assignedTo?.map(a => a._id || a) || [];
+    const existingAgentIds = ticket.assignedTo?.map((a) => a._id || a) || [];
     setSelectedAgents(existingAgentIds);
     setDueDateInput(dueDateToInputValue(ticket.dueDate));
-  },
-  [isOpen, ticket]);
+  }, [isOpen, ticket]);
 
   const selectedUsersObjects = useMemo(() => {
-    return selectedAgents
-      .map(id => users.find(u => u._id === id))
-      .filter(Boolean);
-  }, 
-  [selectedAgents, users]);
+    return selectedAgents.map((id) => users.find((u) => u._id === id)).filter(Boolean);
+  }, [selectedAgents, users]);
 
   const hasChanges = useMemo(() => {
     if (!ticket) return false;
-    const initialTitle =
-      sanitizeDisplaySubject(ticket.subject || ticket.title) || "Untitled Task";
-    const initialDescription = ticket.description ?? "";
-    const initialStatus = ticket.status ?? "To Do";
-    const initialPriority = ticket.priority ?? "medium";
+    const initialTitle = sanitizeDisplaySubject(ticket.subject || ticket.title) || 'Untitled Task';
+    const initialDescription = ticket.description ?? '';
+    const initialStatus = ticket.status ?? 'To Do';
+    const initialPriority = ticket.priority ?? 'medium';
     const initialStoryPoints = normalizeStoryPoints(ticket.storyPoints);
-    const initialAgents = (
-      ticket.assignedTo?.map((a) => a._id || a) || []
-    ).sort();
+    const initialAgents = (ticket.assignedTo?.map((a) => a._id || a) || []).sort();
     const currentAgents = [...selectedAgents].sort();
     const initialDue = dueDateToInputValue(ticket.dueDate);
     return (
@@ -138,18 +133,18 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     if (!isOpen) return;
 
     const onKeyDown = (e) => {
-      if (e.key === "Escape") onClose?.();
+      if (e.key === 'Escape') onClose?.();
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = previousOverflow;
     };
@@ -165,79 +160,64 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     if (!ticket) return;
 
     try {
-      const numericId =
-        ticket.taskNumber ??
-        ticket.ticketNumber ??
-        null;
-      const rawId =
-        ticket.id ||
-        ticket._id ||
-        ticket.ticketId ||
-        "";
-      const id = numericId != null ? numericId : rawId || "ticket";
-      const titleValue = title || ticket.subject || ticket.title || "Untitled";
-      const shortSubject = String(titleValue)
-        .slice(0, 40)
-        .trim()
-        .replace(/\s+/g, "-");
+      const numericId = ticket.taskNumber ?? ticket.ticketNumber ?? null;
+      const rawId = ticket.id || ticket._id || ticket.ticketId || '';
+      const id = numericId != null ? numericId : rawId || 'ticket';
+      const titleValue = title || ticket.subject || ticket.title || 'Untitled';
+      const shortSubject = String(titleValue).slice(0, 40).trim().replace(/\s+/g, '-');
 
-      const assignee = (ticket.assignedTo || [])
-        .map(
-          (p) => p?.fullname || p?.fullName || p?.email || "",
-        )
-        .filter(Boolean)
-        .join("; ") || "Unassigned";
+      const assignee =
+        (ticket.assignedTo || [])
+          .map((p) => p?.fullname || p?.fullName || p?.email || '')
+          .filter(Boolean)
+          .join('; ') || 'Unassigned';
 
       const workspaceName =
         ticket.workspace?.name ||
         ticket.workspaceName ||
-        (typeof ticket.workspace === "string"
-          ? ticket.workspace
-          : ticket.workspace?._id || "");
+        (typeof ticket.workspace === 'string' ? ticket.workspace : ticket.workspace?._id || '');
 
       const commentsCount =
-        (ticket.comments?.length ??
-          ticket.messages?.length ??
-          ticket.activity?.length) ?? "";
+        ticket.comments?.length ?? ticket.messages?.length ?? ticket.activity?.length ?? '';
 
       const header = [
-        "id",
-        "title",
-        "description",
-        "status",
-        "priority",
-        "assignee",
-        "workspace",
-        "commentsCount",
-        "createdAt",
-        "updatedAt",
-        "dueDate",
+        'id',
+        'title',
+        'description',
+        'status',
+        'priority',
+        'assignee',
+        'workspace',
+        'commentsCount',
+        'createdAt',
+        'updatedAt',
+        'dueDate',
       ];
 
       const row = [
         id,
         titleValue,
-        description || ticket.description || "",
-        ticket.status || "",
-        ticket.priority || "",
+        description || ticket.description || '',
+        ticket.status || '',
+        ticket.priority || '',
         assignee,
         workspaceName,
         commentsCount,
         formatCsvDate(ticket.createdAt),
         formatCsvDate(ticket.updatedAt),
-        ticket.dueDate || "",
+        ticket.dueDate || '',
       ];
 
-      const idPart = numericId != null ? `T${numericId}` : "";
+      const idPart = numericId != null ? `T${numericId}` : '';
       const baseName = idPart
-        ? `ticket-${idPart}-${shortSubject || "export"}`
-        : `ticket-${shortSubject || "export"}`;
+        ? `ticket-${idPart}-${shortSubject || 'export'}`
+        : `ticket-${shortSubject || 'export'}`;
       const csv = buildCsv(header, [row]);
       downloadCsvFile(`${baseName}.csv`, csv);
-      toast.success("Ticket exported to CSV.");
+      toast.success('Ticket exported to CSV.');
     } catch (err) {
-      console.error("Failed to export ticket CSV", err);
-      toast.error("Failed to export ticket. Please try again.");
+      console.error('Failed to export ticket CSV', err);
+      toast.error('Failed to export ticket. Please try again.');
     }
   };
 
@@ -247,11 +227,11 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       { ticketId, workspaceId: ticket?.workspace },
       {
         onSuccess: () => {
-          toast.success("PR status refreshed");
+          toast.success('PR status refreshed');
         },
         onError: (error) => {
-          toast.error("Failed to refresh PR", {
-            description: error?.response?.data?.message || "Please try again",
+          toast.error('Failed to refresh PR', {
+            description: error?.response?.data?.message || 'Please try again',
           });
         },
       }
@@ -268,10 +248,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     unlinkPR(ticketId, {
       onSuccess: () => {
         setIsUnlinkModalOpen(false);
-        toast.success("PR unlinked successfully");
+        toast.success('PR unlinked successfully');
       },
       onError: (error) => {
-        setUnlinkError(error?.response?.data?.message || "Failed to unlink PR");
+        setUnlinkError(error?.response?.data?.message || 'Failed to unlink PR');
       },
     });
   };
@@ -286,15 +266,16 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
         setIsActionModalOpen(false);
         setIsActionPending(false);
         onClose();
-        toast.success("Ticket archived", {
-          description: "The ticket has been moved to archive and is now read-only.",
+        toast.success('Ticket archived', {
+          description: 'The ticket has been moved to archive and is now read-only.',
         });
       },
       onError: (error) => {
         setIsActionPending(false);
-        const message = error?.response?.data?.message || "Failed to archive ticket. Please try again.";
+        const message =
+          error?.response?.data?.message || 'Failed to archive ticket. Please try again.';
         setActionError(message);
-        toast.error("Action failed", {
+        toast.error('Action failed', {
           description: message,
         });
       },
@@ -314,24 +295,22 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           storyPoints: currentStoryPoints,
           description,
           assignedTo: selectedAgents,
-          dueDate: dueDateInput
-            ? new Date(`${dueDateInput}T12:00:00`).toISOString()
-            : null,
+          dueDate: dueDateInput ? new Date(`${dueDateInput}T12:00:00`).toISOString() : null,
         },
       },
-     {
-    onSuccess: () => {
-      onClose?.(); 
-      toast.success("Ticket updated", {
-        description: "Your changes have been saved successfully.",
-      });
-    },
-    onError: (error) => {
-      toast.error("Update failed", {
-        description: error?.response?.data?.message || "Could not save changes.",
-      });
-    },
-  }
+      {
+        onSuccess: () => {
+          onClose?.();
+          toast.success('Ticket updated', {
+            description: 'Your changes have been saved successfully.',
+          });
+        },
+        onError: (error) => {
+          toast.error('Update failed', {
+            description: error?.response?.data?.message || 'Could not save changes.',
+          });
+        },
+      }
     );
   };
 
@@ -361,7 +340,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             <button
               type="button"
               onClick={(e) => {
-                e.stopPropagation(); 
+                e.stopPropagation();
                 onClose();
               }}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
@@ -372,13 +351,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           </div>
 
           <div className="px-6 py-6 space-y-3">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Failed to load ticket
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">Failed to load ticket</h2>
 
             <p className="text-sm text-gray-600">
-              Please try again. If the issue persists, check your connection or
-              contact support.
+              Please try again. If the issue persists, check your connection or contact support.
             </p>
 
             {error?.message && (
@@ -391,9 +367,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <button
                 type="button"
                 onClick={(e) => {
-                    e.stopPropagation();
-                    onClose();
-                  }}
+                  e.stopPropagation();
+                  onClose();
+                }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
               >
                 Close
@@ -421,7 +397,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           <div className="flex items-center gap-3 sm:gap-4">
             <button
               type="button"
-              onClick={(e) => { onClose();}}
+              onClick={(e) => {
+                onClose();
+              }}
               className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
               aria-label="Close ticket details"
             >
@@ -449,28 +427,29 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 disabled={isArchiving}
                 className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
                   isArchiving
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-gray-600 hover:bg-gray-700 text-white"
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-600 hover:bg-gray-700 text-white'
                 }`}
               >
                 <Archive className="w-4 h-4" />
-                {isArchiving ? "Archiving..." : "Archive"}
+                {isArchiving ? 'Archiving...' : 'Archive'}
               </button>
             )}
             {!isArchived && (
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={updateTicketMutation.isPending || !hasChanges || !title.trim()}
-              className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
-                updateTicketMutation.isPending || !hasChanges || !title.trim()
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
-            >
-              <Save className="w-4 h-4" />
-              {updateTicketMutation.isPending ? "Saving..." : "Save Changes"}
-            </button>)}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={updateTicketMutation.isPending || !hasChanges || !title.trim()}
+                className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
+                  updateTicketMutation.isPending || !hasChanges || !title.trim()
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                <Save className="w-4 h-4" />
+                {updateTicketMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            )}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
@@ -493,7 +472,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             isLoading={isUnlinkingPR}
             errorMessage={unlinkError}
             title="Unlink Pull Request"
-            description={`Unlink PR #${ticket?.linkedPullRequest?.prNumber || ""} from this ticket? This will remove the PR association but won't affect the PR itself.`}
+            description={`Unlink PR #${ticket?.linkedPullRequest?.prNumber || ''} from this ticket? This will remove the PR association but won't affect the PR itself.`}
             confirmLabel="Unlink"
             loadingLabel="Unlinking..."
           />
@@ -506,7 +485,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 </span>
               </div>
             )}
-            
+
             <div className="flex items-center w-full">
               <input
                 type="text"
@@ -514,12 +493,12 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 readOnly={isArchived}
                 onChange={(e) => setTitle(e.target.value)}
                 className={`w-full rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all focus:ring-0 sm:text-3xl lg:text-4xl ${
-                  !title.trim() ? "text-destructive" : "text-foreground"
-                } ${isArchived ? "cursor-default" : "cursor-text hover:bg-gray-50/50"}`}
+                  !title.trim() ? 'text-destructive' : 'text-foreground'
+                } ${isArchived ? 'cursor-default' : 'cursor-text hover:bg-gray-50/50'}`}
                 placeholder="Enter ticket title..."
               />
             </div>
-            
+
             {!title.trim() && (
               <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-destructive uppercase tracking-wider mt-1">
                 Title is required
@@ -532,11 +511,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Status
               </div>
-            <div className={isArchived ? "pointer-events-none opacity-70" : ""}>
-              <StatusDropdown
-                status={currentStatus}
-                onChange={setCurrentStatus}
-              />
+              <div className={isArchived ? 'pointer-events-none opacity-70' : ''}>
+                <StatusDropdown status={currentStatus} onChange={setCurrentStatus} />
               </div>
             </div>
 
@@ -547,11 +523,11 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
               <Popover>
                 <PopoverTrigger asChild disabled={isArchived}>
-                  <div 
+                  <div
                     className={`flex items-center gap-3 p-1.5 rounded-xl border border-transparent transition-all min-h-[44px] w-fit ${
-                      isArchived 
-                        ? "cursor-not-allowed opacity-70 pointer-events-none"
-                        : "cursor-pointer hover:bg-gray-50"
+                      isArchived
+                        ? 'cursor-not-allowed opacity-70 pointer-events-none'
+                        : 'cursor-pointer hover:bg-gray-50'
                     }`}
                   >
                     {selectedUsersObjects.length > 0 ? (
@@ -576,12 +552,19 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   <PopoverContent className="w-72 p-2 z-[110]" align="start">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Assign Agents</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          Assign Agents
+                        </span>
                         {selectedAgents.length > 0 && (
-                          <button onClick={() => setSelectedAgents([])} className="text-[10px] text-red-500 hover:underline font-bold">Clear all</button>
+                          <button
+                            onClick={() => setSelectedAgents([])}
+                            className="text-[10px] text-red-500 hover:underline font-bold"
+                          >
+                            Clear all
+                          </button>
                         )}
                       </div>
-                      
+
                       <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
                         {users.length > 0 ? (
                           users.map((user) => {
@@ -590,24 +573,34 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                               <div
                                 key={user._id}
                                 onClick={() => {
-                                  setSelectedAgents(prev => 
-                                    isSelected ? prev.filter(id => id !== user._id) : [...prev, user._id]
+                                  setSelectedAgents((prev) =>
+                                    isSelected
+                                      ? prev.filter((id) => id !== user._id)
+                                      : [...prev, user._id]
                                   );
                                 }}
                                 className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
                               >
-                                <Checkbox checked={isSelected} onCheckedChange={null} className="pointer-events-none" />
+                                <Checkbox
+                                  checked={isSelected}
+                                  onCheckedChange={null}
+                                  className="pointer-events-none"
+                                />
                                 <div className="flex flex-col min-w-0">
                                   <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
                                     {user.fullName || user.fullname || user.email}
                                   </span>
-                                  <span className="text-[10px] text-gray-400 truncate">{user.email}</span>
+                                  <span className="text-[10px] text-gray-400 truncate">
+                                    {user.email}
+                                  </span>
                                 </div>
                               </div>
                             );
                           })
                         ) : (
-                          <div className="p-4 text-center text-xs text-gray-400">No users found</div>
+                          <div className="p-4 text-center text-xs text-gray-400">
+                            No users found
+                          </div>
                         )}
                       </div>
                     </div>
@@ -615,14 +608,12 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 )}
               </Popover>
             </div>
-            
+
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                 <CircleDot className="w-4 h-4" /> Priority
               </div>
-              <div
-                className={isArchived ? "pointer-events-none opacity-70" : ""}
-              >
+              <div className={isArchived ? 'pointer-events-none opacity-70' : ''}>
                 <PriorityDropdown
                   priority={currentPriority}
                   onChange={setCurrentPriority}
@@ -641,7 +632,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 disabled={isArchived}
                 onChange={(e) => setDueDateInput(e.target.value)}
                 className={`h-10 w-full max-w-[11rem] rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 shadow-sm outline-none transition focus:border-blue-200 focus:ring-2 focus:ring-blue-50 ${
-                  isArchived ? "cursor-not-allowed opacity-70" : ""
+                  isArchived ? 'cursor-not-allowed opacity-70' : ''
                 }`}
               />
             </div>
@@ -668,10 +659,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
                 <div className="flex flex-col justify-center">
                   <span className="text-sm font-semibold text-foreground leading-none">
-                    {ticket?.creator?.fullname || ticket?.creator?.fullName || "Unknown User"}
+                    {ticket?.creator?.fullname || ticket?.creator?.fullName || 'Unknown User'}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-medium mt-1">
-                    {ticket?.createdAt ? format(new Date(ticket.createdAt), "MMM d, yyyy") : ""}
+                    {ticket?.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : ''}
                   </span>
                 </div>
               </div>

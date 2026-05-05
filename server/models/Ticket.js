@@ -1,35 +1,35 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema(
   {
     senderType: {
       type: String,
-      enum: ["admin", "user"],
+      enum: ['admin', 'user'],
       required: true,
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
     },
     text: {
       type: String,
-      required: [true, "Message text is required"],
+      required: [true, 'Message text is required'],
     },
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 const aiAssistantSchema = new mongoose.Schema(
   {
-    summary: { type: String, default: "" },
+    summary: { type: String, default: '' },
     category: {
       type: String,
-      enum: ["billing", "bug", "feature", "other", ""],
-      default: "",
+      enum: ['billing', 'bug', 'feature', 'other', ''],
+      default: '',
     },
-    suggestedReply: { type: String, default: "" },
+    suggestedReply: { type: String, default: '' },
     confidenceScore: {
       type: Number,
       min: 0,
@@ -40,16 +40,16 @@ const aiAssistantSchema = new mongoose.Schema(
   {
     timestamps: true,
     _id: false,
-  },
+  }
 );
 
 const ticketSchema = new mongoose.Schema(
   {
     subject: {
       type: String,
-      required: [true, "Please provide a ticket subject"],
+      required: [true, 'Please provide a ticket subject'],
       trim: true,
-      maxlength: [100, "Title cannot be more than 100 characters"],
+      maxlength: [100, 'Title cannot be more than 100 characters'],
     },
     description: {
       type: String,
@@ -57,26 +57,26 @@ const ticketSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: {
-        values: ["backlog", "in progress", "on staging", "blocked", "to do", "done"],
-        message: "{VALUE} is not a supported status",
+        values: ['backlog', 'in progress', 'on staging', 'blocked', 'to do', 'done'],
+        message: '{VALUE} is not a supported status',
       },
-      default: "backlog",
+      default: 'backlog',
       required: true,
     },
     priority: {
       type: String,
       enum: {
-        values: ["low", "medium", "high", "critical"],
-        message: "{VALUE} is not a supported priority",
+        values: ['low', 'medium', 'high', 'critical'],
+        message: '{VALUE} is not a supported priority',
       },
-      default: "medium",
+      default: 'medium',
       required: true,
     },
     storyPoints: {
       type: Number,
       min: 1,
       max: 5,
-      default: null
+      default: null,
     },
     isArchived: {
       type: Boolean,
@@ -86,18 +86,18 @@ const ticketSchema = new mongoose.Schema(
     ai: aiAssistantSchema,
     creator: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     assignedTo: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: 'User',
       },
     ],
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Workspace",
+      ref: 'Workspace',
       required: true,
     },
     totalTimeSpent: {
@@ -135,7 +135,7 @@ const ticketSchema = new mongoose.Schema(
         },
         state: {
           type: String,
-          enum: ["open", "closed", "merged"],
+          enum: ['open', 'closed', 'merged'],
           required: true,
         },
         isDraft: {
@@ -160,7 +160,7 @@ const ticketSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  },
+  }
 );
 
 ticketSchema.set('toJSON', { virtuals: true });
@@ -169,5 +169,5 @@ ticketSchema.set('toObject', { virtuals: true });
 ticketSchema.index({ status: 1, updatedAt: -1 });
 ticketSchema.index({ isArchived: 1, updatedAt: -1 });
 ticketSchema.index({ workspace: 1, taskNumber: 1 });
-ticketSchema.index({ "linkedPullRequest.prNumber": 1, workspace: 1 });
-module.exports = mongoose.model("Ticket", ticketSchema);
+ticketSchema.index({ 'linkedPullRequest.prNumber': 1, workspace: 1 });
+module.exports = mongoose.model('Ticket', ticketSchema);

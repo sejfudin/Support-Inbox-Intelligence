@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Check, AlertCircle } from "lucide-react";
-import { useCreateComment } from "@/queries/comments";
-import { cn } from "@/lib/utils";
+import { useState } from 'react';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Check, AlertCircle } from 'lucide-react';
+import { useCreateComment } from '@/queries/comments';
+import { cn } from '@/lib/utils';
 
 export const CommentInput = ({ ticketId }) => {
-  const [newComment, setNewComment] = useState("");
+  const [newComment, setNewComment] = useState('');
   const MAX_CHARS = 1000;
   const createMutation = useCreateComment();
 
@@ -14,17 +14,12 @@ export const CommentInput = ({ ticketId }) => {
   const isAtLimit = newComment.length == MAX_CHARS;
 
   const handleSend = () => {
-    if (
-      !newComment.trim() ||
-      newComment.length > MAX_CHARS ||
-      createMutation.isPending
-    )
-      return;
+    if (!newComment.trim() || newComment.length > MAX_CHARS || createMutation.isPending) return;
     createMutation.mutate(
       { ticketId, content: newComment },
       {
-        onSuccess: () => setNewComment(""),
-      },
+        onSuccess: () => setNewComment(''),
+      }
     );
   };
 
@@ -38,19 +33,15 @@ export const CommentInput = ({ ticketId }) => {
           disabled={createMutation.isPending}
           maxLength={MAX_CHARS}
           className={cn(
-            "min-h-[80px] bg-gray-50/50 border-gray-200 focus-visible:ring-blue-500 resize-none pr-12 transition-all",
-            isAtLimit && "border-orange-400 focus-visible:ring-orange-400",
+            'min-h-[80px] bg-gray-50/50 border-gray-200 focus-visible:ring-blue-500 resize-none pr-12 transition-all',
+            isAtLimit && 'border-orange-400 focus-visible:ring-orange-400'
           )}
         />
 
         <div
           className={cn(
-            "absolute -top-6 right-1 text-[11px] font-semibold transition-colors flex items-center gap-1",
-            isAtLimit
-              ? "text-orange-600"
-              : isNearLimit
-                ? "text-amber-500"
-                : "text-gray-400",
+            'absolute -top-6 right-1 text-[11px] font-semibold transition-colors flex items-center gap-1',
+            isAtLimit ? 'text-orange-600' : isNearLimit ? 'text-amber-500' : 'text-gray-400'
           )}
         >
           {isAtLimit && <AlertCircle className="w-3 h-3" />}
@@ -60,13 +51,11 @@ export const CommentInput = ({ ticketId }) => {
         <div className="absolute bottom-2 right-2 flex items-center gap-2">
           <Button
             size="icon"
-            disabled={
-              !newComment.trim() || isAtLimit || createMutation.isPending
-            }
+            disabled={!newComment.trim() || isAtLimit || createMutation.isPending}
             onClick={handleSend}
             className={cn(
-              "h-8 w-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all active:scale-95",
-              isAtLimit && "bg-orange-500 hover:bg-orange-600",
+              'h-8 w-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all active:scale-95',
+              isAtLimit && 'bg-orange-500 hover:bg-orange-600'
             )}
           >
             {createMutation.isPending ? (

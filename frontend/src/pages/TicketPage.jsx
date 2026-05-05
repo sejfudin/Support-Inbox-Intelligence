@@ -1,76 +1,65 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { DataTable } from "@/components/Tickets/TicketsTable";
-import { useTickets } from "@/queries/tickets";
-import { createTicketColumns } from "@/components/columns/ticketColumns";
-import { useDebounce } from "use-debounce";
-import BoardPage from "@/components/BoardPage";
-import NewTickets from "@/components/Tickets/NewTickets";
-import TicketDetailsModal from "@/components/Modals/TicketDetailsModal";
-import TicketsState from "@/components/Tickets/TicketsState";
-import TicketsHeader from "@/components/Tickets/TicketsHeader";
-import TicketsTabs from "@/components/Tickets/TicketsTabs";
-import TableSkeleton from "@/components/Skeletons/TableSkeleton";
-import { getTicketsQueryParams } from "@/helpers/ticketsQuery";
-import { normalizeTicket } from "@/helpers/normalizeTicket";
-import { useTicketModals } from "@/hooks/useTicketModals";
-import { useTicketList } from "@/hooks/useTicketList";
-import { useWorkspace } from "@/queries/workspaces";
-import { ArrowLeft, Building2 } from "lucide-react";
-import { PagePanel, PageSection, PageShell } from "@/components/PageShell";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useQueryClient } from "@tanstack/react-query";
-import { useUpdateTicket } from "@/queries/tickets";
-import { getAllTickets as getAllTicketsApi } from "@/api/tickets";
-import { useUsers } from "@/queries/users";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { DataTable } from '@/components/Tickets/TicketsTable';
+import { useTickets } from '@/queries/tickets';
+import { createTicketColumns } from '@/components/columns/ticketColumns';
+import { useDebounce } from 'use-debounce';
+import BoardPage from '@/components/BoardPage';
+import NewTickets from '@/components/Tickets/NewTickets';
+import TicketDetailsModal from '@/components/Modals/TicketDetailsModal';
+import TicketsState from '@/components/Tickets/TicketsState';
+import TicketsHeader from '@/components/Tickets/TicketsHeader';
+import TicketsTabs from '@/components/Tickets/TicketsTabs';
+import TableSkeleton from '@/components/Skeletons/TableSkeleton';
+import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
+import { normalizeTicket } from '@/helpers/normalizeTicket';
+import { useTicketModals } from '@/hooks/useTicketModals';
+import { useTicketList } from '@/hooks/useTicketList';
+import { useWorkspace } from '@/queries/workspaces';
+import { ArrowLeft, Building2 } from 'lucide-react';
+import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUpdateTicket } from '@/queries/tickets';
+import { getAllTickets as getAllTicketsApi } from '@/api/tickets';
+import { useUsers } from '@/queries/users';
 import {
   TICKET_ID_ORDER_VALUES,
   PRIORITY_FILTER_OPTIONS,
   buildAssigneeFilterOptions,
-} from "@/helpers/ticketFilters";
-import { useAuth } from "@/context/AuthContext";
-import TicketFiltersPanel from "@/components/Tickets/TicketsFiltersPanel";
-import { useTicketFiltersControls } from "@/hooks/useTicketFiltersControls";
-import { buildCsv, downloadCsvFile, formatCsvDate } from "@/helpers/csvExport";
-import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
-import { toast } from "sonner";
+} from '@/helpers/ticketFilters';
+import { useAuth } from '@/context/AuthContext';
+import TicketFiltersPanel from '@/components/Tickets/TicketsFiltersPanel';
+import { useTicketFiltersControls } from '@/hooks/useTicketFiltersControls';
+import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { toast } from 'sonner';
 
 function isEditableTarget(target) {
   if (!target || !(target instanceof Element)) return false;
   return Boolean(
     target.closest(
-      "input:not([type='button']):not([type='submit']):not([type='reset']), textarea, select, [contenteditable='true']",
-    ),
+      "input:not([type='button']):not([type='submit']):not([type='reset']), textarea, select, [contenteditable='true']"
+    )
   );
 }
 
-const ALLOWED_TABS = [
-  "all",
-  "to do",
-  "in progress",
-  "on staging",
-  "blocked",
-  "done",
-];
+const ALLOWED_TABS = ['all', 'to do', 'in progress', 'on staging', 'blocked', 'done'];
 
-const decodeTabParam = (value) =>
-  value ? value.toLowerCase().replace(/_/g, " ") : "all";
+const decodeTabParam = (value) => (value ? value.toLowerCase().replace(/_/g, ' ') : 'all');
 
-const encodeTabParam = (value) => value.replace(/\s+/g, "_");
-const URL_TICKET_ID_SORT_PARAM = "ticketIdSort";
+const encodeTabParam = (value) => value.replace(/\s+/g, '_');
+const URL_TICKET_ID_SORT_PARAM = 'ticketIdSort';
 
 export default function TicketPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = decodeTabParam(searchParams.get("tab"));
-  const initialSearch = searchParams.get("search") || "";
-  const initialPage = Math.max(
-    parseInt(searchParams.get("page") || "1", 10) || 1,
-    1,
-  );
-  const initialView = searchParams.get("view") === "board" ? "board" : "list";
+  const initialTab = decodeTabParam(searchParams.get('tab'));
+  const initialSearch = searchParams.get('search') || '';
+  const initialPage = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
+  const initialView = searchParams.get('view') === 'board' ? 'board' : 'list';
   const initialTicketIdSortRaw = String(
-    searchParams.get(URL_TICKET_ID_SORT_PARAM) || "",
+    searchParams.get(URL_TICKET_ID_SORT_PARAM) || ''
   ).toLowerCase();
   const initialTicketIdSort =
     initialTicketIdSortRaw === TICKET_ID_ORDER_VALUES.ASC ||
@@ -78,17 +67,17 @@ export default function TicketPage() {
       ? initialTicketIdSortRaw
       : TICKET_ID_ORDER_VALUES.NONE;
   const [activeTab, setActiveTab] = useState(
-    ALLOWED_TABS.includes(initialTab) ? initialTab : "all",
+    ALLOWED_TABS.includes(initialTab) ? initialTab : 'all'
   );
   const [viewMode, setViewMode] = useState(initialView);
 
   const isMobile = useIsMobile();
-  const effectiveViewMode = isMobile ? "list" : viewMode;
-  const isBoard = effectiveViewMode === "board";
+  const effectiveViewMode = isMobile ? 'list' : viewMode;
+  const isBoard = effectiveViewMode === 'board';
 
   const hasHydratedFromParamsRef = useRef(false);
   const navigate = useNavigate();
-  const overrideWorkspaceId = searchParams.get("workspaceId") || undefined;
+  const overrideWorkspaceId = searchParams.get('workspaceId') || undefined;
   const { user } = useAuth();
   const { data: overrideWorkspace } = useWorkspace(overrideWorkspaceId);
 
@@ -113,24 +102,23 @@ export default function TicketPage() {
   const searchInputRef = useRef(null);
   const isClosingDetailsRef = useRef(false);
 
-  const isValidTicketParam = (value) =>
-    typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
+  const isValidTicketParam = (value) => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
 
   const handleCloseTicketDetails = useMemo(
     () => () => {
       isClosingDetailsRef.current = true;
       const next = new URLSearchParams(searchParams);
-      if (next.has("ticket")) {
-        next.delete("ticket");
+      if (next.has('ticket')) {
+        next.delete('ticket');
         setSearchParams(next, { replace: true });
       }
       closeTicketDetails();
     },
-    [closeTicketDetails, searchParams, setSearchParams],
+    [closeTicketDetails, searchParams, setSearchParams]
   );
 
   useEffect(() => {
-    const tid = searchParams.get("ticket");
+    const tid = searchParams.get('ticket');
     if (!isValidTicketParam(tid)) {
       // URL is cleaned, allow normal modal opening again.
       if (!tid) isClosingDetailsRef.current = false;
@@ -144,23 +132,18 @@ export default function TicketPage() {
   useEffect(() => {
     if (!hasHydratedFromParamsRef.current) return;
     if (!isDetailsOpen || !selectedTicketId) return;
-    if (searchParams.get("ticket") === selectedTicketId) return;
+    if (searchParams.get('ticket') === selectedTicketId) return;
     const next = new URLSearchParams(searchParams);
-    next.set("ticket", selectedTicketId);
+    next.set('ticket', selectedTicketId);
     setSearchParams(next, { replace: true });
-  }, [
-    isDetailsOpen,
-    selectedTicketId,
-    searchParams,
-    setSearchParams,
-  ]);
+  }, [isDetailsOpen, selectedTicketId, searchParams, setSearchParams]);
 
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.defaultPrevented) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         if (isDetailsOpen) {
           e.preventDefault();
           handleCloseTicketDetails();
@@ -177,36 +160,30 @@ export default function TicketPage() {
       if (isEditableTarget(e.target)) return;
       if (isDetailsOpen || isNewOpen) return;
 
-      if (e.key === "/") {
+      if (e.key === '/') {
         e.preventDefault();
         searchInputRef.current?.focus();
         return;
       }
 
-      if (e.key === "n") {
+      if (e.key === 'n') {
         e.preventDefault();
         openNewTicket();
       }
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    isDetailsOpen,
-    isNewOpen,
-    handleCloseTicketDetails,
-    closeNewTicket,
-    openNewTicket,
-  ]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isDetailsOpen, isNewOpen, handleCloseTicketDetails, closeNewTicket, openNewTicket]);
 
-  const listStatusFilter = activeTab === "all" ? "not_null" : activeTab;
+  const listStatusFilter = activeTab === 'all' ? 'not_null' : activeTab;
 
   const queryClient = useQueryClient();
   const updateTicketMutation = useUpdateTicket();
 
   const assigneeOptions = useMemo(
     () => buildAssigneeFilterOptions(usersData?.users || []),
-    [usersData?.users],
+    [usersData?.users]
   );
 
   const {
@@ -230,7 +207,7 @@ export default function TicketPage() {
         : {
             ...prev,
             ticketIdOrder: initialTicketIdSort,
-          },
+          }
     );
   }, [initialTicketIdSort, setControls]);
 
@@ -263,7 +240,7 @@ export default function TicketPage() {
     search: debouncedSearch,
     activeTab,
     archived: false,
-    status: "not_null",
+    status: 'not_null',
     workspaceId: overrideWorkspaceId,
     queryFilters,
   });
@@ -272,7 +249,7 @@ export default function TicketPage() {
 
   const boardTickets = useMemo(
     () => (boardQuery.data?.data || []).map((ticket) => normalizeTicket(ticket)),
-    [boardQuery.data?.data],
+    [boardQuery.data?.data]
   );
 
   const normalizedTickets = isBoard ? boardTickets : listData.tickets;
@@ -282,10 +259,12 @@ export default function TicketPage() {
   const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
   const visibleTickets = normalizedTickets;
 
-  const runWithListReset = (callback) => (...args) => {
-    callback(...args);
-    if (!isBoard) listData.setPage(1);
-  };
+  const runWithListReset =
+    (callback) =>
+    (...args) => {
+      callback(...args);
+      if (!isBoard) listData.setPage(1);
+    };
 
   const handlePriorityFilterChange = runWithListReset(togglePriority);
   const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
@@ -306,28 +285,28 @@ export default function TicketPage() {
 
     const next = new URLSearchParams(searchParams);
 
-    if (activeTab === "all") {
-      next.delete("tab");
+    if (activeTab === 'all') {
+      next.delete('tab');
     } else {
-      next.set("tab", encodeTabParam(activeTab));
+      next.set('tab', encodeTabParam(activeTab));
     }
 
     if (search.trim()) {
-      next.set("search", search.trim());
+      next.set('search', search.trim());
     } else {
-      next.delete("search");
+      next.delete('search');
     }
 
     if (listData.page > 1) {
-      next.set("page", String(listData.page));
+      next.set('page', String(listData.page));
     } else {
-      next.delete("page");
+      next.delete('page');
     }
 
-    if (effectiveViewMode === "board") {
-      next.set("view", "board");
+    if (effectiveViewMode === 'board') {
+      next.set('view', 'board');
     } else {
-      next.delete("view");
+      next.delete('view');
     }
 
     if (controls.ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE) {
@@ -351,12 +330,12 @@ export default function TicketPage() {
 
   const handleStatusChange = (ticketId, columnId) => {
     const columnToStatus = {
-      todo: "to do",
-      inprogress: "in progress",
-      staging: "on staging",
-      done: "done",
-      blocked: "blocked",
-      backlog: "backlog",
+      todo: 'to do',
+      inprogress: 'in progress',
+      staging: 'on staging',
+      done: 'done',
+      blocked: 'blocked',
+      backlog: 'backlog',
     };
 
     const newStatus = columnToStatus[columnId] || columnId;
@@ -368,10 +347,10 @@ export default function TicketPage() {
       },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["tickets"] });
+          queryClient.invalidateQueries({ queryKey: ['tickets'] });
         },
-        onError: (err) => console.error("Error updating ticket: ", err),
-      },
+        onError: (err) => console.error('Error updating ticket: ', err),
+      }
     );
   };
 
@@ -397,26 +376,27 @@ export default function TicketPage() {
 
   const toCsvRows = (tickets) => {
     const header = [
-      "title",
-      "description",
-      "status",
-      "assignee",
-      "createdAt",
-      "updatedAt",
-      "dueDate",
+      'title',
+      'description',
+      'status',
+      'assignee',
+      'createdAt',
+      'updatedAt',
+      'dueDate',
     ];
     const rows = tickets.map((ticket) => {
       const raw = ticket.raw || ticket;
-      const subject = raw.subject || ticket.title || "";
-      const description = raw.description || ticket.description || "";
-      const status = raw.status || ticket.status || "";
-      const assignee = (raw.assignedTo || [])
-        .map((person) => person?.fullname || person?.fullName || person?.email || "")
-        .filter(Boolean)
-        .join("; ") || "Unassigned";
+      const subject = raw.subject || ticket.title || '';
+      const description = raw.description || ticket.description || '';
+      const status = raw.status || ticket.status || '';
+      const assignee =
+        (raw.assignedTo || [])
+          .map((person) => person?.fullname || person?.fullName || person?.email || '')
+          .filter(Boolean)
+          .join('; ') || 'Unassigned';
       const createdAt = formatCsvDate(raw.createdAt);
       const updatedAt = formatCsvDate(raw.updatedAt);
-      const dueDate = raw.dueDate || raw.due || "";
+      const dueDate = raw.dueDate || raw.due || '';
       return [subject, description, status, assignee, createdAt, updatedAt, dueDate];
     });
     return buildCsv(header, rows);
@@ -424,7 +404,7 @@ export default function TicketPage() {
 
   const downloadCsv = (csvString) => {
     const stamp = new Date().toISOString().slice(0, 10);
-    const tabSlug = activeTab === "all" ? "all" : encodeTabParam(activeTab);
+    const tabSlug = activeTab === 'all' ? 'all' : encodeTabParam(activeTab);
     downloadCsvFile(`tickets-${tabSlug}-${stamp}.csv`, csvString);
   };
 
@@ -445,22 +425,20 @@ export default function TicketPage() {
           listLimit: Math.max(listData.pagination?.total || 0, 1),
         }).list;
         const response = await getAllTicketsApi(exportParams);
-        ticketsForExport = (response?.data || []).map((ticket) =>
-          normalizeTicket(ticket),
-        );
+        ticketsForExport = (response?.data || []).map((ticket) => normalizeTicket(ticket));
       }
 
       if (!ticketsForExport.length) {
-        toast.info("No tickets to export for current filters.");
+        toast.info('No tickets to export for current filters.');
         return;
       }
 
       const csv = toCsvRows(ticketsForExport);
       downloadCsv(csv);
-      toast.success("Tickets exported to CSV.");
+      toast.success('Tickets exported to CSV.');
     } catch (error) {
-      console.error("CSV export failed", error);
-      toast.error("Failed to export tickets. Please try again.");
+      console.error('CSV export failed', error);
+      toast.error('Failed to export tickets. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -503,10 +481,7 @@ export default function TicketPage() {
         hideViewMode={isMobile}
         afterNewTicketSlot={
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-            <TicketFiltersPanel
-              {...ticketFiltersPanelProps}
-              className="md:items-start"
-            />
+            <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start" />
             <Button
               variant="outline"
               className="w-full md:w-auto"
@@ -514,7 +489,7 @@ export default function TicketPage() {
               disabled={isExporting}
             >
               <Download className="mr-2 h-4 w-4" />
-              {isExporting ? "Exporting..." : "Export CSV"}
+              {isExporting ? 'Exporting...' : 'Export CSV'}
             </Button>
           </div>
         }
@@ -530,8 +505,6 @@ export default function TicketPage() {
         />
       ) : null}
 
-
-
       {isBoard ? (
         <BoardPage
           tickets={visibleTickets}
@@ -543,7 +516,7 @@ export default function TicketPage() {
         />
       ) : (
         <PageSection className="flex-1 pt-6">
-          <PagePanel className={isPlaceholderData ? "opacity-60" : ""}>
+          <PagePanel className={isPlaceholderData ? 'opacity-60' : ''}>
             <TicketsState
               isLoading={isLoading}
               isError={isError}

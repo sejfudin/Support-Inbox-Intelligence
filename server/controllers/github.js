@@ -1,22 +1,19 @@
-const jwt = require("jsonwebtoken");
-const nodeCrypto = require("crypto");
-const Integration = require("../models/Integration");
-const { encrypt } = require("../helpers/crypto");
-const Ticket = require("../models/Ticket");
+const jwt = require('jsonwebtoken');
+const nodeCrypto = require('crypto');
+const Integration = require('../models/Integration');
+const { encrypt } = require('../helpers/crypto');
+const Ticket = require('../models/Ticket');
 const {
   getInstallationRepositories,
   getInstallation,
   refreshPullRequest,
-} = require("../services/githubService");
-const {
-  linkPullRequestToTicket,
-  LINK_RESULT,
-} = require("../services/autoLinkService");
+} = require('../services/githubService');
+const { linkPullRequestToTicket, LINK_RESULT } = require('../services/autoLinkService');
 const {
   handlePROpened,
   handlePRMerged,
   AUTOMATION_RESULT,
-} = require("../services/statusAutomationService");
+} = require('../services/statusAutomationService');
 
 /**
  * Initiates GitHub App installation flow.
@@ -29,15 +26,13 @@ const initiateInstallation = async (req, res) => {
     if (!workspaceId) {
       return res.status(400).json({
         success: false,
-        message: "Workspace ID is required",
+        message: 'Workspace ID is required',
       });
     }
 
-    const state = jwt.sign(
-      { workspaceId, userId: req.user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "10m" }
-    );
+    const state = jwt.sign({ workspaceId, userId: req.user._id }, process.env.JWT_SECRET, {
+      expiresIn: '10m',
+    });
 
     const appName = process.env.GITHUB_APP_NAME;
     const redirectUri = `${process.env.SERVER_URL}/api/github/callback`;
@@ -45,7 +40,7 @@ const initiateInstallation = async (req, res) => {
     if (!appName) {
       return res.status(500).json({
         success: false,
-        message: "GITHUB_APP_NAME environment variable is not set",
+        message: 'GITHUB_APP_NAME environment variable is not set',
       });
     }
 
@@ -58,10 +53,10 @@ const initiateInstallation = async (req, res) => {
       data: { url: githubUrl },
     });
   } catch (error) {
-    console.error("Error initiating GitHub installation:", error);
+    console.error('Error initiating GitHub installation:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to initiate GitHub installation",
+      message: 'Failed to initiate GitHub installation',
     });
   }
 };
@@ -81,7 +76,7 @@ const handleCallback = async (req, res) => {
     }
     workspaceId = decodedState.workspaceId;
 
-    if (setup_action === "cancel") {
+    if (setup_action === 'cancel') {
       return res.redirect(
         `${process.env.CLIENT_URL}/admin/workspaces/${workspaceId}/settings?error=installation_cancelled`
       );
@@ -96,16 +91,18 @@ const handleCallback = async (req, res) => {
         githubAppInstallationId: parseInt(installation_id),
         githubAccountLogin: installation.account.login,
         githubAccountType: installation.account.type,
-        encryptedAccessToken: encrypt("placeholder"), // Will be replaced with real token when needed
+        encryptedAccessToken: encrypt('placeholder'), // Will be replaced with real token when needed
         isConnected: true,
         lastSyncAt: new Date(),
       },
       { upsert: true, new: true }
     );
 
-    res.redirect(`${process.env.CLIENT_URL}/admin/workspaces/${workspaceId}/settings?github=connected`);
+    res.redirect(
+      `${process.env.CLIENT_URL}/admin/workspaces/${workspaceId}/settings?github=connected`
+    );
   } catch (error) {
-    console.error("Error handling GitHub callback:", error);
+    console.error('Error handling GitHub callback:', error);
     const fallback = workspaceId
       ? `${process.env.CLIENT_URL}/admin/workspaces/${workspaceId}/settings?error=callback_failed`
       : `${process.env.CLIENT_URL}/my-workspaces?error=callback_failed`;
@@ -125,7 +122,7 @@ const disconnectIntegration = async (req, res) => {
     if (!integration) {
       return res.status(404).json({
         success: false,
-        message: "Integration not found",
+        message: 'Integration not found',
       });
     }
 
@@ -133,13 +130,13 @@ const disconnectIntegration = async (req, res) => {
 
     res.json({
       success: true,
-      message: "GitHub integration disconnected successfully",
+      message: 'GitHub integration disconnected successfully',
     });
   } catch (error) {
-    console.error("Error disconnecting GitHub integration:", error);
+    console.error('Error disconnecting GitHub integration:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to disconnect GitHub integration",
+      message: 'Failed to disconnect GitHub integration',
     });
   }
 };
@@ -173,10 +170,10 @@ const getIntegration = async (req, res) => {
       data: sanitizedIntegration,
     });
   } catch (error) {
-    console.error("Error fetching integration:", error);
+    console.error('Error fetching integration:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch integration status",
+      message: 'Failed to fetch integration status',
     });
   }
 };
@@ -194,7 +191,7 @@ const updateIntegration = async (req, res) => {
     if (!integration) {
       return res.status(404).json({
         success: false,
-        message: "Integration not found",
+        message: 'Integration not found',
       });
     }
 
@@ -212,7 +209,7 @@ const updateIntegration = async (req, res) => {
 
       // Check if this repo is already linked to another workspace
       const existingIntegration = await Integration.findOne({
-        "connectedRepo.fullName": fullName,
+        'connectedRepo.fullName': fullName,
         workspace: { $ne: workspaceId },
       });
 
@@ -227,7 +224,7 @@ const updateIntegration = async (req, res) => {
         owner: connectedRepo.owner,
         name: connectedRepo.name,
         fullName: fullName,
-        defaultBranch: connectedRepo.defaultBranch || "main",
+        defaultBranch: connectedRepo.defaultBranch || 'main',
       };
     }
 
@@ -249,10 +246,10 @@ const updateIntegration = async (req, res) => {
       data: sanitized,
     });
   } catch (error) {
-    console.error("Error updating integration:", error);
+    console.error('Error updating integration:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to update integration settings",
+      message: 'Failed to update integration settings',
     });
   }
 };
@@ -269,7 +266,7 @@ const getRepositories = async (req, res) => {
     if (!integration || !integration.isConnected) {
       return res.status(404).json({
         success: false,
-        message: "GitHub integration not found or not connected",
+        message: 'GitHub integration not found or not connected',
       });
     }
 
@@ -277,9 +274,9 @@ const getRepositories = async (req, res) => {
 
     // Check which repos are already linked to other workspaces
     const existingIntegrations = await Integration.find({
-      "connectedRepo.fullName": { $in: repositories.map((r) => r.full_name) },
+      'connectedRepo.fullName': { $in: repositories.map((r) => r.full_name) },
       workspace: { $ne: workspaceId },
-    }).select("connectedRepo.fullName");
+    }).select('connectedRepo.fullName');
 
     const linkedRepoNames = new Set(existingIntegrations.map((i) => i.connectedRepo.fullName));
 
@@ -298,10 +295,10 @@ const getRepositories = async (req, res) => {
       data: formattedRepos,
     });
   } catch (error) {
-    console.error("Error fetching repositories:", error);
+    console.error('Error fetching repositories:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch repositories",
+      message: 'Failed to fetch repositories',
     });
   }
 };
@@ -320,9 +317,7 @@ const handlePullRequestEvent = async (payload) => {
     return;
   }
 
-  const integration = integrations.find(
-    (integ) => integ.connectedRepo?.fullName === repoFullName,
-  );
+  const integration = integrations.find((integ) => integ.connectedRepo?.fullName === repoFullName);
 
   if (!integration) {
     return;
@@ -351,35 +346,36 @@ const handlePullRequestEvent = async (payload) => {
     createdAt: pr.created_at,
     updatedAt: pr.updated_at,
     mergedAt: pr.merged_at,
-    mergedBy: pr.merged_by ? {
-      login: pr.merged_by.login,
-      avatarUrl: pr.merged_by.avatar_url,
-    } : null,
+    mergedBy: pr.merged_by
+      ? {
+          login: pr.merged_by.login,
+          avatarUrl: pr.merged_by.avatar_url,
+        }
+      : null,
   };
 
   const result = await linkPullRequestToTicket(prData, integration.workspace);
 
   if (
     result.ticketId &&
-    (result.result === LINK_RESULT.LINKED ||
-      result.result === LINK_RESULT.ALREADY_LINKED)
+    (result.result === LINK_RESULT.LINKED || result.result === LINK_RESULT.ALREADY_LINKED)
   ) {
     const eventTime = new Date();
     let automationResult;
 
-    if (payload.action === "opened" || payload.action === "reopened") {
+    if (payload.action === 'opened' || payload.action === 'reopened') {
       automationResult = await handlePROpened(
         result.ticketId,
         integration.workspace,
         prData,
-        eventTime,
+        eventTime
       );
-    } else if (pr.merged && payload.action === "closed") {
+    } else if (pr.merged && payload.action === 'closed') {
       automationResult = await handlePRMerged(
         result.ticketId,
         integration.workspace,
         prData,
-        eventTime,
+        eventTime
       );
     }
 
@@ -430,14 +426,14 @@ const refreshPR = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: "Ticket not found",
+        message: 'Ticket not found',
       });
     }
 
     if (!ticket.linkedPullRequest) {
       return res.status(400).json({
         success: false,
-        message: "Ticket has no linked PR",
+        message: 'Ticket has no linked PR',
       });
     }
 
@@ -445,7 +441,7 @@ const refreshPR = async (req, res) => {
     if (!integration?.isConnected) {
       return res.status(404).json({
         success: false,
-        message: "GitHub integration not found or not connected",
+        message: 'GitHub integration not found or not connected',
       });
     }
 
@@ -454,7 +450,7 @@ const refreshPR = async (req, res) => {
     if (!updatedPR) {
       return res.status(404).json({
         success: false,
-        message: "PR not found on GitHub",
+        message: 'PR not found on GitHub',
       });
     }
 
@@ -466,10 +462,10 @@ const refreshPR = async (req, res) => {
       data: updatedPR,
     });
   } catch (error) {
-    console.error("Error refreshing PR:", error);
+    console.error('Error refreshing PR:', error);
     res.status(500).json({
       success: false,
-      message: error.message || "Failed to refresh PR data",
+      message: error.message || 'Failed to refresh PR data',
     });
   }
 };
@@ -488,22 +484,20 @@ const unlinkPR = async (req, res) => {
     if (!ticket) {
       return res.status(404).json({
         success: false,
-        message: "Ticket not found",
+        message: 'Ticket not found',
       });
     }
 
     if (!ticket.linkedPullRequest) {
       return res.status(400).json({
         success: false,
-        message: "Ticket has no linked PR",
+        message: 'Ticket has no linked PR',
       });
     }
 
-    const isAdmin = userRole === "admin";
+    const isAdmin = userRole === 'admin';
     const isCreator = ticket.creator?.toString() === userId;
-    const isAssigned = ticket.assignedTo?.some(
-      (id) => id.toString() === userId
-    );
+    const isAssigned = ticket.assignedTo?.some((id) => id.toString() === userId);
 
     if (!isAdmin && !isCreator && !isAssigned) {
       return res.status(403).json({
@@ -517,13 +511,13 @@ const unlinkPR = async (req, res) => {
 
     res.json({
       success: true,
-      message: "PR unlinked successfully",
+      message: 'PR unlinked successfully',
     });
   } catch (error) {
-    console.error("Error unlinking PR:", error);
+    console.error('Error unlinking PR:', error);
     res.status(500).json({
       success: false,
-      message: "Failed to unlink PR",
+      message: 'Failed to unlink PR',
     });
   }
 };

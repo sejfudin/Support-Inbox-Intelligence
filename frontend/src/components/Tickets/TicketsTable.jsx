@@ -1,13 +1,13 @@
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import React from "react";
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React from 'react';
 
 import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
-} from "@tanstack/react-table";
+} from '@tanstack/react-table';
 
 import {
   Table,
@@ -16,13 +16,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from '@/components/ui/table';
 
 export function DataTable({ columns, data, pagination, onPageChange, meta }) {
   const [sorting, setSorting] = React.useState([]);
   const currentPage = pagination?.page || 1;
   const totalResults = pagination?.total || 0;
-  const limit = pagination?.limit || 10; 
+  const limit = pagination?.limit || 10;
 
   const from = totalResults === 0 ? 0 : (currentPage - 1) * limit + 1;
   const to = Math.min(currentPage * limit, totalResults);
@@ -63,14 +63,11 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ""}`}
+                    className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ''}`}
                   >
                     {header.isPlaceholder
                       ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                      : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -82,7 +79,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
+                  data-state={row.getIsSelected() && 'selected'}
                   className="cursor-pointer border-b border-border/70 transition-colors hover:bg-secondary/50"
                   onClick={() => {
                     const id = row.original.id ?? row.original._id;
@@ -92,22 +89,16 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className={`py-4 align-top ${cell.column.columnDef.meta?.cellClassName || ""}`}
+                      className={`py-4 align-top ${cell.column.columnDef.meta?.cellClassName || ''}`}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No results.
                 </TableCell>
               </TableRow>
@@ -118,15 +109,9 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
 
       <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="text-sm text-muted-foreground">
-          Showing{" "}
-          <span className="font-medium">
-            {from}
-          </span>{" "}
-          to{" "}
-          <span className="font-medium">
-            {to}         
-          </span>{" "}
-          of <span className="font-medium">{pagination?.total || 0}</span> results
+          Showing <span className="font-medium">{from}</span> to{' '}
+          <span className="font-medium">{to}</span> of{' '}
+          <span className="font-medium">{pagination?.total || 0}</span> results
         </div>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">

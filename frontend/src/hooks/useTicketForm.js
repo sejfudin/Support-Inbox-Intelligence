@@ -1,17 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 
-export const useTicketForm = (initialStatus = "to do") => {
+export const useTicketForm = (initialStatus = 'to do') => {
   const initialState = useMemo(
     () => ({
-      subject: "",
-      description: "",
+      subject: '',
+      description: '',
       status: initialStatus,
-      priority: "medium",
+      priority: 'medium',
       storyPoints: null,
-      assignedTo: "unassigned",
-      dueDate: "",
+      assignedTo: 'unassigned',
+      dueDate: '',
     }),
-    [initialStatus],
+    [initialStatus]
   );
 
   const [form, setForm] = useState(initialState);

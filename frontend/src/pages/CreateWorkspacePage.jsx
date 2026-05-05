@@ -86,8 +86,8 @@ export default function CreateWorkspacePage() {
                       You&apos;re not in a workspace yet
                     </CardTitle>
                     <CardDescription className="mt-2 text-sm leading-6">
-                      Review the invitation on the right, accept it, and you&apos;ll be taken straight
-                      into your assigned workspace.
+                      Review the invitation on the right, accept it, and you&apos;ll be taken
+                      straight into your assigned workspace.
                     </CardDescription>
                   </div>
                 </CardHeader>
@@ -99,8 +99,8 @@ export default function CreateWorkspacePage() {
                       <div>
                         <p className="text-sm font-semibold text-slate-900">How access works</p>
                         <p className="mt-1 text-sm leading-6 text-slate-600">
-                          Invitations are tied to a workspace. Once you accept, your access is activated
-                          immediately and the app will take you there.
+                          Invitations are tied to a workspace. Once you accept, your access is
+                          activated immediately and the app will take you there.
                         </p>
                       </div>
                     </div>
@@ -112,7 +112,10 @@ export default function CreateWorkspacePage() {
                       'Accept it to unlock access right away',
                       'Ignore it if it is not relevant to you',
                     ].map((step, index) => (
-                      <div key={step} className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                      <div
+                        key={step}
+                        className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3"
+                      >
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
                           {index + 1}
                         </div>
@@ -173,8 +176,8 @@ export default function CreateWorkspacePage() {
                       <div>
                         <p className="text-sm font-semibold text-slate-900">What to expect</p>
                         <p className="mt-1 text-sm leading-7 text-slate-600">
-                          Once an admin assigns you to a workspace, you&apos;ll see the invitation here.
-                          Accept it and you&apos;ll go directly into your workspace.
+                          Once an admin assigns you to a workspace, you&apos;ll see the invitation
+                          here. Accept it and you&apos;ll go directly into your workspace.
                         </p>
                       </div>
                     </div>
@@ -244,7 +247,7 @@ export default function CreateWorkspacePage() {
   };
 
   return (
-      <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
+    <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <Card className="border-primary/10 bg-slate-950 text-white shadow-[0_32px_80px_-40px_rgba(35,39,92,0.95)]">
@@ -273,16 +276,16 @@ export default function CreateWorkspacePage() {
                 <p className="text-sm font-semibold text-white">What you unlock next</p>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center gap-3 text-sm text-slate-200">
-                    <Building2 className="h-4 w-4 text-blue-300" />
-                    A dedicated workspace for tickets, members, and workflows
+                    <Building2 className="h-4 w-4 text-blue-300" />A dedicated workspace for
+                    tickets, members, and workflows
                   </div>
                   <div className="flex items-center gap-3 text-sm text-slate-200">
                     <ShieldCheck className="h-4 w-4 text-blue-300" />
                     Admin controls for inviting users and assigning access
                   </div>
                   <div className="flex items-center gap-3 text-sm text-slate-200">
-                    <ArrowRight className="h-4 w-4 text-blue-300" />
-                    A clear starting point for your team to begin collaborating
+                    <ArrowRight className="h-4 w-4 text-blue-300" />A clear starting point for your
+                    team to begin collaborating
                   </div>
                 </div>
               </div>
@@ -309,9 +312,7 @@ export default function CreateWorkspacePage() {
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-800">
-                    Workspace name
-                  </label>
+                  <label className="text-sm font-semibold text-slate-800">Workspace name</label>
                   <Input
                     type="text"
                     placeholder="e.g. Acme Support Team"
@@ -328,7 +329,8 @@ export default function CreateWorkspacePage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-800">
-                    Description <span className="font-normal text-muted-foreground">(optional)</span>
+                    Description{' '}
+                    <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     type="text"
@@ -346,8 +348,8 @@ export default function CreateWorkspacePage() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <p className="text-sm font-semibold text-slate-900">After creation</p>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
-                    You’ll be taken into the workspace so you can start inviting users and setting up
-                    your team.
+                    You’ll be taken into the workspace so you can start inviting users and setting
+                    up your team.
                   </p>
                 </div>
 

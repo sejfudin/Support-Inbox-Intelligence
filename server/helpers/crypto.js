@@ -1,6 +1,6 @@
-const crypto = require("crypto");
+const crypto = require('crypto');
 
-const ALGORITHM = "aes-256-gcm";
+const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32;
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;
@@ -15,22 +15,22 @@ function getEncryptionKey() {
   const key = process.env.GITHUB_ENCRYPTION_KEY;
 
   if (!key) {
-    throw new Error("GITHUB_ENCRYPTION_KEY environment variable is required");
+    throw new Error('GITHUB_ENCRYPTION_KEY environment variable is required');
   }
 
   // If key is provided as hex string, convert to buffer
   if (key.length === 64) {
-    return Buffer.from(key, "hex");
+    return Buffer.from(key, 'hex');
   }
 
   // If key is provided as base64 string
-  if (key.length === 44 && key.endsWith("=")) {
-    return Buffer.from(key, "base64");
+  if (key.length === 44 && key.endsWith('=')) {
+    return Buffer.from(key, 'base64');
   }
 
   // If key is raw string, hash it to get 32 bytes
   if (key.length !== KEY_LENGTH) {
-    return crypto.createHash("sha256").update(key).digest();
+    return crypto.createHash('sha256').update(key).digest();
   }
 
   return Buffer.from(key);
@@ -50,14 +50,14 @@ function encrypt(text) {
     const iv = crypto.randomBytes(IV_LENGTH);
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
-    let encrypted = cipher.update(text, "utf8", "base64");
-    encrypted += cipher.final("base64");
+    let encrypted = cipher.update(text, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
 
     const authTag = cipher.getAuthTag();
 
-    const result = Buffer.concat([iv, authTag, Buffer.from(encrypted, "base64")]);
+    const result = Buffer.concat([iv, authTag, Buffer.from(encrypted, 'base64')]);
 
-    return result.toString("base64");
+    return result.toString('base64');
   } catch (error) {
     throw new Error(`Encryption failed: ${error.message}`);
   }
@@ -74,7 +74,7 @@ function decrypt(encryptedText) {
 
   try {
     const key = getEncryptionKey();
-    const data = Buffer.from(encryptedText, "base64");
+    const data = Buffer.from(encryptedText, 'base64');
 
     const iv = data.slice(0, IV_LENGTH);
     const authTag = data.slice(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
@@ -86,7 +86,7 @@ function decrypt(encryptedText) {
     let decrypted = decipher.update(ciphertext);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-    return decrypted.toString("utf8");
+    return decrypted.toString('utf8');
   } catch (error) {
     throw new Error(`Decryption failed: ${error.message}`);
   }

@@ -9,13 +9,12 @@ export const getTicketsQueryParams = ({
   listLimit = 10,
   boardLimit = 10000,
 }) => {
-  const listStatus =
-    status !== undefined ? status : activeTab === "all" ? "" : activeTab;
-  const normalizedStatus = listStatus === null ? "null" : listStatus;
+  const listStatus = status !== undefined ? status : activeTab === 'all' ? '' : activeTab;
+  const normalizedStatus = listStatus === null ? 'null' : listStatus;
 
   const filterParams = { ...queryFilters };
-  const sortBy = filterParams.sortBy ?? "updatedAt";
-  const sortOrder = filterParams.sortOrder === "asc" ? "asc" : "desc";
+  const sortBy = filterParams.sortBy ?? 'updatedAt';
+  const sortOrder = filterParams.sortOrder === 'asc' ? 'asc' : 'desc';
   delete filterParams.sortBy;
   delete filterParams.sortOrder;
 
@@ -39,9 +38,9 @@ export const getTicketsQueryParams = ({
       page: 1,
       limit: boardLimit,
       ...sharedParams,
-      status: status !== undefined ? normalizedStatus : "",
-      sortBy: "updatedAt",
-      sortOrder: "desc",
+      status: status !== undefined ? normalizedStatus : '',
+      sortBy: 'updatedAt',
+      sortOrder: 'desc',
     },
   };
 };

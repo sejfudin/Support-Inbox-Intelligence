@@ -1,5 +1,5 @@
 export const formatDuration = (seconds) => {
-  if (!seconds || seconds <= 0) return "-";
+  if (!seconds || seconds <= 0) return '-';
 
   const d = Math.floor(seconds / 86400);
   if (d > 0) return `${d}d`;
@@ -10,7 +10,7 @@ export const formatDuration = (seconds) => {
   const m = Math.floor(seconds / 60);
   if (m > 0) return `${m}m`;
 
-  if (seconds > 0) return "<1m";
+  if (seconds > 0) return '<1m';
 
-  return "-";
+  return '-';
 };

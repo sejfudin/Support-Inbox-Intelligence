@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
-import { toast } from "sonner";
-import { useSuggestTicketMetadata } from "@/queries/tickets";
-import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from "@/helpers/aiValidationRules";
+import { useCallback, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
+import { useSuggestTicketMetadata } from '@/queries/tickets';
+import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from '@/helpers/aiValidationRules';
 
 export const useAiTicketSuggestion = ({
   isOpen,
@@ -16,10 +16,10 @@ export const useAiTicketSuggestion = ({
 
   const latestSuggestionRequestIdRef = useRef(0);
   const manualSuggestionInFlightRef = useRef(false);
-  const lastAutoSuggestionInputKeyRef = useRef("");
+  const lastAutoSuggestionInputKeyRef = useRef('');
 
-  const safeSubject = String(subject || "").trim();
-  const safeDescription = String(description || "").trim();
+  const safeSubject = String(subject || '').trim();
+  const safeDescription = String(description || '').trim();
 
   const hasSuggestibleInput =
     !isPaused &&
@@ -29,32 +29,32 @@ export const useAiTicketSuggestion = ({
   const resetSuggestionState = useCallback(() => {
     latestSuggestionRequestIdRef.current = 0;
     manualSuggestionInFlightRef.current = false;
-    lastAutoSuggestionInputKeyRef.current = "";
+    lastAutoSuggestionInputKeyRef.current = '';
   }, []);
 
   const applySuggestion = useCallback(
     (suggestion, { force = false } = {}) => {
-      if (!suggestion || typeof suggestion !== "object") return;
+      if (!suggestion || typeof suggestion !== 'object') return;
 
       if ((force || !priorityLockedByUser) && suggestion.priority) {
-        updateField("priority", suggestion.priority);
+        updateField('priority', suggestion.priority);
       }
 
       if ((force || !storyPointsLockedByUser) && suggestion.storyPoints != null) {
-        updateField("storyPoints", suggestion.storyPoints);
+        updateField('storyPoints', suggestion.storyPoints);
       }
     },
-    [priorityLockedByUser, storyPointsLockedByUser, updateField],
+    [priorityLockedByUser, storyPointsLockedByUser, updateField]
   );
 
   const requestSuggestion = useCallback(
-    ({ force = false, showToast = false, source = "auto" } = {}) => {
+    ({ force = false, showToast = false, source = 'auto' } = {}) => {
       if (isPaused) return false;
       if (!hasSuggestibleInput) return false;
       if (suggestMetadataMutation.isPending) return false;
 
-      if (source === "auto" && manualSuggestionInFlightRef.current) return false;
-      if (source === "manual") {
+      if (source === 'auto' && manualSuggestionInFlightRef.current) return false;
+      if (source === 'manual') {
         manualSuggestionInFlightRef.current = true;
       }
 
@@ -66,23 +66,22 @@ export const useAiTicketSuggestion = ({
           onSuccess: (res) => {
             if (requestId !== latestSuggestionRequestIdRef.current) return;
             applySuggestion(res?.data, { force });
-            if (showToast) toast.success("AI suggestions applied.");
+            if (showToast) toast.success('AI suggestions applied.');
           },
           onError: (error) => {
             if (requestId !== latestSuggestionRequestIdRef.current) return;
             if (showToast) {
               toast.error(
-                error?.response?.data?.message ||
-                  "AI suggestion is unavailable right now.",
+                error?.response?.data?.message || 'AI suggestion is unavailable right now.'
               );
             }
           },
           onSettled: () => {
-            if (source === "manual") {
+            if (source === 'manual') {
               manualSuggestionInFlightRef.current = false;
             }
           },
-        },
+        }
       );
 
       return true;
@@ -94,19 +93,19 @@ export const useAiTicketSuggestion = ({
       safeDescription,
       suggestMetadataMutation,
       applySuggestion,
-    ],
+    ]
   );
 
   useEffect(() => {
     if (!isOpen) return;
 
     if (isPaused) {
-      lastAutoSuggestionInputKeyRef.current = "";
+      lastAutoSuggestionInputKeyRef.current = '';
       return;
     }
 
     if (!hasSuggestibleInput) {
-      lastAutoSuggestionInputKeyRef.current = "";
+      lastAutoSuggestionInputKeyRef.current = '';
       return;
     }
 
@@ -120,7 +119,7 @@ export const useAiTicketSuggestion = ({
       const started = requestSuggestion({
         force: false,
         showToast: false,
-        source: "auto",
+        source: 'auto',
       });
 
       if (started) {
@@ -136,7 +135,7 @@ export const useAiTicketSuggestion = ({
     if (!hasSuggestibleInput) return;
     if (manualSuggestionInFlightRef.current) return;
 
-    requestSuggestion({ force: true, showToast: true, source: "manual" });
+    requestSuggestion({ force: true, showToast: true, source: 'manual' });
   }, [isPaused, hasSuggestibleInput, requestSuggestion]);
 
   return {
@@ -146,4 +145,3 @@ export const useAiTicketSuggestion = ({
     resetSuggestionState,
   };
 };
-

@@ -1,5 +1,5 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 const buildArray = (length) => Array.from({ length });
 
@@ -21,10 +21,7 @@ export default function BoardSkeleton({ columns = 4, cards = 3 }) {
             </div>
             <div className="px-4 pb-4 space-y-3">
               {cardItems.map((_, cardIdx) => (
-                <div
-                  key={`card-${colIdx}-${cardIdx}`}
-                  className="rounded-md border p-3"
-                >
+                <div key={`card-${colIdx}-${cardIdx}`} className="rounded-md border p-3">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="mt-2 h-3 w-1/3" />
                 </div>

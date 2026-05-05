@@ -1,31 +1,31 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const invitationSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Workspace",
+      ref: 'Workspace',
       required: true,
     },
     invitedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     workspaceRole: {
       type: String,
-      enum: ["admin", "member"],
-      default: "member",
+      enum: ['admin', 'member'],
+      default: 'member',
     },
     status: {
       type: String,
-      enum: ["pending", "accepted", "declined", "cancelled"],
-      default: "pending",
+      enum: ['pending', 'accepted', 'declined', 'cancelled'],
+      default: 'pending',
     },
     respondedAt: {
       type: Date,
@@ -38,4 +38,4 @@ const invitationSchema = new mongoose.Schema(
 
 invitationSchema.index({ user: 1, workspace: 1, status: 1 });
 
-module.exports = mongoose.model("Invitation", invitationSchema);
+module.exports = mongoose.model('Invitation', invitationSchema);

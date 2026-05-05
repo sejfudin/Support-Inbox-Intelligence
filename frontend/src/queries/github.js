@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   initiateGitHubInstallation,
   getIntegration,
@@ -7,11 +7,11 @@ import {
   getRepositories,
   refreshPR,
   unlinkPR,
-} from "@/api/github";
+} from '@/api/github';
 
 export const useIntegration = (workspaceId) => {
   return useQuery({
-    queryKey: ["integration", workspaceId],
+    queryKey: ['integration', workspaceId],
     queryFn: () => getIntegration(workspaceId),
     enabled: !!workspaceId,
   });
@@ -19,7 +19,7 @@ export const useIntegration = (workspaceId) => {
 
 export const useRepositories = (workspaceId, isConnected) => {
   return useQuery({
-    queryKey: ["repositories", workspaceId],
+    queryKey: ['repositories', workspaceId],
     queryFn: () => getRepositories(workspaceId),
     enabled: !!workspaceId && isConnected,
   });
@@ -37,7 +37,7 @@ export const useUpdateIntegration = () => {
   return useMutation({
     mutationFn: ({ workspaceId, data }) => updateIntegration(workspaceId, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["integration", variables.workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['integration', variables.workspaceId] });
     },
   });
 };
@@ -48,7 +48,7 @@ export const useDisconnectIntegration = () => {
   return useMutation({
     mutationFn: disconnectIntegration,
     onSuccess: (_, workspaceId) => {
-      queryClient.invalidateQueries({ queryKey: ["integration", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['integration', workspaceId] });
     },
   });
 };
@@ -59,7 +59,7 @@ export const useRefreshPR = () => {
   return useMutation({
     mutationFn: ({ ticketId, workspaceId }) => refreshPR(ticketId, workspaceId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["ticket", variables.ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] });
     },
   });
 };
@@ -70,7 +70,7 @@ export const useUnlinkPR = () => {
   return useMutation({
     mutationFn: unlinkPR,
     onSuccess: (_, ticketId) => {
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
     },
   });
 };

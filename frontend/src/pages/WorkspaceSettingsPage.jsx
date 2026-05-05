@@ -1,8 +1,8 @@
-import { useParams } from "react-router-dom";
-import { useWorkspace } from "@/queries/workspaces";
-import { IntegrationSettings } from "@/components/IntegrationSettings";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Settings } from "lucide-react";
+import { useParams } from 'react-router-dom';
+import { useWorkspace } from '@/queries/workspaces';
+import { IntegrationSettings } from '@/components/IntegrationSettings';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, Settings } from 'lucide-react';
 
 const WorkspaceSettingsPage = () => {
   const { id } = useParams();
@@ -29,7 +29,9 @@ const WorkspaceSettingsPage = () => {
               <h1 className="break-words text-2xl font-bold text-gray-900">{workspace.name}</h1>
             </div>
             {workspace.description && (
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{workspace.description}</p>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                {workspace.description}
+              </p>
             )}
           </div>
         </div>

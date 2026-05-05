@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAllTickets,
   getTicket,
@@ -6,17 +6,17 @@ import {
   createTicket,
   archiveTicket,
   updateTicket,
-  getMyTickets, 
+  getMyTickets,
   suggestTicketMetadata,
-  generateTicketDescription
-} from "@/api/tickets";
+  generateTicketDescription,
+} from '@/api/tickets';
 
 const invalidateWorkspaceAnalytics = (queryClient) => {
   queryClient.invalidateQueries({
     predicate: (query) =>
       Array.isArray(query.queryKey) &&
-      query.queryKey[0] === "workspaces" &&
-      query.queryKey.includes("analytics"),
+      query.queryKey[0] === 'workspaces' &&
+      query.queryKey.includes('analytics'),
   });
 };
 
@@ -24,14 +24,14 @@ const invalidateUserAnalytics = (queryClient) => {
   queryClient.invalidateQueries({
     predicate: (query) =>
       Array.isArray(query.queryKey) &&
-      query.queryKey[0] === "workspaces" &&
-      query.queryKey.includes("user-analytics"),
+      query.queryKey[0] === 'workspaces' &&
+      query.queryKey.includes('user-analytics'),
   });
 };
 
 export const useTickets = (params, options = {}) => {
   return useQuery({
-    queryKey: ["tickets", params],
+    queryKey: ['tickets', params],
     queryFn: () => getAllTickets(params),
     placeholderData: (previousData) => previousData,
     ...options,
@@ -40,7 +40,7 @@ export const useTickets = (params, options = {}) => {
 
 export const useTicket = (id) => {
   return useQuery({
-    queryKey: ["ticket", id],
+    queryKey: ['ticket', id],
     queryFn: () => getTicket(id),
     enabled: !!id,
   });
@@ -52,7 +52,7 @@ export const useAddMessage = () => {
   return useMutation({
     mutationFn: addMessage,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries(["ticket", variables.ticketId]);
+      queryClient.invalidateQueries(['ticket', variables.ticketId]);
     },
   });
 };
@@ -62,7 +62,7 @@ export const useCreateTicket = () => {
   return useMutation({
     mutationFn: createTicket,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
       invalidateWorkspaceAnalytics(queryClient);
       invalidateUserAnalytics(queryClient);
     },
@@ -75,9 +75,9 @@ export const useUpdateTicket = () => {
   return useMutation({
     mutationFn: (vars) => updateTicket(vars.ticketId, vars.updates),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["ticket", variables.ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["ticket-history", variables.ticketId] });
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket-history', variables.ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
       invalidateWorkspaceAnalytics(queryClient);
       invalidateUserAnalytics(queryClient);
     },
@@ -90,8 +90,8 @@ export const useArchiveTicket = () => {
   return useMutation({
     mutationFn: archiveTicket,
     onSuccess: (_, ticketId) => {
-      queryClient.invalidateQueries({ queryKey: ["tickets"] });
-      queryClient.invalidateQueries({ queryKey: ["ticket", ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
       invalidateWorkspaceAnalytics(queryClient);
       invalidateUserAnalytics(queryClient);
     },
@@ -100,7 +100,7 @@ export const useArchiveTicket = () => {
 
 export const useMyTickets = (params, options = {}) => {
   return useQuery({
-    queryKey: ["tickets", "workspace", params],
+    queryKey: ['tickets', 'workspace', params],
     queryFn: () => getMyTickets(params),
     placeholderData: (previousData) => previousData,
     ...options,
@@ -116,6 +116,5 @@ export const useSuggestTicketMetadata = () => {
 export const useGenerateTicketDescription = () => {
   return useMutation({
     mutationFn: generateTicketDescription,
-  })
+  });
 };
-

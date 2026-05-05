@@ -1,53 +1,43 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { useGenerateTicketDescription } from "@/queries/tickets";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { useGenerateTicketDescription } from '@/queries/tickets';
 import {
   AI_PROMPT_MIN_LENGTH,
   extractAiPromptFromDescriptionHtml,
-} from "@/helpers/aiDescriptionPrompt";
-import { MIN_SUBJECT_LENGTH } from "@/helpers/aiValidationRules";
+} from '@/helpers/aiDescriptionPrompt';
+import { MIN_SUBJECT_LENGTH } from '@/helpers/aiValidationRules';
 
-export const useAiDescriptionGenerator = ({
-  isOpen,
-  subject,
-  descriptionHtml,
-  updateField,
-}) => {
+export const useAiDescriptionGenerator = ({ isOpen, subject, descriptionHtml, updateField }) => {
   const generateDescriptionMutation = useGenerateTicketDescription();
 
   const [isDescriptionDraftActive, setIsDescriptionDraftActive] = useState(false);
 
-  const originalDescriptionHtmlRef = useRef("");
-  const originalPromptTextRef = useRef("");
+  const originalDescriptionHtmlRef = useRef('');
+  const originalPromptTextRef = useRef('');
   const latestRequestIdRef = useRef(0);
 
-  const safeSubject = String(subject || "").trim();
+  const safeSubject = String(subject || '').trim();
 
   const { isAiPromptMode, prompt: parsedPrompt } = useMemo(
     () => extractAiPromptFromDescriptionHtml(descriptionHtml),
-    [descriptionHtml],
+    [descriptionHtml]
   );
 
   const isPromptPanelVisible = isAiPromptMode || isDescriptionDraftActive;
-  const effectivePrompt = isDescriptionDraftActive
-    ? originalPromptTextRef.current
-    : parsedPrompt;
+  const effectivePrompt = isDescriptionDraftActive ? originalPromptTextRef.current : parsedPrompt;
 
   const hasValidSubject = safeSubject.length >= MIN_SUBJECT_LENGTH;
   const hasValidPrompt = effectivePrompt.length >= AI_PROMPT_MIN_LENGTH;
 
-  const canGenerateDescription =
-    isPromptPanelVisible && hasValidSubject && hasValidPrompt;
+  const canGenerateDescription = isPromptPanelVisible && hasValidSubject && hasValidPrompt;
 
   const shouldPauseMetadataSuggestion =
-    isAiPromptMode ||
-    isDescriptionDraftActive ||
-    generateDescriptionMutation.isPending;
+    isAiPromptMode || isDescriptionDraftActive || generateDescriptionMutation.isPending;
 
   const resetDescriptionGenerationState = useCallback(() => {
     latestRequestIdRef.current = 0;
-    originalDescriptionHtmlRef.current = "";
-    originalPromptTextRef.current = "";
+    originalDescriptionHtmlRef.current = '';
+    originalPromptTextRef.current = '';
     setIsDescriptionDraftActive(false);
   }, []);
 
@@ -63,7 +53,7 @@ export const useAiDescriptionGenerator = ({
       if (generateDescriptionMutation.isPending) return false;
 
       if (!isDescriptionDraftActive) {
-        originalDescriptionHtmlRef.current = String(descriptionHtml || "");
+        originalDescriptionHtmlRef.current = String(descriptionHtml || '');
         originalPromptTextRef.current = effectivePrompt;
       }
 
@@ -75,17 +65,17 @@ export const useAiDescriptionGenerator = ({
           onSuccess: (res) => {
             if (requestId !== latestRequestIdRef.current) return;
 
-            const descriptionFromAi = String(res?.data?.descriptionHtml || "").trim();
+            const descriptionFromAi = String(res?.data?.descriptionHtml || '').trim();
             if (!descriptionFromAi) {
-              toast.error("AI generated empty description.");
+              toast.error('AI generated empty description.');
               return;
             }
 
-            updateField("description", descriptionFromAi);
+            updateField('description', descriptionFromAi);
             setIsDescriptionDraftActive(true);
 
             if (showToast) {
-              toast.success("Description generated.");
+              toast.success('Description generated.');
             }
           },
           onError: (error) => {
@@ -93,10 +83,10 @@ export const useAiDescriptionGenerator = ({
 
             toast.error(
               error?.response?.data?.message ||
-                "AI description generation is unavailable right now.",
+                'AI description generation is unavailable right now.'
             );
           },
-        },
+        }
       );
 
       return true;
@@ -109,22 +99,22 @@ export const useAiDescriptionGenerator = ({
       effectivePrompt,
       safeSubject,
       updateField,
-    ],
+    ]
   );
 
   const acceptGeneratedDescription = useCallback(() => {
     if (!isDescriptionDraftActive) return;
-    originalDescriptionHtmlRef.current = "";
-    originalPromptTextRef.current = "";
+    originalDescriptionHtmlRef.current = '';
+    originalPromptTextRef.current = '';
     setIsDescriptionDraftActive(false);
   }, [isDescriptionDraftActive]);
 
   const cancelGeneratedDescription = useCallback(() => {
     if (!isDescriptionDraftActive) return;
 
-    updateField("description", originalDescriptionHtmlRef.current || "");
-    originalDescriptionHtmlRef.current = "";
-    originalPromptTextRef.current = "";
+    updateField('description', originalDescriptionHtmlRef.current || '');
+    originalDescriptionHtmlRef.current = '';
+    originalPromptTextRef.current = '';
     setIsDescriptionDraftActive(false);
   }, [isDescriptionDraftActive, updateField]);
 

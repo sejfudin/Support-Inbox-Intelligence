@@ -82,7 +82,9 @@ exports.inviteMember = async (req, res, next) => {
       err.message === 'User is already a member of this workspace' ||
       err.message === 'User already has a pending invitation for this workspace'
     ) {
-      return res.status(err.message === 'User is required' ? 400 : 409).json({ message: err.message });
+      return res
+        .status(err.message === 'User is required' ? 400 : 409)
+        .json({ message: err.message });
     }
     next(err);
   }
@@ -124,8 +126,10 @@ exports.switchWorkspace = async (req, res, next) => {
     });
     res.json(result);
   } catch (err) {
-    if (err.message === 'Workspace not found') return res.status(404).json({ message: err.message });
-    if (err.message === 'Not a member of this workspace') return res.status(403).json({ message: err.message });
+    if (err.message === 'Workspace not found')
+      return res.status(404).json({ message: err.message });
+    if (err.message === 'Not a member of this workspace')
+      return res.status(403).json({ message: err.message });
     next(err);
   }
 };
@@ -135,7 +139,8 @@ exports.deleteWorkspace = async (req, res, next) => {
     const result = await workspaceService.deleteWorkspace(req.params.id);
     res.json(result);
   } catch (err) {
-    if (err.message === 'Workspace not found') return res.status(404).json({ message: err.message });
+    if (err.message === 'Workspace not found')
+      return res.status(404).json({ message: err.message });
     next(err);
   }
 };

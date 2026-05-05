@@ -1,6 +1,6 @@
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, LayoutList, LayoutGrid, Plus } from "lucide-react";
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, LayoutList, LayoutGrid, Plus } from 'lucide-react';
 
 export default function TicketsHeader({
   viewMode,
@@ -12,7 +12,7 @@ export default function TicketsHeader({
   hideViewMode = false,
   disableBoardView = false,
   hideNewTicket = false,
-  title = "Tickets",
+  title = 'Tickets',
   afterNewTicketSlot = null,
 }) {
   return (
@@ -28,18 +28,18 @@ export default function TicketsHeader({
             {!hideViewMode && (
               <div className="shrink-0 flex items-center rounded-2xl border border-border/80 bg-secondary/70 p-1">
                 <Button
-                  variant={viewMode === "list" ? "default" : "ghost"}
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => onViewModeChange("list")}
+                  onClick={() => onViewModeChange('list')}
                   className="gap-2 rounded-xl"
                 >
                   <LayoutList className="h-4 w-4" />
                   <span className="hidden sm:inline">List</span>
                 </Button>
                 <Button
-                  variant={viewMode === "board" ? "default" : "ghost"}
+                  variant={viewMode === 'board' ? 'default' : 'ghost'}
                   size="sm"
-                  onClick={() => onViewModeChange("board")}
+                  onClick={() => onViewModeChange('board')}
                   className="gap-2 rounded-xl"
                   disabled={disableBoardView}
                 >
@@ -72,12 +72,9 @@ export default function TicketsHeader({
         </div>
 
         {afterNewTicketSlot ? (
-          <div className="mt-3 border-t border-border/60 pt-3">
-            {afterNewTicketSlot}
-          </div>
+          <div className="mt-3 border-t border-border/60 pt-3">{afterNewTicketSlot}</div>
         ) : null}
       </div>
     </div>
   );
 }
-  

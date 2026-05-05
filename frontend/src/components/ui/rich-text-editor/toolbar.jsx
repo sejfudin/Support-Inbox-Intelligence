@@ -1,8 +1,8 @@
-"use client"
+'use client';
 
-import * as React from "react"
+import * as React from 'react';
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -10,35 +10,35 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Toggle } from "@/components/ui/toggle"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from '@/components/ui/select';
+import { Toggle } from '@/components/ui/toggle';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-import { _useRichTextEditorContext } from "./context"
-import { _useHeading, _useToolbarItems } from "./hooks"
+import { _useRichTextEditorContext } from './context';
+import { _useHeading, _useToolbarItems } from './hooks';
 
 function HeadingSelect() {
-  const { headings, activeHeading } = _useHeading()
+  const { headings, activeHeading } = _useHeading();
 
-  const handleHeadingChange = React.useCallback((value) => {
-    const selectedOption = headings.find((option) => option.label === value)
-    if (selectedOption && !selectedOption.disabled) {
-      selectedOption.action()
-    }
-  }, [headings])
+  const handleHeadingChange = React.useCallback(
+    (value) => {
+      const selectedOption = headings.find((option) => option.label === value);
+      if (selectedOption && !selectedOption.disabled) {
+        selectedOption.action();
+      }
+    },
+    [headings]
+  );
 
   return (
     <Select value={activeHeading} onValueChange={handleHeadingChange}>
       <SelectTrigger
         className="h-8 w-14 border-none px-1.5 py-0 shadow-none dark:bg-transparent"
-        aria-label="Text style">
+        aria-label="Text style"
+      >
         <SelectValue>{activeHeading}</SelectValue>
       </SelectTrigger>
-      <SelectContent 
+      <SelectContent
         onCloseAutoFocus={(e) => e.preventDefault()}
         position="popper"
         sideOffset={4}
@@ -49,9 +49,7 @@ function HeadingSelect() {
           {headings.map((item) => (
             <SelectItem key={item.label} value={item.label} disabled={item.disabled}>
               {item.label}
-              <span className="text-muted-foreground text-xs">
-                ({item.shortcut})
-              </span>
+              <span className="text-muted-foreground text-xs">({item.shortcut})</span>
             </SelectItem>
           ))}
         </SelectGroup>
@@ -60,19 +58,18 @@ function HeadingSelect() {
   );
 }
 
-function RichTextEditorToolbar({
-  className
-}) {
-  const { editor } = _useRichTextEditorContext()
+function RichTextEditorToolbar({ className }) {
+  const { editor } = _useRichTextEditorContext();
 
-  const toolbarItemGroup = _useToolbarItems()
+  const toolbarItemGroup = _useToolbarItems();
 
-  if (!editor) return null
+  if (!editor) return null;
 
   return (
     <div
-      className={cn("flex flex-wrap items-center divide-x-1 p-1", className)}
-      data-slot="rich-text-editor-toolbar">
+      className={cn('flex flex-wrap items-center divide-x-1 p-1', className)}
+      data-slot="rich-text-editor-toolbar"
+    >
       <div className="pr-1.5 pl-1">
         <HeadingSelect />
       </div>
@@ -84,20 +81,19 @@ function RichTextEditorToolbar({
                 <Toggle
                   onPressedChange={item.onClick}
                   disabled={item.disabled}
-                  size={"sm"}
+                  size={'sm'}
                   className={cn({
-                    "bg-accent": item.isActive,
+                    'bg-accent': item.isActive,
                   })}
-                  pressed={item.isActive}>
+                  pressed={item.isActive}
+                >
                   <item.icon />
                   <span className="sr-only">{item.tooltip}</span>
                 </Toggle>
               </TooltipTrigger>
               <TooltipContent>
-                {item.tooltip}{" "}
-                <span className="text-muted-foreground text-xs">
-                  ({item.shortcut})
-                </span>
+                {item.tooltip}{' '}
+                <span className="text-muted-foreground text-xs">({item.shortcut})</span>
               </TooltipContent>
             </Tooltip>
           ))}
@@ -107,6 +103,6 @@ function RichTextEditorToolbar({
   );
 }
 
-RichTextEditorToolbar.displayName = "RichTextEditorToolbar"
+RichTextEditorToolbar.displayName = 'RichTextEditorToolbar';
 
-export { RichTextEditorToolbar as _RichTextEditorToolbar }
+export { RichTextEditorToolbar as _RichTextEditorToolbar };

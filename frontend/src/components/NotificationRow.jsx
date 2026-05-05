@@ -1,8 +1,8 @@
-import { formatDistanceToNow } from "date-fns";
-import { Check, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { getTicketIdFromNotification, isMongoId } from "@/helpers/notificationUtils";
+import { formatDistanceToNow } from 'date-fns';
+import { Check, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { getTicketIdFromNotification, isMongoId } from '@/helpers/notificationUtils';
 
 export function NotificationRow({ notification, markReadPending, onMarkRead, onOpenTicket }) {
   const ticketId = getTicketIdFromNotification(notification);
@@ -10,13 +10,13 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
   const timeLabel =
     created && !Number.isNaN(created.getTime())
       ? formatDistanceToNow(created, { addSuffix: true })
-      : "";
+      : '';
 
   return (
     <li
       className={cn(
-        "px-3 py-2.5 transition-colors",
-        !notification.read ? "bg-primary/5" : "bg-transparent",
+        'px-3 py-2.5 transition-colors',
+        !notification.read ? 'bg-primary/5' : 'bg-transparent'
       )}
     >
       <div className="flex flex-col gap-1">

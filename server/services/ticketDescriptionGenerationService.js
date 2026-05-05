@@ -1,25 +1,24 @@
-const sanitizeHtml = require("sanitize-html");
-const { buildTicketDescriptionGenerationPrompt } = require("../prompts/ticketPrompts");
+const sanitizeHtml = require('sanitize-html');
+const { buildTicketDescriptionGenerationPrompt } = require('../prompts/ticketPrompts');
 const {
   MIN_SUBJECT_LENGTH,
   MIN_TEXT_LENGTH,
   DESCRIPTION_ALLOWED_TAGS,
-} = require("../helpers/aiValidationRules");
+} = require('../helpers/aiValidationRules');
 const {
   createAiServiceError,
   extractJsonObject,
   requestGroqOutputText,
-} = require("./groqAiClient");
-
+} = require('./groqAiClient');
 
 const SANITIZE_OPTIONS = {
   allowedTags: DESCRIPTION_ALLOWED_TAGS,
   allowedAttributes: {},
-  disallowedTagsMode: "discard",
+  disallowedTagsMode: 'discard',
 };
 
 function normalizeText(value) {
-  return String(value || "").trim();
+  return String(value || '').trim();
 }
 
 function validateDescriptionGenerationInput({ subject, prompt }) {
@@ -38,7 +37,7 @@ function validateDescriptionGenerationInput({ subject, prompt }) {
 }
 
 function extractDescriptionHtmlFromPayload(payload) {
-  if (!payload || typeof payload !== "object") return "";
+  if (!payload || typeof payload !== 'object') return '';
   return normalizeText(payload.descriptionHtml);
 }
 
@@ -60,12 +59,12 @@ async function generateTicketDescription({ subject, prompt }) {
 
   const rawDescriptionHtml = extractDescriptionHtmlFromPayload(parsed);
   if (!rawDescriptionHtml) {
-    throw createAiServiceError("AI returned invalid description format.", 502);
+    throw createAiServiceError('AI returned invalid description format.', 502);
   }
 
   const descriptionHtml = sanitizeDescriptionHtml(rawDescriptionHtml);
   if (!descriptionHtml) {
-    throw createAiServiceError("AI generated empty description.", 502);
+    throw createAiServiceError('AI generated empty description.', 502);
   }
 
   return { descriptionHtml };

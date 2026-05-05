@@ -1,9 +1,9 @@
-import { Outlet } from "react-router-dom";
-import { useState } from "react";
-import AppSidebar from "@/components/AppSidebar";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import PageHeader from "@/components/PageHeader";
-import NavbarNotifications from "@/components/NavbarNotifications";
+import { Outlet } from 'react-router-dom';
+import { useState } from 'react';
+import AppSidebar from '@/components/AppSidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import PageHeader from '@/components/PageHeader';
+import NavbarNotifications from '@/components/NavbarNotifications';
 
 export default function SidebarLayout() {
   const [header, setHeader] = useState(null);

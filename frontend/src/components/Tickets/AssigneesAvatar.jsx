@@ -1,6 +1,6 @@
-import { Avatar } from "@/components/Avatar";
+import { Avatar } from '@/components/Avatar';
 
-export default function AssigneesAvatar({ users, emptyLabel = "Unassigned" }) {
+export default function AssigneesAvatar({ users, emptyLabel = 'Unassigned' }) {
   if (!users || (Array.isArray(users) && users.length === 0)) {
     return <span className="text-xs text-muted-foreground">{emptyLabel}</span>;
   }

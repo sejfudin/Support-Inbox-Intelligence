@@ -1,20 +1,20 @@
-const ALLOWED_PRIORITIES = ["low", "medium", "high", "critical"];
+const ALLOWED_PRIORITIES = ['low', 'medium', 'high', 'critical'];
 const PRIORITY_SET = new Set(ALLOWED_PRIORITIES);
 
 const STORY_POINTS_MIN = 1;
 const STORY_POINTS_MAX = 5;
-const { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } = require("../helpers/aiValidationRules");
+const { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } = require('../helpers/aiValidationRules');
 
-const { buildTicketMetadataSuggestionPrompt } = require("../prompts/ticketPrompts");
+const { buildTicketMetadataSuggestionPrompt } = require('../prompts/ticketPrompts');
 const {
   createAiServiceError,
   extractJsonObject,
   requestGroqOutputText,
-} = require("./groqAiClient");
+} = require('./groqAiClient');
 
 // Helpers
 function normalizeText(value) {
-  return String(value || "").trim();
+  return String(value || '').trim();
 }
 
 function validateSuggestionInput({ subject, description }) {
@@ -33,7 +33,9 @@ function validateSuggestionInput({ subject, description }) {
 }
 
 function normalizePriority(value) {
-  const safe = String(value || "").trim().toLowerCase();
+  const safe = String(value || '')
+    .trim()
+    .toLowerCase();
   return PRIORITY_SET.has(safe) ? safe : null;
 }
 
@@ -48,7 +50,7 @@ function normalizeStoryPoints(value) {
 }
 
 function sanitizeSuggestion(raw) {
-  if (!raw || typeof raw !== "object") return null;
+  if (!raw || typeof raw !== 'object') return null;
 
   const priority = normalizePriority(raw.priority);
   const storyPoints = normalizeStoryPoints(raw.storyPoints);
@@ -72,7 +74,7 @@ async function suggestTicketMetadata({ subject, description }) {
   const sanitized = sanitizeSuggestion(parsed);
 
   if (!sanitized) {
-    throw createAiServiceError("AI returned invalid suggestion format.", 502);
+    throw createAiServiceError('AI returned invalid suggestion format.', 502);
   }
 
   return sanitized;

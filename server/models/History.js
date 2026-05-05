@@ -1,9 +1,9 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const historySchema = new mongoose.Schema({
   ticketId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Ticket",
+    ref: 'Ticket',
     required: true,
     index: true,
   },
@@ -14,7 +14,7 @@ const historySchema = new mongoose.Schema({
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: 'User',
     required: true,
   },
   userName: {
@@ -28,4 +28,4 @@ const historySchema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model("History", historySchema);
+module.exports = mongoose.model('History', historySchema);

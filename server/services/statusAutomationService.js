@@ -1,13 +1,13 @@
-const Ticket = require("../models/Ticket");
-const Integration = require("../models/Integration");
+const Ticket = require('../models/Ticket');
+const Integration = require('../models/Integration');
 
 const AUTOMATION_RESULT = {
-  STATUS_UPDATED: "status_updated",
-  ALREADY_TARGET_STATUS: "already_target_status",
-  AUTOMATION_DISABLED: "automation_disabled",
-  TICKET_NOT_FOUND: "ticket_not_found",
-  SETTINGS_NOT_FOUND: "settings_not_found",
-  ERROR: "error",
+  STATUS_UPDATED: 'status_updated',
+  ALREADY_TARGET_STATUS: 'already_target_status',
+  AUTOMATION_DISABLED: 'automation_disabled',
+  TICKET_NOT_FOUND: 'ticket_not_found',
+  SETTINGS_NOT_FOUND: 'settings_not_found',
+  ERROR: 'error',
 };
 
 /**
@@ -17,7 +17,7 @@ async function getAutomationSettings(workspaceId) {
   const integration = await Integration.findOne({
     workspace: workspaceId,
     isConnected: true,
-  }).select("settings");
+  }).select('settings');
 
   return integration?.settings || null;
 }
@@ -51,7 +51,7 @@ function shouldAutomateStatusChange(ticket, targetStatus, settings, settingKey) 
 async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
   try {
     const oldTicket = await Ticket.findById(ticketId);
-    if (!oldTicket) throw new Error("Ticket not found");
+    if (!oldTicket) throw new Error('Ticket not found');
 
     const now = new Date();
     const updateData = {
@@ -61,27 +61,23 @@ async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
     const oldStatus = oldTicket.status?.toLowerCase();
     const newStatus = targetStatus.toLowerCase();
 
-    if (oldStatus === "in progress") {
+    if (oldStatus === 'in progress') {
       if (oldTicket.inProgressAt) {
         const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
         updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
         updateData.inProgressAt = null;
       }
-    } else if (newStatus === "in progress") {
+    } else if (newStatus === 'in progress') {
       updateData.inProgressAt = now;
     }
 
-    if (newStatus === "done") {
+    if (newStatus === 'done') {
       updateData.doneAt = now;
-    } else if (oldStatus === "done") {
+    } else if (oldStatus === 'done') {
       updateData.doneAt = null;
     }
 
-    const ticket = await Ticket.findByIdAndUpdate(
-      ticketId,
-      { $set: updateData },
-      { new: true }
-    );
+    const ticket = await Ticket.findByIdAndUpdate(ticketId, { $set: updateData }, { new: true });
 
     return {
       success: true,
@@ -91,7 +87,7 @@ async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
       metadata,
     };
   } catch (error) {
-    console.error("Error executing status change:", error);
+    console.error('Error executing status change:', error);
     return { success: false, error: error.message };
   }
 }
@@ -106,7 +102,7 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
     if (!ticket) {
       return {
         result: AUTOMATION_RESULT.TICKET_NOT_FOUND,
-        message: "Ticket not found",
+        message: 'Ticket not found',
       };
     }
 
@@ -115,17 +111,17 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
     if (!settings) {
       return {
         result: AUTOMATION_RESULT.SETTINGS_NOT_FOUND,
-        message: "Integration settings not found",
+        message: 'Integration settings not found',
       };
     }
 
-    const targetStatus = settings.onPROpenTargetStatus || "on staging";
+    const targetStatus = settings.onPROpenTargetStatus || 'on staging';
 
     const decision = shouldAutomateStatusChange(
       ticket,
       targetStatus,
       settings,
-      "autoMoveOnPROpenEnabled"
+      'autoMoveOnPROpenEnabled'
     );
 
     if (!decision.proceed) {
@@ -138,7 +134,7 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
     }
 
     const execution = await executeStatusChange(ticketId, targetStatus, {
-      trigger: "pr_opened",
+      trigger: 'pr_opened',
       prNumber: prData.prNumber,
       prTitle: prData.prTitle,
       triggeredAt: eventTime,
@@ -160,7 +156,7 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
       prNumber: prData.prNumber,
     };
   } catch (error) {
-    console.error("Error handling PR opened:", error);
+    console.error('Error handling PR opened:', error);
     return {
       result: AUTOMATION_RESULT.ERROR,
       message: error.message,
@@ -178,7 +174,7 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
     if (!ticket) {
       return {
         result: AUTOMATION_RESULT.TICKET_NOT_FOUND,
-        message: "Ticket not found",
+        message: 'Ticket not found',
       };
     }
 
@@ -187,17 +183,17 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
     if (!settings) {
       return {
         result: AUTOMATION_RESULT.SETTINGS_NOT_FOUND,
-        message: "Integration settings not found",
+        message: 'Integration settings not found',
       };
     }
 
-    const targetStatus = settings.onMergeTargetStatus || "done";
+    const targetStatus = settings.onMergeTargetStatus || 'done';
 
     const decision = shouldAutomateStatusChange(
       ticket,
       targetStatus,
       settings,
-      "autoMoveOnMergeEnabled"
+      'autoMoveOnMergeEnabled'
     );
 
     if (!decision.proceed) {
@@ -210,7 +206,7 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
     }
 
     const execution = await executeStatusChange(ticketId, targetStatus, {
-      trigger: "pr_merged",
+      trigger: 'pr_merged',
       prNumber: prData.prNumber,
       prTitle: prData.prTitle,
       mergedBy: prData.mergedBy,
@@ -233,7 +229,7 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
       prNumber: prData.prNumber,
     };
   } catch (error) {
-    console.error("Error handling PR merged:", error);
+    console.error('Error handling PR merged:', error);
     return {
       result: AUTOMATION_RESULT.ERROR,
       message: error.message,

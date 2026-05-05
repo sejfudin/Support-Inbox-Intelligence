@@ -54,11 +54,15 @@ export default function InvitationInbox({
       {invitations.map((invitation) => {
         const invitationId = invitation._id;
         const workspaceName = invitation.workspace?.name || 'Workspace';
-        const inviterName = invitation.invitedBy?.fullname || invitation.invitedBy?.email || 'Admin';
+        const inviterName =
+          invitation.invitedBy?.fullname || invitation.invitedBy?.email || 'Admin';
         const isLoadingAction = actionLoadingId === invitationId;
 
         return (
-          <Card key={invitationId} className="overflow-hidden border-white/70 bg-gradient-to-br from-white via-white to-primary/5">
+          <Card
+            key={invitationId}
+            className="overflow-hidden border-white/70 bg-gradient-to-br from-white via-white to-primary/5"
+          >
             <CardHeader className="space-y-3 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -68,7 +72,10 @@ export default function InvitationInbox({
                   <div>
                     <CardTitle className="text-lg">{workspaceName}</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      {inviterName} invited you to join as <span className="font-medium text-foreground">{invitation.workspaceRole}</span>
+                      {inviterName} invited you to join as{' '}
+                      <span className="font-medium text-foreground">
+                        {invitation.workspaceRole}
+                      </span>
                     </p>
                   </div>
                 </div>
