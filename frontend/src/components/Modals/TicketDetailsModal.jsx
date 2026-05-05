@@ -216,7 +216,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       downloadCsvFile(`${baseName}.csv`, csv);
       toast.success('Ticket exported to CSV.');
     } catch (err) {
-      console.error('Failed to export ticket CSV', err);
       toast.error('Failed to export ticket. Please try again.');
     }
   };

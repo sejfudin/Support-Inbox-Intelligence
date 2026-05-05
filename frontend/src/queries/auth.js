@@ -68,7 +68,6 @@ export const useLogoutUser = () => {
     mutationFn: logoutUser,
     onSuccess: clearAuth,
     onError: (error) => {
-      console.error('Logout failed on server:', error);
       clearAuth();
     },
   });

@@ -48,7 +48,6 @@ const UserEditModal = ({ user, onClose }) => {
         },
         onError: (err) => {
           toast.dismiss(toastId);
-          console.error('Failed to update', err);
 
           const errorMessage = err.response?.data?.message || 'Failed to update user.';
 

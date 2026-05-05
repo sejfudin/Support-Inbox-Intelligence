@@ -437,7 +437,6 @@ export default function TicketPage() {
       downloadCsv(csv);
       toast.success('Tickets exported to CSV.');
     } catch (error) {
-      console.error('CSV export failed', error);
       toast.error('Failed to export tickets. Please try again.');
     } finally {
       setIsExporting(false);

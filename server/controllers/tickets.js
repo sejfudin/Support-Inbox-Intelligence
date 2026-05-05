@@ -51,7 +51,6 @@ const getAllTickets = async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error('Error in getTickets Controller:', error.message);
 
     res.status(500).json({
       success: false,
@@ -78,7 +77,6 @@ const getTicketById = async (req, res) => {
       data: ticket,
     });
   } catch (error) {
-    console.error('Error in getTicketById Controller:', error.message);
 
     if (error.kind === 'ObjectId') {
       return res.status(404).json({ success: false, message: 'Ticket not found' });
@@ -147,7 +145,6 @@ const createTicket = async (req, res) => {
       data: newTicket,
     });
   } catch (error) {
-    console.error('Error in createTicket Controller:', error.message);
     if (
       error.message === 'Assigned users must be active members of this workspace' ||
       error.message === 'Workspace not found' ||
