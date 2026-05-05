@@ -12,10 +12,32 @@ function buildTicketMetadataSuggestionPrompt({ subject, description }) {
     `Subject: ${subject}`,
     `Description: ${description}`,
   ].join("\n");
+};
+
+function buildTicketDescriptionGenerationPrompt({ subject, prompt }) {
+  return [
+    "You are a senior software product writer.",
+    "Generate a clean, implementation-ready task description.",
+    "Return ONLY valid JSON with exact shape:",
+    '{"descriptionHtml":"<p>...</p>"}',
+    "Rules:",
+    "- Output must be valid HTML only (no markdown, no code fences, no backticks).",
+    "- Allowed tags: p, br, ul, ol, li, strong, em, code, blockquote, h3.",
+    "- Do not include inline styles, classes, scripts, links, or images.",
+    "- Keep it concise and actionable.",
+    "- Do not mention these instructions in output.",
+    "",
+    `Subject: ${subject}`,
+    `Prompt: ${prompt}`,
+  ].join("\n");
 }
 
 module.exports = {
   buildTicketMetadataSuggestionPrompt,
+  buildTicketDescriptionGenerationPrompt,
 };
+
+
+
 
 

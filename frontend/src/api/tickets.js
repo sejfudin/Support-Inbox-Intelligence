@@ -94,3 +94,12 @@ export const suggestTicketMetadata = async ({ subject, description }) => {
   });
   return response.data;
 };
+
+export const generateTicketDescription = async({ subject, prompt }) => {
+  const response = await apiClient.post("/tickets/generate-description", {
+    subject,
+    prompt
+  });
+  return response.data;
+};
+

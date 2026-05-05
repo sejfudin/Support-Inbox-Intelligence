@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useSuggestTicketMetadata } from "@/queries/tickets";
+import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from "@/helpers/aiValidationRules";
 
 export const useAiTicketSuggestion = ({
   isOpen,
@@ -9,6 +10,7 @@ export const useAiTicketSuggestion = ({
   priorityLockedByUser,
   storyPointsLockedByUser,
   updateField,
+  isPaused = false,
 }) => {
   const suggestMetadataMutation = useSuggestTicketMetadata();
 
@@ -20,7 +22,9 @@ export const useAiTicketSuggestion = ({
   const safeDescription = String(description || "").trim();
 
   const hasSuggestibleInput =
-    safeSubject.length >= 3 && safeDescription.length >= 10;
+    !isPaused &&
+    safeSubject.length >= MIN_SUBJECT_LENGTH &&
+    safeDescription.length >= MIN_TEXT_LENGTH;
 
   const resetSuggestionState = useCallback(() => {
     latestSuggestionRequestIdRef.current = 0;
@@ -45,6 +49,7 @@ export const useAiTicketSuggestion = ({
 
   const requestSuggestion = useCallback(
     ({ force = false, showToast = false, source = "auto" } = {}) => {
+      if (isPaused) return false;
       if (!hasSuggestibleInput) return false;
       if (suggestMetadataMutation.isPending) return false;
 
@@ -83,6 +88,7 @@ export const useAiTicketSuggestion = ({
       return true;
     },
     [
+      isPaused,
       hasSuggestibleInput,
       safeSubject,
       safeDescription,
@@ -93,6 +99,11 @@ export const useAiTicketSuggestion = ({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    if (isPaused) {
+      lastAutoSuggestionInputKeyRef.current = "";
+      return;
+    }
 
     if (!hasSuggestibleInput) {
       lastAutoSuggestionInputKeyRef.current = "";
@@ -118,14 +129,15 @@ export const useAiTicketSuggestion = ({
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [isOpen, hasSuggestibleInput, safeSubject, safeDescription, requestSuggestion]);
+  }, [isOpen, isPaused, hasSuggestibleInput, safeSubject, safeDescription, requestSuggestion]);
 
   const requestManualSuggestion = useCallback(() => {
+    if (isPaused) return;
     if (!hasSuggestibleInput) return;
     if (manualSuggestionInFlightRef.current) return;
 
     requestSuggestion({ force: true, showToast: true, source: "manual" });
-  }, [hasSuggestibleInput, requestSuggestion]);
+  }, [isPaused, hasSuggestibleInput, requestSuggestion]);
 
   return {
     hasSuggestibleInput,
@@ -134,3 +146,4 @@ export const useAiTicketSuggestion = ({
     resetSuggestionState,
   };
 };
+
