@@ -33,7 +33,7 @@ export const useAiDescriptionGenerator = ({
     ? originalPromptTextRef.current
     : parsedPrompt;
 
-  const hasValidSubject = safeSubject.length >= SUBJECT_MIN_LENGTH;
+  const hasValidSubject = safeSubject.length >= MIN_SUBJECT_LENGTH;
   const hasValidPrompt = effectivePrompt.length >= AI_PROMPT_MIN_LENGTH;
 
   const canGenerateDescription =
