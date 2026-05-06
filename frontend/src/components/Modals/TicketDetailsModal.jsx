@@ -2,17 +2,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Calendar,
+  Clock,
   User,
-  CircleDot,
   X,
   Save,
-  Trash2,
   Archive,
-  ArchiveRestore,
   UserPen,
   Ticket,
   Download,
   GitPullRequest,
+  MoreVertical,
 } from 'lucide-react';
 import { useTicket, useUpdateTicket } from '@/queries/tickets';
 import StatusDropdown from '@/components/StatusDropdown';
@@ -40,6 +39,18 @@ import {
   RichTextEditorContent,
   RichTextEditorToolbar,
 } from '@/components/ui/rich-text-editor';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
@@ -381,19 +392,19 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   }
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-3 sm:p-4 lg:p-8 transition-opacity"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:p-4 lg:p-8 transition-opacity"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="flex h-[92vh] w-full max-w-[1200px] flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 sm:h-[90vh] sm:rounded-[28px]"
+        className="flex h-[92vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[90vh] sm:max-h-none sm:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Ticket details"
       >
-        <div className="flex flex-col gap-3 border-b bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex shrink-0 flex-col gap-3 border-b bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={(e) => {
@@ -404,42 +415,50 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             >
               <X className="w-5 h-5" />
             </button>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <span className="hidden text-xs font-bold text-gray-500 uppercase tracking-widest sm:inline">
               Ticket Details
             </span>
           </div>
 
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-            <button
-              type="button"
-              onClick={handleExportSingleCsv}
-              disabled={!ticket}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50 sm:w-auto"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
+          <div className="flex w-full flex-row flex-wrap items-center justify-end gap-2 sm:w-auto sm:gap-3">
             {!isArchived && (
-              <button
-                type="button"
-                onClick={handleArchiveToggle}
-                disabled={isArchiving}
-                className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
-                  isArchiving
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-gray-600 hover:bg-gray-700 text-white'
-                }`}
-              >
-                <Archive className="w-4 h-4" />
-                {isArchiving ? 'Archiving...' : 'Archive'}
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50"
+                    aria-label="Ticket actions"
+                    title="Ticket actions"
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="z-[200] min-w-[180px]">
+                  <DropdownMenuItem
+                    onSelect={handleExportSingleCsv}
+                    disabled={!ticket}
+                    className="cursor-pointer text-gray-700"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={handleArchiveToggle}
+                    disabled={isArchiving}
+                    className="cursor-pointer text-gray-700"
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    {isArchiving ? 'Archiving...' : 'Archive'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {!isArchived && (
               <button
                 type="button"
                 onClick={handleSave}
                 disabled={updateTicketMutation.isPending || !hasChanges || !title.trim()}
-                className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto ${
+                className={`flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto sm:flex-initial ${
                   updateTicketMutation.isPending || !hasChanges || !title.trim()
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -451,7 +470,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
           <DeleteConfirmModal
             isOpen={isActionModalOpen}
             onClose={() => setIsActionModalOpen(false)}
@@ -476,7 +495,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             loadingLabel="Unlinking..."
           />
 
-          <div className="group relative mb-10 flex flex-col gap-3">
+          <div className="group relative mb-8 flex flex-col gap-3">
             {ticket?.taskNumber && (
               <div className="flex">
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-500 border border-gray-200 uppercase tracking-tight">
@@ -485,17 +504,160 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               </div>
             )}
 
-            <div className="flex items-center w-full">
-              <input
-                type="text"
-                value={title}
-                readOnly={isArchived}
-                onChange={(e) => setTitle(e.target.value)}
-                className={`w-full rounded-md border-none bg-transparent p-0 text-2xl font-bold tracking-tight outline-none transition-all focus:ring-0 sm:text-3xl lg:text-4xl ${
-                  !title.trim() ? 'text-destructive' : 'text-foreground'
-                } ${isArchived ? 'cursor-default' : 'cursor-text hover:bg-gray-50/50'}`}
-                placeholder="Enter ticket title..."
-              />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8">
+              <div className="flex min-w-0 flex-1">
+                <input
+                  type="text"
+                  value={title}
+                  readOnly={isArchived}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
+                    !title.trim() ? 'text-destructive' : 'text-foreground'
+                  } ${
+                    isArchived
+                      ? 'cursor-default'
+                      : 'cursor-text hover:bg-gray-50 focus:bg-gray-50 focus:border-gray-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white'
+                  }`}
+                  placeholder="Enter ticket title..."
+                />
+              </div>
+
+              <div
+                className={`grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px] ${
+                  isArchived ? 'pointer-events-none opacity-70' : ''
+                }`}
+              >
+                <div className="space-y-2 min-w-0">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                    Assignees
+                  </div>
+
+                  <Popover>
+                    <PopoverTrigger asChild disabled={isArchived}>
+                      <button
+                        type="button"
+                        className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200 justify-between ${
+                          isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
+                        }`}
+                        aria-label="Change assignees"
+                      >
+                        <span className="flex items-center gap-2 min-w-0 normal-case">
+                          {selectedUsersObjects.length > 0 ? (
+                            <>
+                              <AssigneesAvatar users={selectedUsersObjects.slice(0, 3)} size="sm" />
+                              <span className="min-w-0 truncate text-gray-700 font-semibold">
+                                {selectedUsersObjects[0]?.fullName ||
+                                  selectedUsersObjects[0]?.fullname ||
+                                  selectedUsersObjects[0]?.email ||
+                                  'Assigned'}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <User className="w-5 h-5 text-gray-500" />
+                              <span className="text-gray-500 font-medium whitespace-nowrap">
+                                Unassigned
+                              </span>
+                            </>
+                          )}
+                        </span>
+
+                        {selectedUsersObjects.length > 1 ? (
+                          <span className="shrink-0 inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-gray-500 border border-gray-200">
+                            +{selectedUsersObjects.length - 1}
+                          </span>
+                        ) : null}
+                      </button>
+                    </PopoverTrigger>
+
+                    {!isArchived && (
+                      <PopoverContent
+                        className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
+                        align="center"
+                        sideOffset={8}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                              Assign Agents
+                            </span>
+                            {selectedAgents.length > 0 && (
+                              <button
+                                onClick={() => setSelectedAgents([])}
+                                className="text-[10px] text-red-500 hover:underline font-bold"
+                              >
+                                Clear all
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                            {users.length > 0 ? (
+                              users.map((user) => {
+                                const isSelected = selectedAgents.includes(user._id);
+                                return (
+                                  <div
+                                    key={user._id}
+                                    onClick={() => {
+                                      setSelectedAgents((prev) =>
+                                        isSelected
+                                          ? prev.filter((id) => id !== user._id)
+                                          : [...prev, user._id]
+                                      );
+                                    }}
+                                    className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                  >
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={null}
+                                      className="pointer-events-none"
+                                    />
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
+                                        {user.fullName || user.fullname || user.email}
+                                      </span>
+                                      <span className="text-[10px] text-gray-400 truncate">
+                                        {user.email}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="p-4 text-center text-xs text-gray-400">
+                                No users found
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    )}
+                  </Popover>
+                </div>
+
+                <div className="space-y-2 min-w-0">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                    Status
+                  </div>
+                  <StatusDropdown
+                    status={currentStatus}
+                    onChange={setCurrentStatus}
+                    className="w-full justify-between"
+                  />
+                </div>
+
+                <div className="space-y-2 min-w-0">
+                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                    Priority
+                  </div>
+                  <PriorityDropdown
+                    priority={currentPriority}
+                    onChange={setCurrentPriority}
+                    disabled={isArchived}
+                    className="w-full justify-between"
+                  />
+                </div>
+              </div>
             </div>
 
             {!title.trim() && (
@@ -505,204 +667,161 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
             )}
           </div>
 
-          <div className="mb-8 grid grid-cols-1 gap-6 border-b border-gray-100 pb-8 sm:grid-cols-2 lg:gap-8 xl:grid-cols-7 xl:pb-10">
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-                <CircleDot className="w-4 h-4" /> Status
-              </div>
-              <div className={isArchived ? 'pointer-events-none opacity-70' : ''}>
-                <StatusDropdown status={currentStatus} onChange={setCurrentStatus} />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-                <User className="w-4 h-4" /> Assignees
-              </div>
-
-              <Popover>
-                <PopoverTrigger asChild disabled={isArchived}>
-                  <div
-                    className={`flex items-center gap-3 p-1.5 rounded-xl border border-transparent transition-all min-h-[44px] w-fit ${
-                      isArchived
-                        ? 'cursor-not-allowed opacity-70 pointer-events-none'
-                        : 'cursor-pointer hover:bg-gray-50'
-                    }`}
-                  >
-                    {selectedUsersObjects.length > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <AssigneesAvatar users={selectedUsersObjects} />
-                        <span className="text-[11px] text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
-                          {selectedUsersObjects.length}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400">
-                          <User className="w-3 h-3" />
-                        </div>
-                        <span className="text-sm text-gray-400 italic">Unassigned</span>
-                      </div>
-                    )}
-                  </div>
-                </PopoverTrigger>
-
-                {!isArchived && (
-                  <PopoverContent className="w-72 p-2 z-[110]" align="start">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                          Assign Agents
-                        </span>
-                        {selectedAgents.length > 0 && (
-                          <button
-                            onClick={() => setSelectedAgents([])}
-                            className="text-[10px] text-red-500 hover:underline font-bold"
-                          >
-                            Clear all
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
-                        {users.length > 0 ? (
-                          users.map((user) => {
-                            const isSelected = selectedAgents.includes(user._id);
-                            return (
-                              <div
-                                key={user._id}
-                                onClick={() => {
-                                  setSelectedAgents((prev) =>
-                                    isSelected
-                                      ? prev.filter((id) => id !== user._id)
-                                      : [...prev, user._id]
-                                  );
-                                }}
-                                className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
-                              >
-                                <Checkbox
-                                  checked={isSelected}
-                                  onCheckedChange={null}
-                                  className="pointer-events-none"
-                                />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
-                                    {user.fullName || user.fullname || user.email}
-                                  </span>
-                                  <span className="text-[10px] text-gray-400 truncate">
-                                    {user.email}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })
-                        ) : (
-                          <div className="p-4 text-center text-xs text-gray-400">
-                            No users found
-                          </div>
-                        )}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
+            <div className="space-y-6 min-w-0">
+              <section className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden">
+                <RichTextEditor
+                  value={description}
+                  onChange={setDescription}
+                  className="min-h-[220px] border-0 rounded-none divide-y-0 sm:min-h-[300px] lg:min-h-[360px]"
+                  editable={!isArchived}
+                >
+                  <div className="flex flex-col gap-2 border-b border-gray-50 bg-gray-50/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4">
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Ticket className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        Description
+                      </span>
+                    </div>
+                    <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
+                      <div className="w-max">
+                        <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
                       </div>
                     </div>
-                  </PopoverContent>
-                )}
-              </Popover>
-            </div>
+                  </div>
+                  <RichTextEditorContent className="p-3 sm:p-4" />
+                </RichTextEditor>
+              </section>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-                <CircleDot className="w-4 h-4" /> Priority
-              </div>
-              <div className={isArchived ? 'pointer-events-none opacity-70' : ''}>
-                <PriorityDropdown
-                  priority={currentPriority}
-                  onChange={setCurrentPriority}
-                  disabled={isArchived}
-                />
-              </div>
-            </div>
+              <TicketComments ticketId={ticketId} isArchived={isArchived} />
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-                <Calendar className="w-4 h-4" /> Due date
-              </div>
-              <input
-                type="date"
-                value={dueDateInput}
-                disabled={isArchived}
-                onChange={(e) => setDueDateInput(e.target.value)}
-                className={`h-10 w-full max-w-[11rem] rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-800 shadow-sm outline-none transition focus:border-blue-200 focus:ring-2 focus:ring-blue-50 ${
-                  isArchived ? 'cursor-not-allowed opacity-70' : ''
-                }`}
-              />
-            </div>
-
-            <StoryPointsField
-              value={currentStoryPoints}
-              onChange={setCurrentStoryPoints}
-              disabled={isArchived}
-            />
-
-            <TimeSpent ticket={ticket} />
-
-            <div className="space-y-3 sm:col-span-1 xl:col-span-1">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
-                <UserPen className="w-4 h-4" /> Created By
-              </div>
-
-              <div className="flex min-h-[44px] w-full items-center gap-3 p-1.5 sm:w-fit">
-                {ticket?.creator ? (
-                  <Avatar users={[ticket.creator]} />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
-                )}
-
-                <div className="flex flex-col justify-center">
-                  <span className="text-sm font-semibold text-foreground leading-none">
-                    {ticket?.creator?.fullname || ticket?.creator?.fullName || 'Unknown User'}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground font-medium mt-1">
-                    {ticket?.createdAt ? format(new Date(ticket.createdAt), 'MMM d, yyyy') : ''}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col lg:flex-row gap-8 mb-4">
-            <div className="flex-[2] flex flex-col space-y-4 min-h-[500px]">
-              <div className="text-gray-400 text-sm font-bold uppercase tracking-wider">
-                Description
-              </div>
-              <RichTextEditor
-                value={description}
-                onChange={setDescription}
-                className="flex-1 min-h-[300px]"
-                editable={!isArchived}
-              >
-                <RichTextEditorToolbar />
-                <RichTextEditorContent />
-              </RichTextEditor>
               <TicketHistory ticketId={ticketId} />
             </div>
-            <div className="flex-[1] min-w-[320px] flex flex-col gap-6 min-h-[500px]">
+
+            <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
+              <Accordion
+                type="single"
+                collapsible
+                className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+              >
+                <AccordionItem value="details" className="border-none">
+                  <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+                    <div className="flex items-center gap-2">
+                      <Ticket className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        Details
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                            Due date
+                          </span>
+                        </div>
+                        <input
+                          type="date"
+                          value={dueDateInput}
+                          disabled={isArchived}
+                          onChange={(e) => setDueDateInput(e.target.value)}
+                          className={`h-10 w-full rounded-md border border-transparent bg-gray-100 px-3 text-sm font-semibold text-gray-800 shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white ${
+                            isArchived ? 'cursor-not-allowed opacity-70' : ''
+                          }`}
+                        />
+                      </div>
+
+                      <StoryPointsField
+                        value={currentStoryPoints}
+                        onChange={setCurrentStoryPoints}
+                        disabled={isArchived}
+                        className="space-y-3"
+                      />
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
+              <Accordion
+                type="single"
+                collapsible
+                className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+              >
+                <AccordionItem value="tracking" className="border-none">
+                  <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-gray-500" />
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        Tracking
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
+                    <div className="grid grid-cols-2 gap-3 sm:gap-6">
+                      <TimeSpent ticket={ticket} />
+
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                            Created By
+                          </span>
+                        </div>
+
+                        <div className="flex min-h-[44px] w-full items-center gap-3 px-1.5 py-2">
+                          {ticket?.creator ? (
+                            <Avatar users={[ticket.creator]} size="md" />
+                          ) : (
+                            <div className="h-5 w-5 rounded-full bg-muted animate-pulse" />
+                          )}
+
+                          <div className="flex flex-col justify-center min-w-0">
+                            <span className="text-sm font-semibold text-gray-900 leading-none truncate">
+                              {ticket?.creator?.fullname ||
+                                ticket?.creator?.fullName ||
+                                'Unknown User'}
+                            </span>
+                            <span className="text-[10px] text-gray-500 font-medium mt-1">
+                              {ticket?.createdAt
+                                ? format(new Date(ticket.createdAt), 'MMM d, yyyy')
+                                : ''}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
               {ticket?.linkedPullRequest && (
-                <div className="flex-shrink-0">
-                  <div className="flex items-center gap-2 text-gray-400 text-sm font-bold uppercase tracking-wider mb-4">
-                    <GitPullRequest className="w-4 h-4" /> Linked Pull Request
-                  </div>
-                  <PRCard
-                    pr={ticket.linkedPullRequest}
-                    onRefresh={handleRefreshPR}
-                    isRefreshing={isRefreshingPR}
-                    onUnlink={handleUnlinkPR}
-                    isUnlinking={isUnlinkingPR}
-                  />
-                </div>
+                <Accordion
+                  type="single"
+                  collapsible
+                  className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+                >
+                  <AccordionItem value="pr" className="border-none">
+                    <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+                      <div className="flex items-center gap-2">
+                        <GitPullRequest className="w-3.5 h-3.5 text-gray-500" />
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          Linked Pull Request
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
+                      <PRCard
+                        pr={ticket.linkedPullRequest}
+                        onRefresh={handleRefreshPR}
+                        isRefreshing={isRefreshingPR}
+                        onUnlink={handleUnlinkPR}
+                        isUnlinking={isUnlinkingPR}
+                      />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               )}
-              <div className="flex-1 min-h-0 flex flex-col">
-                <TicketComments ticketId={ticketId} isArchived={isArchived} />
-              </div>
-            </div>
+            </aside>
           </div>
         </div>
       </div>

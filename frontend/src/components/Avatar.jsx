@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { getInitials } from '@/helpers/getInitials';
 import { getAvatarColor } from '@/helpers/avatarColor';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-export const Avatar = ({ users }) => {
+export const Avatar = ({ users, size = 'md' }) => {
   const safeUsers = (users || []).filter(Boolean);
 
   if (safeUsers.length === 0) {
@@ -13,6 +13,16 @@ export const Avatar = ({ users }) => {
   const maxVisible = 3;
   const displayUsers = safeUsers.slice(0, maxVisible);
   const remainingCount = safeUsers.length - maxVisible;
+  const sizeClasses =
+    size === 'sm'
+      ? {
+          item: 'h-5 w-5 text-[10px] border',
+          remaining: 'h-5 w-5 text-[10px] border',
+        }
+      : {
+          item: 'h-8 w-8 text-[14px] border-2',
+          remaining: 'h-8 w-8 text-[10px] border-2',
+        };
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -21,7 +31,7 @@ export const Avatar = ({ users }) => {
           <Tooltip key={user._id || user.email || user.fullname || user.fullName}>
             <TooltipTrigger asChild>
               <div
-                className={`inline-flex items-center justify-center h-8 w-8 rounded-full border-2 border-background text-[14px] font-bold cursor-help hover:z-10 transition-all hover:scale-110 ${getAvatarColor(user.fullname || user.fullName || user.email || '?')}`}
+                className={`inline-flex items-center justify-center rounded-full border-background font-bold cursor-help hover:z-10 transition-all hover:scale-110 ${sizeClasses.item} ${getAvatarColor(user.fullname || user.fullName || user.email || '?')}`}
               >
                 {user.fullname || user.fullName
                   ? getInitials(user.fullname || user.fullName)
@@ -35,7 +45,9 @@ export const Avatar = ({ users }) => {
           </Tooltip>
         ))}
         {remainingCount > 0 && (
-          <div className="flex items-center justify-center h-8 w-8 rounded-full border-2 border-background bg-secondary text-secondary-foreground text-[10px] font-bold z-0">
+          <div
+            className={`flex items-center justify-center rounded-full border-background bg-secondary text-secondary-foreground font-bold z-0 ${sizeClasses.remaining}`}
+          >
             +{remainingCount}
           </div>
         )}

@@ -19,30 +19,33 @@ export default function StoryPointsField({ value, onChange, disabled = false, cl
 
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-        <BarChart3 className="w-4 h-4" /> Story Points
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+          Story Points
+        </span>
       </div>
 
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger asChild disabled={disabled}>
           <button
             type="button"
-            disabled={disabled}
             className={cn(
-              'flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-0 focus-visible:ring-0',
+              'flex w-full items-center justify-between gap-2 px-3 py-3 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200',
               disabled && 'cursor-not-allowed opacity-60'
             )}
             aria-label={`Change story points (current: ${currentLabel})`}
           >
-            <span className={cn('h-2 w-2 rounded-full', currentStyle.dot)} />
-            {currentLabel}
-            <ChevronDown className="w-3 h-3 opacity-50" />
+            <span className="flex items-center gap-2 min-w-0">
+              <span className={cn('h-2 w-2 rounded-full', currentStyle.dot)} />
+              <span className="min-w-0 truncate">{currentLabel}</span>
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 opacity-50" />
           </button>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" className="w-44 z-[200]">
           <DropdownMenuItem onSelect={() => onChange?.(null)} className="cursor-pointer">
-            <span className="h-2 w-2 rounded-full bg-gray-400 mr-2" />
+            <span className="h-2 w-2 rounded-full bg-gray-500 mr-2" />
             <span className="flex-1">No estimate</span>
             {currentValue === null ? <Check className="w-4 h-4 opacity-80 ml-2" /> : null}
           </DropdownMenuItem>

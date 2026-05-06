@@ -19,7 +19,7 @@ const STATUS_CONFIG = {
   Done: { badge: 'bg-teal-200 text-teal-700 hover:bg-teal-300', dot: 'bg-teal-500' },
 };
 
-export default function StatusDropdown({ status, onChange }) {
+export default function StatusDropdown({ status, onChange, className }) {
   const activeStatusKey =
     Object.keys(STATUS_CONFIG).find((key) => key.toUpperCase() === status?.toUpperCase()) || status;
 
@@ -34,12 +34,13 @@ export default function StatusDropdown({ status, onChange }) {
         <button
           type="button"
           className={cn(
-            'flex items-center gap-2 px-3 py-1 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2',
+            'flex items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 whitespace-nowrap',
+            className,
             config.badge
           )}
           aria-label={`Change status (current: ${status})`}
         >
-          {status}
+          <span className="min-w-0 flex-1 truncate">{status}</span>
           <ChevronDown className="w-3 h-3 opacity-50" />
         </button>
       </DropdownMenuTrigger>
