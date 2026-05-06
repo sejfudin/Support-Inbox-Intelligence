@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,86 +58,100 @@ const UserEditModal = ({ user, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
-      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white shadow-xl sm:max-h-[90vh]">
-        <Card className="border-0 shadow-none">
-          <CardHeader className="flex flex-row items-start justify-between gap-3 sm:items-center">
-            <CardTitle className="text-xl">Edit: {user.user}</CardTitle>
-          </CardHeader>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Edit User</h2>
+          <button
+            onClick={onClose}
+            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-          <CardContent>
-            <form onSubmit={handleSave} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Full Name
-                  </Label>
-                  <Input
-                    value={editedUser.user}
-                    onChange={(e) => setEditedUser({ ...editedUser, user: e.target.value })}
-                    className="h-12 text-base"
-                  />
-                </div>
+        <div className="px-6 py-6">
+          <form onSubmit={handleSave} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="fullname" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Full Name
+              </Label>
+              <Input
+                id="fullname"
+                value={editedUser.user}
+                onChange={(e) => setEditedUser({ ...editedUser, user: e.target.value })}
+                className="h-10"
+                placeholder="Enter full name"
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Email
-                  </Label>
-                  <Input
-                    type="email"
-                    value={editedUser.email}
-                    onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
-                    className="h-12 text-base"
-                  />
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={editedUser.email}
+                onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
+                className="h-10"
+                placeholder="Enter email address"
+              />
+            </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Role
-                  </Label>
-                  <Select
-                    value={editedUser.role}
-                    onValueChange={(value) => setEditedUser({ ...editedUser, role: value })}
-                  >
-                    <SelectTrigger className="h-12">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="user">User</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="role" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Role
+              </Label>
+              <Select
+                value={editedUser.role}
+                onValueChange={(value) => setEditedUser({ ...editedUser, role: value })}
+              >
+                <SelectTrigger id="role" className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Status
-                  </Label>
-                  <Select
-                    value={editedUser.active ? 'Active' : 'Inactive'}
-                    onValueChange={(value) => setEditedUser({ ...editedUser, active: value === 'Active' })}
-                  >
-                    <SelectTrigger className="h-12">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
-                <Button type="submit" className="flex-1">
-                  Save Changes
-                </Button>
-                <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+            <div className="space-y-2">
+              <Label htmlFor="status" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                Status
+              </Label>
+              <Select
+                value={editedUser.active ? 'Active' : 'Inactive'}
+                onValueChange={(value) =>
+                  setEditedUser({ ...editedUser, active: value === 'Active' })
+                }
+              >
+                <SelectTrigger id="status" className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex gap-3 pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1">
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
