@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAllTickets,
   getTicket,
@@ -116,46 +116,5 @@ export const useSuggestTicketMetadata = () => {
 export const useGenerateTicketDescription = () => {
   return useMutation({
     mutationFn: generateTicketDescription,
-  });
-};
-
-export const useTicketsInfinite = (params, options = {}) => {
-  return useInfiniteQuery({
-    queryKey: [
-      'tickets',
-      'infinite',
-      params.workspaceId,
-      params.status,
-      params.search,
-      JSON.stringify(params.queryFilters),
-    ],
-    queryFn: ({ pageParam = 1 }) => getAllTickets({ ...params, page: pageParam }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      const { page, pages } = lastPage.pagination;
-      return page < pages ? page + 1 : undefined;
-    },
-    placeholderData: (previousData) => previousData,
-    ...options,
-  });
-};
-
-export const useMyTicketsInfinite = (params, options = {}) => {
-  return useInfiniteQuery({
-    queryKey: [
-      'tickets',
-      'my-infinite',
-      params.status,
-      params.search,
-      JSON.stringify(params.queryFilters),
-    ],
-    queryFn: ({ pageParam = 1 }) => getMyTickets({ ...params, page: pageParam }),
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      const { page, pages } = lastPage.pagination;
-      return page < pages ? page + 1 : undefined;
-    },
-    placeholderData: (previousData) => previousData,
-    ...options,
   });
 };
