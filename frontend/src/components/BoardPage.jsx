@@ -78,14 +78,20 @@ function BoardColumn({
   const statusValue = COLUMN_TO_STATUS[column.id] || '';
   const style = STATUS_STYLES[column.id] ?? STATUS_STYLES.todo;
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useTicketsInfinite({
-    search,
-    activeTab,
-    status: statusValue,
-    workspaceId,
-    queryFilters,
-    listLimit: 10,
-  });
+  const queryParams = useMemo(
+    () => ({
+      search,
+      activeTab,
+      status: statusValue,
+      workspaceId,
+      queryFilters,
+      listLimit: 10,
+    }),
+    [search, activeTab, statusValue, workspaceId, queryFilters]
+  );
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useTicketsInfinite(queryParams);
 
   const tasks = useMemo(() => {
     return data?.pages.flatMap((page) => page.data.map((ticket) => normalizeTicket(ticket))) ?? [];
@@ -134,14 +140,16 @@ function BoardColumn({
   );
 }
 
+const DEFAULT_FILTERS = {};
 export default function BoardPage({
   workspaceId,
   onOpenTicket,
   onStatusChange,
   search = '',
   activeTab = 'all',
-  queryFilters = {},
+  queryFilters = DEFAULT_FILTERS,
 }) {
+  console.log('Current Search Prop:', search);
   const [activeTask, setActiveTask] = useState(null);
   const [columnsState, setColumnsState] = useState({});
 

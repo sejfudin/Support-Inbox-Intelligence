@@ -235,28 +235,11 @@ export default function TicketPage() {
     hasHydratedFromParamsRef.current = true;
   }, [initialSearch, initialPage, listData]);
 
-  const boardQueryParams = getTicketsQueryParams({
-    page: 1,
-    search: debouncedSearch,
-    activeTab,
-    archived: false,
-    status: 'not_null',
-    workspaceId: overrideWorkspaceId,
-    queryFilters,
-  });
-
-  const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });
-
-  const boardTickets = useMemo(
-    () => (boardQuery.data?.data || []).map((ticket) => normalizeTicket(ticket)),
-    [boardQuery.data?.data]
-  );
-
-  const normalizedTickets = isBoard ? boardTickets : listData.tickets;
-  const pagination = isBoard ? null : listData.pagination;
-  const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
-  const isError = isBoard ? boardQuery.isError : listData.isError;
-  const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
+  const normalizedTickets = listData.tickets;
+  const pagination = listData.pagination;
+  const isLoading = listData.isLoading;
+  const isError = listData.isError;
+  const isPlaceholderData = listData.isPlaceholderData;
   const visibleTickets = normalizedTickets;
 
   const runWithListReset =
@@ -506,9 +489,10 @@ export default function TicketPage() {
 
       {isBoard ? (
         <BoardPage
-          tickets={visibleTickets}
-          isLoading={isLoading}
-          isError={isError}
+          workspaceId={effectiveWorkspaceId}
+          search={debouncedSearch}
+          activeTab={activeTab}
+          queryFilters={queryFilters}
           onNewTicket={openNewTicket}
           onOpenTicket={openTicketDetails}
           onStatusChange={handleStatusChange}
