@@ -237,23 +237,41 @@ export default function AppSidebar() {
             </div>
           ) : (
             <>
-              <div
-                onClick={() => navigate('/profile')}
-                className="p-4 flex items-center gap-3 cursor-pointer transition-colors hover:bg-muted/50"
-              >
-                <div className="flex items-center justify-center rounded-full bg-muted text-sm font-semibold">
-                  <Avatar users={[user]} />
-                </div>
+              <NavLink to="/profile" end className="block px-2 pb-2">
+                {({ isActive }) => (
+                  <div
+                    className={cn(
+                      'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]'
+                        : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        'flex items-center justify-center rounded-full text-sm font-semibold',
+                        isActive ? 'bg-primary-foreground/15' : 'bg-muted'
+                      )}
+                    >
+                      <Avatar users={[user]} />
+                    </div>
 
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold">
-                    {user?.fullname || 'Unknown User'}
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold">
+                        {user?.fullname || 'Unknown User'}
+                      </div>
+                      <div
+                        className={cn(
+                          'text-xs',
+                          isActive ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                        )}
+                      >
+                        {capitalizeFirst(user?.role) || 'User'}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {capitalizeFirst(user?.role) || 'User'}
-                  </div>
-                </div>
-              </div>
+                )}
+              </NavLink>
 
               <div className="px-4 pb-4">
                 <Button
