@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { createTicketColumns } from '@/components/columns/ticketColumns';
 import { SectionCards } from '@/components/section-cards';
-import { useMyTickets } from '@/queries/tickets';
+import { useMyTickets, useMyTicketsInfinite } from '@/queries/tickets';
 import { normalizeTicket } from '@/helpers/normalizeTicket';
 import TicketsState from '@/components/Tickets/TicketsState';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
@@ -13,8 +13,12 @@ import { useTicketModals } from '@/hooks/useTicketModals';
 import { useDebounce } from 'use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUpdateTicket } from '@/queries/tickets';
+import { useAuth } from '@/context/AuthContext';
 
 export default function UserDashboard() {
+  const { user } = useAuth();
+  const workspaceId = user?.workspaceId;
+
   const [requestedPage, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('list');
   const [search, setSearch] = useState('');
@@ -25,17 +29,23 @@ export default function UserDashboard() {
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
 
+  const isBoard = viewMode === 'board';
+
+  // For list view: fetch paginated "my tickets"
   const {
     data: ticketsData,
     isLoading,
     isError,
-  } = useMyTickets({
-    page: requestedPage,
-    limit: 10,
-    search: debouncedSearch,
-    sortBy: 'updatedAt',
-    sortOrder: 'desc',
-  });
+  } = useMyTickets(
+    {
+      page: requestedPage,
+      limit: 10,
+      search: debouncedSearch,
+      sortBy: 'updatedAt',
+      sortOrder: 'desc',
+    },
+    { enabled: !isBoard } // Disable when in board view
+  );
 
   const pagination = ticketsData?.pagination;
 
@@ -70,8 +80,6 @@ export default function UserDashboard() {
       blockedTrend: 0,
     };
   }, [ticketsData]);
-
-  const isBoard = viewMode === 'board';
 
   const handleStatusChange = (ticketId, columnId) => {
     const columnToStatus = {
@@ -125,9 +133,10 @@ export default function UserDashboard() {
           <div className="app-page-content mt-2">
             {!isMobile && isBoard ? (
               <BoardPage
-                tickets={normalizedTickets}
-                isLoading={isLoading}
-                isError={isError}
+                workspaceId={workspaceId}
+                search={debouncedSearch}
+                activeTab="all"
+                queryFilters={{}}
                 onOpenTicket={openTicketDetails}
                 onStatusChange={handleStatusChange}
               />
