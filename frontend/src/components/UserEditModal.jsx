@@ -18,7 +18,7 @@ const UserEditModal = ({ user, onClose }) => {
     user: user.user || '',
     email: user.email || '',
     role: user.role || 'user',
-    status: user.status || 'Active',
+    active: user.active ?? true,
   });
 
   const updateUserMutation = useUpdateUser();
@@ -30,7 +30,7 @@ const UserEditModal = ({ user, onClose }) => {
       fullname: editedUser.user,
       email: editedUser.email,
       role: editedUser.role.toLowerCase(),
-      active: editedUser.status === 'Active',
+      active: editedUser.active,
     };
 
     const toastId = toast.loading('Updating user...');
@@ -114,8 +114,8 @@ const UserEditModal = ({ user, onClose }) => {
                     Status
                   </Label>
                   <Select
-                    value={editedUser.status}
-                    onValueChange={(value) => setEditedUser({ ...editedUser, status: value })}
+                    value={editedUser.active ? 'Active' : 'Inactive'}
+                    onValueChange={(value) => setEditedUser({ ...editedUser, active: value === 'Active' })}
                   >
                     <SelectTrigger className="h-12">
                       <SelectValue />

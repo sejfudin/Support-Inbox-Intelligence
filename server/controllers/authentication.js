@@ -126,7 +126,10 @@ const updateUser = async (req, res) => {
       if (req.body.email) updateData.email = req.body.email;
       if (req.body.role) updateData.role = req.body.role;
 
-      if (req.body.active !== undefined) updateData.active = req.body.active;
+      if (req.body.active !== undefined) {
+        updateData.active = req.body.active;
+        updateData.status = req.body.active ? 'active' : 'disabled';
+      }
     } else {
       if (req.body.email || req.body.role || req.body.active !== undefined) {
         return res.status(403).json({
