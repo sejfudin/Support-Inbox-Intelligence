@@ -80,8 +80,8 @@ export const useUpdateUser = () => {
     mutationFn: ({ id, data }) => updateUser(id, data),
 
     onSuccess: (updatedUser, variables) => {
-      queryClient.invalidateQueries({ 
-        predicate: (query) => query.queryKey[0] === 'users'
+      queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === 'users',
       });
       queryClient.setQueryData(['user', variables.id], updatedUser);
 

@@ -73,7 +73,10 @@ const UserEditModal = ({ user, onClose }) => {
         <div className="px-6 py-6">
           <form onSubmit={handleSave} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="fullname" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+              <Label
+                htmlFor="fullname"
+                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+              >
                 Full Name
               </Label>
               <Input
@@ -86,7 +89,10 @@ const UserEditModal = ({ user, onClose }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+              <Label
+                htmlFor="email"
+                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+              >
                 Email
               </Label>
               <Input
@@ -100,7 +106,10 @@ const UserEditModal = ({ user, onClose }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+              <Label
+                htmlFor="role"
+                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+              >
                 Role
               </Label>
               <Select
@@ -118,7 +127,10 @@ const UserEditModal = ({ user, onClose }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="status" className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+              <Label
+                htmlFor="status"
+                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+              >
                 Status
               </Label>
               <Select
@@ -138,12 +150,7 @@ const UserEditModal = ({ user, onClose }) => {
             </div>
 
             <div className="flex gap-3 pt-6">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="flex-1"
-              >
+              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                 Cancel
               </Button>
               <Button type="submit" className="flex-1">
