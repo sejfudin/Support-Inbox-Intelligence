@@ -29,7 +29,8 @@ export default function AdminUsersPage() {
       user: user.fullname || 'No name',
       email: user.email,
       role: user.role,
-      status: user.status || (user.active === true ? 'active' : 'inactive'),
+      active: user.active,
+      status: user.status === 'active' ? 'active' : 'inactive',
     })) ?? [];
 
   const pagination = usersData?.pagination;
