@@ -42,7 +42,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { htmlToPlainText } from '@/helpers/aiDescriptionPrompt';
-import { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } from '@/helpers/aiValidationRules';
+import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
 
 const NewTickets = ({
   isOpen,
@@ -303,63 +303,17 @@ const NewTickets = ({
                     <RichTextEditorContent />
                   </RichTextEditor>
 
-                  {isPromptPanelVisible && (
-                    <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-                      <p className="text-xs text-slate-600">
-                        AI prompt mode is active. Prompt length: {promptLength} characters.
-                      </p>
-
-                      {!canGenerateDescription && (
-                        <p className="mt-1 text-xs text-amber-700">
-                          Subject must be at least {MIN_SUBJECT_LENGTH} chars and prompt after /ai
-                          must be at least {MIN_TEXT_LENGTH} chars.
-                        </p>
-                      )}
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => generateDescription({ showToast: true })}
-                          disabled={
-                            !canGenerateDescription ||
-                            createMutation.isPending ||
-                            isGeneratingDescription
-                          }
-                        >
-                          {isGeneratingDescription
-                            ? 'Generating...'
-                            : isDescriptionDraftActive
-                              ? 'Regenerate Description'
-                              : 'Generate Description'}
-                        </Button>
-
-                        {isDescriptionDraftActive && (
-                          <>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              onClick={acceptGeneratedDescription}
-                              disabled={isGeneratingDescription}
-                            >
-                              Accept
-                            </Button>
-
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={cancelGeneratedDescription}
-                              disabled={isGeneratingDescription}
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <AiDescriptionPanel
+                    isVisible={isPromptPanelVisible}
+                    promptLength={promptLength}
+                    canGenerateDescription={canGenerateDescription}
+                    isGeneratingDescription={isGeneratingDescription}
+                    isDescriptionDraftActive={isDescriptionDraftActive}
+                    onGenerate={() => generateDescription({ showToast: true })}
+                    onAccept={acceptGeneratedDescription}
+                    onCancel={cancelGeneratedDescription}
+                    disabled={createMutation.isPending}
+                  />
                 </div>
 
                 <div className="space-y-6">

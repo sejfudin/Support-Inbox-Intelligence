@@ -3,7 +3,7 @@ import { createTicketColumns } from '@/components/columns/ticketColumns';
 import { useTicketList } from '@/hooks/useTicketList';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { useTicketModals } from '@/hooks/useTicketModals';
-import TicketDetailsModal from '@/components/Modals/TicketDetailsModal';
+import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import TicketsState from '@/components/Tickets/TicketsState';
 import TicketsHeader from '@/components/Tickets/TicketsHeader';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';

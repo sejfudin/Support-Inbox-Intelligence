@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { useTickets } from '@/queries/tickets';
 import { createTicketColumns } from '@/components/columns/ticketColumns';
 import { useDebounce } from 'use-debounce';
-import BoardPage from '@/components/BoardPage';
-import NewTickets from '@/components/Tickets/NewTickets';
-import TicketDetailsModal from '@/components/Modals/TicketDetailsModal';
+import NewTickets from '@/components/Tickets/LazyNewTickets';
+import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import TicketsState from '@/components/Tickets/TicketsState';
 import TicketsHeader from '@/components/Tickets/TicketsHeader';
 import TicketsTabs from '@/components/Tickets/TicketsTabs';
@@ -35,6 +34,8 @@ import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
+
+const BoardPage = lazy(() => import('@/components/BoardPage'));
 
 function isEditableTarget(target) {
   if (!target || !(target instanceof Element)) return false;
@@ -505,14 +506,16 @@ export default function TicketPage() {
       ) : null}
 
       {isBoard ? (
-        <BoardPage
-          tickets={visibleTickets}
-          isLoading={isLoading}
-          isError={isError}
-          onNewTicket={openNewTicket}
-          onOpenTicket={openTicketDetails}
-          onStatusChange={handleStatusChange}
-        />
+        <Suspense fallback={<TableSkeleton />}>
+          <BoardPage
+            tickets={visibleTickets}
+            isLoading={isLoading}
+            isError={isError}
+            onNewTicket={openNewTicket}
+            onOpenTicket={openTicketDetails}
+            onStatusChange={handleStatusChange}
+          />
+        </Suspense>
       ) : (
         <PageSection className="flex-1 pt-6">
           <PagePanel className={isPlaceholderData ? 'opacity-60' : ''}>

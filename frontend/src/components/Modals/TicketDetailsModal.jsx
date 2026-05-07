@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Calendar,
@@ -13,7 +13,7 @@ import {
   GitPullRequest,
   MoreVertical,
   ImagePlus,
-  Plus
+  Plus,
 } from 'lucide-react';
 import { 
   useTicket, 
@@ -59,6 +59,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
+import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
+import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
+
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
@@ -84,6 +88,10 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [dueDateInput, setDueDateInput] = useState('');
   const [currentCategory, setCurrentCategory] = useState(null);
 
+  const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
+  const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
+
+
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
   const { mutate: unlinkPR, isPending: isUnlinkingPR } = useUnlinkPR();
@@ -91,6 +99,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
   const ticket = apiResponse?.data ?? apiResponse;
+  const isArchived = Boolean(ticket?.isArchived);
 
   const {
     data: usersData,
@@ -106,11 +115,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const descriptionInputRef = useRef(null);
   const descriptionSectionRef = useRef(null);
   const uploadDescriptionImagesMutation = useUploadTicketDescriptionImages(ticketId);
-  const isArchived = Boolean(ticket?.isArchived);
-
-
   const validateClientFiles = (files) => {
-  const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
     for (const f of files) {
       if (!allowed.has(f.type)) {
         toast.error('Only JPG, PNG, and WEBP are allowed.');
@@ -212,6 +218,59 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const { data: categoriesData } = useCategories(workspaceId);
   const categories = categoriesData?.data || [];
 
+  const updateField = useCallback((field, value) => {
+    if (field === 'description') {
+      setDescription(String(value || ''));
+      return;
+    }
+
+    if (field === 'priority') {
+      setCurrentPriority(String(value || 'medium'));
+      return;
+    }
+
+    if (field === 'storyPoints') {
+      setCurrentStoryPoints(normalizeStoryPoints(value));
+    }
+  }, []);
+
+  const {
+    isPromptPanelVisible,
+    promptLength,
+    canGenerateDescription,
+    isGeneratingDescription,
+    isDescriptionDraftActive,
+    shouldPauseMetadataSuggestion,
+    generateDescription,
+    acceptGeneratedDescription,
+    cancelGeneratedDescription,
+    resetDescriptionGenerationState,
+  } = useAiDescriptionGenerator({
+    isOpen,
+    subject: title,
+    descriptionHtml: description,
+    updateField,
+  });
+
+  const { resetSuggestionState: resetMetadataSuggestionState } = useAiTicketSuggestion({
+    isOpen,
+    subject: title,
+    description,
+    priorityLockedByUser,
+    storyPointsLockedByUser,
+    updateField,
+    isPaused: shouldPauseMetadataSuggestion || isArchived,
+    skipInitialAutoSuggestion: true,
+  });
+
+  useEffect(() => {
+    if (isOpen) return;
+    setPriorityLockedByUser(false);
+    setStoryPointsLockedByUser(false);
+    resetMetadataSuggestionState();
+    resetDescriptionGenerationState();
+  }, [isOpen, resetDescriptionGenerationState, resetMetadataSuggestionState]);
+
   useEffect(() => {
     if (!ticket || !isOpen) return;
 
@@ -226,7 +285,11 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     setSelectedAgents(existingAgentIds);
     setDueDateInput(dueDateToInputValue(ticket.dueDate));
     setCurrentCategory(ticket.category?._id || ticket.category || null);
-  }, [isOpen, ticket]);
+    setPriorityLockedByUser(false);
+    setStoryPointsLockedByUser(false);
+    resetMetadataSuggestionState();
+    resetDescriptionGenerationState();
+  }, [isOpen, ticket, resetDescriptionGenerationState, resetMetadataSuggestionState]);
 
   const selectedUsersObjects = useMemo(() => {
     return selectedAgents.map((id) => users.find((u) => u._id === id)).filter(Boolean);
@@ -415,8 +478,26 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     });
   };
 
+  const handlePriorityChange = useCallback((value) => {
+    setPriorityLockedByUser(true);
+    setCurrentPriority(value);
+  }, []);
+
+  const handleStoryPointsChange = useCallback((value) => {
+    setStoryPointsLockedByUser(true);
+    setCurrentStoryPoints(normalizeStoryPoints(value));
+  }, []);
+
   const handleSave = () => {
     if (!hasChanges || !ticketId) return;
+    if (isGeneratingDescription) {
+      toast.error('Please wait for AI generation to finish.');
+      return;
+    }
+
+    if (isDescriptionDraftActive) {
+      acceptGeneratedDescription();
+    }
 
     updateTicketMutation.mutate(
       {
@@ -581,9 +662,17 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={updateTicketMutation.isPending || !hasChanges || !title.trim()}
+                disabled={
+                  updateTicketMutation.isPending ||
+                  isGeneratingDescription ||
+                  !hasChanges ||
+                  !title.trim()
+                }
                 className={`flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto sm:flex-initial ${
-                  updateTicketMutation.isPending || !hasChanges || !title.trim()
+                  updateTicketMutation.isPending ||
+                  isGeneratingDescription ||
+                  !hasChanges ||
+                  !title.trim()
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 text-white'
                 }`}
@@ -776,7 +865,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   </div>
                   <PriorityDropdown
                     priority={currentPriority}
-                    onChange={setCurrentPriority}
+                    onChange={handlePriorityChange}
                     disabled={isArchived}
                     className="w-full justify-between"
                   />
@@ -801,7 +890,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               >
                 <RichTextEditor
                   value={description}
-                  onChange={setDescription}
+                  onChange={(html) => setDescription(html)}
                   onPasteImage={handleDescriptionImagePaste}
                   className="min-h-[220px] border-0 rounded-none divide-y-0 sm:min-h-[300px] lg:min-h-[360px]"
                   editable={!isArchived}
@@ -882,7 +971,17 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                     />
                   </div>
                 )}
-
+                <AiDescriptionPanel
+                  isVisible={!isArchived && isPromptPanelVisible}
+                  promptLength={promptLength}
+                  canGenerateDescription={canGenerateDescription}
+                  isGeneratingDescription={isGeneratingDescription}
+                  isDescriptionDraftActive={isDescriptionDraftActive}
+                  onGenerate={() => generateDescription({ showToast: true })}
+                  onAccept={acceptGeneratedDescription}
+                  onCancel={cancelGeneratedDescription}
+                  disabled={updateTicketMutation.isPending || isArchived}
+                />
               </section>
 
               <TicketComments ticketId={ticketId} isArchived={isArchived} />
@@ -926,7 +1025,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
                       <StoryPointsField
                         value={currentStoryPoints}
-                        onChange={setCurrentStoryPoints}
+                        onChange={handleStoryPointsChange}
                         disabled={isArchived}
                         className="space-y-3"
                       />
