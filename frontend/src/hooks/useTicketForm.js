@@ -10,6 +10,7 @@ export const useTicketForm = (initialStatus = 'to do') => {
       storyPoints: null,
       assignedTo: 'unassigned',
       dueDate: '',
+      category: null,
     }),
     [initialStatus]
   );
