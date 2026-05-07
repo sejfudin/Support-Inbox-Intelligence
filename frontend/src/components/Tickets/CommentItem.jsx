@@ -4,18 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Edit2, Trash2, X, Check } from 'lucide-react';
-import { useUpdateComment, useDeleteComment } from '@/queries/comments';
+import { useUpdateComment, useDeleteComment, useCommentImages, useDeleteCommentImage } from '@/queries/comments';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
 
   const updateMutation = useUpdateComment(ticketId);
   const isAuthor = user?._id === comment.author?._id;
   const isAdmin = user?.role === 'admin';
   const isDeleted = comment.isDeleted;
+
+  // supabase
+  const { data: commentImagesRes } = useCommentImages(comment._id);
+  const commentImages = commentImagesRes?.data || [];
+  const deleteCommentImageMutation = useDeleteCommentImage(comment._id);
+
+  const handleDeleteCommentImage = (imageId) => {
+    deleteCommentImageMutation.mutate(imageId, {
+      onSuccess: () => toast.success('Comment image deleted'),
+      onError: (err) =>
+        toast.error(err?.response?.data?.message || 'Failed to delete comment image'),
+    });
+  };
 
   const handleUpdate = () => {
     const trimmedContent = editContent.trim();
@@ -137,6 +151,53 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
             )}
           </div>
         )}
+
+        {!isDeleted && commentImages.length > 0 && (
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {commentImages.map((img) => (
+              <div key={img.id} className="relative rounded-md border overflow-hidden group">
+                <img
+                  src={img.image_url}
+                  alt={img.original_file_name || 'Comment image'}
+                  className="w-full h-36 object-cover cursor-zoom-in"
+                  onClick={() => setPreviewImageUrl(img.image_url)}
+                />
+                {!isArchived && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteCommentImage(img.id)}
+                    className="absolute top-1 right-1 bg-white/90 rounded p-1 opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="w-3 h-3 text-red-600" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {previewImageUrl && (
+          <div
+            className="fixed inset-0 z-[220] bg-black/85 flex items-center justify-center p-4"
+            onClick={() => setPreviewImageUrl(null)}
+          >
+            <button
+              type="button"
+              className="absolute top-4 right-4 rounded-full bg-white/90 p-2"
+              onClick={() => setPreviewImageUrl(null)}
+              aria-label="Close image preview"
+            >
+              <X className="w-5 h-5 text-gray-900" />
+            </button>
+            <img
+              src={previewImageUrl}
+              alt="Comment preview"
+              className="max-h-[90vh] max-w-[95vw] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+
       </div>
     </div>
   );
