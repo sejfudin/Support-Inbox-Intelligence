@@ -1,5 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCommentsByTicket, createComment, updateComment, deleteComment } from '@/api/comments';
+import {
+  getCommentsByTicket,
+  createComment,
+  updateComment,
+  deleteComment,
+  getCommentImages,
+  uploadCommentImages,
+  deleteCommentImage,
+} from '@/api/comments';
 
 export const useComments = (ticketId) => {
   return useQuery({
@@ -38,6 +46,38 @@ export const useDeleteComment = (ticketId) => {
     mutationFn: deleteComment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', ticketId] });
+    },
+  });
+};
+
+// supabase
+
+export const useCommentImages = (commentId) => {
+  return useQuery({
+    queryKey: ['comment-images', commentId],
+    queryFn: () => getCommentImages(commentId),
+    enabled: !!commentId,
+  });
+};
+
+export const useUploadCommentImages = (commentId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (files) => uploadCommentImages(commentId, files),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comment-images', commentId] });
+    },
+  });
+};
+
+export const useDeleteCommentImage = (commentId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (imageId) => deleteCommentImage(commentId, imageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['comment-images', commentId] });
     },
   });
 };
