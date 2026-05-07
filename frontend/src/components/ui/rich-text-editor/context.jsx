@@ -1,7 +1,30 @@
 import * as React from 'react';
+import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+
+const RichTextImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      align: {
+        default: 'center',
+        parseHTML: (element) => element.getAttribute('data-align') || 'center',
+        renderHTML: (attributes) => ({
+          'data-align': attributes.align || 'center',
+        }),
+      },
+      size: {
+        default: 'md',
+        parseHTML: (element) => element.getAttribute('data-size') || 'md',
+        renderHTML: (attributes) => ({
+          'data-size': attributes.size || 'md',
+        }),
+      },
+    };
+  },
+});
 
 const RichTextEditorContext = React.createContext(null);
 
@@ -15,8 +38,14 @@ function useRichTextEditorContext() {
   return context;
 }
 
-const RichTextEditorProvider = ({ children, ...options }) => {
+const RichTextEditorProvider = ({ children, onPasteImage, ...options }) => {
   const editorUpdateTimeoutRef = React.useRef(null);
+  const editorRef = React.useRef(null);
+  const onPasteImageRef = React.useRef(onPasteImage);
+
+  React.useEffect(() => {
+    onPasteImageRef.current = onPasteImage;
+  }, [onPasteImage]);
 
   const onUpdate = React.useCallback(
     ({ editor }) => {
@@ -41,6 +70,7 @@ const RichTextEditorProvider = ({ children, ...options }) => {
   const defaultExtensions = React.useMemo(
     () => [
       StarterKit,
+      RichTextImage,
       Placeholder.configure({
         placeholder: options.placeholder || '',
       }),
@@ -58,6 +88,38 @@ const RichTextEditorProvider = ({ children, ...options }) => {
         options.immediatelyRender !== undefined ? options.immediatelyRender : false,
       editorProps: {
         ...(options.editorProps || {}),
+        handlePaste: (view, event, slice) => {
+          const items = Array.from(event?.clipboardData?.items || []);
+          const imageFiles = items
+            .filter((item) => item?.type?.startsWith('image/'))
+            .map((item) => item.getAsFile())
+            .filter(Boolean);
+
+          if (imageFiles.length === 0) {
+            const externalHandlePaste = options.editorProps?.handlePaste;
+            return externalHandlePaste ? externalHandlePaste(view, event, slice) : false;
+          }
+
+          if (typeof onPasteImageRef.current !== 'function') {
+            return false;
+          }
+
+          const runUpload = async () => {
+            for (const file of imageFiles) {
+              try {
+                const imageUrl = await onPasteImageRef.current(file);
+                if (!imageUrl) continue;
+
+                editorRef.current?.chain().focus().setImage({ src: imageUrl }).run();
+              } catch (error) {
+                console.error('[rich-text-editor] failed to paste image:', error);
+              }
+            }
+          };
+
+          void runUpload();
+          return true;
+        },
         attributes: {
           ...(options.editorProps?.attributes || {}),
           class:
@@ -67,6 +129,10 @@ const RichTextEditorProvider = ({ children, ...options }) => {
     },
     [options.placeholder]
   );
+
+  React.useEffect(() => {
+    editorRef.current = editor;
+  }, [editor]);
 
   // This useEffect ensures that the editor's content stays in sync with the external value prop.
   // It updates the editor only when the value changes externally and the editor is not focused,
