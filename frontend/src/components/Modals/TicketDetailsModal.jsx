@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import {
   Calendar,
@@ -12,8 +12,14 @@ import {
   Download,
   GitPullRequest,
   MoreVertical,
+  ImagePlus,
+  Plus
 } from 'lucide-react';
-import { useTicket, useUpdateTicket } from '@/queries/tickets';
+import { 
+  useTicket, 
+  useUpdateTicket,
+  useUploadTicketDescriptionImages,
+} from '@/queries/tickets';
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -37,6 +43,7 @@ import { useRefreshPR, useUnlinkPR } from '@/queries/github';
 import {
   RichTextEditor,
   RichTextEditorContent,
+  RichTextEditorImageOptions,
   RichTextEditorToolbar,
 } from '@/components/ui/rich-text-editor';
 import {
@@ -67,6 +74,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [actionError, setActionError] = useState(null);
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
   const [unlinkError, setUnlinkError] = useState(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState(null);
+  const [descriptionHoverZoom, setDescriptionHoverZoom] = useState(null);
   const [currentStatus, setCurrentStatus] = useState('To Do');
   const [currentPriority, setCurrentPriority] = useState('medium');
   const [currentStoryPoints, setCurrentStoryPoints] = useState(null);
@@ -90,6 +99,112 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     workspaceId: ticket?.workspace || user?.workspaceId,
   });
   const users = usersData?.users || [];
+
+  // supabase
+  const descriptionInputRef = useRef(null);
+  const descriptionSectionRef = useRef(null);
+  const uploadDescriptionImagesMutation = useUploadTicketDescriptionImages(ticketId);
+  const isArchived = Boolean(ticket?.isArchived);
+
+
+  const validateClientFiles = (files) => {
+  const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    for (const f of files) {
+      if (!allowed.has(f.type)) {
+        toast.error('Only JPG, PNG, and WEBP are allowed.');
+        return false;
+      }
+      if (f.size > 5 * 1024 * 1024) {
+        toast.error('Each image must be 5MB or smaller.');
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleDescriptionImagePick = (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    if (!validateClientFiles(files)) return;
+
+    uploadDescriptionImagesMutation.mutate(files, {
+      onSuccess: (response) => {
+        const uploaded = response?.data || [];
+        const imageUrls = uploaded.map((img) => img?.image_url).filter(Boolean);
+
+        if (imageUrls.length > 0) {
+          const imagesHtml = imageUrls
+            .map((url) => `<p><img src="${url}" alt="Description image" /></p>`)
+            .join('');
+          setDescription((prev) => `${prev || ''}${imagesHtml}`);
+        }
+
+        toast.success('Description image(s) uploaded.');
+      },
+      onError: (err) =>
+        toast.error(err?.response?.data?.message || 'Failed to upload description image(s).'),
+    });
+  };
+
+  const handleDescriptionImagePaste = async (file) => {
+    if (!file) return null;
+
+    if (!validateClientFiles([file])) {
+      throw new Error('Invalid pasted image.');
+    }
+
+    const response = await uploadDescriptionImagesMutation.mutateAsync([file]);
+    const imageUrl = response?.data?.[0]?.image_url || null;
+
+    if (!imageUrl) {
+      throw new Error('Pasted image uploaded but URL is missing.');
+    }
+
+    return imageUrl;
+  };
+
+  const handleDescriptionImageHover = (e) => {
+    if (previewImageUrl) return;
+
+    const sectionEl = descriptionSectionRef.current;
+    if (!sectionEl) return;
+
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.closest('[data-description-image-zoom]')) return;
+
+    const imageEl = target.closest('img');
+    if (!imageEl || !sectionEl.contains(imageEl)) {
+      setDescriptionHoverZoom(null);
+      return;
+    }
+
+    const src = imageEl.getAttribute('src');
+    if (!src) {
+      setDescriptionHoverZoom(null);
+      return;
+    }
+
+    const imageRect = imageEl.getBoundingClientRect();
+    const top = Math.max(8, imageRect.top + 8);
+    const left = Math.max(8, imageRect.right - 40);
+
+    setDescriptionHoverZoom({ src, top, left });
+  };
+
+  const clearDescriptionImageHover = () => {
+    setDescriptionHoverZoom(null);
+  };
+
+  useEffect(() => {
+    const handleAnyScroll = () => setDescriptionHoverZoom(null);
+
+    window.addEventListener('scroll', handleAnyScroll, true);
+    return () => window.removeEventListener('scroll', handleAnyScroll, true);
+  }, []);
+
+
 
   useEffect(() => {
     if (!ticket || !isOpen) return;
@@ -160,8 +275,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
-
-  const isArchived = Boolean(ticket?.isArchived);
 
   const handleArchiveToggle = () => {
     setIsActionModalOpen(true);
@@ -669,10 +782,16 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
             <div className="space-y-6 min-w-0">
-              <section className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden">
+              <section
+                ref={descriptionSectionRef}
+                className="relative rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+                onMouseMove={handleDescriptionImageHover}
+                onMouseLeave={clearDescriptionImageHover}
+              >
                 <RichTextEditor
                   value={description}
                   onChange={setDescription}
+                  onPasteImage={handleDescriptionImagePaste}
                   className="min-h-[220px] border-0 rounded-none divide-y-0 sm:min-h-[300px] lg:min-h-[360px]"
                   editable={!isArchived}
                 >
@@ -683,14 +802,76 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                         Description
                       </span>
                     </div>
-                    <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
-                      <div className="w-max">
-                        <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
+                    <div className="min-w-0 flex items-center gap-2 justify-end">
+                      <input
+                        ref={descriptionInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        multiple
+                        className="hidden"
+                        onChange={handleDescriptionImagePick}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => descriptionInputRef.current?.click()}
+                        disabled={isArchived || uploadDescriptionImagesMutation.isPending}
+                        className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                      >
+                        <ImagePlus className="w-3.5 h-3.5" />
+                        Upload
+                      </button>
+                      <RichTextEditorImageOptions />
+                      <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
+                        <div className="w-max">
+                          <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
+                        </div>
                       </div>
                     </div>
                   </div>
                   <RichTextEditorContent className="p-3 sm:p-4" />
                 </RichTextEditor>
+
+                {descriptionHoverZoom && (
+                  <button
+                    type="button"
+                    data-description-image-zoom
+                    className="fixed z-[230] flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-sm transition hover:bg-white hover:text-gray-900"
+                    style={{
+                      top: `${descriptionHoverZoom.top}px`,
+                      left: `${descriptionHoverZoom.left}px`,
+                    }}
+                    onClick={() => {
+                      setPreviewImageUrl(descriptionHoverZoom.src);
+                      setDescriptionHoverZoom(null);
+                    }}
+                    aria-label="Preview description image"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                )}
+
+                {previewImageUrl && (
+                  <div
+                    className="fixed inset-0 z-[220] bg-black/85 flex items-center justify-center p-4"
+                    onClick={() => setPreviewImageUrl(null)}
+                  >
+                    <button
+                      type="button"
+                      className="absolute top-4 right-4 rounded-full bg-white/90 p-2"
+                      onClick={() => setPreviewImageUrl(null)}
+                      aria-label="Close image preview"
+                    >
+                      <X className="w-5 h-5 text-gray-900" />
+                    </button>
+                    <img
+                      src={previewImageUrl}
+                      alt="Description preview"
+                      className="max-h-[90vh] max-w-[95vw] object-contain rounded-lg"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                )}
+
               </section>
 
               <TicketComments ticketId={ticketId} isArchived={isArchived} />
