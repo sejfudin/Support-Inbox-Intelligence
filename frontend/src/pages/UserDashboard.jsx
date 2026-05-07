@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { createTicketColumns } from '@/components/columns/ticketColumns';
 import { SectionCards } from '@/components/section-cards';
@@ -7,12 +7,14 @@ import { normalizeTicket } from '@/helpers/normalizeTicket';
 import TicketsState from '@/components/Tickets/TicketsState';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import TicketsHeader from '@/components/Tickets/TicketsHeader';
-import BoardPage from '@/components/BoardPage';
-import TicketDetailsModal from '@/components/Modals/TicketDetailsModal';
+import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import { useTicketModals } from '@/hooks/useTicketModals';
 import { useDebounce } from 'use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUpdateTicket } from '@/queries/tickets';
+
+const BoardPage = lazy(() => import('@/components/BoardPage'));
+
 
 export default function UserDashboard() {
   const [requestedPage, setPage] = useState(1);
@@ -124,13 +126,15 @@ export default function UserDashboard() {
 
           <div className="app-page-content mt-2">
             {!isMobile && isBoard ? (
-              <BoardPage
-                tickets={normalizedTickets}
-                isLoading={isLoading}
-                isError={isError}
-                onOpenTicket={openTicketDetails}
-                onStatusChange={handleStatusChange}
-              />
+              <Suspense fallback={<TableSkeleton />}>
+                <BoardPage
+                  tickets={normalizedTickets}
+                  isLoading={isLoading}
+                  isError={isError}
+                  onOpenTicket={openTicketDetails}
+                  onStatusChange={handleStatusChange}
+                />
+              </Suspense>
             ) : (
               <div>
                 <div className="app-panel overflow-hidden">
