@@ -11,12 +11,15 @@ export const useAiTicketSuggestion = ({
   storyPointsLockedByUser,
   updateField,
   isPaused = false,
+  skipInitialAutoSuggestion = false,
 }) => {
   const suggestMetadataMutation = useSuggestTicketMetadata();
 
   const latestSuggestionRequestIdRef = useRef(0);
   const manualSuggestionInFlightRef = useRef(false);
   const lastAutoSuggestionInputKeyRef = useRef('');
+  const hasInitializedAutoSuggestionRef = useRef(false);
+
 
   const safeSubject = String(subject || '').trim();
   const safeDescription = String(description || '').trim();
@@ -30,6 +33,7 @@ export const useAiTicketSuggestion = ({
     latestSuggestionRequestIdRef.current = 0;
     manualSuggestionInFlightRef.current = false;
     lastAutoSuggestionInputKeyRef.current = '';
+    hasInitializedAutoSuggestionRef.current = false;
   }, []);
 
   const applySuggestion = useCallback(
@@ -111,6 +115,13 @@ export const useAiTicketSuggestion = ({
 
     const inputKey = `${safeSubject}::${safeDescription}`;
 
+    if (skipInitialAutoSuggestion && !hasInitializedAutoSuggestionRef.current) {
+      hasInitializedAutoSuggestionRef.current = true;
+      lastAutoSuggestionInputKeyRef.current = inputKey;
+      return;
+    }
+
+
     if (inputKey === lastAutoSuggestionInputKeyRef.current) {
       return;
     }
@@ -128,7 +139,15 @@ export const useAiTicketSuggestion = ({
     }, 1200);
 
     return () => clearTimeout(timer);
-  }, [isOpen, isPaused, hasSuggestibleInput, safeSubject, safeDescription, requestSuggestion]);
+  }, [
+      isOpen, 
+      isPaused, 
+      hasSuggestibleInput, 
+      safeSubject, 
+      safeDescription, 
+      requestSuggestion,
+      skipInitialAutoSuggestion,
+    ]);
 
   const requestManualSuggestion = useCallback(() => {
     if (isPaused) return;
