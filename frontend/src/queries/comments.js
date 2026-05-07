@@ -50,7 +50,7 @@ export const useDeleteComment = (ticketId) => {
   });
 };
 
-// supabase
+
 
 export const useCommentImages = (commentId) => {
   return useQuery({
