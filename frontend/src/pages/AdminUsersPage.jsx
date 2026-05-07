@@ -39,6 +39,10 @@ export default function AdminUsersPage() {
     setEditingUser(user);
   };
 
+  const handleOpenUserAnalytics = (id) => {
+    navigate(`/user/${id}`);
+  };
+
   const handleCloseModal = () => {
     setEditingUser(null);
   };
@@ -93,7 +97,7 @@ export default function AdminUsersPage() {
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{
-                onRowClick: (id, user) => handleEditUser(user),
+                onRowClick: (id) => handleOpenUserAnalytics(id),
               }}
             />
           )}

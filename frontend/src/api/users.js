@@ -12,3 +12,8 @@ export const getUsers = async ({
   });
   return response.data;
 };
+
+export const getUser = async (id) => {
+  const response = await apiClient.get(`/admin/users/${id}`);
+  return response.data;
+};

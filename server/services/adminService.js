@@ -70,7 +70,18 @@ const updateUserRole = async (userId, role) => {
   return user;
 };
 
+const getUserById = async (userId) => {
+  const user = await User.findById(userId).select('fullname email role status workspaceId');
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  return user;
+};
+
 module.exports = {
   getUsers,
   updateUserRole,
+  getUserById,
 };
