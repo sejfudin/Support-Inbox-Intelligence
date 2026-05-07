@@ -34,6 +34,7 @@ import {
   normalizeStoryPoints,
 } from '@/helpers/storyPoints';
 import { useTicketForm } from '@/hooks/useTicketForm';
+import { useCategories } from '@/queries/categories';
 import { toast } from 'sonner';
 import { ChevronsUpDown, Sparkles } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -59,6 +60,9 @@ const NewTickets = ({
     workspaceId: effectiveWorkspaceId,
   });
   const users = usersData?.users || [];
+
+  const { data: categoriesData } = useCategories(effectiveWorkspaceId);
+  const categories = categoriesData?.data || [];
 
   const { form: newTicket, updateField, resetForm } = useTicketForm(initialStatus);
 
@@ -232,6 +236,59 @@ const NewTickets = ({
                     required
                   />
                 </div>
+
+                {categories.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                      Category
+                    </Label>
+                    <Select
+                      value={newTicket.category || 'none'}
+                      onValueChange={(value) =>
+                        updateField('category', value === 'none' ? null : value)
+                      }
+                    >
+                      <SelectTrigger className="h-12">
+                        <SelectValue>
+                          {newTicket.category ? (
+                            (() => {
+                              const cat = categories.find((c) => c._id === newTicket.category);
+                              return cat ? (
+                                <span className="flex items-center gap-2">
+                                  <span
+                                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: cat.color }}
+                                  />
+                                  {cat.name}
+                                </span>
+                              ) : (
+                                'No category'
+                              );
+                            })()
+                          ) : (
+                            <span className="text-muted-foreground">No category</span>
+                          )}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <span className="text-muted-foreground">No category</span>
+                        </SelectItem>
+                        {categories.map((cat) => (
+                          <SelectItem key={cat._id} value={cat._id}>
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="h-2.5 w-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: cat.color }}
+                              />
+                              {cat.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
