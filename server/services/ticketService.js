@@ -223,7 +223,8 @@ const getAllTickets = async ({
         .skip(skip)
         .limit(safeLimit)
         .populate('creator', 'fullname email')
-        .populate('assignedTo', 'fullname email role'),
+        .populate('assignedTo', 'fullname email role')
+        .populate('category'),
       Ticket.countDocuments(query),
     ]);
   } else {
@@ -272,6 +273,15 @@ const getAllTickets = async ({
             pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
           },
         },
+        {
+          $lookup: {
+            from: 'categories',
+            localField: 'category',
+            foreignField: '_id',
+            as: 'category',
+          },
+        },
+        { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
         { $project: { priorityRank: 0 } },
       ]),
       Ticket.countDocuments(query),
@@ -292,7 +302,8 @@ const getAllTickets = async ({
 const getTicketById = async (ticketId) => {
   const ticket = await Ticket.findById(ticketId)
     .populate('assignedTo', 'fullname email role')
-    .populate('creator', 'fullname email');
+    .populate('creator', 'fullname email')
+    .populate('category');
 
   if (!ticket) {
     throw new Error('Ticket not found');
@@ -333,6 +344,7 @@ const createTicket = async (ticketData) => {
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
+    category: ticketData.category || null,
     inProgressAt: status === 'in progress' ? new Date() : undefined,
     ...(dueDate !== undefined ? { dueDate } : {}),
   });
@@ -564,6 +576,7 @@ const getMyTickets = async ({
           .limit(safeLimit)
           .populate('creator', 'fullname email')
           .populate('assignedTo', 'fullname email role')
+          .populate('category')
       : Ticket.aggregate([
           { $match: query },
           {
@@ -603,6 +616,15 @@ const getMyTickets = async ({
               pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
             },
           },
+          {
+            $lookup: {
+              from: 'categories',
+              localField: 'category',
+              foreignField: '_id',
+              as: 'category',
+            },
+          },
+          { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
           { $project: { priorityRank: 0 } },
         ]);
 

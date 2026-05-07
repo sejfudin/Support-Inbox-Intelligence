@@ -99,6 +99,7 @@ const createTicket = async (req, res) => {
       priority,
       dueDate,
       storyPoints,
+      category,
     } = req.body;
     const isAdmin = req.user && req.user.role === 'admin';
     const hasStatus = status !== undefined && status !== null && status !== '';
@@ -137,6 +138,7 @@ const createTicket = async (req, res) => {
       priority: priority || 'medium',
       dueDate,
       storyPoints: normalizedStoryPoints,
+      category: category || null,
     });
     res.status(201).json({
       success: true,
@@ -188,6 +190,7 @@ const updateTicket = async (req, res, next) => {
       'priority',
       'dueDate',
       'storyPoints',
+      'category',
     ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
@@ -201,6 +204,9 @@ const updateTicket = async (req, res, next) => {
           obj[key] = v === null || v === '' ? null : v;
         } else if (key === 'storyPoints') {
           obj[key] = normalizedStoryPoints;
+        } else if (key === 'category') {
+          const v = updateData[key];
+          obj[key] = v === null || v === '' || v === 'none' ? null : v;
         } else {
           obj[key] = updateData[key];
         }
