@@ -1,0 +1,237 @@
+import { useState } from 'react';
+import { Pencil, Trash2, Plus, Check, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+} from '@/queries/categories';
+import { toast } from 'sonner';
+
+const PRESET_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#6b7280',
+];
+
+const ColorPicker = ({ value, onChange }) => (
+  <div className="flex flex-wrap gap-1.5">
+    {PRESET_COLORS.map((color) => (
+      <button
+        key={color}
+        type="button"
+        onClick={() => onChange(color)}
+        className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+        style={{
+          backgroundColor: color,
+          borderColor: value === color ? '#1e293b' : 'transparent',
+        }}
+        aria-label={color}
+      />
+    ))}
+  </div>
+);
+
+const CategoryRow = ({ category, workspaceId }) => {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(category.name);
+  const [color, setColor] = useState(category.color);
+
+  const updateMutation = useUpdateCategory(workspaceId);
+  const deleteMutation = useDeleteCategory(workspaceId);
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    updateMutation.mutate(
+      { id: category._id, name: name.trim(), color },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          toast.success('Category updated');
+        },
+        onError: () => toast.error('Failed to update category'),
+      }
+    );
+  };
+
+  const handleCancel = () => {
+    setName(category.name);
+    setColor(category.color);
+    setEditing(false);
+  };
+
+  const handleDelete = () => {
+    deleteMutation.mutate(category._id, {
+      onSuccess: () => toast.success('Category deleted'),
+      onError: () => toast.error('Failed to delete category'),
+    });
+  };
+
+  if (editing) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="h-9"
+          autoFocus
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave();
+            if (e.key === 'Escape') handleCancel();
+          }}
+        />
+        <ColorPicker value={color} onChange={setColor} />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={!name.trim() || updateMutation.isPending}
+          >
+            <Check className="h-3.5 w-3.5 mr-1" />
+            Save
+          </Button>
+          <Button size="sm" variant="ghost" onClick={handleCancel}>
+            <X className="h-3.5 w-3.5 mr-1" />
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50 transition-colors">
+      <div className="flex items-center gap-2.5">
+        <span
+          className="h-3 w-3 rounded-full shrink-0"
+          style={{ backgroundColor: category.color }}
+        />
+        <span className="text-sm font-medium text-gray-800">{category.name}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          aria-label="Edit category"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+          className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+          aria-label="Delete category"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const CategorySettings = ({ workspaceId }) => {
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState(PRESET_COLORS[5]);
+  const [showForm, setShowForm] = useState(false);
+
+  const { data: categoriesData, isLoading } = useCategories(workspaceId);
+  const categories = categoriesData?.data || [];
+
+  const createMutation = useCreateCategory(workspaceId);
+
+  const handleCreate = () => {
+    if (!newName.trim()) return;
+    createMutation.mutate(
+      { name: newName.trim(), color: newColor, workspaceId },
+      {
+        onSuccess: () => {
+          setNewName('');
+          setNewColor(PRESET_COLORS[5]);
+          setShowForm(false);
+          toast.success('Category created');
+        },
+        onError: () => toast.error('Failed to create category'),
+      }
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900">Ticket Categories</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage categories used to classify tickets in this workspace.
+          </p>
+        </div>
+        {!showForm && (
+          <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+          <Input
+            placeholder="Category name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            className="h-9"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleCreate();
+              if (e.key === 'Escape') setShowForm(false);
+            }}
+          />
+          <ColorPicker value={newColor} onChange={setNewColor} />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleCreate}
+              disabled={!newName.trim() || createMutation.isPending}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Create
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-10 rounded-lg bg-gray-100 animate-pulse" />
+          ))}
+        </div>
+      ) : categories.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-4 text-center">
+          No categories yet. Add one above.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {categories.map((cat) => (
+            <CategoryRow key={cat._id} category={cat} workspaceId={workspaceId} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CategorySettings;

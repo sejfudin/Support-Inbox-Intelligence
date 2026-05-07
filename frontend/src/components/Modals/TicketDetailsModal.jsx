@@ -35,6 +35,7 @@ import TimeSpent from '@/components/TimeSpent';
 import TicketComments from '../Tickets/TicketComments';
 import TicketHistory from '../Tickets/TicketHistory';
 import { dueDateToInputValue } from '@/helpers/ticketDueDate';
+import { useCategories } from '@/queries/categories';
 import StoryPointsField from '../StoryPointsField';
 import { normalizeStoryPoints } from '@/helpers/storyPoints';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
@@ -81,6 +82,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const [currentStoryPoints, setCurrentStoryPoints] = useState(null);
   const [selectedAgents, setSelectedAgents] = useState([]);
   const [dueDateInput, setDueDateInput] = useState('');
+  const [currentCategory, setCurrentCategory] = useState(null);
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
@@ -203,8 +205,12 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     window.addEventListener('scroll', handleAnyScroll, true);
     return () => window.removeEventListener('scroll', handleAnyScroll, true);
   }, []);
-
-
+  const workspaceId =
+    typeof ticket?.workspace === 'string'
+      ? ticket.workspace
+      : ticket?.workspace?._id || user?.workspaceId;
+  const { data: categoriesData } = useCategories(workspaceId);
+  const categories = categoriesData?.data || [];
 
   useEffect(() => {
     if (!ticket || !isOpen) return;
@@ -219,6 +225,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     const existingAgentIds = ticket.assignedTo?.map((a) => a._id || a) || [];
     setSelectedAgents(existingAgentIds);
     setDueDateInput(dueDateToInputValue(ticket.dueDate));
+    setCurrentCategory(ticket.category?._id || ticket.category || null);
   }, [isOpen, ticket]);
 
   const selectedUsersObjects = useMemo(() => {
@@ -235,6 +242,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     const initialAgents = (ticket.assignedTo?.map((a) => a._id || a) || []).sort();
     const currentAgents = [...selectedAgents].sort();
     const initialDue = dueDateToInputValue(ticket.dueDate);
+    const initialCategory = ticket.category?._id || ticket.category || null;
     return (
       title !== initialTitle ||
       description !== initialDescription ||
@@ -242,6 +250,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
       currentPriority !== initialPriority ||
       currentStoryPoints !== initialStoryPoints ||
       dueDateInput !== initialDue ||
+      currentCategory !== initialCategory ||
       JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)
     );
   }, [
@@ -253,6 +262,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
     selectedAgents,
     title,
     dueDateInput,
+    currentCategory,
   ]);
 
   useEffect(() => {
@@ -419,6 +429,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
           description,
           assignedTo: selectedAgents,
           dueDate: dueDateInput ? new Date(`${dueDateInput}T12:00:00`).toISOString() : null,
+          category: currentCategory,
         },
       },
       {
@@ -920,6 +931,55 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                         className="space-y-3"
                       />
                     </div>
+
+                    {categories.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          Category
+                        </span>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <button
+                            type="button"
+                            disabled={isArchived}
+                            onClick={() => setCurrentCategory(null)}
+                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                              currentCategory === null
+                                ? 'bg-gray-800 text-white border-gray-800'
+                                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+                            } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                          >
+                            None
+                          </button>
+                          {categories.map((cat) => (
+                            <button
+                              key={cat._id}
+                              type="button"
+                              disabled={isArchived}
+                              onClick={() => setCurrentCategory(cat._id)}
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                                currentCategory === cat._id
+                                  ? 'text-white border-transparent'
+                                  : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                              } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                              style={
+                                currentCategory === cat._id
+                                  ? { backgroundColor: cat.color, borderColor: cat.color }
+                                  : {}
+                              }
+                            >
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor:
+                                    currentCategory === cat._id ? 'rgba(255,255,255,0.7)' : cat.color,
+                                }}
+                              />
+                              {cat.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

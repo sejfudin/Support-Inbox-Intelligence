@@ -7,6 +7,7 @@ const {
   inviteExistingUserToWorkspace,
   cancelWorkspaceInvitationsForUser,
 } = require('./invitationService');
+const { seedDefaultCategories } = require('./categoryService');
 
 const createWorkspace = async ({ name, description, ownerId }) => {
   const workspace = await Workspace.create({
@@ -17,6 +18,7 @@ const createWorkspace = async ({ name, description, ownerId }) => {
   });
 
   await User.findByIdAndUpdate(ownerId, { workspaceId: workspace._id });
+  await seedDefaultCategories(workspace._id);
 
   return workspace;
 };

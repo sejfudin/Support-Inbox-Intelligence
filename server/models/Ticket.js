@@ -115,6 +115,11 @@ const ticketSchema = new mongoose.Schema(
       immutable: true,
       index: true,
     },
+    category: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Category',
+      default: null,
+    },
     dueDate: {
       type: Date,
       default: null,
