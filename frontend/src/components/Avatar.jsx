@@ -19,10 +19,15 @@ export const Avatar = ({ users, size = 'md' }) => {
           item: 'h-5 w-5 text-[10px] border',
           remaining: 'h-5 w-5 text-[10px] border',
         }
-      : {
-          item: 'h-8 w-8 text-[14px] border-2',
-          remaining: 'h-8 w-8 text-[10px] border-2',
-        };
+      : size === 'lg'
+        ? {
+            item: 'h-12 w-12 text-[16px] border-2',
+            remaining: 'h-12 w-12 text-[12px] border-2',
+          }
+        : {
+            item: 'h-8 w-8 text-[14px] border-2',
+            remaining: 'h-8 w-8 text-[10px] border-2',
+          };
 
   return (
     <TooltipProvider delayDuration={200}>

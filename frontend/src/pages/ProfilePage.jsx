@@ -1,21 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Pencil, X, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Pencil } from 'lucide-react';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { RoleBadge } from '@/components/RoleBadge';
 import { useUpdateUser } from '@/queries/auth';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
-import { useNavigate } from 'react-router-dom';
+import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
 
   const { user, loading, refetchUser } = useAuth();
   const updateUserMutation = useUpdateUser();
@@ -24,24 +23,6 @@ const ProfilePage = () => {
     fullName: '',
     password: '',
   });
-
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (e.key !== 'Escape') return;
-
-      if (isEditing) {
-        setIsEditing(false);
-        setShowPassword(false);
-        setDraftProfile({ fullName: '', password: '' });
-        return;
-      }
-
-      navigate(-1);
-    };
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isEditing, navigate]);
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -91,136 +72,129 @@ const ProfilePage = () => {
   const isFormValid = isFullNameValid && isPasswordValid;
 
   return (
-    <div className="flex min-h-[calc(100vh-2rem)] flex-1 flex-col items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-md md:max-w-2xl my-auto">
-        <Card className="shadow-2xl border-slate-200">
-          <CardHeader className="flex flex-row items-start justify-between gap-4 px-6 pb-6 pt-8 md:items-center md:px-12 md:pt-10">
-            <div className="space-y-1">
-              <CardTitle className="text-2xl md:text-3xl font-extrabold text-gray-900">
-                User Profile
-              </CardTitle>
-              <p className="text-sm font-medium text-slate-500">
-                {isEditing ? 'Update your details' : 'Your account information'}
+    <PageShell>
+      <PageSection className="space-y-6">
+        <div className="mx-auto w-full max-w-3xl space-y-6">
+          <PagePanel className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
+            <div className="min-w-0">
+              <div className="app-kicker mb-3">Account</div>
+              <h1 className="app-title">Profile</h1>
+              <p className="app-subtitle">
+                {isEditing ? 'Update your details.' : 'Your account information.'}
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex w-full items-center gap-2 md:w-auto">
               <Button
-                variant="ghost"
+                variant={isEditing ? 'outline' : 'default'}
+                className="w-full gap-2 md:w-auto"
                 onClick={() => {
                   if (isEditing) {
                     setIsEditing(false);
                     setShowPassword(false);
                     setDraftProfile({ fullName: '', password: '' });
-                  } else {
-                    setIsEditing(true);
-                    setDraftProfile({
-                      fullName: user.fullname || '',
-                      password: '',
-                    });
+                    return;
                   }
+
+                  setIsEditing(true);
+                  setDraftProfile({
+                    fullName: user.fullname || '',
+                    password: '',
+                  });
                 }}
-                className="hover:bg-slate-100 text-slate-600 font-bold"
-                aria-label={isEditing ? 'Cancel editing profile' : 'Edit profile'}
               >
-                {isEditing ? <X className="h-6 w-6" /> : <Pencil className="h-5 w-5" />}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="hover:bg-slate-100 text-slate-600 font-bold"
-                onClick={() => navigate(-1)}
-                aria-label="Close profile"
-              >
-                <X className="h-5 w-5" />
+                <Pencil className="h-4 w-4" />
+                {isEditing ? 'Cancel editing' : 'Edit profile'}
               </Button>
             </div>
-          </CardHeader>
+          </PagePanel>
 
-          <CardContent className="px-6 md:px-12 pb-12">
+          <PagePanel className="px-5 py-6 md:px-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="shrink-0">
+                  <Avatar users={[user]} size="lg" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-base font-semibold leading-tight truncate">
+                    {user.fullname || '—'}
+                  </div>
+                  <div className="text-sm text-muted-foreground truncate">{user.email || '—'}</div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <RoleBadge role={profile.role} />
+                <UserStatusBadge status={profile.status} />
+              </div>
+            </div>
+          </PagePanel>
+
+          <PagePanel className="px-5 py-6 md:px-6">
             <form className="space-y-6" onSubmit={handleSave}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2 md:col-span-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Full Name
-                  </Label>
-                  <Input
-                    disabled={!isEditing}
-                    className={`h-14 text-lg border-slate-300 focus:ring-2 ${!isEditing ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-gray-900'}`}
-                    value={profile.fullName}
-                    onChange={(e) =>
-                      setDraftProfile((current) => ({ ...current, fullName: e.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Email Address
-                  </Label>
-                  <Input
-                    disabled={true}
-                    className={`h-14 text-lg border-slate-300 focus:ring-2 ${!isEditing ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-gray-900'}`}
-                    value={profile.email}
-                    readOnly
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    {isEditing ? 'New Password (Optional)' : 'Password'}
-                  </Label>
-                  <div className="relative">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Full name</Label>
+                  {isEditing ? (
                     <Input
-                      type={isEditing && showPassword ? 'text' : 'password'}
-                      disabled={!isEditing}
-                      placeholder={isEditing ? 'Leave blank to keep current password' : ''}
-                      className={`h-14 text-lg border-slate-300 focus:ring-2 pr-12 ${
-                        !isEditing
-                          ? 'bg-slate-50 text-slate-500 cursor-not-allowed'
-                          : 'bg-white text-gray-900'
-                      }`}
-                      value={isEditing ? profile.password : '********'}
+                      value={profile.fullName}
                       onChange={(e) =>
-                        setDraftProfile((current) => ({ ...current, password: e.target.value }))
+                        setDraftProfile((current) => ({ ...current, fullName: e.target.value }))
                       }
                     />
-                    {isEditing && (
+                  ) : (
+                    <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                      {profile.fullName || '—'}
+                    </div>
+                  )}
+                  {isEditing && !isFullNameValid && (
+                    <p className="text-xs text-destructive">Full name is required.</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                    {profile.email}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Your email can’t be changed here.</p>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label>{isEditing ? 'New password (optional)' : 'Password'}</Label>
+                  {isEditing ? (
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Leave blank to keep current password"
+                        value={profile.password}
+                        onChange={(e) =>
+                          setDraftProfile((current) => ({ ...current, password: e.target.value }))
+                        }
+                        className="pr-12"
+                      />
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        onClick={() => setShowPassword((current) => !current)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">********</div>
+                  )}
 
                   {isEditing && !isPasswordValid && (
-                    <p className="text-xs text-red-500 font-medium mt-1">
+                    <p className="text-xs text-destructive">
                       Password must be at least 6 characters long.
                     </p>
                   )}
                 </div>
 
-                {!isEditing && (
-                  <div className="grid grid-cols-1 gap-4 pt-4 animate-in fade-in duration-500 sm:grid-cols-2 md:col-span-2">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center space-y-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                        User Role
-                      </span>
-                      <RoleBadge role={profile.role} />
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col items-center justify-center space-y-2">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                        Account Status
-                      </span>
-                      <UserStatusBadge status={profile.status} />
-                    </div>
-                  </div>
-                )}
                 {isEditing && updateUserMutation.isError && (
-                  <div className="md:col-span-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm font-medium animate-in fade-in zoom-in duration-300">
+                  <div className="md:col-span-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                     {updateUserMutation.error?.response?.data?.message ||
                       'Something went wrong. Please try again.'}
                   </div>
@@ -228,25 +202,11 @@ const ProfilePage = () => {
               </div>
 
               {isEditing && (
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    type="submit"
-                    disabled={updateUserMutation.isPending || !isFormValid}
-                    className="h-14 flex-1 text-xl font-bold bg-slate-900 hover:bg-slate-800 text-white transition-all transform active:scale-[0.98] shadow-xl flex items-center justify-center gap-2"
-                  >
-                    {updateUserMutation.isPending ? (
-                      <>
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Changes'
-                    )}
-                  </Button>
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-14 flex-1"
+                    className="sm:order-1"
                     onClick={() => {
                       setIsEditing(false);
                       setShowPassword(false);
@@ -255,13 +215,16 @@ const ProfilePage = () => {
                   >
                     Cancel
                   </Button>
+                  <Button type="submit" disabled={updateUserMutation.isPending || !isFormValid}>
+                    {updateUserMutation.isPending ? 'Saving…' : 'Save changes'}
+                  </Button>
                 </div>
               )}
             </form>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          </PagePanel>
+        </div>
+      </PageSection>
+    </PageShell>
   );
 };
 
