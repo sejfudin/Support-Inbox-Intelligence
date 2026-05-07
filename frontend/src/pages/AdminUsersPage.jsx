@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { DataTable } from '@/components/Tickets/TicketsTable';
 import { Input } from '@/components/ui/input';
 import { Search, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UserEditModal from '@/components/UserEditModal';
 import { useNavigate } from 'react-router-dom';
 import { useUsers } from '@/queries/users';
-import { columns } from '@/components/columns/userColumns';
 import { useDebounce } from 'use-debounce';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
+import AdminUsersExpandableTable from '@/components/AdminUsersExpandableTable';
 
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
@@ -26,11 +25,11 @@ export default function AdminUsersPage() {
     usersData?.users?.map((user) => ({
       id: user._id,
       fullName: user.fullname || 'No name',
-      user: user.fullname || 'No name',
       email: user.email,
       role: user.role,
-      active: user.active,
       status: user.status === 'active' ? 'active' : 'inactive',
+      workspaceCount: user.workspaceCount || 0,
+      workspaces: user.workspaces || [],
     })) ?? [];
 
   const pagination = usersData?.pagination;
@@ -89,16 +88,15 @@ export default function AdminUsersPage() {
 
         <div className="app-panel overflow-hidden">
           {isPending ? (
-            <TableSkeleton columns={5} rows={6} minWidthClassName="min-w-[800px]" />
+            <TableSkeleton columns={6} rows={6} minWidthClassName="min-w-[1000px]" />
           ) : (
-            <DataTable
-              columns={columns}
+            <AdminUsersExpandableTable
               data={users}
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
-              meta={{
-                onRowClick: (id) => handleOpenUserAnalytics(id),
-              }}
+              onEditUser={handleEditUser}
+              onRowClick={handleOpenUserAnalytics}
+              isLoading={isPending}
             />
           )}
         </div>

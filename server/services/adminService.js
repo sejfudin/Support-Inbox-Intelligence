@@ -45,8 +45,35 @@ const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, 
     User.countDocuments(query),
   ]);
 
+  // Fetch workspace membership data for each user
+  const usersWithMemberships = await Promise.all(
+    users.map(async (user) => {
+      const workspaces = await Workspace.find(
+        { 'members.user': user._id },
+        { name: 1, members: 1, createdAt: 1 }
+      );
+
+      const membershipData = workspaces.map((workspace) => {
+        const member = workspace.members.find((m) => m.user?.equals(user._id));
+        return {
+          id: workspace._id,
+          name: workspace.name,
+          role: member?.role || 'member',
+          status: member?.status || 'active',
+          createdAt: member?.createdAt || workspace.createdAt,
+        };
+      });
+
+      return {
+        ...user.toObject(),
+        workspaces: membershipData,
+        workspaceCount: membershipData.length,
+      };
+    })
+  );
+
   return {
-    users,
+    users: usersWithMemberships,
     pagination: {
       total,
       page: Number(page),
