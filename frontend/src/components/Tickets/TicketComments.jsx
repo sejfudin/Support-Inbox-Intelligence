@@ -21,6 +21,14 @@ export default function TicketComments({ ticketId, isArchived }) {
   const { data: comments = [], isLoading } = useComments(ticketId);
   const deleteMutation = useDeleteComment(ticketId);
   const commentCount = comments?.length ?? 0;
+  const commentsAreaHeightClass =
+    commentCount === 0
+      ? 'h-[150px]'
+      : commentCount <= 2
+        ? 'h-[260px]'
+        : commentCount <= 4
+          ? 'h-[340px]'
+          : 'h-[420px] sm:h-[480px]';
 
   const handleConfirmDelete = () => {
     deleteMutation.mutate(commentToDelete, {
@@ -55,25 +63,27 @@ export default function TicketComments({ ticketId, isArchived }) {
         </AccordionTrigger>
 
         <AccordionContent className="p-0 data-[state=closed]:hidden">
-          <ScrollArea className="max-h-[480px] p-6">
-            {comments.length === 0 ? (
-              <div className="flex items-center justify-center text-sm text-gray-500 italic py-8">
-                No comments yet.
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {comments.map((comment) => (
-                  <CommentItem
-                    key={comment._id}
-                    comment={comment}
-                    ticketId={ticketId}
-                    user={user}
-                    isArchived={isArchived}
-                    onOpenDelete={setCommentToDelete}
-                  />
-                ))}
-              </div>
-            )}
+          <ScrollArea className={commentsAreaHeightClass}>
+            <div className="p-6">
+              {comments.length === 0 ? (
+                <div className="flex items-center justify-center text-sm text-gray-500 italic py-8">
+                  No comments yet.
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {comments.map((comment) => (
+                    <CommentItem
+                      key={comment._id}
+                      comment={comment}
+                      ticketId={ticketId}
+                      user={user}
+                      isArchived={isArchived}
+                      onOpenDelete={setCommentToDelete}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </ScrollArea>
 
           {!isArchived && <CommentInput ticketId={ticketId} />}
