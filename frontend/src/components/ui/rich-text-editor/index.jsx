@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { _RichTextEditorProvider, _useRichTextEditorContext } from './context';
-import { _RichTextEditorToolbar } from './toolbar';
+import { _RichTextEditorImageOptions, _RichTextEditorToolbar } from './toolbar';
 
 function RichTextEditor({ children, className, ...props }) {
   return (
@@ -45,6 +45,12 @@ function RichTextEditorContent({ className }) {
         data-slot="rich-text-editor-content"
         className={cn(
           'prose prose-sm dark:prose-invert text-foreground h-full w-full max-w-none',
+          '[&_img]:block [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-md',
+          'sm:[&_img:not([data-size])]:max-w-md',
+          'sm:[&_img[data-size=sm]]:max-w-xs sm:[&_img[data-size=md]]:max-w-md sm:[&_img[data-size=lg]]:max-w-lg',
+          '[&_img[data-align=left]]:ml-0 [&_img[data-align=left]]:mr-auto',
+          '[&_img[data-align=center]]:mx-auto',
+          '[&_img[data-align=right]]:ml-auto [&_img[data-align=right]]:mr-0',
           // placeholder when editor is empty
           '[&_p.is-editor-empty:first-child::before]:text-muted-foreground [&_p.is-editor-empty:first-child::before]:pointer-events-none [&_p.is-editor-empty:first-child::before]:float-left [&_p.is-editor-empty:first-child::before]:h-0 [&_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]',
           className
@@ -57,4 +63,9 @@ function RichTextEditorContent({ className }) {
 
 RichTextEditorContent.displayName = 'RichTextEditorContent';
 
-export { RichTextEditor, RichTextEditorContent, _RichTextEditorToolbar as RichTextEditorToolbar };
+export {
+  RichTextEditor,
+  RichTextEditorContent,
+  _RichTextEditorToolbar as RichTextEditorToolbar,
+  _RichTextEditorImageOptions as RichTextEditorImageOptions,
+};
