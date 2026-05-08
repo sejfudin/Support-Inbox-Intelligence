@@ -75,9 +75,7 @@ export default function AdminUsersExpandableTable({
         <Table className="min-w-full">
           <TableHeader>
             <TableRow className="bg-secondary/60">
-              <TableHead className="w-[5%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {/* Expand icon column */}
-              </TableHead>
+              <TableHead className="w-[5%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground"></TableHead>
               <TableHead className="w-[35%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                 User
               </TableHead>
@@ -100,7 +98,6 @@ export default function AdminUsersExpandableTable({
             {data?.length ? (
               data.map((user) => (
                 <React.Fragment key={user.id}>
-                  {/* Parent Row */}
                   <TableRow
                     className="border-b border-border/70 transition-colors hover:bg-secondary/50 cursor-pointer"
                     onClick={() => onRowClick?.(user.id)}
@@ -121,7 +118,6 @@ export default function AdminUsersExpandableTable({
                       </button>
                     </TableCell>
 
-                    {/* User Info */}
                     <TableCell className="w-[35%] py-4 px-4">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9">
@@ -140,12 +136,10 @@ export default function AdminUsersExpandableTable({
                       </div>
                     </TableCell>
 
-                    {/* Global Role */}
                     <TableCell className="w-[15%] py-4 px-4">
                       <RoleBadge role={user.role} />
                     </TableCell>
 
-                    {/* Membership Summary */}
                     <TableCell className="w-[20%] py-4 px-4">
                       <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/60 px-3 py-1.5 text-sm">
                         <Shield className="h-3.5 w-3.5 text-primary" />
@@ -157,12 +151,10 @@ export default function AdminUsersExpandableTable({
                       </div>
                     </TableCell>
 
-                    {/* Account Status */}
                     <TableCell className="w-[15%] py-4 px-4">
                       <UserStatusBadge status={user.status} />
                     </TableCell>
 
-                    {/* Actions */}
                     <TableCell className="w-[10%] py-4 px-4">
                       <Button
                         variant="ghost"
@@ -178,7 +170,6 @@ export default function AdminUsersExpandableTable({
                     </TableCell>
                   </TableRow>
 
-                  {/* Expanded Content - Workspaces Sub-table */}
                   {expandedRows.has(user.id) && (
                     <TableRow className="border-b border-border/70 bg-muted/30">
                       <TableCell colSpan={6} className="py-0">
@@ -262,7 +253,6 @@ export default function AdminUsersExpandableTable({
         </Table>
       </div>
 
-      {/* Pagination */}
       <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-muted-foreground">
           Showing <span className="font-medium">{from}</span> to{' '}
