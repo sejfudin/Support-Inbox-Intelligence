@@ -132,17 +132,20 @@ const acceptInvitation = async ({ invitationId, userId }) => {
   const memberIndex = workspace.members.findIndex(
     (member) => member.user.toString() === userId.toString()
   );
+  const joinedAt = new Date();
 
   if (memberIndex >= 0) {
     workspace.members[memberIndex].status = 'active';
     workspace.members[memberIndex].role = invitation.workspaceRole;
     workspace.members[memberIndex].invitedBy = invitation.invitedBy;
+    workspace.members[memberIndex].joinedAt = joinedAt;
   } else {
     workspace.members.push({
       user: userId,
       role: invitation.workspaceRole,
       status: 'active',
       invitedBy: invitation.invitedBy,
+      joinedAt,
     });
   }
 
