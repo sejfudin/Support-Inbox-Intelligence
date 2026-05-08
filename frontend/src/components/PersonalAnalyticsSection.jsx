@@ -30,6 +30,8 @@ export default function PersonalAnalyticsSection({
   title = 'Personal Performance',
   description = 'Your ticket load and completion trend in the selected period.',
   periodLabel = 'Last',
+  activityTitle = 'My Activity Trend',
+  workloadTitle = 'My Workload Distribution',
 }) {
   const userSummary = userAnalytics?.summaryStats || {
     completedTickets: 0,
@@ -162,7 +164,7 @@ export default function PersonalAnalyticsSection({
           {hasUserActivityData ? (
             <Card className="app-panel">
               <CardHeader>
-                <CardTitle className="text-lg">My Activity Trend</CardTitle>
+                <CardTitle className="text-lg">{activityTitle}</CardTitle>
                 <CardDescription>Completed tickets per day</CardDescription>
               </CardHeader>
               <CardContent>
@@ -196,13 +198,13 @@ export default function PersonalAnalyticsSection({
               </CardContent>
             </Card>
           ) : (
-            <AnalyticsEmptyCard title="My Activity Trend" description="Completed tickets per day" />
+            <AnalyticsEmptyCard title={activityTitle} description="Completed tickets per day" />
           )}
 
           {hasUserWorkloadData ? (
             <Card className="app-panel">
               <CardHeader>
-                <CardTitle className="text-lg">My Workload Distribution</CardTitle>
+                <CardTitle className="text-lg">{workloadTitle}</CardTitle>
                 <CardDescription>Completed tickets by priority</CardDescription>
               </CardHeader>
               <CardContent>
@@ -236,7 +238,7 @@ export default function PersonalAnalyticsSection({
             </Card>
           ) : (
             <AnalyticsEmptyCard
-              title="My Workload Distribution"
+              title={workloadTitle}
               description="Completed tickets by priority"
             />
           )}

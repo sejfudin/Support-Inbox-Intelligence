@@ -1,6 +1,24 @@
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 
+const getUserWorkspaceMemberships = async (userId) => {
+  const workspaces = await Workspace.find(
+    { 'members.user': userId, isArchived: { $ne: true } },
+    { name: 1, members: 1, createdAt: 1 }
+  ).sort({ name: 1 });
+
+  return workspaces.map((workspace) => {
+    const member = workspace.members.find((m) => m.user?.equals(userId));
+    return {
+      id: workspace._id,
+      name: workspace.name,
+      role: member?.role || 'member',
+      status: member?.status || 'active',
+      createdAt: member?.createdAt || workspace.createdAt,
+    };
+  });
+};
+
 const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, workspaceId }) => {
   const skip = (page - 1) * limit;
   const query = {};
@@ -48,21 +66,7 @@ const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, 
   // Fetch workspace membership data for each user
   const usersWithMemberships = await Promise.all(
     users.map(async (user) => {
-      const workspaces = await Workspace.find(
-        { 'members.user': user._id },
-        { name: 1, members: 1, createdAt: 1 }
-      );
-
-      const membershipData = workspaces.map((workspace) => {
-        const member = workspace.members.find((m) => m.user?.equals(user._id));
-        return {
-          id: workspace._id,
-          name: workspace.name,
-          role: member?.role || 'member',
-          status: member?.status || 'active',
-          createdAt: member?.createdAt || workspace.createdAt,
-        };
-      });
+      const membershipData = await getUserWorkspaceMemberships(user._id);
 
       return {
         ...user.toObject(),
@@ -104,7 +108,13 @@ const getUserById = async (userId) => {
     throw new Error('User not found');
   }
 
-  return user;
+  const membershipData = await getUserWorkspaceMemberships(user._id);
+
+  return {
+    ...user.toObject(),
+    workspaces: membershipData,
+    workspaceCount: membershipData.length,
+  };
 };
 
 module.exports = {

@@ -1,9 +1,9 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Mail, ShieldCheck, User } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/queries/users';
-import { useUserAnalytics } from '@/queries/workspaces';
+import { useUserAnalyticsByWorkspaces } from '@/queries/workspaces';
 import PersonalAnalyticsSection from '@/components/PersonalAnalyticsSection';
 
 export default function AdminUserAnalyticsPage() {
@@ -13,16 +13,36 @@ export default function AdminUserAnalyticsPage() {
   const [days, setDays] = useState(30);
 
   const { data: loadedUser, isLoading, isError } = useUser(userId);
-  const user = location.state?.user || loadedUser;
-  const workspaceId = user?.workspaceId;
+  const user = loadedUser || location.state?.user;
+  const userName = user?.fullname || user?.fullName || 'No name';
 
-  const {
-    data: userAnalytics,
-    isLoading: isAnalyticsLoading,
-    isError: isAnalyticsError,
-  } = useUserAnalytics({
+  const analyticsWorkspaces = useMemo(() => {
+    const memberships =
+      user?.workspaces
+        ?.filter((workspace) => workspace.status === 'active')
+        .map((workspace) => ({
+          ...workspace,
+          id: workspace.id || workspace._id,
+        }))
+        .filter((workspace) => workspace.id) || [];
+
+    if (memberships.length > 0 || !user?.workspaceId) {
+      return memberships;
+    }
+
+    return [
+      {
+        id: user.workspaceId,
+        name: 'Assigned Workspace',
+        role: 'member',
+        status: 'active',
+      },
+    ];
+  }, [user]);
+
+  const analyticsQueries = useUserAnalyticsByWorkspaces({
     userId,
-    workspaceId,
+    workspaces: analyticsWorkspaces,
     days,
   });
 
@@ -50,7 +70,7 @@ export default function AdminUserAnalyticsPage() {
     );
   }
 
-  if (!workspaceId) {
+  if (analyticsWorkspaces.length === 0) {
     return (
       <div className="app-page">
         <div className="app-page-content space-y-6">
@@ -64,8 +84,10 @@ export default function AdminUserAnalyticsPage() {
               </div>
               <div>
                 <div className="app-kicker mb-3">Admin user analytics</div>
-                <h1 className="app-title">{user.fullname || 'No name'}</h1>
-                <p className="app-subtitle">This user is not assigned to a workspace yet.</p>
+                <h1 className="app-title">{userName}</h1>
+                <p className="app-subtitle">
+                  This user is not an active member of any workspace yet.
+                </p>
               </div>
             </div>
 
@@ -95,7 +117,7 @@ export default function AdminUserAnalyticsPage() {
           </div>
 
           <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            Personal analytics are unavailable until this user joins a workspace.
+            Personal analytics are unavailable until this user joins an active workspace.
           </div>
         </div>
       </div>
@@ -115,8 +137,11 @@ export default function AdminUserAnalyticsPage() {
             </div>
             <div>
               <div className="app-kicker mb-3">Admin user analytics</div>
-              <h1 className="app-title">{user.fullname || 'No name'}</h1>
-              <p className="app-subtitle">Personal analytics for this workspace member.</p>
+              <h1 className="app-title">{userName}</h1>
+              <p className="app-subtitle">
+                Personal analytics across {analyticsWorkspaces.length}{' '}
+                {analyticsWorkspaces.length === 1 ? 'workspace' : 'workspaces'}.
+              </p>
             </div>
           </div>
 
@@ -145,17 +170,27 @@ export default function AdminUserAnalyticsPage() {
           </div>
         </div>
 
-        <PersonalAnalyticsSection
-          days={days}
-          setDays={setDays}
-          userAnalytics={userAnalytics}
-          isLoading={isAnalyticsLoading}
-          isError={isAnalyticsError}
-          kicker="User analytics"
-          title="Personal Performance"
-          description={`Ticket load and completion trend for ${user.fullname || 'this user'}.`}
-          periodLabel="Last"
-        />
+        {analyticsWorkspaces.map((workspace, index) => {
+          const analyticsQuery = analyticsQueries[index] || {};
+          const workspaceName = workspace.name || 'Workspace';
+
+          return (
+            <PersonalAnalyticsSection
+              key={workspace.id}
+              days={days}
+              setDays={setDays}
+              userAnalytics={analyticsQuery.data}
+              isLoading={analyticsQuery.isLoading}
+              isError={analyticsQuery.isError}
+              kicker="User analytics"
+              title={workspaceName}
+              description={`Ticket load and completion trend for ${userName} in ${workspaceName}.`}
+              periodLabel="Last"
+              activityTitle="Activity Trend"
+              workloadTitle="Workload Distribution"
+            />
+          );
+        })}
       </div>
     </div>
   );
