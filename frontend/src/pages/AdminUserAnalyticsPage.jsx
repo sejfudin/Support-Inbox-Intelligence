@@ -1,10 +1,18 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Mail, ShieldCheck, User } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/queries/users';
-import { useUserAnalyticsByWorkspaces } from '@/queries/workspaces';
+import { useUserAnalytics } from '@/queries/workspaces';
 import PersonalAnalyticsSection from '@/components/PersonalAnalyticsSection';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ANALYTICS_PERIODS } from '@/helpers/analyticsFormatters';
 
 export default function AdminUserAnalyticsPage() {
   const { userId } = useParams();
@@ -15,6 +23,7 @@ export default function AdminUserAnalyticsPage() {
   const { data: loadedUser, isLoading, isError } = useUser(userId);
   const user = loadedUser || location.state?.user;
   const userName = user?.fullname || user?.fullName || 'No name';
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
 
   const analyticsWorkspaces = useMemo(() => {
     const memberships =
@@ -22,7 +31,7 @@ export default function AdminUserAnalyticsPage() {
         ?.filter((workspace) => workspace.status === 'active')
         .map((workspace) => ({
           ...workspace,
-          id: workspace.id || workspace._id,
+          id: String(workspace.id || workspace._id),
         }))
         .filter((workspace) => workspace.id) || [];
 
@@ -32,7 +41,7 @@ export default function AdminUserAnalyticsPage() {
 
     return [
       {
-        id: user.workspaceId,
+        id: String(user.workspaceId),
         name: 'Assigned Workspace',
         role: 'member',
         status: 'active',
@@ -40,9 +49,33 @@ export default function AdminUserAnalyticsPage() {
     ];
   }, [user]);
 
-  const analyticsQueries = useUserAnalyticsByWorkspaces({
+  useEffect(() => {
+    if (analyticsWorkspaces.length === 0) {
+      setSelectedWorkspaceId('');
+      return;
+    }
+
+    const stillAvailable = analyticsWorkspaces.some(
+      (workspace) => workspace.id === selectedWorkspaceId
+    );
+
+    if (!stillAvailable) {
+      setSelectedWorkspaceId(analyticsWorkspaces[0].id);
+    }
+  }, [analyticsWorkspaces, selectedWorkspaceId]);
+
+  const selectedWorkspace =
+    analyticsWorkspaces.find((workspace) => workspace.id === selectedWorkspaceId) ||
+    analyticsWorkspaces[0];
+  const selectedWorkspaceName = selectedWorkspace?.name || 'Workspace';
+
+  const {
+    data: userAnalytics,
+    isLoading: isAnalyticsLoading,
+    isError: isAnalyticsError,
+  } = useUserAnalytics({
     userId,
-    workspaces: analyticsWorkspaces,
+    workspaceId: selectedWorkspace?.id,
     days,
   });
 
@@ -127,7 +160,7 @@ export default function AdminUserAnalyticsPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
+        <div className="app-panel flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-center lg:justify-between md:px-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>
@@ -139,58 +172,76 @@ export default function AdminUserAnalyticsPage() {
               <div className="app-kicker mb-3">Admin user analytics</div>
               <h1 className="app-title">{userName}</h1>
               <p className="app-subtitle">
-                Personal analytics across {analyticsWorkspaces.length}{' '}
-                {analyticsWorkspaces.length === 1 ? 'workspace' : 'workspaces'}.
+                Viewing personal analytics for {selectedWorkspaceName}.
               </p>
             </div>
           </div>
 
-          <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-            <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <User className="h-4 w-4 text-primary" />
-              <div>
-                <div className="font-medium text-foreground">{user.role || 'user'}</div>
-                <div>Role</div>
+          <div className="w-full lg:w-auto">
+            <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <User className="h-4 w-4 text-primary" />
+                <div>
+                  <div className="font-medium text-foreground">{user.role || 'user'}</div>
+                  <div>Role</div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <Mail className="h-4 w-4 text-primary" />
-              <div>
-                <div className="font-medium text-foreground">{user.email}</div>
-                <div>Email</div>
+              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <Mail className="h-4 w-4 text-primary" />
+                <div>
+                  <div className="font-medium text-foreground">{user.email}</div>
+                  <div>Email</div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <div>
-                <div className="font-medium text-foreground">{user.status || 'active'}</div>
-                <div>Status</div>
+              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <div>
+                  <div className="font-medium text-foreground">{user.status || 'active'}</div>
+                  <div>Status</div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {analyticsWorkspaces.map((workspace, index) => {
-          const analyticsQuery = analyticsQueries[index] || {};
-          const workspaceName = workspace.name || 'Workspace';
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Select value={selectedWorkspace?.id || ''} onValueChange={setSelectedWorkspaceId}>
+            <SelectTrigger className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[260px]">
+              <SelectValue placeholder="Select workspace" />
+            </SelectTrigger>
+            <SelectContent>
+              {analyticsWorkspaces.map((workspace) => (
+                <SelectItem key={workspace.id} value={workspace.id}>
+                  {workspace.name || 'Workspace'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          return (
-            <PersonalAnalyticsSection
-              key={workspace.id}
-              days={days}
-              setDays={setDays}
-              userAnalytics={analyticsQuery.data}
-              isLoading={analyticsQuery.isLoading}
-              isError={analyticsQuery.isError}
-              kicker="User analytics"
-              title={workspaceName}
-              description={`Ticket load and completion trend for ${userName} in ${workspaceName}.`}
-              periodLabel="Last"
-              activityTitle="Activity Trend"
-              workloadTitle="Workload Distribution"
-            />
-          );
-        })}
+          <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
+            <SelectTrigger className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[150px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ANALYTICS_PERIODS.map((period) => (
+                <SelectItem key={period} value={String(period)}>
+                  Last {period} Days
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <PersonalAnalyticsSection
+          days={days}
+          setDays={setDays}
+          userAnalytics={userAnalytics}
+          isLoading={isAnalyticsLoading}
+          isError={isAnalyticsError}
+          activityTitle="Activity Trend"
+          workloadTitle="Workload Distribution"
+          showHeader={false}
+        />
       </div>
     </div>
   );

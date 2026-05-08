@@ -1,4 +1,4 @@
-import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getAllWorkspaces,
   createWorkspace,
@@ -152,22 +152,5 @@ export const useUserAnalytics = ({ userId, workspaceId, days = 30 }) => {
     staleTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-  });
-};
-
-export const useUserAnalyticsByWorkspaces = ({ userId, workspaces = [], days = 30 }) => {
-  return useQueries({
-    queries: workspaces.map((workspace) => {
-      const workspaceId = workspace.id || workspace._id;
-
-      return {
-        queryKey: workspaceKeys.userAnalytics({ userId, workspaceId, days }),
-        queryFn: () => getUserAnalytics({ userId, workspaceId, days }),
-        enabled: !!userId && !!workspaceId,
-        staleTime: 0,
-        refetchOnMount: 'always',
-        refetchOnWindowFocus: true,
-      };
-    }),
   });
 };

@@ -29,6 +29,7 @@ export default function PersonalAnalyticsSection({
   periodLabel = 'Last',
   activityTitle = 'My Activity Trend',
   workloadTitle = 'My Workload Distribution',
+  showHeader = true,
 }) {
   const userSummary = userAnalytics?.summaryStats || {
     completedTickets: 0,
@@ -96,28 +97,30 @@ export default function PersonalAnalyticsSection({
 
   return (
     <div className="space-y-6">
-      <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-        <div>
-          <div className="app-kicker mb-3">{kicker}</div>
-          <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        </div>
+      {showHeader && (
+        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
+          <div>
+            <div className="app-kicker mb-3">{kicker}</div>
+            <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          </div>
 
-        <div className="flex items-center gap-3">
-          <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-            <SelectTrigger className="w-[140px] rounded-full border-primary/15 bg-primary/10 text-primary">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ANALYTICS_PERIODS.map((period) => (
-                <SelectItem key={period} value={String(period)}>
-                  {periodLabel} {period} Days
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
+              <SelectTrigger className="w-[140px] rounded-full border-primary/15 bg-primary/10 text-primary">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ANALYTICS_PERIODS.map((period) => (
+                  <SelectItem key={period} value={String(period)}>
+                    {periodLabel} {period} Days
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="space-y-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
