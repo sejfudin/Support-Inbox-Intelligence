@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserAnalytics, useWorkspaceAnalytics } from '@/queries/workspaces';
+import { useGenerateUserAiSummary } from '@/queries/aiSummaries';
 import { useWorkspaceMembershipCheck } from '@/hooks/useWorkspaceMembershipCheck';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -34,6 +36,7 @@ import {
 import { AnalyticsCardSkeleton } from '@/components/Skeletons/AnalyticsCardSkeleton';
 import { AnalyticsEmptyCard } from '@/components/AnalyticsEmptyCard';
 import PersonalAnalyticsSection from '@/components/PersonalAnalyticsSection';
+import { Sparkles } from 'lucide-react';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
@@ -41,6 +44,8 @@ export default function AnalyticsDashboard() {
   const userId = user?._id || user?.id;
   const [days, setDays] = useState(30);
   const [activeTab, setActiveTab] = useState('workspace');
+  const [aiSummary, setAiSummary] = useState(null);
+  const generateAiSummary = useGenerateUserAiSummary();
 
   const { isWorkspaceMember, isMembershipCheckPending, isMembershipCheckError } =
     useWorkspaceMembershipCheck(workspaceId);
@@ -54,7 +59,7 @@ export default function AnalyticsDashboard() {
   );
 
   useEffect(() => {
-    if (activeTab === 'personal' && !shouldRenderPersonalPerformance) {
+    if ((activeTab === 'personal' || activeTab === 'ai-summary') && !shouldRenderPersonalPerformance) {
       setActiveTab('workspace');
     }
   }, [activeTab, shouldRenderPersonalPerformance]);
@@ -80,12 +85,17 @@ export default function AnalyticsDashboard() {
 
   const isWorkspaceTab = activeTab === 'workspace';
   const isPersonalTab = activeTab === 'personal';
+  const isAiSummaryTab = activeTab === 'ai-summary';
   const isLoading = isWorkspaceTab
     ? isWorkspaceLoading
-    : isMembershipCheckPending || (shouldRenderPersonalPerformance && isUserLoading);
+    : isPersonalTab
+      ? isMembershipCheckPending || (shouldRenderPersonalPerformance && isUserLoading)
+      : isMembershipCheckPending;
   const isError = isWorkspaceTab
     ? isWorkspaceError
-    : isMembershipCheckError || (shouldRenderPersonalPerformance && isUserError);
+    : isPersonalTab
+      ? isMembershipCheckError || (shouldRenderPersonalPerformance && isUserError)
+      : isMembershipCheckError;
 
   const data = workspaceAnalytics;
 
@@ -102,6 +112,20 @@ export default function AnalyticsDashboard() {
     [creationData]
   );
   const hasCycleData = useMemo(() => cycleData.some((item) => item.avgDays > 0), [cycleData]);
+
+  const handleGenerateAiSummary = () => {
+    if (!userId || !workspaceId || generateAiSummary.isPending) return;
+
+    generateAiSummary.mutate(
+      { userId, workspaceId },
+      {
+        onSuccess: (response) => {
+          setAiSummary(response?.data || null);
+        },
+      }
+    );
+  };
+
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
@@ -121,6 +145,11 @@ export default function AnalyticsDashboard() {
                 {shouldRenderPersonalPerformance && (
                   <TabsTrigger value="personal" className="rounded-full">
                     Personal Summary
+                  </TabsTrigger>
+                )}
+                {shouldRenderPersonalPerformance && (
+                  <TabsTrigger value="ai-summary" className="rounded-full">
+                    AI Summary
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -166,6 +195,48 @@ export default function AnalyticsDashboard() {
                 title="Personal Summary"
                 description="Your ticket load and completion trend in the selected period."
               />
+            ) : isAiSummaryTab ? (
+              <div className="app-panel px-5 py-5 md:px-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <div className="app-kicker mb-3">AI Summary</div>
+                    <h2 className="text-2xl font-semibold tracking-tight">Generated Summary</h2>
+                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                      Generate a short personal summary from your recent assigned tickets.
+                    </p>
+                  </div>
+
+                  <Button onClick={handleGenerateAiSummary} disabled={generateAiSummary.isPending}>
+                    <Sparkles className="h-4 w-4" />
+                    {generateAiSummary.isPending ? 'Generating...' : 'Generate Summary'}
+                  </Button>
+                </div>
+
+                {generateAiSummary.isError ? (
+                  <div className="mt-5 rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {generateAiSummary.error?.response?.data?.message ||
+                      generateAiSummary.error?.message ||
+                      'Failed to generate summary.'}
+                  </div>
+                ) : null}
+
+                <div className="mt-5 rounded-2xl border border-border/70 bg-white/70 p-5">
+                  {aiSummary?.summary ? (
+                    <>
+                      <p className="text-sm leading-7 text-foreground">{aiSummary.summary}</p>
+                      {aiSummary.generatedAt ? (
+                        <p className="mt-4 text-xs text-muted-foreground">
+                          Generated {new Date(aiSummary.generatedAt).toLocaleString()}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No AI summary generated yet for this session.
+                    </p>
+                  )}
+                </div>
+              </div>
             ) : (
               <>
                 <div className="app-panel px-5 py-5 md:px-6">
