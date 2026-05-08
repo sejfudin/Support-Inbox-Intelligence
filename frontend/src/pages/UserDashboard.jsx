@@ -15,7 +15,6 @@ import { useUpdateTicket } from '@/queries/tickets';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
-
 export default function UserDashboard() {
   const [requestedPage, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('list');
