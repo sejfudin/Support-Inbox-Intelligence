@@ -234,7 +234,10 @@ export default function AdminUsersExpandableTable({
                                   ))
                                 ) : (
                                   <TableRow>
-                                    <TableCell colSpan={4} className="py-6 text-center text-xs text-muted-foreground">
+                                    <TableCell
+                                      colSpan={4}
+                                      className="py-6 text-center text-xs text-muted-foreground"
+                                    >
                                       No workspace memberships
                                     </TableCell>
                                   </TableRow>

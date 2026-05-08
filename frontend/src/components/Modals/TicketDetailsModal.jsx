@@ -56,7 +56,6 @@ import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
 
-
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
   String(value || '')
@@ -81,7 +80,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
-
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
@@ -895,7 +893,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                                 className="h-2 w-2 rounded-full shrink-0"
                                 style={{
                                   backgroundColor:
-                                    currentCategory === cat._id ? 'rgba(255,255,255,0.7)' : cat.color,
+                                    currentCategory === cat._id
+                                      ? 'rgba(255,255,255,0.7)'
+                                      : cat.color,
                                 }}
                               />
                               {cat.name}

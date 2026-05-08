@@ -1,17 +1,14 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Cell,
-  CartesianGrid,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from 'recharts';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Cell, CartesianGrid, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import {
   ANALYTICS_PERIODS,
   formatShortDate,
@@ -237,10 +234,7 @@ export default function PersonalAnalyticsSection({
               </CardContent>
             </Card>
           ) : (
-            <AnalyticsEmptyCard
-              title={workloadTitle}
-              description="Completed tickets by priority"
-            />
+            <AnalyticsEmptyCard title={workloadTitle} description="Completed tickets by priority" />
           )}
         </div>
       </div>
