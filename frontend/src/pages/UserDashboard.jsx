@@ -130,6 +130,7 @@ export default function UserDashboard() {
                   isError={isError}
                   onOpenTicket={openTicketDetails}
                   onStatusChange={handleStatusChange}
+                  flush
                 />
               </Suspense>
             ) : (
