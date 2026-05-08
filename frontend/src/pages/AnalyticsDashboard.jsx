@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserAnalytics, useWorkspaceAnalytics } from '@/queries/workspaces';
-import { useGenerateUserAiSummary } from '@/queries/aiSummaries';
+import { useGenerateUserAiSummary, useGetLatestUserAiSummary } from '@/queries/aiSummaries';
 import { useWorkspaceMembershipCheck } from '@/hooks/useWorkspaceMembershipCheck';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -58,6 +58,24 @@ export default function AnalyticsDashboard() {
     isWorkspaceMember
   );
 
+  // Load latest summary when ai-summary tab is active
+  const {
+    data: latestSummaryResponse,
+    isLoading: isLatestSummaryLoading,
+    isError: isLatestSummaryError,
+  } = useGetLatestUserAiSummary({
+    userId,
+    workspaceId,
+    enabled: shouldRenderPersonalPerformance && activeTab === 'ai-summary',
+  });
+
+  // Update aiSummary when latest summary data is fetched
+  useEffect(() => {
+    if (latestSummaryResponse?.data) {
+      setAiSummary(latestSummaryResponse.data);
+    }
+  }, [latestSummaryResponse?.data]);
+
   useEffect(() => {
     if ((activeTab === 'personal' || activeTab === 'ai-summary') && !shouldRenderPersonalPerformance) {
       setActiveTab('workspace');
@@ -90,12 +108,16 @@ export default function AnalyticsDashboard() {
     ? isWorkspaceLoading
     : isPersonalTab
       ? isMembershipCheckPending || (shouldRenderPersonalPerformance && isUserLoading)
-      : isMembershipCheckPending;
+      : isAiSummaryTab
+        ? isMembershipCheckPending || (shouldRenderPersonalPerformance && isLatestSummaryLoading)
+        : isMembershipCheckPending;
   const isError = isWorkspaceTab
     ? isWorkspaceError
     : isPersonalTab
       ? isMembershipCheckError || (shouldRenderPersonalPerformance && isUserError)
-      : isMembershipCheckError;
+      : isAiSummaryTab
+        ? isMembershipCheckError || (shouldRenderPersonalPerformance && isLatestSummaryError)
+        : isMembershipCheckError;
 
   const data = workspaceAnalytics;
 
