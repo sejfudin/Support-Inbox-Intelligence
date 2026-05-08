@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
+const Invitation = require('../models/Invitation');
 
 const getUserWorkspaceMemberships = async (userId) => {
   const workspaces = await Workspace.find(
@@ -7,14 +8,33 @@ const getUserWorkspaceMemberships = async (userId) => {
     { name: 1, members: 1, createdAt: 1 }
   ).sort({ name: 1 });
 
+  const workspaceIds = workspaces.map((workspace) => workspace._id);
+  const invitations = await Invitation.find({
+    user: userId,
+    workspace: { $in: workspaceIds },
+    status: { $in: ['accepted', 'pending'] },
+  })
+    .select('workspace createdAt respondedAt status')
+    .sort({ respondedAt: -1, createdAt: -1 })
+    .lean();
+
+  const invitationByWorkspace = new Map(
+    invitations.map((invitation) => [invitation.workspace.toString(), invitation])
+  );
+
   return workspaces.map((workspace) => {
     const member = workspace.members.find((m) => m.user?.equals(userId));
+    const invitation = invitationByWorkspace.get(workspace._id.toString());
+    const membershipDate =
+      member?.joinedAt || invitation?.respondedAt || invitation?.createdAt || workspace.createdAt;
+
     return {
       id: workspace._id,
       name: workspace.name,
       role: member?.role || 'member',
       status: member?.status || 'active',
-      createdAt: member?.createdAt || workspace.createdAt,
+      createdAt: membershipDate,
+      joinedAt: membershipDate,
     };
   });
 };

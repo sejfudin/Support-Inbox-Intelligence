@@ -337,7 +337,7 @@ const setPasswordFromInvite = async ({ setupToken, password }) => {
   if (user.workspaceId) {
     await Workspace.updateOne(
       { _id: user.workspaceId, 'members.user': user._id },
-      { $set: { 'members.$.status': 'active' } }
+      { $set: { 'members.$.status': 'active', 'members.$.joinedAt': user.inviteAcceptedAt } }
     );
   }
 

@@ -14,7 +14,7 @@ const createWorkspace = async ({ name, description, ownerId }) => {
     name,
     description,
     owner: ownerId,
-    members: [{ user: ownerId, role: 'admin', status: 'active' }],
+    members: [{ user: ownerId, role: 'admin', status: 'active', joinedAt: new Date() }],
   });
 
   await User.findByIdAndUpdate(ownerId, { workspaceId: workspace._id });

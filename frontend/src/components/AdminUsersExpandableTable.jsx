@@ -228,7 +228,7 @@ export default function AdminUsersExpandableTable({
                                         </span>
                                       </TableCell>
                                       <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">
-                                        {formatDate(workspace.createdAt)}
+                                        {formatDate(workspace.joinedAt || workspace.createdAt)}
                                       </TableCell>
                                     </TableRow>
                                   ))
