@@ -65,7 +65,7 @@ export default function TicketsHeader({
             {!hideNewTicket && (
               <Button onClick={() => onNewTicket()}>
                 <Plus className="mr-2 h-4 w-4" />
-                New task
+                New ticket
               </Button>
             )}
           </div>

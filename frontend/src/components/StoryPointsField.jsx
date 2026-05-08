@@ -12,18 +12,30 @@ import {
   getStoryPointsStyle,
 } from '@/helpers/storyPoints';
 
-export default function StoryPointsField({ value, onChange, disabled = false, className }) {
+export default function StoryPointsField({
+  value,
+  onChange,
+  disabled = false,
+  hideLabel = false,
+  className,
+}) {
   const currentValue = normalizeStoryPoints(value);
   const currentStyle = getStoryPointsStyle(currentValue);
   const currentLabel = currentValue === null ? 'Not set' : `SP ${currentValue}`;
 
   return (
     <div className={cn('space-y-3', className)}>
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-          Story Points
-        </span>
-      </div>
+      {/*
+        Optional label (kept by default). Some layouts provide a combined label
+        for multiple fields (e.g. Priority + Story Points).
+      */}
+      {hideLabel ? null : (
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+            Story Points
+          </span>
+        </div>
+      )}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild disabled={disabled}>
