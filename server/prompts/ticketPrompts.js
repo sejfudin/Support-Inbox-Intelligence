@@ -32,7 +32,36 @@ function buildTicketDescriptionGenerationPrompt({ subject, prompt }) {
   ].join('\n');
 }
 
+function buildUserSummaryPrompt({ tickets }) {
+  const ticketLines = tickets.map((ticket, index) =>
+    [
+      `Ticket ${index + 1}:`,
+      `Title: ${ticket.subject}`,
+      `Description: ${ticket.description}`,
+      `Status: ${ticket.status}`,
+      ticket.priority ? `Priority: ${ticket.priority}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  );
+
+  return [
+    'Act as a personal performance coach and technical lead.',
+    'Analyze the provided ticket titles and descriptions for a SINGLE user.',
+    'Your goal is to write a 3-4 sentence summary of THEIR personal achievements in the second person (use "You", "Your").',
+    'STRICT RULES:',
+    '1. Do NOT refer to "the team" or "we". Focus ONLY on the individual user.',
+    '2. Do NOT be generic. You MUST extract specific technical context from the DESCRIPTIONS.',
+    '3. Mention technologies or specific problems solved.',
+    '4. Respond in English.',
+    '',
+    'Data to analyze:',
+    ticketLines.join('\n\n'),
+  ].join('\n');
+}
+
 module.exports = {
   buildTicketMetadataSuggestionPrompt,
   buildTicketDescriptionGenerationPrompt,
+  buildUserSummaryPrompt,
 };
