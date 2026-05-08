@@ -233,8 +233,6 @@ export default function AdminUserAnalyticsPage() {
         </div>
 
         <PersonalAnalyticsSection
-          days={days}
-          setDays={setDays}
           userAnalytics={userAnalytics}
           isLoading={isAnalyticsLoading}
           isError={isAnalyticsError}

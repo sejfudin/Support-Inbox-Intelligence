@@ -1,32 +1,18 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Cell, CartesianGrid, Line, LineChart, Pie, PieChart, XAxis, YAxis } from 'recharts';
-import {
-  ANALYTICS_PERIODS,
-  formatShortDate,
-  formatTooltipDate,
-} from '@/helpers/analyticsFormatters';
+import { formatShortDate, formatTooltipDate } from '@/helpers/analyticsFormatters';
 import { AnalyticsCardSkeleton } from '@/components/Skeletons/AnalyticsCardSkeleton';
 import { AnalyticsEmptyCard } from '@/components/AnalyticsEmptyCard';
 
 export default function PersonalAnalyticsSection({
-  days,
-  setDays,
   userAnalytics,
   isLoading,
   isError,
   kicker = 'My Analytics',
   title = 'Personal Performance',
   description = 'Your ticket load and completion trend in the selected period.',
-  periodLabel = 'Last',
   activityTitle = 'My Activity Trend',
   workloadTitle = 'My Workload Distribution',
   showHeader = true,
@@ -103,21 +89,6 @@ export default function PersonalAnalyticsSection({
             <div className="app-kicker mb-3">{kicker}</div>
             <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-              <SelectTrigger className="w-[140px] rounded-full border-primary/15 bg-primary/10 text-primary">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ANALYTICS_PERIODS.map((period) => (
-                  <SelectItem key={period} value={String(period)}>
-                    {periodLabel} {period} Days
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
       )}

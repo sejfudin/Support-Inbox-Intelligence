@@ -138,15 +138,12 @@ export default function AnalyticsDashboard() {
           <div className="space-y-6">
             {shouldRenderPersonalPerformance && (
               <PersonalAnalyticsSection
-                days={days}
-                setDays={setDays}
                 userAnalytics={userAnalytics}
                 isLoading={shouldRenderPersonalPerformance && isUserLoading}
                 isError={shouldRenderPersonalPerformance && isUserError}
                 kicker="My Analytics"
                 title="Personal Performance"
                 description="Your ticket load and completion trend in the selected period."
-                periodLabel="Last"
               />
             )}
 
