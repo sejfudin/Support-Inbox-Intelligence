@@ -16,6 +16,7 @@ export default function PersonalAnalyticsSection({
   activityTitle = 'My Activity Trend',
   workloadTitle = 'My Workload Distribution',
   showHeader = true,
+  headerAction = null,
 }) {
   const userSummary = userAnalytics?.summaryStats || {
     completedTickets: 0,
@@ -90,6 +91,7 @@ export default function PersonalAnalyticsSection({
             <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{description}</p>
           </div>
+          {headerAction ? <div className="flex items-center gap-3">{headerAction}</div> : null}
         </div>
       )}
 

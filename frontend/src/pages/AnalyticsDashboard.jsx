@@ -38,6 +38,23 @@ import { AnalyticsEmptyCard } from '@/components/AnalyticsEmptyCard';
 import PersonalAnalyticsSection from '@/components/PersonalAnalyticsSection';
 import { Sparkles } from 'lucide-react';
 
+function AnalyticsPeriodSelect({ days, onDaysChange }) {
+  return (
+    <Select value={String(days)} onValueChange={(value) => onDaysChange(Number(value))}>
+      <SelectTrigger className="w-[140px] rounded-full border-primary/15 bg-primary/10 text-primary">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {ANALYTICS_PERIODS.map((period) => (
+          <SelectItem key={period} value={String(period)}>
+            Last {period} Days
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
   const workspaceId = user?.workspaceId;
@@ -178,20 +195,6 @@ export default function AnalyticsDashboard() {
             </Tabs>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-              <SelectTrigger className="w-[140px] rounded-full border-primary/15 bg-primary/10 text-primary">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ANALYTICS_PERIODS.map((period) => (
-                  <SelectItem key={period} value={String(period)}>
-                    Last {period} Days
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
 
         {isError ? (
@@ -216,6 +219,7 @@ export default function AnalyticsDashboard() {
                 kicker="My Analytics"
                 title="Personal Summary"
                 description="Your ticket load and completion trend in the selected period."
+                headerAction={<AnalyticsPeriodSelect days={days} onDaysChange={setDays} />}
               />
             ) : isAiSummaryTab ? (
               <div className="app-panel px-5 py-5 md:px-6">
@@ -262,11 +266,21 @@ export default function AnalyticsDashboard() {
             ) : (
               <>
                 <div className="app-panel px-5 py-5 md:px-6">
-                  <div className="app-kicker mb-3">Workspace Analytics</div>
-                  <h2 className="text-2xl font-semibold tracking-tight">Team Delivery Signals</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Overall workspace throughput, demand and cycle behavior.
-                  </p>
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="app-kicker mb-3">Workspace Analytics</div>
+                      <h2 className="text-2xl font-semibold tracking-tight">
+                        Team Delivery Signals
+                      </h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Overall workspace throughput, demand and cycle behavior.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <AnalyticsPeriodSelect days={days} onDaysChange={setDays} />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
