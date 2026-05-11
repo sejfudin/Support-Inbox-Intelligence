@@ -120,7 +120,6 @@ export default function UserDashboard() {
 
       <div className="flex flex-1 flex-col">
         <div className="py-4 md:py-6">
-
           <div className="app-page-content mt-2">
             {!isMobile && isBoard ? (
               <Suspense fallback={<TableSkeleton />}>

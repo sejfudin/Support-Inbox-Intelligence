@@ -200,7 +200,9 @@ export default function BoardPage({
 
   return (
     <div className={flush ? 'w-full' : 'app-page'}>
-      <div className={cn(flush ? 'w-full overflow-hidden' : 'app-page-content overflow-hidden pt-6')}>
+      <div
+        className={cn(flush ? 'w-full overflow-hidden' : 'app-page-content overflow-hidden pt-6')}
+      >
         <TicketsState
           isLoading={isLoading}
           isError={isError}
