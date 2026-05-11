@@ -57,11 +57,6 @@ export default function AppSidebar() {
       icon: LayoutDashboard,
     },
     {
-      label: 'Analytics',
-      to: '/analytics',
-      icon: ChartNoAxesCombined,
-    },
-    {
       label: 'Tickets',
       to: '/tickets',
       icon: ClipboardList,
@@ -76,6 +71,11 @@ export default function AppSidebar() {
       to: '/admin/backlog',
       icon: FileQuestionMark,
       adminOnly: true,
+    },
+    {
+      label: 'Analytics',
+      to: '/analytics',
+      icon: ChartNoAxesCombined,
     },
     ...(user?.role === 'admin' && user?.workspaceId
       ? [
