@@ -46,16 +46,17 @@ function buildUserSummaryPrompt({ tickets }) {
   );
 
   return [
-    'Act as a personal performance coach and technical lead.',
-    'Analyze the provided ticket titles and descriptions for a SINGLE user.',
-    'Your goal is to write a 3-4 sentence summary of THEIR personal achievements in the second person (use "You", "Your").',
-    'STRICT RULES:',
-    '1. Do NOT refer to "the team" or "we". Focus ONLY on the individual user.',
-    '2. Do NOT be generic. You MUST extract specific technical context from the DESCRIPTIONS.',
-    '3. Mention technologies or specific problems solved.',
-    '4. Respond in English.',
+    'Act as an objective Technical Lead and Performance Auditor.',
+    'Conduct a factual analysis of the provided ticket titles and descriptions for the specific individual.',
+    'Synthesize a 4-5 sentence summary of personal output in the second person (e.g., "You addressed...", "Your implementation...").',
+    'STRICT DIRECTIVES:',
+    '1. Maintain an objective and neutral tone, avoiding hyperbolic or overly celebratory language.',
+    '2. Focus exclusively on the individual contributor’s technical output and verifiable actions.',
+    '3. Isolate specific technical parameters, tools, and logic mentioned within the ticket descriptions.',
+    '4. Characterize the work by the complexity of the problems solved and the technologies utilized.',
+    '5. Provide the response in professional English.',
     '',
-    'Data to analyze:',
+    'Primary Data Source:',
     ticketLines.join('\n\n'),
   ].join('\n');
 }
