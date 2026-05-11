@@ -112,27 +112,36 @@ export default function AnalyticsDashboard() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
+        <div className="app-panel flex flex-col gap-4 px-5 pb-0 pt-5 md:px-6">
+          <div className="w-full">
             <div className="app-kicker mb-3">Insights</div>
             <h1 className="app-title">Workspace Analytics</h1>
             <p className="app-subtitle">
               Understand delivery pace, demand trend, and cycle performance.
             </p>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-              <TabsList className="rounded-full border border-border/70 bg-secondary/70">
-                <TabsTrigger value="workspace" className="rounded-full">
-                  Analytics
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 w-full">
+              <TabsList className="flex h-auto w-full justify-start gap-6 rounded-none border-b border-border/70 bg-transparent p-0 text-gray-700">
+                <TabsTrigger
+                  value="workspace"
+                  className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-gray-700 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                >
+                  Workspace Analytics
                 </TabsTrigger>
                 {shouldRenderPersonalPerformance && (
-                  <TabsTrigger value="personal" className="rounded-full">
-                    Personal Summary
+                  <TabsTrigger
+                    value="personal"
+                    className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-gray-700 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  >
+                    My Analytics
                   </TabsTrigger>
                 )}
                 {shouldRenderPersonalPerformance && (
-                  <TabsTrigger value="ai-summary" className="rounded-full">
-                    AI Summary
+                  <TabsTrigger
+                    value="ai-summary"
+                    className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-gray-700 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  >
+                    Performance Summary
                   </TabsTrigger>
                 )}
               </TabsList>
