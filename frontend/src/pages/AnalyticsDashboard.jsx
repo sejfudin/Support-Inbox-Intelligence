@@ -120,7 +120,7 @@ export default function AnalyticsDashboard() {
               Understand delivery pace, demand trend, and cycle performance.
             </p>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-10 w-full">
               <TabsList className="flex h-auto w-full justify-start gap-6 rounded-none border-b border-border/70 bg-transparent p-0 text-gray-700">
                 <TabsTrigger
                   value="workspace"
