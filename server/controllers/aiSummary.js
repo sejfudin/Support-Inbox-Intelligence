@@ -15,7 +15,8 @@ function handleSummaryError(error, res, next) {
 
   if (
     error.message === 'Workspace not found' ||
-    error.message === 'No tickets found for this user in the workspace.'
+    error.message === 'No tickets found for this user in the workspace.' ||
+    error.message === 'No completed tickets found for this user in the workspace.'
   ) {
     const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 404;
     return res.status(statusCode).json({ success: false, message: error.message });
@@ -63,7 +64,6 @@ const generateUserSummary = async (req, res, next) => {
       workspaceId: getWorkspaceId(req),
       requesterId: req.user._id,
       requesterRole: req.user.role,
-      limit: req.body?.limit,
     });
 
     return res.status(201).json({

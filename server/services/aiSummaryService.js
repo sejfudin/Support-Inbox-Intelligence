@@ -6,9 +6,6 @@ const Workspace = require('../models/Workspace');
 const { buildUserSummaryPrompt } = require('../prompts/ticketPrompts');
 const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
 
-const DEFAULT_TICKET_LIMIT = 20;
-const MAX_TICKET_LIMIT = 50;
-
 function normalizeText(value) {
   return String(value || '').trim();
 }
@@ -26,12 +23,6 @@ function stripHtml(value) {
     allowedTags: [],
     allowedAttributes: {},
   }).trim();
-}
-
-function normalizeLimit(value) {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed) || parsed <= 0) return DEFAULT_TICKET_LIMIT;
-  return Math.min(parsed, MAX_TICKET_LIMIT);
 }
 
 function sanitizeSummaryText(value) {
@@ -94,11 +85,10 @@ async function getLatestUserSummary({ userId, workspaceId, requesterId, requeste
     .populate('workspace', 'name');
 }
 
-async function generateUserSummary({ userId, workspaceId, requesterId, requesterRole, limit }) {
+async function generateUserSummary({ userId, workspaceId, requesterId, requesterRole }) {
   const userObjectId = toObjectId(userId, 'Invalid userId');
   const workspaceObjectId = toObjectId(workspaceId, 'Invalid workspaceId');
   const requesterObjectId = toObjectId(requesterId, 'Invalid requesterId');
-  const safeLimit = normalizeLimit(limit);
 
   await ensureWorkspaceAccess({
     workspaceId: workspaceObjectId,
@@ -110,16 +100,16 @@ async function generateUserSummary({ userId, workspaceId, requesterId, requester
   const tickets = await Ticket.find({
     assignedTo: userObjectId,
     workspace: workspaceObjectId,
+    status: 'done',
     isArchived: { $ne: true },
     $or: [{ subject: { $exists: true, $ne: '' } }, { description: { $exists: true, $ne: '' } }],
   })
     .sort({ doneAt: -1, updatedAt: -1 })
-    .limit(safeLimit)
     .select('subject description status priority')
     .lean();
 
   if (tickets.length === 0) {
-    throw createAiServiceError('No tickets found for this user in the workspace.', 404);
+    throw createAiServiceError('No completed tickets found for this user in the workspace.', 404);
   }
 
   const prompt = buildUserSummaryPrompt({
