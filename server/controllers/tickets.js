@@ -242,7 +242,7 @@ const updateTicket = async (req, res, next) => {
 const archiveTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const ticket = await ticketService.archiveTicket(id);
+    const ticket = await ticketService.archiveTicket(id, req.user._id);
 
     res.status(200).json({
       success: true,
