@@ -92,6 +92,7 @@ export const useArchiveTicket = () => {
     onSuccess: (_, ticketId) => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['ticket-history', ticketId] });
       invalidateWorkspaceAnalytics(queryClient);
       invalidateUserAnalytics(queryClient);
     },

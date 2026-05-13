@@ -1,5 +1,6 @@
 const Ticket = require('../models/Ticket');
 const Integration = require('../models/Integration');
+const historyService = require('./historyService');
 
 const AUTOMATION_RESULT = {
   STATUS_UPDATED: 'status_updated',
@@ -78,6 +79,13 @@ async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
     }
 
     const ticket = await Ticket.findByIdAndUpdate(ticketId, { $set: updateData }, { new: true });
+
+    const triggerLabel = metadata.trigger === 'pr_merged' ? 'merged' : 'opened';
+    const prInfo = metadata.prNumber ? ` (PR #${metadata.prNumber} ${triggerLabel})` : '';
+    historyService.logSystemEvent(
+      ticketId,
+      `Status automatically changed from ${oldTicket.status} to ${targetStatus}${prInfo}`
+    );
 
     return {
       success: true,

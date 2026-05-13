@@ -1,4 +1,5 @@
 const Ticket = require('../models/Ticket');
+const Category = require('../models/Category');
 const Workspace = require('../models/Workspace');
 const mongoose = require('mongoose');
 const { notifyTicketAssigned } = require('./notificationService');
@@ -427,7 +428,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         updateData.doneAt = null;
       }
 
-      historyService.logEvent(ticketId, actorUserId, `Status changed to ${updateData.status}`);
+      historyService.logEvent(ticketId, actorUserId, `Status changed from ${oldTicket.status} to ${updateData.status}`);
     }
 
     const ticket = await Ticket.findByIdAndUpdate(
@@ -456,15 +457,23 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       const assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
 
       if (assigneesChanged) {
+        const currentAssignees = ticket.assignedTo || [];
         if (newlyAssignedUserIds.length > 0) {
           await notifyTicketAssigned({
             ticket,
             assignedUserIds: newlyAssignedUserIds,
             actorUserId,
           });
-          historyService.logEvent(ticketId, actorUserId, 'Ticket Assigned');
+          const newlyAssignedNames = currentAssignees
+            .filter((u) => newlyAssignedUserIds.some((id) => id.toString() === u._id.toString()))
+            .map((u) => u.fullname)
+            .join(', ');
+          historyService.logEvent(ticketId, actorUserId, `Assigned to ${newlyAssignedNames}`);
+        } else if (currentAssignees.length === 0) {
+          historyService.logEvent(ticketId, actorUserId, 'All assignees removed');
         } else {
-          historyService.logEvent(ticketId, actorUserId, 'Ticket Reassigned');
+          const names = currentAssignees.map((u) => u.fullname).join(', ');
+          historyService.logEvent(ticketId, actorUserId, `Reassigned to ${names}`);
         }
       }
     }
@@ -476,6 +485,68 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       historyService.logEvent(ticketId, actorUserId, 'Description Updated');
     }
 
+    if (
+      Object.prototype.hasOwnProperty.call(updateData, 'subject') &&
+      updateData.subject !== oldTicket.subject
+    ) {
+      historyService.logEvent(ticketId, actorUserId, 'Subject updated');
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(updateData, 'priority') &&
+      updateData.priority !== oldTicket.priority
+    ) {
+      historyService.logEvent(
+        ticketId,
+        actorUserId,
+        `Priority changed from ${oldTicket.priority} to ${updateData.priority}`
+      );
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, 'storyPoints')) {
+      const oldSP = oldTicket.storyPoints ?? null;
+      const newSP = updateData.storyPoints ?? null;
+      if (oldSP !== newSP) {
+        let action;
+        if (oldSP === null && newSP !== null) action = `Story points set to ${newSP}`;
+        else if (oldSP !== null && newSP === null) action = 'Story points removed';
+        else action = `Story points changed from ${oldSP} to ${newSP}`;
+        historyService.logEvent(ticketId, actorUserId, action);
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, 'dueDate')) {
+      const oldDate = oldTicket.dueDate ? new Date(oldTicket.dueDate).getTime() : null;
+      const newDate = updateData.dueDate ? new Date(updateData.dueDate).getTime() : null;
+      if (oldDate !== newDate) {
+        let action;
+        if (!oldDate && newDate) {
+          action = `Due date set to ${new Date(updateData.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        } else if (oldDate && !newDate) {
+          action = 'Due date removed';
+        } else {
+          action = `Due date changed to ${new Date(updateData.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        }
+        historyService.logEvent(ticketId, actorUserId, action);
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, 'category')) {
+      const oldCatId = oldTicket.category?.toString() || null;
+      const newCatId = updateData.category?.toString() || null;
+      if (oldCatId !== newCatId) {
+        const [oldCat, newCat] = await Promise.all([
+          oldCatId ? Category.findById(oldCatId).select('name').lean() : null,
+          newCatId ? Category.findById(newCatId).select('name').lean() : null,
+        ]);
+        let action;
+        if (!oldCatId && newCatId) action = `Category set to ${newCat?.name || 'Unknown'}`;
+        else if (oldCatId && !newCatId) action = 'Category removed';
+        else action = `Category changed from ${oldCat?.name || 'Unknown'} to ${newCat?.name || 'Unknown'}`;
+        historyService.logEvent(ticketId, actorUserId, action);
+      }
+    }
+
     return ticket;
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -485,7 +556,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
   }
 };
 
-const archiveTicket = async (ticketId) => {
+const archiveTicket = async (ticketId, actorUserId) => {
   const ticket = await Ticket.findByIdAndUpdate(
     ticketId,
     { $set: { isArchived: true } },
@@ -494,6 +565,7 @@ const archiveTicket = async (ticketId) => {
   if (!ticket) {
     throw new Error('Ticket not found');
   }
+  historyService.logEvent(ticketId, actorUserId, 'Ticket Archived');
   return ticket;
 };
 
