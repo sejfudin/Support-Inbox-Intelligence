@@ -58,6 +58,7 @@ export default function BacklogPage() {
         hideNewTicket={!isAdmin}
         onNewTicket={() => openNewTicket(null)}
         title="Backlog"
+        subtitle="Triage upcoming tickets before they enter the active flow."
       />
 
       <PageSection className="flex-1 pt-6">

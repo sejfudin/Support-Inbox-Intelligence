@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
-  Building2,
   Crown,
   Mail,
   Search,
@@ -45,6 +44,7 @@ import {
   useUpdateWorkspace,
   useWorkspace,
 } from '@/queries/workspaces';
+import PageHeading from '@/components/PageHeading';
 
 const initialInviteForm = {
   userId: '',
@@ -191,57 +191,47 @@ export default function WorkspaceDetailPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.1rem] bg-primary/10 sm:h-14 sm:w-14 sm:rounded-[1.25rem]">
-              <Building2 className="h-7 w-7 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <div className="app-kicker mb-3">Workspace management</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="break-words text-2xl font-bold text-gray-900">{workspace.name}</h1>
-                {isActiveWorkspace && <UserStatusBadge status="active" />}
-              </div>
-              {workspace.description && (
-                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                  {workspace.description}
-                </p>
+        <PageHeading
+          kicker="Workspace management"
+          title={workspace.name}
+          subtitle={
+            workspace.description || 'Manage members, invitations, and access for this workspace.'
+          }
+          titleAdornment={isActiveWorkspace ? <UserStatusBadge status="active" /> : null}
+          actions={
+            <>
+              {!isActiveWorkspace && canSwitchToWorkspace && (
+                <Button
+                  variant="outline"
+                  onClick={handleSwitchWorkspace}
+                  disabled={switchWorkspace.isPending}
+                >
+                  {switchWorkspace.isPending ? 'Switching...' : 'Switch Workspace'}
+                </Button>
               )}
-            </div>
-          </div>
-
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
-            {!isActiveWorkspace && canSwitchToWorkspace && (
               <Button
                 variant="outline"
-                onClick={handleSwitchWorkspace}
-                disabled={switchWorkspace.isPending}
+                onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
+                className="gap-2"
               >
-                {switchWorkspace.isPending ? 'Switching...' : 'Switch Workspace'}
+                <Settings className="h-4 w-4" />
+                Workspace Settings
               </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
-              className="gap-2"
-            >
-              <Settings className="h-4 w-4" />
-              Workspace Settings
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/tickets?workspaceId=${id}`)}
-              className="gap-2"
-            >
-              <Ticket className="h-4 w-4" />
-              View Tickets
-            </Button>
-            <Button onClick={() => setIsInviteOpen(true)} className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Add Existing User
-            </Button>
-          </div>
-        </div>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/tickets?workspaceId=${id}`)}
+                className="gap-2"
+              >
+                <Ticket className="h-4 w-4" />
+                View Tickets
+              </Button>
+              <Button onClick={() => setIsInviteOpen(true)} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Add Existing User
+              </Button>
+            </>
+          }
+        />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="app-panel-soft p-4">

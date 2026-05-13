@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import InvitationInbox from '@/components/InvitationInbox';
 import { useMyInvitations, useAcceptInvitation, useDeclineInvitation } from '@/queries/invitations';
+import PageHeading from '@/components/PageHeading';
 
 export default function UserInvitationsPage() {
   const navigate = useNavigate();
@@ -52,13 +53,11 @@ export default function UserInvitationsPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
-            <div className="app-kicker mb-3">Workspace</div>
-            <h1 className="app-title">Invitations</h1>
-            <p className="app-subtitle">Review and respond to workspace invitations.</p>
-          </div>
-        </div>
+        <PageHeading
+          kicker="Workspace"
+          title="Invitations"
+          subtitle="Review and respond to workspace invitations sent to you."
+        />
 
         <div className="app-panel">
           <InvitationInbox

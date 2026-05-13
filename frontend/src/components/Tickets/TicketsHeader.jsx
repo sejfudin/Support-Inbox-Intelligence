@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, LayoutList, LayoutGrid, Plus } from 'lucide-react';
+import PageHeading from '@/components/PageHeading';
 
 export default function TicketsHeader({
   viewMode,
@@ -13,20 +14,20 @@ export default function TicketsHeader({
   disableBoardView = false,
   hideNewTicket = false,
   title = 'Tickets',
+  kicker = 'Workspace overview',
+  subtitle,
   afterNewTicketSlot = null,
 }) {
   return (
     <div className="app-page-content pb-0">
-      <div className="app-panel px-5 py-5 md:px-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="app-kicker mb-3">Workspace overview</div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-          </div>
-
-          <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center md:w-auto">
+      <PageHeading
+        kicker={kicker}
+        title={title}
+        subtitle={subtitle}
+        actions={
+          <>
             {!hideViewMode && (
-              <div className="shrink-0 flex items-center rounded-2xl border border-border/80 bg-secondary/70 p-1">
+              <div className="flex shrink-0 items-center rounded-2xl border border-border/80 bg-secondary/70 p-1">
                 <Button
                   variant={viewMode === 'list' ? 'default' : 'ghost'}
                   size="sm"
@@ -68,13 +69,11 @@ export default function TicketsHeader({
                 New ticket
               </Button>
             )}
-          </div>
-        </div>
-
-        {afterNewTicketSlot ? (
-          <div className="mt-3 border-t border-border/60 pt-3">{afterNewTicketSlot}</div>
-        ) : null}
-      </div>
+          </>
+        }
+      >
+        {afterNewTicketSlot}
+      </PageHeading>
     </div>
   );
 }

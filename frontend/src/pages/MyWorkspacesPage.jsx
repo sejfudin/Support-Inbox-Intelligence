@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMyWorkspaces, useSwitchWorkspace } from '@/queries/workspaces';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import PageHeading from '@/components/PageHeading';
 
 export default function MyWorkspacesPage() {
   const navigate = useNavigate();
@@ -25,13 +26,11 @@ export default function MyWorkspacesPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
-            <div className="app-kicker mb-3">Workspace</div>
-            <h1 className="app-title">My Workspaces</h1>
-            <p className="app-subtitle">View and switch between your workspaces.</p>
-          </div>
-        </div>
+        <PageHeading
+          kicker="Workspace"
+          title="My Workspaces"
+          subtitle="View and switch between the workspaces you belong to."
+        />
 
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

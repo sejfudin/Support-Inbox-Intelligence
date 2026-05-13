@@ -108,6 +108,7 @@ export default function UserDashboard() {
     <main className="app-page flex min-h-screen flex-col font-sans">
       <TicketsHeader
         title="Dashboard"
+        subtitle="Your active tickets and key delivery signals at a glance."
         hideNewTicket={true}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
