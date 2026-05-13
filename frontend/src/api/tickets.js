@@ -102,3 +102,23 @@ export const generateTicketDescription = async ({ subject, prompt }) => {
   });
   return response.data;
 };
+
+// supabase
+export const getTicketDescriptionImages = async (ticketId) => {
+  const res = await apiClient.get(`/tickets/${ticketId}/description/images`);
+  return res.data;
+};
+
+export const uploadTicketDescriptionImages = async (ticketId, files) => {
+  const fd = new FormData();
+  files.forEach((f) => fd.append('images', f));
+  const res = await apiClient.post(`/tickets/${ticketId}/description/images`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+};
+
+export const deleteTicketDescriptionImage = async (ticketId, imageId) => {
+  const res = await apiClient.delete(`/tickets/${ticketId}/description/images/${imageId}`);
+  return res.data;
+};

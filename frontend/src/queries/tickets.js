@@ -9,6 +9,9 @@ import {
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
+  getTicketDescriptionImages,
+  uploadTicketDescriptionImages,
+  deleteTicketDescriptionImage,
 } from '@/api/tickets';
 
 const invalidateWorkspaceAnalytics = (queryClient) => {
@@ -117,5 +120,37 @@ export const useSuggestTicketMetadata = () => {
 export const useGenerateTicketDescription = () => {
   return useMutation({
     mutationFn: generateTicketDescription,
+  });
+};
+
+// supabase
+
+export const useTicketDescriptionImages = (ticketId) => {
+  return useQuery({
+    queryKey: ['ticket-description-images', ticketId],
+    queryFn: () => getTicketDescriptionImages(ticketId),
+    enabled: !!ticketId,
+  });
+};
+
+export const useUploadTicketDescriptionImages = (ticketId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (files) => uploadTicketDescriptionImages(ticketId, files),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket-description-images', ticketId] });
+    },
+  });
+};
+
+export const useDeleteTicketDescriptionImage = (ticketId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (imageId) => deleteTicketDescriptionImage(ticketId, imageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket-description-images', ticketId] });
+    },
   });
 };

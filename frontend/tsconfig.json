@@ -7,7 +7,6 @@
     "moduleResolution": "bundler",
     "ignoreDeprecations": "6.0",
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
