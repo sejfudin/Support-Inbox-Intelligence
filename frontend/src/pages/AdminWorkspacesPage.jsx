@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useEffect } from 'react';
-import { Users, Ticket, ArrowRight, Building2, Plus, CheckCircle2, Trash2 } from 'lucide-react';
+import { Users, Ticket, Building2, Plus, CheckCircle2, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useAllWorkspaces,
   useCreateWorkspace,
   useSwitchWorkspace,
   useDeleteWorkspace,
+  workspaceKeys,
 } from '@/queries/workspaces';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,11 +22,18 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import { uploadWorkspaceLogo } from '@/api/workspaces';
+import {
+  WORKSPACE_LOGO_ACCEPT,
+  WORKSPACE_LOGO_HELPER_TEXT,
+  getWorkspaceLogoValidationError,
+} from '@/constants/upload';
 import PageHeading from '@/components/PageHeading';
 
 export default function AdminWorkspacesPage() {
   const { setHeader } = useOutletContext() ?? {};
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, refetchUser } = useAuth();
   const { data: workspaces = [], isLoading } = useAllWorkspaces();
 
@@ -41,6 +50,18 @@ export default function AdminWorkspacesPage() {
   const deleteWorkspace = useDeleteWorkspace();
   const currentUserId = user?._id || user?.id;
 
+  const [logoFile, setLogoFile] = useState(null);
+
+  const validateLogoFile = (file) => {
+    const validationError = getWorkspaceLogoValidationError(file);
+    if (validationError) {
+      setCreateError(validationError);
+      return false;
+    }
+    return true;
+  };
+
+
   useEffect(() => {
     if (!setHeader) return undefined;
     setHeader(<span className="font-semibold text-sm">All Workspaces</span>);
@@ -50,13 +71,33 @@ export default function AdminWorkspacesPage() {
   const handleCreate = (e) => {
     e.preventDefault();
     setCreateError('');
+
+    if (logoFile && !validateLogoFile(logoFile)) return;
+
     createWorkspace.mutate(
       { name: name.trim(), description: description.trim() },
       {
-        onSuccess: () => {
-          setIsCreateOpen(false);
-          setName('');
-          setDescription('');
+        onSuccess: async (createdWorkspace) => {
+          try {
+            const workspaceId = createdWorkspace?._id;
+            if (logoFile && workspaceId) {
+              await uploadWorkspaceLogo(workspaceId, logoFile);
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) }),
+                queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() }),
+                queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() }),
+              ]);
+            }
+
+            setIsCreateOpen(false);
+            setName('');
+            setDescription('');
+            setLogoFile(null);
+          } catch (uploadErr) {
+            setCreateError(
+              uploadErr?.response?.data?.message || 'Workspace created, but logo upload failed.'
+            );
+          }
         },
         onError: (err) => {
           setCreateError(err.response?.data?.message || 'Failed to create workspace.');
@@ -138,8 +179,16 @@ export default function AdminWorkspacesPage() {
                   } ${canSwitch && !isActive ? 'cursor-pointer' : ''}`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <Building2 className="h-5 w-5" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary overflow-hidden">
+                      {ws.logoUrl ? (
+                        <img
+                          src={ws.logoUrl}
+                          alt={`${ws.name} logo`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Building2 className="h-5 w-5" />
+                      )}
                     </div>
                     {isActive && (
                       <span className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
@@ -234,6 +283,7 @@ export default function AdminWorkspacesPage() {
         onOpenChange={(open) => {
           setIsCreateOpen(open);
           setCreateError('');
+          setLogoFile(null);
         }}
       >
         <DialogContent className="w-[calc(100vw-1.5rem)] max-w-md sm:w-full">
@@ -268,6 +318,31 @@ export default function AdminWorkspacesPage() {
                 maxLength={500}
               />
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Workspace logo <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                type="file"
+                accept={WORKSPACE_LOGO_ACCEPT}
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  if (!file) {
+                    setLogoFile(null);
+                    return;
+                  }
+                  if (!validateLogoFile(file)) {
+                    e.target.value = '';
+                    setLogoFile(null);
+                    return;
+                  }
+                  setLogoFile(file);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
+            </div>
+
 
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
