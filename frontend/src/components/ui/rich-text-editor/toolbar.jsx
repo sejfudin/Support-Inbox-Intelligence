@@ -43,6 +43,7 @@ function HeadingSelect() {
   return (
     <Select value={activeHeading} onValueChange={handleHeadingChange}>
       <SelectTrigger
+        tabIndex={-1}
         className="h-8 w-14 border-none px-1.5 py-0 shadow-none dark:bg-transparent"
         aria-label="Text style"
       >
@@ -196,6 +197,7 @@ function RichTextEditorToolbar({ className }) {
             <Tooltip key={item.tooltip}>
               <TooltipTrigger asChild>
                 <Toggle
+                  tabIndex={-1}
                   onPressedChange={item.onClick}
                   disabled={item.disabled}
                   size={'sm'}

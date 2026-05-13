@@ -7,7 +7,6 @@ const {
   getAllTickets,
   updateTicket,
   archiveTicket,
-  deleteTicket,
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
@@ -40,7 +39,6 @@ router.delete('/:ticketId/description/images', protect, deleteAllTicketDescripti
 router.get('/:id', protect, getTicketById);
 router.patch('/:id', protect, updateTicket);
 router.patch('/:id/archive', protect, archiveTicket);
-router.delete('/', protect, deleteTicket);
 
 // router.post('/:id/messages', protect, requireRole('admin', 'agent'), addMessage);
 // router.post('/:id/ai/generate', protect, requireRole('admin', 'agent'), generateAI);

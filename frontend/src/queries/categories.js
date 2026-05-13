@@ -1,10 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  getCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from '@/api/categories';
+import { getCategories, createCategory, updateCategory, deleteCategory } from '@/api/categories';
 
 export const categoryKeys = {
   byWorkspace: (workspaceId) => ['categories', workspaceId],

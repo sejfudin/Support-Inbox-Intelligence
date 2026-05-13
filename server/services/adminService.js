@@ -1,5 +1,43 @@
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
+const Invitation = require('../models/Invitation');
+
+const getUserWorkspaceMemberships = async (userId) => {
+  const workspaces = await Workspace.find(
+    { 'members.user': userId, isArchived: { $ne: true } },
+    { name: 1, members: 1, createdAt: 1 }
+  ).sort({ name: 1 });
+
+  const workspaceIds = workspaces.map((workspace) => workspace._id);
+  const invitations = await Invitation.find({
+    user: userId,
+    workspace: { $in: workspaceIds },
+    status: { $in: ['accepted', 'pending'] },
+  })
+    .select('workspace createdAt respondedAt status')
+    .sort({ respondedAt: -1, createdAt: -1 })
+    .lean();
+
+  const invitationByWorkspace = new Map(
+    invitations.map((invitation) => [invitation.workspace.toString(), invitation])
+  );
+
+  return workspaces.map((workspace) => {
+    const member = workspace.members.find((m) => m.user?.equals(userId));
+    const invitation = invitationByWorkspace.get(workspace._id.toString());
+    const membershipDate =
+      member?.joinedAt || invitation?.respondedAt || invitation?.createdAt || workspace.createdAt;
+
+    return {
+      id: workspace._id,
+      name: workspace.name,
+      role: member?.role || 'member',
+      status: member?.status || 'active',
+      createdAt: membershipDate,
+      joinedAt: membershipDate,
+    };
+  });
+};
 
 const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, workspaceId }) => {
   const skip = (page - 1) * limit;
@@ -45,8 +83,21 @@ const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, 
     User.countDocuments(query),
   ]);
 
+  // Fetch workspace membership data for each user
+  const usersWithMemberships = await Promise.all(
+    users.map(async (user) => {
+      const membershipData = await getUserWorkspaceMemberships(user._id);
+
+      return {
+        ...user.toObject(),
+        workspaces: membershipData,
+        workspaceCount: membershipData.length,
+      };
+    })
+  );
+
   return {
-    users,
+    users: usersWithMemberships,
     pagination: {
       total,
       page: Number(page),
@@ -70,7 +121,24 @@ const updateUserRole = async (userId, role) => {
   return user;
 };
 
+const getUserById = async (userId) => {
+  const user = await User.findById(userId).select('fullname email role status workspaceId');
+
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const membershipData = await getUserWorkspaceMemberships(user._id);
+
+  return {
+    ...user.toObject(),
+    workspaces: membershipData,
+    workspaceCount: membershipData.length,
+  };
+};
+
 module.exports = {
   getUsers,
   updateUserRole,
+  getUserById,
 };

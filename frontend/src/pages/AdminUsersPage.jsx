@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { DataTable } from '@/components/Tickets/TicketsTable';
 import { Input } from '@/components/ui/input';
 import { Search, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UserEditModal from '@/components/UserEditModal';
 import { useNavigate } from 'react-router-dom';
 import { useUsers } from '@/queries/users';
-import { columns } from '@/components/columns/userColumns';
 import { useDebounce } from 'use-debounce';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
+import AdminUsersExpandableTable from '@/components/AdminUsersExpandableTable';
+import PageHeading from '@/components/PageHeading';
 
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
@@ -26,17 +26,21 @@ export default function AdminUsersPage() {
     usersData?.users?.map((user) => ({
       id: user._id,
       fullName: user.fullname || 'No name',
-      user: user.fullname || 'No name',
       email: user.email,
       role: user.role,
-      active: user.active,
       status: user.status === 'active' ? 'active' : 'inactive',
+      workspaceCount: user.workspaceCount || 0,
+      workspaces: user.workspaces || [],
     })) ?? [];
 
   const pagination = usersData?.pagination;
 
   const handleEditUser = (user) => {
     setEditingUser(user);
+  };
+
+  const handleOpenUserAnalytics = (id) => {
+    navigate(`/user/${id}`);
   };
 
   const handleCloseModal = () => {
@@ -54,47 +58,45 @@ export default function AdminUsersPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
-            <div className="app-kicker mb-3">Admin directory</div>
-            <h1 className="app-title">All Users</h1>
-            <p className="app-subtitle">Global user directory across the entire TaskManager app.</p>
-          </div>
+        <PageHeading
+          kicker="Admin directory"
+          title="All Users"
+          subtitle="Global user directory across the entire TaskManager app."
+          actions={
+            <>
+              <div className="relative w-full sm:flex-1 md:w-80 md:flex-none">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search users..."
+                  className="pl-9"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
 
-          <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center md:w-auto">
-            <div className="relative w-full sm:flex-1 md:w-80 md:flex-none">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search users..."
-                className="pl-9"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-
-            <Button onClick={() => navigate('/register')} className="w-full sm:w-auto">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Create User
-            </Button>
-          </div>
-        </div>
+              <Button onClick={() => navigate('/register')} className="w-full sm:w-auto">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Create User
+              </Button>
+            </>
+          }
+        />
 
         <div className="app-panel overflow-hidden">
           {isPending ? (
-            <TableSkeleton columns={5} rows={6} minWidthClassName="min-w-[800px]" />
+            <TableSkeleton columns={6} rows={6} minWidthClassName="min-w-[1000px]" />
           ) : (
-            <DataTable
-              columns={columns}
+            <AdminUsersExpandableTable
               data={users}
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
-              meta={{
-                onRowClick: (id, user) => handleEditUser(user),
-              }}
+              onEditUser={handleEditUser}
+              onRowClick={handleOpenUserAnalytics}
+              isLoading={isPending}
             />
           )}
         </div>

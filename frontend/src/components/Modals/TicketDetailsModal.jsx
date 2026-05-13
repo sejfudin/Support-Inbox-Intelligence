@@ -62,7 +62,7 @@ import {
 import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
-
+import { Button } from '@/components/ui/button';
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
@@ -90,7 +90,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
 
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
-
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
@@ -659,7 +658,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
               </DropdownMenu>
             )}
             {!isArchived && (
-              <button
+              <Button
+                variant="default"
+                size="lg"
                 type="button"
                 onClick={handleSave}
                 disabled={
@@ -673,13 +674,13 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   isGeneratingDescription ||
                   !hasChanges ||
                   !title.trim()
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                    : ''
                 }`}
               >
                 <Save className="w-4 h-4" />
                 {updateTicketMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -1070,7 +1071,9 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                                 className="h-2 w-2 rounded-full shrink-0"
                                 style={{
                                   backgroundColor:
-                                    currentCategory === cat._id ? 'rgba(255,255,255,0.7)' : cat.color,
+                                    currentCategory === cat._id
+                                      ? 'rgba(255,255,255,0.7)'
+                                      : cat.color,
                                 }}
                               />
                               {cat.name}

@@ -472,6 +472,8 @@ export default function TicketPage() {
       />
 
       <TicketsHeader
+        title="Tickets"
+        subtitle="Track every ticket across statuses, assignees, and priorities."
         viewMode={effectiveViewMode}
         onViewModeChange={setViewMode}
         search={currentSearch}

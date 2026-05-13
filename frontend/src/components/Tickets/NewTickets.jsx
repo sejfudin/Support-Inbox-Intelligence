@@ -1,10 +1,6 @@
 import { useState } from 'react';
 import { useCreateTicket } from '@/queries/tickets';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   RichTextEditor,
   RichTextEditorContent,
@@ -12,37 +8,22 @@ import {
 } from '@/components/ui/rich-text-editor';
 import { useUsers } from '@/queries/users';
 import { useAuth } from '@/context/AuthContext';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { STATUS_OPTIONS } from '@/helpers/ticketStatus';
-import { PRIORITY_OPTIONS } from '@/helpers/ticketPriority';
-import {
-  STORY_POINTS_OPTIONS,
-  getStoryPointsStyle,
-  normalizeStoryPoints,
-} from '@/helpers/storyPoints';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useTicketForm } from '@/hooks/useTicketForm';
 import { useCategories } from '@/queries/categories';
 import { toast } from 'sonner';
-import { ChevronsUpDown, Sparkles } from 'lucide-react';
+import { Sparkles, User, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { htmlToPlainText } from '@/helpers/aiDescriptionPrompt';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
+import StatusDropdown from '@/components/StatusDropdown';
+import PriorityDropdown from '@/components/PriorityDropdown';
+import StoryPointsField from '@/components/StoryPointsField';
+import AssigneesAvatar from '@/components/Tickets/AssigneesAvatar';
+import { Button } from '@/components/ui/button';
 
 const NewTickets = ({
   isOpen,
@@ -55,10 +36,7 @@ const NewTickets = ({
   const { user } = useAuth();
 
   const effectiveWorkspaceId = previewWorkspaceId || user?.workspaceId;
-  const { data: usersData } = useUsers({
-    pagination: false,
-    workspaceId: effectiveWorkspaceId,
-  });
+  const { data: usersData } = useUsers({ pagination: false, workspaceId: effectiveWorkspaceId });
   const users = usersData?.users || [];
 
   const { data: categoriesData } = useCategories(effectiveWorkspaceId);
@@ -69,11 +47,6 @@ const NewTickets = ({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
-
-  const normalizedStoryPoints = normalizeStoryPoints(newTicket.storyPoints);
-  const storyPointsStyle = getStoryPointsStyle(normalizedStoryPoints);
-  const storyPointsLabel =
-    normalizedStoryPoints === null ? 'No estimate' : `SP ${normalizedStoryPoints}`;
 
   const {
     isPromptPanelVisible,
@@ -116,12 +89,9 @@ const NewTickets = ({
   };
 
   const handleUseAiSuggestion = () => {
-    if (shouldPauseMetadataSuggestion) return;
-    if (!hasSuggestibleInput || isSuggesting) return;
-
+    if (shouldPauseMetadataSuggestion || !hasSuggestibleInput || isSuggesting) return;
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
-
     requestManualSuggestion();
   };
 
@@ -155,9 +125,7 @@ const NewTickets = ({
       workspaceId: effectiveWorkspaceId,
     };
 
-    if (hideStatus) {
-      delete ticketData.status;
-    }
+    if (hideStatus) delete ticketData.status;
 
     if (ticketData.dueDate) {
       ticketData.dueDate = new Date(`${ticketData.dueDate}T12:00:00`).toISOString();
@@ -190,7 +158,6 @@ const NewTickets = ({
       e.preventDefault();
       e.stopPropagation();
     }
-
     if (currentAssignees.includes(userId)) {
       updateField(
         'assignedTo',
@@ -201,367 +168,350 @@ const NewTickets = ({
     }
   };
 
-  const getAssigneeLabel = () => {
-    if (currentAssignees.length === 0) return 'Unassigned';
-    if (currentAssignees.length === 1) {
-      const selectedUser = users.find((u) => u._id === currentAssignees[0]);
-      return selectedUser?.fullName || selectedUser?.fullname || selectedUser?.email || '1 Agent';
-    }
-    return `${currentAssignees.length} Agents Selected`;
-  };
+  const selectedUsersObjects = users.filter((u) => currentAssignees.includes(u._id));
+  const isSubmitting = createMutation.isPending || isGeneratingDescription;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-w-2xl w-full max-h-[90vh] overflow-y-auto p-0">
-        <Card className="border-0 shadow-none">
-          <DialogHeader className="px-6 pt-6 border-b mb-4">
-            <DialogTitle className="text-xl font-bold">Create New Ticket</DialogTitle>
-            <DialogDescription className="sr-only">
-              Fill in the form below to create a new ticket.
-            </DialogDescription>
-          </DialogHeader>
+      <DialogContent className="flex h-[92vh] w-full max-w-[1040px] flex-col overflow-hidden rounded-[22px] bg-white p-0 shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[min(88vh,760px)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px] [&>button]:hidden">
+        <DialogTitle className="sr-only">New Ticket</DialogTitle>
 
-          <CardContent className="px-6 pb-6">
-            <form onSubmit={handleCreate} className="space-y-6">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Subject
-                  </Label>
-                  <Input
-                    placeholder="e.g. Technical problem with registration"
-                    value={newTicket.subject}
-                    onChange={(e) => updateField('subject', e.target.value)}
-                    className="h-12 text-base"
-                    required
-                  />
-                </div>
+        <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-white px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+              New Ticket
+            </span>
+            <button
+              type="button"
+              tabIndex={-1}
+              onClick={() => handleDialogOpenChange(false)}
+              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close new ticket modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-                {categories.length > 0 && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                      Category
-                    </Label>
-                    <Select
-                      value={newTicket.category || 'none'}
-                      onValueChange={(value) =>
-                        updateField('category', value === 'none' ? null : value)
-                      }
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+            <div className="mb-6">
+              <input
+                type="text"
+                value={newTicket.subject}
+                onChange={(e) => updateField('subject', e.target.value)}
+                required
+                placeholder="Enter ticket subject…"
+                className="w-full min-w-0 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xl font-bold tracking-tight text-gray-900 outline-none transition sm:text-2xl placeholder:font-bold placeholder:text-gray-300 hover:bg-white focus:bg-white focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
+              <section className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden min-h-[360px] sm:min-h-[440px] lg:h-full lg:min-h-0">
+                <RichTextEditor
+                  value={newTicket.description}
+                  onChange={(html) => updateField('description', html)}
+                  placeholder="Describe the ticket… (type /ai to generate a first draft)"
+                  className="flex-1 lg:h-full min-h-0 border-0 rounded-none divide-y-0"
+                >
+                  <div className="flex flex-col gap-2 border-b border-gray-50 bg-gray-50/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4">
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        Description
+                      </span>
+                    </div>
+                    <div
+                      tabIndex={-1}
+                      className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0 outline-none"
                     >
-                      <SelectTrigger className="h-12">
-                        <SelectValue>
-                          {newTicket.category ? (
-                            (() => {
-                              const cat = categories.find((c) => c._id === newTicket.category);
-                              return cat ? (
-                                <span className="flex items-center gap-2">
-                                  <span
-                                    className="h-2.5 w-2.5 rounded-full shrink-0"
-                                    style={{ backgroundColor: cat.color }}
-                                  />
-                                  {cat.name}
-                                </span>
-                              ) : (
-                                'No category'
-                              );
-                            })()
-                          ) : (
-                            <span className="text-muted-foreground">No category</span>
-                          )}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          <span className="text-muted-foreground">No category</span>
-                        </SelectItem>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat._id} value={cat._id}>
-                            <span className="flex items-center gap-2">
-                              <span
-                                className="h-2.5 w-2.5 rounded-full shrink-0"
-                                style={{ backgroundColor: cat.color }}
-                              />
-                              {cat.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Description
-                  </Label>
-                  <RichTextEditor
-                    value={newTicket.description}
-                    onChange={(html) => updateField('description', html)}
-                    className="min-h-[180px]"
-                  >
-                    <RichTextEditorToolbar />
-                    <RichTextEditorContent />
-                  </RichTextEditor>
-
-                  <AiDescriptionPanel
-                    isVisible={isPromptPanelVisible}
-                    promptLength={promptLength}
-                    canGenerateDescription={canGenerateDescription}
-                    isGeneratingDescription={isGeneratingDescription}
-                    isDescriptionDraftActive={isDescriptionDraftActive}
-                    onGenerate={() => generateDescription({ showToast: true })}
-                    onAccept={acceptGeneratedDescription}
-                    onCancel={cancelGeneratedDescription}
-                    disabled={createMutation.isPending}
-                  />
-                </div>
-
-                <div className="space-y-6">
-                  <div className={`grid grid-cols-1 gap-6 ${hideStatus ? '' : 'md:grid-cols-2'}`}>
-                    {!hideStatus && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                          Status
-                        </Label>
-                        <Select
-                          value={newTicket.status}
-                          onValueChange={(value) => updateField('status', value)}
-                        >
-                          <SelectTrigger className="h-12">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map((status) => (
-                              <SelectItem key={status.value} value={status.value}>
-                                {status.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className="w-max">
+                        <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
                       </div>
-                    )}
-
-                    <div className="relative space-y-2">
-                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide pr-8">
-                        Priority
-                      </Label>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={handleUseAiSuggestion}
-                        disabled={!hasSuggestibleInput || isSuggesting}
-                        className="absolute -right-1 -top-2 h-7 w-7 p-0 text-slate-500 hover:text-slate-700 [&_svg]:size-5"
-                        aria-label="Regenerate AI suggestion"
-                        title="Regenerate AI suggestion"
-                      >
-                        <Sparkles className={isSuggesting ? 'animate-pulse' : ''} />
-                      </Button>
-
-                      <Select
-                        value={newTicket.priority}
-                        onValueChange={(value) => {
-                          setPriorityLockedByUser(true);
-                          updateField('priority', value);
-                        }}
-                      >
-                        <SelectTrigger className="h-12">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PRIORITY_OPTIONS.map((priority) => (
-                            <SelectItem key={priority.value} value={priority.value}>
-                              {priority.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
+                  <RichTextEditorContent className="p-3 sm:p-4" />
+                </RichTextEditor>
 
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                        Due date{' '}
-                        <span className="font-normal normal-case text-muted-foreground">
-                          (optional)
+                <AiDescriptionPanel
+                  isVisible={isPromptPanelVisible}
+                  promptLength={promptLength}
+                  canGenerateDescription={canGenerateDescription}
+                  isGeneratingDescription={isGeneratingDescription}
+                  isDescriptionDraftActive={isDescriptionDraftActive}
+                  onGenerate={() => generateDescription({ showToast: true })}
+                  onAccept={acceptGeneratedDescription}
+                  onCancel={cancelGeneratedDescription}
+                  disabled={createMutation.isPending}
+                />
+              </section>
+
+              <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
+                <div className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden">
+                  <div className="border-b border-gray-50 bg-gray-50/30 px-4 py-3">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                      Details
+                    </span>
+                  </div>
+
+                  <div className="px-4 pb-5 pt-4 space-y-5">
+                    <div
+                      className={cn(
+                        'grid gap-3 sm:gap-6',
+                        hideStatus ? 'grid-cols-1' : 'grid-cols-2'
+                      )}
+                    >
+                      <div className="space-y-2 min-w-0">
+                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          Assignees
+                        </div>
+                        <Popover
+                          open={assigneePopoverOpen}
+                          onOpenChange={setAssigneePopoverOpen}
+                          modal
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="flex w-full items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200 justify-between"
+                              aria-label="Change assignees"
+                            >
+                              <span className="flex items-center gap-2 min-w-0 normal-case">
+                                {selectedUsersObjects.length > 0 ? (
+                                  <>
+                                    <AssigneesAvatar
+                                      users={selectedUsersObjects.slice(0, 3)}
+                                      size="sm"
+                                    />
+                                    <span className="min-w-0 truncate text-gray-700 font-semibold">
+                                      {selectedUsersObjects[0]?.fullName ||
+                                        selectedUsersObjects[0]?.fullname ||
+                                        selectedUsersObjects[0]?.email ||
+                                        'Assigned'}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <User className="w-4 h-4 text-gray-500" />
+                                    <span className="text-gray-500 font-medium whitespace-nowrap">
+                                      Unassigned
+                                    </span>
+                                  </>
+                                )}
+                              </span>
+                              {selectedUsersObjects.length > 1 && (
+                                <span className="shrink-0 inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-gray-500 border border-gray-200">
+                                  +{selectedUsersObjects.length - 1}
+                                </span>
+                              )}
+                            </button>
+                          </PopoverTrigger>
+
+                          <PopoverContent
+                            className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[200]"
+                            align="start"
+                            sideOffset={8}
+                            onWheel={(e) => e.stopPropagation()}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                  Assign Agents
+                                </span>
+                                {currentAssignees.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      updateField('assignedTo', []);
+                                    }}
+                                    className="text-[10px] text-red-500 hover:underline font-bold"
+                                  >
+                                    Clear all
+                                  </button>
+                                )}
+                              </div>
+                              <div className="max-h-[250px] overflow-y-auto">
+                                {users.length > 0 ? (
+                                  users.map((listUser) => {
+                                    const isSelected = currentAssignees.includes(listUser._id);
+                                    return (
+                                      <div
+                                        key={listUser._id}
+                                        onClick={(e) => handleAgentToggle(listUser._id, e)}
+                                        className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                      >
+                                        <Checkbox
+                                          checked={isSelected}
+                                          className="pointer-events-none"
+                                          onCheckedChange={() => {}}
+                                        />
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
+                                            {listUser.fullName ||
+                                              listUser.fullname ||
+                                              listUser.email}
+                                          </span>
+                                          <span className="text-[10px] text-gray-400 truncate">
+                                            {listUser.email}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <div className="p-4 text-center text-xs text-gray-400">
+                                    No users found
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+
+                      {!hideStatus && (
+                        <div className="space-y-2 min-w-0">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                            Status
+                          </div>
+                          <StatusDropdown
+                            status={newTicket.status}
+                            onChange={(val) => updateField('status', val.toLowerCase())}
+                            className="w-full justify-between"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          Priority & story points
                         </span>
-                      </Label>
-                      <Input
+                        <button
+                          type="button"
+                          tabIndex={-1}
+                          onClick={handleUseAiSuggestion}
+                          disabled={!hasSuggestibleInput || isSuggesting}
+                          title="AI suggest priority & story points"
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition',
+                            !hasSuggestibleInput || isSuggesting
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                          )}
+                        >
+                          <Sparkles className={cn('h-3 w-3', isSuggesting && 'animate-pulse')} />
+                          Suggest
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 sm:gap-6 items-center">
+                        <div className="space-y-2 min-w-0">
+                          <PriorityDropdown
+                            priority={newTicket.priority}
+                            onChange={(val) => {
+                              setPriorityLockedByUser(true);
+                              updateField('priority', val);
+                            }}
+                            className="w-full justify-between"
+                          />
+                        </div>
+
+                        <StoryPointsField
+                          value={newTicket.storyPoints}
+                          hideLabel
+                          onChange={(val) => {
+                            setStoryPointsLockedByUser(true);
+                            updateField('storyPoints', val);
+                          }}
+                          className="space-y-2 min-w-0"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        Due date
+                      </span>
+                      <input
                         type="date"
                         value={newTicket.dueDate}
                         onChange={(e) => updateField('dueDate', e.target.value)}
-                        className="h-12 text-base w-full"
+                        className="h-10 w-full rounded-md border border-transparent bg-gray-100 px-3 text-sm font-semibold text-gray-800 shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                        Story points
-                      </Label>
-                      <Select
-                        value={
-                          normalizedStoryPoints === null ? 'none' : String(normalizedStoryPoints)
-                        }
-                        onValueChange={(value) => {
-                          setStoryPointsLockedByUser(true);
-                          updateField('storyPoints', value === 'none' ? null : Number(value));
-                        }}
-                      >
-                        <SelectTrigger className="h-12">
-                          <span
+                    {categories.length > 0 && (
+                      <div className="space-y-3">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          Category
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateField('category', null)}
                             className={cn(
-                              'inline-flex items-center gap-2 rounded-md border px-2 py-1 text-xs font-bold uppercase',
-                              storyPointsStyle.indicator
+                              'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
+                              newTicket.category === null
+                                ? 'bg-gray-800 text-white border-gray-800'
+                                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
                             )}
                           >
-                            <span className={cn('h-2 w-2 rounded-full', storyPointsStyle.dot)} />
-                            {storyPointsLabel}
-                          </span>
-                        </SelectTrigger>
-
-                        <SelectContent>
-                          <SelectItem value="none">
-                            <span className="inline-flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full bg-gray-400" />
-                              No estimate
-                            </span>
-                          </SelectItem>
-
-                          {STORY_POINTS_OPTIONS.map((option) => {
-                            const optionStyle = getStoryPointsStyle(option.value);
-
-                            return (
-                              <SelectItem key={option.value} value={String(option.value)}>
-                                <span
-                                  className={cn(
-                                    'inline-flex items-center gap-2 rounded-md border px-2 py-0.5 text-xs font-bold uppercase',
-                                    optionStyle.indicator
-                                  )}
-                                >
-                                  <span className={cn('h-2 w-2 rounded-full', optionStyle.dot)} />
-                                  {`SP ${option.label}`}
-                                </span>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
-                    Agent
-                  </Label>
-
-                  <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen} modal>
-                    <PopoverTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={assigneePopoverOpen}
-                        className="w-full justify-between h-12 px-3 text-left font-normal"
-                      >
-                        <span
-                          className={
-                            currentAssignees.length === 0
-                              ? 'text-muted-foreground'
-                              : 'text-foreground'
-                          }
-                        >
-                          {getAssigneeLabel()}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-
-                    <PopoverContent
-                      className="w-[var(--radix-popover-trigger-width)] p-2 z-[200]"
-                      align="start"
-                      onWheel={(e) => e.stopPropagation()}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                            Assign Agents
-                          </span>
-                          {currentAssignees.length > 0 && (
+                            None
+                          </button>
+                          {categories.map((cat) => (
                             <button
+                              key={cat._id}
                               type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                updateField('assignedTo', []);
-                              }}
-                              className="text-[10px] text-red-500 hover:underline font-bold"
+                              onClick={() => updateField('category', cat._id)}
+                              className={cn(
+                                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
+                                newTicket.category === cat._id
+                                  ? 'text-white border-transparent'
+                                  : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                              )}
+                              style={
+                                newTicket.category === cat._id
+                                  ? { backgroundColor: cat.color, borderColor: cat.color }
+                                  : {}
+                              }
                             >
-                              Clear all
+                              <span
+                                className="h-2 w-2 rounded-full shrink-0"
+                                style={{
+                                  backgroundColor:
+                                    newTicket.category === cat._id
+                                      ? 'rgba(255,255,255,0.7)'
+                                      : cat.color,
+                                }}
+                              />
+                              {cat.name}
                             </button>
-                          )}
-                        </div>
-
-                        <div className="max-h-[250px] overflow-y-auto">
-                          {users.length > 0 ? (
-                            users.map((listUser) => {
-                              const isSelected = currentAssignees.includes(listUser._id);
-
-                              return (
-                                <div
-                                  key={listUser._id}
-                                  onClick={(e) => handleAgentToggle(listUser._id, e)}
-                                  className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
-                                >
-                                  <Checkbox
-                                    checked={isSelected}
-                                    className="pointer-events-none"
-                                    onCheckedChange={() => {}}
-                                  />
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
-                                      {listUser.fullName || listUser.fullname || listUser.email}
-                                    </span>
-                                    <span className="text-[10px] text-gray-400 truncate">
-                                      {listUser.email}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <div className="p-4 text-center text-xs text-gray-400">
-                              No users found
-                            </div>
-                          )}
+                          ))}
                         </div>
                       </div>
-                    </PopoverContent>
-                  </Popover>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </aside>
+            </div>
+          </div>
 
-              <div className="flex gap-3 pt-4 border-t">
-                <Button
-                  type="submit"
-                  className="flex-1"
-                  disabled={createMutation.isPending || isGeneratingDescription}
-                >
-                  {createMutation.isPending ? 'Creating...' : 'Create Ticket'}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleDialogOpenChange(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+          <div className="shrink-0 border-t bg-white px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
+            <div className="flex w-full items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="lg"
+                type="button"
+                onClick={() => handleDialogOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="default" size="lg" type="submit" disabled={isSubmitting}>
+                {createMutation.isPending ? 'Creating…' : 'Create Ticket'}
+              </Button>
+            </div>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -19,6 +19,7 @@ import WorkspaceSettingsPage from '@/pages/WorkspaceSettingsPage';
 import MyWorkspacesPage from '@/pages/MyWorkspacesPage';
 import UserInvitationsPage from '@/pages/UserInvitationsPage';
 import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
+import AdminUserAnalyticsPage from '@/pages/AdminUserAnalyticsPage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -66,6 +67,7 @@ export default function AppRoutes() {
 
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
             <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<AdminWorkspacesPage />} />
             <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
             <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />

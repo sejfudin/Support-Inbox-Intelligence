@@ -20,7 +20,6 @@ export const useAiTicketSuggestion = ({
   const lastAutoSuggestionInputKeyRef = useRef('');
   const hasInitializedAutoSuggestionRef = useRef(false);
 
-
   const safeSubject = String(subject || '').trim();
   const safeDescription = String(description || '').trim();
 
@@ -121,7 +120,6 @@ export const useAiTicketSuggestion = ({
       return;
     }
 
-
     if (inputKey === lastAutoSuggestionInputKeyRef.current) {
       return;
     }
@@ -140,14 +138,14 @@ export const useAiTicketSuggestion = ({
 
     return () => clearTimeout(timer);
   }, [
-      isOpen, 
-      isPaused, 
-      hasSuggestibleInput, 
-      safeSubject, 
-      safeDescription, 
-      requestSuggestion,
-      skipInitialAutoSuggestion,
-    ]);
+    isOpen,
+    isPaused,
+    hasSuggestibleInput,
+    safeSubject,
+    safeDescription,
+    requestSuggestion,
+    skipInitialAutoSuggestion,
+  ]);
 
   const requestManualSuggestion = useCallback(() => {
     if (isPaused) return;

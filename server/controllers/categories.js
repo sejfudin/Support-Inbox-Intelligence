@@ -26,8 +26,7 @@ const createCategory = async (req, res) => {
     }
 
     const isAdmin = req.user?.role === 'admin';
-    const workspaceId =
-      isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user?.workspaceId;
+    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user?.workspaceId;
 
     if (!workspaceId) {
       return res.status(400).json({ success: false, message: 'No workspace associated' });

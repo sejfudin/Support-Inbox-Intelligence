@@ -242,7 +242,7 @@ const updateTicket = async (req, res, next) => {
 const archiveTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const ticket = await ticketService.archiveTicket(id);
+    const ticket = await ticketService.archiveTicket(id, req.user._id);
 
     res.status(200).json({
       success: true,
@@ -257,24 +257,6 @@ const archiveTicket = async (req, res, next) => {
   }
 };
 
-const deleteTicket = async (req, res, next) => {
-  try {
-    const { ticketId } = req.body;
-
-    const result = await ticketService.deleteTicket(ticketId);
-
-    res.status(200).json({
-      success: true,
-      message: result.message,
-      id: result.id,
-    });
-  } catch (error) {
-    if (error.message === 'Ticket not found') {
-      return res.status(404).json({ message: error.message });
-    }
-    next(error);
-  }
-};
 
 const getMyTickets = async (req, res, next) => {
   try {
@@ -379,7 +361,6 @@ module.exports = {
   createTicket,
   updateTicket,
   archiveTicket,
-  deleteTicket,
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,

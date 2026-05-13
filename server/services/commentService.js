@@ -80,6 +80,8 @@ const updateComment = async (commentId, content, userId) => {
   comment.isEdited = true;
   await comment.save();
 
+  historyService.logEvent(comment.ticket._id, userId, 'Comment edited');
+
   return comment.populate('author', 'fullname email');
 };
 
@@ -100,6 +102,8 @@ const deleteComment = async (commentId, userId, role) => {
 
   comment.isDeleted = true;
   await comment.save();
+
+  historyService.logEvent(comment.ticket._id, userId, 'Comment deleted');
 
   return { message: 'Comment removed successfully' };
 };

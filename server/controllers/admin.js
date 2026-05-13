@@ -21,6 +21,19 @@ exports.getUsers = async (req, res, next) => {
   }
 };
 
+exports.getUser = async (req, res, next) => {
+  try {
+    const user = await userService.getUserById(req.params.id);
+    res.json(user);
+  } catch (error) {
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: error.message });
+    }
+
+    next(error);
+  }
+};
+
 exports.updateUserRole = async (req, res, next) => {
   try {
     const { id } = req.params;
