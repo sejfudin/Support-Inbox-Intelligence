@@ -14,6 +14,7 @@ const {
   handlePRMerged,
   AUTOMATION_RESULT,
 } = require('../services/statusAutomationService');
+const historyService = require('../services/historyService');
 
 /**
  * Initiates GitHub App installation flow.
@@ -360,6 +361,10 @@ const handlePullRequestEvent = async (payload) => {
     result.ticketId &&
     (result.result === LINK_RESULT.LINKED || result.result === LINK_RESULT.ALREADY_LINKED)
   ) {
+    if (result.result === LINK_RESULT.LINKED) {
+      historyService.logSystemEvent(result.ticketId, `PR #${prData.prNumber} linked`);
+    }
+
     const eventTime = new Date();
     let automationResult;
 
@@ -506,8 +511,11 @@ const unlinkPR = async (req, res) => {
       });
     }
 
+    const unlinkedPrNumber = ticket.linkedPullRequest.prNumber;
     ticket.linkedPullRequest = null;
     await ticket.save();
+
+    historyService.logEvent(ticketId, req.user._id, `PR #${unlinkedPrNumber} unlinked`);
 
     res.json({
       success: true,
