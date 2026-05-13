@@ -36,6 +36,7 @@ import {
 import { AnalyticsCardSkeleton } from '@/components/Skeletons/AnalyticsCardSkeleton';
 import { AnalyticsEmptyCard } from '@/components/AnalyticsEmptyCard';
 import PersonalAnalyticsSection from '@/components/PersonalAnalyticsSection';
+import PageHeading from '@/components/PageHeading';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
@@ -97,18 +98,13 @@ export default function AnalyticsDashboard() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
-            <div className="app-kicker mb-3">Insights</div>
-            <h1 className="app-title">Workspace Analytics</h1>
-            <p className="app-subtitle">
-              Understand delivery pace, demand trend, and cycle performance.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
+        <PageHeading
+          kicker="Insights"
+          title="Workspace Analytics"
+          subtitle="Understand delivery pace, demand trend, and cycle performance."
+          actions={
             <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-              <SelectTrigger className="w-[140px] rounded-full border-primary/15 bg-primary/10 text-primary">
+              <SelectTrigger className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[160px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -119,8 +115,8 @@ export default function AnalyticsDashboard() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-        </div>
+          }
+        />
 
         {isError ? (
           <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-center text-sm text-destructive">

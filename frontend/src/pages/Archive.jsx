@@ -39,6 +39,7 @@ export default function ArchivePage() {
         hideViewMode={true}
         hideNewTicket={true}
         title="Archive"
+        subtitle="Review completed and closed tickets from this workspace."
       />
 
       <PageSection className="flex-1 pt-6">

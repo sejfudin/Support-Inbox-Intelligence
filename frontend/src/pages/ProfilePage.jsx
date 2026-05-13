@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
+import PageHeading from '@/components/PageHeading';
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -75,16 +76,15 @@ const ProfilePage = () => {
     <PageShell>
       <PageSection className="space-y-6">
         <div className="mx-auto w-full max-w-3xl space-y-6">
-          <PagePanel className="flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-            <div className="min-w-0">
-              <div className="app-kicker mb-3">Account</div>
-              <h1 className="app-title">Profile</h1>
-              <p className="app-subtitle">
-                {isEditing ? 'Update your details.' : 'Your account information.'}
-              </p>
-            </div>
-
-            <div className="flex w-full items-center gap-2 md:w-auto">
+          <PageHeading
+            kicker="Account"
+            title="Profile"
+            subtitle={
+              isEditing
+                ? 'Update your account details and credentials.'
+                : 'Your account information and credentials.'
+            }
+            actions={
               <Button
                 variant={isEditing ? 'outline' : 'default'}
                 className="w-full gap-2 md:w-auto"
@@ -106,8 +106,8 @@ const ProfilePage = () => {
                 <Pencil className="h-4 w-4" />
                 {isEditing ? 'Cancel editing' : 'Edit profile'}
               </Button>
-            </div>
-          </PagePanel>
+            }
+          />
 
           <PagePanel className="px-5 py-6 md:px-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
