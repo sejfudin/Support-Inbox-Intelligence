@@ -24,6 +24,7 @@ import PriorityIndicator from './PriorityIndicator';
 import BoardSkeleton from './Skeletons/BoardSkeleton';
 import { BOARD_COLUMNS, STATUS_TO_COLUMN, STATUS_STYLES } from '../helpers/ticketStatus';
 import { normalizeTicket } from '../helpers/normalizeTicket';
+import { cn } from '../lib/utils';
 
 function TaskCard({ task, onOpen, cardClassName }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -119,6 +120,7 @@ export default function BoardPage({
   onNewTicket,
   onOpenTicket,
   onStatusChange,
+  flush = false,
 }) {
   const [query, setQuery] = useState('');
   const [activeTask, setActiveTask] = useState(null);
@@ -197,8 +199,10 @@ export default function BoardPage({
   }
 
   return (
-    <div className="app-page">
-      <div className="app-page-content overflow-hidden pt-6">
+    <div className={flush ? 'w-full' : 'app-page'}>
+      <div
+        className={cn(flush ? 'w-full overflow-hidden' : 'app-page-content overflow-hidden pt-6')}
+      >
         <TicketsState
           isLoading={isLoading}
           isError={isError}
