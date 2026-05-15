@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useWorkspace } from '@/queries/workspaces';
 import { IntegrationSettings } from '@/components/IntegrationSettings';
 import CategorySettings from '@/components/CategorySettings';
+import StatusSettings from '@/components/StatusSettings';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import PageHeading from '@/components/PageHeading';
@@ -32,6 +33,12 @@ const WorkspaceSettingsPage = () => {
         <Card className="pt-6">
           <CardContent>
             <CategorySettings workspaceId={id} />
+          </CardContent>
+        </Card>
+
+        <Card className="pt-6">
+          <CardContent>
+            <StatusSettings workspaceId={id} />
           </CardContent>
         </Card>
 

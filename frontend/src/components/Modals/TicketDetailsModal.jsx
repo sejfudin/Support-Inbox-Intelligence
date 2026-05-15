@@ -63,6 +63,7 @@ import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
 import { Button } from '@/components/ui/button';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
@@ -99,6 +100,8 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   const updateTicketMutation = useUpdateTicket();
   const ticket = apiResponse?.data ?? apiResponse;
   const isArchived = Boolean(ticket?.isArchived);
+  const workspaceIdForStatuses = ticket?.workspace || user?.workspaceId;
+  const { helpers } = useTicketStatuses(workspaceIdForStatuses);
 
   const {
     data: usersData,
@@ -856,6 +859,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   <StatusDropdown
                     status={currentStatus}
                     onChange={setCurrentStatus}
+                    statusOptions={helpers.statusOptions}
                     className="w-full justify-between"
                   />
                 </div>
@@ -1102,7 +1106,7 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
                     <div className="grid grid-cols-2 gap-3 sm:gap-6">
-                      <TimeSpent ticket={ticket} />
+                      <TimeSpent ticket={ticket} statusTracksTime={helpers.statusTracksTime} />
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">

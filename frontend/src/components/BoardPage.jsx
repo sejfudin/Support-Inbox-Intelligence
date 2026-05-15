@@ -22,7 +22,7 @@ import TicketsState from './Tickets/TicketsState';
 import AssigneesAvatar from './Tickets/AssigneesAvatar';
 import PriorityIndicator from './PriorityIndicator';
 import BoardSkeleton from './Skeletons/BoardSkeleton';
-import { BOARD_COLUMNS, STATUS_TO_COLUMN, STATUS_STYLES } from '../helpers/ticketStatus';
+import { getColumnStyle } from '../helpers/ticketStatus';
 import { normalizeTicket } from '../helpers/normalizeTicket';
 
 function TaskCard({ task, onOpen, cardClassName }) {
@@ -68,8 +68,8 @@ function TaskCard({ task, onOpen, cardClassName }) {
   );
 }
 
-function Column({ col, onOpen, onNewTicket }) {
-  const style = STATUS_STYLES[col.id] ?? STATUS_STYLES.todo;
+function Column({ col, onOpen, onNewTicket, boardHelpers }) {
+  const style = getColumnStyle(boardHelpers, col.id);
 
   const { setNodeRef, isOver, over } = useDroppable({
     id: col.id,
@@ -119,6 +119,7 @@ export default function BoardPage({
   onNewTicket,
   onOpenTicket,
   onStatusChange,
+  boardHelpers,
 }) {
   const [query, setQuery] = useState('');
   const [activeTask, setActiveTask] = useState(null);
@@ -130,14 +131,16 @@ export default function BoardPage({
   );
 
   const columns = useMemo(() => {
-    const base = BOARD_COLUMNS.map((c) => ({ ...c, tasks: [] }));
+    if (!boardHelpers?.boardColumns?.length) return [];
+
+    const base = boardHelpers.boardColumns.map((c) => ({ ...c, tasks: [] }));
     const byId = Object.fromEntries(base.map((c) => [c.id, c]));
     const q = query.trim().toLowerCase();
 
     for (const t of tickets) {
       const normalized = normalizeTicket(t);
-      const dbStatus = (normalized.status || 'open').toLowerCase();
-      const colId = STATUS_TO_COLUMN[dbStatus] || 'todo';
+      const dbStatus = (normalized.status || '').toLowerCase();
+      const colId = boardHelpers.statusToColumn[dbStatus] || boardHelpers.boardColumns[0]?.id;
 
       const task = {
         id: normalized.id,
@@ -154,7 +157,7 @@ export default function BoardPage({
       if (byId[colId]) byId[colId].tasks.push(task);
     }
     return base;
-  }, [tickets, query]);
+  }, [tickets, query, boardHelpers]);
 
   function handleDragStart(event) {
     const { active } = event;
@@ -175,12 +178,13 @@ export default function BoardPage({
     if (!activeTicket) return;
 
     const normalizedActive = normalizeTicket(activeTicket);
-    const currentStatus = (normalizedActive.status || 'open').toLowerCase();
-    const currentColumnId = STATUS_TO_COLUMN[currentStatus] || 'todo';
+    const currentStatus = (normalizedActive.status || '').toLowerCase();
+    const currentColumnId =
+      boardHelpers?.statusToColumn[currentStatus] || boardHelpers?.boardColumns[0]?.id;
 
     let destinationColumnId = null;
 
-    const overColumn = BOARD_COLUMNS.find((c) => c.id === overId);
+    const overColumn = boardHelpers?.boardColumns.find((c) => c.id === overId);
 
     if (overColumn) {
       destinationColumnId = overColumn.id;
@@ -216,7 +220,13 @@ export default function BoardPage({
               <ScrollArea className="w-full">
                 <div className="flex gap-4 pb-4">
                   {columns.map((c) => (
-                    <Column key={c.id} col={c} onOpen={onOpenTicket} onNewTicket={onNewTicket} />
+                    <Column
+                      key={c.id}
+                      col={c}
+                      onOpen={onOpenTicket}
+                      onNewTicket={onNewTicket}
+                      boardHelpers={boardHelpers}
+                    />
                   ))}
                 </div>
                 <ScrollBar orientation="horizontal" />

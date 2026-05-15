@@ -1,14 +1,13 @@
 import { format, startOfDay, isBefore } from 'date-fns';
 
-const DONE = 'done';
-
 /**
  * Ticket is overdue when there is a due date before today (local) and status is not done.
  */
-export function isDueDateOverdue(dueDate, status) {
+export function isDueDateOverdue(dueDate, status, statusIsDone) {
   if (!dueDate) return false;
+  if (typeof statusIsDone === 'function' && statusIsDone(status)) return false;
   const s = (status || '').toLowerCase();
-  if (s === DONE) return false;
+  if (s === 'done') return false;
   const due = startOfDay(new Date(dueDate));
   const today = startOfDay(new Date());
   return isBefore(due, today);

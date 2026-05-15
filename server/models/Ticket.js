@@ -56,12 +56,9 @@ const ticketSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: {
-        values: ['backlog', 'in progress', 'on staging', 'blocked', 'to do', 'done'],
-        message: '{VALUE} is not a supported status',
-      },
       default: 'backlog',
       required: true,
+      trim: true,
     },
     priority: {
       type: String,

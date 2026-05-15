@@ -1,4 +1,5 @@
 const ticketService = require('../services/ticketService');
+const statusService = require('../services/statusService');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -103,13 +104,11 @@ const createTicket = async (req, res) => {
     } = req.body;
     const isAdmin = req.user && req.user.role === 'admin';
     const hasStatus = status !== undefined && status !== null && status !== '';
-    const resolvedStatus = isAdmin
-      ? hasStatus
-        ? status
-        : 'backlog'
-      : hasStatus
-        ? status
-        : 'to do';
+    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
+
+    const resolvedStatus = hasStatus
+      ? status
+      : await statusService.resolveDefaultStatus(workspaceId, { isAdmin });
 
     const assignedAgents = assignedTo
       ? Array.isArray(assignedTo)
@@ -122,8 +121,6 @@ const createTicket = async (req, res) => {
         message: 'Subject details are required',
       });
     }
-
-    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
 
     const normalizedStoryPoints = normalizeStoryPointsInput(storyPoints);
 
@@ -148,7 +145,8 @@ const createTicket = async (req, res) => {
     if (
       error.message === 'Assigned users must be active members of this workspace' ||
       error.message === 'Workspace not found' ||
-      error.message === 'Subject details are required'
+      error.message === 'Subject details are required' ||
+      error.message?.includes('is not valid for this workspace')
     ) {
       return res.status(400).json({
         success: false,
@@ -226,7 +224,8 @@ const updateTicket = async (req, res, next) => {
     if (
       error.message === 'Assigned users must be active members of this workspace' ||
       error.message === 'Workspace not found' ||
-      error.message === 'Subject details are required'
+      error.message === 'Subject details are required' ||
+      error.message?.includes('is not valid for this workspace')
     ) {
       return res.status(400).json({ message: error.message });
     }

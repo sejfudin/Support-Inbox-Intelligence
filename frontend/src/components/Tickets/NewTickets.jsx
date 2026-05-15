@@ -31,6 +31,7 @@ const NewTickets = ({
   initialStatus = 'to do',
   hideStatus = false,
   workspaceId: previewWorkspaceId,
+  statusOptions = [],
 }) => {
   const createMutation = useCreateTicket();
   const { user } = useAuth();
@@ -374,7 +375,8 @@ const NewTickets = ({
                           </div>
                           <StatusDropdown
                             status={newTicket.status}
-                            onChange={(val) => updateField('status', val.toLowerCase())}
+                            onChange={(val) => updateField('status', val)}
+                            statusOptions={statusOptions}
                             className="w-full justify-between"
                           />
                         </div>

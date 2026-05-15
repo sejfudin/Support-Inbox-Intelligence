@@ -4,6 +4,7 @@ const Workspace = require('../models/Workspace');
 const mongoose = require('mongoose');
 const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
+const statusService = require('./statusService');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -174,7 +175,10 @@ const getAllTickets = async ({
   if (status === 'null' || status === null) {
     query.status = null;
   } else if (status === 'not_null') {
-    query.status = { $ne: 'backlog' };
+    const backlogSlugs = await statusService.getBacklogSlugs(workspaceId);
+    if (backlogSlugs.length > 0) {
+      query.status = { $nin: backlogSlugs };
+    }
   } else if (status && status !== 'all') {
     query.status = status;
   }
@@ -326,7 +330,14 @@ const createTicket = async (ticketData) => {
 
   const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
 
-  const status = ticketData.status === undefined ? 'to do' : ticketData.status;
+  const status =
+    ticketData.status === undefined
+      ? await statusService.resolveDefaultStatus(ticketData.workspaceId, { isAdmin: false })
+      : ticketData.status;
+
+  await statusService.validateStatusForWorkspace(ticketData.workspaceId, status);
+
+  const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, status);
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
@@ -346,7 +357,8 @@ const createTicket = async (ticketData) => {
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
     category: ticketData.category || null,
-    inProgressAt: status === 'in progress' ? new Date() : undefined,
+    inProgressAt: statusFlags.tracksTime ? new Date() : undefined,
+    doneAt: statusFlags.isDone ? new Date() : undefined,
     ...(dueDate !== undefined ? { dueDate } : {}),
   });
 
@@ -410,23 +422,16 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       const oldStatus = oldTicket.status.toLowerCase();
       const now = new Date();
 
-      if (newStatus === 'in progress') {
-        updateData.inProgressAt = now;
-        updateData.doneAt = null;
-      }
+      await statusService.validateStatusForWorkspace(oldTicket.workspace, newStatus);
 
-      if (oldStatus === 'in progress') {
-        if (oldTicket.inProgressAt) {
-          const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
-          updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
-        }
-      }
-
-      if (newStatus === 'done') {
-        updateData.doneAt = now;
-      } else if (oldStatus === 'done') {
-        updateData.doneAt = null;
-      }
+      await statusService.applyStatusLifecycleUpdate({
+        workspaceId: oldTicket.workspace,
+        oldStatus,
+        newStatus,
+        oldTicket,
+        updateData,
+        now,
+      });
 
       historyService.logEvent(ticketId, actorUserId, `Status changed from ${oldTicket.status} to ${updateData.status}`);
     }
@@ -700,6 +705,9 @@ const getMyTickets = async ({
           { $project: { priorityRank: 0 } },
         ]);
 
+  const slugSets = await statusService.getStatusSlugSets(workspaceId);
+  const { activeSlugs, inProgressSlugs, blockedSlugs, doneSlugs } = slugSets;
+
   const [tickets, total, statsArray] = await Promise.all([
     ticketsQuery,
     Ticket.countDocuments(query),
@@ -716,28 +724,27 @@ const getMyTickets = async ({
           _id: null,
           activeTickets: {
             $sum: {
-              $cond: [
-                { $in: ['$status', ['to do', 'in progress', 'on staging', 'blocked']] },
-                1,
-                0,
-              ],
+              $cond: [{ $in: ['$status', activeSlugs] }, 1, 0],
             },
           },
           inProgress: {
             $sum: {
-              $cond: [{ $in: ['$status', ['in progress', 'on staging']] }, 1, 0],
+              $cond: [{ $in: ['$status', inProgressSlugs] }, 1, 0],
             },
           },
           blocked: {
             $sum: {
-              $cond: [{ $eq: ['$status', 'blocked'] }, 1, 0],
+              $cond: [{ $in: ['$status', blockedSlugs] }, 1, 0],
             },
           },
           completedThisMonth: {
             $sum: {
               $cond: [
                 {
-                  $and: [{ $eq: ['$status', 'done'] }, { $gte: ['$updatedAt', startOfMonth] }],
+                  $and: [
+                    { $in: ['$status', doneSlugs] },
+                    { $gte: ['$updatedAt', startOfMonth] },
+                  ],
                 },
                 1,
                 0,

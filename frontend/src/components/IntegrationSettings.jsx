@@ -27,10 +27,10 @@ import {
 } from '@/components/ui/dialog';
 import { Github, Loader2, AlertCircle, Check, ExternalLink, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const VALID_STATUSES = ['backlog', 'to do', 'in progress', 'on staging', 'blocked', 'done'];
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 
 export const IntegrationSettings = ({ workspaceId }) => {
+  const { statuses } = useTicketStatuses(workspaceId);
   const { data: integrationData, isLoading: isLoadingIntegration } = useIntegration(workspaceId);
   const { data: reposData, isLoading: isLoadingRepos } = useRepositories(
     workspaceId,
@@ -298,9 +298,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {VALID_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {statuses.map((status) => (
+                    <SelectItem key={status.slug} value={status.slug}>
+                      {status.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -338,9 +338,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {VALID_STATUSES.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {statuses.map((status) => (
+                    <SelectItem key={status.slug} value={status.slug}>
+                      {status.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -10,9 +10,14 @@ import NewTickets from '@/components/Tickets/LazyNewTickets';
 import { useGetMe } from '@/queries/auth';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useAuth } from '@/context/AuthContext';
 
 export default function BacklogPage() {
   const [activeTab] = useState('all');
+  const { user } = useAuth();
+  const { helpers } = useTicketStatuses(user?.workspaceId);
+  const backlogStatus = helpers.backlogSlug || 'backlog';
 
   const {
     tickets: normalizedTickets,
@@ -23,9 +28,12 @@ export default function BacklogPage() {
     search,
     setSearch,
     setPage,
-  } = useTicketList({ activeTab, additionalFilters: { archived: false, status: 'backlog' } });
+  } = useTicketList({ activeTab, additionalFilters: { archived: false, status: backlogStatus } });
 
-  const columns = createTicketColumns();
+  const columns = createTicketColumns({
+    statusBadgeConfig: helpers.statusBadgeConfig,
+    statusIsDone: helpers.statusIsDone,
+  });
 
   const {
     isNewOpen,

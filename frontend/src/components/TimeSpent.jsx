@@ -1,7 +1,12 @@
 import { Clock } from 'lucide-react';
 import { formatDuration } from '@/helpers/formatDuration';
 
-export const TimeSpent = ({ ticket }) => {
+export const TimeSpent = ({ ticket, statusTracksTime }) => {
+  const tracksTime =
+    typeof statusTracksTime === 'function'
+      ? statusTracksTime(ticket?.status)
+      : ticket?.status?.toLowerCase() === 'in progress';
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
@@ -10,7 +15,7 @@ export const TimeSpent = ({ ticket }) => {
         </span>
       </div>
       <div className="flex min-h-[44px] items-center gap-2 px-1.5 py-2">
-        {ticket?.status?.toLowerCase() === 'in progress' && (
+        {tracksTime && (
           <span
             className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"
             title="In progress timer active"
@@ -19,7 +24,7 @@ export const TimeSpent = ({ ticket }) => {
         <span className="text-base font-semibold text-gray-900">
           {(() => {
             let seconds = ticket?.totalTimeSpent || 0;
-            if (ticket?.status?.toLowerCase() === 'in progress' && ticket?.inProgressAt) {
+            if (tracksTime && ticket?.inProgressAt) {
               const now = new Date();
               const inProgressAt = new Date(ticket.inProgressAt);
               seconds += Math.max(0, Math.floor((now - inProgressAt) / 1000));

@@ -8,12 +8,15 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import InvitationInbox from '@/components/InvitationInbox';
 import { useCreateWorkspace } from '@/queries/workspaces';
+import TaskStatusEditor from '@/components/TaskStatusEditor';
+import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/queries/invitations';
 
 export default function CreateWorkspacePage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [statusDrafts, setStatusDrafts] = useState(DEFAULT_STATUS_DRAFTS);
   const [error, setError] = useState('');
   const [activeInvitationId, setActiveInvitationId] = useState(null);
 
@@ -233,7 +236,7 @@ export default function CreateWorkspacePage() {
     setError('');
 
     createWorkspace.mutate(
-      { name: name.trim(), description: description.trim() },
+      { name: name.trim(), description: description.trim(), statuses: statusDrafts },
       {
         onSuccess: async () => {
           await refetchUser();
@@ -343,6 +346,14 @@ export default function CreateWorkspacePage() {
                   <p className="text-xs text-muted-foreground">
                     Add a short summary to make this workspace easy to recognize.
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-800">Task statuses</label>
+                  <p className="text-xs text-muted-foreground">
+                    Choose and order the workflow columns for this workspace.
+                  </p>
+                  <TaskStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

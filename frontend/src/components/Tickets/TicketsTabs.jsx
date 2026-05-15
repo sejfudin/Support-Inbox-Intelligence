@@ -1,4 +1,3 @@
-import { STATUS_TABS } from '@/helpers/ticketStatus';
 import { cn } from '@/lib/utils';
 
 export default function TicketsTabs({
@@ -9,6 +8,7 @@ export default function TicketsTabs({
   className,
   panelClassName,
   tabsClassName,
+  statusTabs = [{ key: 'all', label: 'All' }],
 }) {
   return (
     <div className={cn('app-page-content pt-4', className)}>
@@ -22,7 +22,7 @@ export default function TicketsTabs({
                   tabsClassName
                 )}
               >
-                {STATUS_TABS.map((tab) => (
+                {statusTabs.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => onChange(tab.key)}

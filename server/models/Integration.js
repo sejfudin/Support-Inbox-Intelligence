@@ -88,12 +88,10 @@ const integrationSchema = new mongoose.Schema(
       },
       onPROpenTargetStatus: {
         type: String,
-        enum: ['backlog', 'to do', 'in progress', 'on staging', 'blocked', 'done'],
         default: 'on staging',
       },
       onMergeTargetStatus: {
         type: String,
-        enum: ['backlog', 'to do', 'in progress', 'on staging', 'blocked', 'done'],
         default: 'done',
       },
     },

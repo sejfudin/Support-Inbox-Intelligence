@@ -8,8 +8,9 @@ const {
   cancelWorkspaceInvitationsForUser,
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
+const { createStatusesForWorkspace } = require('./statusService');
 
-const createWorkspace = async ({ name, description, ownerId }) => {
+const createWorkspace = async ({ name, description, ownerId, statuses }) => {
   const workspace = await Workspace.create({
     name,
     description,
@@ -19,6 +20,7 @@ const createWorkspace = async ({ name, description, ownerId }) => {
 
   await User.findByIdAndUpdate(ownerId, { workspaceId: workspace._id });
   await seedDefaultCategories(workspace._id);
+  await createStatusesForWorkspace(workspace._id, statuses);
 
   return workspace;
 };

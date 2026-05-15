@@ -12,6 +12,8 @@ import { useTicketModals } from '@/hooks/useTicketModals';
 import { useDebounce } from 'use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUpdateTicket } from '@/queries/tickets';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useAuth } from '@/context/AuthContext';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
@@ -22,6 +24,8 @@ export default function UserDashboard() {
   const isMobile = useIsMobile();
   const [debouncedSearch] = useDebounce(search, 500);
   const updateTicketMutation = useUpdateTicket();
+  const { user } = useAuth();
+  const { helpers, isLoading: statusesLoading } = useTicketStatuses(user?.workspaceId);
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
@@ -46,7 +50,14 @@ export default function UserDashboard() {
     }
   }, [pagination]);
 
-  const columns = useMemo(() => createTicketColumns(), []);
+  const columns = useMemo(
+    () =>
+      createTicketColumns({
+        statusBadgeConfig: helpers.statusBadgeConfig,
+        statusIsDone: helpers.statusIsDone,
+      }),
+    [helpers]
+  );
 
   const normalizedTickets = useMemo(() => {
     return (ticketsData?.data || []).map((ticket) => normalizeTicket(ticket));
@@ -75,16 +86,7 @@ export default function UserDashboard() {
   const isBoard = viewMode === 'board';
 
   const handleStatusChange = (ticketId, columnId) => {
-    const columnToStatus = {
-      todo: 'to do',
-      inprogress: 'in progress',
-      staging: 'on staging',
-      done: 'done',
-      blocked: 'blocked',
-      backlog: 'backlog',
-    };
-
-    const newStatus = columnToStatus[columnId] || columnId;
+    const newStatus = helpers.columnToStatus[columnId] || columnId;
 
     updateTicketMutation.mutate(
       {
@@ -129,10 +131,11 @@ export default function UserDashboard() {
               <Suspense fallback={<TableSkeleton />}>
                 <BoardPage
                   tickets={normalizedTickets}
-                  isLoading={isLoading}
+                  isLoading={isLoading || statusesLoading}
                   isError={isError}
                   onOpenTicket={openTicketDetails}
                   onStatusChange={handleStatusChange}
+                  boardHelpers={helpers}
                 />
               </Suspense>
             ) : (

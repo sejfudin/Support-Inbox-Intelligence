@@ -1,6 +1,7 @@
 const Ticket = require('../models/Ticket');
 const Integration = require('../models/Integration');
 const historyService = require('./historyService');
+const statusService = require('./statusService');
 
 const AUTOMATION_RESULT = {
   STATUS_UPDATED: 'status_updated',
@@ -55,28 +56,21 @@ async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
     if (!oldTicket) throw new Error('Ticket not found');
 
     const now = new Date();
-    const updateData = {
-      status: targetStatus,
-    };
-
-    const oldStatus = oldTicket.status?.toLowerCase();
     const newStatus = targetStatus.toLowerCase();
+    const oldStatus = oldTicket.status?.toLowerCase();
 
-    if (oldStatus === 'in progress') {
-      if (oldTicket.inProgressAt) {
-        const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
-        updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
-        updateData.inProgressAt = null;
-      }
-    } else if (newStatus === 'in progress') {
-      updateData.inProgressAt = now;
-    }
+    await statusService.validateStatusForWorkspace(oldTicket.workspace, newStatus);
 
-    if (newStatus === 'done') {
-      updateData.doneAt = now;
-    } else if (oldStatus === 'done') {
-      updateData.doneAt = null;
-    }
+    const updateData = { status: newStatus };
+
+    await statusService.applyStatusLifecycleUpdate({
+      workspaceId: oldTicket.workspace,
+      oldStatus,
+      newStatus,
+      oldTicket,
+      updateData,
+      now,
+    });
 
     const ticket = await Ticket.findByIdAndUpdate(ticketId, { $set: updateData }, { new: true });
 

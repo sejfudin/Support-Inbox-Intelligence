@@ -1,10 +1,9 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { STATUS_BADGE_CONFIG } from '@/helpers/ticketStatus';
 
-export default function TicketStatusBadge({ status, className }) {
+export default function TicketStatusBadge({ status, className, statusBadgeConfig = {} }) {
   const s = status?.toLowerCase();
-  const current = STATUS_BADGE_CONFIG[s] || { variant: 'outline', className: '' };
+  const current = statusBadgeConfig[s] || { variant: 'outline', className: '' };
 
   return (
     <Badge
@@ -14,6 +13,7 @@ export default function TicketStatusBadge({ status, className }) {
         current.className,
         className
       )}
+      style={current.color ? { borderColor: `${current.color}55`, color: current.color } : undefined}
     >
       {status}
     </Badge>

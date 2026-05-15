@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import StoryPointsIndicator from '../StoryPointsIndicator';
 
-export function createTicketColumns() {
+export function createTicketColumns({ statusBadgeConfig = {}, statusIsDone } = {}) {
   return [
     {
       accessorKey: 'taskNumber',
@@ -64,7 +64,12 @@ export function createTicketColumns() {
         headerClassName: 'w-[10%]',
         cellClassName: 'w-[10%] whitespace-nowrap',
       },
-      cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
+      cell: ({ row }) => (
+        <TicketStatusBadge
+          status={row.original.status}
+          statusBadgeConfig={statusBadgeConfig}
+        />
+      ),
     },
     {
       accessorKey: 'priority',
@@ -85,7 +90,7 @@ export function createTicketColumns() {
       cell: ({ row }) => {
         const due = row.original.dueDate;
         const label = formatDueDateDisplay(due);
-        const overdue = isDueDateOverdue(due, row.original.status);
+        const overdue = isDueDateOverdue(due, row.original.status, statusIsDone);
 
         if (!label) {
           return <span className="text-muted-foreground/60">—</span>;

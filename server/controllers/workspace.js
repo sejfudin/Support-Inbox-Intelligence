@@ -2,13 +2,14 @@ const workspaceService = require('../services/workspaceService');
 
 exports.createWorkspace = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, statuses } = req.body;
     if (!name) return res.status(400).json({ message: 'Workspace name is required' });
 
     const workspace = await workspaceService.createWorkspace({
       name,
       description,
       ownerId: req.user._id,
+      statuses,
     });
 
     res.status(201).json(workspace);

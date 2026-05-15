@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/dialog';
 import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
 import PageHeading from '@/components/PageHeading';
+import TaskStatusEditor from '@/components/TaskStatusEditor';
+import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
 
 export default function AdminWorkspacesPage() {
   const { setHeader } = useOutletContext() ?? {};
@@ -31,6 +33,7 @@ export default function AdminWorkspacesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [statusDrafts, setStatusDrafts] = useState(DEFAULT_STATUS_DRAFTS);
   const [createError, setCreateError] = useState('');
 
   const [deleteTargetId, setDeleteTargetId] = useState(null);
@@ -51,12 +54,13 @@ export default function AdminWorkspacesPage() {
     e.preventDefault();
     setCreateError('');
     createWorkspace.mutate(
-      { name: name.trim(), description: description.trim() },
+      { name: name.trim(), description: description.trim(), statuses: statusDrafts },
       {
         onSuccess: () => {
           setIsCreateOpen(false);
           setName('');
           setDescription('');
+          setStatusDrafts(DEFAULT_STATUS_DRAFTS);
         },
         onError: (err) => {
           setCreateError(err.response?.data?.message || 'Failed to create workspace.');
@@ -267,6 +271,11 @@ export default function AdminWorkspacesPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={500}
               />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Task statuses</label>
+              <TaskStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
             </div>
 
             <DialogFooter className="pt-2">

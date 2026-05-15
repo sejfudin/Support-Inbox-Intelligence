@@ -199,6 +199,20 @@ const updateIntegration = async (req, res) => {
     const updateData = {};
 
     if (settings) {
+      const statusService = require('../services/statusService');
+      if (settings.onPROpenTargetStatus) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onPROpenTargetStatus
+        );
+      }
+      if (settings.onMergeTargetStatus) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onMergeTargetStatus
+        );
+      }
+
       updateData.settings = {
         ...integration.settings,
         ...settings,
@@ -247,6 +261,12 @@ const updateIntegration = async (req, res) => {
       data: sanitized,
     });
   } catch (error) {
+    if (error.message?.includes('is not valid for this workspace')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
     console.error('Error updating integration:', error);
     res.status(500).json({
       success: false,
