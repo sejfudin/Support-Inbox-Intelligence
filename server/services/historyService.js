@@ -12,4 +12,12 @@ const logEvent = async (ticketId, userId, action) => {
   }
 };
 
-module.exports = { logEvent };
+const logSystemEvent = async (ticketId, action, actorLabel = 'GitHub Automation') => {
+  try {
+    await History.create({ ticketId, userId: null, userName: actorLabel, action });
+  } catch (err) {
+    console.error('[historyService] Failed to log system event:', err.message);
+  }
+};
+
+module.exports = { logEvent, logSystemEvent };

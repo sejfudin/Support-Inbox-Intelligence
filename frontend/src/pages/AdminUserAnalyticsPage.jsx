@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ANALYTICS_PERIODS } from '@/helpers/analyticsFormatters';
+import PageHeading from '@/components/PageHeading';
 
 export default function AdminUserAnalyticsPage() {
   const { userId } = useParams();
@@ -103,51 +104,56 @@ export default function AdminUserAnalyticsPage() {
     );
   }
 
+  const userInfoGrid = (
+    <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+        <User className="h-4 w-4 text-primary" />
+        <div>
+          <div className="font-medium text-foreground">{user.role || 'user'}</div>
+          <div>Role</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+        <Mail className="h-4 w-4 text-primary" />
+        <div>
+          <div className="font-medium text-foreground">{user.email}</div>
+          <div>Email</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <div>
+          <div className="font-medium text-foreground">{user.status || 'active'}</div>
+          <div>Status</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const backButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => navigate('/admin/users')}
+      className="-ml-2 h-7 px-2 text-muted-foreground"
+    >
+      <ArrowLeft className="mr-2 h-4 w-4" />
+      Back to Users
+    </Button>
+  );
+
   if (analyticsWorkspaces.length === 0) {
     return (
       <div className="app-page">
         <div className="app-page-content space-y-6">
-          <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Users
-                </Button>
-              </div>
-              <div>
-                <div className="app-kicker mb-3">Admin user analytics</div>
-                <h1 className="app-title">{userName}</h1>
-                <p className="app-subtitle">
-                  This user is not an active member of any workspace yet.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-                <User className="h-4 w-4 text-primary" />
-                <div>
-                  <div className="font-medium text-foreground">{user.role || 'user'}</div>
-                  <div>Role</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-                <Mail className="h-4 w-4 text-primary" />
-                <div>
-                  <div className="font-medium text-foreground">{user.email}</div>
-                  <div>Email</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                <div>
-                  <div className="font-medium text-foreground">{user.status || 'active'}</div>
-                  <div>Status</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PageHeading
+            kicker="Admin user analytics"
+            title={userName}
+            subtitle="This user is not an active member of any workspace yet."
+            beforeKicker={backButton}
+          >
+            {userInfoGrid}
+          </PageHeading>
 
           <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
             Personal analytics are unavailable until this user joins an active workspace.
@@ -160,49 +166,14 @@ export default function AdminUserAnalyticsPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-5 px-5 py-5 lg:flex-row lg:items-center lg:justify-between md:px-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/users')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Users
-              </Button>
-            </div>
-            <div>
-              <div className="app-kicker mb-3">Admin user analytics</div>
-              <h1 className="app-title">{userName}</h1>
-              <p className="app-subtitle">
-                Viewing personal analytics for {selectedWorkspaceName}.
-              </p>
-            </div>
-          </div>
-
-          <div className="w-full lg:w-auto">
-            <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-                <User className="h-4 w-4 text-primary" />
-                <div>
-                  <div className="font-medium text-foreground">{user.role || 'user'}</div>
-                  <div>Role</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-                <Mail className="h-4 w-4 text-primary" />
-                <div>
-                  <div className="font-medium text-foreground">{user.email}</div>
-                  <div>Email</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-                <ShieldCheck className="h-4 w-4 text-primary" />
-                <div>
-                  <div className="font-medium text-foreground">{user.status || 'active'}</div>
-                  <div>Status</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeading
+          kicker="Admin user analytics"
+          title={userName}
+          subtitle={`Viewing personal analytics for ${selectedWorkspaceName}.`}
+          beforeKicker={backButton}
+        >
+          {userInfoGrid}
+        </PageHeading>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <Select value={selectedWorkspace?.id || ''} onValueChange={setSelectedWorkspaceId}>

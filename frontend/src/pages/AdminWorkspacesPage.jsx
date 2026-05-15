@@ -20,6 +20,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import PageHeading from '@/components/PageHeading';
 
 export default function AdminWorkspacesPage() {
   const { setHeader } = useOutletContext() ?? {};
@@ -76,17 +77,17 @@ export default function AdminWorkspacesPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <div className="app-panel flex flex-col gap-4 px-5 py-5 md:flex-row md:items-center md:justify-between md:px-6">
-          <div>
-            <div className="app-kicker mb-3">Admin overview</div>
-            <h1 className="app-title">All Workspaces</h1>
-            <p className="app-subtitle">Overview of every workspace in the system.</p>
-          </div>
-          <Button onClick={() => setIsCreateOpen(true)} className="w-full gap-2 sm:w-auto">
-            <Plus className="h-4 w-4" />
-            New Workspace
-          </Button>
-        </div>
+        <PageHeading
+          kicker="Admin overview"
+          title="All Workspaces"
+          subtitle="Overview of every workspace in the system."
+          actions={
+            <Button onClick={() => setIsCreateOpen(true)} className="w-full gap-2 sm:w-auto">
+              <Plus className="h-4 w-4" />
+              New Workspace
+            </Button>
+          }
+        />
 
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
