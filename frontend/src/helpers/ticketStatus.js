@@ -91,6 +91,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     statuses.map((s) => [
       s.slug,
       {
+        label: s.label,
         variant: s.isDone ? 'outline' : s.tracksTime ? 'outline' : 'secondary',
         className: s.isDone
           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
