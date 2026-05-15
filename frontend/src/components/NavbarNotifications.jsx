@@ -37,13 +37,22 @@ export default function NavbarNotifications() {
   }, [open, refetch]);
 
   const goToTicket = useCallback(
-    (ticketId) => {
+    (payload) => {
+      const ticketId = typeof payload === 'string' ? payload : payload?.ticketId;
+      const commentId = typeof payload === 'string' ? null : payload?.commentId;
+
       if (!isMongoId(ticketId)) return;
       setOpen(false);
-      navigate(`/tickets?ticket=${ticketId}`);
+
+      const params = new URLSearchParams({ ticket: ticketId });
+      if (isMongoId(commentId)) params.set('comment', commentId);
+      params.set('focus', String(Date.now()));
+
+      navigate(`/tickets?${params.toString()}`);
     },
     [navigate]
   );
+
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
