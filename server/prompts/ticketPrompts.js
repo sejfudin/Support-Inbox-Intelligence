@@ -32,7 +32,37 @@ function buildTicketDescriptionGenerationPrompt({ subject, prompt }) {
   ].join('\n');
 }
 
+function buildUserSummaryPrompt({ tickets }) {
+  const ticketLines = tickets.map((ticket, index) =>
+    [
+      `Ticket ${index + 1}:`,
+      `Title: ${ticket.subject}`,
+      `Description: ${ticket.description}`,
+      `Status: ${ticket.status}`,
+      ticket.priority ? `Priority: ${ticket.priority}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+  );
+
+  return [
+    'Act as an objective Technical Lead and Performance Auditor.',
+    'Conduct a factual analysis of the provided ticket titles and descriptions for the specific individual.',
+    'Synthesize a 4-5 sentence summary of personal output in the second person (e.g., "You addressed...", "Your implementation...").',
+    'STRICT DIRECTIVES:',
+    '1. Maintain an objective and neutral tone, avoiding hyperbolic or overly celebratory language.',
+    '2. Focus exclusively on the individual contributor’s technical output and verifiable actions.',
+    '3. Isolate specific technical parameters, tools, and logic mentioned within the ticket descriptions.',
+    '4. Characterize the work by the complexity of the problems solved and the technologies utilized.',
+    '5. Provide the response in professional English.',
+    '',
+    'Primary Data Source:',
+    ticketLines.join('\n\n'),
+  ].join('\n');
+}
+
 module.exports = {
   buildTicketMetadataSuggestionPrompt,
   buildTicketDescriptionGenerationPrompt,
+  buildUserSummaryPrompt,
 };

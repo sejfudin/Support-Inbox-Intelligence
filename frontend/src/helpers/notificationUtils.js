@@ -6,3 +6,10 @@ export function getTicketIdFromNotification(notification) {
   if (typeof t === 'string') return t;
   return t?._id ?? t ?? null;
 }
+
+export function getCommentIdFromNotification(notification) {
+  if (!notification) return null;
+  const c = notification.comment;
+  if (typeof c === 'string') return c;
+  return c?._id ?? c ?? null;
+}

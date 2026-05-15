@@ -12,6 +12,7 @@ import {
 } from '@/queries/comments';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { splitMentionsForRender } from '@/helpers/commentMentions';
 
 export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -152,7 +153,18 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 This comment was deleted
               </span>
             ) : (
-              comment.content
+              splitMentionsForRender(comment.content).map((part, idx) =>
+                part.type === 'mention' ? (
+                  <span
+                    key={`${part.value}-${idx}`}
+                    className="inline-block rounded bg-blue-50 px-1 py-0.5 font-medium text-blue-700"
+                  >
+                    {part.value}
+                  </span>
+                ) : (
+                  <span key={`txt-${idx}`}>{part.value}</span>
+                )
+              )
             )}
           </div>
         )}

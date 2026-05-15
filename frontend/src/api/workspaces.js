@@ -58,3 +58,20 @@ export const getUserAnalytics = async ({ userId, workspaceId, days = 30 }) => {
   });
   return response.data;
 };
+
+export const uploadWorkspaceLogo = async (id, file) => {
+  const formData = new FormData();
+  formData.append('logo', file);
+
+  const response = await apiClient.post(`/workspaces/${id}/logo`, formData, {
+    headers: {'Content-Type': 'multipart/form-data'},
+  });
+
+  return response.data;
+};
+
+export const deleteWorkspaceLogo = async (id) => {
+  const response = await apiClient.delete(`/workspaces/${id}/logo`);
+  return response.data;
+};
+

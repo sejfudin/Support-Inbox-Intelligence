@@ -47,8 +47,16 @@ export default function MyWorkspacesPage() {
                 <div key={ws._id} className="app-panel flex flex-col justify-between gap-4 p-5">
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Building2 className="h-5 w-5" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary overflow-hidden">
+                        {ws.logoUrl ? (
+                          <img
+                            src={ws.logoUrl}
+                            alt={`${ws.name} logo`}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <Building2 className="h-5 w-5" />
+                        )}
                       </div>
                       {isActive && (
                         <span className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">

@@ -1,4 +1,6 @@
 const mongoose = require('mongoose');
+const crypto = require('crypto');
+const { supabase, supabaseWorkspaceLogoBucket } = require('../config/supabase');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
@@ -8,6 +10,38 @@ const {
   cancelWorkspaceInvitationsForUser,
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
+
+const LOGO_MIME_TO_EXT = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/svg+xml': 'svg',
+};
+
+const buildWorkspaceLogoPath = (workspaceId, mimeType) => {
+  const ext = LOGO_MIME_TO_EXT[mimeType];
+  if (!ext) throw new Error('Unsupported logo file type.');
+
+  const ts = Date.now();
+  const random = crypto.randomBytes(6).toString('hex');
+
+  return `workspaces/${workspaceId}/logo/${ts}-${random}.${ext}`;
+};
+
+const buildWorkspaceLogoUrl = (logoPath) => {
+  if (!logoPath) return null;
+  const { data } = supabase.storage.from(supabaseWorkspaceLogoBucket).getPublicUrl(logoPath);
+  return data?.publicUrl || null;
+};
+
+const attachLogoUrl = (workspace) => {
+  if (!workspace) return workspace;
+  const plain = typeof workspace.toObject === 'function' ? workspace.toObject() : workspace;
+  return {
+    ...plain,
+    logoUrl: buildWorkspaceLogoUrl(plain.logoPath),
+  };
+};
 
 const createWorkspace = async ({ name, description, ownerId }) => {
   const workspace = await Workspace.create({
@@ -20,7 +54,7 @@ const createWorkspace = async ({ name, description, ownerId }) => {
   await User.findByIdAndUpdate(ownerId, { workspaceId: workspace._id });
   await seedDefaultCategories(workspace._id);
 
-  return workspace;
+  return attachLogoUrl(workspace);
 };
 
 const switchWorkspace = async ({ workspaceId, userId, userRole }) => {
@@ -57,7 +91,7 @@ const getWorkspaceById = async (workspaceId) => {
     .sort({ createdAt: -1 });
 
   return {
-    ...workspace.toObject(),
+    ...attachLogoUrl(workspace),
     pendingInvitations,
   };
 };
@@ -67,7 +101,7 @@ const getUserWorkspaces = async (userId) => {
     members: { $elemMatch: { user: userId, status: 'active' } },
   }).populate('owner', 'fullname email');
 
-  return workspaces;
+  return workspaces.map(attachLogoUrl);
 };
 
 const updateWorkspace = async (workspaceId, { name, description, owner }, requestingUserId) => {
@@ -97,9 +131,11 @@ const updateWorkspace = async (workspaceId, { name, description, owner }, reques
       $set: updates,
     });
 
-    return Workspace.findById(workspaceId)
-      .populate('owner', 'fullname email')
-      .populate('members.user', 'fullname email role status');
+    return attachLogoUrl(
+      await Workspace.findById(workspaceId)
+        .populate('owner', 'fullname email')
+        .populate('members.user', 'fullname email role status')
+    );
   }
 
   if (Object.keys(updates).length > 0) {
@@ -108,11 +144,75 @@ const updateWorkspace = async (workspaceId, { name, description, owner }, reques
       { $set: updates },
       { new: true, runValidators: true }
     );
-    return updatedWorkspace;
+    return attachLogoUrl(updatedWorkspace);
   }
 
-  return workspace;
+  return attachLogoUrl(workspace);
 };
+
+const uploadWorkspaceLogo = async (workspaceId, file) => {
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace) throw new Error('Workspace not found');
+  if (!file) throw new Error('Logo file is required');
+
+  const newLogoPath = buildWorkspaceLogoPath(workspaceId, file.mimetype);
+
+  const { error: uploadError } = await supabase.storage
+    .from(supabaseWorkspaceLogoBucket)
+    .upload(newLogoPath, file.buffer, {
+      contentType: file.mimetype,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    throw new Error(uploadError.message || 'Failed to upload workspace logo');
+  }
+
+  const oldLogoPath = workspace.logoPath || null;
+  workspace.logoPath = newLogoPath;
+  await workspace.save();
+
+  if (oldLogoPath) {
+    const { error: removeError } = await supabase.storage
+      .from(supabaseWorkspaceLogoBucket)
+      .remove([oldLogoPath]);
+
+    if (removeError) {
+      console.error('[workspaceService] failed to remove old logo:', removeError.message);
+    }
+  }
+
+  const updated = await Workspace.findById(workspaceId)
+    .populate('owner', 'fullname email')
+    .populate('members.user', 'fullname email role status');
+
+  return attachLogoUrl(updated);
+};
+
+const deleteWorkspaceLogo = async (workspaceId) => {
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace) throw new Error('Workspace not found');
+
+  if (workspace.logoPath) {
+    const { error: removeError } = await supabase.storage
+      .from(supabaseWorkspaceLogoBucket)
+      .remove([workspace.logoPath]);
+
+    if (removeError) {
+      throw new Error(removeError.message || 'Failed to delete workspace logo');
+    }
+  }
+
+  workspace.logoPath = null;
+  await workspace.save();
+
+  const updated = await Workspace.findById(workspaceId)
+    .populate('owner', 'fullname email')
+    .populate('members.user', 'fullname email role status');
+
+  return attachLogoUrl(updated);
+};
+
 
 const inviteMemberToWorkspace = async ({ workspaceId, userId, role = 'member', inviterId }) => {
   if (!userId) throw new Error('User is required');
@@ -208,12 +308,19 @@ const getAllWorkspaces = async () => {
         workspace: ws._id,
         isArchived: { $ne: true },
       });
-      return { ...ws, activeMemberCount: activeMembers, ticketCount };
+      return {
+        ...ws,
+        logoUrl: buildWorkspaceLogoUrl(ws.logoPath),
+        activeMemberCount: activeMembers,
+        ticketCount,
+      };
     })
   );
 
   return workspacesWithStats;
 };
+
+
 
 module.exports = {
   createWorkspace,
@@ -225,4 +332,6 @@ module.exports = {
   removeMember,
   getAllWorkspaces,
   deleteWorkspace,
+  uploadWorkspaceLogo,
+  deleteWorkspaceLogo,
 };

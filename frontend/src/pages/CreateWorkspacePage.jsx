@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowRight, Building2, Mail, Plus, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,11 +13,17 @@ import {
 } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import InvitationInbox from '@/components/InvitationInbox';
-import { useCreateWorkspace } from '@/queries/workspaces';
+import { useCreateWorkspace, workspaceKeys } from '@/queries/workspaces';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/queries/invitations';
 import { createCategory } from '@/api/categories';
 import { normalizeTemplateForSave } from '@/helpers/ticketDescriptionTemplates';
+import {
+  WORKSPACE_LOGO_ACCEPT,
+  WORKSPACE_LOGO_HELPER_TEXT,
+  getWorkspaceLogoValidationError,
+} from '@/constants/upload';
+import { uploadWorkspaceLogo } from '@/api/workspaces';
 
 const CATEGORY_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -49,11 +56,23 @@ export default function CreateWorkspacePage() {
   const [activeInvitationId, setActiveInvitationId] = useState(null);
 
   const { user, refetchUser, logout } = useAuth();
+  const queryClient = useQueryClient();
   const createWorkspace = useCreateWorkspace();
   const { data: invitations = [], isLoading: loadingInvitations } = useMyInvitations();
   const acceptInvitation = useAcceptInvitation();
   const declineInvitation = useDeclineInvitation();
   const navigate = useNavigate();
+
+  const [logoFile, setLogoFile] = useState(null);
+
+  const validateLogoFile = (file) => {
+    const validationError = getWorkspaceLogoValidationError(file);
+    if (validationError) {
+      setError(validationError);
+      return false;
+    }
+    return true;
+  };
 
   if (user?.role !== 'admin') {
     const handleAccept = (invitationId) => {
@@ -298,6 +317,21 @@ export default function CreateWorkspacePage() {
         }
       }
 
+      if (logoFile && workspaceId) {
+        try {
+          await uploadWorkspaceLogo(workspaceId, logoFile);
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) }),
+            queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() }),
+            queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() }),
+          ]);
+        } catch (uploadErr) {
+          toast.error(
+            uploadErr?.response?.data?.message || 'Workspace created, but logo upload failed.'
+          );
+        }
+      }
+
       await refetchUser();
       navigate('/admin/workspaces');
     } catch (err) {
@@ -402,6 +436,30 @@ export default function CreateWorkspacePage() {
                   <p className="text-xs text-muted-foreground">
                     Add a short summary to make this workspace easy to recognize.
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-800">
+                    Workspace logo <span className="font-normal text-muted-foreground">(optional)</span>
+                  </label>
+                  <Input
+                    type="file"
+                    accept={WORKSPACE_LOGO_ACCEPT}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      if (!file) {
+                        setLogoFile(null);
+                        return;
+                      }
+                      if (!validateLogoFile(file)) {
+                        e.target.value = '';
+                        setLogoFile(null);
+                        return;
+                      }
+                      setLogoFile(file);
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

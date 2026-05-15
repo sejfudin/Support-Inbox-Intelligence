@@ -16,6 +16,11 @@ const workspaceSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    logoPath: {
+      type: String,
+      default: null
+    },
+    
     isArchived: { type: Boolean, default: false },
     members: [
       {

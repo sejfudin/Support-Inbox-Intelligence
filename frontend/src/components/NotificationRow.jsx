@@ -2,15 +2,18 @@ import { formatDistanceToNow } from 'date-fns';
 import { Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { getTicketIdFromNotification, isMongoId } from '@/helpers/notificationUtils';
+import { getTicketIdFromNotification, getCommentIdFromNotification, isMongoId } from '@/helpers/notificationUtils';
 
 export function NotificationRow({ notification, markReadPending, onMarkRead, onOpenTicket }) {
   const ticketId = getTicketIdFromNotification(notification);
+  const commentId = getCommentIdFromNotification(notification);
   const created = notification.createdAt ? new Date(notification.createdAt) : null;
   const timeLabel =
     created && !Number.isNaN(created.getTime())
       ? formatDistanceToNow(created, { addSuffix: true })
       : '';
+
+  const isMention = notification.type === 'ticket_mention';
 
   return (
     <li
@@ -20,7 +23,16 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
       )}
     >
       <div className="flex flex-col gap-1">
-        <p className="text-sm font-medium leading-snug text-foreground">{notification.title}</p>
+
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium leading-snug text-foreground">{notification.title}</p>
+          {isMention ? (
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+              Mention
+            </span>
+          ) : null}
+        </div>
+
         {notification.body ? (
           <p className="line-clamp-2 text-xs text-muted-foreground">{notification.body}</p>
         ) : null}
@@ -54,7 +66,7 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
                 className="h-7 gap-1 px-2 text-xs"
                 onClick={(e) => {
                   e.preventDefault();
-                  onOpenTicket(String(ticketId));
+                  onOpenTicket({ ticketId: String(ticketId), commentId: String(commentId || '') });
                 }}
               >
                 <ExternalLink className="h-3 w-3" />
