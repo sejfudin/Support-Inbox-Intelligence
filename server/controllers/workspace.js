@@ -61,6 +61,38 @@ exports.updateWorkspace = async (req, res, next) => {
   }
 };
 
+exports.uploadWorkspaceLogo = async (req, res, next) => {
+  try {
+    const updatedWorkspace = await workspaceService.uploadWorkspaceLogo(req.params.id, req.file);
+    res.json(updatedWorkspace);
+  } catch (err) {
+    if (err.message === 'Workspace not found.') return res.status(404).json({ message: err.message });
+
+    if (
+      err.message === 'Logo file is required' || 
+      err.message === 'Unsupported logo file type'
+    ) {
+      return res.status(400).json({ message: err.message });
+    }
+
+    next(err);
+  } 
+};
+
+exports.deleteWorkspaceLogo = async (req, res, next) => {
+  try {
+    const updatedWorkspace = await workspaceService.deleteWorkspaceLogo(req.params.id);
+
+    res.json(updatedWorkspace);
+  } catch (err) {
+    if (err.message === 'Workspace not found') {
+      return res.status(404).json({ message: err.message });
+    }
+
+    next(err);
+  }
+};
+
 exports.inviteMember = async (req, res, next) => {
   try {
     const result = await workspaceService.inviteMemberToWorkspace({

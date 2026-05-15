@@ -1,7 +1,10 @@
 const Comment = require('../models/Comment');
 const Ticket = require('../models/Ticket');
+const Workspace = require('../models/Workspace');
+const User = require('../models/User');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
+const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
 
 const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
   if (!content || !content.trim()) throw new Error('Comment content is required');
@@ -31,14 +34,52 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
 
   const populated = await comment.populate('author', 'fullname email');
 
+  let mentionRecipientIds = [];
+  try {
+    const workspace = await Workspace.findById(foundTicket.workspace).select('members.user members.status');
+    const activeMemberIds =
+      workspace?.members
+        ?.filter((m) => m.status === 'active' && m.user)
+        .map((m) => m.user) || [];
+
+    if (activeMemberIds.length > 0) {
+      const users = await User.find({ _id: { $in: activeMemberIds } }).select('_id fullname email');
+      const { byHandle } = buildMentionDirectory(users);
+      const handles = extractMentionHandles(content || '');
+
+      mentionRecipientIds = handles
+        .map((h) => byHandle.get(h)?.userId)
+        .filter(Boolean)
+        .filter((id, idx, arr) => arr.indexOf(id) === idx)
+        .filter((id) => String(id) !== String(authorId));
+    }
+  } catch (err) {
+    console.error('[notifications] mention resolution failed:', err.message);
+  }
+
   try {
     await notificationService.notifyNewTicketComment({
       ticket: foundTicket,
       authorId,
       commentPreview: content.trim(),
+      excludeRecipientIds: mentionRecipientIds,
     });
   } catch (err) {
     console.error('[notifications] notifyNewTicketComment failed:', err.message);
+  }
+
+  try {
+    if (mentionRecipientIds.length > 0) {
+      await notificationService.notifyTicketMention({
+        ticket: foundTicket,
+        authorId,
+        recipientIds: mentionRecipientIds,
+        commentPreview: content.trim(),
+        commentId: comment._id,
+      });
+    }
+  } catch (err) {
+    console.error('[notifications] notifyTicketMention failed:', err.message);
   }
 
   return populated;
