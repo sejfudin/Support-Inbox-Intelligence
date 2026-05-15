@@ -55,7 +55,7 @@ const TemplateEditor = ({ value, onChange }) => (
   <RichTextEditor
     value={value}
     onChange={onChange}
-    placeholder="Optional ticket description template"
+    placeholder="Ticket description template"
     className="min-h-44 overflow-hidden rounded-lg bg-white"
   >
     <div className="border-b border-gray-100 bg-gray-50/50 px-3 py-2">

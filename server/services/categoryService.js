@@ -1,23 +1,9 @@
 const Category = require('../models/Category');
 
 const DEFAULT_CATEGORIES = [
-  {
-    name: 'Bug',
-    color: '#ef4444',
-    descriptionTemplate:
-      'Steps to Reproduce:\n1. \n2. \n3. \n\nExpected Result:\n\nActual Result:\n\nEnvironment:\n',
-  },
-  {
-    name: 'Feature',
-    color: '#3b82f6',
-    descriptionTemplate: 'Problem Statement:\n\nProposed Solution:\n\nUser Impact:\n',
-  },
-  {
-    name: 'Refactor',
-    color: '#8b5cf6',
-    descriptionTemplate:
-      'Current Implementation:\n\nProposed Changes:\n\nReason for Refactoring:\n',
-  },
+  { name: 'Bug', color: '#ef4444' },
+  { name: 'Feature', color: '#3b82f6' },
+  { name: 'Refactor', color: '#8b5cf6' },
   { name: 'Fix', color: '#f97316' },
 ];
 
