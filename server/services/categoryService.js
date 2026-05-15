@@ -1,9 +1,23 @@
 const Category = require('../models/Category');
 
 const DEFAULT_CATEGORIES = [
-  { name: 'Bug', color: '#ef4444' },
-  { name: 'Feature', color: '#3b82f6' },
-  { name: 'Refactor', color: '#8b5cf6' },
+  {
+    name: 'Bug',
+    color: '#ef4444',
+    descriptionTemplate:
+      'Steps to Reproduce:\n1. \n2. \n3. \n\nExpected Result:\n\nActual Result:\n\nEnvironment:\n',
+  },
+  {
+    name: 'Feature',
+    color: '#3b82f6',
+    descriptionTemplate: 'Problem Statement:\n\nProposed Solution:\n\nUser Impact:\n',
+  },
+  {
+    name: 'Refactor',
+    color: '#8b5cf6',
+    descriptionTemplate:
+      'Current Implementation:\n\nProposed Changes:\n\nReason for Refactoring:\n',
+  },
   { name: 'Fix', color: '#f97316' },
 ];
 
@@ -16,14 +30,20 @@ const getWorkspaceCategories = async (workspaceId) => {
   return Category.find({ workspace: workspaceId }).sort({ createdAt: 1 }).lean();
 };
 
-const createCategory = async ({ name, color = '#6366f1', workspaceId }) => {
-  return Category.create({ name, color, workspace: workspaceId });
+const createCategory = async ({
+  name,
+  color = '#6366f1',
+  descriptionTemplate = '',
+  workspaceId,
+}) => {
+  return Category.create({ name, color, descriptionTemplate, workspace: workspaceId });
 };
 
-const updateCategory = async (categoryId, { name, color }) => {
+const updateCategory = async (categoryId, { name, color, descriptionTemplate }) => {
   const updates = {};
   if (name !== undefined) updates.name = name;
   if (color !== undefined) updates.color = color;
+  if (descriptionTemplate !== undefined) updates.descriptionTemplate = descriptionTemplate;
 
   const category = await Category.findByIdAndUpdate(
     categoryId,

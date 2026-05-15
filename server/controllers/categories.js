@@ -19,7 +19,7 @@ const getCategories = async (req, res) => {
 
 const createCategory = async (req, res) => {
   try {
-    const { name, color, workspaceId: bodyWorkspaceId } = req.body;
+    const { name, color, descriptionTemplate, workspaceId: bodyWorkspaceId } = req.body;
 
     if (!name) {
       return res.status(400).json({ success: false, message: 'Category name is required' });
@@ -32,7 +32,12 @@ const createCategory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No workspace associated' });
     }
 
-    const category = await categoryService.createCategory({ name, color, workspaceId });
+    const category = await categoryService.createCategory({
+      name,
+      color,
+      descriptionTemplate,
+      workspaceId,
+    });
     res.status(201).json({ success: true, data: category });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -42,8 +47,8 @@ const createCategory = async (req, res) => {
 const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, color } = req.body;
-    const category = await categoryService.updateCategory(id, { name, color });
+    const { name, color, descriptionTemplate } = req.body;
+    const category = await categoryService.updateCategory(id, { name, color, descriptionTemplate });
     res.status(200).json({ success: true, data: category });
   } catch (error) {
     if (error.message === 'Category not found') {

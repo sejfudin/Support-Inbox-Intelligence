@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { htmlToPlainText } from '@/helpers/aiDescriptionPrompt';
+import { templateTextToDescriptionHtml } from '@/helpers/ticketDescriptionTemplates';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
@@ -47,6 +48,7 @@ const NewTickets = ({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
+  const [appliedTemplateHtml, setAppliedTemplateHtml] = useState('');
 
   const {
     isPromptPanelVisible,
@@ -84,6 +86,7 @@ const NewTickets = ({
   const resetSuggestionState = () => {
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
+    setAppliedTemplateHtml('');
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
   };
@@ -166,6 +169,30 @@ const NewTickets = ({
     } else {
       updateField('assignedTo', [...currentAssignees, userId]);
     }
+  };
+
+  const handleCategoryChange = (category) => {
+    if (!category) {
+      updateField('category', null);
+
+      if (appliedTemplateHtml && newTicket.description === appliedTemplateHtml) {
+        updateField('description', '');
+      }
+
+      setAppliedTemplateHtml('');
+      return;
+    }
+
+    const templateHtml = templateTextToDescriptionHtml(category.descriptionTemplate);
+    updateField('category', category._id);
+
+    if (templateHtml) {
+      updateField('description', templateHtml);
+    } else if (appliedTemplateHtml && newTicket.description === appliedTemplateHtml) {
+      updateField('description', '');
+    }
+
+    setAppliedTemplateHtml(templateHtml);
   };
 
   const selectedUsersObjects = users.filter((u) => currentAssignees.includes(u._id));
@@ -448,7 +475,7 @@ const NewTickets = ({
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => updateField('category', null)}
+                            onClick={() => handleCategoryChange(null)}
                             className={cn(
                               'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
                               newTicket.category === null
@@ -462,7 +489,7 @@ const NewTickets = ({
                             <button
                               key={cat._id}
                               type="button"
-                              onClick={() => updateField('category', cat._id)}
+                              onClick={() => handleCategoryChange(cat)}
                               className={cn(
                                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
                                 newTicket.category === cat._id

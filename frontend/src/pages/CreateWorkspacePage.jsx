@@ -1,19 +1,31 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowRight, Building2, Mail, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Building2, Mail, Plus, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import InvitationInbox from '@/components/InvitationInbox';
 import { useCreateWorkspace } from '@/queries/workspaces';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/queries/invitations';
+import { createCategory } from '@/api/categories';
+
+const CATEGORY_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'];
+
+const createEmptyCategory = () => ({
+  id: crypto.randomUUID(),
+  name: '',
+  color: CATEGORY_COLORS[4],
+  descriptionTemplate: '',
+});
 
 export default function CreateWorkspacePage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [categories, setCategories] = useState([]);
   const [error, setError] = useState('');
   const [activeInvitationId, setActiveInvitationId] = useState(null);
 
@@ -228,22 +240,50 @@ export default function CreateWorkspacePage() {
     );
   }
 
+  const updateCategoryDraft = (id, field, value) => {
+    setCategories((current) =>
+      current.map((category) => (category.id === id ? { ...category, [field]: value } : category))
+    );
+  };
+
+  const removeCategoryDraft = (id) => {
+    setCategories((current) => current.filter((category) => category.id !== id));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    createWorkspace.mutate(
-      { name: name.trim(), description: description.trim() },
-      {
-        onSuccess: async () => {
-          await refetchUser();
-          navigate('/admin/workspaces');
-        },
-        onError: (err) => {
-          setError(err.response?.data?.message || 'Failed to create workspace.');
-        },
+    const validCategories = categories
+      .map((category) => ({
+        name: category.name.trim(),
+        color: category.color,
+        descriptionTemplate: category.descriptionTemplate.trim(),
+      }))
+      .filter((category) => category.name);
+
+    try {
+      const workspace = await createWorkspace.mutateAsync({
+        name: name.trim(),
+        description: description.trim(),
+      });
+      const workspaceId = workspace?._id || workspace?.id || workspace?.data?._id;
+
+      if (workspaceId && validCategories.length > 0) {
+        try {
+          await Promise.all(
+            validCategories.map((category) => createCategory({ ...category, workspaceId }))
+          );
+        } catch (categoryError) {
+          toast.error('Workspace created, but some categories could not be added.');
+        }
       }
-    );
+
+      await refetchUser();
+      navigate('/admin/workspaces');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to create workspace.');
+    }
   };
 
   return (
@@ -346,11 +386,85 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-900">After creation</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    You’ll be taken into the workspace so you can start inviting users and setting
-                    up your team.
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Initial categories</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        Add custom categories and optional description templates for new tickets.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setCategories((current) => [...current, createEmptyCategory()])
+                      }
+                    >
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Add
+                    </Button>
+                  </div>
+
+                  {categories.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      {categories.map((category, index) => (
+                        <div
+                          key={category.id}
+                          className="rounded-xl border border-slate-200 bg-white p-3"
+                        >
+                          <div className="flex items-start gap-2">
+                            <Input
+                              value={category.name}
+                              onChange={(e) =>
+                                updateCategoryDraft(category.id, 'name', e.target.value)
+                              }
+                              placeholder={`Category ${index + 1}`}
+                              className="h-10 border-slate-300"
+                              maxLength={50}
+                            />
+                            <div className="flex h-10 shrink-0 items-center gap-1 rounded-md border border-slate-300 bg-white px-2">
+                              {CATEGORY_COLORS.map((color) => (
+                                <button
+                                  key={color}
+                                  type="button"
+                                  onClick={() => updateCategoryDraft(category.id, 'color', color)}
+                                  className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+                                  style={{
+                                    backgroundColor: color,
+                                    borderColor:
+                                      category.color === color ? '#1e293b' : 'transparent',
+                                  }}
+                                  aria-label={`Use ${color}`}
+                                />
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeCategoryDraft(category.id)}
+                              className="rounded-md p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                              aria-label="Remove category"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <Textarea
+                            value={category.descriptionTemplate}
+                            onChange={(e) =>
+                              updateCategoryDraft(
+                                category.id,
+                                'descriptionTemplate',
+                                e.target.value
+                              )
+                            }
+                            placeholder="Optional ticket description template"
+                            className="mt-3 min-h-24 resize-y border-slate-300 text-sm"
+                            maxLength={5000}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <Button

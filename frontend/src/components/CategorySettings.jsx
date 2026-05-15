@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pencil, Trash2, Plus, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   useCategories,
   useCreateCategory,
@@ -45,6 +46,9 @@ const CategoryRow = ({ category, workspaceId }) => {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
   const [color, setColor] = useState(category.color);
+  const [descriptionTemplate, setDescriptionTemplate] = useState(
+    category.descriptionTemplate || ''
+  );
 
   const updateMutation = useUpdateCategory(workspaceId);
   const deleteMutation = useDeleteCategory(workspaceId);
@@ -52,7 +56,12 @@ const CategoryRow = ({ category, workspaceId }) => {
   const handleSave = () => {
     if (!name.trim()) return;
     updateMutation.mutate(
-      { id: category._id, name: name.trim(), color },
+      {
+        id: category._id,
+        name: name.trim(),
+        color,
+        descriptionTemplate: descriptionTemplate.trim(),
+      },
       {
         onSuccess: () => {
           setEditing(false);
@@ -66,6 +75,7 @@ const CategoryRow = ({ category, workspaceId }) => {
   const handleCancel = () => {
     setName(category.name);
     setColor(category.color);
+    setDescriptionTemplate(category.descriptionTemplate || '');
     setEditing(false);
   };
 
@@ -90,6 +100,13 @@ const CategoryRow = ({ category, workspaceId }) => {
           }}
         />
         <ColorPicker value={color} onChange={setColor} />
+        <Textarea
+          value={descriptionTemplate}
+          onChange={(e) => setDescriptionTemplate(e.target.value)}
+          placeholder="Optional ticket description template"
+          className="min-h-28 resize-y bg-white text-sm"
+          maxLength={5000}
+        />
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -109,13 +126,20 @@ const CategoryRow = ({ category, workspaceId }) => {
   }
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50 transition-colors">
-      <div className="flex items-center gap-2.5">
-        <span
-          className="h-3 w-3 rounded-full shrink-0"
-          style={{ backgroundColor: category.color }}
-        />
-        <span className="text-sm font-medium text-gray-800">{category.name}</span>
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50 transition-colors">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="h-3 w-3 rounded-full shrink-0"
+            style={{ backgroundColor: category.color }}
+          />
+          <span className="text-sm font-medium text-gray-800">{category.name}</span>
+        </div>
+        {category.descriptionTemplate && (
+          <p className="mt-1 line-clamp-2 whitespace-pre-line pl-5 text-xs text-muted-foreground">
+            {category.descriptionTemplate}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-1">
         <button
@@ -143,6 +167,7 @@ const CategoryRow = ({ category, workspaceId }) => {
 const CategorySettings = ({ workspaceId }) => {
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(PRESET_COLORS[5]);
+  const [newDescriptionTemplate, setNewDescriptionTemplate] = useState('');
   const [showForm, setShowForm] = useState(false);
 
   const { data: categoriesData, isLoading } = useCategories(workspaceId);
@@ -153,11 +178,17 @@ const CategorySettings = ({ workspaceId }) => {
   const handleCreate = () => {
     if (!newName.trim()) return;
     createMutation.mutate(
-      { name: newName.trim(), color: newColor, workspaceId },
+      {
+        name: newName.trim(),
+        color: newColor,
+        descriptionTemplate: newDescriptionTemplate.trim(),
+        workspaceId,
+      },
       {
         onSuccess: () => {
           setNewName('');
           setNewColor(PRESET_COLORS[5]);
+          setNewDescriptionTemplate('');
           setShowForm(false);
           toast.success('Category created');
         },
@@ -197,6 +228,13 @@ const CategorySettings = ({ workspaceId }) => {
             }}
           />
           <ColorPicker value={newColor} onChange={setNewColor} />
+          <Textarea
+            value={newDescriptionTemplate}
+            onChange={(e) => setNewDescriptionTemplate(e.target.value)}
+            placeholder="Optional ticket description template"
+            className="min-h-28 resize-y bg-white text-sm"
+            maxLength={5000}
+          />
           <div className="flex gap-2">
             <Button
               size="sm"
