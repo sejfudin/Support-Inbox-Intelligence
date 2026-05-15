@@ -428,7 +428,11 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         updateData.doneAt = null;
       }
 
-      historyService.logEvent(ticketId, actorUserId, `Status changed from ${oldTicket.status} to ${updateData.status}`);
+      historyService.logEvent(
+        ticketId,
+        actorUserId,
+        `Status changed from ${oldTicket.status} to ${updateData.status}`
+      );
     }
 
     const ticket = await Ticket.findByIdAndUpdate(
@@ -542,7 +546,8 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         let action;
         if (!oldCatId && newCatId) action = `Category set to ${newCat?.name || 'Unknown'}`;
         else if (oldCatId && !newCatId) action = 'Category removed';
-        else action = `Category changed from ${oldCat?.name || 'Unknown'} to ${newCat?.name || 'Unknown'}`;
+        else
+          action = `Category changed from ${oldCat?.name || 'Unknown'} to ${newCat?.name || 'Unknown'}`;
         historyService.logEvent(ticketId, actorUserId, action);
       }
     }

@@ -17,7 +17,6 @@ const {
   deleteAllCommentImages,
 } = require('../controllers/attachmentImage');
 
-
 router.post('/', protect, createComment);
 
 router.get('/:commentId/images', protect, getCommentImages);

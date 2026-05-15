@@ -50,8 +50,6 @@ export const useDeleteComment = (ticketId) => {
   });
 };
 
-
-
 export const useCommentImages = (commentId) => {
   return useQuery({
     queryKey: ['comment-images', commentId],

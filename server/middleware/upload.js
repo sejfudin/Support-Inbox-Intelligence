@@ -1,6 +1,6 @@
 const multer = require('multer');
 
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; 
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_FILES_PER_REQUEST = 3;
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 

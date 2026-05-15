@@ -9,11 +9,10 @@ if (!supabaseServiceRoleKey) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY'
 if (!supabaseBucket) throw new Error('Missing SUPABASE_ATTACHMENT_BUCKET');
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  auth: { persistSession: false, autoRefreshToken: false },
 });
 
-module.exports = { 
-    supabase,
-    supabaseBucket
+module.exports = {
+  supabase,
+  supabaseBucket,
 };
-

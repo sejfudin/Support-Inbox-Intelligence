@@ -4,7 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Edit2, Trash2, X, Check } from 'lucide-react';
-import { useUpdateComment, useDeleteComment, useCommentImages, useDeleteCommentImage } from '@/queries/comments';
+import {
+  useUpdateComment,
+  useDeleteComment,
+  useCommentImages,
+  useDeleteCommentImage,
+} from '@/queries/comments';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -197,7 +202,6 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
             />
           </div>
         )}
-
       </div>
     </div>
   );

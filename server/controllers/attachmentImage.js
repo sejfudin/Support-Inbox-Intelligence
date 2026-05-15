@@ -82,7 +82,6 @@ const deleteAllTicketDescriptionImages = async (req, res) => {
   }
 };
 
-
 const getCommentImages = async (req, res) => {
   try {
     const { commentId } = req.params;
