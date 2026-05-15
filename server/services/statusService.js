@@ -4,7 +4,7 @@ const {
   StatusValidationError,
   validateStatusesPayload,
   validateStatusLabel,
-  assertUniqueBehaviorFlags,
+  assertWorkspaceBehaviorFlags,
   assertUniqueLabelInWorkspace,
   mapStatusPersistenceError,
 } = require('../helpers/statusValidation');
@@ -230,21 +230,16 @@ const assertMainBoardRemains = async (workspaceId, excludeId) => {
 const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, isDone }) => {
   const trimmedLabel = validateStatusLabel(label);
   const willBeBacklog = Boolean(isBacklog);
-
-  if (willBeBacklog) {
-    const existingMain = await countMainBoardStatuses(workspaceId);
-    if (existingMain === 0) {
-      throw new StatusValidationError(
-        'The first status on the main board cannot be backlog-only. Add a board column first.'
-      );
-    }
-  }
+  const willTrackTime = Boolean(tracksTime);
+  const willBeDone = Boolean(isDone);
 
   await assertUniqueLabelInWorkspace(workspaceId, trimmedLabel);
-  await assertUniqueBehaviorFlags(workspaceId, {
-    isBacklog: willBeBacklog,
-    tracksTime: Boolean(tracksTime),
-    isDone: Boolean(isDone),
+  await assertWorkspaceBehaviorFlags(workspaceId, {
+    replaceStatus: {
+      isBacklog: willBeBacklog,
+      tracksTime: willTrackTime,
+      isDone: willBeDone,
+    },
   });
 
   const slug = await generateUniqueSlug(workspaceId, trimmedLabel);
@@ -310,15 +305,14 @@ const updateStatus = async (statusId, updates) => {
   if (updates.tracksTime !== undefined) status.tracksTime = Boolean(updates.tracksTime);
   if (updates.isDone !== undefined) status.isDone = Boolean(updates.isDone);
 
-  await assertUniqueBehaviorFlags(
-    status.workspace,
-    {
+  await assertWorkspaceBehaviorFlags(status.workspace, {
+    replaceStatus: {
+      _id: status._id,
       isBacklog: status.isBacklog,
       tracksTime: status.tracksTime,
       isDone: status.isDone,
     },
-    status._id
-  );
+  });
 
   try {
     await status.save();
@@ -336,6 +330,8 @@ const deleteStatus = async (statusId) => {
   if (!status.isBacklog) {
     await assertMainBoardRemains(status.workspace, status._id);
   }
+
+  await assertWorkspaceBehaviorFlags(status.workspace, { omitStatusId: status._id });
 
   const ticketCount = await Ticket.countDocuments({
     workspace: status.workspace,

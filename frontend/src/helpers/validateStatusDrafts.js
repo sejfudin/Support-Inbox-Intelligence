@@ -6,6 +6,53 @@ const slugifyLabel = (label) =>
     .toLowerCase()
     .replace(/\s+/g, ' ');
 
+const assertBehaviorFlagCounts = (statuses) => {
+  const backlogCount = statuses.filter((status) => status.isBacklog).length;
+  const tracksTimeCount = statuses.filter((status) => status.tracksTime).length;
+  const doneCount = statuses.filter((status) => status.isDone).length;
+  const mainBoardCount = statuses.filter((status) => !status.isBacklog).length;
+
+  if (mainBoardCount === 0) {
+    return {
+      valid: false,
+      message:
+        'At least one status must be on the main board (turn off Backlog for at least one column).',
+    };
+  }
+
+  if (backlogCount !== 1) {
+    return {
+      valid: false,
+      message:
+        backlogCount === 0
+          ? 'Workspace must have exactly one Backlog status.'
+          : 'Only one status can be marked as Backlog.',
+    };
+  }
+
+  if (tracksTimeCount !== 1) {
+    return {
+      valid: false,
+      message:
+        tracksTimeCount === 0
+          ? 'Workspace must have exactly one status that tracks time.'
+          : 'Only one status can track time.',
+    };
+  }
+
+  if (doneCount !== 1) {
+    return {
+      valid: false,
+      message:
+        doneCount === 0
+          ? 'Workspace must have exactly one Done status.'
+          : 'Only one status can be marked as Done.',
+    };
+  }
+
+  return { valid: true, message: '' };
+};
+
 export const validateStatusDrafts = (drafts) => {
   if (!Array.isArray(drafts) || drafts.length === 0) {
     return { valid: false, message: 'Add at least one ticket status.' };
@@ -13,10 +60,7 @@ export const validateStatusDrafts = (drafts) => {
 
   const labelKeys = new Set();
   const slugKeys = new Set();
-  let mainBoardCount = 0;
-  let backlogCount = 0;
-  let tracksTimeCount = 0;
-  let doneCount = 0;
+  const normalizedStatuses = [];
 
   for (let index = 0; index < drafts.length; index += 1) {
     const item = drafts[index];
@@ -53,40 +97,12 @@ export const validateStatusDrafts = (drafts) => {
     }
     slugKeys.add(slug);
 
-    if (item?.isBacklog) {
-      backlogCount += 1;
-    } else {
-      mainBoardCount += 1;
-    }
-
-    if (item?.tracksTime) {
-      tracksTimeCount += 1;
-    }
-
-    if (item?.isDone) {
-      doneCount += 1;
-    }
+    normalizedStatuses.push({
+      isBacklog: Boolean(item?.isBacklog),
+      tracksTime: Boolean(item?.tracksTime),
+      isDone: Boolean(item?.isDone),
+    });
   }
 
-  if (mainBoardCount === 0) {
-    return {
-      valid: false,
-      message:
-        'At least one status must be on the main board (turn off Backlog for at least one column).',
-    };
-  }
-
-  if (backlogCount > 1) {
-    return { valid: false, message: 'Only one status can be marked as Backlog.' };
-  }
-
-  if (tracksTimeCount > 1) {
-    return { valid: false, message: 'Only one status can track time.' };
-  }
-
-  if (doneCount > 1) {
-    return { valid: false, message: 'Only one status can be marked as Done.' };
-  }
-
-  return { valid: true, message: '' };
+  return assertBehaviorFlagCounts(normalizedStatuses);
 };

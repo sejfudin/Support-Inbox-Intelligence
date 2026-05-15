@@ -16,6 +16,43 @@ class StatusValidationError extends Error {
   }
 }
 
+const assertBehaviorFlagCounts = (statuses) => {
+  const backlogCount = statuses.filter((status) => status.isBacklog).length;
+  const tracksTimeCount = statuses.filter((status) => status.tracksTime).length;
+  const doneCount = statuses.filter((status) => status.isDone).length;
+  const mainBoardCount = statuses.filter((status) => !status.isBacklog).length;
+
+  if (mainBoardCount === 0) {
+    throw new StatusValidationError(
+      'At least one status must be on the main board (turn off Backlog for at least one column).'
+    );
+  }
+
+  if (backlogCount !== 1) {
+    throw new StatusValidationError(
+      backlogCount === 0
+        ? 'Workspace must have exactly one Backlog status.'
+        : 'Only one status can be marked as Backlog.'
+    );
+  }
+
+  if (tracksTimeCount !== 1) {
+    throw new StatusValidationError(
+      tracksTimeCount === 0
+        ? 'Workspace must have exactly one status that tracks time.'
+        : 'Only one status can track time.'
+    );
+  }
+
+  if (doneCount !== 1) {
+    throw new StatusValidationError(
+      doneCount === 0
+        ? 'Workspace must have exactly one Done status.'
+        : 'Only one status can be marked as Done.'
+    );
+  }
+};
+
 const validateStatusesPayload = (statusesPayload) => {
   if (!Array.isArray(statusesPayload)) {
     throw new StatusValidationError('Ticket statuses must be provided as a list.');
@@ -27,10 +64,7 @@ const validateStatusesPayload = (statusesPayload) => {
 
   const labelKeys = new Set();
   const slugKeys = new Set();
-  let mainBoardCount = 0;
-  let backlogCount = 0;
-  let tracksTimeCount = 0;
-  let doneCount = 0;
+  const normalizedStatuses = [];
 
   statusesPayload.forEach((item, index) => {
     const position = index + 1;
@@ -64,69 +98,56 @@ const validateStatusesPayload = (statusesPayload) => {
     }
     slugKeys.add(slug);
 
-    if (item?.isBacklog) {
-      backlogCount += 1;
-    } else {
-      mainBoardCount += 1;
-    }
-
-    if (item?.tracksTime) {
-      tracksTimeCount += 1;
-    }
-
-    if (item?.isDone) {
-      doneCount += 1;
-    }
+    normalizedStatuses.push({
+      isBacklog: Boolean(item?.isBacklog),
+      tracksTime: Boolean(item?.tracksTime),
+      isDone: Boolean(item?.isDone),
+    });
   });
 
-  if (mainBoardCount === 0) {
-    throw new StatusValidationError(
-      'At least one status must be on the main board (turn off Backlog for at least one column).'
-    );
-  }
-
-  if (backlogCount > 1) {
-    throw new StatusValidationError('Only one status can be marked as Backlog.');
-  }
-
-  if (tracksTimeCount > 1) {
-    throw new StatusValidationError('Only one status can track time.');
-  }
-
-  if (doneCount > 1) {
-    throw new StatusValidationError('Only one status can be marked as Done.');
-  }
+  assertBehaviorFlagCounts(normalizedStatuses);
 };
 
-const assertUniqueBehaviorFlags = async (workspaceId, flags, excludeStatusId = null) => {
-  const buildQuery = (field, value) => {
-    const query = { workspace: workspaceId, [field]: value };
-    if (excludeStatusId) {
-      query._id = { $ne: excludeStatusId };
-    }
-    return query;
-  };
+const buildEffectiveStatuses = (statuses, { omitStatusId = null, replaceStatus = null } = {}) => {
+  const omitId = omitStatusId?.toString();
+  const replaceId = replaceStatus?._id?.toString();
 
-  if (flags.isBacklog) {
-    const conflict = await TicketStatus.exists(buildQuery('isBacklog', true));
-    if (conflict) {
-      throw new StatusValidationError('Only one status can be marked as Backlog.');
-    }
+  const effective = statuses
+    .filter((status) => !omitId || status._id.toString() !== omitId)
+    .map((status) => {
+      if (replaceId && status._id.toString() === replaceId) {
+        return {
+          isBacklog: Boolean(replaceStatus.isBacklog),
+          tracksTime: Boolean(replaceStatus.tracksTime),
+          isDone: Boolean(replaceStatus.isDone),
+        };
+      }
+
+      return {
+        isBacklog: Boolean(status.isBacklog),
+        tracksTime: Boolean(status.tracksTime),
+        isDone: Boolean(status.isDone),
+      };
+    });
+
+  if (replaceStatus && !replaceId) {
+    effective.push({
+      isBacklog: Boolean(replaceStatus.isBacklog),
+      tracksTime: Boolean(replaceStatus.tracksTime),
+      isDone: Boolean(replaceStatus.isDone),
+    });
   }
 
-  if (flags.tracksTime) {
-    const conflict = await TicketStatus.exists(buildQuery('tracksTime', true));
-    if (conflict) {
-      throw new StatusValidationError('Only one status can track time.');
-    }
-  }
+  return effective;
+};
 
-  if (flags.isDone) {
-    const conflict = await TicketStatus.exists(buildQuery('isDone', true));
-    if (conflict) {
-      throw new StatusValidationError('Only one status can be marked as Done.');
-    }
-  }
+const assertWorkspaceBehaviorFlags = async (
+  workspaceId,
+  { omitStatusId = null, replaceStatus = null } = {}
+) => {
+  const statuses = await TicketStatus.find({ workspace: workspaceId }).lean();
+  const effective = buildEffectiveStatuses(statuses, { omitStatusId, replaceStatus });
+  assertBehaviorFlagCounts(effective);
 };
 
 const assertUniqueLabelInWorkspace = async (workspaceId, label, excludeStatusId = null) => {
@@ -176,7 +197,7 @@ module.exports = {
   MAX_STATUS_LABEL_LENGTH,
   validateStatusesPayload,
   validateStatusLabel,
-  assertUniqueBehaviorFlags,
+  assertWorkspaceBehaviorFlags,
   assertUniqueLabelInWorkspace,
   mapStatusPersistenceError,
 };
