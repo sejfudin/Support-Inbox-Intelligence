@@ -70,7 +70,14 @@ const sanitizeDisplaySubject = (value) =>
     .replace(SUBJECT_PREFIX_RE, '')
     .trim();
 
-export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
+export const TicketDetailsModal = ({
+  ticketId,
+  isOpen,
+  onClose,
+  focusCommentId = null,
+  focusRequestToken = null,
+  onFocusConsumed = null,
+}) => {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -110,7 +117,6 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
   });
   const users = usersData?.users || [];
 
-  // supabase
   const descriptionInputRef = useRef(null);
   const descriptionSectionRef = useRef(null);
   const uploadDescriptionImagesMutation = useUploadTicketDescriptionImages(ticketId);
@@ -985,7 +991,14 @@ export const TicketDetailsModal = ({ ticketId, isOpen, onClose }) => {
                 />
               </section>
 
-              <TicketComments ticketId={ticketId} isArchived={isArchived} />
+              <TicketComments 
+                ticketId={ticketId} 
+                isArchived={isArchived} 
+                users={users} 
+                focusCommentId={focusCommentId}
+                focusRequestToken={focusRequestToken}
+                onFocusConsumed={onFocusConsumed}
+                />
 
               <TicketHistory ticketId={ticketId} />
             </div>
