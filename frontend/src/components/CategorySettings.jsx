@@ -2,13 +2,22 @@ import { useState } from 'react';
 import { Pencil, Trash2, Plus, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import {
+  RichTextEditor,
+  RichTextEditorContent,
+  RichTextEditorToolbar,
+} from '@/components/ui/rich-text-editor';
 import {
   useCategories,
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
 } from '@/queries/categories';
+import {
+  normalizeTemplateForSave,
+  templateHtmlToPlainText,
+  templateTextToDescriptionHtml,
+} from '@/helpers/ticketDescriptionTemplates';
 import { toast } from 'sonner';
 
 const PRESET_COLORS = [
@@ -42,12 +51,26 @@ const ColorPicker = ({ value, onChange }) => (
   </div>
 );
 
+const TemplateEditor = ({ value, onChange }) => (
+  <RichTextEditor
+    value={value}
+    onChange={onChange}
+    placeholder="Optional ticket description template"
+    className="min-h-44 overflow-hidden rounded-lg bg-white"
+  >
+    <div className="border-b border-gray-100 bg-gray-50/50 px-3 py-2">
+      <RichTextEditorToolbar className="flex-wrap p-0" />
+    </div>
+    <RichTextEditorContent className="min-h-28 p-2" />
+  </RichTextEditor>
+);
+
 const CategoryRow = ({ category, workspaceId }) => {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
   const [color, setColor] = useState(category.color);
   const [descriptionTemplate, setDescriptionTemplate] = useState(
-    category.descriptionTemplate || ''
+    templateTextToDescriptionHtml(category.descriptionTemplate)
   );
 
   const updateMutation = useUpdateCategory(workspaceId);
@@ -60,7 +83,7 @@ const CategoryRow = ({ category, workspaceId }) => {
         id: category._id,
         name: name.trim(),
         color,
-        descriptionTemplate: descriptionTemplate.trim(),
+        descriptionTemplate: normalizeTemplateForSave(descriptionTemplate),
       },
       {
         onSuccess: () => {
@@ -75,7 +98,7 @@ const CategoryRow = ({ category, workspaceId }) => {
   const handleCancel = () => {
     setName(category.name);
     setColor(category.color);
-    setDescriptionTemplate(category.descriptionTemplate || '');
+    setDescriptionTemplate(templateTextToDescriptionHtml(category.descriptionTemplate));
     setEditing(false);
   };
 
@@ -100,13 +123,7 @@ const CategoryRow = ({ category, workspaceId }) => {
           }}
         />
         <ColorPicker value={color} onChange={setColor} />
-        <Textarea
-          value={descriptionTemplate}
-          onChange={(e) => setDescriptionTemplate(e.target.value)}
-          placeholder="Optional ticket description template"
-          className="min-h-28 resize-y bg-white text-sm"
-          maxLength={5000}
-        />
+        <TemplateEditor value={descriptionTemplate} onChange={setDescriptionTemplate} />
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -137,7 +154,7 @@ const CategoryRow = ({ category, workspaceId }) => {
         </div>
         {category.descriptionTemplate && (
           <p className="mt-1 line-clamp-2 whitespace-pre-line pl-5 text-xs text-muted-foreground">
-            {category.descriptionTemplate}
+            {templateHtmlToPlainText(category.descriptionTemplate)}
           </p>
         )}
       </div>
@@ -181,7 +198,7 @@ const CategorySettings = ({ workspaceId }) => {
       {
         name: newName.trim(),
         color: newColor,
-        descriptionTemplate: newDescriptionTemplate.trim(),
+        descriptionTemplate: normalizeTemplateForSave(newDescriptionTemplate),
         workspaceId,
       },
       {
@@ -228,13 +245,7 @@ const CategorySettings = ({ workspaceId }) => {
             }}
           />
           <ColorPicker value={newColor} onChange={setNewColor} />
-          <Textarea
-            value={newDescriptionTemplate}
-            onChange={(e) => setNewDescriptionTemplate(e.target.value)}
-            placeholder="Optional ticket description template"
-            className="min-h-28 resize-y bg-white text-sm"
-            maxLength={5000}
-          />
+          <TemplateEditor value={newDescriptionTemplate} onChange={setNewDescriptionTemplate} />
           <div className="flex gap-2">
             <Button
               size="sm"

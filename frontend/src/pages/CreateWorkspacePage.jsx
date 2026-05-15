@@ -5,13 +5,18 @@ import { ArrowRight, Building2, Mail, Plus, ShieldCheck, Sparkles, Trash2 } from
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import {
+  RichTextEditor,
+  RichTextEditorContent,
+  RichTextEditorToolbar,
+} from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import InvitationInbox from '@/components/InvitationInbox';
 import { useCreateWorkspace } from '@/queries/workspaces';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/queries/invitations';
 import { createCategory } from '@/api/categories';
+import { normalizeTemplateForSave } from '@/helpers/ticketDescriptionTemplates';
 
 const CATEGORY_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -21,6 +26,20 @@ const createEmptyCategory = () => ({
   color: CATEGORY_COLORS[4],
   descriptionTemplate: '',
 });
+
+const TemplateEditor = ({ value, onChange }) => (
+  <RichTextEditor
+    value={value}
+    onChange={onChange}
+    placeholder="Optional ticket description template"
+    className="mt-3 min-h-40 overflow-hidden rounded-lg bg-white"
+  >
+    <div className="border-b border-slate-100 bg-slate-50/60 px-3 py-2">
+      <RichTextEditorToolbar className="flex-wrap p-0" />
+    </div>
+    <RichTextEditorContent className="min-h-24 p-2" />
+  </RichTextEditor>
+);
 
 export default function CreateWorkspacePage() {
   const [name, setName] = useState('');
@@ -258,7 +277,7 @@ export default function CreateWorkspacePage() {
       .map((category) => ({
         name: category.name.trim(),
         color: category.color,
-        descriptionTemplate: category.descriptionTemplate.trim(),
+        descriptionTemplate: normalizeTemplateForSave(category.descriptionTemplate),
       }))
       .filter((category) => category.name);
 
@@ -448,18 +467,11 @@ export default function CreateWorkspacePage() {
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
-                          <Textarea
+                          <TemplateEditor
                             value={category.descriptionTemplate}
-                            onChange={(e) =>
-                              updateCategoryDraft(
-                                category.id,
-                                'descriptionTemplate',
-                                e.target.value
-                              )
+                            onChange={(html) =>
+                              updateCategoryDraft(category.id, 'descriptionTemplate', html)
                             }
-                            placeholder="Optional ticket description template"
-                            className="mt-3 min-h-24 resize-y border-slate-300 text-sm"
-                            maxLength={5000}
                           />
                         </div>
                       ))}
