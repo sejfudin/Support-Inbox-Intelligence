@@ -1,3 +1,9 @@
+/**
+ * Seeds TicketStatus for workspaces that have none. Does not modify tickets.
+ * Run reconcileTicketStatuses.js after this to align ticket data.
+ *
+ * See scripts/README.md for full rollout order.
+ */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');

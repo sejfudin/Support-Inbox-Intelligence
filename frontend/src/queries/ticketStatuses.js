@@ -20,8 +20,8 @@ const invalidateAfterStatusChange = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
 };
 
-export const useTicketStatusesQuery = (workspaceId, options = {}) => {
-  return useQuery({
+export const useTicketStatusesQuery = (workspaceId, options = {}) =>
+  useQuery({
     queryKey: ticketStatusKeys.byWorkspace(workspaceId),
     queryFn: async () => {
       const result = await getTicketStatuses(workspaceId);
@@ -31,7 +31,6 @@ export const useTicketStatusesQuery = (workspaceId, options = {}) => {
     staleTime: 5 * 60 * 1000,
     ...options,
   });
-};
 
 export const useCreateTicketStatus = (workspaceId) => {
   const queryClient = useQueryClient();

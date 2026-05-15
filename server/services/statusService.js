@@ -152,11 +152,13 @@ const getBacklogSlugs = async (workspaceId) => {
 const getStatusSlugSets = async (workspaceId) => {
   const statuses = await getWorkspaceStatuses(workspaceId);
   if (statuses.length === 0) {
+    console.error(
+      `[statusService] No TicketStatus rows for workspace ${workspaceId}; using legacy slug fallbacks. Run migrateTicketStatuses.js.`
+    );
     return {
       doneSlugs: ['done'],
       tracksTimeSlugs: ['in progress'],
       activeSlugs: ['to do', 'in progress', 'on staging', 'blocked'],
-      tracksTimeSlugs: ['in progress'],
     };
   }
 
@@ -165,6 +167,30 @@ const getStatusSlugSets = async (workspaceId) => {
     tracksTimeSlugs: statuses.filter((s) => s.tracksTime).map((s) => s.slug),
     activeSlugs: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s.slug),
   };
+};
+
+const resolveAutomationTargetStatus = async (workspaceId, preferredSlug, role) => {
+  const statuses = await getWorkspaceStatuses(workspaceId);
+  if (statuses.length === 0) {
+    if (role === 'done') return preferredSlug || 'done';
+    return preferredSlug || 'on staging';
+  }
+
+  const normalizedPreferred = preferredSlug ? slugifyLabel(preferredSlug) : null;
+  if (normalizedPreferred) {
+    const match = statuses.find((s) => s.slug === normalizedPreferred);
+    if (match) return match.slug;
+  }
+
+  if (role === 'done') {
+    const done = statuses.find((s) => s.isDone);
+    return done?.slug || statuses[statuses.length - 1].slug;
+  }
+
+  const mainBoard = statuses.filter((s) => !s.isBacklog && !s.isDone);
+  const nonTrackMain = mainBoard.find((s) => !s.tracksTime);
+  const tracks = statuses.find((s) => s.tracksTime);
+  return nonTrackMain?.slug || tracks?.slug || mainBoard[0]?.slug || statuses[0].slug;
 };
 
 const resolveDefaultStatus = async (workspaceId, { isAdmin = false } = {}) => {
@@ -278,21 +304,9 @@ const updateStatus = async (statusId, updates) => {
   }
 
   if (updates.slug !== undefined) {
-    const nextSlug = slugifyLabel(updates.slug);
-    if (!nextSlug) {
-      throw new StatusValidationError('Status key is invalid.');
-    }
-    const duplicate = await TicketStatus.findOne({
-      workspace: status.workspace,
-      slug: nextSlug,
-      _id: { $ne: status._id },
-    });
-    if (duplicate) {
-      throw new StatusValidationError(
-        `Another status already uses the key "${nextSlug}" in this workspace.`
-      );
-    }
-    status.slug = nextSlug;
+    throw new StatusValidationError(
+      'Status keys cannot be changed after creation. Add a new status and move tickets instead.'
+    );
   }
 
   if (updates.color !== undefined) status.color = updates.color;
@@ -389,6 +403,7 @@ module.exports = {
   getBacklogSlugs,
   getStatusSlugSets,
   resolveDefaultStatus,
+  resolveAutomationTargetStatus,
   applyStatusLifecycleUpdate,
   createStatus,
   updateStatus,

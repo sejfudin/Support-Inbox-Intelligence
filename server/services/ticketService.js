@@ -330,12 +330,16 @@ const createTicket = async (ticketData) => {
 
   const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
 
-  const status =
+  const requestedStatus =
     ticketData.status === undefined
       ? await statusService.resolveDefaultStatus(ticketData.workspaceId, { isAdmin: false })
       : ticketData.status;
 
-  await statusService.validateStatusForWorkspace(ticketData.workspaceId, status);
+  const statusDoc = await statusService.validateStatusForWorkspace(
+    ticketData.workspaceId,
+    requestedStatus
+  );
+  const status = statusDoc.slug;
 
   const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, status);
 
@@ -418,11 +422,15 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     }
 
     if (updateData.status && updateData.status !== oldTicket.status) {
-      const newStatus = updateData.status.toLowerCase();
+      const statusDoc = await statusService.validateStatusForWorkspace(
+        oldTicket.workspace,
+        updateData.status
+      );
+      const newStatus = statusDoc.slug;
       const oldStatus = oldTicket.status.toLowerCase();
       const now = new Date();
 
-      await statusService.validateStatusForWorkspace(oldTicket.workspace, newStatus);
+      updateData.status = newStatus;
 
       await statusService.applyStatusLifecycleUpdate({
         workspaceId: oldTicket.workspace,
@@ -436,7 +444,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       historyService.logEvent(
         ticketId,
         actorUserId,
-        `Status changed from ${oldTicket.status} to ${updateData.status}`
+        `Status changed from ${oldTicket.status} to ${newStatus}`
       );
     }
 

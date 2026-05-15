@@ -1,8 +1,8 @@
 export const isTicketTrackingTime = (ticket, statusTracksTime) => {
-  if (typeof statusTracksTime === 'function') {
-    return statusTracksTime(ticket?.status);
+  if (typeof statusTracksTime !== 'function') {
+    return false;
   }
-  return ticket?.status?.toLowerCase() === 'in progress';
+  return statusTracksTime(ticket?.status);
 };
 
 export const getTicketTimeSpentSeconds = (ticket, statusTracksTime) => {

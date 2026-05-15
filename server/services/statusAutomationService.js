@@ -56,10 +56,12 @@ async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
     if (!oldTicket) throw new Error('Ticket not found');
 
     const now = new Date();
-    const newStatus = targetStatus.toLowerCase();
+    const statusDoc = await statusService.validateStatusForWorkspace(
+      oldTicket.workspace,
+      targetStatus
+    );
+    const newStatus = statusDoc.slug;
     const oldStatus = oldTicket.status?.toLowerCase();
-
-    await statusService.validateStatusForWorkspace(oldTicket.workspace, newStatus);
 
     const updateData = { status: newStatus };
 
@@ -117,7 +119,11 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
       };
     }
 
-    const targetStatus = settings.onPROpenTargetStatus || 'on staging';
+    const targetStatus = await statusService.resolveAutomationTargetStatus(
+      workspaceId,
+      settings.onPROpenTargetStatus,
+      'prOpen'
+    );
 
     const decision = shouldAutomateStatusChange(
       ticket,
@@ -189,7 +195,11 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
       };
     }
 
-    const targetStatus = settings.onMergeTargetStatus || 'done';
+    const targetStatus = await statusService.resolveAutomationTargetStatus(
+      workspaceId,
+      settings.onMergeTargetStatus,
+      'done'
+    );
 
     const decision = shouldAutomateStatusChange(
       ticket,

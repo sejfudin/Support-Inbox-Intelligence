@@ -147,10 +147,12 @@ const StatusSettings = ({ workspaceId }) => {
     <div className="space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-gray-900">Ticket Statuses</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Customize workflow columns, order, and behavior for this workspace.
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Customize workflow columns, order, and behavior. Display names can be renamed without
+          affecting existing tickets.
         </p>
       </div>
+
       <TicketStatusEditor items={items} onChange={handleChange} minItems={1} />
     </div>
   );
