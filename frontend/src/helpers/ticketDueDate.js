@@ -6,8 +6,6 @@ import { format, startOfDay, isBefore } from 'date-fns';
 export function isDueDateOverdue(dueDate, status, statusIsDone) {
   if (!dueDate) return false;
   if (typeof statusIsDone === 'function' && statusIsDone(status)) return false;
-  const s = (status || '').toLowerCase();
-  if (s === 'done') return false;
   const due = startOfDay(new Date(dueDate));
   const today = startOfDay(new Date());
   return isBefore(due, today);

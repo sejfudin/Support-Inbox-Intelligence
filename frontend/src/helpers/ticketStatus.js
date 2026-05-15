@@ -1,9 +1,3 @@
-const slugToColumnId = (slug) =>
-  String(slug || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-    .slice(0, 24) || 'column';
-
 export const DEFAULT_STATUS_DRAFTS = [
   { label: 'Backlog', color: '#6b7280', isBacklog: true, tracksTime: false, isDone: false },
   { label: 'To do', color: '#64748b', isBacklog: false, tracksTime: false, isDone: false },
@@ -60,40 +54,47 @@ export const buildTicketStatusHelpers = (statuses = []) => {
   const statusOptions = boardStatuses.map((s) => ({
     value: s.slug,
     label: s.label,
-    columnId: slugToColumnId(s.slug),
+    columnId: s._id != null ? String(s._id) : '',
     color: s.color,
     tracksTime: s.tracksTime,
     isDone: s.isDone,
   }));
 
+  const boardColumns = statusOptions
+    .filter((s) => s.columnId)
+    .map((s) => ({
+      id: s.columnId,
+      title: s.label,
+      slug: s.value,
+      color: s.color,
+    }));
+
+  const firstColumnId = boardColumns[0]?.id;
+  const tracksColumnId = statusOptions.find((s) => s.tracksTime)?.columnId;
+  const doneColumnId = statusOptions.find((s) => s.isDone)?.columnId;
+
   const statusToColumn = Object.fromEntries(
-    statusOptions.map((s) => [s.value, s.columnId])
+    statusOptions.filter((s) => s.columnId).map((s) => [s.value, s.columnId])
   );
 
   /** Pre-custom-status ticket values only — must not overwrite real slugs like "closed". */
   const legacyStatusToColumn = {
-    open: statusOptions[0]?.columnId ?? 'todo',
-    pending:
-      statusOptions.find((s) => s.tracksTime)?.columnId ?? statusOptions[0]?.columnId ?? 'todo',
-    closed: statusOptions.find((s) => s.isDone)?.columnId ?? 'done',
+    open: firstColumnId,
+    pending: tracksColumnId ?? firstColumnId,
+    closed: doneColumnId,
   };
 
   const resolveBoardColumnId = (status) => {
     const key = status?.toLowerCase();
-    if (!key) return boardColumns[0]?.id;
-    return statusToColumn[key] ?? legacyStatusToColumn[key] ?? boardColumns[0]?.id;
+    if (!key) return firstColumnId;
+    return statusToColumn[key] ?? legacyStatusToColumn[key] ?? firstColumnId;
   };
 
   const columnToStatus = Object.fromEntries(
-    statusOptions.map((s) => [s.columnId, s.value])
+    statusOptions.filter((s) => s.columnId).map((s) => [s.columnId, s.value])
   );
 
-  const boardColumns = statusOptions.map((s) => ({
-    id: s.columnId,
-    title: s.label,
-    slug: s.value,
-    color: s.color,
-  }));
+  const resolveStatusFromColumnId = (columnId) => columnToStatus[columnId] ?? null;
 
   const statusTabs = [
     { key: 'all', label: 'All' },
@@ -130,6 +131,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     legacyStatusToColumn,
     resolveBoardColumnId,
     columnToStatus,
+    resolveStatusFromColumnId,
     boardColumns,
     statusBadgeConfig,
     backlogSlug: defaultBacklogStatus,
