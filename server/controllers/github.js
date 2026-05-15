@@ -15,6 +15,7 @@ const {
   AUTOMATION_RESULT,
 } = require('../services/statusAutomationService');
 const historyService = require('../services/historyService');
+const statusService = require('../services/statusService');
 
 /**
  * Initiates GitHub App installation flow.
@@ -85,6 +86,17 @@ const handleCallback = async (req, res) => {
 
     const installation = await getInstallation(parseInt(installation_id));
 
+    const existing = await Integration.findOne({ workspace: workspaceId }).lean();
+    const statusTargets = await statusService.resolveIntegrationStatusTargets(workspaceId);
+    const settings = existing?.settings
+      ? await statusService.normalizeIntegrationSettings(workspaceId, existing.settings)
+      : {
+          autoLinkEnabled: true,
+          autoMoveOnPROpenEnabled: false,
+          autoMoveOnMergeEnabled: false,
+          ...statusTargets,
+        };
+
     await Integration.findOneAndUpdate(
       { workspace: workspaceId },
       {
@@ -95,6 +107,7 @@ const handleCallback = async (req, res) => {
         encryptedAccessToken: encrypt('placeholder'), // Will be replaced with real token when needed
         isConnected: true,
         lastSyncAt: new Date(),
+        settings,
       },
       { upsert: true, new: true }
     );
@@ -158,9 +171,32 @@ const getIntegration = async (req, res) => {
       });
     }
 
+    const normalizedSettings = await statusService.normalizeIntegrationSettings(
+      workspaceId,
+      integration.settings || {}
+    );
+
+    const storedSettings = integration.settings || {};
+    const settingsChanged =
+      normalizedSettings.onMergeTargetStatus !== storedSettings.onMergeTargetStatus ||
+      normalizedSettings.onPROpenTargetStatus !== storedSettings.onPROpenTargetStatus;
+
+    if (settingsChanged) {
+      await Integration.updateOne(
+        { _id: integration._id },
+        {
+          $set: {
+            'settings.onMergeTargetStatus': normalizedSettings.onMergeTargetStatus,
+            'settings.onPROpenTargetStatus': normalizedSettings.onPROpenTargetStatus,
+          },
+        }
+      );
+    }
+
     // Remove sensitive data before sending to client
     const sanitizedIntegration = {
       ...integration,
+      settings: normalizedSettings,
       encryptedAccessToken: undefined,
       encryptedRefreshToken: undefined,
       connectedRepo: integration.connectedRepo?.fullName ? integration.connectedRepo : undefined,
@@ -199,7 +235,6 @@ const updateIntegration = async (req, res) => {
     const updateData = {};
 
     if (settings) {
-      const statusService = require('../services/statusService');
       if (settings.onPROpenTargetStatus) {
         await statusService.validateIntegrationTargetStatus(
           workspaceId,
@@ -213,10 +248,10 @@ const updateIntegration = async (req, res) => {
         );
       }
 
-      updateData.settings = {
+      updateData.settings = await statusService.normalizeIntegrationSettings(workspaceId, {
         ...integration.settings,
         ...settings,
-      };
+      });
     }
 
     if (connectedRepo?.owner && connectedRepo?.name) {

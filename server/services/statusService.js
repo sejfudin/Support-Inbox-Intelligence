@@ -1,5 +1,6 @@
 const TicketStatus = require('../models/TicketStatus');
 const Ticket = require('../models/Ticket');
+const { pickFallbackSlug } = require('../helpers/statusSlugAliases');
 const {
   StatusValidationError,
   validateStatusesPayload,
@@ -166,6 +167,52 @@ const getStatusSlugSets = async (workspaceId) => {
     doneSlugs: statuses.filter((s) => s.isDone).map((s) => s.slug),
     tracksTimeSlugs: statuses.filter((s) => s.tracksTime).map((s) => s.slug),
     activeSlugs: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s.slug),
+  };
+};
+
+const resolveIntegrationStatusTargets = async (workspaceId) => {
+  const statuses = await getWorkspaceStatuses(workspaceId);
+  if (statuses.length === 0) {
+    return {
+      onMergeTargetStatus: 'done',
+      onPROpenTargetStatus: 'on staging',
+    };
+  }
+
+  const done = statuses.find((s) => s.isDone);
+  const tracks = statuses.find((s) => s.tracksTime);
+  const mainBoard = statuses.filter((s) => !s.isBacklog && !s.isDone);
+  const prOpen =
+    mainBoard.find((s) => !s.tracksTime)?.slug ||
+    tracks?.slug ||
+    mainBoard[0]?.slug ||
+    pickFallbackSlug(statuses);
+
+  return {
+    onMergeTargetStatus: done?.slug || pickFallbackSlug(statuses),
+    onPROpenTargetStatus: prOpen,
+  };
+};
+
+const normalizeIntegrationSettings = async (workspaceId, settings = {}) => {
+  const defaults = await resolveIntegrationStatusTargets(workspaceId);
+  const validSlugs = new Set((await getWorkspaceStatuses(workspaceId)).map((s) => s.slug));
+
+  const mergeSlug = settings.onMergeTargetStatus
+    ? slugifyLabel(settings.onMergeTargetStatus)
+    : '';
+  const prOpenSlug = settings.onPROpenTargetStatus
+    ? slugifyLabel(settings.onPROpenTargetStatus)
+    : '';
+
+  return {
+    autoLinkEnabled: settings.autoLinkEnabled !== false,
+    autoMoveOnPROpenEnabled: Boolean(settings.autoMoveOnPROpenEnabled),
+    autoMoveOnMergeEnabled: Boolean(settings.autoMoveOnMergeEnabled),
+    onMergeTargetStatus:
+      mergeSlug && validSlugs.has(mergeSlug) ? mergeSlug : defaults.onMergeTargetStatus,
+    onPROpenTargetStatus:
+      prOpenSlug && validSlugs.has(prOpenSlug) ? prOpenSlug : defaults.onPROpenTargetStatus,
   };
 };
 
@@ -403,6 +450,8 @@ module.exports = {
   getBacklogSlugs,
   getStatusSlugSets,
   resolveDefaultStatus,
+  resolveIntegrationStatusTargets,
+  normalizeIntegrationSettings,
   resolveAutomationTargetStatus,
   applyStatusLifecycleUpdate,
   createStatus,

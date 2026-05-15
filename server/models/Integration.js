@@ -88,11 +88,9 @@ const integrationSchema = new mongoose.Schema(
       },
       onPROpenTargetStatus: {
         type: String,
-        default: 'on staging',
       },
       onMergeTargetStatus: {
         type: String,
-        default: 'done',
       },
     },
 

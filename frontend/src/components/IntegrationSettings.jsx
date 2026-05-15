@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { getIntegrationStatusTargets } from '@/helpers/ticketStatus';
 import {
   useIntegration,
   useRepositories,
@@ -44,13 +45,24 @@ export const IntegrationSettings = ({ workspaceId }) => {
   const integration = integrationData?.data;
   const repositories = reposData?.data || [];
 
-  const settings = integration?.settings || {
-    autoLinkEnabled: true,
-    autoMoveOnPROpenEnabled: false,
-    autoMoveOnMergeEnabled: false,
-    onPROpenTargetStatus: 'on staging',
-    onMergeTargetStatus: 'done',
-  };
+  const defaultTargets = useMemo(() => getIntegrationStatusTargets(statuses), [statuses]);
+
+  const settings = useMemo(() => {
+    const raw = integration?.settings || {};
+    const validSlugs = new Set(statuses.map((s) => s.slug));
+
+    return {
+      autoLinkEnabled: raw.autoLinkEnabled !== false,
+      autoMoveOnPROpenEnabled: Boolean(raw.autoMoveOnPROpenEnabled),
+      autoMoveOnMergeEnabled: Boolean(raw.autoMoveOnMergeEnabled),
+      onPROpenTargetStatus: validSlugs.has(raw.onPROpenTargetStatus)
+        ? raw.onPROpenTargetStatus
+        : defaultTargets.onPROpenTargetStatus,
+      onMergeTargetStatus: validSlugs.has(raw.onMergeTargetStatus)
+        ? raw.onMergeTargetStatus
+        : defaultTargets.onMergeTargetStatus,
+    };
+  }, [integration?.settings, statuses, defaultTargets]);
 
   const selectedRepo = integration?.connectedRepo?.fullName || null;
 

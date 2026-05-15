@@ -9,23 +9,10 @@ const {
   slugifyLabel,
 } = require('./statusSlugAliases');
 const { auditWorkspace } = require('./statusWorkspaceAudit');
-const { seedDefaultStatuses } = require('../services/statusService');
-
-const resolveAutomationTargets = (statuses) => {
-  const done = statuses.find((s) => s.isDone);
-  const tracks = statuses.find((s) => s.tracksTime);
-  const mainBoard = statuses.filter((s) => !s.isBacklog && !s.isDone);
-  const prOpen =
-    mainBoard.find((s) => !s.tracksTime)?.slug ||
-    tracks?.slug ||
-    mainBoard[0]?.slug ||
-    pickFallbackSlug(statuses);
-
-  return {
-    onMergeTargetStatus: done?.slug || pickFallbackSlug(statuses),
-    onPROpenTargetStatus: prOpen,
-  };
-};
+const {
+  seedDefaultStatuses,
+  resolveIntegrationStatusTargets,
+} = require('../services/statusService');
 
 const reconcileWorkspace = async (workspace, { dryRun = true } = {}) => {
   const workspaceId = workspace._id;
@@ -103,7 +90,7 @@ const reconcileWorkspace = async (workspace, { dryRun = true } = {}) => {
 
   const integration = await Integration.findOne({ workspace: workspaceId });
   if (integration) {
-    const targets = resolveAutomationTargets(statuses);
+    const targets = await resolveIntegrationStatusTargets(workspaceId);
     const settings = integration.settings || {};
     const repairs = {};
 
@@ -142,7 +129,6 @@ const reconcileAllWorkspaces = async (workspaces, options) => {
 };
 
 module.exports = {
-  resolveAutomationTargets,
   reconcileWorkspace,
   reconcileAllWorkspaces,
 };

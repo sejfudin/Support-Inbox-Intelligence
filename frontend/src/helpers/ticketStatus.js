@@ -152,3 +152,25 @@ export const getColumnStyle = (helpers, columnId) => {
   const col = helpers.boardColumns.find((c) => c.id === columnId);
   return getColumnAccentStyles(col?.color);
 };
+
+/** Default GitHub automation targets from workspace status config. */
+export const getIntegrationStatusTargets = (statuses = []) => {
+  if (!statuses.length) {
+    return { onMergeTargetStatus: '', onPROpenTargetStatus: '' };
+  }
+
+  const done = statuses.find((s) => s.isDone);
+  const tracks = statuses.find((s) => s.tracksTime);
+  const mainBoard = statuses.filter((s) => !s.isBacklog && !s.isDone);
+  const prOpen =
+    mainBoard.find((s) => !s.tracksTime)?.slug ||
+    tracks?.slug ||
+    mainBoard[0]?.slug ||
+    statuses.find((s) => !s.isBacklog)?.slug ||
+    statuses[0]?.slug;
+
+  return {
+    onMergeTargetStatus: done?.slug || statuses.find((s) => !s.isBacklog)?.slug || statuses[0].slug,
+    onPROpenTargetStatus: prOpen,
+  };
+};
