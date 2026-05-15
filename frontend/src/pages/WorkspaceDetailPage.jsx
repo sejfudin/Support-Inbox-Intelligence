@@ -194,13 +194,9 @@ export default function WorkspaceDetailPage() {
       <div className="app-page-content space-y-6">
         <PageHeading
           kicker="Workspace management"
-          title={workspace.name}
-          subtitle={
-            workspace.description || 'Manage members, invitations, and access for this workspace.'
-          }
-          titleAdornment={
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 overflow-hidden">
+          title={
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
                 {workspace?.logoUrl ? (
                   <img
                     src={workspace.logoUrl}
@@ -210,9 +206,15 @@ export default function WorkspaceDetailPage() {
                 ) : (
                   <Building2 className="h-4 w-4 text-primary" />
                 )}
-              </div>
-              {isActiveWorkspace ? <UserStatusBadge status="active" /> : null}
-            </div>
+              </span>
+              <span>{workspace.name}</span>
+            </span>
+          }
+          subtitle={
+            workspace.description || 'Manage members, invitations, and access for this workspace.'
+          }
+          titleAdornment={
+            isActiveWorkspace ? <UserStatusBadge status="active" /> : null
           }
           actions={
             <>
