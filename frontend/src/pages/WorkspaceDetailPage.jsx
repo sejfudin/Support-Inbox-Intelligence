@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
+  Building2,
   Crown,
   Mail,
   Search,
@@ -193,11 +194,28 @@ export default function WorkspaceDetailPage() {
       <div className="app-page-content space-y-6">
         <PageHeading
           kicker="Workspace management"
-          title={workspace.name}
+          title={
+            <span className="inline-flex items-center gap-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
+                {workspace?.logoUrl ? (
+                  <img
+                    src={workspace.logoUrl}
+                    alt={`${workspace.name} logo`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Building2 className="h-4 w-4 text-primary" />
+                )}
+              </span>
+              <span>{workspace.name}</span>
+            </span>
+          }
           subtitle={
             workspace.description || 'Manage members, invitations, and access for this workspace.'
           }
-          titleAdornment={isActiveWorkspace ? <UserStatusBadge status="active" /> : null}
+          titleAdornment={
+            isActiveWorkspace ? <UserStatusBadge status="active" /> : null
+          }
           actions={
             <>
               {!isActiveWorkspace && canSwitchToWorkspace && (

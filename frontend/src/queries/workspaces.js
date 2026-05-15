@@ -11,6 +11,8 @@ import {
   deleteWorkspace,
   getWorkspaceAnalytics,
   getUserAnalytics,
+  uploadWorkspaceLogo,
+  deleteWorkspaceLogo,
 } from '@/api/workspaces';
 import { authKeys } from '@/queries/auth';
 import { applyActiveWorkspaceChange } from '@/lib/workspaceQueryCache';
@@ -154,3 +156,29 @@ export const useUserAnalytics = ({ userId, workspaceId, days = 30 }) => {
     refetchOnWindowFocus: true,
   });
 };
+
+export const useUploadWorkspaceLogo = (id) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file) => uploadWorkspaceLogo(id, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
+    }
+  });
+};
+
+export const useDeleteWorkspaceLogo = (id) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => deleteWorkspaceLogo(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
+    }
+  })
+}

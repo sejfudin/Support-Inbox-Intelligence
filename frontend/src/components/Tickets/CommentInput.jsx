@@ -2,13 +2,15 @@ import { useState, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Check, AlertCircle, ImagePlus, X } from 'lucide-react';
-import { useCreateComment} from '@/queries/comments';
+import { useCreateComment } from '@/queries/comments';
 import { uploadCommentImages as uploadCommentImagesApi } from '@/api/comments';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useCommentMentions } from '@/hooks/useCommentMentions';
 
-export const CommentInput = ({ ticketId }) => {
+
+export const CommentInput = ({ ticketId, users = [] }) => {
   const [newComment, setNewComment] = useState('');
   const MAX_CHARS = 1000;
   const createMutation = useCreateComment();
@@ -20,6 +22,24 @@ export const CommentInput = ({ ticketId }) => {
   // supabase
   const fileInputRef = useRef(null);
   const [selectedImages, setSelectedImages] = useState([]);
+
+  const textareaRef = useRef(null);
+  const {
+    mentionOpen,
+    mentionItems,
+    mentionActiveIndex,
+    applyMention,
+    handleMentionChange,
+    handleMentionKeyDown,
+  } = useCommentMentions({
+    users,
+    value: newComment,
+    setValue: setNewComment,
+    textareaRef,
+  });
+
+
+
 
   const validateClientFiles = (files) => {
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -53,8 +73,6 @@ export const CommentInput = ({ ticketId }) => {
     setSelectedImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
-
-
   const handleSend = () => {
     if ((!newComment.trim() && selectedImages.length === 0) || createMutation.isPending) return;
     if (newComment.length > MAX_CHARS) return;
@@ -86,6 +104,7 @@ export const CommentInput = ({ ticketId }) => {
   };
 
   const handleCommentKeyDown = (e) => {
+    if (handleMentionKeyDown(e)) return;
     if (e.key !== 'Enter') return;
     if (e.shiftKey) return;
     if (e.nativeEvent?.isComposing) return;
@@ -94,13 +113,11 @@ export const CommentInput = ({ ticketId }) => {
     handleSend();
   };
 
-
   return (
     <div className="p-5 border-t border-gray-120 bg-white">
-      <div className="relative group/input">
+      <div className="relative z-20 group/input">
         <Textarea
           value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
           onKeyDown={handleCommentKeyDown}
           placeholder="Write a comment..."
           disabled={createMutation.isPending}
@@ -109,7 +126,37 @@ export const CommentInput = ({ ticketId }) => {
             'min-h-[80px] bg-gray-50/50 border-gray-200 focus-visible:ring-blue-500 resize-none pr-12 transition-all',
             isAtLimit && 'border-orange-400 focus-visible:ring-orange-400'
           )}
+          ref={textareaRef}
+          onChange={handleMentionChange}
         />
+
+        {mentionOpen && (
+          <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-[120] rounded-md border bg-white shadow-lg">
+            {mentionItems.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-gray-500">No users found</div>
+            ) : (
+              <ul className="max-h-56 overflow-y-auto py-1">
+                {mentionItems.map((item, idx) => (
+                  <li key={item.userId}>
+                    <button
+                      type="button"
+                      className={cn(
+                        'w-full px-3 py-2 text-left text-sm hover:bg-gray-50',
+                        idx === mentionActiveIndex && 'bg-blue-50'
+                      )}
+                      onMouseDown={(evt) => evt.preventDefault()}
+                      onClick={() => applyMention(item)}
+                    >
+                      <div className="font-medium text-gray-900">@{item.handle}</div>
+                      <div className="truncate text-xs text-gray-500">{item.fullname || item.email}</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
 
         <input
           ref={fileInputRef}
@@ -135,7 +182,10 @@ export const CommentInput = ({ ticketId }) => {
         {selectedImages.length > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
             {selectedImages.map((file, idx) => (
-              <div key={`${file.name}-${idx}`} className="relative rounded-md border overflow-hidden">
+              <div
+                key={`${file.name}-${idx}`}
+                className="relative rounded-md border overflow-hidden"
+              >
                 <img
                   src={URL.createObjectURL(file)}
                   alt={file.name}
@@ -153,7 +203,6 @@ export const CommentInput = ({ ticketId }) => {
           </div>
         )}
 
-
         <div
           className={cn(
             'absolute -top-5 right-1 text-[11px] font-semibold transition-colors flex items-center gap-1',
@@ -167,7 +216,11 @@ export const CommentInput = ({ ticketId }) => {
         <div className="absolute -bottom-1 right-1  flex items-center gap-2">
           <Button
             size="icon"
-            disabled={(!newComment.trim() && selectedImages.length === 0) || isAtLimit || createMutation.isPending}
+            disabled={
+              (!newComment.trim() && selectedImages.length === 0) ||
+              isAtLimit ||
+              createMutation.isPending
+            }
             onClick={handleSend}
             className={cn(
               'h-8 w-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all active:scale-95',

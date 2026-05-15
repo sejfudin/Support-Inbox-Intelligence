@@ -1,7 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { createTicketColumns } from '@/components/columns/ticketColumns';
-import { SectionCards } from '@/components/section-cards';
 import { useMyTickets } from '@/queries/tickets';
 import { normalizeTicket } from '@/helpers/normalizeTicket';
 import TicketsState from '@/components/Tickets/TicketsState';
@@ -132,8 +131,6 @@ export default function UserDashboard() {
 
       <div className="flex flex-1 flex-col">
         <div className="py-4 md:py-6">
-          <SectionCards stats={stats} isLoading={isLoading} />
-
           <div className="app-page-content mt-2">
             {!isMobile && isBoard ? (
               <Suspense fallback={<TableSkeleton />}>
@@ -144,6 +141,7 @@ export default function UserDashboard() {
                   onOpenTicket={openTicketDetails}
                   onStatusChange={handleStatusChange}
                   boardHelpers={helpers}
+                  flush
                 />
               </Suspense>
             ) : (

@@ -27,10 +27,7 @@ function parseAction(action) {
   // "... to X" — set to, changed to, Assigned to, Reassigned to
   m = action.match(/^(.*?\bto\s+)(.+)$/);
   if (m) {
-    return [
-      { text: m[1] },
-      { text: m[2], bold: true },
-    ];
+    return [{ text: m[1] }, { text: m[2], bold: true }];
   }
 
   // "PR #N linked/unlinked"

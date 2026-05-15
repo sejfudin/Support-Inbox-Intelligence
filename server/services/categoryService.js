@@ -16,14 +16,20 @@ const getWorkspaceCategories = async (workspaceId) => {
   return Category.find({ workspace: workspaceId }).sort({ createdAt: 1 }).lean();
 };
 
-const createCategory = async ({ name, color = '#6366f1', workspaceId }) => {
-  return Category.create({ name, color, workspace: workspaceId });
+const createCategory = async ({
+  name,
+  color = '#6366f1',
+  descriptionTemplate = '',
+  workspaceId,
+}) => {
+  return Category.create({ name, color, descriptionTemplate, workspace: workspaceId });
 };
 
-const updateCategory = async (categoryId, { name, color }) => {
+const updateCategory = async (categoryId, { name, color, descriptionTemplate }) => {
   const updates = {};
   if (name !== undefined) updates.name = name;
   if (color !== undefined) updates.color = color;
+  if (descriptionTemplate !== undefined) updates.descriptionTemplate = descriptionTemplate;
 
   const category = await Category.findByIdAndUpdate(
     categoryId,

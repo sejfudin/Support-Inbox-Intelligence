@@ -23,7 +23,6 @@ const {
   deleteAllTicketDescriptionImages,
 } = require('../controllers/attachmentImage');
 
-
 router.get('/my-tickets', protect, getMyTickets);
 router.get('/', protect, getAllTickets);
 

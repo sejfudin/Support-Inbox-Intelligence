@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { useTickets } from '@/queries/tickets';
@@ -81,6 +81,9 @@ export default function TicketPage() {
   const { data: overrideWorkspace } = useWorkspace(overrideWorkspaceId);
 
   const effectiveWorkspaceId = overrideWorkspaceId || user?.workspaceId;
+  
+  const [focusCommentId, setFocusCommentId] = useState(null);
+  const [focusRequestToken, setFocusRequestToken] = useState(null);
 
   const { helpers, isLoading: statusesLoading } = useTicketStatuses(effectiveWorkspaceId);
   const allowedTabKeys = useMemo(
@@ -121,18 +124,40 @@ export default function TicketPage() {
       const next = new URLSearchParams(searchParams);
       if (next.has('ticket')) {
         next.delete('ticket');
-        setSearchParams(next, { replace: true });
       }
+      if (next.has('comment')) {
+        next.delete('comment');
+      }
+      if (next.has('focus')) {
+        next.delete('focus');
+      }
+      setSearchParams(next, { replace: true });
       closeTicketDetails();
+      setFocusCommentId(null);
+      setFocusRequestToken(null);
     },
     [closeTicketDetails, searchParams, setSearchParams]
   );
 
+  const handleFocusConsumed = useCallback(() => {
+    const next = new URLSearchParams(searchParams);
+    if (!next.has('focus')) return;
+    next.delete('focus');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   useEffect(() => {
     const tid = searchParams.get('ticket');
+    const cid = searchParams.get('comment');
+    const focusToken = searchParams.get('focus');
+    setFocusCommentId(isValidTicketParam(cid) ? cid : null);
+    setFocusRequestToken(focusToken || null);
+
     if (!isValidTicketParam(tid)) {
       // URL is cleaned, allow normal modal opening again.
       if (!tid) isClosingDetailsRef.current = false;
+      setFocusCommentId(null);
+      setFocusRequestToken(null);
       return;
     }
     if (isClosingDetailsRef.current) return;
@@ -558,6 +583,9 @@ export default function TicketPage() {
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={handleCloseTicketDetails}
+        focusCommentId={focusCommentId}
+        focusRequestToken={focusRequestToken}
+        onFocusConsumed={handleFocusConsumed}
       />
     </PageShell>
   );

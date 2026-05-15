@@ -12,6 +12,11 @@ const categorySchema = new mongoose.Schema(
       type: String,
       default: '#6366f1',
     },
+    descriptionTemplate: {
+      type: String,
+      default: '',
+      maxlength: 5000,
+    },
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Workspace',
