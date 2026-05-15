@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useCreateTicket } from '@/queries/tickets';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import {
@@ -48,7 +48,8 @@ const NewTickets = ({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
-  const [appliedTemplateHtml, setAppliedTemplateHtml] = useState('');
+  const [descriptionEditorKey, setDescriptionEditorKey] = useState(0);
+  const appliedTemplateHtmlRef = useRef('');
 
   const {
     isPromptPanelVisible,
@@ -86,7 +87,7 @@ const NewTickets = ({
   const resetSuggestionState = () => {
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
-    setAppliedTemplateHtml('');
+    appliedTemplateHtmlRef.current = '';
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
   };
@@ -171,15 +172,22 @@ const NewTickets = ({
     }
   };
 
+  const replaceDescriptionFromCategory = (descriptionHtml) => {
+    updateField('description', descriptionHtml);
+    setDescriptionEditorKey((key) => key + 1);
+  };
+
   const handleCategoryChange = (category) => {
+    const appliedTemplateHtml = appliedTemplateHtmlRef.current;
+
     if (!category) {
       updateField('category', null);
 
       if (appliedTemplateHtml && newTicket.description === appliedTemplateHtml) {
-        updateField('description', '');
+        replaceDescriptionFromCategory('');
       }
 
-      setAppliedTemplateHtml('');
+      appliedTemplateHtmlRef.current = '';
       return;
     }
 
@@ -187,12 +195,12 @@ const NewTickets = ({
     updateField('category', category._id);
 
     if (templateHtml) {
-      updateField('description', templateHtml);
+      replaceDescriptionFromCategory(templateHtml);
     } else if (appliedTemplateHtml && newTicket.description === appliedTemplateHtml) {
-      updateField('description', '');
+      replaceDescriptionFromCategory('');
     }
 
-    setAppliedTemplateHtml(templateHtml);
+    appliedTemplateHtmlRef.current = templateHtml;
   };
 
   const selectedUsersObjects = users.filter((u) => currentAssignees.includes(u._id));
@@ -234,6 +242,7 @@ const NewTickets = ({
             <div className="grid grid-cols-1 gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
               <section className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden min-h-[360px] sm:min-h-[440px] lg:h-full lg:min-h-0">
                 <RichTextEditor
+                  key={descriptionEditorKey}
                   value={newTicket.description}
                   onChange={(html) => updateField('description', html)}
                   placeholder="Describe the ticket… (type /ai to generate a first draft)"
