@@ -1,4 +1,4 @@
-const TaskStatus = require('../models/TaskStatus');
+const TicketStatus = require('../models/TicketStatus');
 const Ticket = require('../models/Ticket');
 
 const DEFAULT_STATUSES = [
@@ -40,7 +40,7 @@ const generateUniqueSlug = async (workspaceId, label, excludeId = null) => {
     if (excludeId) {
       query._id = { $ne: excludeId };
     }
-    const exists = await TaskStatus.exists(query);
+    const exists = await TicketStatus.exists(query);
     if (!exists) return candidate;
     candidate = `${base} ${suffix}`;
     suffix += 1;
@@ -50,11 +50,11 @@ const generateUniqueSlug = async (workspaceId, label, excludeId = null) => {
 const countMainBoardStatuses = async (workspaceId, excludeId = null) => {
   const query = { workspace: workspaceId, isBacklog: false };
   if (excludeId) query._id = { $ne: excludeId };
-  return TaskStatus.countDocuments(query);
+  return TicketStatus.countDocuments(query);
 };
 
 const seedDefaultStatuses = async (workspaceId) => {
-  const existing = await TaskStatus.countDocuments({ workspace: workspaceId });
+  const existing = await TicketStatus.countDocuments({ workspace: workspaceId });
   if (existing > 0) return getWorkspaceStatuses(workspaceId);
 
   const docs = DEFAULT_STATUSES.map((s, index) => ({
@@ -62,12 +62,12 @@ const seedDefaultStatuses = async (workspaceId) => {
     workspace: workspaceId,
     sortOrder: index,
   }));
-  await TaskStatus.insertMany(docs);
+  await TicketStatus.insertMany(docs);
   return getWorkspaceStatuses(workspaceId);
 };
 
 const createStatusesForWorkspace = async (workspaceId, statusesPayload = []) => {
-  const existing = await TaskStatus.countDocuments({ workspace: workspaceId });
+  const existing = await TicketStatus.countDocuments({ workspace: workspaceId });
   if (existing > 0) {
     return getWorkspaceStatuses(workspaceId);
   }
@@ -104,16 +104,16 @@ const createStatusesForWorkspace = async (workspaceId, statusesPayload = []) => 
     throw new Error('At least one main-board status is required');
   }
 
-  await TaskStatus.insertMany(docs);
+  await TicketStatus.insertMany(docs);
   return getWorkspaceStatuses(workspaceId);
 };
 
 const getWorkspaceStatuses = async (workspaceId) => {
-  return TaskStatus.find({ workspace: workspaceId }).sort({ sortOrder: 1 }).lean();
+  return TicketStatus.find({ workspace: workspaceId }).sort({ sortOrder: 1 }).lean();
 };
 
 const getStatusBySlug = async (workspaceId, slug) => {
-  return TaskStatus.findOne({ workspace: workspaceId, slug: slugifyLabel(slug) }).lean();
+  return TicketStatus.findOne({ workspace: workspaceId, slug: slugifyLabel(slug) }).lean();
 };
 
 const validateStatusForWorkspace = async (workspaceId, slug) => {
@@ -137,7 +137,7 @@ const getStatusFlags = async (workspaceId, slug) => {
 };
 
 const getBacklogSlugs = async (workspaceId) => {
-  const statuses = await TaskStatus.find({ workspace: workspaceId, isBacklog: true })
+  const statuses = await TicketStatus.find({ workspace: workspaceId, isBacklog: true })
     .select('slug')
     .lean();
   if (statuses.length > 0) return statuses.map((s) => s.slug);
@@ -218,13 +218,13 @@ const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, 
   if (!trimmedLabel) throw new Error('Status label is required');
 
   const slug = await generateUniqueSlug(workspaceId, trimmedLabel);
-  const maxOrder = await TaskStatus.findOne({ workspace: workspaceId })
+  const maxOrder = await TicketStatus.findOne({ workspace: workspaceId })
     .sort('-sortOrder')
     .select('sortOrder')
     .lean();
   const sortOrder = maxOrder ? maxOrder.sortOrder + 1 : 0;
 
-  return TaskStatus.create({
+  return TicketStatus.create({
     workspace: workspaceId,
     slug,
     label: trimmedLabel,
@@ -237,7 +237,7 @@ const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, 
 };
 
 const updateStatus = async (statusId, updates) => {
-  const status = await TaskStatus.findById(statusId);
+  const status = await TicketStatus.findById(statusId);
   if (!status) throw new Error('Status not found');
 
   const nextIsBacklog =
@@ -267,7 +267,7 @@ const updateStatus = async (statusId, updates) => {
 
   if (updates.slug !== undefined) {
     status.slug = slugifyLabel(updates.slug);
-    const duplicate = await TaskStatus.findOne({
+    const duplicate = await TicketStatus.findOne({
       workspace: status.workspace,
       slug: status.slug,
       _id: { $ne: status._id },
@@ -292,7 +292,7 @@ const updateStatus = async (statusId, updates) => {
 };
 
 const deleteStatus = async (statusId) => {
-  const status = await TaskStatus.findById(statusId);
+  const status = await TicketStatus.findById(statusId);
   if (!status) throw new Error('Status not found');
 
   if (!status.isBacklog) {
@@ -310,7 +310,7 @@ const deleteStatus = async (statusId) => {
     throw new Error('Cannot delete a status that is in use by tickets');
   }
 
-  await TaskStatus.findByIdAndDelete(statusId);
+  await TicketStatus.findByIdAndDelete(statusId);
   return { message: 'Status deleted' };
 };
 
@@ -319,13 +319,13 @@ const reorderStatuses = async (workspaceId, orderedIds) => {
     throw new Error('orderedIds is required');
   }
 
-  const statuses = await TaskStatus.find({ workspace: workspaceId });
+  const statuses = await TicketStatus.find({ workspace: workspaceId });
   const statusMap = new Map(statuses.map((s) => [s._id.toString(), s]));
 
   const updates = orderedIds.map((id, index) => {
     const doc = statusMap.get(String(id));
     if (!doc) throw new Error('Invalid status id in reorder list');
-    return TaskStatus.updateOne({ _id: doc._id }, { $set: { sortOrder: index } });
+    return TicketStatus.updateOne({ _id: doc._id }, { $set: { sortOrder: index } });
   });
 
   await Promise.all(updates);

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import TaskStatusEditor from '@/components/TaskStatusEditor';
+import TicketStatusEditor from '@/components/TicketStatusEditor';
 import {
-  useTaskStatusesQuery,
-  useCreateTaskStatus,
-  useUpdateTaskStatus,
-  useDeleteTaskStatus,
-  useReorderTaskStatuses,
-} from '@/queries/taskStatuses';
+  useTicketStatusesQuery,
+  useCreateTicketStatus,
+  useUpdateTicketStatus,
+  useDeleteTicketStatus,
+  useReorderTicketStatuses,
+} from '@/queries/ticketStatuses';
 
 const toEditorItem = (status) => ({
   _id: status._id,
@@ -20,13 +20,13 @@ const toEditorItem = (status) => ({
 });
 
 const StatusSettings = ({ workspaceId }) => {
-  const { data: statuses = [], isLoading, refetch } = useTaskStatusesQuery(workspaceId);
+  const { data: statuses = [], isLoading, refetch } = useTicketStatusesQuery(workspaceId);
   const [items, setItems] = useState([]);
 
-  const createMutation = useCreateTaskStatus(workspaceId);
-  const updateMutation = useUpdateTaskStatus(workspaceId);
-  const deleteMutation = useDeleteTaskStatus(workspaceId);
-  const reorderMutation = useReorderTaskStatuses(workspaceId);
+  const createMutation = useCreateTicketStatus(workspaceId);
+  const updateMutation = useUpdateTicketStatus(workspaceId);
+  const deleteMutation = useDeleteTicketStatus(workspaceId);
+  const reorderMutation = useReorderTicketStatuses(workspaceId);
 
   useEffect(() => {
     if (!isLoading) {
@@ -138,12 +138,12 @@ const StatusSettings = ({ workspaceId }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">Task statuses</h3>
+        <h3 className="text-sm font-semibold text-gray-900">Ticket statuses</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           Customize workflow columns, order, and behavior for this workspace.
         </p>
       </div>
-      <TaskStatusEditor items={items} onChange={handleChange} minItems={1} />
+      <TicketStatusEditor items={items} onChange={handleChange} minItems={1} />
     </div>
   );
 };

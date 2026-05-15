@@ -3,11 +3,16 @@ import PriorityIndicator from '../PriorityIndicator';
 import AssigneesAvatar from '../Tickets/AssigneesAvatar';
 import { formatDuration } from '../../helpers/formatDuration';
 import { formatDueDateDisplay, isDueDateOverdue } from '../../helpers/ticketDueDate';
+import { getTicketTimeSpentSeconds, isTicketTrackingTime } from '../../helpers/ticketTimeSpent';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import StoryPointsIndicator from '../StoryPointsIndicator';
 
-export function createTicketColumns({ statusBadgeConfig = {}, statusIsDone } = {}) {
+export function createTicketColumns({
+  statusBadgeConfig = {},
+  statusIsDone,
+  statusTracksTime,
+} = {}) {
   return [
     {
       accessorKey: 'taskNumber',
@@ -135,20 +140,15 @@ export function createTicketColumns({ statusBadgeConfig = {}, statusIsDone } = {
         cellClassName: 'w-[9%] whitespace-nowrap font-medium text-gray-500 text-xs',
       },
       cell: ({ row }) => {
-        let seconds = row.original.totalTimeSpent || 0;
-
-        if (row.original.status?.toLowerCase() === 'in progress' && row.original.inProgressAt) {
-          const now = new Date();
-          const inProgressAt = new Date(row.original.inProgressAt);
-          seconds += Math.max(0, Math.floor((now - inProgressAt) / 1000));
-        }
+        const seconds = getTicketTimeSpentSeconds(row.original, statusTracksTime);
+        const isTracking = isTicketTrackingTime(row.original, statusTracksTime);
 
         if (seconds === 0) return <span className="text-gray-300">-</span>;
 
         return (
           <div className="flex items-center gap-1">
             {formatDuration(seconds)}
-            {row.original.status?.toLowerCase() === 'in progress' && (
+            {isTracking && (
               <span className="h-1 w-1 rounded-full bg-blue-500 animate-pulse" />
             )}
           </div>

@@ -1,11 +1,11 @@
-import { Clock } from 'lucide-react';
+import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
 import { formatDuration } from '@/helpers/formatDuration';
+import { getTicketTimeSpentSeconds, isTicketTrackingTime } from '@/helpers/ticketTimeSpent';
 
 export const TimeSpent = ({ ticket, statusTracksTime }) => {
-  const tracksTime =
-    typeof statusTracksTime === 'function'
-      ? statusTracksTime(ticket?.status)
-      : ticket?.status?.toLowerCase() === 'in progress';
+  const tracksTime = isTicketTrackingTime(ticket, statusTracksTime);
+  useTimeSpentTicker(tracksTime ? [ticket] : [], statusTracksTime);
+  const seconds = getTicketTimeSpentSeconds(ticket, statusTracksTime);
 
   return (
     <div className="space-y-3">
@@ -18,20 +18,10 @@ export const TimeSpent = ({ ticket, statusTracksTime }) => {
         {tracksTime && (
           <span
             className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"
-            title="In progress timer active"
+            title="Timer active"
           />
         )}
-        <span className="text-base font-semibold text-gray-900">
-          {(() => {
-            let seconds = ticket?.totalTimeSpent || 0;
-            if (tracksTime && ticket?.inProgressAt) {
-              const now = new Date();
-              const inProgressAt = new Date(ticket.inProgressAt);
-              seconds += Math.max(0, Math.floor((now - inProgressAt) / 1000));
-            }
-            return formatDuration(seconds);
-          })()}
-        </span>
+        <span className="text-base font-semibold text-gray-900">{formatDuration(seconds)}</span>
       </div>
     </div>
   );

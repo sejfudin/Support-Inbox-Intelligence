@@ -13,6 +13,7 @@ import { useDebounce } from 'use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUpdateTicket } from '@/queries/tickets';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
 import { useAuth } from '@/context/AuthContext';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
@@ -50,18 +51,21 @@ export default function UserDashboard() {
     }
   }, [pagination]);
 
+  const normalizedTickets = useMemo(() => {
+    return (ticketsData?.data || []).map((ticket) => normalizeTicket(ticket));
+  }, [ticketsData]);
+
+  const timeSpentTick = useTimeSpentTicker(normalizedTickets, helpers.statusTracksTime);
+
   const columns = useMemo(
     () =>
       createTicketColumns({
         statusBadgeConfig: helpers.statusBadgeConfig,
         statusIsDone: helpers.statusIsDone,
+        statusTracksTime: helpers.statusTracksTime,
       }),
-    [helpers]
+    [helpers, timeSpentTick]
   );
-
-  const normalizedTickets = useMemo(() => {
-    return (ticketsData?.data || []).map((ticket) => normalizeTicket(ticket));
-  }, [ticketsData]);
 
   const stats = useMemo(() => {
     if (!ticketsData?.stats) return null;

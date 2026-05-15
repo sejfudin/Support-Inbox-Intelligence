@@ -8,9 +8,13 @@ import TicketsState from '@/components/Tickets/TicketsState';
 import TicketsHeader from '@/components/Tickets/TicketsHeader';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ArchivePage() {
   const [activeTab] = useState('all');
+  const { user } = useAuth();
+  const { helpers } = useTicketStatuses(user?.workspaceId);
 
   const {
     tickets: normalizedTickets,
@@ -23,7 +27,11 @@ export default function ArchivePage() {
     setPage,
   } = useTicketList({ activeTab, additionalFilters: { archived: true } });
 
-  const columns = createTicketColumns();
+  const columns = createTicketColumns({
+    statusBadgeConfig: helpers.statusBadgeConfig,
+    statusIsDone: helpers.statusIsDone,
+    statusTracksTime: helpers.statusTracksTime,
+  });
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();

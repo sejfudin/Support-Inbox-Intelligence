@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useTaskStatusesQuery } from '@/queries/taskStatuses';
+import { useTicketStatusesQuery } from '@/queries/ticketStatuses';
 import { buildTicketStatusHelpers } from '@/helpers/ticketStatus';
 
 export const useTicketStatuses = (workspaceIdProp) => {
   const { user } = useAuth();
   const workspaceId = workspaceIdProp || user?.workspaceId;
 
-  const { data: statuses = [], isLoading, isError, error, refetch } = useTaskStatusesQuery(
+  const { data: statuses = [], isLoading, isError, error, refetch } = useTicketStatusesQuery(
     workspaceId
   );
 

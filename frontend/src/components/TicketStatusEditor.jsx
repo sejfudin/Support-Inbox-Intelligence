@@ -198,7 +198,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
   );
 }
 
-export default function TaskStatusEditor({ items, onChange, minItems = 1 }) {
+export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })

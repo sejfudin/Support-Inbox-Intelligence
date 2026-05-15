@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
 import PageHeading from '@/components/PageHeading';
-import TaskStatusEditor from '@/components/TaskStatusEditor';
+import TicketStatusEditor from '@/components/TicketStatusEditor';
 import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
 
 export default function AdminWorkspacesPage() {
@@ -274,8 +274,8 @@ export default function AdminWorkspacesPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Task statuses</label>
-              <TaskStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
+              <label className="text-sm font-medium">Ticket statuses</label>
+              <TicketStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
             </div>
 
             <DialogFooter className="pt-2">

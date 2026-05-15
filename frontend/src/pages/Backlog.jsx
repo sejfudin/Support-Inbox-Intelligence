@@ -33,6 +33,7 @@ export default function BacklogPage() {
   const columns = createTicketColumns({
     statusBadgeConfig: helpers.statusBadgeConfig,
     statusIsDone: helpers.statusIsDone,
+    statusTracksTime: helpers.statusTracksTime,
   });
 
   const {

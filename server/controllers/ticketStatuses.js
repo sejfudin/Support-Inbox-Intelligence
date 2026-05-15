@@ -9,7 +9,7 @@ const resolveWorkspaceId = (req) => {
       : req.user?.workspaceId;
 };
 
-const getTaskStatuses = async (req, res) => {
+const getTicketStatuses = async (req, res) => {
   try {
     const workspaceId = resolveWorkspaceId(req);
     if (!workspaceId) {
@@ -23,7 +23,7 @@ const getTaskStatuses = async (req, res) => {
   }
 };
 
-const createTaskStatus = async (req, res) => {
+const createTicketStatus = async (req, res) => {
   try {
     const workspaceId = resolveWorkspaceId(req);
     if (!workspaceId) {
@@ -46,7 +46,7 @@ const createTaskStatus = async (req, res) => {
   }
 };
 
-const updateTaskStatus = async (req, res) => {
+const updateTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const status = await statusService.updateStatus(id, req.body);
@@ -59,7 +59,7 @@ const updateTaskStatus = async (req, res) => {
   }
 };
 
-const deleteTaskStatus = async (req, res) => {
+const deleteTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const result = await statusService.deleteStatus(id);
@@ -72,7 +72,7 @@ const deleteTaskStatus = async (req, res) => {
   }
 };
 
-const reorderTaskStatuses = async (req, res) => {
+const reorderTicketStatuses = async (req, res) => {
   try {
     const workspaceId = resolveWorkspaceId(req);
     const { orderedIds } = req.body;
@@ -89,9 +89,9 @@ const reorderTaskStatuses = async (req, res) => {
 };
 
 module.exports = {
-  getTaskStatuses,
-  createTaskStatus,
-  updateTaskStatus,
-  deleteTaskStatus,
-  reorderTaskStatuses,
+  getTicketStatuses,
+  createTicketStatus,
+  updateTicketStatus,
+  deleteTicketStatus,
+  reorderTicketStatuses,
 };

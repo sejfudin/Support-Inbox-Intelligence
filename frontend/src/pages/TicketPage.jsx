@@ -35,6 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
@@ -232,15 +233,6 @@ export default function TicketPage() {
     },
   });
 
-  const listColumns = useMemo(
-    () =>
-      createTicketColumns({
-        statusBadgeConfig: helpers.statusBadgeConfig,
-        statusIsDone: helpers.statusIsDone,
-      }),
-    [helpers]
-  );
-
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
   const [isExporting, setIsExporting] = useState(false);
@@ -270,11 +262,23 @@ export default function TicketPage() {
   );
 
   const normalizedTickets = isBoard ? boardTickets : listData.tickets;
+  const visibleTickets = normalizedTickets;
   const pagination = isBoard ? null : listData.pagination;
   const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
   const isError = isBoard ? boardQuery.isError : listData.isError;
   const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
-  const visibleTickets = normalizedTickets;
+
+  const timeSpentTick = useTimeSpentTicker(visibleTickets, helpers.statusTracksTime);
+
+  const listColumns = useMemo(
+    () =>
+      createTicketColumns({
+        statusBadgeConfig: helpers.statusBadgeConfig,
+        statusIsDone: helpers.statusIsDone,
+        statusTracksTime: helpers.statusTracksTime,
+      }),
+    [helpers, timeSpentTick]
+  );
 
   const runWithListReset =
     (callback) =>

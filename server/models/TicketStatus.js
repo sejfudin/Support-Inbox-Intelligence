@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const taskStatusSchema = new mongoose.Schema(
+const ticketStatusSchema = new mongoose.Schema(
   {
     workspace: {
       type: mongoose.Schema.Types.ObjectId,
@@ -43,7 +43,7 @@ const taskStatusSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-taskStatusSchema.index({ workspace: 1, slug: 1 }, { unique: true });
-taskStatusSchema.index({ workspace: 1, sortOrder: 1 });
+ticketStatusSchema.index({ workspace: 1, slug: 1 }, { unique: true });
+ticketStatusSchema.index({ workspace: 1, sortOrder: 1 });
 
-module.exports = mongoose.model('TaskStatus', taskStatusSchema);
+module.exports = mongoose.model('TicketStatus', ticketStatusSchema);
