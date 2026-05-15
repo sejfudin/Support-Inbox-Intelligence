@@ -70,26 +70,6 @@ export default function UserDashboard() {
     [helpers, timeSpentTick]
   );
 
-  const stats = useMemo(() => {
-    if (!ticketsData?.stats) return null;
-
-    const { activeTickets, inProgress, blocked } = ticketsData.stats;
-    const now = new Date();
-    const monthLabel = now.toLocaleString('default', { month: 'short' });
-
-    return {
-      activeTickets: activeTickets || 0,
-      inProgress: inProgress || 0,
-      blocked: blocked || 0,
-      completedThisMonth: ticketsData.stats.completedThisMonth || 0,
-      monthLabel,
-      activeTrend: 0,
-      inProgressTrend: 0,
-      completedTrend: 0,
-      blockedTrend: 0,
-    };
-  }, [ticketsData]);
-
   const isBoard = viewMode === 'board';
 
   const handleStatusChange = (ticketId, columnId) => {
@@ -117,7 +97,7 @@ export default function UserDashboard() {
     <main className="app-page flex min-h-screen flex-col font-sans">
       <TicketsHeader
         title="Dashboard"
-        subtitle="Your active tickets and key delivery signals at a glance."
+        subtitle="Track your assigned tickets"
         hideNewTicket={true}
         viewMode={viewMode}
         onViewModeChange={setViewMode}

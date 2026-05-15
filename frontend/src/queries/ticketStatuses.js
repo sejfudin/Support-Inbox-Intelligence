@@ -6,11 +6,18 @@ import {
   deleteTicketStatus,
   reorderTicketStatuses,
 } from '@/api/ticketStatuses';
+import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 
 export const TICKET_STATUSES_QUERY_KEY = 'ticket-statuses';
 
 export const ticketStatusKeys = {
   byWorkspace: (workspaceId) => [TICKET_STATUSES_QUERY_KEY, workspaceId],
+};
+
+const invalidateAfterStatusChange = (queryClient, workspaceId) => {
+  queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
+  invalidateAnalyticsQueries(queryClient);
+  queryClient.invalidateQueries({ queryKey: ['tickets'] });
 };
 
 export const useTicketStatusesQuery = (workspaceId, options = {}) => {
@@ -31,7 +38,7 @@ export const useCreateTicketStatus = (workspaceId) => {
   return useMutation({
     mutationFn: createTicketStatus,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
+      invalidateAfterStatusChange(queryClient, workspaceId);
     },
   });
 };
@@ -41,7 +48,7 @@ export const useUpdateTicketStatus = (workspaceId) => {
   return useMutation({
     mutationFn: ({ id, ...data }) => updateTicketStatus(id, data, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
+      invalidateAfterStatusChange(queryClient, workspaceId);
     },
   });
 };
@@ -51,7 +58,7 @@ export const useDeleteTicketStatus = (workspaceId) => {
   return useMutation({
     mutationFn: (id) => deleteTicketStatus(id, workspaceId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
+      invalidateAfterStatusChange(queryClient, workspaceId);
     },
   });
 };
@@ -61,7 +68,7 @@ export const useReorderTicketStatuses = (workspaceId) => {
   return useMutation({
     mutationFn: reorderTicketStatuses,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
+      invalidateAfterStatusChange(queryClient, workspaceId);
     },
   });
 };

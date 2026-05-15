@@ -3,6 +3,7 @@ const sanitizeHtml = require('sanitize-html');
 const AISummary = require('../models/AISummary');
 const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
+const statusService = require('./statusService');
 const { buildUserSummaryPrompt } = require('../prompts/ticketPrompts');
 const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
 
@@ -97,10 +98,12 @@ async function generateUserSummary({ userId, workspaceId, requesterId, requester
     requesterRole,
   });
 
+  const { doneSlugs } = await statusService.getStatusSlugSets(workspaceObjectId);
+
   const tickets = await Ticket.find({
     assignedTo: userObjectId,
     workspace: workspaceObjectId,
-    status: 'done',
+    status: { $in: doneSlugs },
     isArchived: { $ne: true },
     $or: [{ subject: { $exists: true, $ne: '' } }, { description: { $exists: true, $ne: '' } }],
   })

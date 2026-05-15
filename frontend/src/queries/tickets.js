@@ -13,24 +13,7 @@ import {
   uploadTicketDescriptionImages,
   deleteTicketDescriptionImage,
 } from '@/api/tickets';
-
-const invalidateWorkspaceAnalytics = (queryClient) => {
-  queryClient.invalidateQueries({
-    predicate: (query) =>
-      Array.isArray(query.queryKey) &&
-      query.queryKey[0] === 'workspaces' &&
-      query.queryKey.includes('analytics'),
-  });
-};
-
-const invalidateUserAnalytics = (queryClient) => {
-  queryClient.invalidateQueries({
-    predicate: (query) =>
-      Array.isArray(query.queryKey) &&
-      query.queryKey[0] === 'workspaces' &&
-      query.queryKey.includes('user-analytics'),
-  });
-};
+import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 
 export const useTickets = (params, options = {}) => {
   return useQuery({
@@ -66,8 +49,7 @@ export const useCreateTicket = () => {
     mutationFn: createTicket,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      invalidateWorkspaceAnalytics(queryClient);
-      invalidateUserAnalytics(queryClient);
+      invalidateAnalyticsQueries(queryClient);
     },
   });
 };
@@ -81,8 +63,7 @@ export const useUpdateTicket = () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] });
       queryClient.invalidateQueries({ queryKey: ['ticket-history', variables.ticketId] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      invalidateWorkspaceAnalytics(queryClient);
-      invalidateUserAnalytics(queryClient);
+      invalidateAnalyticsQueries(queryClient);
     },
   });
 };
@@ -96,8 +77,7 @@ export const useArchiveTicket = () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
       queryClient.invalidateQueries({ queryKey: ['ticket-history', ticketId] });
-      invalidateWorkspaceAnalytics(queryClient);
-      invalidateUserAnalytics(queryClient);
+      invalidateAnalyticsQueries(queryClient);
     },
   });
 };

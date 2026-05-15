@@ -223,8 +223,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
     assignedTo: userObjectId,
   };
 
-  const { doneSlugs, tracksTimeSlugs, blockedSlugs } =
-    await statusService.getStatusSlugSets(workspaceId);
+  const { doneSlugs, tracksTimeSlugs } = await statusService.getStatusSlugSets(workspaceId);
 
   const [summaryRaw, cycleRaw, timeRaw, workloadRaw, trendRaw] = await Promise.all([
     Ticket.aggregate([
@@ -255,11 +254,6 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
               $cond: [{ $in: ['$status', tracksTimeSlugs] }, 1, 0],
             },
           },
-          blockedTickets: {
-            $sum: {
-              $cond: [{ $in: ['$status', blockedSlugs] }, 1, 0],
-            },
-          },
         },
       },
       {
@@ -267,7 +261,6 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
           _id: 0,
           completedTickets: 1,
           activeTickets: 1,
-          blockedTickets: 1,
         },
       },
     ]),
@@ -382,7 +375,6 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
   const summaryStats = summaryRaw[0] || {
     completedTickets: 0,
     activeTickets: 0,
-    blockedTickets: 0,
   };
 
   const averageCycleTimeDays = cycleRaw[0]?.averageCycleTimeDays || 0;

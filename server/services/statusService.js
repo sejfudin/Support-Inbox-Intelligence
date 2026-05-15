@@ -155,20 +155,15 @@ const getStatusSlugSets = async (workspaceId) => {
     return {
       doneSlugs: ['done'],
       tracksTimeSlugs: ['in progress'],
-      blockedSlugs: ['blocked'],
       activeSlugs: ['to do', 'in progress', 'on staging', 'blocked'],
-      inProgressSlugs: ['in progress', 'on staging'],
+      tracksTimeSlugs: ['in progress'],
     };
   }
 
   return {
     doneSlugs: statuses.filter((s) => s.isDone).map((s) => s.slug),
     tracksTimeSlugs: statuses.filter((s) => s.tracksTime).map((s) => s.slug),
-    blockedSlugs: statuses.filter((s) => s.slug === 'blocked').map((s) => s.slug),
     activeSlugs: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s.slug),
-    inProgressSlugs: statuses
-      .filter((s) => s.tracksTime || s.slug === 'on staging')
-      .map((s) => s.slug),
   };
 };
 

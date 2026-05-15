@@ -599,12 +599,6 @@ const getMyTickets = async ({
   if (!workspaceId) {
     return {
       tickets: [],
-      stats: {
-        activeTickets: 0,
-        inProgress: 0,
-        blocked: 0,
-        completedThisMonth: 0,
-      },
       pagination: {
         total: 0,
         page: safePage,
@@ -644,9 +638,6 @@ const getMyTickets = async ({
           priorityRank: normalizedOrder === 'desc' ? -1 : 1,
           updatedAt: -1,
         };
-
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const sortSpec = buildTicketListSort(sortBy, sortOrder);
 
@@ -710,67 +701,10 @@ const getMyTickets = async ({
           { $project: { priorityRank: 0 } },
         ]);
 
-  const slugSets = await statusService.getStatusSlugSets(workspaceId);
-  const { activeSlugs, inProgressSlugs, blockedSlugs, doneSlugs } = slugSets;
-
-  const [tickets, total, statsArray] = await Promise.all([
-    ticketsQuery,
-    Ticket.countDocuments(query),
-    Ticket.aggregate([
-      {
-        $match: {
-          assignedTo: userId,
-          isArchived: { $ne: true },
-          workspace: workspaceId,
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          activeTickets: {
-            $sum: {
-              $cond: [{ $in: ['$status', activeSlugs] }, 1, 0],
-            },
-          },
-          inProgress: {
-            $sum: {
-              $cond: [{ $in: ['$status', inProgressSlugs] }, 1, 0],
-            },
-          },
-          blocked: {
-            $sum: {
-              $cond: [{ $in: ['$status', blockedSlugs] }, 1, 0],
-            },
-          },
-          completedThisMonth: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $in: ['$status', doneSlugs] },
-                    { $gte: ['$updatedAt', startOfMonth] },
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-        },
-      },
-    ]),
-  ]);
-
-  const stats = statsArray[0] || {
-    activeTickets: 0,
-    inProgress: 0,
-    blocked: 0,
-    completedThisMonth: 0,
-  };
+  const [tickets, total] = await Promise.all([ticketsQuery, Ticket.countDocuments(query)]);
 
   return {
     tickets,
-    stats,
     pagination: {
       total,
       page: safePage,

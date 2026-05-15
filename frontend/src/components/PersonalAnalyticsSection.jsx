@@ -21,7 +21,6 @@ export default function PersonalAnalyticsSection({
   const userSummary = userAnalytics?.summaryStats || {
     completedTickets: 0,
     activeTickets: 0,
-    blockedTickets: 0,
   };
 
   const userPerformance = userAnalytics?.performanceMetrics || {
@@ -96,7 +95,7 @@ export default function PersonalAnalyticsSection({
       )}
 
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card className="app-panel xl:col-span-1">
             <CardHeader className="pb-2">
               <CardDescription>Completed</CardDescription>
@@ -107,12 +106,6 @@ export default function PersonalAnalyticsSection({
             <CardHeader className="pb-2">
               <CardDescription>In Progress</CardDescription>
               <CardTitle className="text-3xl">{userSummary.activeTickets}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="app-panel xl:col-span-1">
-            <CardHeader className="pb-2">
-              <CardDescription>Blocked</CardDescription>
-              <CardTitle className="text-3xl">{userSummary.blockedTickets}</CardTitle>
             </CardHeader>
           </Card>
           <Card className="app-panel xl:col-span-1">
