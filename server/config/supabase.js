@@ -11,7 +11,7 @@ if (!supabaseAttachmentBucket) throw new Error('Missing SUPABASE_ATTACHMENT_BUCK
 if (!supabaseWorkspaceLogoBucket) throw new Error('Missing SUPABASE_WORKSPACE_LOGO_BUCKET');
 
 const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
+  auth: { persistSession: false, autoRefreshToken: false },
 });
 
 module.exports = { 

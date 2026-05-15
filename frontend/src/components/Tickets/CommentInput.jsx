@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Check, AlertCircle, ImagePlus, X } from 'lucide-react';
-import { useCreateComment} from '@/queries/comments';
+import { useCreateComment } from '@/queries/comments';
 import { uploadCommentImages as uploadCommentImagesApi } from '@/api/comments';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -73,8 +73,6 @@ export const CommentInput = ({ ticketId, users = [] }) => {
     setSelectedImages((prev) => prev.filter((_, i) => i !== idx));
   };
 
-
-
   const handleSend = () => {
     if ((!newComment.trim() && selectedImages.length === 0) || createMutation.isPending) return;
     if (newComment.length > MAX_CHARS) return;
@@ -114,7 +112,6 @@ export const CommentInput = ({ ticketId, users = [] }) => {
     e.preventDefault();
     handleSend();
   };
-
 
   return (
     <div className="p-5 border-t border-gray-120 bg-white">
@@ -185,7 +182,10 @@ export const CommentInput = ({ ticketId, users = [] }) => {
         {selectedImages.length > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2">
             {selectedImages.map((file, idx) => (
-              <div key={`${file.name}-${idx}`} className="relative rounded-md border overflow-hidden">
+              <div
+                key={`${file.name}-${idx}`}
+                className="relative rounded-md border overflow-hidden"
+              >
                 <img
                   src={URL.createObjectURL(file)}
                   alt={file.name}
@@ -203,7 +203,6 @@ export const CommentInput = ({ ticketId, users = [] }) => {
           </div>
         )}
 
-
         <div
           className={cn(
             'absolute -top-5 right-1 text-[11px] font-semibold transition-colors flex items-center gap-1',
@@ -217,7 +216,11 @@ export const CommentInput = ({ ticketId, users = [] }) => {
         <div className="absolute -bottom-1 right-1  flex items-center gap-2">
           <Button
             size="icon"
-            disabled={(!newComment.trim() && selectedImages.length === 0) || isAtLimit || createMutation.isPending}
+            disabled={
+              (!newComment.trim() && selectedImages.length === 0) ||
+              isAtLimit ||
+              createMutation.isPending
+            }
             onClick={handleSend}
             className={cn(
               'h-8 w-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all active:scale-95',

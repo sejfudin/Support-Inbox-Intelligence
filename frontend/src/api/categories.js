@@ -7,13 +7,22 @@ export const getCategories = async (workspaceId) => {
   return response.data;
 };
 
-export const createCategory = async ({ name, color, workspaceId }) => {
-  const response = await apiClient.post('/categories', { name, color, workspaceId });
+export const createCategory = async ({ name, color, descriptionTemplate, workspaceId }) => {
+  const response = await apiClient.post('/categories', {
+    name,
+    color,
+    descriptionTemplate,
+    workspaceId,
+  });
   return response.data;
 };
 
-export const updateCategory = async (id, { name, color }) => {
-  const response = await apiClient.patch(`/categories/${id}`, { name, color });
+export const updateCategory = async (id, { name, color, descriptionTemplate }) => {
+  const response = await apiClient.patch(`/categories/${id}`, {
+    name,
+    color,
+    descriptionTemplate,
+  });
   return response.data;
 };
 

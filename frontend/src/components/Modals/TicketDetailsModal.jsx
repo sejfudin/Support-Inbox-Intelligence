@@ -15,11 +15,7 @@ import {
   ImagePlus,
   Plus,
 } from 'lucide-react';
-import { 
-  useTicket, 
-  useUpdateTicket,
-  useUploadTicketDescriptionImages,
-} from '@/queries/tickets';
+import { useTicket, useUpdateTicket, useUploadTicketDescriptionImages } from '@/queries/tickets';
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
 import { DeleteConfirmModal } from './DeleteConfirmModal';

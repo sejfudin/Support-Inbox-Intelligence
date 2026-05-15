@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useCreateTicket } from '@/queries/tickets';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import {
@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { htmlToPlainText } from '@/helpers/aiDescriptionPrompt';
+import { templateTextToDescriptionHtml } from '@/helpers/ticketDescriptionTemplates';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
@@ -47,6 +48,8 @@ const NewTickets = ({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
+  const [descriptionEditorKey, setDescriptionEditorKey] = useState(0);
+  const appliedTemplateHtmlRef = useRef('');
 
   const {
     isPromptPanelVisible,
@@ -84,6 +87,7 @@ const NewTickets = ({
   const resetSuggestionState = () => {
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
+    appliedTemplateHtmlRef.current = '';
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
   };
@@ -168,6 +172,37 @@ const NewTickets = ({
     }
   };
 
+  const replaceDescriptionFromCategory = (descriptionHtml) => {
+    updateField('description', descriptionHtml);
+    setDescriptionEditorKey((key) => key + 1);
+  };
+
+  const handleCategoryChange = (category) => {
+    const appliedTemplateHtml = appliedTemplateHtmlRef.current;
+
+    if (!category) {
+      updateField('category', null);
+
+      if (appliedTemplateHtml && newTicket.description === appliedTemplateHtml) {
+        replaceDescriptionFromCategory('');
+      }
+
+      appliedTemplateHtmlRef.current = '';
+      return;
+    }
+
+    const templateHtml = templateTextToDescriptionHtml(category.descriptionTemplate);
+    updateField('category', category._id);
+
+    if (templateHtml) {
+      replaceDescriptionFromCategory(templateHtml);
+    } else if (appliedTemplateHtml && newTicket.description === appliedTemplateHtml) {
+      replaceDescriptionFromCategory('');
+    }
+
+    appliedTemplateHtmlRef.current = templateHtml;
+  };
+
   const selectedUsersObjects = users.filter((u) => currentAssignees.includes(u._id));
   const isSubmitting = createMutation.isPending || isGeneratingDescription;
 
@@ -207,6 +242,7 @@ const NewTickets = ({
             <div className="grid grid-cols-1 gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
               <section className="flex flex-col rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden min-h-[360px] sm:min-h-[440px] lg:h-full lg:min-h-0">
                 <RichTextEditor
+                  key={descriptionEditorKey}
                   value={newTicket.description}
                   onChange={(html) => updateField('description', html)}
                   placeholder="Describe the ticket… (type /ai to generate a first draft)"
@@ -448,7 +484,7 @@ const NewTickets = ({
                         <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
-                            onClick={() => updateField('category', null)}
+                            onClick={() => handleCategoryChange(null)}
                             className={cn(
                               'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
                               newTicket.category === null
@@ -462,7 +498,7 @@ const NewTickets = ({
                             <button
                               key={cat._id}
                               type="button"
-                              onClick={() => updateField('category', cat._id)}
+                              onClick={() => handleCategoryChange(cat)}
                               className={cn(
                                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
                                 newTicket.category === cat._id

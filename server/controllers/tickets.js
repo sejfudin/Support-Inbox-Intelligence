@@ -257,7 +257,6 @@ const archiveTicket = async (req, res, next) => {
   }
 };
 
-
 const getMyTickets = async (req, res, next) => {
   try {
     const { page, limit, search, status, priority, priorities, priorityOrder, sortBy, sortOrder } =
