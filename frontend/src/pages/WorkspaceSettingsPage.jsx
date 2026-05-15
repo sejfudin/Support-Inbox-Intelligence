@@ -32,13 +32,13 @@ const WorkspaceSettingsPage = () => {
 
         <Card className="pt-6">
           <CardContent>
-            <CategorySettings workspaceId={id} />
+            <StatusSettings workspaceId={id} />
           </CardContent>
         </Card>
 
         <Card className="pt-6">
           <CardContent>
-            <StatusSettings workspaceId={id} />
+            <CategorySettings workspaceId={id} />
           </CardContent>
         </Card>
 

@@ -146,7 +146,7 @@ const StatusSettings = ({ workspaceId }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">Ticket statuses</h3>
+        <h3 className="text-sm font-semibold text-gray-900">Ticket Statuses</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           Customize workflow columns, order, and behavior for this workspace.
         </p>
