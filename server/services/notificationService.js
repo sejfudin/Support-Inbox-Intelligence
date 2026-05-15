@@ -68,7 +68,12 @@ const markAllRead = async (userId) => {
   return { ok: true, notificationIds };
 };
 
-const notifyNewTicketComment = async ({ ticket, authorId, commentPreview }) => {
+const notifyNewTicketComment = async ({
+  ticket,
+  authorId,
+  commentPreview,
+  excludeRecipientIds = [],
+}) => {
   if (!ticket || !ticket._id) return;
 
   const recipientIds = new Set();
@@ -79,6 +84,8 @@ const notifyNewTicketComment = async ({ ticket, authorId, commentPreview }) => {
     if (normalized) recipientIds.add(normalized);
   });
   recipientIds.delete(String(authorId));
+  const excluded = new Set((excludeRecipientIds || []).map((id) => String(id)));
+  excluded.forEach((id) => recipientIds.delete(id));
 
   if (recipientIds.size === 0) return;
 
@@ -146,10 +153,53 @@ const notifyTicketAssigned = async ({ ticket, assignedUserIds = [], actorUserId 
   }
 };
 
+const notifyTicketMention = async ({
+  ticket,
+  authorId,
+  recipientIds = [],
+  commentPreview = '',
+  commentId = null,
+}) => {
+  if (!ticket || !ticket._id) return;
+
+  const actorId = toRecipientId(authorId);
+  const uniqueRecipients = [
+    ...new Set((recipientIds || []).map(toRecipientId).filter(Boolean)),
+  ].filter((rid) => rid !== actorId);
+
+  if (uniqueRecipients.length === 0) return;
+
+  const taskLabel = ticket.taskNumber ? `#${ticket.taskNumber}` : 'ticket';
+  const title = `You were mentioned on ${taskLabel}`;
+  const body =
+    commentPreview && commentPreview.length > 200
+      ? `${commentPreview.slice(0, 197)}...`
+      : commentPreview || '';
+
+  for (const rid of uniqueRecipients) {
+    const n = await Notification.create({
+      recipient: rid,
+      read: false,
+      type: 'ticket_mention',
+      title,
+      body,
+      ticket: ticket._id,
+      workspace: ticket.workspace,
+      comment: commentId,
+    });
+
+    sendToUser(rid, 'new_notification', {
+      notification: n.toObject(),
+      unreadDelta: 1,
+    });
+  }
+};
+
 module.exports = {
   listForUser,
   markRead,
   markAllRead,
   notifyNewTicketComment,
   notifyTicketAssigned,
+  notifyTicketMention,
 };
