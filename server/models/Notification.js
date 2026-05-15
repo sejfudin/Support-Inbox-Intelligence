@@ -15,7 +15,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['ticket_comment', 'ticket_assigned'],
+      enum: ['ticket_comment', 'ticket_assigned', 'ticket_mention'],
       required: true,
     },
     title: {
@@ -34,6 +34,12 @@ const notificationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Ticket',
       required: true,
+      index: true,
+    },
+    comment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment',
+      default: null,
       index: true,
     },
     workspace: {
