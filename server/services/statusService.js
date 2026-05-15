@@ -4,6 +4,8 @@ const {
   StatusValidationError,
   validateStatusesPayload,
   validateStatusLabel,
+  assertUniqueBehaviorFlags,
+  assertUniqueLabelInWorkspace,
   mapStatusPersistenceError,
 } = require('../helpers/statusValidation');
 
@@ -238,6 +240,13 @@ const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, 
     }
   }
 
+  await assertUniqueLabelInWorkspace(workspaceId, trimmedLabel);
+  await assertUniqueBehaviorFlags(workspaceId, {
+    isBacklog: willBeBacklog,
+    tracksTime: Boolean(tracksTime),
+    isDone: Boolean(isDone),
+  });
+
   const slug = await generateUniqueSlug(workspaceId, trimmedLabel);
   const maxOrder = await TicketStatus.findOne({ workspace: workspaceId })
     .sort('-sortOrder')
@@ -273,7 +282,9 @@ const updateStatus = async (statusId, updates) => {
   }
 
   if (updates.label !== undefined) {
-    status.label = validateStatusLabel(updates.label);
+    const trimmedLabel = validateStatusLabel(updates.label);
+    await assertUniqueLabelInWorkspace(status.workspace, trimmedLabel, status._id);
+    status.label = trimmedLabel;
   }
 
   if (updates.slug !== undefined) {
@@ -298,6 +309,16 @@ const updateStatus = async (statusId, updates) => {
   if (updates.isBacklog !== undefined) status.isBacklog = nextIsBacklog;
   if (updates.tracksTime !== undefined) status.tracksTime = Boolean(updates.tracksTime);
   if (updates.isDone !== undefined) status.isDone = Boolean(updates.isDone);
+
+  await assertUniqueBehaviorFlags(
+    status.workspace,
+    {
+      isBacklog: status.isBacklog,
+      tracksTime: status.tracksTime,
+      isDone: status.isDone,
+    },
+    status._id
+  );
 
   try {
     await status.save();

@@ -14,6 +14,9 @@ export const validateStatusDrafts = (drafts) => {
   const labelKeys = new Set();
   const slugKeys = new Set();
   let mainBoardCount = 0;
+  let backlogCount = 0;
+  let tracksTimeCount = 0;
+  let doneCount = 0;
 
   for (let index = 0; index < drafts.length; index += 1) {
     const item = drafts[index];
@@ -50,8 +53,18 @@ export const validateStatusDrafts = (drafts) => {
     }
     slugKeys.add(slug);
 
-    if (!item?.isBacklog) {
+    if (item?.isBacklog) {
+      backlogCount += 1;
+    } else {
       mainBoardCount += 1;
+    }
+
+    if (item?.tracksTime) {
+      tracksTimeCount += 1;
+    }
+
+    if (item?.isDone) {
+      doneCount += 1;
     }
   }
 
@@ -61,6 +74,18 @@ export const validateStatusDrafts = (drafts) => {
       message:
         'At least one status must be on the main board (turn off Backlog for at least one column).',
     };
+  }
+
+  if (backlogCount > 1) {
+    return { valid: false, message: 'Only one status can be marked as Backlog.' };
+  }
+
+  if (tracksTimeCount > 1) {
+    return { valid: false, message: 'Only one status can track time.' };
+  }
+
+  if (doneCount > 1) {
+    return { valid: false, message: 'Only one status can be marked as Done.' };
   }
 
   return { valid: true, message: '' };
