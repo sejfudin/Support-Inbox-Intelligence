@@ -39,7 +39,7 @@ export const useCreateTicketStatus = (workspaceId) => {
 export const useUpdateTicketStatus = (workspaceId) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }) => updateTicketStatus(id, data),
+    mutationFn: ({ id, ...data }) => updateTicketStatus(id, data, workspaceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
     },
@@ -49,7 +49,7 @@ export const useUpdateTicketStatus = (workspaceId) => {
 export const useDeleteTicketStatus = (workspaceId) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: deleteTicketStatus,
+    mutationFn: (id) => deleteTicketStatus(id, workspaceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
     },

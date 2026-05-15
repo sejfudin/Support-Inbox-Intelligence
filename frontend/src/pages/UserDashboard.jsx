@@ -35,13 +35,17 @@ export default function UserDashboard() {
     data: ticketsData,
     isLoading,
     isError,
-  } = useMyTickets({
-    page: requestedPage,
-    limit: 10,
-    search: debouncedSearch,
-    sortBy: 'updatedAt',
-    sortOrder: 'desc',
-  });
+  } = useMyTickets(
+    {
+      page: requestedPage,
+      limit: 10,
+      search: debouncedSearch,
+      sortBy: 'updatedAt',
+      sortOrder: 'desc',
+      workspaceId: user?.workspaceId,
+    },
+    { enabled: !!user?.workspaceId }
+  );
 
   const pagination = ticketsData?.pagination;
 

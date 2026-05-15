@@ -250,7 +250,7 @@ export default function TicketPage() {
     activeTab,
     archived: false,
     status: 'not_null',
-    workspaceId: overrideWorkspaceId,
+    workspaceId: effectiveWorkspaceId,
     queryFilters,
   });
 

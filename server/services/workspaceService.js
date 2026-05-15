@@ -8,9 +8,13 @@ const {
   cancelWorkspaceInvitationsForUser,
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
-const { createStatusesForWorkspace } = require('./statusService');
+const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
 
 const createWorkspace = async ({ name, description, ownerId, statuses }) => {
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    validateStatusesPayload(statuses);
+  }
+
   const workspace = await Workspace.create({
     name,
     description,

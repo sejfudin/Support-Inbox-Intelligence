@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { acceptInvitation, declineInvitation, getMyInvitations } from '@/api/invitations';
 import { authKeys } from '@/queries/auth';
 import { workspaceKeys } from '@/queries/workspaces';
+import { applyActiveWorkspaceChange } from '@/lib/workspaceQueryCache';
 
 export const invitationKeys = {
   all: ['invitations'],
@@ -29,11 +30,12 @@ export const useAcceptInvitation = () => {
 
   return useMutation({
     mutationFn: acceptInvitation,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const workspaceId =
+        data?.workspaceId ?? data?.workspace?._id ?? data?.user?.workspaceId ?? null;
+      applyActiveWorkspaceChange(queryClient, workspaceId);
       invalidateInvitationRelatedData(queryClient);
       queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
-      queryClient.removeQueries({ queryKey: ['tickets'] });
-      queryClient.removeQueries({ queryKey: ['users'] });
     },
   });
 };

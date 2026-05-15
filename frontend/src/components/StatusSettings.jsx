@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import TicketStatusEditor from '@/components/TicketStatusEditor';
+import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 import {
   useTicketStatusesQuery,
   useCreateTicketStatus,
@@ -28,9 +29,13 @@ const StatusSettings = ({ workspaceId }) => {
   const deleteMutation = useDeleteTicketStatus(workspaceId);
   const reorderMutation = useReorderTicketStatuses(workspaceId);
 
+  const resetFromServer = () => {
+    setItems(statuses.map(toEditorItem));
+  };
+
   useEffect(() => {
     if (!isLoading) {
-      setItems(statuses.map(toEditorItem));
+      resetFromServer();
     }
   }, [statuses, isLoading]);
 
@@ -52,7 +57,8 @@ const StatusSettings = ({ workspaceId }) => {
         toast.success('Status created');
         await refetch();
       } catch (err) {
-        toast.error(err.response?.data?.message || 'Failed to create status');
+        toast.error(getApiErrorMessage(err, 'Failed to create status'));
+        resetFromServer();
       }
       return;
     }
@@ -67,7 +73,8 @@ const StatusSettings = ({ workspaceId }) => {
           toast.success('Status deleted');
           await refetch();
         } catch (err) {
-          toast.error(err.response?.data?.message || 'Failed to delete status');
+          toast.error(getApiErrorMessage(err, 'Failed to delete status'));
+          resetFromServer();
         }
       }
       return;
@@ -85,15 +92,16 @@ const StatusSettings = ({ workspaceId }) => {
         });
         setItems(nextItems);
       } catch (err) {
-        toast.error(err.response?.data?.message || 'Failed to reorder statuses');
-        setItems(statuses.map(toEditorItem));
+        toast.error(getApiErrorMessage(err, 'Failed to reorder statuses'));
+        resetFromServer();
       }
       return;
     }
 
-    const updated = nextItems.find((next, index) => {
-      const prev = items[index];
-      if (!prev?._id || !next?._id) return false;
+    const updated = nextItems.find((next) => {
+      if (!next?._id) return false;
+      const prev = items.find((item) => item._id === next._id);
+      if (!prev) return false;
       return (
         next.label !== prev.label ||
         next.color !== prev.color ||
@@ -116,8 +124,8 @@ const StatusSettings = ({ workspaceId }) => {
         setItems(nextItems);
         toast.success('Status updated');
       } catch (err) {
-        toast.error(err.response?.data?.message || 'Failed to update status');
-        setItems(statuses.map(toEditorItem));
+        toast.error(getApiErrorMessage(err, 'Failed to update status'));
+        resetFromServer();
       }
       return;
     }

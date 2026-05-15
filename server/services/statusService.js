@@ -1,5 +1,11 @@
 const TicketStatus = require('../models/TicketStatus');
 const Ticket = require('../models/Ticket');
+const {
+  StatusValidationError,
+  validateStatusesPayload,
+  validateStatusLabel,
+  mapStatusPersistenceError,
+} = require('../helpers/statusValidation');
 
 const DEFAULT_STATUSES = [
   { slug: 'backlog', label: 'Backlog', color: '#6b7280', isBacklog: true, tracksTime: false, isDone: false },
@@ -76,13 +82,14 @@ const createStatusesForWorkspace = async (workspaceId, statusesPayload = []) => 
     return seedDefaultStatuses(workspaceId);
   }
 
+  validateStatusesPayload(statusesPayload);
+
   const docs = [];
   for (let i = 0; i < statusesPayload.length; i += 1) {
     const item = statusesPayload[i];
-    const label = String(item.label || '').trim();
-    if (!label) continue;
-
+    const label = validateStatusLabel(item.label);
     const slug = item.slug ? slugifyLabel(item.slug) : await generateUniqueSlug(workspaceId, label);
+
     docs.push({
       workspace: workspaceId,
       slug,
@@ -95,16 +102,12 @@ const createStatusesForWorkspace = async (workspaceId, statusesPayload = []) => 
     });
   }
 
-  if (docs.length === 0) {
-    return seedDefaultStatuses(workspaceId);
+  try {
+    await TicketStatus.insertMany(docs);
+  } catch (error) {
+    throw mapStatusPersistenceError(error);
   }
 
-  const hasMainBoard = docs.some((d) => !d.isBacklog);
-  if (!hasMainBoard) {
-    throw new Error('At least one main-board status is required');
-  }
-
-  await TicketStatus.insertMany(docs);
   return getWorkspaceStatuses(workspaceId);
 };
 
@@ -213,9 +216,27 @@ const applyStatusLifecycleUpdate = async ({
   }
 };
 
+const assertMainBoardRemains = async (workspaceId, excludeId) => {
+  const mainCount = await countMainBoardStatuses(workspaceId, excludeId);
+  if (mainCount === 0) {
+    throw new StatusValidationError(
+      'At least one status must remain on the main board. Turn off Backlog on another status first.'
+    );
+  }
+};
+
 const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, isDone }) => {
-  const trimmedLabel = String(label || '').trim();
-  if (!trimmedLabel) throw new Error('Status label is required');
+  const trimmedLabel = validateStatusLabel(label);
+  const willBeBacklog = Boolean(isBacklog);
+
+  if (willBeBacklog) {
+    const existingMain = await countMainBoardStatuses(workspaceId);
+    if (existingMain === 0) {
+      throw new StatusValidationError(
+        'The first status on the main board cannot be backlog-only. Add a board column first.'
+      );
+    }
+  }
 
   const slug = await generateUniqueSlug(workspaceId, trimmedLabel);
   const maxOrder = await TicketStatus.findOne({ workspace: workspaceId })
@@ -224,82 +245,75 @@ const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, 
     .lean();
   const sortOrder = maxOrder ? maxOrder.sortOrder + 1 : 0;
 
-  return TicketStatus.create({
-    workspace: workspaceId,
-    slug,
-    label: trimmedLabel,
-    color: color || '#6366f1',
-    sortOrder,
-    isBacklog: Boolean(isBacklog),
-    tracksTime: Boolean(tracksTime),
-    isDone: Boolean(isDone),
-  });
+  try {
+    return await TicketStatus.create({
+      workspace: workspaceId,
+      slug,
+      label: trimmedLabel,
+      color: color || '#6366f1',
+      sortOrder,
+      isBacklog: willBeBacklog,
+      tracksTime: Boolean(tracksTime),
+      isDone: Boolean(isDone),
+    });
+  } catch (error) {
+    throw mapStatusPersistenceError(error);
+  }
 };
 
 const updateStatus = async (statusId, updates) => {
   const status = await TicketStatus.findById(statusId);
-  if (!status) throw new Error('Status not found');
+  if (!status) throw new StatusValidationError('Status not found.');
 
   const nextIsBacklog =
     updates.isBacklog !== undefined ? Boolean(updates.isBacklog) : status.isBacklog;
 
-  if (nextIsBacklog) {
-    const mainCount = await countMainBoardStatuses(status.workspace, status._id);
-    if (mainCount === 0 && !status.isBacklog) {
-      throw new Error('Cannot remove the last main-board status');
-    }
-  } else if (status.isBacklog && !nextIsBacklog) {
-    // ok
-  } else if (!nextIsBacklog) {
-    // ok
-  } else if (nextIsBacklog && !status.isBacklog) {
-    const mainCount = await countMainBoardStatuses(status.workspace, status._id);
-    if (mainCount === 0) {
-      throw new Error('Cannot remove the last main-board status');
-    }
+  if (!status.isBacklog && nextIsBacklog) {
+    await assertMainBoardRemains(status.workspace, status._id);
   }
 
   if (updates.label !== undefined) {
-    const trimmed = String(updates.label).trim();
-    if (!trimmed) throw new Error('Status label is required');
-    status.label = trimmed;
+    status.label = validateStatusLabel(updates.label);
   }
 
   if (updates.slug !== undefined) {
-    status.slug = slugifyLabel(updates.slug);
+    const nextSlug = slugifyLabel(updates.slug);
+    if (!nextSlug) {
+      throw new StatusValidationError('Status key is invalid.');
+    }
     const duplicate = await TicketStatus.findOne({
       workspace: status.workspace,
-      slug: status.slug,
+      slug: nextSlug,
       _id: { $ne: status._id },
     });
-    if (duplicate) throw new Error('Status slug already exists in this workspace');
+    if (duplicate) {
+      throw new StatusValidationError(
+        `Another status already uses the key "${nextSlug}" in this workspace.`
+      );
+    }
+    status.slug = nextSlug;
   }
 
   if (updates.color !== undefined) status.color = updates.color;
-  if (updates.isBacklog !== undefined) status.isBacklog = Boolean(updates.isBacklog);
+  if (updates.isBacklog !== undefined) status.isBacklog = nextIsBacklog;
   if (updates.tracksTime !== undefined) status.tracksTime = Boolean(updates.tracksTime);
   if (updates.isDone !== undefined) status.isDone = Boolean(updates.isDone);
 
-  if (status.isBacklog === false && updates.isBacklog === true) {
-    const mainCount = await countMainBoardStatuses(status.workspace, status._id);
-    if (mainCount === 0) {
-      throw new Error('Cannot remove the last main-board status');
-    }
+  try {
+    await status.save();
+  } catch (error) {
+    throw mapStatusPersistenceError(error);
   }
 
-  await status.save();
   return status;
 };
 
 const deleteStatus = async (statusId) => {
   const status = await TicketStatus.findById(statusId);
-  if (!status) throw new Error('Status not found');
+  if (!status) throw new StatusValidationError('Status not found.');
 
   if (!status.isBacklog) {
-    const mainCount = await countMainBoardStatuses(status.workspace, status._id);
-    if (mainCount === 0) {
-      throw new Error('Cannot delete the last main-board status');
-    }
+    await assertMainBoardRemains(status.workspace, status._id);
   }
 
   const ticketCount = await Ticket.countDocuments({
@@ -307,7 +321,10 @@ const deleteStatus = async (statusId) => {
     status: status.slug,
   });
   if (ticketCount > 0) {
-    throw new Error('Cannot delete a status that is in use by tickets');
+    const ticketWord = ticketCount === 1 ? 'ticket' : 'tickets';
+    throw new StatusValidationError(
+      `Cannot delete "${status.label}" because ${ticketCount} ${ticketWord} still use this status. Reassign those tickets first.`
+    );
   }
 
   await TicketStatus.findByIdAndDelete(statusId);
@@ -316,15 +333,23 @@ const deleteStatus = async (statusId) => {
 
 const reorderStatuses = async (workspaceId, orderedIds) => {
   if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    throw new Error('orderedIds is required');
+    throw new StatusValidationError('Status order is required.');
   }
 
   const statuses = await TicketStatus.find({ workspace: workspaceId });
   const statusMap = new Map(statuses.map((s) => [s._id.toString(), s]));
 
+  if (orderedIds.length !== statuses.length) {
+    throw new StatusValidationError(
+      'Status order must include every status in this workspace exactly once.'
+    );
+  }
+
   const updates = orderedIds.map((id, index) => {
     const doc = statusMap.get(String(id));
-    if (!doc) throw new Error('Invalid status id in reorder list');
+    if (!doc) {
+      throw new StatusValidationError('One or more statuses in the order list do not belong to this workspace.');
+    }
     return TicketStatus.updateOne({ _id: doc._id }, { $set: { sortOrder: index } });
   });
 
@@ -338,11 +363,13 @@ const validateIntegrationTargetStatus = async (workspaceId, slug) => {
 };
 
 module.exports = {
+  StatusValidationError,
   DEFAULT_STATUSES,
   slugifyLabel,
   generateUniqueSlug,
   seedDefaultStatuses,
   createStatusesForWorkspace,
+  validateStatusesPayload,
   getWorkspaceStatuses,
   getStatusBySlug,
   validateStatusForWorkspace,

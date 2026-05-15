@@ -13,6 +13,7 @@ import {
   getUserAnalytics,
 } from '@/api/workspaces';
 import { authKeys } from '@/queries/auth';
+import { applyActiveWorkspaceChange } from '@/lib/workspaceQueryCache';
 
 export const workspaceKeys = {
   all: ['workspaces'],
@@ -60,10 +61,14 @@ export const useCreateWorkspace = () => {
 
   return useMutation({
     mutationFn: createWorkspace,
-    onSuccess: () => {
+    onSuccess: (workspace) => {
+      const workspaceId = workspace?._id ?? workspace?.id;
+      applyActiveWorkspaceChange(queryClient, workspaceId);
       queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
       queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
-      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+      if (workspaceId) {
+        queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) });
+      }
     },
   });
 };
@@ -97,16 +102,11 @@ export const useSwitchWorkspace = () => {
   return useMutation({
     mutationFn: switchWorkspace,
     onSuccess: (_, workspaceId) => {
-      queryClient.setQueryData(authKeys.me(), (currentUser) => {
-        if (!currentUser) return currentUser;
-        return {
-          ...currentUser,
-          workspaceId,
-        };
-      });
-      queryClient.invalidateQueries({ queryKey: authKeys.me() });
-      queryClient.removeQueries({ queryKey: ['tickets'] });
-      queryClient.removeQueries({ queryKey: ['users'] });
+      applyActiveWorkspaceChange(queryClient, workspaceId);
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
+      if (workspaceId) {
+        queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) });
+      }
     },
   });
 };

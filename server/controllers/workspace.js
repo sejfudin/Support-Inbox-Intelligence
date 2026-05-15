@@ -1,4 +1,5 @@
 const workspaceService = require('../services/workspaceService');
+const { StatusValidationError } = require('../helpers/statusValidation');
 
 exports.createWorkspace = async (req, res, next) => {
   try {
@@ -14,6 +15,9 @@ exports.createWorkspace = async (req, res, next) => {
 
     res.status(201).json(workspace);
   } catch (err) {
+    if (err instanceof StatusValidationError || err.statusCode === 400) {
+      return res.status(400).json({ message: err.message });
+    }
     next(err);
   }
 };

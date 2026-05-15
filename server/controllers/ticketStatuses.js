@@ -1,4 +1,30 @@
 const statusService = require('../services/statusService');
+const { StatusValidationError } = require('../helpers/statusValidation');
+const TicketStatus = require('../models/TicketStatus');
+
+const sendStatusError = (res, error) => {
+  if (error instanceof StatusValidationError || error.statusCode === 400) {
+    return res.status(400).json({ success: false, message: error.message });
+  }
+  if (error.message === 'Status not found.' || error.message === 'Status not found') {
+    return res.status(404).json({ success: false, message: 'Status not found.' });
+  }
+  return res.status(500).json({ success: false, message: error.message });
+};
+
+const assertStatusInWorkspace = async (statusId, workspaceId) => {
+  if (!workspaceId) return null;
+  const status = await TicketStatus.findById(statusId);
+  if (!status) {
+    const err = new StatusValidationError('Status not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (status.workspace.toString() !== workspaceId.toString()) {
+    throw new StatusValidationError('This status does not belong to the selected workspace.');
+  }
+  return status;
+};
 
 const resolveWorkspaceId = (req) => {
   const isAdmin = req.user?.role === 'admin';
@@ -42,33 +68,37 @@ const createTicketStatus = async (req, res) => {
 
     res.status(201).json({ success: true, data: status });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    return sendStatusError(res, error);
   }
 };
 
 const updateTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    const workspaceId = resolveWorkspaceId(req);
+    await assertStatusInWorkspace(id, workspaceId);
     const status = await statusService.updateStatus(id, req.body);
     res.status(200).json({ success: true, data: status });
   } catch (error) {
-    if (error.message === 'Status not found') {
+    if (error.statusCode === 404) {
       return res.status(404).json({ success: false, message: error.message });
     }
-    res.status(400).json({ success: false, message: error.message });
+    return sendStatusError(res, error);
   }
 };
 
 const deleteTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
+    const workspaceId = resolveWorkspaceId(req);
+    await assertStatusInWorkspace(id, workspaceId);
     const result = await statusService.deleteStatus(id);
     res.status(200).json({ success: true, message: result.message });
   } catch (error) {
-    if (error.message === 'Status not found') {
+    if (error.statusCode === 404) {
       return res.status(404).json({ success: false, message: error.message });
     }
-    res.status(400).json({ success: false, message: error.message });
+    return sendStatusError(res, error);
   }
 };
 
@@ -84,7 +114,7 @@ const reorderTicketStatuses = async (req, res) => {
     const statuses = await statusService.reorderStatuses(workspaceId, orderedIds);
     res.status(200).json({ success: true, data: statuses });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    return sendStatusError(res, error);
   }
 };
 

@@ -19,13 +19,17 @@ export const createTicketStatus = async ({ label, color, isBacklog, tracksTime, 
   return response.data;
 };
 
-export const updateTicketStatus = async (id, data) => {
-  const response = await apiClient.patch(`/ticket-statuses/${id}`, data);
+export const updateTicketStatus = async (id, data, workspaceId) => {
+  const response = await apiClient.patch(`/ticket-statuses/${id}`, data, {
+    params: workspaceId ? { workspaceId } : undefined,
+  });
   return response.data;
 };
 
-export const deleteTicketStatus = async (id) => {
-  const response = await apiClient.delete(`/ticket-statuses/${id}`);
+export const deleteTicketStatus = async (id, workspaceId) => {
+  const response = await apiClient.delete(`/ticket-statuses/${id}`, {
+    params: workspaceId ? { workspaceId } : undefined,
+  });
   return response.data;
 };
 

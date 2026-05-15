@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useDebounce } from 'use-debounce';
+import { useAuth } from '@/context/AuthContext';
 import { useTickets } from '@/queries/tickets';
 import { normalizeTicket } from '@/helpers/normalizeTicket';
 import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
@@ -10,10 +11,13 @@ export function useTicketList({
   queryFilters = {},
   enabled = true,
 }) {
+  const { user } = useAuth();
   const [requestedPage, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [debounceSearch] = useDebounce(search, 500);
   const limit = 10;
+
+  const activeWorkspaceId = additionalFilters.workspaceId ?? user?.workspaceId;
 
   const queryParams = getTicketsQueryParams({
     page: requestedPage,
@@ -21,6 +25,7 @@ export function useTicketList({
     activeTab,
     listLimit: limit,
     queryFilters,
+    workspaceId: activeWorkspaceId,
     ...additionalFilters,
   });
 

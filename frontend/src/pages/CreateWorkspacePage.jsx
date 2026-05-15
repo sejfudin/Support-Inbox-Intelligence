@@ -10,6 +10,8 @@ import InvitationInbox from '@/components/InvitationInbox';
 import { useCreateWorkspace } from '@/queries/workspaces';
 import TicketStatusEditor from '@/components/TicketStatusEditor';
 import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
+import { validateStatusDrafts } from '@/helpers/validateStatusDrafts';
+import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/queries/invitations';
 
@@ -235,6 +237,12 @@ export default function CreateWorkspacePage() {
     e.preventDefault();
     setError('');
 
+    const statusValidation = validateStatusDrafts(statusDrafts);
+    if (!statusValidation.valid) {
+      setError(statusValidation.message);
+      return;
+    }
+
     createWorkspace.mutate(
       { name: name.trim(), description: description.trim(), statuses: statusDrafts },
       {
@@ -243,7 +251,7 @@ export default function CreateWorkspacePage() {
           navigate('/admin/workspaces');
         },
         onError: (err) => {
-          setError(err.response?.data?.message || 'Failed to create workspace.');
+          setError(getApiErrorMessage(err, 'Failed to create workspace.'));
         },
       }
     );
