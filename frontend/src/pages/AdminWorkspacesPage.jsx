@@ -264,7 +264,11 @@ export default function AdminWorkspacesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form id="create-workspace-form" onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col">
+          <form
+            id="create-workspace-form"
+            onSubmit={handleCreate}
+            className="flex min-h-0 flex-1 flex-col"
+          >
             <div className="flex-1 space-y-8 overflow-y-auto px-6 py-5">
               {createError && (
                 <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
@@ -273,14 +277,7 @@ export default function AdminWorkspacesPage() {
               )}
 
               <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Workspace details</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Name and describe this space so it is easy to recognize in the admin list.
-                  </p>
-                </div>
-
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="flex flex-col gap-5">
                   <div className="space-y-2">
                     <label htmlFor="admin-workspace-name" className="text-sm font-medium">
                       Workspace name
@@ -313,7 +310,7 @@ export default function AdminWorkspacesPage() {
                 </div>
               </section>
 
-              <section className="space-y-4 border-t border-slate-100 pt-8">
+              <section className="space-y-4 border-t border-slate-100 pt-2">
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">Ticket workflow</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
