@@ -13,62 +13,76 @@ export const DEFAULT_STATUS_DRAFTS = [
   { label: 'Done', color: '#22c55e', isBacklog: false, tracksTime: false, isDone: true },
 ];
 
-const COLUMN_STYLE_KEYS = ['todo', 'inprogress', 'blocked', 'staging', 'done'];
-
-const pickColumnStyleKey = (slug, index) => {
-  const normalized = slugToColumnId(slug);
-  if (COLUMN_STYLE_KEYS.includes(normalized)) return normalized;
-  const keys = ['todo', 'inprogress', 'staging', 'blocked', 'done'];
-  return keys[index % keys.length];
+const parseHexColor = (value) => {
+  if (!value || typeof value !== 'string') return null;
+  const hex = value.trim().replace(/^#/, '');
+  if (hex.length === 3) {
+    return {
+      r: parseInt(hex[0] + hex[0], 16),
+      g: parseInt(hex[1] + hex[1], 16),
+      b: parseInt(hex[2] + hex[2], 16),
+    };
+  }
+  if (hex.length === 6 && /^[0-9a-f]+$/i.test(hex)) {
+    return {
+      r: parseInt(hex.slice(0, 2), 16),
+      g: parseInt(hex.slice(2, 4), 16),
+      b: parseInt(hex.slice(4, 6), 16),
+    };
+  }
+  return null;
 };
 
-export const STATUS_STYLES = {
-  todo: {
-    pill: 'bg-slate-50 text-slate-600',
-    border: 'border-slate-300',
-    card: 'border-slate-200 shadow-[0_14px_28px_-24px_rgba(100,116,139,0.5)]',
-  },
-  inprogress: {
-    pill: 'bg-blue-50 text-blue-600',
-    border: 'border-blue-300',
-    card: 'border-blue-200 shadow-[0_14px_28px_-24px_rgba(59,130,246,0.45)]',
-  },
-  blocked: {
-    pill: 'bg-red-50 text-red-600',
-    border: 'border-red-300',
-    card: 'border-red-200 shadow-[0_14px_28px_-24px_rgba(239,68,68,0.4)]',
-  },
-  staging: {
-    pill: 'bg-purple-50 text-purple-600',
-    border: 'border-purple-300',
-    card: 'border-purple-200 shadow-[0_14px_28px_-24px_rgba(168,85,247,0.45)]',
-  },
-  done: {
-    pill: 'bg-green-50 text-green-600',
-    border: 'border-green-300',
-    card: 'border-green-200 shadow-[0_14px_28px_-24px_rgba(34,197,94,0.45)]',
-  },
+/** Board column top border + card accent from workspace status color. */
+export const getColumnAccentStyles = (color) => {
+  const borderTopColor = color?.trim() || '#94a3b8';
+  const rgb = parseHexColor(borderTopColor);
+  if (!rgb) {
+    return {
+      borderTopColor,
+      cardStyle: { borderColor: `${borderTopColor}55` },
+    };
+  }
+  const { r, g, b } = rgb;
+  const normalized = borderTopColor.startsWith('#') ? borderTopColor : `#${borderTopColor.replace(/^#/, '')}`;
+  return {
+    borderTopColor: normalized,
+    cardStyle: {
+      borderColor: `rgba(${r}, ${g}, ${b}, 0.35)`,
+      boxShadow: `0 14px 28px -24px rgba(${r}, ${g}, ${b}, 0.45)`,
+    },
+  };
 };
 
 export const buildTicketStatusHelpers = (statuses = []) => {
   const boardStatuses = statuses.filter((s) => !s.isBacklog);
 
-  const statusOptions = boardStatuses.map((s, index) => ({
+  const statusOptions = boardStatuses.map((s) => ({
     value: s.slug,
     label: s.label,
     columnId: slugToColumnId(s.slug),
     color: s.color,
     tracksTime: s.tracksTime,
     isDone: s.isDone,
-    styleKey: pickColumnStyleKey(s.slug, index),
   }));
 
   const statusToColumn = Object.fromEntries(
     statusOptions.map((s) => [s.value, s.columnId])
   );
-  statusToColumn.open = statusOptions[0]?.columnId ?? 'todo';
-  statusToColumn.pending = statusOptions.find((s) => s.tracksTime)?.columnId ?? statusOptions[0]?.columnId;
-  statusToColumn.closed = statusOptions.find((s) => s.isDone)?.columnId ?? 'done';
+
+  /** Pre-custom-status ticket values only — must not overwrite real slugs like "closed". */
+  const legacyStatusToColumn = {
+    open: statusOptions[0]?.columnId ?? 'todo',
+    pending:
+      statusOptions.find((s) => s.tracksTime)?.columnId ?? statusOptions[0]?.columnId ?? 'todo',
+    closed: statusOptions.find((s) => s.isDone)?.columnId ?? 'done',
+  };
+
+  const resolveBoardColumnId = (status) => {
+    const key = status?.toLowerCase();
+    if (!key) return boardColumns[0]?.id;
+    return statusToColumn[key] ?? legacyStatusToColumn[key] ?? boardColumns[0]?.id;
+  };
 
   const columnToStatus = Object.fromEntries(
     statusOptions.map((s) => [s.columnId, s.value])
@@ -78,7 +92,6 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     id: s.columnId,
     title: s.label,
     slug: s.value,
-    styleKey: s.styleKey,
     color: s.color,
   }));
 
@@ -114,6 +127,8 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     statusOptions,
     statusTabs,
     statusToColumn,
+    legacyStatusToColumn,
+    resolveBoardColumnId,
     columnToStatus,
     boardColumns,
     statusBadgeConfig,
@@ -135,6 +150,5 @@ export const buildTicketStatusHelpers = (statuses = []) => {
 
 export const getColumnStyle = (helpers, columnId) => {
   const col = helpers.boardColumns.find((c) => c.id === columnId);
-  const styleKey = col?.styleKey ?? 'todo';
-  return STATUS_STYLES[styleKey] ?? STATUS_STYLES.todo;
+  return getColumnAccentStyles(col?.color);
 };

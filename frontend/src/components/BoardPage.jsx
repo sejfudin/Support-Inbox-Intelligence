@@ -26,7 +26,7 @@ import { getColumnStyle } from '../helpers/ticketStatus';
 import { normalizeTicket } from '../helpers/normalizeTicket';
 import { cn } from '../lib/utils';
 
-function TaskCard({ task, onOpen, cardClassName }) {
+function TaskCard({ task, onOpen, cardClassName, cardStyle }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -44,7 +44,11 @@ function TaskCard({ task, onOpen, cardClassName }) {
         tabIndex={0}
         onClick={() => onOpen(task.id)}
         onKeyDown={(e) => e.key === 'Enter' && onOpen(task.id)}
-        className={`cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(108,105,255,0.55)] ${cardClassName}`}
+        className={cn(
+          'cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5',
+          cardClassName
+        )}
+        style={cardStyle}
       >
         <CardContent className="p-3">
           {task.taskNumber && (
@@ -86,9 +90,11 @@ function Column({ col, onOpen, onNewTicket, boardHelpers }) {
   return (
     <Card
       ref={setNodeRef}
-      className={`w-[320px] shrink-0 border-white/70 bg-white/85 ${style.border} border-t-4 transition-all duration-300 ease-in-out ${
-        isDroppingOver ? 'bg-blue-50/60 ring-4 ring-blue-400/20 scale-[1.02] shadow-lg z-10' : ''
-      }`}
+      className={cn(
+        'w-[320px] shrink-0 border-white/70 bg-white/85 border-t-4 transition-all duration-300 ease-in-out',
+        isDroppingOver && 'bg-blue-50/60 ring-4 ring-blue-400/20 scale-[1.02] shadow-lg z-10'
+      )}
+      style={{ borderTopColor: style.borderTopColor }}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
@@ -105,7 +111,7 @@ function Column({ col, onOpen, onNewTicket, boardHelpers }) {
       <CardContent className="space-y-3 pt-0 min-h-[150px]">
         <SortableContext items={col.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {col.tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onOpen={onOpen} cardClassName={style.card} />
+            <TaskCard key={t.id} task={t} onOpen={onOpen} cardStyle={style.cardStyle} />
           ))}
         </SortableContext>
       </CardContent>
@@ -141,8 +147,7 @@ export default function BoardPage({
 
     for (const t of tickets) {
       const normalized = normalizeTicket(t);
-      const dbStatus = (normalized.status || '').toLowerCase();
-      const colId = boardHelpers.statusToColumn[dbStatus] || boardHelpers.boardColumns[0]?.id;
+      const colId = boardHelpers.resolveBoardColumnId(normalized.status);
 
       const task = {
         id: normalized.id,
@@ -180,9 +185,7 @@ export default function BoardPage({
     if (!activeTicket) return;
 
     const normalizedActive = normalizeTicket(activeTicket);
-    const currentStatus = (normalizedActive.status || '').toLowerCase();
-    const currentColumnId =
-      boardHelpers?.statusToColumn[currentStatus] || boardHelpers?.boardColumns[0]?.id;
+    const currentColumnId = boardHelpers?.resolveBoardColumnId(normalizedActive.status);
 
     let destinationColumnId = null;
 
