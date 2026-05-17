@@ -1,5 +1,6 @@
 const TicketStatus = require('../models/TicketStatus');
 const Ticket = require('../models/Ticket');
+const Integration = require('../models/Integration');
 const { pickFallbackSlug } = require('../helpers/statusSlugAliases');
 const {
   StatusValidationError,
@@ -337,6 +338,55 @@ const assertMainBoardRemains = async (workspaceId, excludeId) => {
   }
 };
 
+const syncIntegrationStatusSlugs = async (workspaceId, oldSlug, newSlug) => {
+  const normalizedOld = slugifyLabel(oldSlug);
+  const normalizedNew = slugifyLabel(newSlug);
+  if (!normalizedOld || !normalizedNew || normalizedOld === normalizedNew) return;
+
+  const integration = await Integration.findOne({ workspace: workspaceId });
+  if (!integration?.settings) return;
+
+  const settings = integration.settings;
+  const repairs = {};
+
+  if (slugifyLabel(settings.onMergeTargetStatus) === normalizedOld) {
+    repairs.onMergeTargetStatus = normalizedNew;
+  }
+  if (slugifyLabel(settings.onPROpenTargetStatus) === normalizedOld) {
+    repairs.onPROpenTargetStatus = normalizedNew;
+  }
+
+  if (Object.keys(repairs).length === 0) return;
+
+  integration.settings = { ...settings, ...repairs };
+  await integration.save();
+};
+
+const applyStatusSlugChange = async (status, nextSlug) => {
+  const normalized = slugifyLabel(nextSlug);
+  if (!normalized) {
+    throw new StatusValidationError('Status key is required.');
+  }
+
+  if (normalized === status.slug) return false;
+
+  const duplicate = await TicketStatus.exists({
+    workspace: status.workspace,
+    slug: normalized,
+    _id: { $ne: status._id },
+  });
+  if (duplicate) {
+    throw new StatusValidationError(
+      `Another status already uses the key "${normalized}". Choose a different name.`
+    );
+  }
+
+  const oldSlug = status.slug;
+  status.slug = normalized;
+  await syncIntegrationStatusSlugs(status.workspace, oldSlug, normalized);
+  return true;
+};
+
 const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, isDone }) => {
   const trimmedLabel = validateStatusLabel(label);
   const willBeBacklog = Boolean(isBacklog);
@@ -389,13 +439,17 @@ const updateStatus = async (statusId, updates) => {
   if (updates.label !== undefined) {
     const trimmedLabel = validateStatusLabel(updates.label);
     await assertUniqueLabelInWorkspace(status.workspace, trimmedLabel, status._id);
+    const labelChanged = trimmedLabel !== status.label;
     status.label = trimmedLabel;
+
+    if (labelChanged) {
+      const nextSlug = await generateUniqueSlug(status.workspace, trimmedLabel, status._id);
+      await applyStatusSlugChange(status, nextSlug);
+    }
   }
 
   if (updates.slug !== undefined) {
-    throw new StatusValidationError(
-      'Status keys cannot be changed after creation. Add a new status and move tickets instead.'
-    );
+    await applyStatusSlugChange(status, updates.slug);
   }
 
   if (updates.color !== undefined) status.color = updates.color;

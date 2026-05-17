@@ -121,8 +121,8 @@ const StatusSettings = ({ workspaceId }) => {
           tracksTime: updated.tracksTime,
           isDone: updated.isDone,
         });
-        setItems(nextItems);
         toast.success('Status updated');
+        await refetch();
       } catch (err) {
         toast.error(getApiErrorMessage(err, 'Failed to update status'));
         resetFromServer();
@@ -148,8 +148,7 @@ const StatusSettings = ({ workspaceId }) => {
       <div>
         <h3 className="text-sm font-semibold text-gray-900">Ticket Statuses</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Customize workflow columns, order, and behavior. Display names can be renamed without
-          affecting existing tickets.
+          Customize workflow columns, order, and behavior.
         </p>
       </div>
 
