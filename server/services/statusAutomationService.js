@@ -64,6 +64,8 @@ async function executeStatusChange(ticketId, targetStatusSlug, metadata = {}) {
     );
     const newStatusSlug = statusDoc.slug;
     const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
+    const oldLabel = await statusService.getStatusLabelFromRef(oldTicket.status);
+    const newLabel = statusDoc.label;
 
     const updateData = { status: statusDoc._id };
 
@@ -83,7 +85,7 @@ async function executeStatusChange(ticketId, targetStatusSlug, metadata = {}) {
     const prInfo = metadata.prNumber ? ` (PR #${metadata.prNumber} ${triggerLabel})` : '';
     historyService.logSystemEvent(
       ticketId,
-      `Status automatically changed from ${oldStatusSlug || 'unknown'} to ${newStatusSlug}${prInfo}`
+      `Status automatically changed from "${oldLabel}" to "${newLabel}"${prInfo}`
     );
 
     return {
@@ -124,7 +126,7 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
 
     const targetStatusSlug = await statusService.resolveAutomationTargetStatus(
       workspaceId,
-      settings.onPROpenTargetStatus,
+      settings.onPROpenTargetStatusId || settings.onPROpenTargetStatus,
       'prOpen'
     );
     const targetStatusDoc = await statusService.validateStatusForWorkspace(
@@ -204,7 +206,7 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
 
     const targetStatusSlug = await statusService.resolveAutomationTargetStatus(
       workspaceId,
-      settings.onMergeTargetStatus,
+      settings.onMergeTargetStatusId || settings.onMergeTargetStatus,
       'done'
     );
     const targetStatusDoc = await statusService.validateStatusForWorkspace(

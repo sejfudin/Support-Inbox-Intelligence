@@ -25,8 +25,9 @@ You do **not** need `restoreTicketStatusLinks.js` on a fresh dump — only after
 8. `node scripts/linkTicketStatusIds.js --execute` — link tickets to `TicketStatus._id`.
 9. `node scripts/verifyTicketStatusLinks.js` — must exit **0**.
 10. Deploy / start application code (ObjectId model + populate).
-11. `node scripts/auditTicketStatuses.js` — confirm no orphans / lifecycle gaps.
-12. Bring app online.
+11. `node scripts/migrateIntegrationStatusIds.js --dry-run` then `--execute` — map GitHub automation slug settings to `TicketStatus` ObjectIds.
+12. `node scripts/auditTicketStatuses.js` — confirm no orphans / lifecycle gaps.
+13. Bring app online.
 
 ### If link already ran and every ticket became "To do"
 

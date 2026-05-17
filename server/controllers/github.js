@@ -179,7 +179,11 @@ const getIntegration = async (req, res) => {
     const storedSettings = integration.settings || {};
     const settingsChanged =
       normalizedSettings.onMergeTargetStatus !== storedSettings.onMergeTargetStatus ||
-      normalizedSettings.onPROpenTargetStatus !== storedSettings.onPROpenTargetStatus;
+      normalizedSettings.onPROpenTargetStatus !== storedSettings.onPROpenTargetStatus ||
+      String(normalizedSettings.onMergeTargetStatusId || '') !==
+        String(storedSettings.onMergeTargetStatusId || '') ||
+      String(normalizedSettings.onPROpenTargetStatusId || '') !==
+        String(storedSettings.onPROpenTargetStatusId || '');
 
     if (settingsChanged) {
       await Integration.updateOne(
@@ -188,6 +192,8 @@ const getIntegration = async (req, res) => {
           $set: {
             'settings.onMergeTargetStatus': normalizedSettings.onMergeTargetStatus,
             'settings.onPROpenTargetStatus': normalizedSettings.onPROpenTargetStatus,
+            'settings.onMergeTargetStatusId': normalizedSettings.onMergeTargetStatusId,
+            'settings.onPROpenTargetStatusId': normalizedSettings.onPROpenTargetStatusId,
           },
         }
       );
@@ -235,13 +241,23 @@ const updateIntegration = async (req, res) => {
     const updateData = {};
 
     if (settings) {
-      if (settings.onPROpenTargetStatus) {
+      if (settings.onPROpenTargetStatusId) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onPROpenTargetStatusId
+        );
+      } else if (settings.onPROpenTargetStatus) {
         await statusService.validateIntegrationTargetStatus(
           workspaceId,
           settings.onPROpenTargetStatus
         );
       }
-      if (settings.onMergeTargetStatus) {
+      if (settings.onMergeTargetStatusId) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onMergeTargetStatusId
+        );
+      } else if (settings.onMergeTargetStatus) {
         await statusService.validateIntegrationTargetStatus(
           workspaceId,
           settings.onMergeTargetStatus

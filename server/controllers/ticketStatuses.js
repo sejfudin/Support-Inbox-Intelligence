@@ -92,7 +92,8 @@ const deleteTicketStatus = async (req, res) => {
     const { id } = req.params;
     const workspaceId = resolveWorkspaceId(req);
     await assertStatusInWorkspace(id, workspaceId);
-    const result = await statusService.deleteStatus(id);
+    const { reassignToStatusId } = req.body || {};
+    const result = await statusService.deleteStatus(id, { reassignToStatusId });
     res.status(200).json({ success: true, message: result.message });
   } catch (error) {
     if (error.statusCode === 404) {

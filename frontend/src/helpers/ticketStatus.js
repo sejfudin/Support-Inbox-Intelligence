@@ -9,6 +9,29 @@ export const DEFAULT_STATUS_DRAFTS = [
   { label: 'Done', color: '#22c55e', isBacklog: false, tracksTime: false, isDone: true },
 ];
 
+export const getDefaultMainStatusSlug = (statuses = []) => {
+  const board = statuses.filter((s) => !s.isBacklog);
+  return board[0]?.slug ?? '';
+};
+
+export const getBacklogSlug = (statuses = []) => {
+  return statuses.find((s) => s.isBacklog)?.slug ?? '';
+};
+
+export const getDefaultMainStatusId = (statuses = []) => {
+  const board = statuses.filter((s) => !s.isBacklog);
+  return board[0]?._id != null ? String(board[0]._id) : '';
+};
+
+/** Main-board statuses for changes; includes current backlog row only when ticket is already backlog. */
+export const buildDetailStatusOptions = (allStatusOptions, boardStatusOptions, currentStatusId) => {
+  const current = allStatusOptions.find((o) => o.value === String(currentStatusId));
+  if (current?.isBacklog) {
+    return [current, ...boardStatusOptions];
+  }
+  return boardStatusOptions;
+};
+
 const parseHexColor = (value) => {
   if (!value || typeof value !== 'string') return null;
   const hex = value.trim().replace(/^#/, '');
@@ -52,22 +75,28 @@ export const getColumnAccentStyles = (color) => {
 
 export const buildTicketStatusHelpers = (statuses = []) => {
   const boardStatuses = statuses.filter((s) => !s.isBacklog);
+  const hasStatuses = statuses.length > 0;
 
-  const statusOptions = boardStatuses.map((s) => ({
-    value: s.slug,
+  const mapStatusOption = (s) => ({
+    value: String(s._id),
+    slug: s.slug,
     label: s.label,
     columnId: s._id != null ? String(s._id) : '',
     color: s.color,
     tracksTime: s.tracksTime,
     isDone: s.isDone,
-  }));
+    isBacklog: s.isBacklog,
+  });
+
+  const statusOptions = boardStatuses.map(mapStatusOption);
+  const allStatusOptions = statuses.map(mapStatusOption);
 
   const boardColumns = statusOptions
     .filter((s) => s.columnId)
     .map((s) => ({
       id: s.columnId,
       title: s.label,
-      slug: s.value,
+      slug: s.slug,
       color: s.color,
     }));
 
@@ -79,7 +108,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     statusOptions.filter((s) => s.columnId).map((s) => [s.value, s.columnId])
   );
 
-  /** Pre-custom-status ticket values only — must not overwrite real slugs like "closed". */
+  /** Pre-custom-status ticket values only — post-migration DB uses ObjectId refs. */
   const legacyStatusToColumn = {
     open: firstColumnId,
     pending: tracksColumnId ?? firstColumnId,
@@ -87,20 +116,37 @@ export const buildTicketStatusHelpers = (statuses = []) => {
   };
 
   const resolveBoardColumnId = (status) => {
+    const statusId =
+      typeof status === 'object' && status?._id != null
+        ? String(status._id)
+        : statusOptions.some((o) => o.value === String(status))
+          ? String(status)
+          : '';
+    if (statusId && statusToColumn[statusId]) {
+      return statusToColumn[statusId];
+    }
+
     const key = extractStatusSlug(status).toLowerCase();
     if (!key) return firstColumnId;
-    return statusToColumn[key] ?? legacyStatusToColumn[key] ?? firstColumnId;
+    const bySlug = statusOptions.find((o) => o.slug === key);
+    if (bySlug?.columnId) return bySlug.columnId;
+    return legacyStatusToColumn[key] ?? firstColumnId;
   };
 
-  const columnToStatus = Object.fromEntries(
+  const columnToStatusId = Object.fromEntries(
     statusOptions.filter((s) => s.columnId).map((s) => [s.columnId, s.value])
   );
 
-  const resolveStatusFromColumnId = (columnId) => columnToStatus[columnId] ?? null;
+  const resolveStatusFromColumnId = (columnId) => columnToStatusId[columnId] ?? null;
+
+  const resolveSlugFromStatusId = (statusId) => {
+    const match = allStatusOptions.find((o) => o.value === String(statusId));
+    return match?.slug ?? '';
+  };
 
   const statusTabs = [
     { key: 'all', label: 'All' },
-    ...statusOptions.map((s) => ({ key: s.value, label: s.label })),
+    ...statusOptions.map((s) => ({ key: s.slug, label: s.label })),
   ];
 
   const statusBadgeConfig = Object.fromEntries(
@@ -119,25 +165,32 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     ])
   );
 
-  const backlogStatus = statuses.find((s) => s.isBacklog);
-  const defaultMainStatus = boardStatuses[0]?.slug ?? 'to do';
-  const defaultBacklogStatus = backlogStatus?.slug ?? 'backlog';
+  const defaultMainStatusId = getDefaultMainStatusId(statuses);
+  const defaultMainStatusSlug = getDefaultMainStatusSlug(statuses);
+  const backlogSlug = getBacklogSlug(statuses);
 
   const tracksTimeSlugs = new Set(statuses.filter((s) => s.tracksTime).map((s) => s.slug));
   const doneSlugs = new Set(statuses.filter((s) => s.isDone).map((s) => s.slug));
 
   return {
+    hasStatuses,
     statusOptions,
+    allStatusOptions,
     statusTabs,
     statusToColumn,
     legacyStatusToColumn,
     resolveBoardColumnId,
-    columnToStatus,
+    columnToStatusId,
     resolveStatusFromColumnId,
+    resolveSlugFromStatusId,
+    getDetailStatusOptions: (currentStatusId) =>
+      buildDetailStatusOptions(allStatusOptions, statusOptions, currentStatusId),
     boardColumns,
     statusBadgeConfig,
-    backlogSlug: defaultBacklogStatus,
-    defaultMainStatus,
+    backlogSlug,
+    defaultMainStatus: defaultMainStatusSlug,
+    defaultMainStatusId,
+    defaultMainStatusSlug,
     tracksTimeSlugs,
     doneSlugs,
     getStatusColor: (status) => {
@@ -161,21 +214,30 @@ export const getColumnStyle = (helpers, columnId) => {
 /** Default GitHub automation targets from workspace status config. */
 export const getIntegrationStatusTargets = (statuses = []) => {
   if (!statuses.length) {
-    return { onMergeTargetStatus: '', onPROpenTargetStatus: '' };
+    return {
+      onMergeTargetStatus: '',
+      onPROpenTargetStatus: '',
+      onMergeTargetStatusId: '',
+      onPROpenTargetStatusId: '',
+    };
   }
 
   const done = statuses.find((s) => s.isDone);
   const tracks = statuses.find((s) => s.tracksTime);
   const mainBoard = statuses.filter((s) => !s.isBacklog && !s.isDone);
-  const prOpen =
-    mainBoard.find((s) => !s.tracksTime)?.slug ||
-    tracks?.slug ||
-    mainBoard[0]?.slug ||
-    statuses.find((s) => !s.isBacklog)?.slug ||
-    statuses[0]?.slug;
+  const prOpenStatus =
+    mainBoard.find((s) => !s.tracksTime) ||
+    tracks ||
+    mainBoard[0] ||
+    statuses.find((s) => !s.isBacklog) ||
+    statuses[0];
+
+  const mergeStatus = done || statuses.find((s) => !s.isBacklog) || statuses[0];
 
   return {
-    onMergeTargetStatus: done?.slug || statuses.find((s) => !s.isBacklog)?.slug || statuses[0].slug,
-    onPROpenTargetStatus: prOpen,
+    onMergeTargetStatus: mergeStatus.slug,
+    onPROpenTargetStatus: prOpenStatus.slug,
+    onMergeTargetStatusId: mergeStatus._id != null ? String(mergeStatus._id) : '',
+    onPROpenTargetStatusId: prOpenStatus._id != null ? String(prOpenStatus._id) : '',
   };
 };

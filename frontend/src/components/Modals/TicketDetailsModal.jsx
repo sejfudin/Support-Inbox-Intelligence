@@ -33,7 +33,7 @@ import TicketHistory from '../Tickets/TicketHistory';
 import { dueDateToInputValue } from '@/helpers/ticketDueDate';
 import { useCategories } from '@/queries/categories';
 import StoryPointsField from '../StoryPointsField';
-import { extractStatusSlug } from '@/helpers/normalizeTicket';
+import { extractStatusId, extractStatusSlug } from '@/helpers/normalizeTicket';
 import { normalizeStoryPoints } from '@/helpers/storyPoints';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { PRCard } from '@/components/PRCard';
@@ -282,7 +282,7 @@ export const TicketDetailsModal = ({
     const displayTitle = sanitizeDisplaySubject(ticket.subject || ticket.title);
     setTitle(displayTitle || 'Untitled Task');
     setDescription(ticket.description ?? '');
-    setCurrentStatus(extractStatusSlug(ticket.status) || helpers.defaultMainStatus || 'to do');
+    setCurrentStatus(extractStatusId(ticket.status) || helpers.defaultMainStatusId || '');
     setCurrentPriority(ticket.priority ?? 'medium');
     setCurrentStoryPoints(normalizeStoryPoints(ticket.storyPoints));
 
@@ -294,17 +294,22 @@ export const TicketDetailsModal = ({
     setStoryPointsLockedByUser(false);
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
-  }, [isOpen, ticket, helpers.defaultMainStatus, resetDescriptionGenerationState, resetMetadataSuggestionState]);
+  }, [isOpen, ticket, helpers.defaultMainStatusId, resetDescriptionGenerationState, resetMetadataSuggestionState]);
 
   const selectedUsersObjects = useMemo(() => {
     return selectedAgents.map((id) => users.find((u) => u._id === id)).filter(Boolean);
   }, [selectedAgents, users]);
 
+  const detailStatusOptions = useMemo(
+    () => helpers.getDetailStatusOptions(currentStatus),
+    [helpers, currentStatus]
+  );
+
   const hasChanges = useMemo(() => {
     if (!ticket) return false;
     const initialTitle = sanitizeDisplaySubject(ticket.subject || ticket.title) || 'Untitled Task';
     const initialDescription = ticket.description ?? '';
-    const initialStatus = extractStatusSlug(ticket.status) || helpers.defaultMainStatus || 'to do';
+    const initialStatus = extractStatusId(ticket.status) || helpers.defaultMainStatusId || '';
     const initialPriority = ticket.priority ?? 'medium';
     const initialStoryPoints = normalizeStoryPoints(ticket.storyPoints);
     const initialAgents = (ticket.assignedTo?.map((a) => a._id || a) || []).sort();
@@ -331,7 +336,7 @@ export const TicketDetailsModal = ({
     title,
     dueDateInput,
     currentCategory,
-    helpers.defaultMainStatus,
+    helpers.defaultMainStatusId,
   ]);
 
   useEffect(() => {
@@ -510,7 +515,7 @@ export const TicketDetailsModal = ({
         ticketId,
         updates: {
           subject: title,
-          status: currentStatus,
+          statusId: currentStatus,
           priority: currentPriority,
           storyPoints: currentStoryPoints,
           description,
@@ -863,7 +868,7 @@ export const TicketDetailsModal = ({
                   <StatusDropdown
                     status={currentStatus}
                     onChange={setCurrentStatus}
-                    statusOptions={helpers.statusOptions}
+                    statusOptions={detailStatusOptions}
                     className="w-full justify-between"
                   />
                 </div>

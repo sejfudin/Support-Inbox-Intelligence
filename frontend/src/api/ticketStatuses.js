@@ -26,9 +26,10 @@ export const updateTicketStatus = async (id, data, workspaceId) => {
   return response.data;
 };
 
-export const deleteTicketStatus = async (id, workspaceId) => {
+export const deleteTicketStatus = async (id, workspaceId, { reassignToStatusId } = {}) => {
   const response = await apiClient.delete(`/ticket-statuses/${id}`, {
     params: workspaceId ? { workspaceId } : undefined,
+    data: reassignToStatusId ? { reassignToStatusId } : undefined,
   });
   return response.data;
 };

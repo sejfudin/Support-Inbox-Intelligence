@@ -50,17 +50,47 @@ export const IntegrationSettings = ({ workspaceId }) => {
   const settings = useMemo(() => {
     const raw = integration?.settings || {};
     const validSlugs = new Set(statuses.map((s) => s.slug));
+    const validIds = new Set(statuses.map((s) => String(s._id)));
+
+    const resolveTarget = (id, slug, defaultId, defaultSlug) => {
+      if (id && validIds.has(String(id))) {
+        const match = statuses.find((s) => String(s._id) === String(id));
+        return {
+          id: String(id),
+          slug: match?.slug || defaultSlug,
+        };
+      }
+      if (slug && validSlugs.has(slug)) {
+        const match = statuses.find((s) => s.slug === slug);
+        return {
+          id: match?._id != null ? String(match._id) : defaultId,
+          slug: match?.slug || defaultSlug,
+        };
+      }
+      return { id: defaultId, slug: defaultSlug };
+    };
+
+    const prOpen = resolveTarget(
+      raw.onPROpenTargetStatusId,
+      raw.onPROpenTargetStatus,
+      defaultTargets.onPROpenTargetStatusId,
+      defaultTargets.onPROpenTargetStatus
+    );
+    const merge = resolveTarget(
+      raw.onMergeTargetStatusId,
+      raw.onMergeTargetStatus,
+      defaultTargets.onMergeTargetStatusId,
+      defaultTargets.onMergeTargetStatus
+    );
 
     return {
       autoLinkEnabled: raw.autoLinkEnabled !== false,
       autoMoveOnPROpenEnabled: Boolean(raw.autoMoveOnPROpenEnabled),
       autoMoveOnMergeEnabled: Boolean(raw.autoMoveOnMergeEnabled),
-      onPROpenTargetStatus: validSlugs.has(raw.onPROpenTargetStatus)
-        ? raw.onPROpenTargetStatus
-        : defaultTargets.onPROpenTargetStatus,
-      onMergeTargetStatus: validSlugs.has(raw.onMergeTargetStatus)
-        ? raw.onMergeTargetStatus
-        : defaultTargets.onMergeTargetStatus,
+      onPROpenTargetStatusId: prOpen.id,
+      onPROpenTargetStatus: prOpen.slug,
+      onMergeTargetStatusId: merge.id,
+      onMergeTargetStatus: merge.slug,
     };
   }, [integration?.settings, statuses, defaultTargets]);
 
@@ -98,6 +128,32 @@ export const IntegrationSettings = ({ workspaceId }) => {
       await updateIntegration.mutateAsync({
         workspaceId,
         data: { settings: newSettings },
+      });
+      toast.success('Settings updated');
+    } catch {
+      toast.error('Failed to update settings');
+    }
+  };
+
+  const handleAutomationStatusChange = async (role, statusId) => {
+    const status = statuses.find((s) => String(s._id) === String(statusId));
+    if (!status) return;
+
+    const patch =
+      role === 'merge'
+        ? {
+            onMergeTargetStatusId: String(status._id),
+            onMergeTargetStatus: status.slug,
+          }
+        : {
+            onPROpenTargetStatusId: String(status._id),
+            onPROpenTargetStatus: status.slug,
+          };
+
+    try {
+      await updateIntegration.mutateAsync({
+        workspaceId,
+        data: { settings: { ...settings, ...patch } },
       });
       toast.success('Settings updated');
     } catch {
@@ -303,15 +359,15 @@ export const IntegrationSettings = ({ workspaceId }) => {
                 Target status when PR opened
               </Label>
               <Select
-                value={settings.onPROpenTargetStatus}
-                onValueChange={(value) => handleSettingChange('onPROpenTargetStatus', value)}
+                value={settings.onPROpenTargetStatusId}
+                onValueChange={(value) => handleAutomationStatusChange('prOpen', value)}
               >
                 <SelectTrigger id="open-status" className="w-full mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {statuses.map((status) => (
-                    <SelectItem key={status.slug} value={status.slug}>
+                    <SelectItem key={status._id} value={String(status._id)}>
                       {status.label}
                     </SelectItem>
                   ))}
@@ -343,15 +399,15 @@ export const IntegrationSettings = ({ workspaceId }) => {
                 Target status when PR merged
               </Label>
               <Select
-                value={settings.onMergeTargetStatus}
-                onValueChange={(value) => handleSettingChange('onMergeTargetStatus', value)}
+                value={settings.onMergeTargetStatusId}
+                onValueChange={(value) => handleAutomationStatusChange('merge', value)}
               >
                 <SelectTrigger id="merge-status" className="w-full mt-1">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {statuses.map((status) => (
-                    <SelectItem key={status.slug} value={status.slug}>
+                    <SelectItem key={status._id} value={String(status._id)}>
                       {status.label}
                     </SelectItem>
                   ))}

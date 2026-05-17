@@ -375,13 +375,13 @@ export default function TicketPage() {
   ]);
 
   const handleStatusChange = (ticketId, columnId) => {
-    const newStatus = helpers.resolveStatusFromColumnId(columnId);
-    if (!newStatus) return;
+    const statusId = helpers.resolveStatusFromColumnId(columnId);
+    if (!statusId) return;
 
     updateTicketMutation.mutate(
       {
         ticketId,
-        updates: { status: newStatus },
+        updates: { statusId },
       },
       {
         onSuccess: () => {
@@ -504,7 +504,7 @@ export default function TicketPage() {
       <NewTickets
         isOpen={isNewOpen}
         onClose={closeNewTicket}
-        initialStatus={initialStatus || helpers.defaultMainStatus}
+        initialStatus={initialStatus ?? helpers.defaultMainStatusId}
         workspaceId={overrideWorkspaceId}
         statusOptions={helpers.statusOptions}
       />
@@ -535,7 +535,7 @@ export default function TicketPage() {
         }
       />
 
-      {!isBoard ? (
+      {!isBoard && !statusesLoading ? (
         <TicketsTabs
           activeTab={activeTab}
           statusTabs={helpers.statusTabs}

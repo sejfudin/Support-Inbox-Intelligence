@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const TicketStatus = require('../models/TicketStatus');
 const Ticket = require('../models/Ticket');
 const Integration = require('../models/Integration');
@@ -39,6 +40,13 @@ const slugifyLabel = (label) =>
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ');
+
+const isStatusObjectId = (value) => {
+  if (value == null || value === '') return false;
+  if (value instanceof mongoose.Types.ObjectId) return true;
+  const str = String(value);
+  return mongoose.Types.ObjectId.isValid(str) && String(new mongoose.Types.ObjectId(str)) === str;
+};
 
 const generateUniqueSlug = async (workspaceId, label, excludeId = null) => {
   const base = slugifyLabel(label) || 'status';
@@ -134,6 +142,22 @@ const validateStatusForWorkspace = async (workspaceId, slug) => {
   return status;
 };
 
+const resolveStatusForWorkspace = async (workspaceId, statusRef) => {
+  if (!workspaceId || statusRef === undefined || statusRef === null || statusRef === '') {
+    throw new Error('Invalid status');
+  }
+
+  if (isStatusObjectId(statusRef)) {
+    const status = await TicketStatus.findOne({ _id: statusRef, workspace: workspaceId }).lean();
+    if (!status) {
+      throw new Error('Status is not valid for this workspace');
+    }
+    return status;
+  }
+
+  return validateStatusForWorkspace(workspaceId, statusRef);
+};
+
 const getStatusFlags = async (workspaceId, slug) => {
   const status = await validateStatusForWorkspace(workspaceId, slug);
   return {
@@ -147,8 +171,7 @@ const getBacklogSlugs = async (workspaceId) => {
   const statuses = await TicketStatus.find({ workspace: workspaceId, isBacklog: true })
     .select('slug')
     .lean();
-  if (statuses.length > 0) return statuses.map((s) => s.slug);
-  return ['backlog'];
+  return statuses.map((s) => s.slug);
 };
 
 const getBacklogStatusIds = async (workspaceId) => {
@@ -197,13 +220,9 @@ const getStatusSlugSets = async (workspaceId) => {
   const statuses = await getWorkspaceStatuses(workspaceId);
   if (statuses.length === 0) {
     console.error(
-      `[statusService] No TicketStatus rows for workspace ${workspaceId}; using legacy slug fallbacks. Run migrateTicketStatuses.js.`
+      `[statusService] No TicketStatus rows for workspace ${workspaceId}; slug sets empty. Run migrateTicketStatuses.js.`
     );
-    return {
-      doneSlugs: ['done'],
-      tracksTimeSlugs: ['in progress'],
-      activeSlugs: ['to do', 'in progress', 'on staging', 'blocked'],
-    };
+    return { doneSlugs: [], tracksTimeSlugs: [], activeSlugs: [] };
   }
 
   return {
@@ -217,8 +236,10 @@ const resolveIntegrationStatusTargets = async (workspaceId) => {
   const statuses = await getWorkspaceStatuses(workspaceId);
   if (statuses.length === 0) {
     return {
-      onMergeTargetStatus: 'done',
-      onPROpenTargetStatus: 'on staging',
+      onMergeTargetStatus: '',
+      onPROpenTargetStatus: '',
+      onMergeTargetStatusId: null,
+      onPROpenTargetStatusId: null,
     };
   }
 
@@ -234,42 +255,104 @@ const resolveIntegrationStatusTargets = async (workspaceId) => {
   return {
     onMergeTargetStatus: done?.slug || pickFallbackSlug(statuses),
     onPROpenTargetStatus: prOpen,
+    onMergeTargetStatusId: done?._id || null,
+    onPROpenTargetStatusId:
+      mainBoard.find((s) => !s.tracksTime)?._id ||
+      tracks?._id ||
+      mainBoard[0]?._id ||
+      statuses.find((s) => !s.isBacklog)?._id ||
+      statuses[0]?._id ||
+      null,
   };
+};
+
+const resolveIntegrationStatusDoc = async (workspaceId, settings, role) => {
+  const statuses = await getWorkspaceStatuses(workspaceId);
+  if (statuses.length === 0) return null;
+
+  const preferredId =
+    role === 'done' ? settings.onMergeTargetStatusId : settings.onPROpenTargetStatusId;
+  const preferredSlug =
+    role === 'done' ? settings.onMergeTargetStatus : settings.onPROpenTargetStatus;
+
+  if (preferredId && isStatusObjectId(preferredId)) {
+    const byId = statuses.find((s) => String(s._id) === String(preferredId));
+    if (byId) return byId;
+  }
+
+  if (preferredSlug) {
+    const normalized = slugifyLabel(preferredSlug);
+    const bySlug = statuses.find((s) => s.slug === normalized);
+    if (bySlug) return bySlug;
+  }
+
+  const defaults = await resolveIntegrationStatusTargets(workspaceId);
+  const fallbackId =
+    role === 'done' ? defaults.onMergeTargetStatusId : defaults.onPROpenTargetStatusId;
+  if (fallbackId) {
+    const byFallbackId = statuses.find((s) => String(s._id) === String(fallbackId));
+    if (byFallbackId) return byFallbackId;
+  }
+
+  const fallbackSlug =
+    role === 'done' ? defaults.onMergeTargetStatus : defaults.onPROpenTargetStatus;
+  if (fallbackSlug) {
+    const byFallbackSlug = statuses.find((s) => s.slug === slugifyLabel(fallbackSlug));
+    if (byFallbackSlug) return byFallbackSlug;
+  }
+
+  return null;
 };
 
 const normalizeIntegrationSettings = async (workspaceId, settings = {}) => {
   const defaults = await resolveIntegrationStatusTargets(workspaceId);
-  const validSlugs = new Set((await getWorkspaceStatuses(workspaceId)).map((s) => s.slug));
+  const statuses = await getWorkspaceStatuses(workspaceId);
+  const validSlugs = new Set(statuses.map((s) => s.slug));
+  const statusById = new Map(statuses.map((s) => [String(s._id), s]));
 
-  const mergeSlug = settings.onMergeTargetStatus
-    ? slugifyLabel(settings.onMergeTargetStatus)
-    : '';
-  const prOpenSlug = settings.onPROpenTargetStatus
-    ? slugifyLabel(settings.onPROpenTargetStatus)
-    : '';
+  const mergeDoc = await resolveIntegrationStatusDoc(workspaceId, settings, 'done');
+  const prOpenDoc = await resolveIntegrationStatusDoc(workspaceId, settings, 'prOpen');
+
+  const mergeSlug = mergeDoc?.slug || defaults.onMergeTargetStatus;
+  const prOpenSlug = prOpenDoc?.slug || defaults.onPROpenTargetStatus;
+
+  const mergeSlugValid = mergeSlug && validSlugs.has(slugifyLabel(mergeSlug));
+  const prOpenSlugValid = prOpenSlug && validSlugs.has(slugifyLabel(prOpenSlug));
+
+  const mergeId =
+    mergeDoc?._id ||
+    (settings.onMergeTargetStatusId && statusById.get(String(settings.onMergeTargetStatusId))?._id) ||
+    defaults.onMergeTargetStatusId;
+  const prOpenId =
+    prOpenDoc?._id ||
+    (settings.onPROpenTargetStatusId &&
+      statusById.get(String(settings.onPROpenTargetStatusId))?._id) ||
+    defaults.onPROpenTargetStatusId;
 
   return {
     autoLinkEnabled: settings.autoLinkEnabled !== false,
     autoMoveOnPROpenEnabled: Boolean(settings.autoMoveOnPROpenEnabled),
     autoMoveOnMergeEnabled: Boolean(settings.autoMoveOnMergeEnabled),
-    onMergeTargetStatus:
-      mergeSlug && validSlugs.has(mergeSlug) ? mergeSlug : defaults.onMergeTargetStatus,
-    onPROpenTargetStatus:
-      prOpenSlug && validSlugs.has(prOpenSlug) ? prOpenSlug : defaults.onPROpenTargetStatus,
+    onMergeTargetStatus: mergeSlugValid ? slugifyLabel(mergeSlug) : defaults.onMergeTargetStatus,
+    onPROpenTargetStatus: prOpenSlugValid ? slugifyLabel(prOpenSlug) : defaults.onPROpenTargetStatus,
+    onMergeTargetStatusId: mergeId || null,
+    onPROpenTargetStatusId: prOpenId || null,
   };
 };
 
-const resolveAutomationTargetStatus = async (workspaceId, preferredSlug, role) => {
+const resolveAutomationTargetStatus = async (workspaceId, preferredRef, role) => {
   const statuses = await getWorkspaceStatuses(workspaceId);
   if (statuses.length === 0) {
-    if (role === 'done') return preferredSlug || 'done';
-    return preferredSlug || 'on staging';
+    throw new StatusValidationError('This workspace has no ticket statuses configured.');
   }
 
-  const normalizedPreferred = preferredSlug ? slugifyLabel(preferredSlug) : null;
-  if (normalizedPreferred) {
-    const match = statuses.find((s) => s.slug === normalizedPreferred);
-    if (match) return match.slug;
+  if (preferredRef) {
+    try {
+      const match = await resolveStatusForWorkspace(workspaceId, preferredRef);
+      return match.slug;
+    } catch {
+      // fall through to role defaults
+    }
   }
 
   if (role === 'done') {
@@ -286,14 +369,46 @@ const resolveAutomationTargetStatus = async (workspaceId, preferredSlug, role) =
 const resolveDefaultStatus = async (workspaceId, { isAdmin = false } = {}) => {
   const statuses = await getWorkspaceStatuses(workspaceId);
   if (statuses.length === 0) {
-    return isAdmin ? 'backlog' : 'to do';
+    throw new StatusValidationError('This workspace has no ticket statuses configured.');
   }
   if (isAdmin) {
     const backlog = statuses.find((s) => s.isBacklog);
-    return backlog ? backlog.slug : statuses[0].slug;
+    return backlog || statuses[0];
   }
   const main = statuses.find((s) => !s.isBacklog);
-  return main ? main.slug : statuses[0].slug;
+  return main || statuses[0];
+};
+
+const getStatusLabelFromRef = async (statusRef) => {
+  if (!statusRef) return 'Unknown';
+  if (typeof statusRef === 'object' && statusRef.label) {
+    return statusRef.label;
+  }
+  const doc = await TicketStatus.findById(statusRef).select('label').lean();
+  return doc?.label || 'Unknown';
+};
+
+const clearIntegrationStatusReferences = async (workspaceId, statusId) => {
+  const integration = await Integration.findOne({ workspace: workspaceId });
+  if (!integration?.settings) return;
+
+  const settings = integration.settings;
+  const repairs = {};
+  const statusIdStr = String(statusId);
+
+  if (settings.onMergeTargetStatusId && String(settings.onMergeTargetStatusId) === statusIdStr) {
+    repairs.onMergeTargetStatusId = null;
+    repairs.onMergeTargetStatus = '';
+  }
+  if (settings.onPROpenTargetStatusId && String(settings.onPROpenTargetStatusId) === statusIdStr) {
+    repairs.onPROpenTargetStatusId = null;
+    repairs.onPROpenTargetStatus = '';
+  }
+
+  if (Object.keys(repairs).length === 0) return;
+
+  integration.settings = { ...settings, ...repairs };
+  await integration.save();
 };
 
 const applyStatusLifecycleUpdate = async ({
@@ -338,7 +453,7 @@ const assertMainBoardRemains = async (workspaceId, excludeId) => {
   }
 };
 
-const syncIntegrationStatusSlugs = async (workspaceId, oldSlug, newSlug) => {
+const syncIntegrationStatusSlugs = async (workspaceId, oldSlug, newSlug, statusId = null) => {
   const normalizedOld = slugifyLabel(oldSlug);
   const normalizedNew = slugifyLabel(newSlug);
   if (!normalizedOld || !normalizedNew || normalizedOld === normalizedNew) return;
@@ -348,12 +463,15 @@ const syncIntegrationStatusSlugs = async (workspaceId, oldSlug, newSlug) => {
 
   const settings = integration.settings;
   const repairs = {};
+  const statusIdStr = statusId ? String(statusId) : null;
 
   if (slugifyLabel(settings.onMergeTargetStatus) === normalizedOld) {
     repairs.onMergeTargetStatus = normalizedNew;
+    if (statusIdStr) repairs.onMergeTargetStatusId = statusId;
   }
   if (slugifyLabel(settings.onPROpenTargetStatus) === normalizedOld) {
     repairs.onPROpenTargetStatus = normalizedNew;
+    if (statusIdStr) repairs.onPROpenTargetStatusId = statusId;
   }
 
   if (Object.keys(repairs).length === 0) return;
@@ -383,7 +501,7 @@ const applyStatusSlugChange = async (status, nextSlug) => {
 
   const oldSlug = status.slug;
   status.slug = normalized;
-  await syncIntegrationStatusSlugs(status.workspace, oldSlug, normalized);
+  await syncIntegrationStatusSlugs(status.workspace, oldSlug, normalized, status._id);
   return true;
 };
 
@@ -475,7 +593,7 @@ const updateStatus = async (statusId, updates) => {
   return status;
 };
 
-const deleteStatus = async (statusId) => {
+const deleteStatus = async (statusId, { reassignToStatusId } = {}) => {
   const status = await TicketStatus.findById(statusId);
   if (!status) throw new StatusValidationError('Status not found.');
 
@@ -489,15 +607,37 @@ const deleteStatus = async (statusId) => {
     workspace: status.workspace,
     status: status._id,
   });
+
   if (ticketCount > 0) {
-    const ticketWord = ticketCount === 1 ? 'ticket' : 'tickets';
-    throw new StatusValidationError(
-      `Cannot delete "${status.label}" because ${ticketCount} ${ticketWord} still use this status. Reassign those tickets first.`
+    if (!reassignToStatusId) {
+      const ticketWord = ticketCount === 1 ? 'ticket' : 'tickets';
+      throw new StatusValidationError(
+        `Cannot delete "${status.label}" because ${ticketCount} ${ticketWord} still use this status. Choose another status to move them to.`
+      );
+    }
+
+    if (String(reassignToStatusId) === String(status._id)) {
+      throw new StatusValidationError('Reassign target must be a different status.');
+    }
+
+    const target = await TicketStatus.findOne({
+      _id: reassignToStatusId,
+      workspace: status.workspace,
+    });
+
+    if (!target) {
+      throw new StatusValidationError('Reassign target status is not valid for this workspace.');
+    }
+
+    await Ticket.updateMany(
+      { workspace: status.workspace, status: status._id },
+      { $set: { status: target._id } }
     );
   }
 
+  await clearIntegrationStatusReferences(status.workspace, status._id);
   await TicketStatus.findByIdAndDelete(statusId);
-  return { message: 'Status deleted' };
+  return { message: 'Status deleted', reassignedTickets: ticketCount };
 };
 
 const reorderStatuses = async (workspaceId, orderedIds) => {
@@ -526,15 +666,16 @@ const reorderStatuses = async (workspaceId, orderedIds) => {
   return getWorkspaceStatuses(workspaceId);
 };
 
-const validateIntegrationTargetStatus = async (workspaceId, slug) => {
-  if (!slug) return;
-  await validateStatusForWorkspace(workspaceId, slug);
+const validateIntegrationTargetStatus = async (workspaceId, statusRef) => {
+  if (!statusRef) return;
+  await resolveStatusForWorkspace(workspaceId, statusRef);
 };
 
 module.exports = {
   StatusValidationError,
   DEFAULT_STATUSES,
   slugifyLabel,
+  isStatusObjectId,
   generateUniqueSlug,
   seedDefaultStatuses,
   createStatusesForWorkspace,
@@ -542,6 +683,8 @@ module.exports = {
   getWorkspaceStatuses,
   getStatusBySlug,
   validateStatusForWorkspace,
+  resolveStatusForWorkspace,
+  getStatusLabelFromRef,
   getStatusFlags,
   getBacklogSlugs,
   getBacklogStatusIds,

@@ -92,6 +92,14 @@ const integrationSchema = new mongoose.Schema(
       onMergeTargetStatus: {
         type: String,
       },
+      onPROpenTargetStatusId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TicketStatus',
+      },
+      onMergeTargetStatusId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TicketStatus',
+      },
     },
 
     isConnected: {

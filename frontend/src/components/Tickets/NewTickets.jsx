@@ -29,7 +29,7 @@ import { Button } from '@/components/ui/button';
 const NewTickets = ({
   isOpen,
   onClose,
-  initialStatus = 'to do',
+  initialStatus,
   hideStatus = false,
   workspaceId: previewWorkspaceId,
   statusOptions = [],
@@ -44,7 +44,8 @@ const NewTickets = ({
   const { data: categoriesData } = useCategories(effectiveWorkspaceId);
   const categories = categoriesData?.data || [];
 
-  const { form: newTicket, updateField, resetForm } = useTicketForm(initialStatus);
+  const resolvedInitialStatus = initialStatus ?? statusOptions[0]?.value ?? '';
+  const { form: newTicket, updateField, resetForm } = useTicketForm(resolvedInitialStatus);
 
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
@@ -130,7 +131,13 @@ const NewTickets = ({
       workspaceId: effectiveWorkspaceId,
     };
 
-    if (hideStatus) delete ticketData.status;
+    if (hideStatus) {
+      delete ticketData.status;
+      delete ticketData.statusId;
+    } else if (ticketData.status) {
+      ticketData.statusId = ticketData.status;
+      delete ticketData.status;
+    }
 
     if (ticketData.dueDate) {
       ticketData.dueDate = new Date(`${ticketData.dueDate}T12:00:00`).toISOString();

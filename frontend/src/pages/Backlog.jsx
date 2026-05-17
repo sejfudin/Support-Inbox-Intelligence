@@ -17,7 +17,7 @@ export default function BacklogPage() {
   const [activeTab] = useState('all');
   const { user } = useAuth();
   const { helpers } = useTicketStatuses(user?.workspaceId);
-  const backlogStatus = helpers.backlogSlug || 'backlog';
+  const backlogStatus = helpers.backlogSlug;
 
   const {
     tickets: normalizedTickets,
@@ -54,7 +54,7 @@ export default function BacklogPage() {
       <NewTickets
         isOpen={isNewOpen}
         onClose={closeNewTicket}
-        initialStatus={initialStatus}
+        initialStatus={initialStatus ?? helpers.defaultMainStatusId}
         hideStatus={true}
       />
       <TicketsHeader

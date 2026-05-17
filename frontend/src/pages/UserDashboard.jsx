@@ -73,13 +73,13 @@ export default function UserDashboard() {
   const isBoard = viewMode === 'board';
 
   const handleStatusChange = (ticketId, columnId) => {
-    const newStatus = helpers.resolveStatusFromColumnId(columnId);
-    if (!newStatus) return;
+    const statusId = helpers.resolveStatusFromColumnId(columnId);
+    if (!statusId) return;
 
     updateTicketMutation.mutate(
       {
         ticketId: ticketId,
-        updates: { status: newStatus },
+        updates: { statusId },
       },
       {
         onSuccess: () => {},

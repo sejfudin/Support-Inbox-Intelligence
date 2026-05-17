@@ -6,16 +6,21 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Check } from 'lucide-react';
-import { extractStatusSlug } from '@/helpers/normalizeTicket';
+import { extractStatusId, extractStatusSlug } from '@/helpers/normalizeTicket';
 
 export default function StatusDropdown({ status, onChange, className, statusOptions = [] }) {
   const statusSlug = extractStatusSlug(status);
-  const normalizedStatus = statusSlug.toLowerCase();
-  const active =
-    statusOptions.find((option) => option.value === normalizedStatus) ||
-    statusOptions.find((option) => option.label?.toLowerCase() === normalizedStatus);
+  const statusIdFromRef = extractStatusId(status);
+  const statusId =
+    statusIdFromRef ||
+    (statusOptions.some((option) => option.value === String(status)) ? String(status) : '');
 
-  const displayLabel = active?.label || statusSlug || 'Status';
+  const active =
+    statusOptions.find((option) => option.value === statusId) ||
+    statusOptions.find((option) => option.slug === statusSlug) ||
+    statusOptions.find((option) => option.label?.toLowerCase() === statusSlug.toLowerCase());
+
+  const displayLabel = active?.label || (statusSlug ? statusSlug : 'Status');
 
   return (
     <DropdownMenu>
@@ -36,7 +41,7 @@ export default function StatusDropdown({ status, onChange, className, statusOpti
 
       <DropdownMenuContent align="start" className="w-48 z-[200]">
         {statusOptions.map((option) => {
-          const isSelected = normalizedStatus === option.value;
+          const isSelected = statusId === option.value;
 
           return (
             <DropdownMenuItem

@@ -154,6 +154,7 @@ const getAllTickets = async ({
   limit = 10,
   search = '',
   status = '',
+  statusId = '',
   priority = '',
   priorities = '',
   assigneeIds = '',
@@ -206,6 +207,9 @@ const getAllTickets = async ({
     if (backlogIds.length > 0) {
       query.status = { $nin: backlogIds };
     }
+  } else if (statusId) {
+    const statusDoc = await statusService.resolveStatusForWorkspace(workspaceId, statusId);
+    query.status = statusDoc._id;
   } else if (status && status !== 'all') {
     query.status = await statusService.getStatusIdForSlug(workspaceId, status);
   }
@@ -360,15 +364,26 @@ const createTicket = async (ticketData) => {
 
   const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
 
-  const requestedStatus =
-    ticketData.status === undefined
-      ? await statusService.resolveDefaultStatus(ticketData.workspaceId, { isAdmin: false })
-      : ticketData.status;
-
-  const statusDoc = await statusService.validateStatusForWorkspace(
-    ticketData.workspaceId,
-    requestedStatus
-  );
+  let statusDoc;
+  if (ticketData.statusId) {
+    statusDoc = await statusService.resolveStatusForWorkspace(
+      ticketData.workspaceId,
+      ticketData.statusId
+    );
+  } else if (
+    ticketData.status !== undefined &&
+    ticketData.status !== null &&
+    ticketData.status !== ''
+  ) {
+    statusDoc = await statusService.resolveStatusForWorkspace(
+      ticketData.workspaceId,
+      ticketData.status
+    );
+  } else {
+    statusDoc = await statusService.resolveDefaultStatus(ticketData.workspaceId, {
+      isAdmin: Boolean(ticketData.isAdmin),
+    });
+  }
   const statusId = statusDoc._id;
 
   const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, statusDoc.slug);
@@ -452,18 +467,30 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       }
     }
 
-    if (updateData.status) {
-      const statusDoc = await statusService.validateStatusForWorkspace(
+    const statusInput = updateData.statusId ?? updateData.status;
+    if (statusInput) {
+      const statusDoc = await statusService.resolveStatusForWorkspace(
         oldTicket.workspace,
-        updateData.status
+        statusInput
       );
       const newStatusSlug = statusDoc.slug;
       const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
+        const oldFlags = await statusService.getStatusFlags(
+          oldTicket.workspace,
+          oldStatusSlug
+        );
+        if (statusDoc.isBacklog && !oldFlags.isBacklog) {
+          throw new Error('Tickets cannot be moved back to the backlog.');
+        }
+
         const now = new Date();
+        const oldLabel = await statusService.getStatusLabelFromRef(oldTicket.status);
+        const newLabel = statusDoc.label;
 
         updateData.status = statusDoc._id;
+        delete updateData.statusId;
 
         await statusService.applyStatusLifecycleUpdate({
           workspaceId: oldTicket.workspace,
@@ -477,10 +504,11 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         historyService.logEvent(
           ticketId,
           actorUserId,
-          `Status changed from ${oldStatusSlug || 'unknown'} to ${newStatusSlug}`
+          `Status changed from "${oldLabel}" to "${newLabel}"`
         );
       } else {
         delete updateData.status;
+        delete updateData.statusId;
       }
     }
 
