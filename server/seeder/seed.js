@@ -76,13 +76,13 @@ const seedData = async () => {
 
     const workspaceStatuses = await seedDefaultStatuses(workspace._id);
     const inProgressStatus = workspaceStatuses.find((s) => s.tracksTime);
-    const inProgressSlug = inProgressStatus?.slug || 'in progress';
+    const inProgressStatusId = inProgressStatus?._id || workspaceStatuses[0]?._id;
 
     console.log('✅ Ticket statuses seeded.');
 
     const ticket = await Ticket.create({
       subject: 'Subscription billing issue',
-      status: inProgressSlug,
+      status: inProgressStatusId,
       inProgressAt: new Date(),
       workspace: workspace._id,
       messages: [

@@ -4,13 +4,14 @@ const Integration = require('../models/Integration');
 const { slugifyLabel, pickFallbackSlug } = require('./statusSlugAliases');
 
 const buildFlagMap = (statuses) =>
-  Object.fromEntries(statuses.map((s) => [s.slug, s]));
+  Object.fromEntries(statuses.map((s) => [s._id.toString(), s]));
 
 const auditWorkspace = async (workspace) => {
   const workspaceId = workspace._id;
   const statuses = await TicketStatus.find({ workspace: workspaceId }).sort({ sortOrder: 1 }).lean();
-  const validSlugs = new Set(statuses.map((s) => s.slug));
-  const flagBySlug = buildFlagMap(statuses);
+  const validIds = new Set(statuses.map((s) => s._id.toString()));
+  const flagByStatusId = buildFlagMap(statuses);
+  const statusById = Object.fromEntries(statuses.map((s) => [s._id.toString(), s]));
 
   const ticketStatusCounts = await Ticket.aggregate([
     {
@@ -23,15 +24,26 @@ const auditWorkspace = async (workspace) => {
     { $sort: { count: -1 } },
   ]);
 
-  const orphanSlugs = [];
-  const ticketsPerSlug = {};
+  const orphanRefs = [];
+  const ticketsPerStatusId = {};
 
   for (const row of ticketStatusCounts) {
-    const slug = row._id ?? '';
-    const normalized = slugifyLabel(slug);
-    ticketsPerSlug[slug] = row.count;
-    if (!validSlugs.has(normalized) && slug !== '') {
-      orphanSlugs.push({ slug, count: row.count });
+    const statusId = row._id;
+    const idStr = statusId?.toString?.() || String(statusId || '');
+    ticketsPerStatusId[idStr] = row.count;
+
+    if (typeof statusId === 'string') {
+      orphanRefs.push({ statusId: idStr, slug: statusId, count: row.count, reason: 'string_status' });
+      continue;
+    }
+
+    if (!idStr || !validIds.has(idStr)) {
+      orphanRefs.push({
+        statusId: idStr,
+        slug: statusById[idStr]?.slug || '(unknown)',
+        count: row.count,
+        reason: 'broken_ref',
+      });
     }
   }
 
@@ -40,46 +52,46 @@ const auditWorkspace = async (workspace) => {
   let staleDoneAt = 0;
   let staleInProgressAt = 0;
 
-  const doneSlugs = statuses.filter((s) => s.isDone).map((s) => s.slug);
-  const tracksTimeSlugs = statuses.filter((s) => s.tracksTime).map((s) => s.slug);
+  const doneStatusIds = statuses.filter((s) => s.isDone).map((s) => s._id);
+  const tracksTimeStatusIds = statuses.filter((s) => s.tracksTime).map((s) => s._id);
 
-  if (doneSlugs.length) {
+  if (doneStatusIds.length) {
     missingDoneAt = await Ticket.countDocuments({
       workspace: workspaceId,
       isArchived: { $ne: true },
-      status: { $in: doneSlugs },
+      status: { $in: doneStatusIds },
       doneAt: null,
     });
   }
 
-  if (tracksTimeSlugs.length) {
+  if (tracksTimeStatusIds.length) {
     missingInProgressAt = await Ticket.countDocuments({
       workspace: workspaceId,
       isArchived: { $ne: true },
-      status: { $in: tracksTimeSlugs },
+      status: { $in: tracksTimeStatusIds },
       inProgressAt: null,
     });
   }
 
-  if (doneSlugs.length) {
-    const nonDoneSlugs = statuses.filter((s) => !s.isDone).map((s) => s.slug);
-    if (nonDoneSlugs.length) {
+  if (doneStatusIds.length) {
+    const nonDoneStatusIds = statuses.filter((s) => !s.isDone).map((s) => s._id);
+    if (nonDoneStatusIds.length) {
       staleDoneAt = await Ticket.countDocuments({
         workspace: workspaceId,
         isArchived: { $ne: true },
-        status: { $in: nonDoneSlugs },
+        status: { $in: nonDoneStatusIds },
         doneAt: { $ne: null },
       });
     }
   }
 
-  if (tracksTimeSlugs.length) {
-    const nonTrackSlugs = statuses.filter((s) => !s.tracksTime).map((s) => s.slug);
-    if (nonTrackSlugs.length) {
+  if (tracksTimeStatusIds.length) {
+    const nonTrackStatusIds = statuses.filter((s) => !s.tracksTime).map((s) => s._id);
+    if (nonTrackStatusIds.length) {
       staleInProgressAt = await Ticket.countDocuments({
         workspace: workspaceId,
         isArchived: { $ne: true },
-        status: { $in: nonTrackSlugs },
+        status: { $in: nonTrackStatusIds },
         inProgressAt: { $ne: null },
       });
     }
@@ -89,6 +101,7 @@ const auditWorkspace = async (workspace) => {
     .select('settings isConnected')
     .lean();
 
+  const validSlugs = new Set(statuses.map((s) => s.slug));
   const invalidIntegrationTargets = [];
   if (integration?.settings) {
     const { onPROpenTargetStatus, onMergeTargetStatus } = integration.settings;
@@ -107,7 +120,7 @@ const auditWorkspace = async (workspace) => {
   }
 
   const totalTickets = ticketStatusCounts.reduce((sum, row) => sum + row.count, 0);
-  const orphanTicketCount = orphanSlugs.reduce((sum, row) => sum + row.count, 0);
+  const orphanTicketCount = orphanRefs.reduce((sum, row) => sum + row.count, 0);
 
   return {
     workspaceId: workspaceId.toString(),
@@ -116,15 +129,21 @@ const auditWorkspace = async (workspace) => {
     needsStatusSeed: statuses.length === 0,
     fallbackSlug: pickFallbackSlug(statuses),
     statuses: statuses.map((s) => ({
+      id: s._id.toString(),
       slug: s.slug,
       label: s.label,
       isBacklog: s.isBacklog,
       tracksTime: s.tracksTime,
       isDone: s.isDone,
-      ticketCount: ticketsPerSlug[s.slug] || 0,
+      ticketCount: ticketsPerStatusId[s._id.toString()] || 0,
     })),
     totalTickets,
-    orphanSlugs,
+    orphanRefs,
+    orphanSlugs: orphanRefs.map((r) => ({
+      slug: r.slug || r.statusId,
+      count: r.count,
+      reason: r.reason,
+    })),
     orphanTicketCount,
     lifecycle: {
       missingDoneAt,
@@ -136,7 +155,7 @@ const auditWorkspace = async (workspace) => {
       isConnected: Boolean(integration?.isConnected),
       invalidTargets: invalidIntegrationTargets,
     },
-    flagBySlug,
+    flagByStatusId,
   };
 };
 

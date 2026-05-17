@@ -6,14 +6,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { ChevronDown, Check } from 'lucide-react';
+import { extractStatusSlug } from '@/helpers/normalizeTicket';
 
 export default function StatusDropdown({ status, onChange, className, statusOptions = [] }) {
-  const normalizedStatus = status?.toLowerCase();
+  const statusSlug = extractStatusSlug(status);
+  const normalizedStatus = statusSlug.toLowerCase();
   const active =
     statusOptions.find((option) => option.value === normalizedStatus) ||
     statusOptions.find((option) => option.label?.toLowerCase() === normalizedStatus);
 
-  const displayLabel = active?.label || status || 'Status';
+  const displayLabel = active?.label || statusSlug || 'Status';
 
   return (
     <DropdownMenu>

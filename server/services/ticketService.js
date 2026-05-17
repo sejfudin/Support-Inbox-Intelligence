@@ -89,6 +89,33 @@ const sanitizeTicketSubject = (value) =>
 
 const ALLOWED_TICKET_SORT_FIELDS = new Set(['updatedAt', 'dueDate', 'taskNumber']);
 
+const STATUS_POPULATE_SELECT = 'slug label color isBacklog tracksTime isDone sortOrder';
+
+const statusLookupStages = () => [
+  {
+    $lookup: {
+      from: 'ticketstatuses',
+      localField: 'status',
+      foreignField: '_id',
+      as: 'status',
+      pipeline: [
+        {
+          $project: {
+            slug: 1,
+            label: 1,
+            color: 1,
+            isBacklog: 1,
+            tracksTime: 1,
+            isDone: 1,
+            sortOrder: 1,
+          },
+        },
+      ],
+    },
+  },
+  { $unwind: { path: '$status', preserveNullAndEmptyArrays: true } },
+];
+
 const buildTicketListSort = (sortBy = 'dueDate', sortOrder = 'desc') => {
   const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : 'dueDate';
   const dir = sortOrder === 'asc' ? 1 : -1;
@@ -175,12 +202,12 @@ const getAllTickets = async ({
   if (status === 'null' || status === null) {
     query.status = null;
   } else if (status === 'not_null') {
-    const backlogSlugs = await statusService.getBacklogSlugs(workspaceId);
-    if (backlogSlugs.length > 0) {
-      query.status = { $nin: backlogSlugs };
+    const backlogIds = await statusService.getBacklogStatusIds(workspaceId);
+    if (backlogIds.length > 0) {
+      query.status = { $nin: backlogIds };
     }
   } else if (status && status !== 'all') {
-    query.status = status;
+    query.status = await statusService.getStatusIdForSlug(workspaceId, status);
   }
 
   const selectedPriorities = normalizePriorityList({ priorities, priority });
@@ -227,6 +254,7 @@ const getAllTickets = async ({
         .sort(sortSpec)
         .skip(skip)
         .limit(safeLimit)
+        .populate('status', STATUS_POPULATE_SELECT)
         .populate('creator', 'fullname email')
         .populate('assignedTo', 'fullname email role')
         .populate('category'),
@@ -287,6 +315,7 @@ const getAllTickets = async ({
           },
         },
         { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+        ...statusLookupStages(),
         { $project: { priorityRank: 0 } },
       ]),
       Ticket.countDocuments(query),
@@ -306,6 +335,7 @@ const getAllTickets = async ({
 
 const getTicketById = async (ticketId) => {
   const ticket = await Ticket.findById(ticketId)
+    .populate('status', STATUS_POPULATE_SELECT)
     .populate('assignedTo', 'fullname email role')
     .populate('creator', 'fullname email')
     .populate('category');
@@ -339,9 +369,9 @@ const createTicket = async (ticketData) => {
     ticketData.workspaceId,
     requestedStatus
   );
-  const status = statusDoc.slug;
+  const statusId = statusDoc._id;
 
-  const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, status);
+  const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, statusDoc.slug);
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
@@ -354,7 +384,7 @@ const createTicket = async (ticketData) => {
     subject: sanitizedSubject,
     description: ticketData.description || '',
     creator: ticketData.creatorId,
-    status,
+    status: statusId,
     priority: ticketData.priority || 'medium',
     storyPoints: ticketData.storyPoints ?? null,
     assignedTo: ticketData.assignedTo,
@@ -380,6 +410,7 @@ const createTicket = async (ticketData) => {
   }
 
   return await ticket.populate([
+    { path: 'status', select: STATUS_POPULATE_SELECT },
     { path: 'creator', select: 'fullName email' },
     { path: 'assignedTo', select: 'fullName email' },
   ]);
@@ -421,31 +452,36 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       }
     }
 
-    if (updateData.status && updateData.status !== oldTicket.status) {
+    if (updateData.status) {
       const statusDoc = await statusService.validateStatusForWorkspace(
         oldTicket.workspace,
         updateData.status
       );
-      const newStatus = statusDoc.slug;
-      const oldStatus = oldTicket.status.toLowerCase();
-      const now = new Date();
+      const newStatusSlug = statusDoc.slug;
+      const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
 
-      updateData.status = newStatus;
+      if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
+        const now = new Date();
 
-      await statusService.applyStatusLifecycleUpdate({
-        workspaceId: oldTicket.workspace,
-        oldStatus,
-        newStatus,
-        oldTicket,
-        updateData,
-        now,
-      });
+        updateData.status = statusDoc._id;
 
-      historyService.logEvent(
-        ticketId,
-        actorUserId,
-        `Status changed from ${oldTicket.status} to ${newStatus}`
-      );
+        await statusService.applyStatusLifecycleUpdate({
+          workspaceId: oldTicket.workspace,
+          oldStatus: oldStatusSlug,
+          newStatus: newStatusSlug,
+          oldTicket,
+          updateData,
+          now,
+        });
+
+        historyService.logEvent(
+          ticketId,
+          actorUserId,
+          `Status changed from ${oldStatusSlug || 'unknown'} to ${newStatusSlug}`
+        );
+      } else {
+        delete updateData.status;
+      }
     }
 
     const ticket = await Ticket.findByIdAndUpdate(
@@ -456,6 +492,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         runValidators: true,
       }
     )
+      .populate('status', STATUS_POPULATE_SELECT)
       .populate('assignedTo', 'fullname email role')
       .populate('creator', 'fullName');
 
@@ -630,7 +667,7 @@ const getMyTickets = async ({
   }
 
   if (status && status !== 'all') {
-    query.status = status;
+    query.status = await statusService.getStatusIdForSlug(workspaceId, status);
   }
 
   const selectedPriorities = normalizePriorityList({ priorities, priority });
@@ -655,6 +692,7 @@ const getMyTickets = async ({
           .sort(sortSpec)
           .skip(skip)
           .limit(safeLimit)
+          .populate('status', STATUS_POPULATE_SELECT)
           .populate('creator', 'fullname email')
           .populate('assignedTo', 'fullname email role')
           .populate('category')
@@ -706,6 +744,7 @@ const getMyTickets = async ({
             },
           },
           { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+          ...statusLookupStages(),
           { $project: { priorityRank: 0 } },
         ]);
 

@@ -27,7 +27,7 @@ async function getAutomationSettings(workspaceId) {
 /**
  * Determines if automation should proceed based on settings.
  */
-function shouldAutomateStatusChange(ticket, targetStatus, settings, settingKey) {
+function shouldAutomateStatusChange(ticket, targetStatusId, settings, settingKey) {
   if (!settings?.[settingKey]) {
     return {
       proceed: false,
@@ -36,11 +36,11 @@ function shouldAutomateStatusChange(ticket, targetStatus, settings, settingKey) 
     };
   }
 
-  if (ticket.status === targetStatus) {
+  if (statusService.statusIdsMatch(ticket.status, targetStatusId)) {
     return {
       proceed: false,
       result: AUTOMATION_RESULT.ALREADY_TARGET_STATUS,
-      reason: `Ticket already at status: ${targetStatus}`,
+      reason: 'Ticket already at target status',
     };
   }
 
@@ -49,8 +49,10 @@ function shouldAutomateStatusChange(ticket, targetStatus, settings, settingKey) 
 
 /**
  * Executes status change with automation metadata.
+ * @param {string} ticketId
+ * @param {string} targetStatusSlug - workspace status slug from integration settings
  */
-async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
+async function executeStatusChange(ticketId, targetStatusSlug, metadata = {}) {
   try {
     const oldTicket = await Ticket.findById(ticketId);
     if (!oldTicket) throw new Error('Ticket not found');
@@ -58,36 +60,37 @@ async function executeStatusChange(ticketId, targetStatus, metadata = {}) {
     const now = new Date();
     const statusDoc = await statusService.validateStatusForWorkspace(
       oldTicket.workspace,
-      targetStatus
+      targetStatusSlug
     );
-    const newStatus = statusDoc.slug;
-    const oldStatus = oldTicket.status?.toLowerCase();
+    const newStatusSlug = statusDoc.slug;
+    const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
 
-    const updateData = { status: newStatus };
+    const updateData = { status: statusDoc._id };
 
     await statusService.applyStatusLifecycleUpdate({
       workspaceId: oldTicket.workspace,
-      oldStatus,
-      newStatus,
+      oldStatus: oldStatusSlug,
+      newStatus: newStatusSlug,
       oldTicket,
       updateData,
       now,
     });
 
-    const ticket = await Ticket.findByIdAndUpdate(ticketId, { $set: updateData }, { new: true });
+    const ticket = await Ticket.findByIdAndUpdate(ticketId, { $set: updateData }, { new: true })
+      .populate('status', 'slug label color isBacklog tracksTime isDone');
 
     const triggerLabel = metadata.trigger === 'pr_merged' ? 'merged' : 'opened';
     const prInfo = metadata.prNumber ? ` (PR #${metadata.prNumber} ${triggerLabel})` : '';
     historyService.logSystemEvent(
       ticketId,
-      `Status automatically changed from ${oldTicket.status} to ${targetStatus}${prInfo}`
+      `Status automatically changed from ${oldStatusSlug || 'unknown'} to ${newStatusSlug}${prInfo}`
     );
 
     return {
       success: true,
       ticket,
-      previousStatus: oldTicket.status,
-      newStatus: targetStatus,
+      previousStatus: oldStatusSlug,
+      newStatus: newStatusSlug,
       metadata,
     };
   } catch (error) {
@@ -119,15 +122,19 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
       };
     }
 
-    const targetStatus = await statusService.resolveAutomationTargetStatus(
+    const targetStatusSlug = await statusService.resolveAutomationTargetStatus(
       workspaceId,
       settings.onPROpenTargetStatus,
       'prOpen'
     );
+    const targetStatusDoc = await statusService.validateStatusForWorkspace(
+      workspaceId,
+      targetStatusSlug
+    );
 
     const decision = shouldAutomateStatusChange(
       ticket,
-      targetStatus,
+      targetStatusDoc._id,
       settings,
       'autoMoveOnPROpenEnabled'
     );
@@ -137,11 +144,11 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
         result: decision.result,
         message: decision.reason,
         ticketId,
-        targetStatus,
+        targetStatus: targetStatusSlug,
       };
     }
 
-    const execution = await executeStatusChange(ticketId, targetStatus, {
+    const execution = await executeStatusChange(ticketId, targetStatusSlug, {
       trigger: 'pr_opened',
       prNumber: prData.prNumber,
       prTitle: prData.prTitle,
@@ -157,10 +164,10 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
 
     return {
       result: AUTOMATION_RESULT.STATUS_UPDATED,
-      message: `Status changed from ${execution.previousStatus} to ${targetStatus}`,
+      message: `Status changed from ${execution.previousStatus} to ${targetStatusSlug}`,
       ticketId,
       previousStatus: execution.previousStatus,
-      newStatus: targetStatus,
+      newStatus: targetStatusSlug,
       prNumber: prData.prNumber,
     };
   } catch (error) {
@@ -195,15 +202,19 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
       };
     }
 
-    const targetStatus = await statusService.resolveAutomationTargetStatus(
+    const targetStatusSlug = await statusService.resolveAutomationTargetStatus(
       workspaceId,
       settings.onMergeTargetStatus,
       'done'
     );
+    const targetStatusDoc = await statusService.validateStatusForWorkspace(
+      workspaceId,
+      targetStatusSlug
+    );
 
     const decision = shouldAutomateStatusChange(
       ticket,
-      targetStatus,
+      targetStatusDoc._id,
       settings,
       'autoMoveOnMergeEnabled'
     );
@@ -213,11 +224,11 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
         result: decision.result,
         message: decision.reason,
         ticketId,
-        targetStatus,
+        targetStatus: targetStatusSlug,
       };
     }
 
-    const execution = await executeStatusChange(ticketId, targetStatus, {
+    const execution = await executeStatusChange(ticketId, targetStatusSlug, {
       trigger: 'pr_merged',
       prNumber: prData.prNumber,
       prTitle: prData.prTitle,
@@ -234,10 +245,10 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
 
     return {
       result: AUTOMATION_RESULT.STATUS_UPDATED,
-      message: `Status changed from ${execution.previousStatus} to ${targetStatus}`,
+      message: `Status changed from ${execution.previousStatus} to ${targetStatusSlug}`,
       ticketId,
       previousStatus: execution.previousStatus,
-      newStatus: targetStatus,
+      newStatus: targetStatusSlug,
       prNumber: prData.prNumber,
     };
   } catch (error) {

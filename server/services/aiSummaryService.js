@@ -98,16 +98,17 @@ async function generateUserSummary({ userId, workspaceId, requesterId, requester
     requesterRole,
   });
 
-  const { doneSlugs } = await statusService.getStatusSlugSets(workspaceObjectId);
+  const { doneIds } = await statusService.getStatusIdSets(workspaceObjectId);
 
   const tickets = await Ticket.find({
     assignedTo: userObjectId,
     workspace: workspaceObjectId,
-    status: { $in: doneSlugs },
+    status: { $in: doneIds },
     isArchived: { $ne: true },
     $or: [{ subject: { $exists: true, $ne: '' } }, { description: { $exists: true, $ne: '' } }],
   })
     .sort({ doneAt: -1, updatedAt: -1 })
+    .populate('status', 'slug')
     .select('subject description status priority')
     .lean();
 
@@ -119,7 +120,9 @@ async function generateUserSummary({ userId, workspaceId, requesterId, requester
     tickets: tickets.map((ticket) => ({
       subject: normalizeText(ticket.subject),
       description: stripHtml(ticket.description),
-      status: normalizeText(ticket.status),
+      status: normalizeText(
+        ticket.status && typeof ticket.status === 'object' ? ticket.status.slug : ticket.status
+      ),
       priority: normalizeText(ticket.priority),
     })),
   });

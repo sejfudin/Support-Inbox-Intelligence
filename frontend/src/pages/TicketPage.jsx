@@ -426,7 +426,7 @@ export default function TicketPage() {
       const raw = ticket.raw || ticket;
       const subject = raw.subject || ticket.title || '';
       const description = raw.description || ticket.description || '';
-      const status = raw.status || ticket.status || '';
+      const status = ticket.status || '';
       const assignee =
         (raw.assignedTo || [])
           .map((person) => person?.fullname || person?.fullName || person?.email || '')

@@ -33,6 +33,7 @@ import TicketHistory from '../Tickets/TicketHistory';
 import { dueDateToInputValue } from '@/helpers/ticketDueDate';
 import { useCategories } from '@/queries/categories';
 import StoryPointsField from '../StoryPointsField';
+import { extractStatusSlug } from '@/helpers/normalizeTicket';
 import { normalizeStoryPoints } from '@/helpers/storyPoints';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { PRCard } from '@/components/PRCard';
@@ -281,7 +282,7 @@ export const TicketDetailsModal = ({
     const displayTitle = sanitizeDisplaySubject(ticket.subject || ticket.title);
     setTitle(displayTitle || 'Untitled Task');
     setDescription(ticket.description ?? '');
-    setCurrentStatus(ticket.status ?? 'To Do');
+    setCurrentStatus(extractStatusSlug(ticket.status) || helpers.defaultMainStatus || 'to do');
     setCurrentPriority(ticket.priority ?? 'medium');
     setCurrentStoryPoints(normalizeStoryPoints(ticket.storyPoints));
 
@@ -293,7 +294,7 @@ export const TicketDetailsModal = ({
     setStoryPointsLockedByUser(false);
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
-  }, [isOpen, ticket, resetDescriptionGenerationState, resetMetadataSuggestionState]);
+  }, [isOpen, ticket, helpers.defaultMainStatus, resetDescriptionGenerationState, resetMetadataSuggestionState]);
 
   const selectedUsersObjects = useMemo(() => {
     return selectedAgents.map((id) => users.find((u) => u._id === id)).filter(Boolean);
@@ -303,7 +304,7 @@ export const TicketDetailsModal = ({
     if (!ticket) return false;
     const initialTitle = sanitizeDisplaySubject(ticket.subject || ticket.title) || 'Untitled Task';
     const initialDescription = ticket.description ?? '';
-    const initialStatus = ticket.status ?? 'To Do';
+    const initialStatus = extractStatusSlug(ticket.status) || helpers.defaultMainStatus || 'to do';
     const initialPriority = ticket.priority ?? 'medium';
     const initialStoryPoints = normalizeStoryPoints(ticket.storyPoints);
     const initialAgents = (ticket.assignedTo?.map((a) => a._id || a) || []).sort();
@@ -330,6 +331,7 @@ export const TicketDetailsModal = ({
     title,
     dueDateInput,
     currentCategory,
+    helpers.defaultMainStatus,
   ]);
 
   useEffect(() => {
@@ -399,7 +401,7 @@ export const TicketDetailsModal = ({
         id,
         titleValue,
         description || ticket.description || '',
-        ticket.status || '',
+        extractStatusSlug(ticket.status) || '',
         ticket.priority || '',
         assignee,
         workspaceName,

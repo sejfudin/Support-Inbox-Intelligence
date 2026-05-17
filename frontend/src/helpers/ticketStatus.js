@@ -1,3 +1,5 @@
+import { extractStatusSlug } from '@/helpers/normalizeTicket';
+
 export const DEFAULT_STATUS_DRAFTS = [
   { label: 'Backlog', color: '#6b7280', isBacklog: true, tracksTime: false, isDone: false },
   { label: 'To do', color: '#64748b', isBacklog: false, tracksTime: false, isDone: false },
@@ -85,7 +87,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
   };
 
   const resolveBoardColumnId = (status) => {
-    const key = status?.toLowerCase();
+    const key = extractStatusSlug(status).toLowerCase();
     if (!key) return firstColumnId;
     return statusToColumn[key] ?? legacyStatusToColumn[key] ?? firstColumnId;
   };
@@ -139,14 +141,15 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     tracksTimeSlugs,
     doneSlugs,
     getStatusColor: (status) => {
-      const match = statuses.find((s) => s.slug === status?.toLowerCase());
+      const key = extractStatusSlug(status).toLowerCase();
+      const match = statuses.find((s) => s.slug === key);
       if (match?.color) return match.color;
-      if (doneSlugs.has(status?.toLowerCase())) return '#22c55e';
-      if (tracksTimeSlugs.has(status?.toLowerCase())) return '#3b82f6';
+      if (doneSlugs.has(key)) return '#22c55e';
+      if (tracksTimeSlugs.has(key)) return '#3b82f6';
       return '#9E54B0';
     },
-    statusTracksTime: (status) => tracksTimeSlugs.has(status?.toLowerCase()),
-    statusIsDone: (status) => doneSlugs.has(status?.toLowerCase()),
+    statusTracksTime: (status) => tracksTimeSlugs.has(extractStatusSlug(status).toLowerCase()),
+    statusIsDone: (status) => doneSlugs.has(extractStatusSlug(status).toLowerCase()),
   };
 };
 

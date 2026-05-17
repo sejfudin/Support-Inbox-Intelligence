@@ -41,14 +41,14 @@ const getWorkspaceAnalytics = async ({ workspaceId, days = 30 }) => {
     isArchived: { $ne: true },
   };
 
-  const { doneSlugs } = await statusService.getStatusSlugSets(workspaceId);
+  const { doneIds } = await statusService.getStatusIdSets(workspaceId);
 
   const [throughputRaw, creationRaw, cycleRaw] = await Promise.all([
     Ticket.aggregate([
       {
         $match: {
           ...baseMatch,
-          status: { $in: doneSlugs },
+          status: { $in: doneIds },
           doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
         },
       },
@@ -85,7 +85,7 @@ const getWorkspaceAnalytics = async ({ workspaceId, days = 30 }) => {
       {
         $match: {
           ...baseMatch,
-          status: { $in: doneSlugs },
+          status: { $in: doneIds },
           doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
           inProgressAt: { $ne: null },
         },
@@ -223,7 +223,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
     assignedTo: userObjectId,
   };
 
-  const { doneSlugs, tracksTimeSlugs } = await statusService.getStatusSlugSets(workspaceId);
+  const { doneIds, tracksTimeIds } = await statusService.getStatusIdSets(workspaceId);
 
   const [summaryRaw, cycleRaw, timeRaw, workloadRaw, trendRaw] = await Promise.all([
     Ticket.aggregate([
@@ -238,7 +238,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
               $cond: [
                 {
                   $and: [
-                    { $in: ['$status', doneSlugs] },
+                    { $in: ['$status', doneIds] },
                     { $ne: ['$doneAt', null] },
                     { $gte: ['$doneAt', startDate] },
                     { $lt: ['$doneAt', endExclusive] },
@@ -251,7 +251,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
           },
           activeTickets: {
             $sum: {
-              $cond: [{ $in: ['$status', tracksTimeSlugs] }, 1, 0],
+              $cond: [{ $in: ['$status', tracksTimeIds] }, 1, 0],
             },
           },
         },
@@ -268,7 +268,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
       {
         $match: {
           ...baseMatch,
-          status: { $in: doneSlugs },
+          status: { $in: doneIds },
           doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
           inProgressAt: { $ne: null },
         },
@@ -333,7 +333,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
       {
         $match: {
           ...baseMatch,
-          status: { $in: doneSlugs },
+          status: { $in: doneIds },
           doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
         },
       },
@@ -355,7 +355,7 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
       {
         $match: {
           ...baseMatch,
-          status: { $in: doneSlugs },
+          status: { $in: doneIds },
           doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
         },
       },

@@ -1,10 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { extractStatusSlug } from '@/helpers/normalizeTicket';
 
 export default function TicketStatusBadge({ status, className, statusBadgeConfig = {} }) {
-  const s = status?.toLowerCase();
+  const statusSlug = extractStatusSlug(status);
+  const s = statusSlug.toLowerCase();
   const current = statusBadgeConfig[s] || { variant: 'outline', className: '' };
-  const displayLabel = current.label || status;
+  const displayLabel = current.label || statusSlug;
 
   return (
     <Badge

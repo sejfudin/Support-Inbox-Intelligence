@@ -150,6 +150,48 @@ const getBacklogSlugs = async (workspaceId) => {
   return ['backlog'];
 };
 
+const getBacklogStatusIds = async (workspaceId) => {
+  const statuses = await TicketStatus.find({ workspace: workspaceId, isBacklog: true })
+    .select('_id')
+    .lean();
+  return statuses.map((s) => s._id);
+};
+
+const getStatusIdForSlug = async (workspaceId, slug) => {
+  const status = await validateStatusForWorkspace(workspaceId, slug);
+  return status._id;
+};
+
+const resolveStatusSlugFromTicketRef = async (statusRef) => {
+  if (!statusRef) return '';
+  if (typeof statusRef === 'object' && statusRef.slug) {
+    return String(statusRef.slug).toLowerCase();
+  }
+  const doc = await TicketStatus.findById(statusRef).select('slug').lean();
+  return doc?.slug ? String(doc.slug).toLowerCase() : '';
+};
+
+const statusIdsMatch = (a, b) => {
+  if (!a || !b) return false;
+  return String(a) === String(b);
+};
+
+const getStatusIdSets = async (workspaceId) => {
+  const statuses = await getWorkspaceStatuses(workspaceId);
+  if (statuses.length === 0) {
+    console.error(
+      `[statusService] No TicketStatus rows for workspace ${workspaceId}; ID sets empty. Run migrateTicketStatuses.js.`
+    );
+    return { doneIds: [], tracksTimeIds: [], activeIds: [] };
+  }
+
+  return {
+    doneIds: statuses.filter((s) => s.isDone).map((s) => s._id),
+    tracksTimeIds: statuses.filter((s) => s.tracksTime).map((s) => s._id),
+    activeIds: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s._id),
+  };
+};
+
 const getStatusSlugSets = async (workspaceId) => {
   const statuses = await getWorkspaceStatuses(workspaceId);
   if (statuses.length === 0) {
@@ -391,7 +433,7 @@ const deleteStatus = async (statusId) => {
 
   const ticketCount = await Ticket.countDocuments({
     workspace: status.workspace,
-    status: status.slug,
+    status: status._id,
   });
   if (ticketCount > 0) {
     const ticketWord = ticketCount === 1 ? 'ticket' : 'tickets';
@@ -448,6 +490,11 @@ module.exports = {
   validateStatusForWorkspace,
   getStatusFlags,
   getBacklogSlugs,
+  getBacklogStatusIds,
+  getStatusIdForSlug,
+  resolveStatusSlugFromTicketRef,
+  statusIdsMatch,
+  getStatusIdSets,
   getStatusSlugSets,
   resolveDefaultStatus,
   resolveIntegrationStatusTargets,

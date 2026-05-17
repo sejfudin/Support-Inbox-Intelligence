@@ -1,10 +1,24 @@
 import { normalizeStoryPoints } from './storyPoints';
 
+/** API may return status as a slug string or populated TicketStatus object. */
+export const extractStatusSlug = (statusRef) => {
+  if (statusRef == null || statusRef === '') return '';
+  if (typeof statusRef === 'object') {
+    return String(statusRef.slug ?? '').trim();
+  }
+  return String(statusRef).trim();
+};
+
+export const extractStatusMeta = (statusRef) =>
+  statusRef && typeof statusRef === 'object' ? statusRef : null;
+
 export const normalizeTicket = (ticket = {}) => {
   const id = ticket._id ?? ticket.id ?? ticket.ticketId ?? ticket.uuid;
   const title = ticket.subject ?? ticket.title ?? ticket.name ?? 'Untitled';
   const description = ticket.description ?? '';
-  const status = ticket.status ?? '';
+  const rawStatus = ticket.status ?? '';
+  const status = extractStatusSlug(rawStatus);
+  const statusMeta = extractStatusMeta(rawStatus);
   const priority = ticket.priority ?? 'medium';
   const storyPoints = normalizeStoryPoints(ticket.storyPoints);
   const assignedTo = Array.isArray(ticket.assignedTo)
@@ -23,6 +37,7 @@ export const normalizeTicket = (ticket = {}) => {
     title,
     description,
     status,
+    statusMeta,
     priority,
     storyPoints,
     assignedTo,

@@ -1,4 +1,4 @@
-const Ticket = require('../models/Ticket');
+const mongoose = require('mongoose');
 const TicketStatus = require('../models/TicketStatus');
 const Integration = require('../models/Integration');
 const {
@@ -13,6 +13,14 @@ const {
   seedDefaultStatuses,
   resolveIntegrationStatusTargets,
 } = require('../services/statusService');
+
+const readRawStatusSlug = (rawDoc) => {
+  const value = rawDoc?.status;
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (value instanceof mongoose.Types.ObjectId) return '';
+  return String(value);
+};
 
 const reconcileWorkspace = async (workspace, { dryRun = true } = {}) => {
   const workspaceId = workspace._id;
@@ -42,25 +50,25 @@ const reconcileWorkspace = async (workspace, { dryRun = true } = {}) => {
   const flagBySlug = Object.fromEntries(statuses.map((s) => [s.slug, s]));
   const fallbackSlug = pickFallbackSlug(statuses);
 
-  const cursor = Ticket.find({
+  const ticketsCollection = mongoose.connection.collection('tickets');
+  const cursor = ticketsCollection.find({
     workspace: workspaceId,
     isArchived: { $ne: true },
-  })
-    .select('_id status doneAt inProgressAt updatedAt createdAt')
-    .cursor();
+  });
 
-  for await (const ticket of cursor) {
-    const resolved = resolveTicketStatusSlug(ticket.status, validSlugs, { fallbackSlug });
+  for await (const rawTicket of cursor) {
+    const currentSlug = readRawStatusSlug(rawTicket);
+    const resolved = resolveTicketStatusSlug(currentSlug, validSlugs, { fallbackSlug });
     const flags = flagBySlug[resolved.slug];
     const updates = {};
 
-    if (ticket.status !== resolved.slug) {
+    if (currentSlug !== resolved.slug) {
       updates.status = resolved.slug;
       summary.slugUpdates += 1;
       if (summary.slugSamples.length < 5) {
         summary.slugSamples.push({
-          ticketId: ticket._id.toString(),
-          from: ticket.status,
+          ticketId: rawTicket._id.toString(),
+          from: currentSlug,
           to: resolved.slug,
           mapped: resolved.mapped,
         });
@@ -68,7 +76,13 @@ const reconcileWorkspace = async (workspace, { dryRun = true } = {}) => {
     }
 
     const lifecyclePatch = buildLifecyclePatch(
-      { ...ticket.toObject(), status: resolved.slug },
+      {
+        doneAt: rawTicket.doneAt,
+        inProgressAt: rawTicket.inProgressAt,
+        updatedAt: rawTicket.updatedAt,
+        createdAt: rawTicket.createdAt,
+        status: resolved.slug,
+      },
       flags
     );
     Object.assign(updates, lifecyclePatch);
@@ -77,14 +91,14 @@ const reconcileWorkspace = async (workspace, { dryRun = true } = {}) => {
       summary.lifecycleUpdates += 1;
       if (summary.lifecycleSamples.length < 5) {
         summary.lifecycleSamples.push({
-          ticketId: ticket._id.toString(),
+          ticketId: rawTicket._id.toString(),
           patch: lifecyclePatch,
         });
       }
     }
 
     if (!dryRun && Object.keys(updates).length > 0) {
-      await Ticket.updateOne({ _id: ticket._id }, { $set: updates });
+      await ticketsCollection.updateOne({ _id: rawTicket._id }, { $set: updates });
     }
   }
 

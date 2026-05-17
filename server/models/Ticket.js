@@ -55,10 +55,9 @@ const ticketSchema = new mongoose.Schema(
       type: String,
     },
     status: {
-      type: String,
-      default: 'backlog',
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'TicketStatus',
       required: true,
-      trim: true,
     },
     priority: {
       type: String,
