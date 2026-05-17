@@ -694,7 +694,12 @@ const getMyTickets = async ({
     ];
   }
 
-  if (status && status !== 'all') {
+  if (status === 'not_null') {
+    const backlogIds = await statusService.getBacklogStatusIds(workspaceId);
+    if (backlogIds.length > 0) {
+      query.status = { $nin: backlogIds };
+    }
+  } else if (status && status !== 'all') {
     query.status = await statusService.getStatusIdForSlug(workspaceId, status);
   }
 

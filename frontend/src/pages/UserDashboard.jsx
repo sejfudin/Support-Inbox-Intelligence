@@ -39,6 +39,7 @@ export default function UserDashboard() {
       page: requestedPage,
       limit: 10,
       search: debouncedSearch,
+      status: 'not_null',
       sortBy: 'updatedAt',
       sortOrder: 'desc',
       workspaceId: user?.workspaceId,
