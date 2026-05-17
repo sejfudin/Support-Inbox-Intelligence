@@ -7,6 +7,16 @@ const slugifyLabel = (label) =>
     .replace(/\s+/g, ' ');
 
 const assertBehaviorFlagCounts = (statuses) => {
+  for (const status of statuses) {
+    const flagCount = [status.isBacklog, status.tracksTime, status.isDone].filter(Boolean).length;
+    if (flagCount > 1) {
+      return {
+        valid: false,
+        message: 'Each status can have only one behavior flag: Backlog, Tracks time, or Done.',
+      };
+    }
+  }
+
   const backlogCount = statuses.filter((status) => status.isBacklog).length;
   const tracksTimeCount = statuses.filter((status) => status.tracksTime).length;
   const doneCount = statuses.filter((status) => status.isDone).length;

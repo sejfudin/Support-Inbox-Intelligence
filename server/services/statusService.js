@@ -10,6 +10,7 @@ const {
   assertWorkspaceBehaviorFlags,
   assertUniqueLabelInWorkspace,
   mapStatusPersistenceError,
+  normalizeStatusBehaviorFlags,
 } = require('../helpers/statusValidation');
 
 const DEFAULT_STATUSES = [
@@ -480,6 +481,24 @@ const syncIntegrationStatusSlugs = async (workspaceId, oldSlug, newSlug, statusI
   await integration.save();
 };
 
+const EXCLUSIVE_BEHAVIOR_FLAGS = ['isBacklog', 'tracksTime', 'isDone'];
+
+const clearExclusiveBehaviorFlags = async (workspaceId, flagKey, exceptStatusId = null) => {
+  const query = { workspace: workspaceId, [flagKey]: true };
+  if (exceptStatusId) {
+    query._id = { $ne: exceptStatusId };
+  }
+  await TicketStatus.updateMany(query, { $set: { [flagKey]: false } });
+};
+
+const transferExclusiveBehaviorFlags = async (workspaceId, statusId, flags) => {
+  for (const flagKey of EXCLUSIVE_BEHAVIOR_FLAGS) {
+    if (flags[flagKey]) {
+      await clearExclusiveBehaviorFlags(workspaceId, flagKey, statusId);
+    }
+  }
+};
+
 const applyStatusSlugChange = async (status, nextSlug) => {
   const normalized = slugifyLabel(nextSlug);
   if (!normalized) {
@@ -507,17 +526,14 @@ const applyStatusSlugChange = async (status, nextSlug) => {
 
 const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, isDone }) => {
   const trimmedLabel = validateStatusLabel(label);
-  const willBeBacklog = Boolean(isBacklog);
-  const willTrackTime = Boolean(tracksTime);
-  const willBeDone = Boolean(isDone);
+  const behaviorFlags = normalizeStatusBehaviorFlags({ isBacklog, tracksTime, isDone });
 
   await assertUniqueLabelInWorkspace(workspaceId, trimmedLabel);
+
+  await transferExclusiveBehaviorFlags(workspaceId, null, behaviorFlags);
+
   await assertWorkspaceBehaviorFlags(workspaceId, {
-    replaceStatus: {
-      isBacklog: willBeBacklog,
-      tracksTime: willTrackTime,
-      isDone: willBeDone,
-    },
+    replaceStatus: behaviorFlags,
   });
 
   const slug = await generateUniqueSlug(workspaceId, trimmedLabel);
@@ -534,25 +550,32 @@ const createStatus = async ({ workspaceId, label, color, isBacklog, tracksTime, 
       label: trimmedLabel,
       color: color || '#6366f1',
       sortOrder,
-      isBacklog: willBeBacklog,
-      tracksTime: Boolean(tracksTime),
-      isDone: Boolean(isDone),
+      isBacklog: behaviorFlags.isBacklog,
+      tracksTime: behaviorFlags.tracksTime,
+      isDone: behaviorFlags.isDone,
     });
   } catch (error) {
     throw mapStatusPersistenceError(error);
   }
 };
 
+const applyBehaviorFlagsToStatusDoc = (status, updates = {}) => {
+  const merged = normalizeStatusBehaviorFlags({
+    isBacklog: updates.isBacklog !== undefined ? updates.isBacklog : status.isBacklog,
+    tracksTime: updates.tracksTime !== undefined ? updates.tracksTime : status.tracksTime,
+    isDone: updates.isDone !== undefined ? updates.isDone : status.isDone,
+  });
+  status.isBacklog = merged.isBacklog;
+  status.tracksTime = merged.tracksTime;
+  status.isDone = merged.isDone;
+  return status;
+};
+
 const updateStatus = async (statusId, updates) => {
   const status = await TicketStatus.findById(statusId);
   if (!status) throw new StatusValidationError('Status not found.');
 
-  const nextIsBacklog =
-    updates.isBacklog !== undefined ? Boolean(updates.isBacklog) : status.isBacklog;
-
-  if (!status.isBacklog && nextIsBacklog) {
-    await assertMainBoardRemains(status.workspace, status._id);
-  }
+  const previousIsBacklog = status.isBacklog;
 
   if (updates.label !== undefined) {
     const trimmedLabel = validateStatusLabel(updates.label);
@@ -571,9 +594,25 @@ const updateStatus = async (statusId, updates) => {
   }
 
   if (updates.color !== undefined) status.color = updates.color;
-  if (updates.isBacklog !== undefined) status.isBacklog = nextIsBacklog;
-  if (updates.tracksTime !== undefined) status.tracksTime = Boolean(updates.tracksTime);
-  if (updates.isDone !== undefined) status.isDone = Boolean(updates.isDone);
+
+  const flagsTouched =
+    updates.isBacklog !== undefined ||
+    updates.tracksTime !== undefined ||
+    updates.isDone !== undefined;
+
+  if (flagsTouched) {
+    applyBehaviorFlagsToStatusDoc(status, updates);
+
+    if (!previousIsBacklog && status.isBacklog) {
+      await assertMainBoardRemains(status.workspace, status._id);
+    }
+
+    await transferExclusiveBehaviorFlags(status.workspace, status._id, {
+      isBacklog: status.isBacklog,
+      tracksTime: status.tracksTime,
+      isDone: status.isDone,
+    });
+  }
 
   await assertWorkspaceBehaviorFlags(status.workspace, {
     replaceStatus: {

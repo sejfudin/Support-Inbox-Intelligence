@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -20,6 +20,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
+import {
+  applyWorkspaceBehaviorFlagPatch,
+  toggleStatusBehaviorFlag,
+} from '@/helpers/statusBehaviorFlags';
 
 const PRESET_COLORS = [
   '#ef4444',
@@ -58,8 +62,10 @@ const FlagFields = ({ item, onChange }) => (
   <div className="grid gap-2 sm:grid-cols-3">
     <label className="flex items-start gap-2 text-xs">
       <Checkbox
-        checked={item.isBacklog}
-        onCheckedChange={(checked) => onChange({ isBacklog: Boolean(checked) })}
+        checked={Boolean(item.isBacklog)}
+        onCheckedChange={(checked) =>
+          onChange(toggleStatusBehaviorFlag(item, 'isBacklog', Boolean(checked)))
+        }
       />
       <span>
         <span className="font-medium text-slate-800">Backlog</span>
@@ -68,8 +74,10 @@ const FlagFields = ({ item, onChange }) => (
     </label>
     <label className="flex items-start gap-2 text-xs">
       <Checkbox
-        checked={item.tracksTime}
-        onCheckedChange={(checked) => onChange({ tracksTime: Boolean(checked) })}
+        checked={Boolean(item.tracksTime)}
+        onCheckedChange={(checked) =>
+          onChange(toggleStatusBehaviorFlag(item, 'tracksTime', Boolean(checked)))
+        }
       />
       <span>
         <span className="font-medium text-slate-800">Tracks time</span>
@@ -78,8 +86,10 @@ const FlagFields = ({ item, onChange }) => (
     </label>
     <label className="flex items-start gap-2 text-xs">
       <Checkbox
-        checked={item.isDone}
-        onCheckedChange={(checked) => onChange({ isDone: Boolean(checked) })}
+        checked={Boolean(item.isDone)}
+        onCheckedChange={(checked) =>
+          onChange(toggleStatusBehaviorFlag(item, 'isDone', Boolean(checked)))
+        }
       />
       <span>
         <span className="font-medium text-slate-800">Done</span>
@@ -98,6 +108,12 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item);
+
+  useEffect(() => {
+    if (!editing) {
+      setDraft(item);
+    }
+  }, [item, editing]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -130,7 +146,10 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
           }}
         />
         <ColorPicker value={draft.color} onChange={(color) => setDraft({ ...draft, color })} />
-        <FlagFields item={draft} onChange={(patch) => setDraft({ ...draft, ...patch })} />
+        <FlagFields
+          item={draft}
+          onChange={(next) => setDraft({ ...draft, ...next })}
+        />
         <div className="flex gap-2">
           <Button size="sm" onClick={saveEdit} disabled={!draft.label?.trim()}>
             <Check className="h-3.5 w-3.5 mr-1" />
@@ -227,7 +246,7 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
   };
 
   const updateItem = (index, patch) => {
-    onChange(items.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+    onChange(applyWorkspaceBehaviorFlagPatch(items, index, patch));
   };
 
   const removeItem = (index) => {
@@ -237,16 +256,15 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
 
   const addItem = () => {
     if (!newItem.label.trim()) return;
-    onChange([
-      ...items,
-      {
-        label: newItem.label.trim(),
-        color: newItem.color,
-        isBacklog: newItem.isBacklog,
-        tracksTime: newItem.tracksTime,
-        isDone: newItem.isDone,
-      },
-    ]);
+    const draftRow = {
+      label: newItem.label.trim(),
+      color: newItem.color,
+      isBacklog: newItem.isBacklog,
+      tracksTime: newItem.tracksTime,
+      isDone: newItem.isDone,
+    };
+    const nextItems = [...items, draftRow];
+    onChange(applyWorkspaceBehaviorFlagPatch(nextItems, nextItems.length - 1, draftRow));
     setNewItem({
       label: '',
       color: PRESET_COLORS[5],
@@ -262,7 +280,8 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Drag to reorder columns. Use flags to control backlog, time tracking, and completion.
+        Drag to reorder columns. Each status can have at most one of Backlog, Tracks time, or
+        Done. Turning a flag on moves it from any other status that had it.
       </p>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

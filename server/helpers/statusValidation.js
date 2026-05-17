@@ -16,7 +16,39 @@ class StatusValidationError extends Error {
   }
 }
 
+const BEHAVIOR_FLAG_KEYS = ['isBacklog', 'tracksTime', 'isDone'];
+
+const normalizeStatusBehaviorFlags = (flags = {}) => {
+  const isBacklog = Boolean(flags.isBacklog);
+  const tracksTime = Boolean(flags.tracksTime);
+  const isDone = Boolean(flags.isDone);
+
+  if (isBacklog) {
+    return { isBacklog: true, tracksTime: false, isDone: false };
+  }
+  if (tracksTime) {
+    return { isBacklog: false, tracksTime: true, isDone: false };
+  }
+  if (isDone) {
+    return { isBacklog: false, tracksTime: false, isDone: true };
+  }
+  return { isBacklog: false, tracksTime: false, isDone: false };
+};
+
+const assertSingleBehaviorFlagPerStatus = (statuses) => {
+  for (const status of statuses) {
+    const count = BEHAVIOR_FLAG_KEYS.filter((key) => Boolean(status[key])).length;
+    if (count > 1) {
+      throw new StatusValidationError(
+        'Each status can have only one behavior flag: Backlog, Tracks time, or Done.'
+      );
+    }
+  }
+};
+
 const assertBehaviorFlagCounts = (statuses) => {
+  assertSingleBehaviorFlagPerStatus(statuses);
+
   const backlogCount = statuses.filter((status) => status.isBacklog).length;
   const tracksTimeCount = statuses.filter((status) => status.tracksTime).length;
   const doneCount = statuses.filter((status) => status.isDone).length;
@@ -195,6 +227,8 @@ const mapStatusPersistenceError = (error) => {
 module.exports = {
   StatusValidationError,
   MAX_STATUS_LABEL_LENGTH,
+  BEHAVIOR_FLAG_KEYS,
+  normalizeStatusBehaviorFlags,
   validateStatusesPayload,
   validateStatusLabel,
   assertWorkspaceBehaviorFlags,

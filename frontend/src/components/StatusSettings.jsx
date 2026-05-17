@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import TicketStatusEditor from '@/components/TicketStatusEditor';
 import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
+import { getStatusesToPersist } from '@/helpers/statusBehaviorFlags';
 import {
   useTicketStatusesQuery,
   useCreateTicketStatus,
@@ -39,6 +40,21 @@ const toEditorItem = (status) => ({
 
 const needsReassign = (message = '') =>
   /still use|move them to|choose another status/i.test(message);
+
+const statusFieldsChanged = (next, prev) =>
+  next.label !== prev.label ||
+  next.color !== prev.color ||
+  next.isBacklog !== prev.isBacklog ||
+  next.tracksTime !== prev.tracksTime ||
+  next.isDone !== prev.isDone;
+
+const getChangedStatuses = (nextItems, prevItems) =>
+  nextItems.filter((next) => {
+    if (!next?._id) return false;
+    const prev = prevItems.find((item) => String(item._id) === String(next._id));
+    if (!prev) return false;
+    return statusFieldsChanged(next, prev);
+  });
 
 const StatusSettings = ({ workspaceId }) => {
   const { data: statuses = [], isLoading, refetch } = useTicketStatusesQuery(workspaceId);
@@ -147,30 +163,22 @@ const StatusSettings = ({ workspaceId }) => {
       return;
     }
 
-    const updated = nextItems.find((next) => {
-      if (!next?._id) return false;
-      const prev = items.find((item) => item._id === next._id);
-      if (!prev) return false;
-      return (
-        next.label !== prev.label ||
-        next.color !== prev.color ||
-        next.isBacklog !== prev.isBacklog ||
-        next.tracksTime !== prev.tracksTime ||
-        next.isDone !== prev.isDone
-      );
-    });
+    const changedStatuses = getChangedStatuses(nextItems, items);
 
-    if (updated?._id) {
+    if (changedStatuses.length > 0) {
+      const toPersist = getStatusesToPersist(changedStatuses, items);
       try {
-        await updateMutation.mutateAsync({
-          id: updated._id,
-          label: updated.label,
-          color: updated.color,
-          isBacklog: updated.isBacklog,
-          tracksTime: updated.tracksTime,
-          isDone: updated.isDone,
-        });
-        toast.success('Status updated');
+        for (const item of toPersist) {
+          await updateMutation.mutateAsync({
+            id: item._id,
+            label: item.label,
+            color: item.color,
+            isBacklog: item.isBacklog,
+            tracksTime: item.tracksTime,
+            isDone: item.isDone,
+          });
+        }
+        toast.success(toPersist.length === 1 ? 'Status updated' : 'Statuses updated');
         await refetch();
       } catch (err) {
         toast.error(getApiErrorMessage(err, 'Failed to update status'));
