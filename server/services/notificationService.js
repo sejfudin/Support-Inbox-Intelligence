@@ -1,5 +1,6 @@
 const Notification = require('../models/Notification');
 const { sendToUser } = require('../socket/socketServer');
+const { invalidationScopes } = require('../socket/invalidationScopes');
 
 const MAX_LIST = 50;
 
@@ -111,6 +112,11 @@ const notifyNewTicketComment = async ({
 
     sendToUser(rid, 'new_notification', {
       notification: n.toObject(),
+      recipientId: String(rid),
+      scopes: [
+        invalidationScopes.user(rid),
+        invalidationScopes.ticket(ticket._id),
+      ],
       unreadDelta: 1,
     });
   }
@@ -148,6 +154,12 @@ const notifyTicketAssigned = async ({ ticket, assignedUserIds = [], actorUserId 
 
     sendToUser(rid, 'new_notification', {
       notification: n.toObject(),
+      recipientId: String(rid),
+      scopes: [
+        invalidationScopes.user(rid),
+        invalidationScopes.ticket(ticket._id),
+        invalidationScopes.workspace(workspaceId),
+      ],
       unreadDelta: 1,
     });
   }
@@ -190,6 +202,11 @@ const notifyTicketMention = async ({
 
     sendToUser(rid, 'new_notification', {
       notification: n.toObject(),
+      recipientId: String(rid),
+      scopes: [
+        invalidationScopes.user(rid),
+        invalidationScopes.ticket(ticket._id),
+      ],
       unreadDelta: 1,
     });
   }

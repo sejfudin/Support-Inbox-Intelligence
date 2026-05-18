@@ -8,8 +8,8 @@ import {
   useCreateWorkspace,
   useSwitchWorkspace,
   useDeleteWorkspace,
-  workspaceKeys,
 } from '@/queries/workspaces';
+import { invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -95,11 +95,7 @@ export default function AdminWorkspacesPage() {
             const workspaceId = createdWorkspace?._id;
             if (logoFile && workspaceId) {
               await uploadWorkspaceLogo(workspaceId, logoFile);
-              await Promise.all([
-                queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) }),
-                queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() }),
-                queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() }),
-              ]);
+              invalidateWorkspaceScope(queryClient, workspaceId);
             }
 
             setIsCreateOpen(false);

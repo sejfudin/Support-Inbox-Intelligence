@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 import { NOTIFICATIONS_QUERY_KEY } from '@/queries/notifications';
 import { setActiveSocketId } from '@/lib/socketSession';
+import { invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes';
 
 const SocketContext = createContext(null);
 
@@ -91,10 +92,17 @@ export const SocketProvider = ({ children }) => {
       };
 
       const onNewNotification = (payload) => {
-        queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+        invalidateScopes(queryClient, payload?.scopes);
+        invalidateUserScope(queryClient, payload?.recipientId);
+      };
+
+      const onCacheInvalidated = (payload) => {
+        invalidateScopes(queryClient, payload?.scopes ?? payload?.scope);
       };
 
       const onNotificationMarkedAsRead = (payload) => {
+        invalidateScopes(queryClient, payload?.scopes);
+
         const notificationIds = Array.isArray(payload?.notificationIds)
           ? payload.notificationIds.map((id) => String(id))
           : payload?.notificationId
@@ -148,6 +156,7 @@ export const SocketProvider = ({ children }) => {
       socket.on('disconnect', onDisconnect);
       socket.on('connect_error', onConnectError);
       socket.on('new_notification', onNewNotification);
+      socket.on('CACHE_INVALIDATED', onCacheInvalidated);
       socket.on('NOTIFICATION_MARKED_AS_READ', onNotificationMarkedAsRead);
 
       socketRef.current = socket;

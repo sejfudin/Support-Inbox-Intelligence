@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '@/api/categories';
+import { invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 
 export const categoryKeys = {
   byWorkspace: (workspaceId) => ['categories', workspaceId],
@@ -20,7 +21,7 @@ export const useCreateCategory = (workspaceId) => {
   return useMutation({
     mutationFn: createCategory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: categoryKeys.byWorkspace(workspaceId) });
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -30,7 +31,7 @@ export const useUpdateCategory = (workspaceId) => {
   return useMutation({
     mutationFn: ({ id, ...data }) => updateCategory(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: categoryKeys.byWorkspace(workspaceId) });
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -40,7 +41,7 @@ export const useDeleteCategory = (workspaceId) => {
   return useMutation({
     mutationFn: deleteCategory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: categoryKeys.byWorkspace(workspaceId) });
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };

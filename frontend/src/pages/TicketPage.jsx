@@ -20,6 +20,7 @@ import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateTicket } from '@/queries/tickets';
+import { invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 import { getAllTickets as getAllTicketsApi } from '@/api/tickets';
 import { useUsers } from '@/queries/users';
 import {
@@ -385,7 +386,7 @@ export default function TicketPage() {
       },
       {
         onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ['tickets'] });
+          invalidateWorkspaceScope(queryClient, effectiveWorkspaceId);
         },
         onError: (err) => console.error('Error updating ticket: ', err),
       }

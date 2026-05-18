@@ -13,7 +13,7 @@ import {
   uploadTicketDescriptionImages,
   deleteTicketDescriptionImage,
 } from '@/api/tickets';
-import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
+import { invalidateTicketScope, invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 
 export const useTickets = (params, options = {}) => {
   return useQuery({
@@ -38,7 +38,7 @@ export const useAddMessage = () => {
   return useMutation({
     mutationFn: addMessage,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries(['ticket', variables.ticketId]);
+      invalidateTicketScope(queryClient, variables.ticketId);
     },
   });
 };
@@ -47,9 +47,9 @@ export const useCreateTicket = () => {
 
   return useMutation({
     mutationFn: createTicket,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      invalidateAnalyticsQueries(queryClient);
+    onSuccess: (ticket) => {
+      const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -59,11 +59,11 @@ export const useUpdateTicket = () => {
 
   return useMutation({
     mutationFn: (vars) => updateTicket(vars.ticketId, vars.updates),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] });
-      queryClient.invalidateQueries({ queryKey: ['ticket-history', variables.ticketId] });
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      invalidateAnalyticsQueries(queryClient);
+    onSuccess: (ticket, variables) => {
+      const workspaceId =
+        variables.workspaceId ?? ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
+      invalidateTicketScope(queryClient, variables.ticketId);
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -73,11 +73,10 @@ export const useArchiveTicket = () => {
 
   return useMutation({
     mutationFn: archiveTicket,
-    onSuccess: (_, ticketId) => {
-      queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
-      queryClient.invalidateQueries({ queryKey: ['ticket-history', ticketId] });
-      invalidateAnalyticsQueries(queryClient);
+    onSuccess: (ticket, ticketId) => {
+      const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
+      invalidateTicketScope(queryClient, ticketId);
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };

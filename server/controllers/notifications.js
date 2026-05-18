@@ -1,5 +1,6 @@
 const notificationService = require('../services/notificationService');
 const { broadcastToUserRoom } = require('../socket/socketServer');
+const { invalidationScopes } = require('../socket/invalidationScopes');
 
 const getRequesterSocketId = (req) => {
   const rawSocketId = req.headers['x-socket-id'];
@@ -34,6 +35,7 @@ const markNotificationRead = async (req, res, next) => {
       'NOTIFICATION_MARKED_AS_READ',
       {
         notificationIds: [String(doc._id)],
+        scopes: [invalidationScopes.user(req.user._id)],
       },
       {
         excludeSocketId: getRequesterSocketId(req),
@@ -59,6 +61,7 @@ const markAllNotificationsRead = async (req, res, next) => {
         'NOTIFICATION_MARKED_AS_READ',
         {
           notificationIds: result.notificationIds,
+          scopes: [invalidationScopes.user(req.user._id)],
         },
         {
           excludeSocketId: getRequesterSocketId(req),

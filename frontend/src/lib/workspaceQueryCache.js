@@ -1,6 +1,5 @@
 import { authKeys } from '@/queries/auth';
-import { NOTIFICATIONS_QUERY_KEY } from '@/queries/notifications';
-import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
+import { invalidateUserScope } from '@/lib/invalidationScopes';
 
 /**
  * Drops cached data tied to the previous active workspace so lists/settings refetch
@@ -17,8 +16,7 @@ export const clearWorkspaceScopedQueries = (queryClient) => {
   queryClient.removeQueries({ queryKey: ['repositories'] });
   queryClient.removeQueries({ queryKey: ['comments'] });
 
-  invalidateAnalyticsQueries(queryClient);
-  queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+  invalidateUserScope(queryClient);
 };
 
 /**

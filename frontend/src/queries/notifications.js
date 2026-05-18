@@ -4,6 +4,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from '@/api/notifications';
+import { invalidateUserScope } from '@/lib/invalidationScopes';
 
 export const NOTIFICATIONS_QUERY_KEY = ['notifications'];
 
@@ -24,7 +25,7 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: (id) => markNotificationRead(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+      invalidateUserScope(queryClient);
     },
   });
 }
@@ -34,7 +35,7 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: () => markAllNotificationsRead(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+      invalidateUserScope(queryClient);
     },
   });
 }
