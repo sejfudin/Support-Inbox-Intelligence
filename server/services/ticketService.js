@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
-const { broadcastToWorkspace } = require('../socket/socketServer');
+const { broadcastToWorkspaceAndTicket } = require('../socket/socketServer');
 const { invalidationScopes } = require('../socket/invalidationScopes');
 
 const PRIORITY_RANK = {
@@ -114,7 +114,7 @@ const emitTicketWorkspaceEvent = ({ eventName, ticket, workspaceId, extra = {} }
 
   if (!ticketId || !resolvedWorkspaceId) return;
 
-  broadcastToWorkspace(resolvedWorkspaceId, eventName, {
+  broadcastToWorkspaceAndTicket(resolvedWorkspaceId, ticketId, eventName, {
     ticketId,
     workspaceId: resolvedWorkspaceId,
     scopes: [

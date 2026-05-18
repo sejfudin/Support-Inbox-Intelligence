@@ -14,7 +14,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { useSocket } from '@/context/SocketContext';
 
 export default function TicketComments({
   ticketId,
@@ -25,7 +24,6 @@ export default function TicketComments({
   onFocusConsumed = null,
 }) {
   const { user } = useAuth();
-  const { socket, isConnected } = useSocket();
   const [commentToDelete, setCommentToDelete] = useState(null);
   const { data: comments = [], isLoading, isFetching, refetch } = useComments(ticketId);
   const deleteMutation = useDeleteComment(ticketId);
@@ -57,16 +55,6 @@ export default function TicketComments({
   useEffect(() => {
     onFocusConsumedRef.current = onFocusConsumed;
   }, [onFocusConsumed]);
-
-  useEffect(() => {
-    if (!socket || !isConnected || !ticketId) return undefined;
-
-    socket.emit('join_ticket', { ticketId });
-
-    return () => {
-      socket.emit('leave_ticket', { ticketId });
-    };
-  }, [socket, isConnected, ticketId]);
 
   useEffect(() => {
     if (!focusCommentId) return;

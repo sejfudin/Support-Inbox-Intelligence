@@ -277,6 +277,32 @@ const broadcastToTicket = (ticketId, eventName, data, { excludeSocketId } = {}) 
   }
 };
 
+const broadcastToWorkspaceAndTicket = (
+  workspaceId,
+  ticketId,
+  eventName,
+  data,
+  { excludeSocketId } = {}
+) => {
+  if (!io || !workspaceId || !ticketId) {
+    return false;
+  }
+
+  try {
+    const target = io.to(getWorkspaceRoomName(workspaceId)).to(getTicketRoomName(ticketId));
+
+    if (excludeSocketId) {
+      target.except(excludeSocketId).emit(eventName, data);
+    } else {
+      target.emit(eventName, data);
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 module.exports = {
   initSocket,
   sendToUser,
@@ -284,4 +310,5 @@ module.exports = {
   broadcastToUserRoom,
   broadcastToWorkspace,
   broadcastToTicket,
+  broadcastToWorkspaceAndTicket,
 };
