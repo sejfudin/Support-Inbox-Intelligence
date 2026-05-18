@@ -15,6 +15,7 @@ const {
   AUTOMATION_RESULT,
 } = require('../services/statusAutomationService');
 const historyService = require('../services/historyService');
+const statusService = require('../services/statusService');
 
 /**
  * Initiates GitHub App installation flow.
@@ -85,6 +86,17 @@ const handleCallback = async (req, res) => {
 
     const installation = await getInstallation(parseInt(installation_id));
 
+    const existing = await Integration.findOne({ workspace: workspaceId }).lean();
+    const statusTargets = await statusService.resolveIntegrationStatusTargets(workspaceId);
+    const settings = existing?.settings
+      ? await statusService.normalizeIntegrationSettings(workspaceId, existing.settings)
+      : {
+          autoLinkEnabled: true,
+          autoMoveOnPROpenEnabled: false,
+          autoMoveOnMergeEnabled: false,
+          ...statusTargets,
+        };
+
     await Integration.findOneAndUpdate(
       { workspace: workspaceId },
       {
@@ -95,6 +107,7 @@ const handleCallback = async (req, res) => {
         encryptedAccessToken: encrypt('placeholder'), // Will be replaced with real token when needed
         isConnected: true,
         lastSyncAt: new Date(),
+        settings,
       },
       { upsert: true, new: true }
     );
@@ -158,9 +171,38 @@ const getIntegration = async (req, res) => {
       });
     }
 
+    const normalizedSettings = await statusService.normalizeIntegrationSettings(
+      workspaceId,
+      integration.settings || {}
+    );
+
+    const storedSettings = integration.settings || {};
+    const settingsChanged =
+      normalizedSettings.onMergeTargetStatus !== storedSettings.onMergeTargetStatus ||
+      normalizedSettings.onPROpenTargetStatus !== storedSettings.onPROpenTargetStatus ||
+      String(normalizedSettings.onMergeTargetStatusId || '') !==
+        String(storedSettings.onMergeTargetStatusId || '') ||
+      String(normalizedSettings.onPROpenTargetStatusId || '') !==
+        String(storedSettings.onPROpenTargetStatusId || '');
+
+    if (settingsChanged) {
+      await Integration.updateOne(
+        { _id: integration._id },
+        {
+          $set: {
+            'settings.onMergeTargetStatus': normalizedSettings.onMergeTargetStatus,
+            'settings.onPROpenTargetStatus': normalizedSettings.onPROpenTargetStatus,
+            'settings.onMergeTargetStatusId': normalizedSettings.onMergeTargetStatusId,
+            'settings.onPROpenTargetStatusId': normalizedSettings.onPROpenTargetStatusId,
+          },
+        }
+      );
+    }
+
     // Remove sensitive data before sending to client
     const sanitizedIntegration = {
       ...integration,
+      settings: normalizedSettings,
       encryptedAccessToken: undefined,
       encryptedRefreshToken: undefined,
       connectedRepo: integration.connectedRepo?.fullName ? integration.connectedRepo : undefined,
@@ -199,10 +241,33 @@ const updateIntegration = async (req, res) => {
     const updateData = {};
 
     if (settings) {
-      updateData.settings = {
+      if (settings.onPROpenTargetStatusId) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onPROpenTargetStatusId
+        );
+      } else if (settings.onPROpenTargetStatus) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onPROpenTargetStatus
+        );
+      }
+      if (settings.onMergeTargetStatusId) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onMergeTargetStatusId
+        );
+      } else if (settings.onMergeTargetStatus) {
+        await statusService.validateIntegrationTargetStatus(
+          workspaceId,
+          settings.onMergeTargetStatus
+        );
+      }
+
+      updateData.settings = await statusService.normalizeIntegrationSettings(workspaceId, {
         ...integration.settings,
         ...settings,
-      };
+      });
     }
 
     if (connectedRepo?.owner && connectedRepo?.name) {
@@ -247,6 +312,12 @@ const updateIntegration = async (req, res) => {
       data: sanitized,
     });
   } catch (error) {
+    if (error.message?.includes('is not valid for this workspace')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
     console.error('Error updating integration:', error);
     res.status(500).json({
       success: false,

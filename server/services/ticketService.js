@@ -4,6 +4,7 @@ const Workspace = require('../models/Workspace');
 const mongoose = require('mongoose');
 const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
+const statusService = require('./statusService');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -88,6 +89,33 @@ const sanitizeTicketSubject = (value) =>
 
 const ALLOWED_TICKET_SORT_FIELDS = new Set(['updatedAt', 'dueDate', 'taskNumber']);
 
+const STATUS_POPULATE_SELECT = 'slug label color isBacklog tracksTime isDone sortOrder';
+
+const statusLookupStages = () => [
+  {
+    $lookup: {
+      from: 'ticketstatuses',
+      localField: 'status',
+      foreignField: '_id',
+      as: 'status',
+      pipeline: [
+        {
+          $project: {
+            slug: 1,
+            label: 1,
+            color: 1,
+            isBacklog: 1,
+            tracksTime: 1,
+            isDone: 1,
+            sortOrder: 1,
+          },
+        },
+      ],
+    },
+  },
+  { $unwind: { path: '$status', preserveNullAndEmptyArrays: true } },
+];
+
 const buildTicketListSort = (sortBy = 'dueDate', sortOrder = 'desc') => {
   const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : 'dueDate';
   const dir = sortOrder === 'asc' ? 1 : -1;
@@ -126,6 +154,7 @@ const getAllTickets = async ({
   limit = 10,
   search = '',
   status = '',
+  statusId = '',
   priority = '',
   priorities = '',
   assigneeIds = '',
@@ -174,9 +203,15 @@ const getAllTickets = async ({
   if (status === 'null' || status === null) {
     query.status = null;
   } else if (status === 'not_null') {
-    query.status = { $ne: 'backlog' };
+    const backlogIds = await statusService.getBacklogStatusIds(workspaceId);
+    if (backlogIds.length > 0) {
+      query.status = { $nin: backlogIds };
+    }
+  } else if (statusId) {
+    const statusDoc = await statusService.resolveStatusForWorkspace(workspaceId, statusId);
+    query.status = statusDoc._id;
   } else if (status && status !== 'all') {
-    query.status = status;
+    query.status = await statusService.getStatusIdForSlug(workspaceId, status);
   }
 
   const selectedPriorities = normalizePriorityList({ priorities, priority });
@@ -223,6 +258,7 @@ const getAllTickets = async ({
         .sort(sortSpec)
         .skip(skip)
         .limit(safeLimit)
+        .populate('status', STATUS_POPULATE_SELECT)
         .populate('creator', 'fullname email')
         .populate('assignedTo', 'fullname email role')
         .populate('category'),
@@ -283,6 +319,7 @@ const getAllTickets = async ({
           },
         },
         { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+        ...statusLookupStages(),
         { $project: { priorityRank: 0 } },
       ]),
       Ticket.countDocuments(query),
@@ -302,6 +339,7 @@ const getAllTickets = async ({
 
 const getTicketById = async (ticketId) => {
   const ticket = await Ticket.findById(ticketId)
+    .populate('status', STATUS_POPULATE_SELECT)
     .populate('assignedTo', 'fullname email role')
     .populate('creator', 'fullname email')
     .populate('category');
@@ -326,7 +364,29 @@ const createTicket = async (ticketData) => {
 
   const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
 
-  const status = ticketData.status === undefined ? 'to do' : ticketData.status;
+  let statusDoc;
+  if (ticketData.statusId) {
+    statusDoc = await statusService.resolveStatusForWorkspace(
+      ticketData.workspaceId,
+      ticketData.statusId
+    );
+  } else if (
+    ticketData.status !== undefined &&
+    ticketData.status !== null &&
+    ticketData.status !== ''
+  ) {
+    statusDoc = await statusService.resolveStatusForWorkspace(
+      ticketData.workspaceId,
+      ticketData.status
+    );
+  } else {
+    statusDoc = await statusService.resolveDefaultStatus(ticketData.workspaceId, {
+      isAdmin: Boolean(ticketData.isAdmin),
+    });
+  }
+  const statusId = statusDoc._id;
+
+  const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, statusDoc.slug);
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
@@ -339,14 +399,15 @@ const createTicket = async (ticketData) => {
     subject: sanitizedSubject,
     description: ticketData.description || '',
     creator: ticketData.creatorId,
-    status,
+    status: statusId,
     priority: ticketData.priority || 'medium',
     storyPoints: ticketData.storyPoints ?? null,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
     taskNumber: nextTaskNumber,
     category: ticketData.category || null,
-    inProgressAt: status === 'in progress' ? new Date() : undefined,
+    inProgressAt: statusFlags.tracksTime ? new Date() : undefined,
+    doneAt: statusFlags.isDone ? new Date() : undefined,
     ...(dueDate !== undefined ? { dueDate } : {}),
   });
 
@@ -364,6 +425,7 @@ const createTicket = async (ticketData) => {
   }
 
   return await ticket.populate([
+    { path: 'status', select: STATUS_POPULATE_SELECT },
     { path: 'creator', select: 'fullName email' },
     { path: 'assignedTo', select: 'fullName email' },
   ]);
@@ -405,34 +467,49 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       }
     }
 
-    if (updateData.status && updateData.status !== oldTicket.status) {
-      const newStatus = updateData.status.toLowerCase();
-      const oldStatus = oldTicket.status.toLowerCase();
-      const now = new Date();
-
-      if (newStatus === 'in progress') {
-        updateData.inProgressAt = now;
-        updateData.doneAt = null;
-      }
-
-      if (oldStatus === 'in progress') {
-        if (oldTicket.inProgressAt) {
-          const elapsed = Math.round((now - oldTicket.inProgressAt) / 1000);
-          updateData.totalTimeSpent = (oldTicket.totalTimeSpent || 0) + elapsed;
-        }
-      }
-
-      if (newStatus === 'done') {
-        updateData.doneAt = now;
-      } else if (oldStatus === 'done') {
-        updateData.doneAt = null;
-      }
-
-      historyService.logEvent(
-        ticketId,
-        actorUserId,
-        `Status changed from ${oldTicket.status} to ${updateData.status}`
+    const statusInput = updateData.statusId ?? updateData.status;
+    if (statusInput) {
+      const statusDoc = await statusService.resolveStatusForWorkspace(
+        oldTicket.workspace,
+        statusInput
       );
+      const newStatusSlug = statusDoc.slug;
+      const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
+
+      if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
+        const oldFlags = await statusService.getStatusFlags(
+          oldTicket.workspace,
+          oldStatusSlug
+        );
+        if (statusDoc.isBacklog && !oldFlags.isBacklog) {
+          throw new Error('Tickets cannot be moved back to the backlog.');
+        }
+
+        const now = new Date();
+        const oldLabel = await statusService.getStatusLabelFromRef(oldTicket.status);
+        const newLabel = statusDoc.label;
+
+        updateData.status = statusDoc._id;
+        delete updateData.statusId;
+
+        await statusService.applyStatusLifecycleUpdate({
+          workspaceId: oldTicket.workspace,
+          oldStatus: oldStatusSlug,
+          newStatus: newStatusSlug,
+          oldTicket,
+          updateData,
+          now,
+        });
+
+        historyService.logEvent(
+          ticketId,
+          actorUserId,
+          `Status changed from "${oldLabel}" to "${newLabel}"`
+        );
+      } else {
+        delete updateData.status;
+        delete updateData.statusId;
+      }
     }
 
     const ticket = await Ticket.findByIdAndUpdate(
@@ -443,6 +520,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         runValidators: true,
       }
     )
+      .populate('status', STATUS_POPULATE_SELECT)
       .populate('assignedTo', 'fullname email role')
       .populate('creator', 'fullName');
 
@@ -594,12 +672,6 @@ const getMyTickets = async ({
   if (!workspaceId) {
     return {
       tickets: [],
-      stats: {
-        activeTickets: 0,
-        inProgress: 0,
-        blocked: 0,
-        completedThisMonth: 0,
-      },
       pagination: {
         total: 0,
         page: safePage,
@@ -622,8 +694,13 @@ const getMyTickets = async ({
     ];
   }
 
-  if (status && status !== 'all') {
-    query.status = status;
+  if (status === 'not_null') {
+    const backlogIds = await statusService.getBacklogStatusIds(workspaceId);
+    if (backlogIds.length > 0) {
+      query.status = { $nin: backlogIds };
+    }
+  } else if (status && status !== 'all') {
+    query.status = await statusService.getStatusIdForSlug(workspaceId, status);
   }
 
   const selectedPriorities = normalizePriorityList({ priorities, priority });
@@ -640,9 +717,6 @@ const getMyTickets = async ({
           updatedAt: -1,
         };
 
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
   const sortSpec = buildTicketListSort(sortBy, sortOrder);
 
   const ticketsQuery =
@@ -651,6 +725,7 @@ const getMyTickets = async ({
           .sort(sortSpec)
           .skip(skip)
           .limit(safeLimit)
+          .populate('status', STATUS_POPULATE_SELECT)
           .populate('creator', 'fullname email')
           .populate('assignedTo', 'fullname email role')
           .populate('category')
@@ -702,68 +777,14 @@ const getMyTickets = async ({
             },
           },
           { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
+          ...statusLookupStages(),
           { $project: { priorityRank: 0 } },
         ]);
 
-  const [tickets, total, statsArray] = await Promise.all([
-    ticketsQuery,
-    Ticket.countDocuments(query),
-    Ticket.aggregate([
-      {
-        $match: {
-          assignedTo: userId,
-          isArchived: { $ne: true },
-          workspace: workspaceId,
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          activeTickets: {
-            $sum: {
-              $cond: [
-                { $in: ['$status', ['to do', 'in progress', 'on staging', 'blocked']] },
-                1,
-                0,
-              ],
-            },
-          },
-          inProgress: {
-            $sum: {
-              $cond: [{ $in: ['$status', ['in progress', 'on staging']] }, 1, 0],
-            },
-          },
-          blocked: {
-            $sum: {
-              $cond: [{ $eq: ['$status', 'blocked'] }, 1, 0],
-            },
-          },
-          completedThisMonth: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [{ $eq: ['$status', 'done'] }, { $gte: ['$updatedAt', startOfMonth] }],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-        },
-      },
-    ]),
-  ]);
-
-  const stats = statsArray[0] || {
-    activeTickets: 0,
-    inProgress: 0,
-    blocked: 0,
-    completedThisMonth: 0,
-  };
+  const [tickets, total] = await Promise.all([ticketsQuery, Ticket.countDocuments(query)]);
 
   return {
     tickets,
-    stats,
     pagination: {
       total,
       page: safePage,

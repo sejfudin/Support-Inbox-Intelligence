@@ -34,6 +34,8 @@ import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
@@ -45,8 +47,6 @@ function isEditableTarget(target) {
     )
   );
 }
-
-const ALLOWED_TABS = ['all', 'to do', 'in progress', 'on staging', 'blocked', 'done'];
 
 const decodeTabParam = (value) => (value ? value.toLowerCase().replace(/_/g, ' ') : 'all');
 
@@ -67,9 +67,7 @@ export default function TicketPage() {
     initialTicketIdSortRaw === TICKET_ID_ORDER_VALUES.DESC
       ? initialTicketIdSortRaw
       : TICKET_ID_ORDER_VALUES.NONE;
-  const [activeTab, setActiveTab] = useState(
-    ALLOWED_TABS.includes(initialTab) ? initialTab : 'all'
-  );
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState(initialView);
 
   const isMobile = useIsMobile();
@@ -86,6 +84,18 @@ export default function TicketPage() {
   
   const [focusCommentId, setFocusCommentId] = useState(null);
   const [focusRequestToken, setFocusRequestToken] = useState(null);
+
+  const { helpers, isLoading: statusesLoading } = useTicketStatuses(effectiveWorkspaceId);
+  const allowedTabKeys = useMemo(
+    () => helpers.statusTabs.map((tab) => tab.key),
+    [helpers.statusTabs]
+  );
+
+  useEffect(() => {
+    if (allowedTabKeys.length > 0 && !allowedTabKeys.includes(activeTab)) {
+      setActiveTab('all');
+    }
+  }, [allowedTabKeys, activeTab]);
 
   const { data: usersData } = useUsers({
     pagination: false,
@@ -248,8 +258,6 @@ export default function TicketPage() {
     },
   });
 
-  const listColumns = useMemo(() => createTicketColumns(), []);
-
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
   const [isExporting, setIsExporting] = useState(false);
@@ -267,7 +275,7 @@ export default function TicketPage() {
     activeTab,
     archived: false,
     status: 'not_null',
-    workspaceId: overrideWorkspaceId,
+    workspaceId: effectiveWorkspaceId,
     queryFilters,
   });
 
@@ -279,11 +287,23 @@ export default function TicketPage() {
   );
 
   const normalizedTickets = isBoard ? boardTickets : listData.tickets;
+  const visibleTickets = normalizedTickets;
   const pagination = isBoard ? null : listData.pagination;
   const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
   const isError = isBoard ? boardQuery.isError : listData.isError;
   const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
-  const visibleTickets = normalizedTickets;
+
+  const timeSpentTick = useTimeSpentTicker(visibleTickets, helpers.statusTracksTime);
+
+  const listColumns = useMemo(
+    () =>
+      createTicketColumns({
+        statusBadgeConfig: helpers.statusBadgeConfig,
+        statusIsDone: helpers.statusIsDone,
+        statusTracksTime: helpers.statusTracksTime,
+      }),
+    [helpers, timeSpentTick]
+  );
 
   const runWithListReset =
     (callback) =>
@@ -355,21 +375,13 @@ export default function TicketPage() {
   ]);
 
   const handleStatusChange = (ticketId, columnId) => {
-    const columnToStatus = {
-      todo: 'to do',
-      inprogress: 'in progress',
-      staging: 'on staging',
-      done: 'done',
-      blocked: 'blocked',
-      backlog: 'backlog',
-    };
-
-    const newStatus = columnToStatus[columnId] || columnId;
+    const statusId = helpers.resolveStatusFromColumnId(columnId);
+    if (!statusId) return;
 
     updateTicketMutation.mutate(
       {
         ticketId,
-        updates: { status: newStatus },
+        updates: { statusId },
       },
       {
         onSuccess: () => {
@@ -414,7 +426,9 @@ export default function TicketPage() {
       const raw = ticket.raw || ticket;
       const subject = raw.subject || ticket.title || '';
       const description = raw.description || ticket.description || '';
-      const status = raw.status || ticket.status || '';
+      const status =
+        helpers.resolveStatusLabel(ticket.statusMeta ?? raw.status) ||
+        helpers.resolveStatusLabel(ticket.status);
       const assignee =
         (raw.assignedTo || [])
           .map((person) => person?.fullname || person?.fullName || person?.email || '')
@@ -492,8 +506,9 @@ export default function TicketPage() {
       <NewTickets
         isOpen={isNewOpen}
         onClose={closeNewTicket}
-        initialStatus={initialStatus}
+        initialStatus={initialStatus ?? helpers.defaultMainStatusId}
         workspaceId={overrideWorkspaceId}
+        statusOptions={helpers.statusOptions}
       />
 
       <TicketsHeader
@@ -522,9 +537,10 @@ export default function TicketPage() {
         }
       />
 
-      {!isBoard ? (
+      {!isBoard && !statusesLoading ? (
         <TicketsTabs
           activeTab={activeTab}
+          statusTabs={helpers.statusTabs}
           onChange={(tabKey) => {
             setActiveTab(tabKey);
             listData.setPage(1);
@@ -536,11 +552,12 @@ export default function TicketPage() {
         <Suspense fallback={<TableSkeleton />}>
           <BoardPage
             tickets={visibleTickets}
-            isLoading={isLoading}
+            isLoading={isLoading || statusesLoading}
             isError={isError}
             onNewTicket={openNewTicket}
             onOpenTicket={openTicketDetails}
             onStatusChange={handleStatusChange}
+            boardHelpers={helpers}
           />
         </Suspense>
       ) : (

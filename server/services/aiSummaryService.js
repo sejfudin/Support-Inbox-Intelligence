@@ -3,6 +3,7 @@ const sanitizeHtml = require('sanitize-html');
 const AISummary = require('../models/AISummary');
 const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
+const statusService = require('./statusService');
 const { buildUserSummaryPrompt } = require('../prompts/ticketPrompts');
 const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
 
@@ -97,14 +98,17 @@ async function generateUserSummary({ userId, workspaceId, requesterId, requester
     requesterRole,
   });
 
+  const { doneIds } = await statusService.getStatusIdSets(workspaceObjectId);
+
   const tickets = await Ticket.find({
     assignedTo: userObjectId,
     workspace: workspaceObjectId,
-    status: 'done',
+    status: { $in: doneIds },
     isArchived: { $ne: true },
     $or: [{ subject: { $exists: true, $ne: '' } }, { description: { $exists: true, $ne: '' } }],
   })
     .sort({ doneAt: -1, updatedAt: -1 })
+    .populate('status', 'slug')
     .select('subject description status priority')
     .lean();
 
@@ -116,7 +120,9 @@ async function generateUserSummary({ userId, workspaceId, requesterId, requester
     tickets: tickets.map((ticket) => ({
       subject: normalizeText(ticket.subject),
       description: stripHtml(ticket.description),
-      status: normalizeText(ticket.status),
+      status: normalizeText(
+        ticket.status && typeof ticket.status === 'object' ? ticket.status.slug : ticket.status
+      ),
       priority: normalizeText(ticket.priority),
     })),
   });

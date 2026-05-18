@@ -216,23 +216,33 @@ const CategorySettings = ({ workspaceId }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">Ticket Categories</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Manage categories used to classify tickets in this workspace.
-          </p>
-        </div>
-        {!showForm && (
-          <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Add
-          </Button>
-        )}
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900">Ticket Categories</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Manage categories used to classify tickets in this workspace.
+        </p>
       </div>
 
-      {showForm && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-10 rounded-lg bg-gray-100 animate-pulse" />
+          ))}
+        </div>
+      ) : categories.length === 0 ? (
+        <p className="py-4 text-center text-sm text-muted-foreground">
+          No categories yet. Add one below.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {categories.map((cat) => (
+            <CategoryRow key={cat._id} category={cat} workspaceId={workspaceId} />
+          ))}
+        </div>
+      )}
+
+      {showForm ? (
+        <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
           <Input
             placeholder="Category name"
             value={newName}
@@ -252,32 +262,19 @@ const CategorySettings = ({ workspaceId }) => {
               onClick={handleCreate}
               disabled={!newName.trim() || createMutation.isPending}
             >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Create
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Add category
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>
               Cancel
             </Button>
           </div>
         </div>
-      )}
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 rounded-lg bg-gray-100 animate-pulse" />
-          ))}
-        </div>
-      ) : categories.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">
-          No categories yet. Add one above.
-        </p>
       ) : (
-        <div className="space-y-1.5">
-          {categories.map((cat) => (
-            <CategoryRow key={cat._id} category={cat} workspaceId={workspaceId} />
-          ))}
-        </div>
+        <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          Add category
+        </Button>
       )}
     </div>
   );

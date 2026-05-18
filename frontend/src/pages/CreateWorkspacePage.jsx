@@ -14,6 +14,10 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import InvitationInbox from '@/components/InvitationInbox';
 import { useCreateWorkspace, workspaceKeys } from '@/queries/workspaces';
+import TicketStatusEditor from '@/components/TicketStatusEditor';
+import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
+import { validateStatusDrafts } from '@/helpers/validateStatusDrafts';
+import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 import { useAuth } from '@/context/AuthContext';
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/queries/invitations';
 import { createCategory } from '@/api/categories';
@@ -51,6 +55,7 @@ const TemplateEditor = ({ value, onChange }) => (
 export default function CreateWorkspacePage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [statusDrafts, setStatusDrafts] = useState(DEFAULT_STATUS_DRAFTS);
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState('');
   const [activeInvitationId, setActiveInvitationId] = useState(null);
@@ -292,6 +297,14 @@ export default function CreateWorkspacePage() {
     e.preventDefault();
     setError('');
 
+    const statusValidation = validateStatusDrafts(statusDrafts);
+    if (!statusValidation.valid) {
+      setError(statusValidation.message);
+      return;
+    }
+
+    if (logoFile && !validateLogoFile(logoFile)) return;
+
     const validCategories = categories
       .map((category) => ({
         name: category.name.trim(),
@@ -304,6 +317,7 @@ export default function CreateWorkspacePage() {
       const workspace = await createWorkspace.mutateAsync({
         name: name.trim(),
         description: description.trim(),
+        statuses: statusDrafts,
       });
       const workspaceId = workspace?._id || workspace?.id || workspace?.data?._id;
 
@@ -312,7 +326,7 @@ export default function CreateWorkspacePage() {
           await Promise.all(
             validCategories.map((category) => createCategory({ ...category, workspaceId }))
           );
-        } catch (categoryError) {
+        } catch {
           toast.error('Workspace created, but some categories could not be added.');
         }
       }
@@ -335,7 +349,7 @@ export default function CreateWorkspacePage() {
       await refetchUser();
       navigate('/admin/workspaces');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create workspace.');
+      setError(getApiErrorMessage(err, 'Failed to create workspace.'));
     }
   };
 
@@ -440,7 +454,8 @@ export default function CreateWorkspacePage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-800">
-                    Workspace logo <span className="font-normal text-muted-foreground">(optional)</span>
+                    Workspace logo{' '}
+                    <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     type="file"
@@ -460,6 +475,14 @@ export default function CreateWorkspacePage() {
                     }}
                   />
                   <p className="text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-800">Ticket statuses</label>
+                  <p className="text-xs text-muted-foreground">
+                    Choose and order the workflow columns for this workspace.
+                  </p>
+                  <TicketStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

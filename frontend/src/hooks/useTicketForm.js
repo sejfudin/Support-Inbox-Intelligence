@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-export const useTicketForm = (initialStatus = 'to do') => {
+export const useTicketForm = (initialStatus = '') => {
   const initialState = useMemo(
     () => ({
       subject: '',

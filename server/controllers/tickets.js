@@ -1,4 +1,5 @@
 const ticketService = require('../services/ticketService');
+const statusService = require('../services/statusService');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -17,6 +18,7 @@ const getAllTickets = async (req, res) => {
       limit,
       search,
       status,
+      statusId,
       priority,
       priorities,
       assigneeIds,
@@ -35,6 +37,7 @@ const getAllTickets = async (req, res) => {
       limit: parseInt(limit, 10) || 10,
       search: search || '',
       status: status || '',
+      statusId: statusId || '',
       priority: priority || '',
       priorities: priorities || '',
       assigneeIds: assigneeIds || '',
@@ -95,6 +98,7 @@ const createTicket = async (req, res) => {
       description,
       assignedTo,
       status,
+      statusId,
       workspaceId: bodyWorkspaceId,
       priority,
       dueDate,
@@ -103,13 +107,8 @@ const createTicket = async (req, res) => {
     } = req.body;
     const isAdmin = req.user && req.user.role === 'admin';
     const hasStatus = status !== undefined && status !== null && status !== '';
-    const resolvedStatus = isAdmin
-      ? hasStatus
-        ? status
-        : 'backlog'
-      : hasStatus
-        ? status
-        : 'to do';
+    const hasStatusId = statusId !== undefined && statusId !== null && statusId !== '';
+    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
 
     const assignedAgents = assignedTo
       ? Array.isArray(assignedTo)
@@ -123,8 +122,6 @@ const createTicket = async (req, res) => {
       });
     }
 
-    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
-
     const normalizedStoryPoints = normalizeStoryPointsInput(storyPoints);
 
     const newTicket = await ticketService.createTicket({
@@ -133,7 +130,9 @@ const createTicket = async (req, res) => {
       creatorId: req.user._id,
       actorUserId: req.user._id,
       assignedTo: assignedAgents,
-      status: resolvedStatus,
+      status: hasStatus ? statusService.slugifyLabel(status) : undefined,
+      statusId: hasStatusId ? statusId : undefined,
+      isAdmin,
       workspaceId,
       priority: priority || 'medium',
       dueDate,
@@ -148,8 +147,18 @@ const createTicket = async (req, res) => {
     if (
       error.message === 'Assigned users must be active members of this workspace' ||
       error.message === 'Workspace not found' ||
-      error.message === 'Subject details are required'
+      error.message === 'Subject details are required' ||
+      error.message?.includes('is not valid for this workspace') ||
+      error.message === 'Status is not valid for this workspace' ||
+      error.message === 'Invalid status'
     ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (error.name === 'StatusValidationError') {
       return res.status(400).json({
         success: false,
         message: error.message,
@@ -186,6 +195,7 @@ const updateTicket = async (req, res, next) => {
       'subject',
       'description',
       'status',
+      'statusId',
       'assignedTo',
       'priority',
       'dueDate',
@@ -196,7 +206,7 @@ const updateTicket = async (req, res, next) => {
       .filter((key) => allowedUpdates.includes(key))
       .reduce((obj, key) => {
         if (key === 'status' && typeof updateData[key] === 'string') {
-          obj[key] = updateData[key].toLowerCase();
+          obj[key] = statusService.slugifyLabel(updateData[key]);
         } else if (key === 'priority' && typeof updateData[key] === 'string') {
           obj[key] = updateData[key].toLowerCase();
         } else if (key === 'dueDate') {
@@ -226,8 +236,16 @@ const updateTicket = async (req, res, next) => {
     if (
       error.message === 'Assigned users must be active members of this workspace' ||
       error.message === 'Workspace not found' ||
-      error.message === 'Subject details are required'
+      error.message === 'Subject details are required' ||
+      error.message?.includes('is not valid for this workspace') ||
+      error.message === 'Status is not valid for this workspace' ||
+      error.message === 'Invalid status' ||
+      error.message === 'Tickets cannot be moved back to the backlog.'
     ) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    if (error.name === 'StatusValidationError') {
       return res.status(400).json({ message: error.message });
     }
 
@@ -279,7 +297,6 @@ const getMyTickets = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: result.tickets,
-      stats: result.stats,
       pagination: result.pagination,
     });
   } catch (error) {

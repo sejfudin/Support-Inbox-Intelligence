@@ -33,6 +33,7 @@ import TicketHistory from '../Tickets/TicketHistory';
 import { dueDateToInputValue } from '@/helpers/ticketDueDate';
 import { useCategories } from '@/queries/categories';
 import StoryPointsField from '../StoryPointsField';
+import { extractStatusId } from '@/helpers/normalizeTicket';
 import { normalizeStoryPoints } from '@/helpers/storyPoints';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { PRCard } from '@/components/PRCard';
@@ -59,6 +60,7 @@ import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
 import { Button } from '@/components/ui/button';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
@@ -102,6 +104,8 @@ export const TicketDetailsModal = ({
   const updateTicketMutation = useUpdateTicket();
   const ticket = apiResponse?.data ?? apiResponse;
   const isArchived = Boolean(ticket?.isArchived);
+  const workspaceIdForStatuses = ticket?.workspace || user?.workspaceId;
+  const { helpers } = useTicketStatuses(workspaceIdForStatuses);
 
   const {
     data: usersData,
@@ -278,7 +282,7 @@ export const TicketDetailsModal = ({
     const displayTitle = sanitizeDisplaySubject(ticket.subject || ticket.title);
     setTitle(displayTitle || 'Untitled Task');
     setDescription(ticket.description ?? '');
-    setCurrentStatus(ticket.status ?? 'To Do');
+    setCurrentStatus(extractStatusId(ticket.status) || helpers.defaultMainStatusId || '');
     setCurrentPriority(ticket.priority ?? 'medium');
     setCurrentStoryPoints(normalizeStoryPoints(ticket.storyPoints));
 
@@ -290,17 +294,22 @@ export const TicketDetailsModal = ({
     setStoryPointsLockedByUser(false);
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
-  }, [isOpen, ticket, resetDescriptionGenerationState, resetMetadataSuggestionState]);
+  }, [isOpen, ticket, helpers.defaultMainStatusId, resetDescriptionGenerationState, resetMetadataSuggestionState]);
 
   const selectedUsersObjects = useMemo(() => {
     return selectedAgents.map((id) => users.find((u) => u._id === id)).filter(Boolean);
   }, [selectedAgents, users]);
 
+  const detailStatusOptions = useMemo(
+    () => helpers.getDetailStatusOptions(currentStatus),
+    [helpers, currentStatus]
+  );
+
   const hasChanges = useMemo(() => {
     if (!ticket) return false;
     const initialTitle = sanitizeDisplaySubject(ticket.subject || ticket.title) || 'Untitled Task';
     const initialDescription = ticket.description ?? '';
-    const initialStatus = ticket.status ?? 'To Do';
+    const initialStatus = extractStatusId(ticket.status) || helpers.defaultMainStatusId || '';
     const initialPriority = ticket.priority ?? 'medium';
     const initialStoryPoints = normalizeStoryPoints(ticket.storyPoints);
     const initialAgents = (ticket.assignedTo?.map((a) => a._id || a) || []).sort();
@@ -327,6 +336,7 @@ export const TicketDetailsModal = ({
     title,
     dueDateInput,
     currentCategory,
+    helpers.defaultMainStatusId,
   ]);
 
   useEffect(() => {
@@ -396,7 +406,9 @@ export const TicketDetailsModal = ({
         id,
         titleValue,
         description || ticket.description || '',
-        ticket.status || '',
+        helpers.resolveStatusLabel(ticket.status) ||
+          helpers.resolveStatusLabel(currentStatus) ||
+          '',
         ticket.priority || '',
         assignee,
         workspaceName,
@@ -505,7 +517,7 @@ export const TicketDetailsModal = ({
         ticketId,
         updates: {
           subject: title,
-          status: currentStatus,
+          statusId: currentStatus,
           priority: currentPriority,
           storyPoints: currentStoryPoints,
           description,
@@ -858,6 +870,7 @@ export const TicketDetailsModal = ({
                   <StatusDropdown
                     status={currentStatus}
                     onChange={setCurrentStatus}
+                    statusOptions={detailStatusOptions}
                     className="w-full justify-between"
                   />
                 </div>
@@ -1111,7 +1124,7 @@ export const TicketDetailsModal = ({
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
                     <div className="grid grid-cols-2 gap-3 sm:gap-6">
-                      <TimeSpent ticket={ticket} />
+                      <TimeSpent ticket={ticket} statusTracksTime={helpers.statusTracksTime} />
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">

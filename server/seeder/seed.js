@@ -7,6 +7,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
+const TicketStatus = require('../models/TicketStatus');
+const { seedDefaultStatuses } = require('../services/statusService');
 // const AILog = require("../models/AILog");
 
 const seedData = async () => {
@@ -15,6 +17,7 @@ const seedData = async () => {
     console.log('🟢 Seed process: Connected to database.');
 
     await Ticket.deleteMany();
+    await TicketStatus.deleteMany();
     await Workspace.deleteMany();
     await User.deleteMany();
 
@@ -71,9 +74,16 @@ const seedData = async () => {
 
     console.log('✅ Workspace created.');
 
+    const workspaceStatuses = await seedDefaultStatuses(workspace._id);
+    const inProgressStatus = workspaceStatuses.find((s) => s.tracksTime);
+    const inProgressStatusId = inProgressStatus?._id || workspaceStatuses[0]?._id;
+
+    console.log('✅ Ticket statuses seeded.');
+
     const ticket = await Ticket.create({
       subject: 'Subscription billing issue',
-      status: 'in progress',
+      status: inProgressStatusId,
+      inProgressAt: new Date(),
       workspace: workspace._id,
       messages: [
         {

@@ -18,6 +18,7 @@ const analyticsRoutes = require('./routes/analytics');
 const notificationRoutes = require('./routes/notifications');
 const historyRoutes = require('./routes/history');
 const categoryRoutes = require('./routes/categories');
+const ticketStatusRoutes = require('./routes/ticketStatuses');
 const aiSummaryRoutes = require('./routes/aiSummary');
 const { handleWebhook } = require('./controllers/github');
 
@@ -52,6 +53,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/ticket-statuses', ticketStatusRoutes);
 app.use('/api/ai-summaries', aiSummaryRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 

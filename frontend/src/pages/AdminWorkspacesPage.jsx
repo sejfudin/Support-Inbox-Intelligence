@@ -14,9 +14,11 @@ import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -29,6 +31,10 @@ import {
   getWorkspaceLogoValidationError,
 } from '@/constants/upload';
 import PageHeading from '@/components/PageHeading';
+import TicketStatusEditor from '@/components/TicketStatusEditor';
+import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
+import { validateStatusDrafts } from '@/helpers/validateStatusDrafts';
+import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 
 export default function AdminWorkspacesPage() {
   const { setHeader } = useOutletContext() ?? {};
@@ -40,6 +46,7 @@ export default function AdminWorkspacesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [statusDrafts, setStatusDrafts] = useState(DEFAULT_STATUS_DRAFTS);
   const [createError, setCreateError] = useState('');
 
   const [deleteTargetId, setDeleteTargetId] = useState(null);
@@ -72,10 +79,16 @@ export default function AdminWorkspacesPage() {
     e.preventDefault();
     setCreateError('');
 
+    const statusValidation = validateStatusDrafts(statusDrafts);
+    if (!statusValidation.valid) {
+      setCreateError(statusValidation.message);
+      return;
+    }
+
     if (logoFile && !validateLogoFile(logoFile)) return;
 
     createWorkspace.mutate(
-      { name: name.trim(), description: description.trim() },
+      { name: name.trim(), description: description.trim(), statuses: statusDrafts },
       {
         onSuccess: async (createdWorkspace) => {
           try {
@@ -92,15 +105,16 @@ export default function AdminWorkspacesPage() {
             setIsCreateOpen(false);
             setName('');
             setDescription('');
+            setStatusDrafts(DEFAULT_STATUS_DRAFTS);
             setLogoFile(null);
           } catch (uploadErr) {
             setCreateError(
-              uploadErr?.response?.data?.message || 'Workspace created, but logo upload failed.'
+              getApiErrorMessage(uploadErr, 'Workspace created, but logo upload failed.')
             );
           }
         },
         onError: (err) => {
-          setCreateError(err.response?.data?.message || 'Failed to create workspace.');
+          setCreateError(getApiErrorMessage(err, 'Failed to create workspace.'));
         },
       }
     );
@@ -283,73 +297,114 @@ export default function AdminWorkspacesPage() {
         onOpenChange={(open) => {
           setIsCreateOpen(open);
           setCreateError('');
+          if (!open) {
+            setName('');
+            setDescription('');
+            setStatusDrafts(DEFAULT_STATUS_DRAFTS);
+          }
           setLogoFile(null);
         }}
       >
-        <DialogContent className="w-[calc(100vw-1.5rem)] max-w-md sm:w-full">
-          <DialogHeader>
-            <DialogTitle>Create a new workspace</DialogTitle>
+        <DialogContent className="flex max-h-[min(90vh,840px)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+          <DialogHeader className="shrink-0 space-y-2 border-b border-slate-100 px-6 py-5 text-left">
+            <DialogTitle className="text-xl">Create a new workspace</DialogTitle>
+            <DialogDescription className="text-sm leading-6">
+              Add workspace details and configure the ticket workflow before inviting your team.
+            </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreate} className="space-y-4 py-2">
-            {createError && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                {createError}
-              </p>
-            )}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Workspace name</label>
-              <Input
-                placeholder="e.g. Acme Support Team"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={100}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Description <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <Input
-                placeholder="What does this workspace handle?"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={500}
-              />
+          <form
+            id="create-workspace-form"
+            onSubmit={handleCreate}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="flex-1 space-y-8 overflow-y-auto px-6 py-5">
+              {createError && (
+                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                  {createError}
+                </p>
+              )}
+
+              <section className="space-y-4">
+                <div className="flex flex-col gap-5">
+                  <div className="space-y-2">
+                    <label htmlFor="admin-workspace-name" className="text-sm font-medium">
+                      Workspace name
+                    </label>
+                    <Input
+                      id="admin-workspace-name"
+                      placeholder="e.g. Acme Support Team"
+                      required
+                      className="h-10"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      maxLength={100}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="admin-workspace-description" className="text-sm font-medium">
+                      Description{' '}
+                      <span className="font-normal text-muted-foreground">(optional)</span>
+                    </label>
+                    <Textarea
+                      id="admin-workspace-description"
+                      placeholder="What does this workspace handle?"
+                      className="min-h-[88px] resize-y"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      maxLength={500}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Workspace logo{' '}
+                      <span className="font-normal text-muted-foreground">(optional)</span>
+                    </label>
+                    <Input
+                      type="file"
+                      accept={WORKSPACE_LOGO_ACCEPT}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (!file) {
+                          setLogoFile(null);
+                          return;
+                        }
+                        if (!validateLogoFile(file)) {
+                          e.target.value = '';
+                          setLogoFile(null);
+                          return;
+                        }
+                        setLogoFile(file);
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
+                  </div>
+
+                </div>
+              </section>
+
+              <section className="space-y-4 border-t border-slate-100 pt-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Ticket workflow</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Drag to reorder columns and set backlog, time tracking, and done behavior.
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                  <TicketStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
+                </div>
+              </section>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">
-                Workspace logo <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <Input
-                type="file"
-                accept={WORKSPACE_LOGO_ACCEPT}
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  if (!file) {
-                    setLogoFile(null);
-                    return;
-                  }
-                  if (!validateLogoFile(file)) {
-                    e.target.value = '';
-                    setLogoFile(null);
-                    return;
-                  }
-                  setLogoFile(file);
-                }}
-              />
-              <p className="text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
-            </div>
-
-
-            <DialogFooter className="pt-2">
+            <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 px-6 py-4 sm:justify-end">
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={createWorkspace.isPending || !name.trim()}>
-                {createWorkspace.isPending ? 'Creating...' : 'Create Workspace'}
+                {createWorkspace.isPending ? 'Creating...' : 'Create workspace'}
               </Button>
             </DialogFooter>
           </form>

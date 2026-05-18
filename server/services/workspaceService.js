@@ -10,6 +10,7 @@ const {
   cancelWorkspaceInvitationsForUser,
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
+const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
 
 const LOGO_MIME_TO_EXT = {
   'image/jpeg': 'jpg',
@@ -43,7 +44,11 @@ const attachLogoUrl = (workspace) => {
   };
 };
 
-const createWorkspace = async ({ name, description, ownerId }) => {
+const createWorkspace = async ({ name, description, ownerId, statuses }) => {
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    validateStatusesPayload(statuses);
+  }
+
   const workspace = await Workspace.create({
     name,
     description,
@@ -53,6 +58,7 @@ const createWorkspace = async ({ name, description, ownerId }) => {
 
   await User.findByIdAndUpdate(ownerId, { workspaceId: workspace._id });
   await seedDefaultCategories(workspace._id);
+  await createStatusesForWorkspace(workspace._id, statuses);
 
   return attachLogoUrl(workspace);
 };

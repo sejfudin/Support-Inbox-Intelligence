@@ -11,6 +11,9 @@ import { useTicketModals } from '@/hooks/useTicketModals';
 import { useDebounce } from 'use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUpdateTicket } from '@/queries/tickets';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
+import { useAuth } from '@/context/AuthContext';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
@@ -21,6 +24,8 @@ export default function UserDashboard() {
   const isMobile = useIsMobile();
   const [debouncedSearch] = useDebounce(search, 500);
   const updateTicketMutation = useUpdateTicket();
+  const { user } = useAuth();
+  const { helpers, isLoading: statusesLoading } = useTicketStatuses(user?.workspaceId);
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
@@ -29,13 +34,18 @@ export default function UserDashboard() {
     data: ticketsData,
     isLoading,
     isError,
-  } = useMyTickets({
-    page: requestedPage,
-    limit: 10,
-    search: debouncedSearch,
-    sortBy: 'updatedAt',
-    sortOrder: 'desc',
-  });
+  } = useMyTickets(
+    {
+      page: requestedPage,
+      limit: 10,
+      search: debouncedSearch,
+      status: 'not_null',
+      sortBy: 'updatedAt',
+      sortOrder: 'desc',
+      workspaceId: user?.workspaceId,
+    },
+    { enabled: !!user?.workspaceId }
+  );
 
   const pagination = ticketsData?.pagination;
 
@@ -45,50 +55,32 @@ export default function UserDashboard() {
     }
   }, [pagination]);
 
-  const columns = useMemo(() => createTicketColumns(), []);
-
   const normalizedTickets = useMemo(() => {
     return (ticketsData?.data || []).map((ticket) => normalizeTicket(ticket));
   }, [ticketsData]);
 
-  const stats = useMemo(() => {
-    if (!ticketsData?.stats) return null;
+  const timeSpentTick = useTimeSpentTicker(normalizedTickets, helpers.statusTracksTime);
 
-    const { activeTickets, inProgress, blocked } = ticketsData.stats;
-    const now = new Date();
-    const monthLabel = now.toLocaleString('default', { month: 'short' });
-
-    return {
-      activeTickets: activeTickets || 0,
-      inProgress: inProgress || 0,
-      blocked: blocked || 0,
-      completedThisMonth: ticketsData.stats.completedThisMonth || 0,
-      monthLabel,
-      activeTrend: 0,
-      inProgressTrend: 0,
-      completedTrend: 0,
-      blockedTrend: 0,
-    };
-  }, [ticketsData]);
+  const columns = useMemo(
+    () =>
+      createTicketColumns({
+        statusBadgeConfig: helpers.statusBadgeConfig,
+        statusIsDone: helpers.statusIsDone,
+        statusTracksTime: helpers.statusTracksTime,
+      }),
+    [helpers, timeSpentTick]
+  );
 
   const isBoard = viewMode === 'board';
 
   const handleStatusChange = (ticketId, columnId) => {
-    const columnToStatus = {
-      todo: 'to do',
-      inprogress: 'in progress',
-      staging: 'on staging',
-      done: 'done',
-      blocked: 'blocked',
-      backlog: 'backlog',
-    };
-
-    const newStatus = columnToStatus[columnId] || columnId;
+    const statusId = helpers.resolveStatusFromColumnId(columnId);
+    if (!statusId) return;
 
     updateTicketMutation.mutate(
       {
         ticketId: ticketId,
-        updates: { status: newStatus },
+        updates: { statusId },
       },
       {
         onSuccess: () => {},
@@ -107,7 +99,7 @@ export default function UserDashboard() {
     <main className="app-page flex min-h-screen flex-col font-sans">
       <TicketsHeader
         title="Dashboard"
-        subtitle="Your active tickets and key delivery signals at a glance."
+        subtitle="Track your assigned tickets"
         hideNewTicket={true}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -126,10 +118,11 @@ export default function UserDashboard() {
               <Suspense fallback={<TableSkeleton />}>
                 <BoardPage
                   tickets={normalizedTickets}
-                  isLoading={isLoading}
+                  isLoading={isLoading || statusesLoading}
                   isError={isError}
                   onOpenTicket={openTicketDetails}
                   onStatusChange={handleStatusChange}
+                  boardHelpers={helpers}
                   flush
                 />
               </Suspense>

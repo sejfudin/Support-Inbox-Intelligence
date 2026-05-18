@@ -1,18 +1,23 @@
 const workspaceService = require('../services/workspaceService');
+const { StatusValidationError } = require('../helpers/statusValidation');
 
 exports.createWorkspace = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, statuses } = req.body;
     if (!name) return res.status(400).json({ message: 'Workspace name is required' });
 
     const workspace = await workspaceService.createWorkspace({
       name,
       description,
       ownerId: req.user._id,
+      statuses,
     });
 
     res.status(201).json(workspace);
   } catch (err) {
+    if (err instanceof StatusValidationError || err.statusCode === 400) {
+      return res.status(400).json({ message: err.message });
+    }
     next(err);
   }
 };

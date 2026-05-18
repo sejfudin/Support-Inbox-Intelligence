@@ -22,11 +22,11 @@ import TicketsState from './Tickets/TicketsState';
 import AssigneesAvatar from './Tickets/AssigneesAvatar';
 import PriorityIndicator from './PriorityIndicator';
 import BoardSkeleton from './Skeletons/BoardSkeleton';
-import { BOARD_COLUMNS, STATUS_TO_COLUMN, STATUS_STYLES } from '../helpers/ticketStatus';
+import { getColumnStyle } from '../helpers/ticketStatus';
 import { normalizeTicket } from '../helpers/normalizeTicket';
 import { cn } from '../lib/utils';
 
-function TaskCard({ task, onOpen, cardClassName }) {
+function TaskCard({ task, onOpen, cardClassName, cardStyle }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
@@ -44,7 +44,11 @@ function TaskCard({ task, onOpen, cardClassName }) {
         tabIndex={0}
         onClick={() => onOpen(task.id)}
         onKeyDown={(e) => e.key === 'Enter' && onOpen(task.id)}
-        className={`cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(108,105,255,0.55)] ${cardClassName}`}
+        className={cn(
+          'cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5',
+          cardClassName
+        )}
+        style={cardStyle}
       >
         <CardContent className="p-3">
           {task.taskNumber && (
@@ -69,8 +73,8 @@ function TaskCard({ task, onOpen, cardClassName }) {
   );
 }
 
-function Column({ col, onOpen, onNewTicket }) {
-  const style = STATUS_STYLES[col.id] ?? STATUS_STYLES.todo;
+function Column({ col, onOpen, onNewTicket, boardHelpers }) {
+  const style = getColumnStyle(boardHelpers, col.id);
 
   const { setNodeRef, isOver, over } = useDroppable({
     id: col.id,
@@ -86,9 +90,11 @@ function Column({ col, onOpen, onNewTicket }) {
   return (
     <Card
       ref={setNodeRef}
-      className={`w-[320px] shrink-0 border-white/70 bg-white/85 ${style.border} border-t-4 transition-all duration-300 ease-in-out ${
-        isDroppingOver ? 'bg-blue-50/60 ring-4 ring-blue-400/20 scale-[1.02] shadow-lg z-10' : ''
-      }`}
+      className={cn(
+        'w-[320px] shrink-0 border-white/70 bg-white/85 border-t-4 transition-all duration-300 ease-in-out',
+        isDroppingOver && 'bg-blue-50/60 ring-4 ring-blue-400/20 scale-[1.02] shadow-lg z-10'
+      )}
+      style={{ borderTopColor: style.borderTopColor }}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
@@ -105,7 +111,7 @@ function Column({ col, onOpen, onNewTicket }) {
       <CardContent className="space-y-3 pt-0 min-h-[150px]">
         <SortableContext items={col.tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {col.tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onOpen={onOpen} cardClassName={style.card} />
+            <TaskCard key={t.id} task={t} onOpen={onOpen} cardStyle={style.cardStyle} />
           ))}
         </SortableContext>
       </CardContent>
@@ -120,6 +126,7 @@ export default function BoardPage({
   onNewTicket,
   onOpenTicket,
   onStatusChange,
+  boardHelpers,
   flush = false,
 }) {
   const [query, setQuery] = useState('');
@@ -132,14 +139,15 @@ export default function BoardPage({
   );
 
   const columns = useMemo(() => {
-    const base = BOARD_COLUMNS.map((c) => ({ ...c, tasks: [] }));
+    if (!boardHelpers?.boardColumns?.length) return [];
+
+    const base = boardHelpers.boardColumns.map((c) => ({ ...c, tasks: [] }));
     const byId = Object.fromEntries(base.map((c) => [c.id, c]));
     const q = query.trim().toLowerCase();
 
     for (const t of tickets) {
       const normalized = normalizeTicket(t);
-      const dbStatus = (normalized.status || 'open').toLowerCase();
-      const colId = STATUS_TO_COLUMN[dbStatus] || 'todo';
+      const colId = boardHelpers.resolveBoardColumnId(normalized.status);
 
       const task = {
         id: normalized.id,
@@ -156,7 +164,7 @@ export default function BoardPage({
       if (byId[colId]) byId[colId].tasks.push(task);
     }
     return base;
-  }, [tickets, query]);
+  }, [tickets, query, boardHelpers]);
 
   function handleDragStart(event) {
     const { active } = event;
@@ -177,12 +185,11 @@ export default function BoardPage({
     if (!activeTicket) return;
 
     const normalizedActive = normalizeTicket(activeTicket);
-    const currentStatus = (normalizedActive.status || 'open').toLowerCase();
-    const currentColumnId = STATUS_TO_COLUMN[currentStatus] || 'todo';
+    const currentColumnId = boardHelpers?.resolveBoardColumnId(normalizedActive.status);
 
     let destinationColumnId = null;
 
-    const overColumn = BOARD_COLUMNS.find((c) => c.id === overId);
+    const overColumn = boardHelpers?.boardColumns.find((c) => c.id === overId);
 
     if (overColumn) {
       destinationColumnId = overColumn.id;
@@ -220,7 +227,13 @@ export default function BoardPage({
               <ScrollArea className="w-full">
                 <div className="flex gap-4 pb-4">
                   {columns.map((c) => (
-                    <Column key={c.id} col={c} onOpen={onOpenTicket} onNewTicket={onNewTicket} />
+                    <Column
+                      key={c.id}
+                      col={c}
+                      onOpen={onOpenTicket}
+                      onNewTicket={onNewTicket}
+                      boardHelpers={boardHelpers}
+                    />
                   ))}
                 </div>
                 <ScrollBar orientation="horizontal" />
