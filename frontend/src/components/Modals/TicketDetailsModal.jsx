@@ -294,7 +294,13 @@ export const TicketDetailsModal = ({
     setStoryPointsLockedByUser(false);
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
-  }, [isOpen, ticket, helpers.defaultMainStatusId, resetDescriptionGenerationState, resetMetadataSuggestionState]);
+  }, [
+    isOpen,
+    ticket,
+    helpers.defaultMainStatusId,
+    resetDescriptionGenerationState,
+    resetMetadataSuggestionState,
+  ]);
 
   const selectedUsersObjects = useMemo(() => {
     return selectedAgents.map((id) => users.find((u) => u._id === id)).filter(Boolean);
@@ -1000,14 +1006,14 @@ export const TicketDetailsModal = ({
                 />
               </section>
 
-              <TicketComments 
-                ticketId={ticketId} 
-                isArchived={isArchived} 
-                users={users} 
+              <TicketComments
+                ticketId={ticketId}
+                isArchived={isArchived}
+                users={users}
                 focusCommentId={focusCommentId}
                 focusRequestToken={focusRequestToken}
                 onFocusConsumed={onFocusConsumed}
-                />
+              />
 
               <TicketHistory ticketId={ticketId} />
             </div>

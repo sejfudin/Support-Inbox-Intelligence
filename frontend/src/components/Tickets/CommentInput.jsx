@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import { useCommentMentions } from '@/hooks/useCommentMentions';
 import { invalidateTicketScope } from '@/lib/invalidationScopes';
 
-
 export const CommentInput = ({ ticketId, users = [] }) => {
   const [newComment, setNewComment] = useState('');
   const MAX_CHARS = 1000;
@@ -38,9 +37,6 @@ export const CommentInput = ({ ticketId, users = [] }) => {
     setValue: setNewComment,
     textareaRef,
   });
-
-
-
 
   const validateClientFiles = (files) => {
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -149,7 +145,9 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                       onClick={() => applyMention(item)}
                     >
                       <div className="font-medium text-gray-900">@{item.handle}</div>
-                      <div className="truncate text-xs text-gray-500">{item.fullname || item.email}</div>
+                      <div className="truncate text-xs text-gray-500">
+                        {item.fullname || item.email}
+                      </div>
                     </button>
                   </li>
                 ))}
@@ -157,7 +155,6 @@ export const CommentInput = ({ ticketId, users = [] }) => {
             )}
           </div>
         )}
-
 
         <input
           ref={fileInputRef}

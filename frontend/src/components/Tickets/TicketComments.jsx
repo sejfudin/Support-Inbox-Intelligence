@@ -88,7 +88,6 @@ export default function TicketComments({
     refetch();
   }, [focusCommentId, focusRequestToken, comments, isLoading, isFetching, refetch]);
 
-
   if (isLoading) return <CommentsSkeleton />;
 
   return (

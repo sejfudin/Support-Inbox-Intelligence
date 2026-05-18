@@ -183,7 +183,9 @@ const assertWorkspaceBehaviorFlags = async (
 };
 
 const assertUniqueLabelInWorkspace = async (workspaceId, label, excludeStatusId = null) => {
-  const normalized = String(label || '').trim().toLowerCase();
+  const normalized = String(label || '')
+    .trim()
+    .toLowerCase();
   if (!normalized) return;
 
   const query = { workspace: workspaceId };
@@ -195,7 +197,9 @@ const assertUniqueLabelInWorkspace = async (workspaceId, label, excludeStatusId 
   const duplicate = statuses.find((status) => status.label?.trim().toLowerCase() === normalized);
 
   if (duplicate) {
-    throw new StatusValidationError(`A status named "${label.trim()}" already exists in this workspace.`);
+    throw new StatusValidationError(
+      `A status named "${label.trim()}" already exists in this workspace.`
+    );
   }
 };
 

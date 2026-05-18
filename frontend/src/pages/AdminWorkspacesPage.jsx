@@ -68,7 +68,6 @@ export default function AdminWorkspacesPage() {
     return true;
   };
 
-
   useEffect(() => {
     if (!setHeader) return undefined;
     setHeader(<span className="font-semibold text-sm">All Workspaces</span>);
@@ -377,7 +376,6 @@ export default function AdminWorkspacesPage() {
                     />
                     <p className="text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
                   </div>
-
                 </div>
               </section>
 

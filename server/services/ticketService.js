@@ -477,10 +477,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
-        const oldFlags = await statusService.getStatusFlags(
-          oldTicket.workspace,
-          oldStatusSlug
-        );
+        const oldFlags = await statusService.getStatusFlags(oldTicket.workspace, oldStatusSlug);
         if (statusDoc.isBacklog && !oldFlags.isBacklog) {
           throw new Error('Tickets cannot be moved back to the backlog.');
         }

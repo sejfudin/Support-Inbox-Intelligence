@@ -31,7 +31,11 @@ export default function StatusDropdown({ status, onChange, className, statusOpti
             'flex items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 whitespace-nowrap bg-slate-100 text-slate-700 hover:bg-slate-200',
             className
           )}
-          style={active?.color ? { backgroundColor: `${active.color}22`, color: active.color } : undefined}
+          style={
+            active?.color
+              ? { backgroundColor: `${active.color}22`, color: active.color }
+              : undefined
+          }
           aria-label={`Change status (current: ${displayLabel})`}
         >
           <span className="min-w-0 flex-1 truncate">{displayLabel}</span>

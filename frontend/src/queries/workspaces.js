@@ -155,7 +155,7 @@ export const useUploadWorkspaceLogo = (id) => {
     mutationFn: (file) => uploadWorkspaceLogo(id, file),
     onSuccess: () => {
       invalidateWorkspaceScope(queryClient, id);
-    }
+    },
   });
 };
 
@@ -166,6 +166,6 @@ export const useDeleteWorkspaceLogo = (id) => {
     mutationFn: () => deleteWorkspaceLogo(id),
     onSuccess: () => {
       invalidateWorkspaceScope(queryClient, id);
-    }
-  })
-}
+    },
+  });
+};
