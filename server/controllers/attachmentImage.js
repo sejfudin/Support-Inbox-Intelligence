@@ -1,20 +1,6 @@
 const attachmentImageService = require('../services/attachmentImage');
 const Comment = require('../models/Comment');
-const { broadcastToTicket } = require('../socket/socketServer');
-const { invalidationScopes } = require('../socket/invalidationScopes');
-
-const toSocketId = (value) => {
-  if (!value) return null;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  if (typeof value === 'object') {
-    if (typeof value.toHexString === 'function') return value.toHexString();
-    if (value._id) return toSocketId(value._id);
-    if (value.id) return String(value.id);
-  }
-  if (typeof value.toString === 'function') return value.toString();
-  return null;
-};
+const { emitCommentEvent, toSocketId } = require('../socket/events');
 
 const emitCommentImageInvalidation = async (commentId) => {
   const comment = await Comment.findById(commentId).select('ticket').lean();
@@ -23,10 +9,10 @@ const emitCommentImageInvalidation = async (commentId) => {
 
   if (!ticketId || !resolvedCommentId) return;
 
-  broadcastToTicket(ticketId, 'comment:updated', {
+  emitCommentEvent({
+    eventName: 'comment:updated',
     ticketId,
     commentId: resolvedCommentId,
-    scopes: [invalidationScopes.ticket(ticketId)],
   });
 };
 

@@ -8,6 +8,16 @@ import { invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes'
 
 const SocketContext = createContext(null);
 
+const TICKET_EVENTS = [
+  'ticket:created',
+  'ticket:updated',
+  'ticket:archived',
+  'ticket:moved',
+  'ticket:assigned',
+];
+
+const COMMENT_EVENTS = ['comment:created', 'comment:updated', 'comment:deleted'];
+
 const getAccessToken = () => localStorage.getItem('accessToken') || '';
 
 const getSocketUrl = () => {
@@ -171,14 +181,8 @@ export const SocketProvider = ({ children }) => {
       socket.on('connect_error', onConnectError);
       socket.on('new_notification', onNewNotification);
       socket.on('CACHE_INVALIDATED', onCacheInvalidated);
-      socket.on('ticket:created', onWorkspaceTicketEvent);
-      socket.on('ticket:updated', onWorkspaceTicketEvent);
-      socket.on('ticket:archived', onWorkspaceTicketEvent);
-      socket.on('ticket:moved', onWorkspaceTicketEvent);
-      socket.on('ticket:assigned', onWorkspaceTicketEvent);
-      socket.on('comment:created', onTicketCommentEvent);
-      socket.on('comment:updated', onTicketCommentEvent);
-      socket.on('comment:deleted', onTicketCommentEvent);
+      TICKET_EVENTS.forEach((eventName) => socket.on(eventName, onWorkspaceTicketEvent));
+      COMMENT_EVENTS.forEach((eventName) => socket.on(eventName, onTicketCommentEvent));
       socket.on('NOTIFICATION_MARKED_AS_READ', onNotificationMarkedAsRead);
 
       socketRef.current = socket;

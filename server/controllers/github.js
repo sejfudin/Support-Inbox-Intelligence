@@ -16,38 +16,7 @@ const {
 } = require('../services/statusAutomationService');
 const historyService = require('../services/historyService');
 const statusService = require('../services/statusService');
-const { broadcastToWorkspaceAndTicket } = require('../socket/socketServer');
-const { invalidationScopes } = require('../socket/invalidationScopes');
-
-const toSocketId = (value) => {
-  if (!value) return null;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  if (typeof value === 'object') {
-    if (typeof value.toHexString === 'function') return value.toHexString();
-    if (value._id) return toSocketId(value._id);
-    if (value.id) return String(value.id);
-  }
-  if (typeof value.toString === 'function') return value.toString();
-  return null;
-};
-
-const emitTicketDetailEvent = ({ ticketId, workspaceId, eventName = 'ticket:updated', extra = {} }) => {
-  const resolvedTicketId = toSocketId(ticketId);
-  const resolvedWorkspaceId = toSocketId(workspaceId);
-
-  if (!resolvedTicketId || !resolvedWorkspaceId) return;
-
-  broadcastToWorkspaceAndTicket(resolvedWorkspaceId, resolvedTicketId, eventName, {
-    ticketId: resolvedTicketId,
-    workspaceId: resolvedWorkspaceId,
-    scopes: [
-      invalidationScopes.workspace(resolvedWorkspaceId),
-      invalidationScopes.ticket(resolvedTicketId),
-    ],
-    ...extra,
-  });
-};
+const { emitTicketEvent } = require('../socket/events');
 
 /**
  * Initiates GitHub App installation flow.
@@ -491,7 +460,7 @@ const handlePullRequestEvent = async (payload) => {
       console.error(`Auto-move error for ticket ${result.taskNumber}:`, automationResult.message);
     }
 
-    emitTicketDetailEvent({
+    emitTicketEvent({
       ticketId: result.ticketId,
       workspaceId: integration.workspace,
       eventName: 'ticket:updated',
@@ -502,7 +471,7 @@ const handlePullRequestEvent = async (payload) => {
     });
 
     if (automationResult?.result === AUTOMATION_RESULT.STATUS_UPDATED) {
-      emitTicketDetailEvent({
+      emitTicketEvent({
         ticketId: result.ticketId,
         workspaceId: integration.workspace,
         eventName: 'ticket:moved',
@@ -587,7 +556,7 @@ const refreshPR = async (req, res) => {
     ticket.linkedPullRequest = updatedPR;
     await ticket.save();
 
-    emitTicketDetailEvent({
+    emitTicketEvent({
       ticketId,
       workspaceId: ticket.workspace,
       eventName: 'ticket:updated',
@@ -652,7 +621,7 @@ const unlinkPR = async (req, res) => {
 
     historyService.logEvent(ticketId, req.user._id, `PR #${unlinkedPrNumber} unlinked`);
 
-    emitTicketDetailEvent({
+    emitTicketEvent({
       ticketId,
       workspaceId: ticket.workspace,
       eventName: 'ticket:updated',

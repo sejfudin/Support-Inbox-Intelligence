@@ -5,8 +5,7 @@ const User = require('../models/User');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
-const { broadcastToTicket } = require('../socket/socketServer');
-const { invalidationScopes } = require('../socket/invalidationScopes');
+const { emitCommentEvent } = require('../socket/events');
 
 const COMMENT_SOCKET_EVENTS = {
   created: 'comment:created',
@@ -14,28 +13,8 @@ const COMMENT_SOCKET_EVENTS = {
   deleted: 'comment:deleted',
 };
 
-const toSocketId = (value) => {
-  if (!value) return null;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return String(value);
-  if (typeof value === 'object') {
-    if (typeof value.toHexString === 'function') return value.toHexString();
-    if (value._id) return toSocketId(value._id);
-    if (value.id) return String(value.id);
-  }
-  if (typeof value.toString === 'function') return value.toString();
-  return null;
-};
-
 const emitCommentTicketEvent = ({ eventName, ticketId, commentId }) => {
-  const resolvedTicketId = toSocketId(ticketId);
-  if (!resolvedTicketId) return;
-
-  broadcastToTicket(resolvedTicketId, eventName, {
-    ticketId: resolvedTicketId,
-    commentId: commentId ? toSocketId(commentId) : null,
-    scopes: [invalidationScopes.ticket(resolvedTicketId)],
-  });
+  emitCommentEvent({ eventName, ticketId, commentId });
 };
 
 const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
