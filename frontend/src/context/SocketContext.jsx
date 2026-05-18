@@ -104,6 +104,10 @@ export const SocketProvider = ({ children }) => {
         invalidateScopes(queryClient, payload?.scopes);
       };
 
+      const onTicketCommentEvent = (payload) => {
+        invalidateScopes(queryClient, payload?.scopes);
+      };
+
       const onNotificationMarkedAsRead = (payload) => {
         invalidateScopes(queryClient, payload?.scopes);
 
@@ -166,6 +170,9 @@ export const SocketProvider = ({ children }) => {
       socket.on('ticket:archived', onWorkspaceTicketEvent);
       socket.on('ticket:moved', onWorkspaceTicketEvent);
       socket.on('ticket:assigned', onWorkspaceTicketEvent);
+      socket.on('comment:created', onTicketCommentEvent);
+      socket.on('comment:updated', onTicketCommentEvent);
+      socket.on('comment:deleted', onTicketCommentEvent);
       socket.on('NOTIFICATION_MARKED_AS_READ', onNotificationMarkedAsRead);
 
       socketRef.current = socket;

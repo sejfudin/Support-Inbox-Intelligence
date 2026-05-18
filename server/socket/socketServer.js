@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
+const Ticket = require('../models/Ticket');
 
 let io;
 
@@ -96,6 +97,19 @@ const initSocket = (httpServer) => {
       workspaceRoomNames.forEach((roomName) => socket.join(roomName));
     }
 
+    socket.on('join_ticket', async ({ ticketId } = {}) => {
+      const canJoin = await canUserJoinTicketRoom(userId, ticketId);
+      if (canJoin) {
+        socket.join(getTicketRoomName(ticketId));
+      }
+    });
+
+    socket.on('leave_ticket', ({ ticketId } = {}) => {
+      if (ticketId) {
+        socket.leave(getTicketRoomName(ticketId));
+      }
+    });
+
     socket.on('error', (err) => {
       if (err.message === 'unauthorized') {
         socket.disconnect();
@@ -108,6 +122,7 @@ const initSocket = (httpServer) => {
 
 const getUserRoomName = (userId) => `user:${String(userId)}`;
 const getWorkspaceRoomName = (workspaceId) => `workspace:${String(workspaceId)}`;
+const getTicketRoomName = (ticketId) => `ticket:${String(ticketId)}`;
 
 const getUserWorkspaceRoomNames = async (userId) => {
   try {
@@ -137,6 +152,39 @@ const getUserWorkspaceRoomNames = async (userId) => {
     return [...workspaceIds].map(getWorkspaceRoomName);
   } catch (error) {
     return [];
+  }
+};
+
+const canUserJoinTicketRoom = async (userId, ticketId) => {
+  if (!userId || !ticketId) return false;
+
+  try {
+    const [user, ticket] = await Promise.all([
+      User.findById(userId).select('role workspaceId').lean(),
+      Ticket.findById(ticketId).select('workspace').lean(),
+    ]);
+
+    if (!user || !ticket) return false;
+    if (user.role === 'admin') return true;
+
+    const workspaceId = String(ticket.workspace);
+    if (user.workspaceId && String(user.workspaceId) === workspaceId) return true;
+
+    const workspace = await Workspace.findOne({
+      _id: workspaceId,
+      members: {
+        $elemMatch: {
+          user: userId,
+          status: 'active',
+        },
+      },
+    })
+      .select('_id')
+      .lean();
+
+    return Boolean(workspace);
+  } catch (error) {
+    return false;
   }
 };
 
@@ -209,10 +257,31 @@ const broadcastToWorkspace = (workspaceId, eventName, data, { excludeSocketId } 
   }
 };
 
+const broadcastToTicket = (ticketId, eventName, data, { excludeSocketId } = {}) => {
+  if (!io || !ticketId) {
+    return false;
+  }
+
+  const roomName = getTicketRoomName(ticketId);
+
+  try {
+    if (excludeSocketId) {
+      io.to(roomName).except(excludeSocketId).emit(eventName, data);
+    } else {
+      io.to(roomName).emit(eventName, data);
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 module.exports = {
   initSocket,
   sendToUser,
   isUserOnline,
   broadcastToUserRoom,
   broadcastToWorkspace,
+  broadcastToTicket,
 };

@@ -5,6 +5,38 @@ const User = require('../models/User');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
+const { broadcastToTicket } = require('../socket/socketServer');
+const { invalidationScopes } = require('../socket/invalidationScopes');
+
+const COMMENT_SOCKET_EVENTS = {
+  created: 'comment:created',
+  updated: 'comment:updated',
+  deleted: 'comment:deleted',
+};
+
+const toSocketId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'object') {
+    if (typeof value.toHexString === 'function') return value.toHexString();
+    if (value._id) return toSocketId(value._id);
+    if (value.id) return String(value.id);
+  }
+  if (typeof value.toString === 'function') return value.toString();
+  return null;
+};
+
+const emitCommentTicketEvent = ({ eventName, ticketId, commentId }) => {
+  const resolvedTicketId = toSocketId(ticketId);
+  if (!resolvedTicketId) return;
+
+  broadcastToTicket(resolvedTicketId, eventName, {
+    ticketId: resolvedTicketId,
+    commentId: commentId ? toSocketId(commentId) : null,
+    scopes: [invalidationScopes.ticket(resolvedTicketId)],
+  });
+};
 
 const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
   if (!content || !content.trim()) throw new Error('Comment content is required');
@@ -33,6 +65,12 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
   historyService.logEvent(ticket, authorId, 'Comment Added');
 
   const populated = await comment.populate('author', 'fullname email');
+
+  emitCommentTicketEvent({
+    eventName: COMMENT_SOCKET_EVENTS.created,
+    ticketId: ticket,
+    commentId: comment._id,
+  });
 
   let mentionRecipientIds = [];
   try {
@@ -123,6 +161,12 @@ const updateComment = async (commentId, content, userId) => {
 
   historyService.logEvent(comment.ticket._id, userId, 'Comment edited');
 
+  emitCommentTicketEvent({
+    eventName: COMMENT_SOCKET_EVENTS.updated,
+    ticketId: comment.ticket._id,
+    commentId: comment._id,
+  });
+
   return comment.populate('author', 'fullname email');
 };
 
@@ -145,6 +189,12 @@ const deleteComment = async (commentId, userId, role) => {
   await comment.save();
 
   historyService.logEvent(comment.ticket._id, userId, 'Comment deleted');
+
+  emitCommentTicketEvent({
+    eventName: COMMENT_SOCKET_EVENTS.deleted,
+    ticketId: comment.ticket._id,
+    commentId: comment._id,
+  });
 
   return { message: 'Comment removed successfully' };
 };
