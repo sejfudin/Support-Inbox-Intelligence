@@ -110,6 +110,19 @@ const initSocket = (httpServer) => {
       }
     });
 
+    socket.on('join_workspace', async ({ workspaceId } = {}) => {
+      const canJoin = await canUserJoinWorkspaceRoom(userId, workspaceId);
+      if (canJoin) {
+        socket.join(getWorkspaceRoomName(workspaceId));
+      }
+    });
+
+    socket.on('leave_workspace', ({ workspaceId } = {}) => {
+      if (workspaceId) {
+        socket.leave(getWorkspaceRoomName(workspaceId));
+      }
+    });
+
     socket.on('error', (err) => {
       if (err.message === 'unauthorized') {
         socket.disconnect();
@@ -152,6 +165,34 @@ const getUserWorkspaceRoomNames = async (userId) => {
     return [...workspaceIds].map(getWorkspaceRoomName);
   } catch (error) {
     return [];
+  }
+};
+
+const canUserJoinWorkspaceRoom = async (userId, workspaceId) => {
+  if (!userId || !workspaceId) return false;
+
+  try {
+    const user = await User.findById(userId).select('role workspaceId').lean();
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (user.workspaceId && String(user.workspaceId) === String(workspaceId)) return true;
+
+    const workspace = await Workspace.findOne({
+      _id: workspaceId,
+      isArchived: { $ne: true },
+      members: {
+        $elemMatch: {
+          user: userId,
+          status: 'active',
+        },
+      },
+    })
+      .select('_id')
+      .lean();
+
+    return Boolean(workspace);
+  } catch (error) {
+    return false;
   }
 };
 

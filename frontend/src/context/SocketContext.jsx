@@ -36,11 +36,12 @@ const getSocketUrl = () => {
 };
 
 export const SocketProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [accessToken, setAccessToken] = useState(getAccessToken);
   const socketRef = useRef(null);
   const tokenRef = useRef(accessToken);
+  const activeWorkspaceRoomRef = useRef(null);
 
   useEffect(() => {
     const syncToken = () => {
@@ -215,6 +216,31 @@ export const SocketProvider = ({ children }) => {
       }
     };
   }, [isAuthenticated, accessToken]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    const workspaceId = user?.workspaceId ? String(user.workspaceId) : null;
+
+    if (!socket || !isConnected || !workspaceId) {
+      return undefined;
+    }
+
+    const previousWorkspaceId = activeWorkspaceRoomRef.current;
+
+    if (previousWorkspaceId && previousWorkspaceId !== workspaceId) {
+      socket.emit('leave_workspace', { workspaceId: previousWorkspaceId });
+    }
+
+    socket.emit('join_workspace', { workspaceId });
+    activeWorkspaceRoomRef.current = workspaceId;
+
+    return () => {
+      if (activeWorkspaceRoomRef.current === workspaceId) {
+        socket.emit('leave_workspace', { workspaceId });
+        activeWorkspaceRoomRef.current = null;
+      }
+    };
+  }, [isConnected, user?.workspaceId]);
 
   useEffect(() => {
     return () => {
