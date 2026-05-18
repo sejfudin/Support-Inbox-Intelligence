@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { registerUser, loginUser, getMe, logoutUser, updateUser } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
+import { clearSessionQueries } from '@/lib/sessionQueryCache';
 
 export const authKeys = {
   all: ['auth'],
@@ -31,6 +32,7 @@ export const useLoginUser = () => {
     mutationFn: loginUser,
 
     onSuccess: (data) => {
+      clearSessionQueries(queryClient);
       localStorage.setItem('accessToken', data.accessToken);
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
       navigate('/');
@@ -57,9 +59,7 @@ export const useLogoutUser = () => {
   const navigate = useNavigate();
 
   const clearAuth = () => {
-    queryClient.setQueryData(authKeys.me(), null);
-    queryClient.removeQueries({ queryKey: authKeys.all });
-    queryClient.removeQueries({ queryKey: ['tickets'] });
+    clearSessionQueries(queryClient);
     localStorage.removeItem('accessToken');
     navigate('/login');
   };

@@ -36,6 +36,7 @@ import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useAuth } from '@/context/AuthContext';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
+import { isPlatformAdmin } from '@/helpers/workspacePermissions';
 import { useTickets } from '@/queries/tickets';
 import { useUsers } from '@/queries/users';
 import {
@@ -104,15 +105,15 @@ export default function WorkspaceDetailPage() {
 
     setHeader(
       <button
-        onClick={() => navigate('/admin/workspaces')}
+        onClick={() => navigate(isPlatformAdmin(user) ? '/admin/workspaces' : '/dashboard')}
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        All Workspaces
+        {isPlatformAdmin(user) ? 'All Workspaces' : 'Dashboard'}
       </button>
     );
     return () => setHeader(null);
-  }, [setHeader, navigate]);
+  }, [setHeader, navigate, user]);
 
   const handleInviteSubmit = (e) => {
     e.preventDefault();
