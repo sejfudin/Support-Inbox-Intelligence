@@ -100,6 +100,10 @@ export const SocketProvider = ({ children }) => {
         invalidateScopes(queryClient, payload?.scopes ?? payload?.scope);
       };
 
+      const onWorkspaceTicketEvent = (payload) => {
+        invalidateScopes(queryClient, payload?.scopes);
+      };
+
       const onNotificationMarkedAsRead = (payload) => {
         invalidateScopes(queryClient, payload?.scopes);
 
@@ -157,6 +161,11 @@ export const SocketProvider = ({ children }) => {
       socket.on('connect_error', onConnectError);
       socket.on('new_notification', onNewNotification);
       socket.on('CACHE_INVALIDATED', onCacheInvalidated);
+      socket.on('ticket:created', onWorkspaceTicketEvent);
+      socket.on('ticket:updated', onWorkspaceTicketEvent);
+      socket.on('ticket:archived', onWorkspaceTicketEvent);
+      socket.on('ticket:moved', onWorkspaceTicketEvent);
+      socket.on('ticket:assigned', onWorkspaceTicketEvent);
       socket.on('NOTIFICATION_MARKED_AS_READ', onNotificationMarkedAsRead);
 
       socketRef.current = socket;

@@ -5,6 +5,8 @@ const mongoose = require('mongoose');
 const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
+const { broadcastToWorkspace } = require('../socket/socketServer');
+const { invalidationScopes } = require('../socket/invalidationScopes');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -90,6 +92,38 @@ const sanitizeTicketSubject = (value) =>
 const ALLOWED_TICKET_SORT_FIELDS = new Set(['updatedAt', 'dueDate', 'taskNumber']);
 
 const STATUS_POPULATE_SELECT = 'slug label color isBacklog tracksTime isDone sortOrder';
+
+const TICKET_SOCKET_EVENTS = {
+  created: 'ticket:created',
+  updated: 'ticket:updated',
+  archived: 'ticket:archived',
+  moved: 'ticket:moved',
+  assigned: 'ticket:assigned',
+};
+
+const toSocketId = (value) => {
+  const id = extractUserId(value);
+  if (id) return id;
+  if (value && typeof value.toString === 'function') return value.toString();
+  return null;
+};
+
+const emitTicketWorkspaceEvent = ({ eventName, ticket, workspaceId, extra = {} }) => {
+  const ticketId = toSocketId(ticket?._id || ticket?.id);
+  const resolvedWorkspaceId = toSocketId(workspaceId || ticket?.workspace);
+
+  if (!ticketId || !resolvedWorkspaceId) return;
+
+  broadcastToWorkspace(resolvedWorkspaceId, eventName, {
+    ticketId,
+    workspaceId: resolvedWorkspaceId,
+    scopes: [
+      invalidationScopes.workspace(resolvedWorkspaceId),
+      invalidationScopes.ticket(ticketId),
+    ],
+    ...extra,
+  });
+};
 
 const statusLookupStages = () => [
   {
@@ -424,11 +458,28 @@ const createTicket = async (ticketData) => {
     });
   }
 
-  return await ticket.populate([
+  const populatedTicket = await ticket.populate([
     { path: 'status', select: STATUS_POPULATE_SELECT },
     { path: 'creator', select: 'fullName email' },
     { path: 'assignedTo', select: 'fullName email' },
   ]);
+
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.created,
+    ticket: populatedTicket,
+    workspaceId: ticketData.workspaceId,
+  });
+
+  if (newlyAssignedUserIds.length > 0) {
+    emitTicketWorkspaceEvent({
+      eventName: TICKET_SOCKET_EVENTS.assigned,
+      ticket: populatedTicket,
+      workspaceId: ticketData.workspaceId,
+      extra: { assignedUserIds: newlyAssignedUserIds.map(String) },
+    });
+  }
+
+  return populatedTicket;
 };
 
 const updateTicket = async (ticketId, updateData, actorUserId) => {
@@ -445,6 +496,9 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     if (!oldTicket) throw new Error('Ticket not found');
 
     const previousAssignedTo = oldTicket.assignedTo || [];
+    let statusChanged = false;
+    let assigneesChanged = false;
+    let newlyAssignedUserIds = [];
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
       await ensureAssignableUsersBelongToWorkspace({
@@ -477,6 +531,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
+        statusChanged = true;
         const oldFlags = await statusService.getStatusFlags(oldTicket.workspace, oldStatusSlug);
         if (statusDoc.isBacklog && !oldFlags.isBacklog) {
           throw new Error('Tickets cannot be moved back to the backlog.');
@@ -526,14 +581,14 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     }
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
-      const newlyAssignedUserIds = getNewAssigneeIds({
+      newlyAssignedUserIds = getNewAssigneeIds({
         previousAssignedTo,
         nextAssignedTo: ticket.assignedTo || [],
       });
 
       const prevIds = normalizeAssignedUserIds(previousAssignedTo).sort();
       const nextIds = normalizeAssignedUserIds(updateData.assignedTo).sort();
-      const assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
+      assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
 
       if (assigneesChanged) {
         const currentAssignees = ticket.assignedTo || [];
@@ -627,6 +682,35 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       }
     }
 
+    emitTicketWorkspaceEvent({
+      eventName: TICKET_SOCKET_EVENTS.updated,
+      ticket,
+      workspaceId: oldTicket.workspace,
+    });
+
+    if (statusChanged) {
+      emitTicketWorkspaceEvent({
+        eventName: TICKET_SOCKET_EVENTS.moved,
+        ticket,
+        workspaceId: oldTicket.workspace,
+        extra: {
+          statusId: toSocketId(ticket.status?._id || ticket.status),
+        },
+      });
+    }
+
+    if (assigneesChanged) {
+      emitTicketWorkspaceEvent({
+        eventName: TICKET_SOCKET_EVENTS.assigned,
+        ticket,
+        workspaceId: oldTicket.workspace,
+        extra: {
+          assignedUserIds: normalizeAssignedUserIds(ticket.assignedTo),
+          newlyAssignedUserIds: newlyAssignedUserIds.map(String),
+        },
+      });
+    }
+
     return ticket;
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -646,6 +730,10 @@ const archiveTicket = async (ticketId, actorUserId) => {
     throw new Error('Ticket not found');
   }
   historyService.logEvent(ticketId, actorUserId, 'Ticket Archived');
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.archived,
+    ticket,
+  });
   return ticket;
 };
 

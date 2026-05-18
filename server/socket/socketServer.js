@@ -1,5 +1,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const Workspace = require('../models/Workspace');
 
 let io;
 
@@ -70,7 +72,7 @@ const initSocket = (httpServer) => {
     }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     socket.use(([event, ...args], next) => {
       try {
         const token = extractTokenFromHandshake(socket);
@@ -89,7 +91,9 @@ const initSocket = (httpServer) => {
 
     const userId = socket.data?.userId;
     if (userId) {
-      socket.join(`user:${userId}`);
+      socket.join(getUserRoomName(userId));
+      const workspaceRoomNames = await getUserWorkspaceRoomNames(userId);
+      workspaceRoomNames.forEach((roomName) => socket.join(roomName));
     }
 
     socket.on('error', (err) => {
@@ -103,6 +107,38 @@ const initSocket = (httpServer) => {
 };
 
 const getUserRoomName = (userId) => `user:${String(userId)}`;
+const getWorkspaceRoomName = (workspaceId) => `workspace:${String(workspaceId)}`;
+
+const getUserWorkspaceRoomNames = async (userId) => {
+  try {
+    const [user, workspaces] = await Promise.all([
+      User.findById(userId).select('workspaceId').lean(),
+      Workspace.find({
+        isArchived: { $ne: true },
+        members: {
+          $elemMatch: {
+            user: userId,
+            status: 'active',
+          },
+        },
+      })
+        .select('_id')
+        .lean(),
+    ]);
+
+    const workspaceIds = new Set(
+      workspaces.map((workspace) => String(workspace._id)).filter(Boolean)
+    );
+
+    if (user?.workspaceId) {
+      workspaceIds.add(String(user.workspaceId));
+    }
+
+    return [...workspaceIds].map(getWorkspaceRoomName);
+  } catch (error) {
+    return [];
+  }
+};
 
 const isUserOnline = async (userId) => {
   if (!io) {
@@ -153,9 +189,30 @@ const broadcastToUserRoom = (userId, eventName, data, { excludeSocketId } = {}) 
   }
 };
 
+const broadcastToWorkspace = (workspaceId, eventName, data, { excludeSocketId } = {}) => {
+  if (!io || !workspaceId) {
+    return false;
+  }
+
+  const roomName = getWorkspaceRoomName(workspaceId);
+
+  try {
+    if (excludeSocketId) {
+      io.to(roomName).except(excludeSocketId).emit(eventName, data);
+    } else {
+      io.to(roomName).emit(eventName, data);
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 module.exports = {
   initSocket,
   sendToUser,
   isUserOnline,
   broadcastToUserRoom,
+  broadcastToWorkspace,
 };
