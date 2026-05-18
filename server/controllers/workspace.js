@@ -71,17 +71,15 @@ exports.uploadWorkspaceLogo = async (req, res, next) => {
     const updatedWorkspace = await workspaceService.uploadWorkspaceLogo(req.params.id, req.file);
     res.json(updatedWorkspace);
   } catch (err) {
-    if (err.message === 'Workspace not found.') return res.status(404).json({ message: err.message });
+    if (err.message === 'Workspace not found.')
+      return res.status(404).json({ message: err.message });
 
-    if (
-      err.message === 'Logo file is required' || 
-      err.message === 'Unsupported logo file type'
-    ) {
+    if (err.message === 'Logo file is required' || err.message === 'Unsupported logo file type') {
       return res.status(400).json({ message: err.message });
     }
 
     next(err);
-  } 
+  }
 };
 
 exports.deleteWorkspaceLogo = async (req, res, next) => {

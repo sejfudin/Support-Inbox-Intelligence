@@ -99,7 +99,6 @@ const FlagFields = ({ item, onChange }) => (
   </div>
 );
 
-
 function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
   const id = getItemId(item, index);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -134,7 +133,11 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
 
   if (editing) {
     return (
-      <div ref={setNodeRef} style={style} className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3"
+      >
         <Input
           value={draft.label}
           onChange={(e) => setDraft({ ...draft, label: e.target.value })}
@@ -146,10 +149,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
           }}
         />
         <ColorPicker value={draft.color} onChange={(color) => setDraft({ ...draft, color })} />
-        <FlagFields
-          item={draft}
-          onChange={(next) => setDraft({ ...draft, ...next })}
-        />
+        <FlagFields item={draft} onChange={(next) => setDraft({ ...draft, ...next })} />
         <div className="flex gap-2">
           <Button size="sm" onClick={saveEdit} disabled={!draft.label?.trim()}>
             <Check className="h-3.5 w-3.5 mr-1" />
@@ -280,8 +280,8 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Drag to reorder columns. Each status can have at most one of Backlog, Tracks time, or
-        Done. Turning a flag on moves it from any other status that had it.
+        Drag to reorder columns. Each status can have at most one of Backlog, Tracks time, or Done.
+        Turning a flag on moves it from any other status that had it.
       </p>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -318,10 +318,7 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
             value={newItem.color}
             onChange={(color) => setNewItem({ ...newItem, color })}
           />
-          <FlagFields
-            item={newItem}
-            onChange={(patch) => setNewItem({ ...newItem, ...patch })}
-          />
+          <FlagFields item={newItem} onChange={(patch) => setNewItem({ ...newItem, ...patch })} />
           <div className="flex gap-2">
             <Button size="sm" onClick={addItem} disabled={!newItem.label.trim()}>
               <Plus className="h-3.5 w-3.5 mr-1" />

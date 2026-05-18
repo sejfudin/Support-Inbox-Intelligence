@@ -14,8 +14,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-module.exports = { 
-    supabase,
-    supabaseBucket: supabaseAttachmentBucket,
-    supabaseWorkspaceLogoBucket,
+module.exports = {
+  supabase,
+  supabaseBucket: supabaseAttachmentBucket,
+  supabaseWorkspaceLogoBucket,
 };

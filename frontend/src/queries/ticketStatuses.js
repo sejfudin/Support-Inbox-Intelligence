@@ -57,8 +57,7 @@ export const useDeleteTicketStatus = (workspaceId) => {
   return useMutation({
     mutationFn: (input) => {
       const id = typeof input === 'string' ? input : input.id;
-      const reassignToStatusId =
-        typeof input === 'object' ? input.reassignToStatusId : undefined;
+      const reassignToStatusId = typeof input === 'object' ? input.reassignToStatusId : undefined;
       return deleteTicketStatus(id, workspaceId, { reassignToStatusId });
     },
     onSuccess: () => {

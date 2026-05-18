@@ -16,7 +16,9 @@ export default function TicketStatusBadge({ status, className, statusBadgeConfig
         current.className,
         className
       )}
-      style={current.color ? { borderColor: `${current.color}55`, color: current.color } : undefined}
+      style={
+        current.color ? { borderColor: `${current.color}55`, color: current.color } : undefined
+      }
     >
       {displayLabel}
     </Badge>

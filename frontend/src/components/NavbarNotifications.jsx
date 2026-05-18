@@ -53,7 +53,6 @@ export default function NavbarNotifications() {
     [navigate]
   );
 
-
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>

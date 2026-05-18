@@ -14,8 +14,22 @@ const {
 } = require('../helpers/statusValidation');
 
 const DEFAULT_STATUSES = [
-  { slug: 'backlog', label: 'Backlog', color: '#6b7280', isBacklog: true, tracksTime: false, isDone: false },
-  { slug: 'to do', label: 'To do', color: '#64748b', isBacklog: false, tracksTime: false, isDone: false },
+  {
+    slug: 'backlog',
+    label: 'Backlog',
+    color: '#6b7280',
+    isBacklog: true,
+    tracksTime: false,
+    isDone: false,
+  },
+  {
+    slug: 'to do',
+    label: 'To do',
+    color: '#64748b',
+    isBacklog: false,
+    tracksTime: false,
+    isDone: false,
+  },
   {
     slug: 'in progress',
     label: 'In progress',
@@ -32,8 +46,22 @@ const DEFAULT_STATUSES = [
     tracksTime: false,
     isDone: false,
   },
-  { slug: 'blocked', label: 'Blocked', color: '#ef4444', isBacklog: false, tracksTime: false, isDone: false },
-  { slug: 'done', label: 'Done', color: '#22c55e', isBacklog: false, tracksTime: false, isDone: true },
+  {
+    slug: 'blocked',
+    label: 'Blocked',
+    color: '#ef4444',
+    isBacklog: false,
+    tracksTime: false,
+    isDone: false,
+  },
+  {
+    slug: 'done',
+    label: 'Done',
+    color: '#22c55e',
+    isBacklog: false,
+    tracksTime: false,
+    isDone: true,
+  },
 ];
 
 const slugifyLabel = (label) =>
@@ -322,7 +350,8 @@ const normalizeIntegrationSettings = async (workspaceId, settings = {}) => {
 
   const mergeId =
     mergeDoc?._id ||
-    (settings.onMergeTargetStatusId && statusById.get(String(settings.onMergeTargetStatusId))?._id) ||
+    (settings.onMergeTargetStatusId &&
+      statusById.get(String(settings.onMergeTargetStatusId))?._id) ||
     defaults.onMergeTargetStatusId;
   const prOpenId =
     prOpenDoc?._id ||
@@ -335,7 +364,9 @@ const normalizeIntegrationSettings = async (workspaceId, settings = {}) => {
     autoMoveOnPROpenEnabled: Boolean(settings.autoMoveOnPROpenEnabled),
     autoMoveOnMergeEnabled: Boolean(settings.autoMoveOnMergeEnabled),
     onMergeTargetStatus: mergeSlugValid ? slugifyLabel(mergeSlug) : defaults.onMergeTargetStatus,
-    onPROpenTargetStatus: prOpenSlugValid ? slugifyLabel(prOpenSlug) : defaults.onPROpenTargetStatus,
+    onPROpenTargetStatus: prOpenSlugValid
+      ? slugifyLabel(prOpenSlug)
+      : defaults.onPROpenTargetStatus,
     onMergeTargetStatusId: mergeId || null,
     onPROpenTargetStatusId: prOpenId || null,
   };
@@ -696,7 +727,9 @@ const reorderStatuses = async (workspaceId, orderedIds) => {
   const updates = orderedIds.map((id, index) => {
     const doc = statusMap.get(String(id));
     if (!doc) {
-      throw new StatusValidationError('One or more statuses in the order list do not belong to this workspace.');
+      throw new StatusValidationError(
+        'One or more statuses in the order list do not belong to this workspace.'
+      );
     }
     return TicketStatus.updateOne({ _id: doc._id }, { $set: { sortOrder: index } });
   });

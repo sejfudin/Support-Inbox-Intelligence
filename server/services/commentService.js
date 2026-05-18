@@ -36,11 +36,11 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
 
   let mentionRecipientIds = [];
   try {
-    const workspace = await Workspace.findById(foundTicket.workspace).select('members.user members.status');
+    const workspace = await Workspace.findById(foundTicket.workspace).select(
+      'members.user members.status'
+    );
     const activeMemberIds =
-      workspace?.members
-        ?.filter((m) => m.status === 'active' && m.user)
-        .map((m) => m.user) || [];
+      workspace?.members?.filter((m) => m.status === 'active' && m.user).map((m) => m.user) || [];
 
     if (activeMemberIds.length > 0) {
       const users = await User.find({ _id: { $in: activeMemberIds } }).select('_id fullname email');

@@ -7,13 +7,7 @@ export const useTicketStatuses = (workspaceIdProp) => {
   const { user } = useAuth();
   const workspaceId = workspaceIdProp || user?.workspaceId;
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useTicketStatusesQuery(workspaceId);
+  const { data, isLoading, isError, error, refetch } = useTicketStatusesQuery(workspaceId);
 
   const statuses = data ?? [];
 

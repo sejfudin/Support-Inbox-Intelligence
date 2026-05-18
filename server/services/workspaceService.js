@@ -219,7 +219,6 @@ const deleteWorkspaceLogo = async (workspaceId) => {
   return attachLogoUrl(updated);
 };
 
-
 const inviteMemberToWorkspace = async ({ workspaceId, userId, role = 'member', inviterId }) => {
   if (!userId) throw new Error('User is required');
 
@@ -325,8 +324,6 @@ const getAllWorkspaces = async () => {
 
   return workspacesWithStats;
 };
-
-
 
 module.exports = {
   createWorkspace,
