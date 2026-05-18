@@ -1,4 +1,34 @@
 const attachmentImageService = require('../services/attachmentImage');
+const Comment = require('../models/Comment');
+const { broadcastToTicket } = require('../socket/socketServer');
+const { invalidationScopes } = require('../socket/invalidationScopes');
+
+const toSocketId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'object') {
+    if (typeof value.toHexString === 'function') return value.toHexString();
+    if (value._id) return toSocketId(value._id);
+    if (value.id) return String(value.id);
+  }
+  if (typeof value.toString === 'function') return value.toString();
+  return null;
+};
+
+const emitCommentImageInvalidation = async (commentId) => {
+  const comment = await Comment.findById(commentId).select('ticket').lean();
+  const ticketId = toSocketId(comment?.ticket);
+  const resolvedCommentId = toSocketId(commentId);
+
+  if (!ticketId || !resolvedCommentId) return;
+
+  broadcastToTicket(ticketId, 'comment:updated', {
+    ticketId,
+    commentId: resolvedCommentId,
+    scopes: [invalidationScopes.ticket(ticketId)],
+  });
+};
 
 const handleError = (res, error) => {
   const status = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
@@ -109,6 +139,8 @@ const uploadCommentImages = async (req, res) => {
       uploadedByUserId,
     });
 
+    await emitCommentImageInvalidation(commentId);
+
     return res.status(201).json({
       success: true,
       message: 'Comment images uploaded successfully.',
@@ -129,6 +161,8 @@ const deleteCommentImage = async (req, res) => {
       imageId,
     });
 
+    await emitCommentImageInvalidation(commentId);
+
     return res.status(200).json({
       success: true,
       message: 'Comment image deleted successfully.',
@@ -146,6 +180,8 @@ const deleteAllCommentImages = async (req, res) => {
       entityType: attachmentImageService.ENTITY_TYPES.COMMENT,
       entityId: commentId,
     });
+
+    await emitCommentImageInvalidation(commentId);
 
     return res.status(200).json({
       success: true,

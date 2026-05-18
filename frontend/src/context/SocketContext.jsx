@@ -106,6 +106,12 @@ export const SocketProvider = ({ children }) => {
 
       const onTicketCommentEvent = (payload) => {
         invalidateScopes(queryClient, payload?.scopes);
+
+        if (payload?.commentId) {
+          queryClient.invalidateQueries({
+            queryKey: ['comment-images', String(payload.commentId)],
+          });
+        }
       };
 
       const onNotificationMarkedAsRead = (payload) => {
