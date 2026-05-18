@@ -74,7 +74,7 @@ const handleCallback = async (req, res) => {
     try {
       decodedState = jwt.verify(state, process.env.JWT_SECRET);
     } catch {
-      return res.redirect(`${process.env.CLIENT_URL}/my-workspaces?error=invalid_state`);
+      return res.redirect(`${process.env.CLIENT_URL}/dashboard?error=invalid_state`);
     }
     workspaceId = decodedState.workspaceId;
 
@@ -119,7 +119,7 @@ const handleCallback = async (req, res) => {
     console.error('Error handling GitHub callback:', error);
     const fallback = workspaceId
       ? `${process.env.CLIENT_URL}/admin/workspaces/${workspaceId}/settings?error=callback_failed`
-      : `${process.env.CLIENT_URL}/my-workspaces?error=callback_failed`;
+      : `${process.env.CLIENT_URL}/dashboard?error=callback_failed`;
     res.redirect(fallback);
   }
 };

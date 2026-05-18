@@ -10,7 +10,7 @@ import {
   Settings,
   Mail,
 } from 'lucide-react';
-import { useWorkspace, useMyWorkspaces } from '@/queries/workspaces';
+import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -28,21 +28,20 @@ import { useMyInvitations } from '@/queries/invitations';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
+import { useCanManageActiveWorkspace } from '@/hooks/useCanManageActiveWorkspace';
 import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 
 export default function AppSidebar() {
   const { user, isLoginPending } = useAuth();
-  const { data: workspace } = useWorkspace(user?.workspaceId);
+  const { canManage: canManageActiveWorkspace } = useCanManageActiveWorkspace();
   const { mutate: logout } = useLogoutUser();
   const location = useLocation();
   const navigate = useNavigate();
   const { setOpenMobile, isMobile } = useSidebar();
   const { data: invitations = [] } = useMyInvitations();
-  const { data: myWorkspaces = [] } = useMyWorkspaces();
   const pendingCount = invitations.length;
   const hasInvitations = pendingCount > 0;
-  const hasMultipleWorkspaces = myWorkspaces.length > 1;
 
   useEffect(() => {
     if (isMobile) {
@@ -77,22 +76,12 @@ export default function AppSidebar() {
       to: '/analytics',
       icon: ChartNoAxesCombined,
     },
-    ...(user?.role === 'admin' && user?.workspaceId
+    ...(user?.workspaceId && canManageActiveWorkspace
       ? [
           {
             label: 'Workspace Management',
             to: `/admin/workspaces/${user.workspaceId}`,
             icon: Settings,
-            adminOnly: true,
-          },
-        ]
-      : []),
-    ...(hasMultipleWorkspaces
-      ? [
-          {
-            label: 'My Workspaces',
-            to: '/my-workspaces',
-            icon: Building2,
           },
         ]
       : []),
@@ -121,9 +110,6 @@ export default function AppSidebar() {
     },
   ];
 
-  const currentWorkspaceName =
-    workspace?.name || (user?.role === 'admin' ? 'Global admin mode' : null);
-
   return (
     <Sidebar className="border-r border-white/60 bg-white/88">
       <SidebarHeader className="px-5 pt-6 pb-4">
@@ -136,11 +122,7 @@ export default function AppSidebar() {
             Calm control for tickets, teams, and workspaces
           </div>
         </div>
-        {currentWorkspaceName && (
-          <div className="mt-3 truncate px-1 text-xs font-medium text-muted-foreground">
-            {currentWorkspaceName}
-          </div>
-        )}
+        <WorkspaceSwitcher className="mt-3" />
       </SidebarHeader>
 
       <SidebarContent className="px-3 pb-2">
