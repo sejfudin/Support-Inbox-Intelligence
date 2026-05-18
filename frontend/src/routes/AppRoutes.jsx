@@ -16,10 +16,10 @@ import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
 import AdminWorkspacesPage from '@/pages/AdminWorkspacesPage';
 import WorkspaceDetailPage from '@/pages/WorkspaceDetailPage';
 import WorkspaceSettingsPage from '@/pages/WorkspaceSettingsPage';
-import MyWorkspacesPage from '@/pages/MyWorkspacesPage';
 import UserInvitationsPage from '@/pages/UserInvitationsPage';
 import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import AdminUserAnalyticsPage from '@/pages/AdminUserAnalyticsPage';
+import WorkspaceManagementRoute from '@/routes/WorkspaceManagementRoute';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -69,8 +69,6 @@ export default function AppRoutes() {
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<AdminWorkspacesPage />} />
-            <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
-            <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
             <Route path="/register" element={<Register />} />
           </Route>
 
@@ -79,8 +77,12 @@ export default function AppRoutes() {
             <Route path="/admin/archive" element={<ArchivePage />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
-            <Route path="/my-workspaces" element={<MyWorkspacesPage />} />
             <Route path="/invitations" element={<UserInvitationsPage />} />
+
+            <Route element={<WorkspaceManagementRoute />}>
+              <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
+              <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
+            </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
               <Route path="/admin/backlog" element={<BacklogPage />} />

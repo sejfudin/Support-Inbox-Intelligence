@@ -15,6 +15,7 @@ const {
 } = require('../controllers/workspace');
 const { protect } = require('../middleware/auth');
 const { requireRole } = require('../middleware/role');
+const { requireWorkspaceManager } = require('../middleware/requireWorkspaceManager');
 const { uploadLogo } = require('../middleware/upload');
 
 router.get('/', protect, getMyWorkspaces);
@@ -22,13 +23,13 @@ router.get('/all', protect, requireRole('admin'), getAllWorkspaces);
 router.post('/', protect, requireRole('admin'), createWorkspace);
 
 router.get('/:id', protect, getWorkspace);
-router.patch('/:id', protect, requireRole('admin'), updateWorkspace);
-router.post('/:id/logo', protect, requireRole('admin'), uploadLogo, uploadWorkspaceLogo);
-router.delete('/:id/logo', protect, requireRole('admin'), deleteWorkspaceLogo);
+router.patch('/:id', protect, requireWorkspaceManager, updateWorkspace);
+router.post('/:id/logo', protect, requireWorkspaceManager, uploadLogo, uploadWorkspaceLogo);
+router.delete('/:id/logo', protect, requireWorkspaceManager, deleteWorkspaceLogo);
 router.delete('/:id', protect, requireRole('admin'), deleteWorkspace);
 
 router.post('/:id/switch', protect, switchWorkspace);
-router.post('/:id/invite', protect, requireRole('admin'), inviteMember);
-router.delete('/:id/members/:userId', protect, requireRole('admin'), removeMember);
+router.post('/:id/invite', protect, requireWorkspaceManager, inviteMember);
+router.delete('/:id/members/:userId', protect, requireWorkspaceManager, removeMember);
 
 module.exports = router;
