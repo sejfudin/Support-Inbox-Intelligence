@@ -33,7 +33,7 @@ import TicketHistory from '../Tickets/TicketHistory';
 import { dueDateToInputValue } from '@/helpers/ticketDueDate';
 import { useCategories } from '@/queries/categories';
 import StoryPointsField from '../StoryPointsField';
-import { extractStatusId, extractStatusSlug } from '@/helpers/normalizeTicket';
+import { extractStatusId } from '@/helpers/normalizeTicket';
 import { normalizeStoryPoints } from '@/helpers/storyPoints';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { PRCard } from '@/components/PRCard';
@@ -406,7 +406,9 @@ export const TicketDetailsModal = ({
         id,
         titleValue,
         description || ticket.description || '',
-        extractStatusSlug(ticket.status) || '',
+        helpers.resolveStatusLabel(ticket.status) ||
+          helpers.resolveStatusLabel(currentStatus) ||
+          '',
         ticket.priority || '',
         assignee,
         workspaceName,

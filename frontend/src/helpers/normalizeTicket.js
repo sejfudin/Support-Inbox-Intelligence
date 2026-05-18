@@ -21,7 +21,40 @@ export const extractStatusId = (statusRef) => {
   if (typeof statusRef === 'object' && statusRef._id != null) {
     return String(statusRef._id);
   }
+  const str = String(statusRef).trim();
+  if (OBJECT_ID_RE.test(str)) return str;
   return '';
+};
+
+/** Human-readable status label for display/export (resolves ObjectId and slug via workspace statuses). */
+export const resolveStatusLabel = (statusRef, statuses = []) => {
+  if (statusRef == null || statusRef === '') return '';
+
+  if (typeof statusRef === 'object') {
+    const label = String(statusRef.label ?? '').trim();
+    if (label) return label;
+    const slug = String(statusRef.slug ?? '').trim();
+    if (slug) {
+      const bySlug = statuses.find((s) => s.slug === slug);
+      return bySlug?.label || slug;
+    }
+    if (statusRef._id != null) {
+      const byId = statuses.find((s) => String(s._id) === String(statusRef._id));
+      return byId?.label || '';
+    }
+    return '';
+  }
+
+  const str = String(statusRef).trim();
+  if (!str) return '';
+
+  if (OBJECT_ID_RE.test(str)) {
+    const byId = statuses.find((s) => String(s._id) === str);
+    return byId?.label || '';
+  }
+
+  const bySlug = statuses.find((s) => s.slug === str);
+  return bySlug?.label || str;
 };
 
 export const normalizeTicket = (ticket = {}) => {

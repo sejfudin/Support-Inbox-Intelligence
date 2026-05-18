@@ -1,4 +1,4 @@
-import { extractStatusSlug } from '@/helpers/normalizeTicket';
+import { extractStatusSlug, resolveStatusLabel } from '@/helpers/normalizeTicket';
 
 export const DEFAULT_STATUS_DRAFTS = [
   { label: 'Backlog', color: '#6b7280', isBacklog: true, tracksTime: false, isDone: false },
@@ -183,6 +183,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     columnToStatusId,
     resolveStatusFromColumnId,
     resolveSlugFromStatusId,
+    resolveStatusLabel: (statusRef) => resolveStatusLabel(statusRef, statuses),
     getDetailStatusOptions: (currentStatusId) =>
       buildDetailStatusOptions(allStatusOptions, statusOptions, currentStatusId),
     boardColumns,
