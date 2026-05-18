@@ -23,7 +23,7 @@ const buildTicketScopes = ({ ticketId, workspaceId }) => {
   const scopes = [];
 
   if (workspaceId) {
-    scopes.push(invalidationScopes.workspace(workspaceId));
+    scopes.push(invalidationScopes.workspaceTickets(workspaceId));
   }
 
   if (ticketId) {

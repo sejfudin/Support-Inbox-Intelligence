@@ -3,6 +3,7 @@ import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
   workspace: (workspaceId) => `workspace:${String(workspaceId)}`,
+  workspaceTickets: (workspaceId) => `workspace-tickets:${String(workspaceId)}`,
   ticket: (ticketId) => `ticket:${String(ticketId)}`,
 };
 
@@ -45,6 +46,10 @@ export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
   }
 };
 
+export const invalidateWorkspaceTicketsScope = (queryClient, workspaceId) => {
+  queryClient.invalidateQueries({ queryKey: ['tickets'] });
+};
+
 export const invalidateTicketScope = (queryClient, ticketId) => {
   queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
   queryClient.invalidateQueries({ queryKey: ['comments', ticketId] });
@@ -63,6 +68,11 @@ export const invalidateScope = (queryClient, scope) => {
 
   if (parsed.type === 'workspace') {
     invalidateWorkspaceScope(queryClient, parsed.id);
+    return true;
+  }
+
+  if (parsed.type === 'workspace-tickets') {
+    invalidateWorkspaceTicketsScope(queryClient, parsed.id);
     return true;
   }
 

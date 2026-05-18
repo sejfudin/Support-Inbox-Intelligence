@@ -4,7 +4,12 @@ import { useAuth } from '@/context/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 import { NOTIFICATIONS_QUERY_KEY } from '@/queries/notifications';
 import { setActiveSocketId } from '@/lib/socketSession';
-import { invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes';
+import { invalidateScope, invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes';
+import {
+  patchMovedTicketInLists,
+  removeTicketFromLists,
+  upsertTicketInLists,
+} from '@/lib/ticketQueryCache';
 
 const SocketContext = createContext(null);
 
@@ -111,7 +116,41 @@ export const SocketProvider = ({ children }) => {
         invalidateScopes(queryClient, payload?.scopes ?? payload?.scope);
       };
 
-      const onWorkspaceTicketEvent = (payload) => {
+      const invalidateNonListScopes = (scopes = []) => {
+        const scopeList = Array.isArray(scopes) ? scopes : [scopes];
+        scopeList
+          .filter((scope) => !String(scope || '').startsWith('workspace-tickets:'))
+          .forEach((scope) => invalidateScope(queryClient, scope));
+      };
+
+      const patchTicketListEvent = (payload, eventName) => {
+        if (eventName === 'ticket:moved') {
+          return patchMovedTicketInLists(queryClient, payload);
+        }
+
+        if (eventName === 'ticket:archived') {
+          return removeTicketFromLists(queryClient, payload?.ticketId);
+        }
+
+        if (
+          eventName === 'ticket:created' ||
+          eventName === 'ticket:updated' ||
+          eventName === 'ticket:assigned'
+        ) {
+          return upsertTicketInLists(queryClient, payload?.ticket);
+        }
+
+        return false;
+      };
+
+      const onWorkspaceTicketEvent = (payload, eventName) => {
+        const patched = patchTicketListEvent(payload, eventName);
+
+        if (patched) {
+          invalidateNonListScopes(payload?.scopes);
+          return;
+        }
+
         invalidateScopes(queryClient, payload?.scopes);
       };
 
@@ -182,7 +221,9 @@ export const SocketProvider = ({ children }) => {
       socket.on('connect_error', onConnectError);
       socket.on('new_notification', onNewNotification);
       socket.on('CACHE_INVALIDATED', onCacheInvalidated);
-      TICKET_EVENTS.forEach((eventName) => socket.on(eventName, onWorkspaceTicketEvent));
+      TICKET_EVENTS.forEach((eventName) =>
+        socket.on(eventName, (payload) => onWorkspaceTicketEvent(payload, eventName))
+      );
       COMMENT_EVENTS.forEach((eventName) => socket.on(eventName, onTicketCommentEvent));
       socket.on('NOTIFICATION_MARKED_AS_READ', onNotificationMarkedAsRead);
 

@@ -110,8 +110,61 @@ const emitTicketWorkspaceEvent = ({ eventName, ticket, workspaceId, extra = {} }
     eventName,
     ticketId,
     workspaceId: resolvedWorkspaceId,
-    extra,
+    extra: {
+      ticket: buildTicketPayload(ticket),
+      ...extra,
+    },
   });
+};
+
+const buildTicketPayload = (ticket) => {
+  if (!ticket) return null;
+  const source = typeof ticket.toObject === 'function' ? ticket.toObject() : ticket;
+
+  return {
+    ...source,
+    _id: toSocketId(source._id || source.id),
+    workspace: toSocketId(source.workspace),
+    status: buildStatusPayload(source.status),
+    creator:
+      source.creator && typeof source.creator === 'object'
+        ? {
+            ...source.creator,
+            _id: toSocketId(source.creator._id || source.creator.id),
+          }
+        : source.creator,
+    assignedTo: Array.isArray(source.assignedTo)
+      ? source.assignedTo.map((assignee) =>
+          assignee && typeof assignee === 'object'
+            ? {
+                ...assignee,
+                _id: toSocketId(assignee._id || assignee.id),
+              }
+            : assignee
+        )
+      : source.assignedTo,
+  };
+};
+
+const buildStatusPayload = (statusRef) => {
+  if (!statusRef) return null;
+
+  if (typeof statusRef.toObject === 'function') {
+    const status = statusRef.toObject();
+    return {
+      ...status,
+      _id: toSocketId(status._id),
+    };
+  }
+
+  if (typeof statusRef === 'object') {
+    return {
+      ...statusRef,
+      _id: toSocketId(statusRef._id || statusRef.id),
+    };
+  }
+
+  return null;
 };
 
 const statusLookupStages = () => [
@@ -473,6 +526,11 @@ const createTicket = async (ticketData) => {
 
 const updateTicket = async (ticketId, updateData, actorUserId) => {
   try {
+    const requestedUpdateKeys = Object.keys(updateData);
+    const isStatusOnlyRequest =
+      requestedUpdateKeys.length > 0 &&
+      requestedUpdateKeys.every((key) => key === 'status' || key === 'statusId');
+
     if (Object.prototype.hasOwnProperty.call(updateData, 'subject')) {
       const sanitizedSubject = sanitizeTicketSubject(updateData.subject);
       if (!sanitizedSubject) {
@@ -671,11 +729,13 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       }
     }
 
-    emitTicketWorkspaceEvent({
-      eventName: TICKET_SOCKET_EVENTS.updated,
-      ticket,
-      workspaceId: oldTicket.workspace,
-    });
+    if (!isStatusOnlyRequest) {
+      emitTicketWorkspaceEvent({
+        eventName: TICKET_SOCKET_EVENTS.updated,
+        ticket,
+        workspaceId: oldTicket.workspace,
+      });
+    }
 
     if (statusChanged) {
       emitTicketWorkspaceEvent({
@@ -684,6 +744,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         workspaceId: oldTicket.workspace,
         extra: {
           statusId: toSocketId(ticket.status?._id || ticket.status),
+          status: buildStatusPayload(ticket.status),
         },
       });
     }

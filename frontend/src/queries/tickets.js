@@ -13,7 +13,7 @@ import {
   uploadTicketDescriptionImages,
   deleteTicketDescriptionImage,
 } from '@/api/tickets';
-import { invalidateTicketScope, invalidateWorkspaceScope } from '@/lib/invalidationScopes';
+import { invalidateTicketScope, invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 
 export const useTickets = (params, options = {}) => {
   return useQuery({
@@ -49,7 +49,7 @@ export const useCreateTicket = () => {
     mutationFn: createTicket,
     onSuccess: (ticket) => {
       const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
-      invalidateWorkspaceScope(queryClient, workspaceId);
+      invalidateWorkspaceTicketsScope(queryClient, workspaceId);
     },
   });
 };
@@ -63,7 +63,7 @@ export const useUpdateTicket = () => {
       const workspaceId =
         variables.workspaceId ?? ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
       invalidateTicketScope(queryClient, variables.ticketId);
-      invalidateWorkspaceScope(queryClient, workspaceId);
+      invalidateWorkspaceTicketsScope(queryClient, workspaceId);
     },
   });
 };
@@ -76,7 +76,7 @@ export const useArchiveTicket = () => {
     onSuccess: (ticket, ticketId) => {
       const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
       invalidateTicketScope(queryClient, ticketId);
-      invalidateWorkspaceScope(queryClient, workspaceId);
+      invalidateWorkspaceTicketsScope(queryClient, workspaceId);
     },
   });
 };
