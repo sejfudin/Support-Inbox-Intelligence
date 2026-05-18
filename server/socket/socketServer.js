@@ -1,10 +1,15 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
 
 let io;
+const JOIN_RATE_LIMIT = {
+  limit: 30,
+  windowMs: 60 * 1000,
+};
 
 const parseCookieHeader = (cookieHeader = '') => {
   return cookieHeader
@@ -43,6 +48,57 @@ const extractTokenFromHandshake = (socket) => {
   return normalizeBearerToken(cookies.accessToken) || normalizeBearerToken(cookies.token) || null;
 };
 
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id || ''));
+
+const isActiveUser = (user) => Boolean(user?.active) && user?.status === 'active';
+
+const authenticateSocket = async (socket) => {
+  const token = extractTokenFromHandshake(socket);
+  if (!token) {
+    throw new Error('Authentication error');
+  }
+
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const decodedUserId = decoded?.id || decoded?._id || decoded?.userId;
+
+  if (!decodedUserId || !isValidObjectId(decodedUserId)) {
+    throw new Error('Authentication error');
+  }
+
+  const user = await User.findById(decodedUserId)
+    .select('_id role workspaceId tokenVersion active status')
+    .lean();
+
+  if (!user || !isActiveUser(user)) {
+    throw new Error('Authentication error');
+  }
+
+  if (decoded.tokenVersion !== user.tokenVersion) {
+    throw new Error('Authentication error');
+  }
+
+  socket.data.userId = String(user._id);
+  socket.data.authUser = user;
+
+  return user;
+};
+
+const consumeRateLimit = (socket, key, { limit, windowMs } = JOIN_RATE_LIMIT) => {
+  const now = Date.now();
+  const bucketKey = `rateLimit:${key}`;
+  const bucket = socket.data[bucketKey] || { count: 0, resetAt: now + windowMs };
+
+  if (now > bucket.resetAt) {
+    bucket.count = 0;
+    bucket.resetAt = now + windowMs;
+  }
+
+  bucket.count += 1;
+  socket.data[bucketKey] = bucket;
+
+  return bucket.count <= limit;
+};
+
 const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
@@ -52,21 +108,9 @@ const initSocket = (httpServer) => {
     },
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
-      const token = extractTokenFromHandshake(socket);
-      if (!token) {
-        return next(new Error('Authentication error'));
-      }
-
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const decodedUserId = decoded?.id || decoded?._id || decoded?.userId;
-
-      if (!decodedUserId) {
-        return next(new Error('Authentication error'));
-      }
-
-      socket.data.userId = String(decodedUserId);
+      await authenticateSocket(socket);
       return next();
     } catch (error) {
       return next(new Error('Authentication error'));
@@ -75,19 +119,9 @@ const initSocket = (httpServer) => {
 
   io.on('connection', async (socket) => {
     socket.use(([event, ...args], next) => {
-      try {
-        const token = extractTokenFromHandshake(socket);
-
-        if (!token) {
-          return next(new Error('unauthorized'));
-        }
-
-        jwt.verify(token, process.env.JWT_SECRET);
-
-        next();
-      } catch (error) {
-        next(new Error('unauthorized'));
-      }
+      authenticateSocket(socket)
+        .then(() => next())
+        .catch(() => next(new Error('unauthorized')));
     });
 
     const userId = socket.data?.userId;
@@ -98,27 +132,35 @@ const initSocket = (httpServer) => {
     }
 
     socket.on('join_ticket', async ({ ticketId } = {}) => {
-      const canJoin = await canUserJoinTicketRoom(userId, ticketId);
+      if (!consumeRateLimit(socket, 'join_ticket') || !isValidObjectId(ticketId)) {
+        return;
+      }
+
+      const canJoin = await canUserJoinTicketRoom(socket.data.authUser, ticketId);
       if (canJoin) {
         socket.join(getTicketRoomName(ticketId));
       }
     });
 
     socket.on('leave_ticket', ({ ticketId } = {}) => {
-      if (ticketId) {
+      if (isValidObjectId(ticketId)) {
         socket.leave(getTicketRoomName(ticketId));
       }
     });
 
     socket.on('join_workspace', async ({ workspaceId } = {}) => {
-      const canJoin = await canUserJoinWorkspaceRoom(userId, workspaceId);
+      if (!consumeRateLimit(socket, 'join_workspace') || !isValidObjectId(workspaceId)) {
+        return;
+      }
+
+      const canJoin = await canUserJoinWorkspaceRoom(socket.data.authUser, workspaceId);
       if (canJoin) {
         socket.join(getWorkspaceRoomName(workspaceId));
       }
     });
 
     socket.on('leave_workspace', ({ workspaceId } = {}) => {
-      if (workspaceId) {
+      if (isValidObjectId(workspaceId)) {
         socket.leave(getWorkspaceRoomName(workspaceId));
       }
     });
@@ -139,28 +181,21 @@ const getTicketRoomName = (ticketId) => `ticket:${String(ticketId)}`;
 
 const getUserWorkspaceRoomNames = async (userId) => {
   try {
-    const [user, workspaces] = await Promise.all([
-      User.findById(userId).select('workspaceId').lean(),
-      Workspace.find({
-        isArchived: { $ne: true },
-        members: {
-          $elemMatch: {
-            user: userId,
-            status: 'active',
-          },
+    const workspaces = await Workspace.find({
+      isArchived: { $ne: true },
+      members: {
+        $elemMatch: {
+          user: userId,
+          status: 'active',
         },
-      })
-        .select('_id')
-        .lean(),
-    ]);
+      },
+    })
+      .select('_id')
+      .lean();
 
     const workspaceIds = new Set(
       workspaces.map((workspace) => String(workspace._id)).filter(Boolean)
     );
-
-    if (user?.workspaceId) {
-      workspaceIds.add(String(user.workspaceId));
-    }
 
     return [...workspaceIds].map(getWorkspaceRoomName);
   } catch (error) {
@@ -168,12 +203,10 @@ const getUserWorkspaceRoomNames = async (userId) => {
   }
 };
 
-const canUserJoinWorkspaceRoom = async (userId, workspaceId) => {
-  if (!userId || !workspaceId) return false;
+const canUserJoinWorkspaceRoom = async (user, workspaceId) => {
+  if (!user || !workspaceId || !isValidObjectId(workspaceId)) return false;
 
   try {
-    const user = await User.findById(userId).select('role workspaceId').lean();
-    if (!user) return false;
     if (user.role === 'admin') return true;
     if (user.workspaceId && String(user.workspaceId) === String(workspaceId)) return true;
 
@@ -182,7 +215,7 @@ const canUserJoinWorkspaceRoom = async (userId, workspaceId) => {
       isArchived: { $ne: true },
       members: {
         $elemMatch: {
-          user: userId,
+          user: user._id,
           status: 'active',
         },
       },
@@ -196,16 +229,13 @@ const canUserJoinWorkspaceRoom = async (userId, workspaceId) => {
   }
 };
 
-const canUserJoinTicketRoom = async (userId, ticketId) => {
-  if (!userId || !ticketId) return false;
+const canUserJoinTicketRoom = async (user, ticketId) => {
+  if (!user || !ticketId || !isValidObjectId(ticketId)) return false;
 
   try {
-    const [user, ticket] = await Promise.all([
-      User.findById(userId).select('role workspaceId').lean(),
-      Ticket.findById(ticketId).select('workspace').lean(),
-    ]);
+    const ticket = await Ticket.findById(ticketId).select('workspace').lean();
 
-    if (!user || !ticket) return false;
+    if (!ticket) return false;
     if (user.role === 'admin') return true;
 
     const workspaceId = String(ticket.workspace);
@@ -215,7 +245,7 @@ const canUserJoinTicketRoom = async (userId, ticketId) => {
       _id: workspaceId,
       members: {
         $elemMatch: {
-          user: userId,
+          user: user._id,
           status: 'active',
         },
       },
