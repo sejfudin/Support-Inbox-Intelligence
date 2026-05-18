@@ -213,9 +213,7 @@ export default function WorkspaceDetailPage() {
           subtitle={
             workspace.description || 'Manage members, invitations, and access for this workspace.'
           }
-          titleAdornment={
-            isActiveWorkspace ? <UserStatusBadge status="active" /> : null
-          }
+          titleAdornment={isActiveWorkspace ? <UserStatusBadge status="active" /> : null}
           actions={
             <>
               {!isActiveWorkspace && canSwitchToWorkspace && (

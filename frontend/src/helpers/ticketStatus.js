@@ -63,7 +63,9 @@ export const getColumnAccentStyles = (color) => {
     };
   }
   const { r, g, b } = rgb;
-  const normalized = borderTopColor.startsWith('#') ? borderTopColor : `#${borderTopColor.replace(/^#/, '')}`;
+  const normalized = borderTopColor.startsWith('#')
+    ? borderTopColor
+    : `#${borderTopColor.replace(/^#/, '')}`;
   return {
     borderTopColor: normalized,
     cardStyle: {

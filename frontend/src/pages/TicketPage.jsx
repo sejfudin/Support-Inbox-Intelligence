@@ -81,7 +81,7 @@ export default function TicketPage() {
   const { data: overrideWorkspace } = useWorkspace(overrideWorkspaceId);
 
   const effectiveWorkspaceId = overrideWorkspaceId || user?.workspaceId;
-  
+
   const [focusCommentId, setFocusCommentId] = useState(null);
   const [focusRequestToken, setFocusRequestToken] = useState(null);
 

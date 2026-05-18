@@ -70,10 +70,7 @@ export function createTicketColumns({
         cellClassName: 'w-[10%] whitespace-nowrap',
       },
       cell: ({ row }) => (
-        <TicketStatusBadge
-          status={row.original.status}
-          statusBadgeConfig={statusBadgeConfig}
-        />
+        <TicketStatusBadge status={row.original.status} statusBadgeConfig={statusBadgeConfig} />
       ),
     },
     {
@@ -148,9 +145,7 @@ export function createTicketColumns({
         return (
           <div className="flex items-center gap-1">
             {formatDuration(seconds)}
-            {isTracking && (
-              <span className="h-1 w-1 rounded-full bg-blue-500 animate-pulse" />
-            )}
+            {isTracking && <span className="h-1 w-1 rounded-full bg-blue-500 animate-pulse" />}
           </div>
         );
       },

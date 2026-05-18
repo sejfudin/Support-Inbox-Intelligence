@@ -166,7 +166,7 @@ export const useUploadWorkspaceLogo = (id) => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
       queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
-    }
+    },
   });
 };
 
@@ -179,6 +179,6 @@ export const useDeleteWorkspaceLogo = (id) => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
       queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
-    }
-  })
-}
+    },
+  });
+};

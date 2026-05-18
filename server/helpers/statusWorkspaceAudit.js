@@ -3,12 +3,13 @@ const TicketStatus = require('../models/TicketStatus');
 const Integration = require('../models/Integration');
 const { slugifyLabel, pickFallbackSlug } = require('./statusSlugAliases');
 
-const buildFlagMap = (statuses) =>
-  Object.fromEntries(statuses.map((s) => [s._id.toString(), s]));
+const buildFlagMap = (statuses) => Object.fromEntries(statuses.map((s) => [s._id.toString(), s]));
 
 const auditWorkspace = async (workspace) => {
   const workspaceId = workspace._id;
-  const statuses = await TicketStatus.find({ workspace: workspaceId }).sort({ sortOrder: 1 }).lean();
+  const statuses = await TicketStatus.find({ workspace: workspaceId })
+    .sort({ sortOrder: 1 })
+    .lean();
   const validIds = new Set(statuses.map((s) => s._id.toString()));
   const flagByStatusId = buildFlagMap(statuses);
   const statusById = Object.fromEntries(statuses.map((s) => [s._id.toString(), s]));
@@ -33,7 +34,12 @@ const auditWorkspace = async (workspace) => {
     ticketsPerStatusId[idStr] = row.count;
 
     if (typeof statusId === 'string') {
-      orphanRefs.push({ statusId: idStr, slug: statusId, count: row.count, reason: 'string_status' });
+      orphanRefs.push({
+        statusId: idStr,
+        slug: statusId,
+        count: row.count,
+        reason: 'string_status',
+      });
       continue;
     }
 

@@ -78,8 +78,11 @@ async function executeStatusChange(ticketId, targetStatusSlug, metadata = {}) {
       now,
     });
 
-    const ticket = await Ticket.findByIdAndUpdate(ticketId, { $set: updateData }, { new: true })
-      .populate('status', 'slug label color isBacklog tracksTime isDone');
+    const ticket = await Ticket.findByIdAndUpdate(
+      ticketId,
+      { $set: updateData },
+      { new: true }
+    ).populate('status', 'slug label color isBacklog tracksTime isDone');
 
     const triggerLabel = metadata.trigger === 'pr_merged' ? 'merged' : 'opened';
     const prInfo = metadata.prNumber ? ` (PR #${metadata.prNumber} ${triggerLabel})` : '';

@@ -2,7 +2,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { getTicketIdFromNotification, getCommentIdFromNotification, isMongoId } from '@/helpers/notificationUtils';
+import {
+  getTicketIdFromNotification,
+  getCommentIdFromNotification,
+  isMongoId,
+} from '@/helpers/notificationUtils';
 
 export function NotificationRow({ notification, markReadPending, onMarkRead, onOpenTicket }) {
   const ticketId = getTicketIdFromNotification(notification);
@@ -23,7 +27,6 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
       )}
     >
       <div className="flex flex-col gap-1">
-
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium leading-snug text-foreground">{notification.title}</p>
           {isMention ? (

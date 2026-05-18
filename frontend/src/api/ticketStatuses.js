@@ -7,7 +7,14 @@ export const getTicketStatuses = async (workspaceId) => {
   return response.data;
 };
 
-export const createTicketStatus = async ({ label, color, isBacklog, tracksTime, isDone, workspaceId }) => {
+export const createTicketStatus = async ({
+  label,
+  color,
+  isBacklog,
+  tracksTime,
+  isDone,
+  workspaceId,
+}) => {
   const response = await apiClient.post('/ticket-statuses', {
     label,
     color,

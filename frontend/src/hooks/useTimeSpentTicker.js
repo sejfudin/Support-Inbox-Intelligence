@@ -5,9 +5,7 @@ export const useTimeSpentTicker = (tickets = [], statusTracksTime, intervalMs = 
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const hasActiveTimer = tickets.some((ticket) =>
-      isTicketTrackingTime(ticket, statusTracksTime)
-    );
+    const hasActiveTimer = tickets.some((ticket) => isTicketTrackingTime(ticket, statusTracksTime));
 
     if (!hasActiveTimer) return undefined;
 
