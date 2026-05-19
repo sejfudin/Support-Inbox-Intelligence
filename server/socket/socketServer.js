@@ -262,11 +262,6 @@ const sendToUser = async (userId, eventName, data) => {
   }
 
   const roomName = getUserRoomName(userId);
-  const online = await isUserOnline(userId);
-
-  if (!online) {
-    return false;
-  }
 
   try {
     io.to(roomName).emit(eventName, data);
