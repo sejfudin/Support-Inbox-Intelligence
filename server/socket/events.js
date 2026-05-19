@@ -1,7 +1,4 @@
-const {
-  broadcastToTicket,
-  broadcastToWorkspaceAndTicket,
-} = require('./socketServer');
+const { broadcastToTicket, broadcastToWorkspaceAndTicket } = require('./socketServer');
 const { invalidationScopes } = require('./invalidationScopes');
 
 const toSocketId = (value) => {

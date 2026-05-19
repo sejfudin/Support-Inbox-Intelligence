@@ -113,10 +113,7 @@ const notifyNewTicketComment = async ({
     sendToUser(rid, 'new_notification', {
       notification: n.toObject(),
       recipientId: String(rid),
-      scopes: [
-        invalidationScopes.user(rid),
-        invalidationScopes.ticket(ticket._id),
-      ],
+      scopes: [invalidationScopes.user(rid), invalidationScopes.ticket(ticket._id)],
       unreadDelta: 1,
     });
   }
@@ -203,10 +200,7 @@ const notifyTicketMention = async ({
     sendToUser(rid, 'new_notification', {
       notification: n.toObject(),
       recipientId: String(rid),
-      scopes: [
-        invalidationScopes.user(rid),
-        invalidationScopes.ticket(ticket._id),
-      ],
+      scopes: [invalidationScopes.user(rid), invalidationScopes.ticket(ticket._id)],
       unreadDelta: 1,
     });
   }

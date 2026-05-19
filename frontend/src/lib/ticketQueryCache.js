@@ -54,7 +54,9 @@ const ticketMatchesQuery = (ticket, queryKey) => {
     return false;
   }
 
-  const search = String(params.search || '').trim().toLowerCase();
+  const search = String(params.search || '')
+    .trim()
+    .toLowerCase();
   if (search) {
     const haystack = `${ticket?.subject || ''} ${ticket?.title || ''} ${ticket?.description || ''}`
       .trim()
