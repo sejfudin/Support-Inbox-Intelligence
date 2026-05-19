@@ -29,6 +29,7 @@ import {
   buildAssigneeFilterOptions,
 } from '@/helpers/ticketFilters';
 import { useAuth } from '@/context/AuthContext';
+import { useSocket } from '@/context/SocketContext';
 import TicketFiltersPanel from '@/components/Tickets/TicketsFiltersPanel';
 import { useTicketFiltersControls } from '@/hooks/useTicketFiltersControls';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
@@ -79,9 +80,22 @@ export default function TicketPage() {
   const navigate = useNavigate();
   const overrideWorkspaceId = searchParams.get('workspaceId') || undefined;
   const { user } = useAuth();
+  const { socket, isConnected } = useSocket();
   const { data: overrideWorkspace } = useWorkspace(overrideWorkspaceId);
 
   const effectiveWorkspaceId = overrideWorkspaceId || user?.workspaceId;
+
+  useEffect(() => {
+    if (!socket || !isConnected || !effectiveWorkspaceId) return undefined;
+
+    const workspaceId = String(effectiveWorkspaceId);
+    socket.emit('join_workspace', { workspaceId });
+
+    return () => {
+      if (user?.workspaceId && String(user.workspaceId) === workspaceId) return;
+      socket.emit('leave_workspace', { workspaceId });
+    };
+  }, [socket, isConnected, effectiveWorkspaceId, user?.workspaceId]);
 
   const [focusCommentId, setFocusCommentId] = useState(null);
   const [focusRequestToken, setFocusRequestToken] = useState(null);

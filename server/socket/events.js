@@ -1,5 +1,7 @@
-const { broadcastToTicket, broadcastToWorkspaceAndTicket } = require('./socketServer');
+const { broadcastToTicket, broadcastToWorkspaceTicketAndUsers } = require('./socketServer');
 const { invalidationScopes } = require('./invalidationScopes');
+const User = require('../models/User');
+const Workspace = require('../models/Workspace');
 
 const toSocketId = (value) => {
   if (!value) return null;
@@ -30,15 +32,49 @@ const buildTicketScopes = ({ ticketId, workspaceId }) => {
   return scopes;
 };
 
-const emitTicketEvent = ({ eventName, ticketId, workspaceId, extra = {}, options = {} }) => {
+const getWorkspaceAudienceUserIds = async (workspaceId) => {
+  try {
+    const [workspace, users] = await Promise.all([
+      Workspace.findById(workspaceId).select('owner members.user members.status').lean(),
+      User.find({
+        active: true,
+        status: 'active',
+        $or: [{ role: 'admin' }, { workspaceId }],
+      })
+        .select('_id')
+        .lean(),
+    ]);
+
+    const userIds = new Set(users.map((user) => toSocketId(user._id)).filter(Boolean));
+
+    if (workspace?.owner) {
+      userIds.add(toSocketId(workspace.owner));
+    }
+
+    (workspace?.members || []).forEach((member) => {
+      if (member?.status === 'active' && member.user) {
+        userIds.add(toSocketId(member.user));
+      }
+    });
+
+    return [...userIds];
+  } catch (error) {
+    return [];
+  }
+};
+
+const emitTicketEvent = async ({ eventName, ticketId, workspaceId, extra = {}, options = {} }) => {
   const resolvedTicketId = toSocketId(ticketId);
   const resolvedWorkspaceId = toSocketId(workspaceId);
 
   if (!resolvedTicketId || !resolvedWorkspaceId) return false;
 
-  return broadcastToWorkspaceAndTicket(
+  const audienceUserIds = await getWorkspaceAudienceUserIds(resolvedWorkspaceId);
+
+  return broadcastToWorkspaceTicketAndUsers(
     resolvedWorkspaceId,
     resolvedTicketId,
+    audienceUserIds,
     eventName,
     {
       ticketId: resolvedTicketId,
@@ -76,21 +112,21 @@ const emitCommentEvent = ({
   };
 
   if (resolvedWorkspaceId) {
-    return broadcastToWorkspaceAndTicket(
-      resolvedWorkspaceId,
-      resolvedTicketId,
-      eventName,
-      payload,
-      options
+    getWorkspaceAudienceUserIds(resolvedWorkspaceId).then((audienceUserIds) =>
+      broadcastToWorkspaceTicketAndUsers(
+        resolvedWorkspaceId,
+        resolvedTicketId,
+        audienceUserIds,
+        eventName,
+        payload,
+        options
+      )
     );
+
+    return true;
   }
 
-  return broadcastToTicket(
-    resolvedTicketId,
-    eventName,
-    payload,
-    options
-  );
+  return broadcastToTicket(resolvedTicketId, eventName, payload, options);
 };
 
 module.exports = {

@@ -357,6 +357,39 @@ const broadcastToWorkspaceAndTicket = (
   }
 };
 
+const broadcastToWorkspaceTicketAndUsers = (
+  workspaceId,
+  ticketId,
+  userIds = [],
+  eventName,
+  data,
+  { excludeSocketId } = {}
+) => {
+  if (!io || !workspaceId || !ticketId) {
+    return false;
+  }
+
+  try {
+    const roomNames = [
+      getWorkspaceRoomName(workspaceId),
+      getTicketRoomName(ticketId),
+      ...new Set((userIds || []).filter(Boolean).map((userId) => getUserRoomName(userId))),
+    ];
+
+    const target = roomNames.reduce((chain, roomName) => chain.to(roomName), io);
+
+    if (excludeSocketId) {
+      target.except(excludeSocketId).emit(eventName, data);
+    } else {
+      target.emit(eventName, data);
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 module.exports = {
   initSocket,
   sendToUser,
@@ -365,4 +398,5 @@ module.exports = {
   broadcastToWorkspace,
   broadcastToTicket,
   broadcastToWorkspaceAndTicket,
+  broadcastToWorkspaceTicketAndUsers,
 };

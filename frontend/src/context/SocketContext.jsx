@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 import { NOTIFICATIONS_QUERY_KEY } from '@/queries/notifications';
 import { setActiveSocketId } from '@/lib/socketSession';
-import { invalidateScope, invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes';
+import { invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes';
 import {
   patchMovedTicketInLists,
   removeTicketFromLists,
@@ -116,13 +116,6 @@ export const SocketProvider = ({ children }) => {
         invalidateScopes(queryClient, payload?.scopes ?? payload?.scope);
       };
 
-      const invalidateNonListScopes = (scopes = []) => {
-        const scopeList = Array.isArray(scopes) ? scopes : [scopes];
-        scopeList
-          .filter((scope) => !String(scope || '').startsWith('workspace-tickets:'))
-          .forEach((scope) => invalidateScope(queryClient, scope));
-      };
-
       const patchTicketListEvent = (payload, eventName) => {
         if (eventName === 'ticket:moved') {
           return patchMovedTicketInLists(queryClient, payload);
@@ -147,7 +140,7 @@ export const SocketProvider = ({ children }) => {
         const patched = patchTicketListEvent(payload, eventName);
 
         if (patched) {
-          invalidateNonListScopes(payload?.scopes);
+          invalidateScopes(queryClient, payload?.scopes);
           return;
         }
 
