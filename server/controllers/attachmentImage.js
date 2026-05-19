@@ -1,5 +1,6 @@
 const attachmentImageService = require('../services/attachmentImage');
 const Comment = require('../models/Comment');
+const Ticket = require('../models/Ticket');
 const { emitCommentEvent, toSocketId } = require('../socket/events');
 
 const emitCommentImageInvalidation = async (commentId) => {
@@ -9,9 +10,13 @@ const emitCommentImageInvalidation = async (commentId) => {
 
   if (!ticketId || !resolvedCommentId) return;
 
+  const ticket = await Ticket.findById(ticketId).select('workspace').lean();
+  const workspaceId = toSocketId(ticket?.workspace);
+
   emitCommentEvent({
     eventName: 'comment:updated',
     ticketId,
+    workspaceId,
     commentId: resolvedCommentId,
   });
 };

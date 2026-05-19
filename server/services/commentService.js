@@ -13,8 +13,8 @@ const COMMENT_SOCKET_EVENTS = {
   deleted: 'comment:deleted',
 };
 
-const emitCommentTicketEvent = ({ eventName, ticketId, commentId }) => {
-  emitCommentEvent({ eventName, ticketId, commentId });
+const emitCommentTicketEvent = ({ eventName, ticketId, workspaceId, commentId }) => {
+  emitCommentEvent({ eventName, ticketId, workspaceId, commentId });
 };
 
 const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
@@ -48,6 +48,7 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
   emitCommentTicketEvent({
     eventName: COMMENT_SOCKET_EVENTS.created,
     ticketId: ticket,
+    workspaceId: foundTicket.workspace,
     commentId: comment._id,
   });
 
@@ -143,6 +144,7 @@ const updateComment = async (commentId, content, userId) => {
   emitCommentTicketEvent({
     eventName: COMMENT_SOCKET_EVENTS.updated,
     ticketId: comment.ticket._id,
+    workspaceId: comment.ticket.workspace,
     commentId: comment._id,
   });
 
@@ -172,6 +174,7 @@ const deleteComment = async (commentId, userId, role) => {
   emitCommentTicketEvent({
     eventName: COMMENT_SOCKET_EVENTS.deleted,
     ticketId: comment.ticket._id,
+    workspaceId: comment.ticket.workspace,
     commentId: comment._id,
   });
 

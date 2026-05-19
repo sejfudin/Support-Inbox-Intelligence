@@ -53,21 +53,42 @@ const emitTicketEvent = ({ eventName, ticketId, workspaceId, extra = {}, options
   );
 };
 
-const emitCommentEvent = ({ eventName, ticketId, commentId, extra = {}, options = {} }) => {
+const emitCommentEvent = ({
+  eventName,
+  ticketId,
+  workspaceId,
+  commentId,
+  extra = {},
+  options = {},
+}) => {
   const resolvedTicketId = toSocketId(ticketId);
+  const resolvedWorkspaceId = toSocketId(workspaceId);
   const resolvedCommentId = toSocketId(commentId);
 
   if (!resolvedTicketId) return false;
 
+  const payload = {
+    ticketId: resolvedTicketId,
+    workspaceId: resolvedWorkspaceId,
+    commentId: resolvedCommentId,
+    scopes: buildTicketScopes({ ticketId: resolvedTicketId }),
+    ...extra,
+  };
+
+  if (resolvedWorkspaceId) {
+    return broadcastToWorkspaceAndTicket(
+      resolvedWorkspaceId,
+      resolvedTicketId,
+      eventName,
+      payload,
+      options
+    );
+  }
+
   return broadcastToTicket(
     resolvedTicketId,
     eventName,
-    {
-      ticketId: resolvedTicketId,
-      commentId: resolvedCommentId,
-      scopes: buildTicketScopes({ ticketId: resolvedTicketId }),
-      ...extra,
-    },
+    payload,
     options
   );
 };
