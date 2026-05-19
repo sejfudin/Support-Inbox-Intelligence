@@ -240,6 +240,10 @@ export const SocketProvider = ({ children }) => {
         ...(socket.auth || {}),
         token: accessToken,
       };
+
+      if (socket.connected) {
+        socket.disconnect();
+      }
     }
 
     if (!socket.connected) {

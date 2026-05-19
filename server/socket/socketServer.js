@@ -118,12 +118,6 @@ const initSocket = (httpServer) => {
   });
 
   io.on('connection', async (socket) => {
-    socket.use(([event, ...args], next) => {
-      authenticateSocket(socket)
-        .then(() => next())
-        .catch(() => next(new Error('unauthorized')));
-    });
-
     const userId = socket.data?.userId;
     if (userId) {
       socket.join(getUserRoomName(userId));
@@ -162,12 +156,6 @@ const initSocket = (httpServer) => {
     socket.on('leave_workspace', ({ workspaceId } = {}) => {
       if (isValidObjectId(workspaceId)) {
         socket.leave(getWorkspaceRoomName(workspaceId));
-      }
-    });
-
-    socket.on('error', (err) => {
-      if (err.message === 'unauthorized') {
-        socket.disconnect();
       }
     });
   });
