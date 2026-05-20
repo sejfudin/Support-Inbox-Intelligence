@@ -274,7 +274,7 @@ export default function TicketPage() {
     search: debouncedSearch,
     activeTab,
     archived: false,
-    status: 'not_null',
+    status: listStatusFilter,
     workspaceId: effectiveWorkspaceId,
     queryFilters,
   });
@@ -549,17 +549,19 @@ export default function TicketPage() {
       ) : null}
 
       {isBoard ? (
-        <Suspense fallback={<TableSkeleton />}>
-          <BoardPage
-            tickets={visibleTickets}
-            isLoading={isLoading || statusesLoading}
-            isError={isError}
-            onNewTicket={openNewTicket}
-            onOpenTicket={openTicketDetails}
-            onStatusChange={handleStatusChange}
-            boardHelpers={helpers}
-          />
-        </Suspense>
+        <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-4">
+          <Suspense fallback={<TableSkeleton />}>
+            <BoardPage
+              tickets={visibleTickets}
+              isLoading={isLoading || statusesLoading}
+              isError={isError}
+              onNewTicket={openNewTicket}
+              onOpenTicket={openTicketDetails}
+              onStatusChange={handleStatusChange}
+              boardHelpers={helpers}
+            />
+          </Suspense>
+        </PageSection>
       ) : (
         <PageSection className="flex-1 pt-6">
           <PagePanel className={isPlaceholderData ? 'opacity-60' : ''}>
