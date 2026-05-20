@@ -126,7 +126,7 @@ const BoardTaskCardBody = memo(function BoardTaskCardBody({
 
         <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-2">
           <PriorityIndicator priority={task.priority} />
-          <AssigneesAvatar users={task.assignedTo} />
+          <AssigneesAvatar users={task.assignedTo} emptyDisplay="avatar" />
         </div>
       </CardContent>
     </Card>
