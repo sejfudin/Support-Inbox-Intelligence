@@ -116,6 +116,13 @@ const statusLookupStages = () => [
   { $unwind: { path: '$status', preserveNullAndEmptyArrays: true } },
 ];
 
+/** Aggregate $match does not cast strings to ObjectIds — align with find()/countDocuments(). */
+const castTicketQueryForAggregate = (query) => {
+  const mongooseQuery = Ticket.find(query);
+  mongooseQuery.cast(Ticket);
+  return mongooseQuery.getFilter();
+};
+
 const buildTicketListSort = (sortBy = 'dueDate', sortOrder = 'desc') => {
   const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : 'dueDate';
   const dir = sortOrder === 'asc' ? 1 : -1;
@@ -270,9 +277,11 @@ const getAllTickets = async ({
       updatedAt: -1,
     };
 
+    const aggregateMatch = castTicketQueryForAggregate(query);
+
     [tickets, total] = await Promise.all([
       Ticket.aggregate([
-        { $match: query },
+        { $match: aggregateMatch },
         {
           $addFields: {
             priorityRank: {
@@ -656,6 +665,7 @@ const getMyTickets = async ({
   limit = 10,
   search = '',
   status = '',
+  statusId = '',
   priority = '',
   priorities = '',
   priorityOrder = 'none',
@@ -696,6 +706,9 @@ const getMyTickets = async ({
     if (backlogIds.length > 0) {
       query.status = { $nin: backlogIds };
     }
+  } else if (statusId) {
+    const statusDoc = await statusService.resolveStatusForWorkspace(workspaceId, statusId);
+    query.status = statusDoc._id;
   } else if (status && status !== 'all') {
     query.status = await statusService.getStatusIdForSlug(workspaceId, status);
   }
@@ -727,7 +740,7 @@ const getMyTickets = async ({
           .populate('assignedTo', 'fullname email role')
           .populate('category')
       : Ticket.aggregate([
-          { $match: query },
+          { $match: castTicketQueryForAggregate(query) },
           {
             $addFields: {
               priorityRank: {

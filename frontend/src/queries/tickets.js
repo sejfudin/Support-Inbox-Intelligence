@@ -14,6 +14,7 @@ import {
   deleteTicketDescriptionImage,
 } from '@/api/tickets';
 import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
+import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 
 export const useTickets = (params, options = {}) => {
   return useQuery({
@@ -49,6 +50,7 @@ export const useCreateTicket = () => {
     mutationFn: createTicket,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
       invalidateAnalyticsQueries(queryClient);
     },
   });
@@ -63,6 +65,7 @@ export const useUpdateTicket = () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] });
       queryClient.invalidateQueries({ queryKey: ['ticket-history', variables.ticketId] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
       invalidateAnalyticsQueries(queryClient);
     },
   });

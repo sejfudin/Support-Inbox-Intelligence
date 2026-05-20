@@ -14,6 +14,7 @@ import { useUpdateTicket } from '@/queries/tickets';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
 import { useAuth } from '@/context/AuthContext';
+import { PageSection, PageShell } from '@/components/PageShell';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
@@ -30,6 +31,8 @@ export default function UserDashboard() {
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
 
+  const isBoard = viewMode === 'board';
+
   const {
     data: ticketsData,
     isLoading,
@@ -44,7 +47,7 @@ export default function UserDashboard() {
       sortOrder: 'desc',
       workspaceId: user?.workspaceId,
     },
-    { enabled: !!user?.workspaceId }
+    { enabled: !!user?.workspaceId && !isBoard }
   );
 
   const pagination = ticketsData?.pagination;
@@ -71,8 +74,6 @@ export default function UserDashboard() {
     [helpers, timeSpentTick]
   );
 
-  const isBoard = viewMode === 'board';
-
   const handleStatusChange = (ticketId, columnId) => {
     const statusId = helpers.resolveStatusFromColumnId(columnId);
     if (!statusId) return;
@@ -96,66 +97,65 @@ export default function UserDashboard() {
   }, [isMobile, viewMode]);
 
   return (
-    <main className="app-page flex min-h-screen flex-col font-sans">
-      <TicketsHeader
-        title="Dashboard"
-        subtitle="Track your assigned tickets"
-        hideNewTicket={true}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-        hideViewMode={isMobile}
-        search={search}
-        onSearch={(value) => {
-          setSearch(value);
-          setPage(1);
-        }}
-      />
-
-      <div className="flex flex-1 flex-col">
-        <div className="py-4 md:py-6">
-          <div className="app-page-content mt-2">
-            {!isMobile && isBoard ? (
-              <Suspense fallback={<TableSkeleton />}>
-                <BoardPage
-                  tickets={normalizedTickets}
-                  isLoading={isLoading || statusesLoading}
-                  isError={isError}
-                  onOpenTicket={openTicketDetails}
-                  onStatusChange={handleStatusChange}
-                  boardHelpers={helpers}
-                  flush
-                />
-              </Suspense>
-            ) : (
-              <div>
-                <div className="app-panel overflow-hidden">
-                  <TicketsState
-                    isLoading={isLoading}
-                    isError={isError}
-                    isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
-                    emptyMessage="No tickets assigned to you found."
-                    loadingSlot={<TableSkeleton />}
-                  >
-                    <DataTable
-                      columns={columns}
-                      data={normalizedTickets}
-                      pagination={pagination}
-                      onPageChange={(newPage) => setPage(newPage)}
-                      meta={{ onRowClick: openTicketDetails }}
-                    />
-                  </TicketsState>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+    <PageShell>
+      <div className="shrink-0">
+        <TicketsHeader
+          title="Dashboard"
+          subtitle="Track your assigned tickets"
+          hideNewTicket={true}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          hideViewMode={isMobile}
+          search={search}
+          onSearch={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+        />
       </div>
+
+      {!isMobile && isBoard ? (
+        <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-4">
+          <Suspense fallback={<TableSkeleton />}>
+            <BoardPage
+              fetchMode="my"
+              workspaceId={user?.workspaceId}
+              search={debouncedSearch}
+              enabled={!!user?.workspaceId}
+              statusesLoading={statusesLoading}
+              onOpenTicket={openTicketDetails}
+              onStatusChange={handleStatusChange}
+              boardHelpers={helpers}
+            />
+          </Suspense>
+        </PageSection>
+      ) : (
+        <PageSection className="flex-1 pt-6">
+          <div className="app-panel overflow-hidden">
+            <TicketsState
+              isLoading={isLoading}
+              isError={isError}
+              isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
+              emptyMessage="No tickets assigned to you found."
+              loadingSlot={<TableSkeleton />}
+            >
+              <DataTable
+                columns={columns}
+                data={normalizedTickets}
+                pagination={pagination}
+                onPageChange={(newPage) => setPage(newPage)}
+                meta={{ onRowClick: openTicketDetails }}
+              />
+            </TicketsState>
+          </div>
+        </PageSection>
+      )}
 
       <TicketDetailsModal
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
       />
-    </main>
+    </PageShell>
   );
 }

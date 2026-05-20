@@ -1,7 +1,6 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { DataTable } from '@/components/Tickets/TicketsTable';
-import { useTickets } from '@/queries/tickets';
 import { createTicketColumns } from '@/components/columns/ticketColumns';
 import { useDebounce } from 'use-debounce';
 import NewTickets from '@/components/Tickets/LazyNewTickets';
@@ -269,31 +268,13 @@ export default function TicketPage() {
     hasHydratedFromParamsRef.current = true;
   }, [initialSearch, initialPage, listData]);
 
-  const boardQueryParams = getTicketsQueryParams({
-    page: 1,
-    search: debouncedSearch,
-    activeTab,
-    archived: false,
-    status: listStatusFilter,
-    workspaceId: effectiveWorkspaceId,
-    queryFilters,
-  });
+  const listTickets = listData.tickets;
+  const pagination = listData.pagination;
+  const isLoading = listData.isLoading;
+  const isError = listData.isError;
+  const isPlaceholderData = listData.isPlaceholderData;
 
-  const boardQuery = useTickets(boardQueryParams.board, { enabled: isBoard });
-
-  const boardTickets = useMemo(
-    () => (boardQuery.data?.data || []).map((ticket) => normalizeTicket(ticket)),
-    [boardQuery.data?.data]
-  );
-
-  const normalizedTickets = isBoard ? boardTickets : listData.tickets;
-  const visibleTickets = normalizedTickets;
-  const pagination = isBoard ? null : listData.pagination;
-  const isLoading = isBoard ? boardQuery.isLoading : listData.isLoading;
-  const isError = isBoard ? boardQuery.isError : listData.isError;
-  const isPlaceholderData = isBoard ? false : listData.isPlaceholderData;
-
-  const timeSpentTick = useTimeSpentTicker(visibleTickets, helpers.statusTracksTime);
+  const timeSpentTick = useTimeSpentTicker(listTickets, helpers.statusTracksTime);
 
   const listColumns = useMemo(
     () =>
@@ -452,21 +433,22 @@ export default function TicketPage() {
     try {
       setIsExporting(true);
 
-      let ticketsForExport = visibleTickets;
-      if (!isBoard) {
-        const exportParams = getTicketsQueryParams({
-          page: 1,
-          search: currentSearch,
-          activeTab,
-          archived: false,
-          status: listStatusFilter,
-          workspaceId: overrideWorkspaceId,
-          queryFilters,
-          listLimit: Math.max(listData.pagination?.total || 0, 1),
-        }).list;
-        const response = await getAllTicketsApi(exportParams);
-        ticketsForExport = (response?.data || []).map((ticket) => normalizeTicket(ticket));
-      }
+      let ticketsForExport = listTickets;
+      const exportParams = getTicketsQueryParams({
+        page: 1,
+        search: currentSearch,
+        activeTab,
+        archived: false,
+        status: listStatusFilter,
+        workspaceId: overrideWorkspaceId,
+        queryFilters,
+        listLimit: Math.max(
+          isBoard ? 10000 : listData.pagination?.total || 0,
+          1
+        ),
+      }).list;
+      const response = await getAllTicketsApi(exportParams);
+      ticketsForExport = (response?.data || []).map((ticket) => normalizeTicket(ticket));
 
       if (!ticketsForExport.length) {
         toast.info('No tickets to export for current filters.');
@@ -552,9 +534,12 @@ export default function TicketPage() {
         <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-4">
           <Suspense fallback={<TableSkeleton />}>
             <BoardPage
-              tickets={visibleTickets}
-              isLoading={isLoading || statusesLoading}
-              isError={isError}
+              fetchMode="all"
+              workspaceId={effectiveWorkspaceId}
+              search={debouncedSearch}
+              queryFilters={queryFilters}
+              enabled={isBoard && !!effectiveWorkspaceId}
+              statusesLoading={statusesLoading}
               onNewTicket={openNewTicket}
               onOpenTicket={openTicketDetails}
               onStatusChange={handleStatusChange}
@@ -568,13 +553,13 @@ export default function TicketPage() {
             <TicketsState
               isLoading={isLoading}
               isError={isError}
-              isEmpty={!isLoading && !isError && visibleTickets.length === 0}
+              isEmpty={!isLoading && !isError && listTickets.length === 0}
               emptyMessage="No tickets found."
               loadingSlot={<TableSkeleton />}
             >
               <DataTable
                 columns={listColumns}
-                data={visibleTickets}
+                data={listTickets}
                 pagination={pagination}
                 onPageChange={(newPage) => listData.setPage(newPage)}
                 meta={{ onRowClick: openTicketDetails }}
