@@ -17,7 +17,10 @@ export const DeleteConfirmModal = ({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
       <div className="bg-card rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex justify-end p-2">
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-full text-muted-foreground">
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-muted rounded-full text-muted-foreground"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>

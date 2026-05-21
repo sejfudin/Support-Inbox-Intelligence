@@ -41,8 +41,7 @@ export function ThemeConfigProvider({ children }) {
 
   useEffect(() => {
     if (!resolvedTheme) return;
-    document.documentElement.style.colorScheme =
-      resolvedTheme === 'dark' ? 'dark' : 'light';
+    document.documentElement.style.colorScheme = resolvedTheme === 'dark' ? 'dark' : 'light';
   }, [resolvedTheme]);
 
   const setColorTheme = useCallback((themeId) => {
@@ -68,9 +67,7 @@ export function ThemeConfigProvider({ children }) {
     [colorTheme, setColorTheme, ready]
   );
 
-  return (
-    <ThemeConfigContext.Provider value={value}>{children}</ThemeConfigContext.Provider>
-  );
+  return <ThemeConfigContext.Provider value={value}>{children}</ThemeConfigContext.Provider>;
 }
 
 export function useThemeConfig() {

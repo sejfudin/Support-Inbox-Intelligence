@@ -61,7 +61,9 @@ const UserEditModal = ({ user, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-2xl bg-card shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Edit User</h2>
+          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            Edit User
+          </h2>
           <button
             onClick={onClose}
             className="p-1 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded-lg transition-colors"

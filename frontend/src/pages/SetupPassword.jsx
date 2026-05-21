@@ -187,7 +187,9 @@ export default function SetPassword() {
                         <p className="text-sm font-semibold text-foreground">
                           Account found for {inviteInfo.fullName}
                         </p>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">{inviteInfo.email}</p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                          {inviteInfo.email}
+                        </p>
                       </div>
                     </div>
                   </div>

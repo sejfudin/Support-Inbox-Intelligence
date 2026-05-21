@@ -280,7 +280,9 @@ export const IntegrationSettings = ({ workspaceId }) => {
                 className={!repo.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}
               >
                 <div className="flex items-center gap-2">
-                  <span className={!repo.isAvailable ? 'text-muted-foreground' : ''}>{repo.fullName}</span>
+                  <span className={!repo.isAvailable ? 'text-muted-foreground' : ''}>
+                    {repo.fullName}
+                  </span>
                   {repo.private && repo.isAvailable && (
                     <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                       Private

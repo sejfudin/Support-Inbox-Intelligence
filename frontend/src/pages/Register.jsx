@@ -144,8 +144,8 @@ const Register = () => {
                   <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
                     The account is ready, but the user still needs to activate it. They can open
                     TaskManager, choose{' '}
-                    <span className="font-semibold text-background">Set password</span>, and continue
-                    using their internal email address.
+                    <span className="font-semibold text-background">Set password</span>, and
+                    continue using their internal email address.
                   </p>
                 </div>
               </CardHeader>

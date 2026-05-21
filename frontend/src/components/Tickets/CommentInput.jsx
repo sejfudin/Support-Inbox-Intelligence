@@ -138,8 +138,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                       type="button"
                       className={cn(
                         'w-full px-3 py-2 text-left text-sm hover:bg-muted/50',
-                        idx === mentionActiveIndex &&
-                          'bg-blue-500/15 dark:bg-blue-500/20'
+                        idx === mentionActiveIndex && 'bg-blue-500/15 dark:bg-blue-500/20'
                       )}
                       onMouseDown={(evt) => evt.preventDefault()}
                       onClick={() => applyMention(item)}

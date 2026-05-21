@@ -11,7 +11,8 @@
     --radius: 1rem;
     --separator: 230 22% 93%;
     --shadow-elevated: 0 1px 2px hsl(220 20% 10% / 0.04), 0 14px 36px -12px hsl(220 20% 10% / 0.1);
-    --shadow-elevated-sm: 0 1px 2px hsl(220 20% 10% / 0.03), 0 6px 16px -6px hsl(220 20% 10% / 0.07);
+    --shadow-elevated-sm:
+      0 1px 2px hsl(220 20% 10% / 0.03), 0 6px 16px -6px hsl(220 20% 10% / 0.07);
   }
 
   .dark,
@@ -102,7 +103,6 @@
       linear-gradient(90deg, hsl(var(--grid-line) / 0.08) 1px, transparent 1px);
     background-size: 22px 22px;
   }
-
 }
 
 /* Rich Text Editor Prose Styles */

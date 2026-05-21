@@ -6,9 +6,7 @@ export const UserStatusBadge = ({ status }) => {
   const style = s === 'active' ? badgeTone('success') : badgeTone('neutral');
 
   return (
-    <Badge
-      className={`${style} px-4 py-1 text-xs font-bold uppercase tracking-wider`}
-    >
+    <Badge className={`${style} px-4 py-1 text-xs font-bold uppercase tracking-wider`}>
       {status}
     </Badge>
   );
