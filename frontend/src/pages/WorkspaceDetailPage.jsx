@@ -292,7 +292,7 @@ export default function WorkspaceDetailPage() {
               <p className="text-xs text-muted-foreground">People with active access</p>
             </div>
 
-            <ul className="divide-y">
+            <ul className="divide-y divide-separator">
               {activeMembers.length === 0 ? (
                 <li className="px-5 py-4 text-sm text-muted-foreground">No active members yet.</li>
               ) : (
@@ -348,7 +348,7 @@ export default function WorkspaceDetailPage() {
               <p className="text-xs text-muted-foreground">Users who still need to accept</p>
             </div>
 
-            <ul className="divide-y">
+            <ul className="divide-y divide-separator">
               {pendingInvitations.length === 0 ? (
                 <li className="px-5 py-4 text-sm text-muted-foreground">No pending invites.</li>
               ) : (
@@ -437,12 +437,12 @@ export default function WorkspaceDetailPage() {
                 </SelectContent>
               </Select>
               {selectedUser && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                  <div className="flex items-center gap-2 font-medium text-slate-900">
-                    <Search className="h-4 w-4 text-slate-500" />
+                <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 font-medium text-foreground">
+                    <Search className="h-4 w-4 text-muted-foreground" />
                     {selectedUser.fullname}
                   </div>
-                  <div className="mt-1 text-xs text-slate-500">{selectedUser.email}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{selectedUser.email}</div>
                 </div>
               )}
             </div>
@@ -468,7 +468,7 @@ export default function WorkspaceDetailPage() {
               <Textarea
                 readOnly
                 value="Only existing platform users can be invited from this screen. To create a brand new account and place them into a workspace, use All Users and assign a workspace during user creation."
-                className="min-h-[92px] resize-none bg-slate-50 text-sm text-muted-foreground"
+                className="min-h-[92px] resize-none bg-muted text-sm text-muted-foreground"
               />
             </div>
 

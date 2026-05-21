@@ -45,7 +45,7 @@ function TaskCard({ task, onOpen, cardClassName, cardStyle }) {
         onClick={() => onOpen(task.id)}
         onKeyDown={(e) => e.key === 'Enter' && onOpen(task.id)}
         className={cn(
-          'cursor-pointer border-2 bg-white/98 transition-all hover:-translate-y-0.5',
+          'cursor-pointer border-2 bg-card transition-all hover:-translate-y-0.5',
           cardClassName
         )}
         style={cardStyle}
@@ -53,17 +53,17 @@ function TaskCard({ task, onOpen, cardClassName, cardStyle }) {
         <CardContent className="p-3">
           {task.taskNumber && (
             <div className="flex justify-between items-center mb-2">
-              <span className="text-[10px] font-black text-blue-600/70 bg-blue-50 px-1.5 py-0.5 rounded">
+              <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-black text-blue-800 dark:bg-blue-500/20 dark:text-blue-300">
                 {task.taskNumber}
               </span>
             </div>
           )}
 
-          <p className="font-semibold text-sm leading-tight text-slate-800 line-clamp-2">
+          <p className="font-semibold text-sm leading-tight text-foreground line-clamp-2">
             {task.title}
           </p>
 
-          <div className="mt-3 pt-2 border-t border-slate-50 flex items-center justify-between">
+          <div className="mt-3 flex items-center justify-between border-t border-separator pt-2">
             <PriorityIndicator priority={task.priority} />
             <AssigneesAvatar users={task.assignedTo} />
           </div>
@@ -91,8 +91,9 @@ function Column({ col, onOpen, onNewTicket, boardHelpers }) {
     <Card
       ref={setNodeRef}
       className={cn(
-        'w-[320px] shrink-0 border-white/70 bg-white/85 border-t-4 transition-all duration-300 ease-in-out',
-        isDroppingOver && 'bg-blue-50/60 ring-4 ring-blue-400/20 scale-[1.02] shadow-lg z-10'
+        'w-[320px] shrink-0 border-border/50 bg-card shadow-elevated-sm border-t-4 transition-all duration-300 ease-in-out',
+        isDroppingOver &&
+          'scale-[1.02] bg-blue-500/10 ring-4 ring-blue-500/25 shadow-lg z-10 dark:bg-blue-500/15 dark:ring-blue-400/30'
       )}
       style={{ borderTopColor: style.borderTopColor }}
     >

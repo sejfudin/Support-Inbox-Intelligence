@@ -31,7 +31,7 @@ export default function StoryPointsField({
       */}
       {hideLabel ? null : (
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
             Story Points
           </span>
         </div>
@@ -42,7 +42,7 @@ export default function StoryPointsField({
           <button
             type="button"
             className={cn(
-              'flex w-full items-center justify-between gap-2 px-3 py-3 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200',
+              'flex w-full items-center justify-between gap-2 px-3 py-3 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted',
               disabled && 'cursor-not-allowed opacity-60'
             )}
             aria-label={`Change story points (current: ${currentLabel})`}
@@ -57,7 +57,7 @@ export default function StoryPointsField({
 
         <DropdownMenuContent align="start" className="w-44 z-[200]">
           <DropdownMenuItem onSelect={() => onChange?.(null)} className="cursor-pointer">
-            <span className="h-2 w-2 rounded-full bg-gray-500 mr-2" />
+            <span className="h-2 w-2 rounded-full bg-muted/500 mr-2" />
             <span className="flex-1">No estimate</span>
             {currentValue === null ? <Check className="w-4 h-4 opacity-80 ml-2" /> : null}
           </DropdownMenuItem>

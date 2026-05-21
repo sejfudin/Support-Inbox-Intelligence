@@ -86,15 +86,15 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">Workspace Logo</h3>
+        <h3 className="text-sm font-semibold text-foreground">Workspace Logo</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
       </div>
 
-      <div className="rounded-lg border border-gray-100 bg-white">
+      <div className="rounded-lg border border-border bg-card">
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5">
           <div
             className={cn(
-              'relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50',
+              'relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/50',
               hasPendingChange && 'ring-2 ring-primary/30 ring-offset-2'
             )}
           >
@@ -110,7 +110,7 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm font-medium text-foreground">
               {hasPendingChange ? 'New logo selected' : hasLogo ? 'Logo uploaded' : 'No logo yet'}
             </p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">

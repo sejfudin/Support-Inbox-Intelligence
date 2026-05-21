@@ -30,7 +30,7 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium leading-snug text-foreground">{notification.title}</p>
           {isMention ? (
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+            <span className="rounded-full border border-blue-500/30 bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300">
               Mention
             </span>
           ) : null}

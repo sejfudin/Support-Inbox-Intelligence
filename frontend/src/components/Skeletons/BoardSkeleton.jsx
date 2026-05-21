@@ -13,7 +13,7 @@ export default function BoardSkeleton({ columns = 4, cards = 3 }) {
         {colItems.map((_, colIdx) => (
           <div
             key={`col-${colIdx}`}
-            className="w-[320px] shrink-0 rounded-lg border-t-4 border-slate-200 bg-white"
+            className="w-[320px] shrink-0 rounded-lg border-t-4 border-border bg-card"
           >
             <div className="p-4 pb-3">
               <Skeleton className="h-4 w-28" />

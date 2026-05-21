@@ -1,70 +1,24 @@
+@import './styles/themes.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 @plugin "@tailwindcss/typography";
 
 @layer base {
-  :root {
-    --background: 240 43% 98%;
-    --foreground: 228 28% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 228 28% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 228 28% 14%;
-    --primary: 241 100% 71%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 100% 98%;
-    --secondary-foreground: 235 24% 19%;
-    --muted: 228 33% 97%;
-    --muted-foreground: 225 12% 45%;
-    --accent: 235 100% 96%;
-    --accent-foreground: 235 24% 19%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 230 28% 90%;
-    --input: 230 28% 90%;
-    --ring: 241 100% 71%;
+  :root,
+  [data-theme] {
     --radius: 1rem;
-
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 226 18% 27%;
-    --sidebar-primary: 241 100% 71%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 235 100% 97%;
-    --sidebar-accent-foreground: 235 24% 19%;
-    --sidebar-border: 230 28% 90%;
-    --sidebar-ring: 241 100% 71%;
+    --separator: 230 22% 93%;
+    --shadow-elevated: 0 1px 2px hsl(220 20% 10% / 0.04), 0 14px 36px -12px hsl(220 20% 10% / 0.1);
+    --shadow-elevated-sm: 0 1px 2px hsl(220 20% 10% / 0.03), 0 6px 16px -6px hsl(220 20% 10% / 0.07);
   }
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+  .dark,
+  .dark[data-theme] {
+    --separator: 240 4% 13%;
+    --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.05), 0 10px 28px -10px hsl(0 0% 0% / 0.35);
+    --shadow-elevated-sm: 0 1px 0 hsl(0 0% 100% / 0.04), 0 4px 14px -6px hsl(0 0% 0% / 0.28);
   }
 }
 
@@ -77,12 +31,22 @@
     scroll-behavior: smooth;
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    html.transition-themes,
+    html.transition-themes * {
+      transition:
+        background-color 150ms ease,
+        color 150ms ease,
+        border-color 150ms ease;
+    }
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     background-image:
-      radial-gradient(circle at top left, rgba(108, 105, 255, 0.12), transparent 26%),
-      radial-gradient(circle at top right, rgba(79, 172, 254, 0.08), transparent 22%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(250, 250, 255, 0.96));
+      radial-gradient(circle at top left, hsl(var(--glow-primary) / 0.12), transparent 26%),
+      radial-gradient(circle at top right, hsl(var(--glow-secondary) / 0.08), transparent 22%),
+      linear-gradient(180deg, hsl(var(--background) / 0.9), hsl(var(--page-gradient-end) / 1));
     background-attachment: fixed;
   }
 
@@ -100,12 +64,24 @@
     @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
   }
 
+  .app-elevated {
+    @apply bg-card text-card-foreground;
+    border: 1px solid hsl(var(--border) / 0.45);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .app-elevated-sm {
+    @apply bg-card text-card-foreground;
+    border: 1px solid hsl(var(--border) / 0.4);
+    box-shadow: var(--shadow-elevated-sm);
+  }
+
   .app-panel {
-    @apply rounded-[1.5rem] border border-white/70 bg-white/85 shadow-[0_18px_50px_-28px_rgba(76,81,191,0.35)];
+    @apply app-elevated rounded-[1.5rem];
   }
 
   .app-panel-soft {
-    @apply rounded-[1.25rem] border border-border/70 bg-white/70 shadow-[0_12px_32px_-24px_rgba(76,81,191,0.32)];
+    @apply app-elevated-sm rounded-[1.25rem];
   }
 
   .app-kicker {
@@ -122,14 +98,11 @@
 
   .app-grid-bg {
     background-image:
-      linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+      linear-gradient(hsl(var(--grid-line) / 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--grid-line) / 0.08) 1px, transparent 1px);
     background-size: 22px 22px;
   }
 
-  .app-with-floating-notifications .app-page-content {
-    @apply md:pr-20 lg:pr-24;
-  }
 }
 
 /* Rich Text Editor Prose Styles */

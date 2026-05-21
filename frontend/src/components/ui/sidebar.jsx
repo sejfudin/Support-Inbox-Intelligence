@@ -238,7 +238,7 @@ const SidebarTrigger = React.forwardRef(({ className, onClick, ...props }, ref) 
       variant="ghost"
       size="icon"
       className={cn(
-        'h-10 w-10 p-2.5 transition-all duration-200 active:scale-95 hover:bg-gray-100',
+        'h-10 w-10 p-2.5 transition-all duration-200 active:scale-95 hover:bg-muted',
         className
       )}
       onClick={(event) => {
@@ -247,7 +247,7 @@ const SidebarTrigger = React.forwardRef(({ className, onClick, ...props }, ref) 
       }}
       {...props}
     >
-      <Menu className="h-6 w-6 text-gray-700" />
+      <Menu className="h-6 w-6 text-foreground" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );

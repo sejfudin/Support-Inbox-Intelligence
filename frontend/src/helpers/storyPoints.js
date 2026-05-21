@@ -1,3 +1,5 @@
+import { badgeTone, dotTone, indicatorTone } from '@/helpers/badgeTones';
+
 export const STORY_POINTS_MIN = 1;
 export const STORY_POINTS_MAX = 5;
 
@@ -15,34 +17,34 @@ export const STORY_POINTS_OPTIONS = Array.from(
 
 export const STORY_POINTS_VISUALS = {
   1: {
-    badge: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200',
-    indicator: 'bg-emerald-50 text-emerald-700 border-emerald-300',
-    dot: 'bg-emerald-500',
+    badge: badgeTone('success'),
+    indicator: indicatorTone('success'),
+    dot: dotTone('success'),
   },
   2: {
-    badge: 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200',
-    indicator: 'bg-cyan-50 text-cyan-700 border-cyan-300',
-    dot: 'bg-cyan-500',
+    badge: badgeTone('cyan'),
+    indicator: indicatorTone('cyan'),
+    dot: dotTone('cyan'),
   },
   3: {
-    badge: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
-    indicator: 'bg-blue-50 text-blue-700 border-blue-300',
-    dot: 'bg-blue-500',
+    badge: badgeTone('info'),
+    indicator: indicatorTone('info'),
+    dot: dotTone('info'),
   },
   4: {
-    badge: 'bg-orange-100 text-orange-700 hover:bg-orange-200',
-    indicator: 'bg-orange-50 text-orange-700 border-orange-300',
-    dot: 'bg-orange-500',
+    badge: badgeTone('orange'),
+    indicator: indicatorTone('orange'),
+    dot: dotTone('orange'),
   },
   5: {
-    badge: 'bg-red-100 text-red-700 hover:bg-red-200',
-    indicator: 'bg-red-50 text-red-700 border-red-300',
-    dot: 'bg-red-500',
+    badge: badgeTone('danger'),
+    indicator: indicatorTone('danger'),
+    dot: dotTone('danger'),
   },
   default: {
-    badge: 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-    indicator: 'bg-gray-50 text-gray-600 border-gray-300',
-    dot: 'bg-gray-400',
+    badge: badgeTone('neutral'),
+    indicator: indicatorTone('neutral'),
+    dot: dotTone('neutral'),
   },
 };
 

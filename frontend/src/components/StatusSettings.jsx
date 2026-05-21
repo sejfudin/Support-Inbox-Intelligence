@@ -194,7 +194,7 @@ const StatusSettings = ({ workspaceId }) => {
     return (
       <div className="space-y-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-10 rounded-lg bg-gray-100 animate-pulse" />
+          <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
         ))}
       </div>
     );
@@ -203,7 +203,7 @@ const StatusSettings = ({ workspaceId }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">Ticket Statuses</h3>
+        <h3 className="text-sm font-semibold text-foreground">Ticket Statuses</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Customize workflow columns, order, and behavior.
         </p>

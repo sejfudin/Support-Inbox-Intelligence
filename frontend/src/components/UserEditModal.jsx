@@ -59,12 +59,12 @@ const UserEditModal = ({ user, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Edit User</h2>
+      <div className="w-full max-w-md rounded-2xl bg-card shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Edit User</h2>
           <button
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-1 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded-lg transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -75,7 +75,7 @@ const UserEditModal = ({ user, onClose }) => {
             <div className="space-y-2">
               <Label
                 htmlFor="fullname"
-                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+                className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Full Name
               </Label>
@@ -91,7 +91,7 @@ const UserEditModal = ({ user, onClose }) => {
             <div className="space-y-2">
               <Label
                 htmlFor="email"
-                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+                className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Email
               </Label>
@@ -108,7 +108,7 @@ const UserEditModal = ({ user, onClose }) => {
             <div className="space-y-2">
               <Label
                 htmlFor="role"
-                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+                className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Role
               </Label>
@@ -129,7 +129,7 @@ const UserEditModal = ({ user, onClose }) => {
             <div className="space-y-2">
               <Label
                 htmlFor="status"
-                className="text-xs font-bold text-gray-500 uppercase tracking-widest"
+                className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Status
               </Label>

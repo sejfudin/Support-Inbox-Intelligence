@@ -173,7 +173,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
 
   if (isLoadingIntegration) {
     return (
-      <div className="flex items-center gap-2 text-gray-500">
+      <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Loading integration settings...</span>
       </div>
@@ -184,25 +184,25 @@ export const IntegrationSettings = ({ workspaceId }) => {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center">
-            <Github className="h-5 w-5 text-gray-600" />
+          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+            <Github className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
-            <h3 className="font-medium text-gray-900">GitHub Integration</h3>
-            <p className="text-sm text-gray-500">
+            <h3 className="font-medium text-foreground">GitHub Integration</h3>
+            <p className="text-sm text-muted-foreground">
               Connect your workspace to GitHub for automatic PR linking
             </p>
           </div>
         </div>
 
-        <div className="rounded-lg border border-dashed border-gray-200 p-6 bg-gray-50/50">
+        <div className="rounded-lg border border-dashed border-border p-6 bg-muted/50/50">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
-              <Github className="h-6 w-6 text-gray-400" />
+            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+              <Github className="h-6 w-6 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-900">Not connected</p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-sm font-medium text-foreground">Not connected</p>
+              <p className="text-xs text-muted-foreground mt-1">
                 Connect your GitHub repository to automatically link pull requests to tickets
               </p>
             </div>
@@ -224,12 +224,12 @@ export const IntegrationSettings = ({ workspaceId }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/15 dark:border-emerald-500/35 dark:bg-emerald-500/20">
             <Check className="h-5 w-5 text-green-600" />
           </div>
           <div>
-            <h3 className="font-medium text-gray-900">GitHub Connected</h3>
-            <p className="text-sm text-gray-500">
+            <h3 className="font-medium text-foreground">GitHub Connected</h3>
+            <p className="text-sm text-muted-foreground">
               Connected as {integration.githubAccountType}{' '}
               <strong>{integration.githubAccountLogin}</strong>
             </p>
@@ -280,14 +280,14 @@ export const IntegrationSettings = ({ workspaceId }) => {
                 className={!repo.isAvailable ? 'opacity-50 cursor-not-allowed' : ''}
               >
                 <div className="flex items-center gap-2">
-                  <span className={!repo.isAvailable ? 'text-gray-400' : ''}>{repo.fullName}</span>
+                  <span className={!repo.isAvailable ? 'text-muted-foreground' : ''}>{repo.fullName}</span>
                   {repo.private && repo.isAvailable && (
-                    <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
                       Private
                     </span>
                   )}
                   {!repo.isAvailable && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
+                    <span className="rounded border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-800 dark:border-amber-500/35 dark:bg-amber-500/20 dark:text-amber-300">
                       Linked to another workspace
                     </span>
                   )}
@@ -315,7 +315,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
       </div>
 
       <div className="space-y-4 border-t pt-4">
-        <h4 className="font-medium text-gray-900">Automation Settings</h4>
+        <h4 className="font-medium text-foreground">Automation Settings</h4>
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -323,7 +323,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
               <Label htmlFor="auto-link" className="cursor-pointer">
                 Auto-link pull requests
               </Label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Automatically link PRs to tickets based on branch names like
                 &quot;feature/87-...&quot;
               </p>
@@ -341,7 +341,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
               <Label htmlFor="auto-move-open" className="cursor-pointer">
                 Move ticket when PR opened
               </Label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Automatically change ticket status when a PR is opened
               </p>
             </div>
@@ -381,7 +381,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
               <Label htmlFor="auto-move-merge" className="cursor-pointer">
                 Move ticket when PR merged
               </Label>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Automatically change ticket status when a PR is merged
               </p>
             </div>

@@ -17,7 +17,7 @@ export default function InvitationInbox({
     return (
       <div className="space-y-4">
         {Array.from({ length: 2 }).map((_, index) => (
-          <Card key={index} className="border-white/70 bg-white/90">
+          <Card key={index} className="border-border/50 bg-card">
             <CardHeader>
               <Skeleton className="h-5 w-48" />
               <Skeleton className="h-4 w-72" />
@@ -37,11 +37,11 @@ export default function InvitationInbox({
 
   if (invitations.length === 0) {
     return (
-      <Card className="border-white/70 bg-white/90">
+      <Card className="border-border/50 bg-card">
         <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
           <Clock3 className="h-9 w-9 text-primary/35" />
           <div>
-            <p className="text-base font-semibold text-gray-900">{emptyTitle}</p>
+            <p className="text-base font-semibold text-foreground">{emptyTitle}</p>
             <p className="mt-1 text-sm text-muted-foreground">{emptyDescription}</p>
           </div>
         </CardContent>
@@ -61,7 +61,7 @@ export default function InvitationInbox({
         return (
           <Card
             key={invitationId}
-            className="overflow-hidden border-white/70 bg-gradient-to-br from-white via-white to-primary/5"
+            className="overflow-hidden border-border/50 bg-gradient-to-br from-card via-card to-primary/5"
           >
             <CardHeader className="space-y-3 pb-4">
               <div className="flex items-start justify-between gap-4">
@@ -79,7 +79,7 @@ export default function InvitationInbox({
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-500/35 dark:bg-amber-500/20 dark:text-amber-300">
                   Pending
                 </span>
               </div>
@@ -87,7 +87,7 @@ export default function InvitationInbox({
 
             <CardContent className="space-y-4">
               {invitation.workspace?.description && (
-                <p className="rounded-xl border border-border/70 bg-secondary/70 px-4 py-3 text-sm text-slate-600">
+                <p className="rounded-xl border border-border/70 bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">
                   {invitation.workspace.description}
                 </p>
               )}

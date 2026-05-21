@@ -121,17 +121,17 @@ export default function AnalyticsDashboard() {
             </p>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-10 w-full">
-              <TabsList className="flex h-auto w-full justify-start gap-6 rounded-none border-b border-border/70 bg-transparent p-0 text-gray-700">
+              <TabsList className="flex h-auto w-full justify-start gap-6 rounded-none border-b border-border/70 bg-transparent p-0 text-foreground">
                 <TabsTrigger
                   value="workspace"
-                  className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-gray-700 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
                 >
                   Workspace Analytics
                 </TabsTrigger>
                 {shouldRenderPersonalPerformance && (
                   <TabsTrigger
                     value="personal"
-                    className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-gray-700 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
                   >
                     My Analytics
                   </TabsTrigger>
@@ -139,7 +139,7 @@ export default function AnalyticsDashboard() {
                 {shouldRenderPersonalPerformance && (
                   <TabsTrigger
                     value="ai-summary"
-                    className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-gray-700 shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
                   >
                     Performance Summary
                   </TabsTrigger>

@@ -56,7 +56,8 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'priorityOrder',
         label: `Sort: ${selectedOrder?.label || controls.priorityOrder}`,
-        className: 'border-blue-200 bg-blue-50 text-blue-700',
+        className:
+          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
       });
     }
 
@@ -67,7 +68,8 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'dueDateOrder',
         label: `Due date: ${selectedDue?.label || controls.dueDateOrder}`,
-        className: 'border-blue-200 bg-blue-50 text-blue-700',
+        className:
+          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
       });
     }
 
@@ -78,7 +80,8 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'ticketIdOrder',
         label: `Ticket ID: ${selectedTicketIdOrder?.label || controls.ticketIdOrder}`,
-        className: 'border-blue-200 bg-blue-50 text-blue-700',
+        className:
+          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
       });
     }
 

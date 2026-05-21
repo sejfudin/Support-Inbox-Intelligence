@@ -71,11 +71,11 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold text-gray-900 leading-tight">
+            <span className="text-sm font-semibold text-foreground leading-tight">
               {comment.author?.fullname}
             </span>
 
-            <div className="flex items-center gap-1.5 text-[10px] text-gray-400 leading-none">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground leading-none">
               <span>{format(new Date(comment.createdAt), "MMM d, yyyy 'at' HH:mm")}</span>
               {!isDeleted && comment.isEdited && (
                 <>
@@ -105,7 +105,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-gray-400 hover:text-blue-600"
+                  className="h-7 w-7 text-muted-foreground hover:text-blue-600"
                   onClick={() => setIsEditing(true)}
                 >
                   <Edit2 className="w-3.5 h-3.5" />
@@ -115,7 +115,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-gray-400 hover:text-red-500"
+                  className="h-7 w-7 text-muted-foreground hover:text-red-500"
                   onClick={() => onOpenDelete(comment._id)}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -134,7 +134,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
             />
             <div className="flex justify-end gap-1">
               <Button variant="ghost" size="sm" onClick={() => cancelEditing()}>
-                <X className="w-4 h-4 text-gray-400" />
+                <X className="w-4 h-4 text-muted-foreground" />
               </Button>
               <Button variant="ghost" size="sm" onClick={handleUpdate}>
                 <Check className="w-4 h-4 text-blue-600" />
@@ -144,7 +144,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
         ) : (
           <div
             className={`mt-1 text-sm leading-relaxed whitespace-pre-wrap [word-break:break-word] break-words ${
-              isDeleted ? 'text-gray-400 italic font-medium py-1' : 'text-gray-600'
+              isDeleted ? 'text-muted-foreground italic font-medium py-1' : 'text-muted-foreground'
             }`}
           >
             {isDeleted ? (
@@ -157,7 +157,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 part.type === 'mention' ? (
                   <span
                     key={`${part.value}-${idx}`}
-                    className="inline-block rounded bg-blue-50 px-1 py-0.5 font-medium text-blue-700"
+                    className="inline-block rounded border border-blue-500/25 bg-blue-500/15 px-1 py-0.5 font-medium text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-300"
                   >
                     {part.value}
                   </span>
@@ -183,7 +183,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                   <button
                     type="button"
                     onClick={() => handleDeleteCommentImage(img.id)}
-                    className="absolute top-1 right-1 bg-white/90 rounded p-1 opacity-0 group-hover:opacity-100"
+                    className="absolute top-1 right-1 bg-card rounded p-1 opacity-0 group-hover:opacity-100"
                   >
                     <Trash2 className="w-3 h-3 text-red-600" />
                   </button>
@@ -200,11 +200,11 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
           >
             <button
               type="button"
-              className="absolute top-4 right-4 rounded-full bg-white/90 p-2"
+              className="absolute top-4 right-4 rounded-full bg-card p-2"
               onClick={() => setPreviewImageUrl(null)}
               aria-label="Close image preview"
             >
-              <X className="w-5 h-5 text-gray-900" />
+              <X className="w-5 h-5 text-foreground" />
             </button>
             <img
               src={previewImageUrl}

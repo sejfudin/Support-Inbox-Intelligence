@@ -10,7 +10,7 @@ export const TimeSpent = ({ ticket, statusTracksTime }) => {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
           Time Spent
         </span>
       </div>
@@ -21,7 +21,7 @@ export const TimeSpent = ({ ticket, statusTracksTime }) => {
             title="Timer active"
           />
         )}
-        <span className="text-base font-semibold text-gray-900">{formatDuration(seconds)}</span>
+        <span className="text-base font-semibold text-foreground">{formatDuration(seconds)}</span>
       </div>
     </div>
   );

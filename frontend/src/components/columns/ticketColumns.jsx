@@ -134,13 +134,13 @@ export function createTicketColumns({
       header: 'TIME SPENT',
       meta: {
         headerClassName: 'w-[9%]',
-        cellClassName: 'w-[9%] whitespace-nowrap font-medium text-gray-500 text-xs',
+        cellClassName: 'w-[9%] whitespace-nowrap font-medium text-muted-foreground text-xs',
       },
       cell: ({ row }) => {
         const seconds = getTicketTimeSpentSeconds(row.original, statusTracksTime);
         const isTracking = isTicketTrackingTime(row.original, statusTracksTime);
 
-        if (seconds === 0) return <span className="text-gray-300">-</span>;
+        if (seconds === 0) return <span className="text-muted-foreground">-</span>;
 
         return (
           <div className="flex items-center gap-1">

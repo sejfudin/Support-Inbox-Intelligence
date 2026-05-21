@@ -32,10 +32,10 @@ const getPriorityVisual = (value) => {
   const config = PRIORITY_CONFIG[normalized];
 
   return normalized === PRIORITY_FILTER_VALUES.ALL
-    ? { dot: 'bg-slate-400' }
+    ? { dot: 'bg-muted-foreground' }
     : config
       ? { dot: config.dot }
-      : { dot: 'bg-slate-400' };
+      : { dot: 'bg-muted-foreground' };
 };
 
 export default function TicketFiltersPanel({

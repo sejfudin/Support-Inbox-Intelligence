@@ -15,16 +15,16 @@ const AiDescriptionPanel = ({
   if (!isVisible) return null;
 
   return (
-    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/90 p-3">
-      <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-700">
+    <div className="mt-3 rounded-lg border border-border bg-muted/90 p-3">
+      <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-foreground">
         <span>AI prompt detected</span>
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+        <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
           {promptLength} chars
         </span>
       </p>
 
       {!canGenerateDescription && (
-        <p className="mt-1 text-xs text-slate-600">
+        <p className="mt-1 text-xs text-muted-foreground">
           To generate, use at least {MIN_SUBJECT_LENGTH} characters in the subject and{' '}
           {MIN_TEXT_LENGTH} characters after <span className="font-mono">/ai</span>.
         </p>

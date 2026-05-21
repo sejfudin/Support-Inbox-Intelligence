@@ -13,7 +13,7 @@ function RichTextEditor({ children, className, ...props }) {
       <div
         data-slot="rich-text-editor"
         className={cn(
-          'flex min-h-[200px] flex-col divide-y rounded-lg border',
+          'flex min-h-[200px] flex-col divide-y divide-separator rounded-lg border',
           'has-[.ProseMirror:focus-visible]:border-ring has-[.ProseMirror:focus-visible]:ring-ring/50 has-[.ProseMirror:focus-visible]:ring-[3px]',
           // disabled state
           "has-[[data-slot='rich-text-editor-content']>div[contenteditable='false']]:opacity-50",

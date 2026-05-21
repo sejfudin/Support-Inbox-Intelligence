@@ -15,9 +15,9 @@ export const DeleteConfirmModal = ({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-card rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
         <div className="flex justify-end p-2">
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full text-gray-400">
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded-full text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -27,8 +27,8 @@ export const DeleteConfirmModal = ({
             <AlertTriangle className="h-6 w-6 text-red-600" />
           </div>
 
-          <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-500 mt-2">{description}</p>
+          <h3 className="text-lg font-bold text-foreground">{title}</h3>
+          <p className="text-sm text-muted-foreground mt-2">{description}</p>
 
           {errorMessage && (
             <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-red-600 text-sm animate-shake">
@@ -39,7 +39,7 @@ export const DeleteConfirmModal = ({
           <div className="flex gap-3 mt-6">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              className="flex-1 px-4 py-2 text-sm font-semibold text-foreground bg-muted hover:bg-muted rounded-lg transition-colors"
             >
               Cancel
             </button>

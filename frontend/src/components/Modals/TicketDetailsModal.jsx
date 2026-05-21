@@ -553,9 +553,9 @@ export const TicketDetailsModal = ({
   if (isLoading || usersLoading) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-        <div className="bg-white p-8 rounded-xl shadow-xl animate-pulse flex flex-col items-center gap-4">
-          <div className="h-6 w-48 bg-gray-200 rounded"></div>
-          <div className="h-4 w-32 bg-gray-100 rounded"></div>
+        <div className="bg-card p-8 rounded-xl shadow-xl animate-pulse flex flex-col items-center gap-4">
+          <div className="h-6 w-48 bg-muted rounded"></div>
+          <div className="h-4 w-32 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -565,9 +565,9 @@ export const TicketDetailsModal = ({
   if (isError || usersError) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden">
+        <div className="w-full max-w-md bg-card rounded-xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b">
-            <div className="text-sm font-bold text-gray-700 uppercase tracking-widest">
+            <div className="text-sm font-bold text-foreground uppercase tracking-widest">
               Ticket Details
             </div>
 
@@ -577,7 +577,7 @@ export const TicketDetailsModal = ({
                 e.stopPropagation();
                 onClose();
               }}
-              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
               aria-label="Close error modal"
             >
               <X className="w-5 h-5" />
@@ -585,14 +585,14 @@ export const TicketDetailsModal = ({
           </div>
 
           <div className="px-6 py-6 space-y-3">
-            <h2 className="text-lg font-semibold text-gray-900">Failed to load ticket</h2>
+            <h2 className="text-lg font-semibold text-foreground">Failed to load ticket</h2>
 
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Please try again. If the issue persists, check your connection or contact support.
             </p>
 
             {error?.message && (
-              <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md p-3">
+              <div className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-md p-3">
                 {error.message}
               </div>
             )}
@@ -604,7 +604,7 @@ export const TicketDetailsModal = ({
                   e.stopPropagation();
                   onClose();
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-muted hover:bg-muted text-foreground transition-colors"
               >
                 Close
               </button>
@@ -621,25 +621,25 @@ export const TicketDetailsModal = ({
       role="presentation"
     >
       <div
-        className="flex h-[92vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[90vh] sm:max-h-none sm:rounded-[28px]"
+        className="flex h-[92vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[22px] bg-card shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[90vh] sm:max-h-none sm:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Ticket details"
       >
-        <div className="flex shrink-0 flex-col gap-3 border-b bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4 lg:px-8">
+        <div className="flex shrink-0 flex-col gap-3 border-b bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4 lg:px-8">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <button
               type="button"
               onClick={(e) => {
                 onClose();
               }}
-              className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
               aria-label="Close ticket details"
             >
               <X className="w-5 h-5" />
             </button>
-            <span className="hidden text-xs font-bold text-gray-500 uppercase tracking-widest sm:inline">
+            <span className="hidden text-xs font-bold text-muted-foreground uppercase tracking-widest sm:inline">
               Ticket Details
             </span>
           </div>
@@ -650,7 +650,7 @@ export const TicketDetailsModal = ({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50"
+                    className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm transition-all hover:bg-muted/50"
                     aria-label="Ticket actions"
                     title="Ticket actions"
                   >
@@ -661,7 +661,7 @@ export const TicketDetailsModal = ({
                   <DropdownMenuItem
                     onSelect={handleExportSingleCsv}
                     disabled={!ticket}
-                    className="cursor-pointer text-gray-700"
+                    className="cursor-pointer text-foreground"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Export CSV
@@ -669,7 +669,7 @@ export const TicketDetailsModal = ({
                   <DropdownMenuItem
                     onSelect={handleArchiveToggle}
                     disabled={isArchiving}
-                    className="cursor-pointer text-gray-700"
+                    className="cursor-pointer text-foreground"
                   >
                     <Archive className="w-4 h-4 mr-2" />
                     {isArchiving ? 'Archiving...' : 'Archive'}
@@ -694,7 +694,7 @@ export const TicketDetailsModal = ({
                   isGeneratingDescription ||
                   !hasChanges ||
                   !title.trim()
-                    ? 'cursor-not-allowed bg-gray-100 text-gray-400'
+                    ? 'cursor-not-allowed bg-muted text-muted-foreground'
                     : ''
                 }`}
               >
@@ -732,7 +732,7 @@ export const TicketDetailsModal = ({
           <div className="group relative mb-8 flex flex-col gap-3">
             {ticket?.taskNumber && (
               <div className="flex">
-                <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-bold text-gray-500 border border-gray-200 uppercase tracking-tight">
+                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-bold text-muted-foreground border border-border uppercase tracking-tight">
                   Ticket {ticket.taskNumber}
                 </span>
               </div>
@@ -750,7 +750,7 @@ export const TicketDetailsModal = ({
                   } ${
                     isArchived
                       ? 'cursor-default'
-                      : 'cursor-text hover:bg-gray-50 focus:bg-gray-50 focus:border-gray-200 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white'
+                      : 'cursor-text hover:bg-muted/50 focus:bg-muted/50 focus:border-border focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background'
                   }`}
                   placeholder="Enter ticket title..."
                 />
@@ -762,7 +762,7 @@ export const TicketDetailsModal = ({
                 }`}
               >
                 <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Assignees
                   </div>
 
@@ -770,7 +770,7 @@ export const TicketDetailsModal = ({
                     <PopoverTrigger asChild disabled={isArchived}>
                       <button
                         type="button"
-                        className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-gray-100 text-gray-700 hover:bg-gray-200 justify-between ${
+                        className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between ${
                           isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
                         }`}
                         aria-label="Change assignees"
@@ -779,7 +779,7 @@ export const TicketDetailsModal = ({
                           {selectedUsersObjects.length > 0 ? (
                             <>
                               <AssigneesAvatar users={selectedUsersObjects.slice(0, 3)} size="sm" />
-                              <span className="min-w-0 truncate text-gray-700 font-semibold">
+                              <span className="min-w-0 truncate text-foreground font-semibold">
                                 {selectedUsersObjects[0]?.fullName ||
                                   selectedUsersObjects[0]?.fullname ||
                                   selectedUsersObjects[0]?.email ||
@@ -788,8 +788,8 @@ export const TicketDetailsModal = ({
                             </>
                           ) : (
                             <>
-                              <User className="w-5 h-5 text-gray-500" />
-                              <span className="text-gray-500 font-medium whitespace-nowrap">
+                              <User className="w-5 h-5 text-muted-foreground" />
+                              <span className="text-muted-foreground font-medium whitespace-nowrap">
                                 Unassigned
                               </span>
                             </>
@@ -797,7 +797,7 @@ export const TicketDetailsModal = ({
                         </span>
 
                         {selectedUsersObjects.length > 1 ? (
-                          <span className="shrink-0 inline-flex items-center rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-bold text-gray-500 border border-gray-200">
+                          <span className="shrink-0 inline-flex items-center rounded-full bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
                             +{selectedUsersObjects.length - 1}
                           </span>
                         ) : null}
@@ -811,8 +811,8 @@ export const TicketDetailsModal = ({
                         sideOffset={8}
                       >
                         <div className="space-y-1">
-                          <div className="flex items-center justify-between px-2 py-1.5 border-b border-gray-100 mb-1">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          <div className="mb-1 flex items-center justify-between border-b border-separator px-2 py-1.5">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                               Assign Agents
                             </span>
                             {selectedAgents.length > 0 && (
@@ -847,10 +847,10 @@ export const TicketDetailsModal = ({
                                       className="pointer-events-none"
                                     />
                                     <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-semibold text-gray-700 truncate group-hover:text-blue-700">
+                                      <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
                                         {user.fullName || user.fullname || user.email}
                                       </span>
-                                      <span className="text-[10px] text-gray-400 truncate">
+                                      <span className="text-[10px] text-muted-foreground truncate">
                                         {user.email}
                                       </span>
                                     </div>
@@ -858,7 +858,7 @@ export const TicketDetailsModal = ({
                                 );
                               })
                             ) : (
-                              <div className="p-4 text-center text-xs text-gray-400">
+                              <div className="p-4 text-center text-xs text-muted-foreground">
                                 No users found
                               </div>
                             )}
@@ -870,7 +870,7 @@ export const TicketDetailsModal = ({
                 </div>
 
                 <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Status
                   </div>
                   <StatusDropdown
@@ -882,7 +882,7 @@ export const TicketDetailsModal = ({
                 </div>
 
                 <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Priority
                   </div>
                   <PriorityDropdown
@@ -906,7 +906,7 @@ export const TicketDetailsModal = ({
             <div className="space-y-6 min-w-0">
               <section
                 ref={descriptionSectionRef}
-                className="relative rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+                className="relative rounded-2xl border border-border bg-card shadow-md overflow-hidden"
                 onMouseMove={handleDescriptionImageHover}
                 onMouseLeave={clearDescriptionImageHover}
               >
@@ -917,10 +917,10 @@ export const TicketDetailsModal = ({
                   className="min-h-[220px] border-0 rounded-none divide-y-0 sm:min-h-[300px] lg:min-h-[360px]"
                   editable={!isArchived}
                 >
-                  <div className="flex flex-col gap-2 border-b border-gray-50 bg-gray-50/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4">
+                  <div className="flex flex-col gap-2 border-b border-separator bg-muted/30 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4">
                     <div className="flex shrink-0 items-center gap-2">
-                      <Ticket className="w-3.5 h-3.5 text-gray-500" />
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                      <Ticket className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Description
                       </span>
                     </div>
@@ -957,7 +957,7 @@ export const TicketDetailsModal = ({
                   <button
                     type="button"
                     data-description-image-zoom
-                    className="fixed z-[230] flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white/95 text-gray-700 shadow-sm transition hover:bg-white hover:text-gray-900"
+                    className="fixed z-[230] flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
                     style={{
                       top: `${descriptionHoverZoom.top}px`,
                       left: `${descriptionHoverZoom.left}px`,
@@ -979,11 +979,11 @@ export const TicketDetailsModal = ({
                   >
                     <button
                       type="button"
-                      className="absolute top-4 right-4 rounded-full bg-white/90 p-2"
+                      className="absolute top-4 right-4 rounded-full bg-card p-2"
                       onClick={() => setPreviewImageUrl(null)}
                       aria-label="Close image preview"
                     >
-                      <X className="w-5 h-5 text-gray-900" />
+                      <X className="w-5 h-5 text-foreground" />
                     </button>
                     <img
                       src={previewImageUrl}
@@ -1022,13 +1022,13 @@ export const TicketDetailsModal = ({
               <Accordion
                 type="single"
                 collapsible
-                className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+                className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
               >
                 <AccordionItem value="details" className="border-none">
-                  <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+                  <AccordionTrigger className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60">
                     <div className="flex items-center gap-2">
-                      <Ticket className="w-3.5 h-3.5 text-gray-500" />
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                      <Ticket className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Details
                       </span>
                     </div>
@@ -1037,7 +1037,7 @@ export const TicketDetailsModal = ({
                     <div className="grid grid-cols-2 gap-3 sm:gap-6">
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                             Due date
                           </span>
                         </div>
@@ -1046,7 +1046,7 @@ export const TicketDetailsModal = ({
                           value={dueDateInput}
                           disabled={isArchived}
                           onChange={(e) => setDueDateInput(e.target.value)}
-                          className={`h-10 w-full rounded-md border border-transparent bg-gray-100 px-3 text-sm font-semibold text-gray-800 shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-white ${
+                          className={`h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
                             isArchived ? 'cursor-not-allowed opacity-70' : ''
                           }`}
                         />
@@ -1062,7 +1062,7 @@ export const TicketDetailsModal = ({
 
                     {categories.length > 0 && (
                       <div className="mt-4 space-y-3">
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                           Category
                         </span>
                         <div className="flex flex-wrap gap-2 mt-2">
@@ -1072,8 +1072,8 @@ export const TicketDetailsModal = ({
                             onClick={() => setCurrentCategory(null)}
                             className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                               currentCategory === null
-                                ? 'bg-gray-800 text-white border-gray-800'
-                                : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+                                ? 'bg-foreground text-background border-foreground'
+                                : 'bg-muted text-muted-foreground border-border hover:bg-muted'
                             } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
                           >
                             None
@@ -1086,8 +1086,8 @@ export const TicketDetailsModal = ({
                               onClick={() => setCurrentCategory(cat._id)}
                               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                                 currentCategory === cat._id
-                                  ? 'text-white border-transparent'
-                                  : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                                  ? 'text-background border-transparent'
+                                  : 'bg-muted text-foreground border-border hover:bg-muted'
                               } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
                               style={
                                 currentCategory === cat._id
@@ -1117,13 +1117,13 @@ export const TicketDetailsModal = ({
               <Accordion
                 type="single"
                 collapsible
-                className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+                className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
               >
                 <AccordionItem value="tracking" className="border-none">
-                  <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+                  <AccordionTrigger className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5 text-gray-500" />
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                      <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Tracking
                       </span>
                     </div>
@@ -1134,7 +1134,7 @@ export const TicketDetailsModal = ({
 
                       <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                             Created By
                           </span>
                         </div>
@@ -1147,12 +1147,12 @@ export const TicketDetailsModal = ({
                           )}
 
                           <div className="flex flex-col justify-center min-w-0">
-                            <span className="text-sm font-semibold text-gray-900 leading-none truncate">
+                            <span className="text-sm font-semibold text-foreground leading-none truncate">
                               {ticket?.creator?.fullname ||
                                 ticket?.creator?.fullName ||
                                 'Unknown User'}
                             </span>
-                            <span className="text-[10px] text-gray-500 font-medium mt-1">
+                            <span className="text-[10px] text-muted-foreground font-medium mt-1">
                               {ticket?.createdAt
                                 ? format(new Date(ticket.createdAt), 'MMM d, yyyy')
                                 : ''}
@@ -1169,13 +1169,13 @@ export const TicketDetailsModal = ({
                 <Accordion
                   type="single"
                   collapsible
-                  className="rounded-2xl border border-gray-200 bg-white shadow-md overflow-hidden"
+                  className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
                 >
                   <AccordionItem value="pr" className="border-none">
-                    <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+                    <AccordionTrigger className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60">
                       <div className="flex items-center gap-2">
-                        <GitPullRequest className="w-3.5 h-3.5 text-gray-500" />
-                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                        <GitPullRequest className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                           Linked Pull Request
                         </span>
                       </div>

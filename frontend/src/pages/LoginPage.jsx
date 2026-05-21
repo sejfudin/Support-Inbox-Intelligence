@@ -30,16 +30,16 @@ export const LoginPage = () => {
   return (
     <div className="fixed inset-0 flex h-screen w-screen items-center justify-center overflow-y-auto bg-transparent p-4">
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-        <Card className="hidden border-primary/10 bg-slate-950 text-white shadow-[0_32px_80px_-40px_rgba(35,39,92,0.95)] lg:block">
+        <Card className="hidden border-primary/10 bg-foreground text-background shadow-elevated lg:block">
           <CardHeader className="space-y-6 p-10">
-            <div className="app-kicker w-fit border-white/10 bg-white/10 text-white/90">
+            <div className="app-kicker w-fit border-primary-foreground/10 bg-primary-foreground/10 text-background/90">
               TaskManager
             </div>
             <div>
-              <CardTitle className="text-4xl font-semibold leading-tight text-white">
+              <CardTitle className="text-4xl font-semibold leading-tight text-background">
                 Stay on top of tickets, teams, and workspace operations.
               </CardTitle>
-              <p className="mt-4 max-w-md text-sm leading-7 text-slate-300">
+              <p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground">
                 A calmer, faster way to manage support work with a single professional control
                 center for people, workflows, and progress.
               </p>
@@ -47,7 +47,7 @@ export const LoginPage = () => {
           </CardHeader>
         </Card>
 
-        <Card className="border-white/70 bg-white/92 shadow-[0_24px_60px_-30px_rgba(76,81,191,0.38)]">
+        <Card className="border-border/50 bg-card shadow-elevated">
           <CardHeader className="space-y-4 pt-10 pb-6">
             <div className="text-center">
               <div className="text-3xl font-semibold tracking-tight">
@@ -55,7 +55,7 @@ export const LoginPage = () => {
                 <span className="text-primary">Manager</span>
               </div>
             </div>
-            <CardTitle className="text-center text-2xl font-semibold text-gray-900 md:text-3xl">
+            <CardTitle className="text-center text-2xl font-semibold text-foreground md:text-3xl">
               Sign in
             </CardTitle>
           </CardHeader>
@@ -67,7 +67,7 @@ export const LoginPage = () => {
             )}
             <form className="space-y-6" onSubmit={handleLogin}>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                <label className="text-sm font-bold text-foreground uppercase tracking-wide">
                   Email address
                 </label>
                 <Input
@@ -81,7 +81,7 @@ export const LoginPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                <label className="text-sm font-bold text-foreground uppercase tracking-wide">
                   Password
                 </label>
                 <Input
@@ -99,9 +99,9 @@ export const LoginPage = () => {
                 {loginMutation.isPending ? 'Signing in...' : 'Login'}
               </Button>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
-                <p className="text-sm font-semibold text-slate-900">First time here?</p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
+              <div className="rounded-2xl border border-border bg-muted p-4 text-center">
+                <p className="text-sm font-semibold text-foreground">First time here?</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   If your admin created your account, use your internal email to set your password.
                 </p>
                 <Link
