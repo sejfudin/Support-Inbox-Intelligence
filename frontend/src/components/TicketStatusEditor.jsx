@@ -106,7 +106,14 @@ const FlagFields = ({ item, onChange, idPrefix = 'ticket-status' }) => (
   </div>
 );
 
-function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove, dataTestPrefix = 'ticket-status' }) {
+function SortableStatusRow({
+  item,
+  index,
+  onUpdate,
+  onRemove,
+  canRemove,
+  dataTestPrefix = 'ticket-status',
+}) {
   const id = getItemId(item, index);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -246,7 +253,12 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove, dataTes
   );
 }
 
-export default function TicketStatusEditor({ items, onChange, minItems = 1, dataTestPrefix = 'ticket-status' }) {
+export default function TicketStatusEditor({
+  items,
+  onChange,
+  minItems = 1,
+  dataTestPrefix = 'ticket-status',
+}) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })

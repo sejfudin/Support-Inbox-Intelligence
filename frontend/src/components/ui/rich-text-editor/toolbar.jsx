@@ -83,7 +83,9 @@ function HeadingSelect() {
               key={item.label}
               value={item.label}
               disabled={item.disabled}
-              data-test={HEADING_TEST_IDS[item.label] || `rte-heading-option-${item.label.toLowerCase()}`}
+              data-test={
+                HEADING_TEST_IDS[item.label] || `rte-heading-option-${item.label.toLowerCase()}`
+              }
             >
               {item.label}
               <span className="text-muted-foreground text-xs">({item.shortcut})</span>
@@ -248,7 +250,10 @@ function RichTextEditorToolbar({ className }) {
             <Tooltip key={item.tooltip}>
               <TooltipTrigger asChild>
                 <Toggle
-                  data-test={TOOLBAR_TEST_IDS[item.tooltip] || `rte-${item.tooltip.toLowerCase().replace(/\s+/g, '-')}-button`}
+                  data-test={
+                    TOOLBAR_TEST_IDS[item.tooltip] ||
+                    `rte-${item.tooltip.toLowerCase().replace(/\s+/g, '-')}-button`
+                  }
                   tabIndex={-1}
                   onPressedChange={item.onClick}
                   disabled={item.disabled}

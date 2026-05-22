@@ -7,7 +7,11 @@ import {
 } from '@/components/ui/select';
 import { ANALYTICS_PERIODS } from '@/helpers/analyticsFormatters';
 
-export default function AnalyticsPeriodSelect({ days, onDaysChange, dataTestPrefix = 'analytics' }) {
+export default function AnalyticsPeriodSelect({
+  days,
+  onDaysChange,
+  dataTestPrefix = 'analytics',
+}) {
   return (
     <Select value={String(days)} onValueChange={(value) => onDaysChange(Number(value))}>
       <SelectTrigger

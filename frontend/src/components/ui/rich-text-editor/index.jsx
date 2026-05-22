@@ -29,7 +29,11 @@ function RichTextEditor({ children, className, ...props }) {
 
 RichTextEditor.displayName = 'RichTextEditor';
 
-function RichTextEditorContent({ className, 'data-test': dataTest = 'rte-content-input', ...props }) {
+function RichTextEditorContent({
+  className,
+  'data-test': dataTest = 'rte-content-input',
+  ...props
+}) {
   const { editor } = _useRichTextEditorContext();
 
   if (!editor) return null;

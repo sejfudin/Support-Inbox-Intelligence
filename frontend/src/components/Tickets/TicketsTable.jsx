@@ -79,25 +79,25 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
               table.getRowModel().rows.map((row) => {
                 const rowId = row.original.id ?? row.original._id;
                 return (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className="cursor-pointer border-b border-border/70 transition-colors hover:bg-secondary/50"
-                  data-test={`tickets-table-row-${rowId}-card`}
-                  onClick={() => {
-                    table.options.meta?.onRowClick?.(rowId, row.original);
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={`py-4 align-top ${cell.column.columnDef.meta?.cellClassName || ''}`}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && 'selected'}
+                    className="cursor-pointer border-b border-border/70 transition-colors hover:bg-secondary/50"
+                    data-test={`tickets-table-row-${rowId}-card`}
+                    onClick={() => {
+                      table.options.meta?.onRowClick?.(rowId, row.original);
+                    }}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={`py-4 align-top ${cell.column.columnDef.meta?.cellClassName || ''}`}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
               })
             ) : (
               <TableRow>

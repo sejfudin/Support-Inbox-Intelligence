@@ -463,10 +463,7 @@ const Register = () => {
                               <SelectValue placeholder="Choose a workspace" />
                             </SelectTrigger>
                             <SelectContent className="bg-card">
-                              <SelectItem
-                                value="none"
-                                data-test="register-workspace-option-none"
-                              >
+                              <SelectItem value="none" data-test="register-workspace-option-none">
                                 No workspace yet
                               </SelectItem>
                               {workspaces.map((workspace) => (

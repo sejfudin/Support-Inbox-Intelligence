@@ -277,8 +277,18 @@ const archiveTicket = async (req, res, next) => {
 
 const getMyTickets = async (req, res, next) => {
   try {
-    const { page, limit, search, status, statusId, priority, priorities, priorityOrder, sortBy, sortOrder } =
-      req.query;
+    const {
+      page,
+      limit,
+      search,
+      status,
+      statusId,
+      priority,
+      priorities,
+      priorityOrder,
+      sortBy,
+      sortOrder,
+    } = req.query;
 
     const result = await ticketService.getMyTickets({
       userId: req.user._id,

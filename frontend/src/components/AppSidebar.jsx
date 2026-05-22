@@ -98,7 +98,10 @@ export default function AppSidebar() {
   ];
 
   const navTestSlug = (to) =>
-    to.replace(/^\//, '').replace(/\//g, '-').replace(/[^a-z0-9-]/gi, '') || 'home';
+    to
+      .replace(/^\//, '')
+      .replace(/\//g, '-')
+      .replace(/[^a-z0-9-]/gi, '') || 'home';
 
   const adminNav = [
     {

@@ -282,7 +282,11 @@ const CategorySettings = ({ workspaceId }) => {
             }}
             data-test="workspace-category-new-name-input"
           />
-          <ColorPicker value={newColor} onChange={setNewColor} testIdPrefix="workspace-category-new" />
+          <ColorPicker
+            value={newColor}
+            onChange={setNewColor}
+            testIdPrefix="workspace-category-new"
+          />
           <TemplateEditor value={newDescriptionTemplate} onChange={setNewDescriptionTemplate} />
           <div className="flex gap-2">
             <Button

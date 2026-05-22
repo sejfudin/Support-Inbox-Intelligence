@@ -432,14 +432,21 @@ export default function WorkspaceDetailPage() {
                   setInviteForm((current) => ({ ...current, userId: value }))
                 }
               >
-                <SelectTrigger id="workspace-detail-invite-user" data-test="workspace-detail-invite-user-select">
+                <SelectTrigger
+                  id="workspace-detail-invite-user"
+                  data-test="workspace-detail-invite-user-select"
+                >
                   <SelectValue
                     placeholder={loadingUsers ? 'Loading users...' : 'Choose a registered user'}
                   />
                 </SelectTrigger>
                 <SelectContent>
                   {availableUsers.length === 0 ? (
-                    <SelectItem value="no-users" disabled data-test="workspace-detail-invite-user-option-empty">
+                    <SelectItem
+                      value="no-users"
+                      disabled
+                      data-test="workspace-detail-invite-user-option-empty"
+                    >
                       No available platform users
                     </SelectItem>
                   ) : (
@@ -474,7 +481,10 @@ export default function WorkspaceDetailPage() {
                 value={inviteForm.role}
                 onValueChange={(value) => setInviteForm((current) => ({ ...current, role: value }))}
               >
-                <SelectTrigger id="workspace-detail-invite-role" data-test="workspace-detail-invite-role-select">
+                <SelectTrigger
+                  id="workspace-detail-invite-role"
+                  data-test="workspace-detail-invite-role-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -428,7 +428,10 @@ export default function CreateWorkspacePage() {
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label htmlFor="create-workspace-name" className="text-sm font-semibold text-foreground">
+                  <label
+                    htmlFor="create-workspace-name"
+                    className="text-sm font-semibold text-foreground"
+                  >
                     Workspace name
                   </label>
                   <Input
@@ -448,7 +451,10 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="create-workspace-description" className="text-sm font-semibold text-foreground">
+                  <label
+                    htmlFor="create-workspace-description"
+                    className="text-sm font-semibold text-foreground"
+                  >
                     Description{' '}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
@@ -468,7 +474,10 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="create-workspace-logo" className="text-sm font-semibold text-foreground">
+                  <label
+                    htmlFor="create-workspace-logo"
+                    className="text-sm font-semibold text-foreground"
+                  >
                     Workspace logo{' '}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>

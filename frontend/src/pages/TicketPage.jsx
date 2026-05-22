@@ -457,10 +457,7 @@ export default function TicketPage() {
         status: listStatusFilter,
         workspaceId: overrideWorkspaceId,
         queryFilters,
-        listLimit: Math.max(
-          isBoard ? 10000 : listData.pagination?.total || 0,
-          1
-        ),
+        listLimit: Math.max(isBoard ? 10000 : listData.pagination?.total || 0, 1),
       }).list;
       const response = await getAllTicketsApi(exportParams);
       ticketsForExport = (response?.data || []).map((ticket) => normalizeTicket(ticket));

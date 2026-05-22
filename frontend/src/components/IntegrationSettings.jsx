@@ -283,7 +283,11 @@ export const IntegrationSettings = ({ workspaceId }) => {
       <div className="space-y-2">
         <Label htmlFor="integration-repo-select">Connected Repository</Label>
         <Select value={selectedRepo} onValueChange={handleRepoChange} disabled={isLoadingRepos}>
-          <SelectTrigger id="integration-repo-select" className="w-full" data-test="integration-repo-select">
+          <SelectTrigger
+            id="integration-repo-select"
+            className="w-full"
+            data-test="integration-repo-select"
+          >
             <SelectValue
               placeholder={isLoadingRepos ? 'Loading repositories...' : 'Select a repository'}
             />

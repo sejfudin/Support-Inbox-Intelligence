@@ -122,7 +122,11 @@ const UserEditModal = ({ user, onClose }) => {
                 value={editedUser.role}
                 onValueChange={(value) => setEditedUser({ ...editedUser, role: value })}
               >
-                <SelectTrigger id="user-edit-modal-role" className="h-10" data-test="user-edit-modal-role-select">
+                <SelectTrigger
+                  id="user-edit-modal-role"
+                  className="h-10"
+                  data-test="user-edit-modal-role-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -149,7 +153,11 @@ const UserEditModal = ({ user, onClose }) => {
                   setEditedUser({ ...editedUser, active: value === 'Active' })
                 }
               >
-                <SelectTrigger id="user-edit-modal-status" className="h-10" data-test="user-edit-modal-status-select">
+                <SelectTrigger
+                  id="user-edit-modal-status"
+                  className="h-10"
+                  data-test="user-edit-modal-status-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
