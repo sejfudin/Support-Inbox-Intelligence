@@ -81,7 +81,8 @@ const BoardTaskCardBody = memo(function BoardTaskCardBody({
       onKeyDown={(e) => e.key === 'Enter' && onOpen(task.id)}
       className={cn(
         'cursor-pointer border-2 border-border/80 bg-card text-card-foreground shadow-sm',
-        !compact && 'transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-md',
+        !compact &&
+          'transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-md',
         cardClassName
       )}
       style={cardStyle}
@@ -174,22 +175,15 @@ const BoardColumn = memo(function BoardColumn({
   const style = getColumnStyle(boardHelpers, col.id);
   const columnStatusId = boardHelpers.resolveStatusFromColumnId(col.id);
 
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isFetching,
-    isError,
-  } = useBoardColumnTickets({
-    columnStatusId: col.id,
-    fetchMode,
-    workspaceId,
-    search,
-    queryFilters,
-    enabled,
-  });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isFetching, isError } =
+    useBoardColumnTickets({
+      columnStatusId: col.id,
+      fetchMode,
+      workspaceId,
+      search,
+      queryFilters,
+      enabled,
+    });
 
   const tasks = useMemo(() => {
     const pages = data?.pages || [];
@@ -202,9 +196,7 @@ const BoardColumn = memo(function BoardColumn({
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks]);
 
   const isColumnLoading = isLoading || (isFetching && tasks.length === 0);
-  const totalCount = isColumnLoading
-    ? null
-    : (data?.pages?.[0]?.pagination?.total ?? tasks.length);
+  const totalCount = isColumnLoading ? null : (data?.pages?.[0]?.pagination?.total ?? tasks.length);
 
   const { setNodeRef, isOver } = useDroppable({
     id: col.id,
@@ -228,15 +220,24 @@ const BoardColumn = memo(function BoardColumn({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isBoardDragging, taskIds.length, search, queryFilters]);
+  }, [
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isBoardDragging,
+    taskIds.length,
+    search,
+    queryFilters,
+  ]);
 
   return (
     <Card
       ref={setNodeRef}
       className={cn(
-        'flex w-[320px] shrink-0 flex-col border-border/70 bg-card/90 border-t-4',
+        'flex w-[320px] shrink-0 flex-col border-border/50 bg-card shadow-elevated-sm border-t-4 transition-all duration-300 ease-in-out',
         flush ? 'h-full max-h-full min-h-0' : 'max-h-[min(96vh,calc(100vh-10rem))]',
-        isOver && 'border-primary/40 bg-primary/5'
+        isOver &&
+          'z-10 scale-[1.02] border-primary/40 bg-primary/5 shadow-lg ring-4 ring-primary/25'
       )}
       style={{ borderTopColor: style.borderTopColor }}
     >

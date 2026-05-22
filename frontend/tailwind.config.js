@@ -6,6 +6,7 @@ export default {
     extend: {
       colors: {
         border: 'hsl(var(--border))',
+        separator: 'hsl(var(--separator))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
         background: 'hsl(var(--background))',
@@ -38,6 +39,11 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        surface: {
+          DEFAULT: 'hsl(var(--surface))',
+          elevated: 'hsl(var(--surface-elevated))',
+          border: 'hsl(var(--surface-border))',
+        },
         sidebar: {
           DEFAULT: 'hsl(var(--sidebar-background))',
           foreground: 'hsl(var(--sidebar-foreground))',
@@ -53,6 +59,10 @@ export default {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+      },
+      boxShadow: {
+        elevated: 'var(--shadow-elevated)',
+        'elevated-sm': 'var(--shadow-elevated-sm)',
       },
       keyframes: {
         'accordion-down': {

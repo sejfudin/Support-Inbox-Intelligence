@@ -127,47 +127,47 @@ const Register = () => {
       <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
         <div className="mx-auto flex min-h-full w-full max-w-5xl items-center justify-center py-6 sm:py-10">
           <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-            <Card className="border-primary/10 bg-slate-950 text-white shadow-[0_32px_80px_-40px_rgba(35,39,92,0.95)]">
+            <Card className="border-primary/10 bg-foreground text-background shadow-elevated">
               <CardHeader className="space-y-5">
-                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
+                <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/15 bg-primary-foreground/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-background/80">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Account Created
                 </div>
                 <div className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  <span className="text-white">Task</span>
+                  <span className="text-background">Task</span>
                   <span className="text-blue-300">Manager</span>
                 </div>
                 <div>
-                  <CardTitle className="text-3xl leading-tight text-white md:text-4xl">
+                  <CardTitle className="text-3xl leading-tight text-background md:text-4xl">
                     The user still needs to create a password
                   </CardTitle>
-                  <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+                  <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
                     The account is ready, but the user still needs to activate it. They can open
                     TaskManager, choose{' '}
-                    <span className="font-semibold text-white">Set password</span>, and continue
-                    using their internal email address.
+                    <span className="font-semibold text-background">Set password</span>, and
+                    continue using their internal email address.
                   </p>
                 </div>
               </CardHeader>
 
               <CardContent className="space-y-4">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-sm font-semibold text-white">What happens next</p>
-                  <div className="mt-4 space-y-3 text-sm text-slate-200">
+                <div className="rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
+                  <p className="text-sm font-semibold text-background">What happens next</p>
+                  <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-foreground/10">
                         1
                       </div>
                       Tell the user to open TaskManager
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-foreground/10">
                         2
                       </div>
                       They choose Set password and enter their email
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-foreground/10">
                         3
                       </div>
                       They can then log in and use the app
@@ -177,29 +177,29 @@ const Register = () => {
               </CardContent>
             </Card>
 
-            <Card className="border-white/70 bg-white shadow-[0_24px_60px_-30px_rgba(76,81,191,0.38)]">
-              <CardHeader className="space-y-4 border-b border-slate-100 pb-6">
-                <CardTitle className="text-2xl font-bold text-slate-900 md:text-3xl">
+            <Card className="border-border/50 bg-card shadow-elevated">
+              <CardHeader className="space-y-4 border-b border-border/60 pb-6">
+                <CardTitle className="text-2xl font-bold text-foreground md:text-3xl">
                   Share Activation Instructions
                 </CardTitle>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-2xl border border-border bg-muted p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       User
                     </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                    <p className="mt-2 text-sm font-semibold text-foreground">
                       {createdUser.fullName}
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">{createdUser.email}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{createdUser.email}</p>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="rounded-2xl border border-border bg-muted p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Access
                     </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900 capitalize">
+                    <p className="mt-2 text-sm font-semibold text-foreground capitalize">
                       {createdUser.role}
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       {createdUser.role === 'admin'
                         ? 'Global workspace oversight'
                         : createdUser.workspaceId
@@ -211,20 +211,20 @@ const Register = () => {
               </CardHeader>
 
               <CardContent className="space-y-6 p-6 md:p-8">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <p className="text-sm font-semibold text-slate-900">Next step for the user</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                <div className="rounded-2xl border border-border bg-muted p-5">
+                  <p className="text-sm font-semibold text-foreground">Next step for the user</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     Ask the user to go to the app login area and select{' '}
-                    <span className="font-medium text-slate-900">Set password</span>. They should
+                    <span className="font-medium text-foreground">Set password</span>. They should
                     use the email address below to find their invited account and create their
                     password.
                   </p>
 
-                  <div className="mt-4 rounded-2xl border border-white bg-white p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Email to use
                     </p>
-                    <p className="mt-2 text-base font-semibold text-slate-900">
+                    <p className="mt-2 text-base font-semibold text-foreground">
                       {createdUser.email}
                     </p>
                   </div>
@@ -249,10 +249,10 @@ const Register = () => {
                 </div>
 
                 <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-sm font-semibold text-foreground">
                     Why no password was created yet
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     The password is intentionally created by the user, not by the admin. In this
                     internal flow, the user identifies the invited account with their email and then
                     creates their own password.
@@ -276,21 +276,21 @@ const Register = () => {
     <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <Card className="border-primary/10 bg-slate-950 text-white shadow-[0_32px_80px_-40px_rgba(35,39,92,0.95)]">
+          <Card className="border-primary/10 bg-foreground text-background shadow-elevated">
             <CardHeader className="space-y-5">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/15 bg-primary-foreground/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-background/80">
                 <UserPlus className="h-3.5 w-3.5" />
                 Admin Action
               </div>
               <div className="text-3xl font-semibold tracking-tight md:text-4xl">
-                <span className="text-white">Task</span>
+                <span className="text-background">Task</span>
                 <span className="text-blue-300">Manager</span>
               </div>
               <div>
-                <CardTitle className="text-3xl leading-tight text-white md:text-4xl">
+                <CardTitle className="text-3xl leading-tight text-background md:text-4xl">
                   Create a user and define how they enter the platform
                 </CardTitle>
-                <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+                <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
                   Global admins oversee every workspace. Regular users can be created with optional
                   workspace access so they land in the right place from the start.
                 </p>
@@ -298,24 +298,24 @@ const Register = () => {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-semibold text-white">Role logic</p>
+              <div className="rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
+                <p className="text-sm font-semibold text-background">Role logic</p>
                 <div className="mt-4 space-y-3">
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-start gap-3 rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
                     <ShieldCheck className="mt-0.5 h-5 w-5 text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-white">Admin</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-300">
+                      <p className="text-sm font-semibold text-background">Admin</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
                         Gets platform-wide access to all workspaces, user management, and workspace
                         creation.
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex items-start gap-3 rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
                     <Users className="mt-0.5 h-5 w-5 text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-white">User</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-300">
+                      <p className="text-sm font-semibold text-background">User</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
                         Can optionally receive a workspace invitation and workspace role during
                         creation.
                       </p>
@@ -324,12 +324,12 @@ const Register = () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
                 <div className="flex items-start gap-3">
                   <Sparkles className="mt-0.5 h-5 w-5 text-blue-300" />
                   <div>
-                    <p className="text-sm font-semibold text-white">Password creation flow</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-300">
+                    <p className="text-sm font-semibold text-background">Password creation flow</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
                       New invited users create their own password from inside the app using their
                       internal email address after the account is created.
                     </p>
@@ -339,9 +339,9 @@ const Register = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-white/70 bg-white shadow-[0_24px_60px_-30px_rgba(76,81,191,0.38)]">
-            <CardHeader className="space-y-3 border-b border-slate-100 pb-6">
-              <CardTitle className="text-2xl font-bold text-slate-900 md:text-3xl">
+          <Card className="border-border/50 bg-card shadow-elevated">
+            <CardHeader className="space-y-3 border-b border-border/60 pb-6">
+              <CardTitle className="text-2xl font-bold text-foreground md:text-3xl">
                 Create User Account
               </CardTitle>
             </CardHeader>
@@ -355,7 +355,7 @@ const Register = () => {
 
               <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  <label className="text-xs font-bold text-foreground uppercase tracking-wide">
                     Full Name
                   </label>
                   <Input
@@ -364,7 +364,7 @@ const Register = () => {
                       maxLength: { value: 50, message: 'Max 50 characters' },
                     })}
                     placeholder="John Doe"
-                    className={`h-12 ${errors.fullName ? 'border-red-500' : 'border-slate-300'}`}
+                    className={`h-12 ${errors.fullName ? 'border-red-500' : 'border-border'}`}
                   />
                   {errors.fullName && (
                     <p className="text-red-500 text-xs">{errors.fullName.message}</p>
@@ -372,7 +372,7 @@ const Register = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  <label className="text-xs font-bold text-foreground uppercase tracking-wide">
                     Email Address
                   </label>
                   <Input
@@ -385,13 +385,13 @@ const Register = () => {
                       },
                     })}
                     placeholder="user@company.com"
-                    className={`h-12 ${errors.email ? 'border-red-500' : 'border-slate-300'}`}
+                    className={`h-12 ${errors.email ? 'border-red-500' : 'border-border'}`}
                   />
                   {errors.email && <p className="text-red-500 text-xs">{errors.email.message}</p>}
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                  <label className="text-xs font-bold text-foreground uppercase tracking-wide">
                     Global Role
                   </label>
                   <Controller
@@ -399,10 +399,10 @@ const Register = () => {
                     control={control}
                     render={({ field }) => (
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger className="h-12 border-slate-300 bg-white text-slate-900">
+                        <SelectTrigger className="h-12 border-border bg-card text-foreground">
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white">
+                        <SelectContent className="bg-card">
                           <SelectItem value="user">User</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
@@ -418,8 +418,8 @@ const Register = () => {
 
                 {isGlobalAdmin ? (
                   <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
-                    <p className="text-sm font-semibold text-slate-900">Global admin access</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                    <p className="text-sm font-semibold text-foreground">Global admin access</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
                       Admins automatically get platform-wide visibility across all workspaces and
                       can create workspaces, review them, and add users where needed. No workspace
                       role is required at account creation.
@@ -428,7 +428,7 @@ const Register = () => {
                 ) : (
                   <>
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                      <label className="text-xs font-bold text-foreground uppercase tracking-wide">
                         Workspace
                       </label>
                       <Controller
@@ -436,10 +436,10 @@ const Register = () => {
                         control={control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <SelectTrigger className="h-12 border-slate-300 bg-white text-slate-900">
+                            <SelectTrigger className="h-12 border-border bg-card text-foreground">
                               <SelectValue placeholder="Choose a workspace" />
                             </SelectTrigger>
-                            <SelectContent className="bg-white">
+                            <SelectContent className="bg-card">
                               <SelectItem value="none">No workspace yet</SelectItem>
                               {workspaces.map((workspace) => (
                                 <SelectItem key={workspace._id} value={workspace._id}>
@@ -459,7 +459,7 @@ const Register = () => {
 
                     {hasSelectedWorkspace && (
                       <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                        <label className="text-xs font-bold text-foreground uppercase tracking-wide">
                           Workspace Role
                         </label>
                         <Controller
@@ -467,10 +467,10 @@ const Register = () => {
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <SelectTrigger className="h-12 border-slate-300 bg-white text-slate-900">
+                              <SelectTrigger className="h-12 border-border bg-card text-foreground">
                                 <SelectValue placeholder="Select workspace role" />
                               </SelectTrigger>
-                              <SelectContent className="bg-white">
+                              <SelectContent className="bg-card">
                                 <SelectItem value="member">Member</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
                               </SelectContent>
@@ -490,11 +490,11 @@ const Register = () => {
                   {isPending ? 'Creating...' : 'Create User'}
                 </Button>
 
-                <div className="text-center pt-2 text-sm text-gray-600">
+                <div className="text-center pt-2 text-sm text-muted-foreground">
                   <button
                     type="button"
                     onClick={() => navigate('/admin/users')}
-                    className="font-semibold text-slate-900 hover:underline"
+                    className="font-semibold text-foreground hover:underline"
                   >
                     Cancel and return
                   </button>

@@ -158,10 +158,10 @@ export const buildTicketStatusHelpers = (statuses = []) => {
         label: s.label,
         variant: s.isDone ? 'outline' : s.tracksTime ? 'outline' : 'secondary',
         className: s.isDone
-          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/35'
           : s.tracksTime
-            ? 'bg-blue-50 text-blue-700 border-blue-200'
-            : 'bg-slate-100 text-slate-600 border-slate-200',
+            ? 'bg-blue-500/15 text-blue-800 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/35'
+            : 'bg-muted text-muted-foreground border-border',
         color: s.color,
       },
     ])

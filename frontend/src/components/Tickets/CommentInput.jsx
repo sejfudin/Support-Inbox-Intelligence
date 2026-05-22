@@ -111,7 +111,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
   };
 
   return (
-    <div className="p-5 border-t border-gray-120 bg-white">
+    <div className="border-t border-separator bg-card p-5">
       <div className="relative z-20 group/input">
         <Textarea
           value={newComment}
@@ -120,7 +120,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
           disabled={createMutation.isPending}
           maxLength={MAX_CHARS}
           className={cn(
-            'min-h-[80px] bg-gray-50/50 border-gray-200 focus-visible:ring-blue-500 resize-none pr-12 transition-all',
+            'min-h-[80px] bg-muted/50/50 border-border focus-visible:ring-blue-500 resize-none pr-12 transition-all',
             isAtLimit && 'border-orange-400 focus-visible:ring-orange-400'
           )}
           ref={textareaRef}
@@ -128,9 +128,9 @@ export const CommentInput = ({ ticketId, users = [] }) => {
         />
 
         {mentionOpen && (
-          <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-[120] rounded-md border bg-white shadow-lg">
+          <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-[120] rounded-md border bg-card shadow-lg">
             {mentionItems.length === 0 ? (
-              <div className="px-3 py-2 text-xs text-gray-500">No users found</div>
+              <div className="px-3 py-2 text-xs text-muted-foreground">No users found</div>
             ) : (
               <ul className="max-h-56 overflow-y-auto py-1">
                 {mentionItems.map((item, idx) => (
@@ -138,14 +138,14 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                     <button
                       type="button"
                       className={cn(
-                        'w-full px-3 py-2 text-left text-sm hover:bg-gray-50',
-                        idx === mentionActiveIndex && 'bg-blue-50'
+                        'w-full px-3 py-2 text-left text-sm hover:bg-muted/50',
+                        idx === mentionActiveIndex && 'bg-blue-500/15 dark:bg-blue-500/20'
                       )}
                       onMouseDown={(evt) => evt.preventDefault()}
                       onClick={() => applyMention(item)}
                     >
-                      <div className="font-medium text-gray-900">@{item.handle}</div>
-                      <div className="truncate text-xs text-gray-500">
+                      <div className="font-medium text-foreground">@{item.handle}</div>
+                      <div className="truncate text-xs text-muted-foreground">
                         {item.fullname || item.email}
                       </div>
                     </button>
@@ -192,7 +192,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                 <button
                   type="button"
                   onClick={() => removeSelectedImage(idx)}
-                  className="absolute top-1 right-1 rounded bg-white/90 p-1"
+                  className="absolute top-1 right-1 rounded bg-card p-1"
                 >
                   <X className="w-3 h-3 text-red-600" />
                 </button>
@@ -204,7 +204,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
         <div
           className={cn(
             'absolute -top-5 right-1 text-[11px] font-semibold transition-colors flex items-center gap-1',
-            isAtLimit ? 'text-orange-600' : isNearLimit ? 'text-amber-500' : 'text-gray-400'
+            isAtLimit ? 'text-orange-600' : isNearLimit ? 'text-amber-500' : 'text-muted-foreground'
           )}
         >
           {isAtLimit && <AlertCircle className="w-3 h-3" />}
@@ -221,12 +221,12 @@ export const CommentInput = ({ ticketId, users = [] }) => {
             }
             onClick={handleSend}
             className={cn(
-              'h-8 w-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all active:scale-95',
+              'h-8 w-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all active:scale-95',
               isAtLimit && 'bg-orange-500 hover:bg-orange-600'
             )}
           >
             {createMutation.isPending ? (
-              <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
             ) : (
               <Check className="w-4 h-4" />
             )}

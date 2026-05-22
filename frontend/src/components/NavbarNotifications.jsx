@@ -60,12 +60,12 @@ export default function NavbarNotifications() {
           type="button"
           variant="ghost"
           size="icon"
-          className="relative h-12 w-12 shrink-0 rounded-full border border-black/5 bg-white text-primary shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)] hover:bg-white hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="relative h-10 w-10 shrink-0 rounded-full text-foreground hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
           aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 ? (
-            <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-white" />
+            <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-card" />
           ) : null}
         </Button>
       </DropdownMenuTrigger>
@@ -109,7 +109,7 @@ export default function NavbarNotifications() {
               No notifications yet.
             </p>
           ) : (
-            <ul className="divide-y">
+            <ul className="divide-y divide-separator">
               {items.map((n) => (
                 <NotificationRow
                   key={n._id}

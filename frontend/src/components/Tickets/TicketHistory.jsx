@@ -55,7 +55,7 @@ function FormattedAction({ action }) {
     <span>
       {segments.map((seg, i) =>
         seg.bold ? (
-          <span key={i} className="font-semibold text-gray-900">
+          <span key={i} className="font-semibold text-foreground">
             {seg.text}
           </span>
         ) : (
@@ -76,25 +76,25 @@ export default function TicketHistory({ ticketId }) {
     <Accordion
       type="single"
       collapsible
-      className="bg-white rounded-2xl border border-gray-200 shadow-md overflow-hidden"
+      className="bg-card rounded-2xl border border-border shadow-md overflow-hidden"
     >
       <AccordionItem value="history" className="border-none">
-        <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+        <AccordionTrigger className="gap-2 border-b border-separator bg-muted/30 px-4 py-3 hover:bg-muted/60 hover:no-underline">
           <div className="flex items-center gap-2">
-            <History className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+            <History className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               History
             </span>
           </div>
         </AccordionTrigger>
         <AccordionContent className="p-0 data-[state=closed]:hidden">
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-separator">
             {history.map((entry) => (
               <div key={entry._id} className="flex items-center gap-3 px-4 py-3">
-                <div className="flex-1 text-sm text-gray-700">
+                <div className="flex-1 text-sm text-foreground">
                   <FormattedAction action={entry.action} />
                 </div>
-                <div className="text-xs text-gray-500 shrink-0">
+                <div className="text-xs text-muted-foreground shrink-0">
                   {entry.userName} · {format(new Date(entry.timestamp), 'MMM d, yyyy · HH:mm')}
                 </div>
               </div>

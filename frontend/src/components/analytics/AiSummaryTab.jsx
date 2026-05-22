@@ -27,7 +27,7 @@ export default function AiSummaryTab({ aiSummary, generateAiSummary, onGenerateA
         </div>
       ) : null}
 
-      <div className="mt-5 rounded-2xl border border-border/70 bg-white/70 p-5">
+      <div className="mt-5 rounded-2xl border border-border/70 bg-card p-5">
         {aiSummary?.summary ? (
           <>
             <p className="text-sm leading-7 text-foreground">{aiSummary.summary}</p>

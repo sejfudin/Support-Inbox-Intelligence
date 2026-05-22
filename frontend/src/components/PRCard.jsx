@@ -2,6 +2,7 @@ import React from 'react';
 import { ExternalLink, RefreshCw, GitPullRequest, GitMerge, GitBranch, Unlink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { badgeTone } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
 
 export const PR_STATE_CONFIG = {
@@ -9,19 +10,19 @@ export const PR_STATE_CONFIG = {
     variant: 'success',
     icon: GitPullRequest,
     label: 'Open',
-    className: 'bg-green-100 text-green-700 border-green-200',
+    className: badgeTone('success'),
   },
   closed: {
     variant: 'destructive',
     icon: GitPullRequest,
     label: 'Closed',
-    className: 'bg-red-100 text-red-700 border-red-200',
+    className: badgeTone('danger'),
   },
   merged: {
     variant: 'default',
     icon: GitMerge,
     label: 'Merged',
-    className: 'bg-purple-100 text-purple-700 border-purple-200',
+    className: badgeTone('violet'),
   },
 };
 
@@ -32,16 +33,16 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
   const StateIcon = stateConfig.icon;
 
   return (
-    <div className="group relative rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-gray-300">
+    <div className="group relative rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-border">
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <a
             href={pr.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors overflow-hidden"
+            className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-blue-600 transition-colors overflow-hidden"
           >
-            <span className="text-gray-500">#{pr.prNumber}</span>
+            <span className="text-muted-foreground">#{pr.prNumber}</span>
             <span className="truncate">{pr.prTitle}</span>
             <ExternalLink className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           </a>
@@ -61,7 +62,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
           {pr.isDraft && (
             <Badge
               variant="outline"
-              className="text-xs font-semibold px-2 py-0.5 border bg-gray-100 text-gray-600 border-gray-200"
+              className="text-xs font-semibold px-2 py-0.5 border bg-muted text-muted-foreground border-border"
             >
               Draft
             </Badge>
@@ -69,7 +70,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <GitBranch className="w-3.5 h-3.5" />
               <span className="font-medium truncate max-w-[150px]">{pr.branchName}</span>
@@ -116,7 +117,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
         </div>
 
         {pr.mergedBy && pr.state === 'merged' && (
-          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>merged by</span>
             <img
               src={pr.mergedBy.avatarUrl}

@@ -6,7 +6,7 @@ export default function StoryPointsIndicator({ value }) {
   const points = normalizeStoryPoints(value);
 
   if (points === null) {
-    return <span className="text-gray-300">-</span>;
+    return <span className="text-muted-foreground">-</span>;
   }
 
   const style = getStoryPointsStyle(points);

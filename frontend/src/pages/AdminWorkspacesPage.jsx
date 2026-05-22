@@ -183,7 +183,7 @@ export default function AdminWorkspacesPage() {
                       handleSwitch(ws._id);
                     }
                   }}
-                  className={`group rounded-[1.5rem] border border-white/70 bg-gradient-to-br from-white via-white to-primary/5 p-5 text-left shadow-[0_18px_50px_-28px_rgba(76,81,191,0.35)] transition-all hover:-translate-y-1 hover:shadow-[0_22px_50px_-24px_rgba(76,81,191,0.5)] ${
+                  className={`group rounded-[1.5rem] border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 p-5 text-left shadow-elevated transition-all hover:-translate-y-1 hover:shadow-elevated ${
                     isActive ? 'ring-2 ring-primary/40 border-primary/30' : ''
                   } ${canSwitch && !isActive ? 'cursor-pointer' : ''}`}
                 >
@@ -208,7 +208,7 @@ export default function AdminWorkspacesPage() {
                   </div>
 
                   <div className="mb-1">
-                    <h2 className="truncate font-semibold text-gray-900">{ws.name}</h2>
+                    <h2 className="truncate font-semibold text-foreground">{ws.name}</h2>
                     {ws.description && (
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                         {ws.description}
@@ -238,7 +238,7 @@ export default function AdminWorkspacesPage() {
                           e.stopPropagation();
                           navigate(`/admin/workspaces/${ws._id}`);
                         }}
-                        className="text-xs font-medium text-slate-700 hover:underline"
+                        className="text-xs font-medium text-foreground hover:underline"
                       >
                         Preview
                       </button>
@@ -301,7 +301,7 @@ export default function AdminWorkspacesPage() {
         }}
       >
         <DialogContent className="flex max-h-[min(90vh,840px)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
-          <DialogHeader className="shrink-0 space-y-2 border-b border-slate-100 px-6 py-5 text-left">
+          <DialogHeader className="shrink-0 space-y-2 border-b border-border/60 px-6 py-5 text-left">
             <DialogTitle className="text-xl">Create a new workspace</DialogTitle>
             <DialogDescription className="text-sm leading-6">
               Add workspace details and configure the ticket workflow before inviting your team.
@@ -379,21 +379,21 @@ export default function AdminWorkspacesPage() {
                 </div>
               </section>
 
-              <section className="space-y-4 border-t border-slate-100 pt-2">
+              <section className="space-y-4 border-t border-border/60 pt-2">
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-900">Ticket workflow</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Ticket workflow</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Drag to reorder columns and set backlog, time tracking, and done behavior.
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                <div className="rounded-xl border border-border bg-muted/80 p-4 sm:p-5">
                   <TicketStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
                 </div>
               </section>
             </div>
 
-            <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 px-6 py-4 sm:justify-end">
+            <DialogFooter className="shrink-0 gap-2 border-t border-border/60 px-6 py-4 sm:justify-end">
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
                 Cancel
               </Button>

@@ -1,5 +1,7 @@
 import { AlertCircle, Minus, ArrowUp, ArrowDown } from 'lucide-react';
 
+import { badgeTone, dotTone } from '@/helpers/badgeTones';
+
 export const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
@@ -10,33 +12,33 @@ export const PRIORITY_OPTIONS = [
 export const PRIORITY_CONFIG = {
   critical: {
     icon: AlertCircle,
-    className: 'text-red-500',
-    dot: 'bg-red-500',
-    badge: 'bg-red-100 text-red-700 hover:bg-red-200',
+    className: 'text-red-600 dark:text-red-400',
+    dot: dotTone('danger'),
+    badge: badgeTone('danger'),
     label: 'Critical',
     showAlways: true,
   },
   high: {
     icon: ArrowUp,
-    className: 'text-orange-500',
-    dot: 'bg-orange-500',
-    badge: 'bg-orange-100 text-orange-700 hover:bg-orange-200',
+    className: 'text-orange-600 dark:text-orange-400',
+    dot: dotTone('orange'),
+    badge: badgeTone('orange'),
     label: 'High',
     showAlways: true,
   },
   medium: {
     icon: Minus,
-    className: 'text-blue-500',
-    dot: 'bg-blue-500',
-    badge: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
+    className: 'text-blue-600 dark:text-blue-400',
+    dot: dotTone('info'),
+    badge: badgeTone('info'),
     label: 'Medium',
     showAlways: true,
   },
   low: {
     icon: ArrowDown,
-    className: 'text-slate-400',
-    dot: 'bg-slate-400',
-    badge: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
+    className: 'text-muted-foreground',
+    dot: dotTone('neutral'),
+    badge: badgeTone('neutral'),
     label: 'Low',
     showAlways: true,
   },

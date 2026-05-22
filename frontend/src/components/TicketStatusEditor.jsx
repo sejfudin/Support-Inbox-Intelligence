@@ -68,7 +68,7 @@ const FlagFields = ({ item, onChange }) => (
         }
       />
       <span>
-        <span className="font-medium text-slate-800">Backlog</span>
+        <span className="font-medium text-foreground">Backlog</span>
         <span className="block text-muted-foreground">Separate inbox, excluded from board</span>
       </span>
     </label>
@@ -80,7 +80,7 @@ const FlagFields = ({ item, onChange }) => (
         }
       />
       <span>
-        <span className="font-medium text-slate-800">Tracks time</span>
+        <span className="font-medium text-foreground">Tracks time</span>
         <span className="block text-muted-foreground">Starts time tracking when active</span>
       </span>
     </label>
@@ -92,7 +92,7 @@ const FlagFields = ({ item, onChange }) => (
         }
       />
       <span>
-        <span className="font-medium text-slate-800">Done</span>
+        <span className="font-medium text-foreground">Done</span>
         <span className="block text-muted-foreground">Counts as completed in analytics</span>
       </span>
     </label>
@@ -136,7 +136,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
       <div
         ref={setNodeRef}
         style={style}
-        className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3"
+        className="rounded-lg border border-border bg-muted/50 p-3 space-y-3"
       >
         <Input
           value={draft.label}
@@ -168,12 +168,12 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50 transition-colors"
+      className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 transition-colors"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <button
           type="button"
-          className="cursor-grab text-gray-400 hover:text-gray-600 touch-none"
+          className="cursor-grab text-muted-foreground hover:text-muted-foreground touch-none"
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder"
@@ -182,7 +182,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
         </button>
         <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
         <div className="min-w-0">
-          <span className="text-sm font-medium text-gray-800 block truncate">{item.label}</span>
+          <span className="text-sm font-medium text-foreground block truncate">{item.label}</span>
           <span className="text-[10px] text-muted-foreground">
             {[item.isBacklog && 'Backlog', item.tracksTime && 'Tracks time', item.isDone && 'Done']
               .filter(Boolean)
@@ -197,7 +197,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
             setDraft(item);
             setEditing(true);
           }}
-          className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
           aria-label="Edit status"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -206,7 +206,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
           <button
             type="button"
             onClick={() => onRemove(index)}
-            className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50"
+            className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50"
             aria-label="Remove status"
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -302,7 +302,7 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
       </DndContext>
 
       {showAdd ? (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+        <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
           <Input
             placeholder="Status name"
             value={newItem.label}

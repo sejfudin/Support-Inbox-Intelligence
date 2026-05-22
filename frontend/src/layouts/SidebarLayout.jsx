@@ -3,7 +3,7 @@ import { useState } from 'react';
 import AppSidebar from '@/components/AppSidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import PageHeader from '@/components/PageHeader';
-import NavbarNotifications from '@/components/NavbarNotifications';
+import AppTopActions from '@/components/AppTopActions';
 
 export default function SidebarLayout() {
   const [header, setHeader] = useState(null);
@@ -32,12 +32,10 @@ export default function SidebarLayout() {
             </>
           )}
 
-          <main className="app-with-floating-notifications relative flex-1 min-w-0 overflow-hidden bg-transparent">
-            <div className="pointer-events-none absolute inset-x-0 top-6 z-30">
-              <div className="mx-auto flex w-full max-w-7xl justify-end px-4 sm:px-6 lg:px-8">
-                <div className="pointer-events-auto md:translate-x-12 lg:translate-x-14">
-                  <NavbarNotifications />
-                </div>
+          <main className="relative flex-1 min-w-0 overflow-hidden bg-transparent">
+            <div className="pointer-events-none fixed right-4 top-4 z-40 sm:right-6 sm:top-6">
+              <div className="pointer-events-auto">
+                <AppTopActions />
               </div>
             </div>
             <Outlet context={{ setHeader }} />

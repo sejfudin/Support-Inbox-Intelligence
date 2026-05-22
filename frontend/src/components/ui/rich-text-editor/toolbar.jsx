@@ -77,7 +77,7 @@ function ImageOptionsDropdown({ align, size, onAlignChange, onSizeChange }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-8 w-10 items-center justify-center gap-1 rounded-md bg-muted/80 px-1 py-0 text-sm font-medium text-gray-700 shadow-none transition-colors hover:bg-muted dark:bg-transparent dark:text-gray-200"
+          className="inline-flex h-8 w-10 items-center justify-center gap-1 rounded-md bg-muted/80 px-1 py-0 text-sm font-medium text-foreground shadow-none transition-colors hover:bg-muted dark:bg-transparent dark:text-foreground"
           aria-label={`Image options (${currentSummary})`}
         >
           <Images className="h-3.5 w-3.5" />
@@ -85,7 +85,7 @@ function ImageOptionsDropdown({ align, size, onAlignChange, onSizeChange }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="z-[220] w-44">
-        <DropdownMenuLabel className="py-1 text-[11px] uppercase tracking-wider text-gray-500">
+        <DropdownMenuLabel className="py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
           Image Position
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={align} onValueChange={onAlignChange}>
@@ -100,7 +100,7 @@ function ImageOptionsDropdown({ align, size, onAlignChange, onSizeChange }) {
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="py-1 text-[11px] uppercase tracking-wider text-gray-500">
+        <DropdownMenuLabel className="py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
           Image Size
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={size} onValueChange={onSizeChange}>

@@ -44,9 +44,9 @@ const TemplateEditor = ({ value, onChange }) => (
     value={value}
     onChange={onChange}
     placeholder="Ticket description template"
-    className="mt-3 min-h-40 overflow-hidden rounded-lg bg-white"
+    className="mt-3 min-h-40 overflow-hidden rounded-lg bg-card"
   >
-    <div className="border-b border-slate-100 bg-slate-50/60 px-3 py-2">
+    <div className="border-b border-border/60 bg-muted/60 px-3 py-2">
       <RichTextEditorToolbar className="flex-wrap p-0" />
     </div>
     <RichTextEditorContent className="min-h-24 p-2" />
@@ -120,7 +120,7 @@ export default function CreateWorkspacePage() {
       <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col items-center justify-center py-6 sm:py-10">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600 shadow-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground shadow-sm">
               <Mail className="h-3.5 w-3.5" />
               Workspace Access
             </div>
@@ -132,13 +132,13 @@ export default function CreateWorkspacePage() {
 
           {hasInvitations ? (
             <div className="mt-10 grid w-full gap-6 lg:grid-cols-[0.78fr_1.12fr]">
-              <Card className="border-white/70 bg-white/92 shadow-[0_24px_60px_-30px_rgba(76,81,191,0.38)]">
+              <Card className="border-border/50 bg-card shadow-elevated">
                 <CardHeader className="space-y-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                     <Building2 className="h-6 w-6" />
                   </div>
                   <div>
-                    <CardTitle className="text-2xl text-slate-900">
+                    <CardTitle className="text-2xl text-foreground">
                       You&apos;re not in a workspace yet
                     </CardTitle>
                     <CardDescription className="mt-2 text-sm leading-6">
@@ -153,8 +153,8 @@ export default function CreateWorkspacePage() {
                     <div className="flex items-start gap-3">
                       <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">How access works</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                        <p className="text-sm font-semibold text-foreground">How access works</p>
+                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
                           Invitations are tied to a workspace. Once you accept, your access is
                           activated immediately and the app will take you there.
                         </p>
@@ -170,12 +170,12 @@ export default function CreateWorkspacePage() {
                     ].map((step, index) => (
                       <div
                         key={step}
-                        className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3"
+                        className="flex items-center gap-3 rounded-xl border border-border px-4 py-3"
                       >
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
                           {index + 1}
                         </div>
-                        <p className="text-sm text-slate-700">{step}</p>
+                        <p className="text-sm text-foreground">{step}</p>
                       </div>
                     ))}
                   </div>
@@ -183,7 +183,7 @@ export default function CreateWorkspacePage() {
                   <div className="pt-2">
                     <button
                       onClick={logout}
-                      className="text-sm font-medium text-slate-500 hover:text-slate-900 underline underline-offset-4"
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4"
                     >
                       Sign out
                     </button>
@@ -193,10 +193,10 @@ export default function CreateWorkspacePage() {
 
               <div className="space-y-4">
                 <div className="px-1">
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Pending Invitations
                   </p>
-                  <p className="mt-1 text-sm text-slate-600">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Accept an invitation below to enter your assigned workspace.
                   </p>
                 </div>
@@ -211,17 +211,17 @@ export default function CreateWorkspacePage() {
               </div>
             </div>
           ) : (
-            <Card className="mt-10 w-full max-w-3xl overflow-hidden border-white/70 bg-white/92 shadow-[0_28px_70px_-34px_rgba(76,81,191,0.42)]">
+            <Card className="mt-10 w-full max-w-3xl overflow-hidden border-border/50 bg-card shadow-elevated">
               <div className="grid gap-0 md:grid-cols-[1.05fr_0.95fr]">
-                <div className="border-b border-slate-100 p-8 md:border-b-0 md:border-r">
+                <div className="border-b border-border/60 p-8 md:border-b-0 md:border-r">
                   <div className="flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-primary/10 text-primary">
                     <Building2 className="h-7 w-7" />
                   </div>
 
-                  <h1 className="mt-6 text-3xl font-semibold tracking-tight text-slate-950">
+                  <h1 className="mt-6 text-3xl font-semibold tracking-tight text-foreground">
                     You&apos;re waiting for workspace access
                   </h1>
-                  <p className="mt-4 max-w-lg text-base leading-8 text-slate-600">
+                  <p className="mt-4 max-w-lg text-base leading-8 text-muted-foreground">
                     An admin needs to invite you before you can enter the app. When that happens,
                     your invitation will appear here and you&apos;ll be able to join in one step.
                   </p>
@@ -230,8 +230,8 @@ export default function CreateWorkspacePage() {
                     <div className="flex items-start gap-3">
                       <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">What to expect</p>
-                        <p className="mt-1 text-sm leading-7 text-slate-600">
+                        <p className="text-sm font-semibold text-foreground">What to expect</p>
+                        <p className="mt-1 text-sm leading-7 text-muted-foreground">
                           Once an admin assigns you to a workspace, you&apos;ll see the invitation
                           here. Accept it and you&apos;ll go directly into your workspace.
                         </p>
@@ -242,17 +242,17 @@ export default function CreateWorkspacePage() {
 
                 <div className="flex flex-col justify-between p-8">
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Current Status
                     </p>
                     <div className="mt-5 rounded-[1.75rem] border border-dashed border-primary/20 bg-primary/5 p-6 text-center">
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-sm">
+                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-card shadow-sm">
                         <Mail className="h-6 w-6 text-primary/70" />
                       </div>
-                      <h2 className="mt-5 text-xl font-semibold text-slate-900">
+                      <h2 className="mt-5 text-xl font-semibold text-foreground">
                         No invitations yet
                       </h2>
-                      <p className="mt-2 text-sm leading-7 text-slate-600">
+                      <p className="mt-2 text-sm leading-7 text-muted-foreground">
                         You can sign out and come back later, or contact your admin if you think you
                         should already have access.
                       </p>
@@ -270,7 +270,7 @@ export default function CreateWorkspacePage() {
                     </Button>
                     <button
                       onClick={logout}
-                      className="text-sm font-medium text-slate-500 hover:text-slate-900 underline underline-offset-4"
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4"
                     >
                       Sign out
                     </button>
@@ -354,21 +354,21 @@ export default function CreateWorkspacePage() {
     <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-          <Card className="border-primary/10 bg-slate-950 text-white shadow-[0_32px_80px_-40px_rgba(35,39,92,0.95)]">
+          <Card className="border-primary/10 bg-foreground text-background shadow-elevated">
             <CardHeader className="space-y-5">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/80">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/15 bg-primary-foreground/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-background/80">
                 <Sparkles className="h-3.5 w-3.5" />
                 Admin Setup
               </div>
               <div>
                 <div className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  <span className="text-white">Task</span>
+                  <span className="text-background">Task</span>
                   <span className="text-blue-300">Manager</span>
                 </div>
-                <CardTitle className="mt-8 text-3xl leading-tight text-white md:text-4xl">
+                <CardTitle className="mt-8 text-3xl leading-tight text-background md:text-4xl">
                   Create your first workspace
                 </CardTitle>
-                <CardDescription className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
+                <CardDescription className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
                   Start with one focused workspace for your team. You can organize tickets, invite
                   people, and manage access from there.
                 </CardDescription>
@@ -376,18 +376,18 @@ export default function CreateWorkspacePage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-sm font-semibold text-white">What you unlock next</p>
+              <div className="rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
+                <p className="text-sm font-semibold text-background">What you unlock next</p>
                 <div className="mt-4 space-y-3">
-                  <div className="flex items-center gap-3 text-sm text-slate-200">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <Building2 className="h-4 w-4 text-blue-300" />A dedicated workspace for
                     tickets, members, and workflows
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-slate-200">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <ShieldCheck className="h-4 w-4 text-blue-300" />
                     Admin controls for inviting users and assigning access
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-slate-200">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
                     <ArrowRight className="h-4 w-4 text-blue-300" />A clear starting point for your
                     team to begin collaborating
                   </div>
@@ -396,9 +396,9 @@ export default function CreateWorkspacePage() {
             </CardContent>
           </Card>
 
-          <Card className="border-white/70 bg-white shadow-[0_24px_60px_-30px_rgba(76,81,191,0.38)]">
-            <CardHeader className="space-y-3 border-b border-slate-100 pb-6">
-              <CardTitle className="text-2xl font-bold text-slate-900 md:text-3xl">
+          <Card className="border-border/50 bg-card shadow-elevated">
+            <CardHeader className="space-y-3 border-b border-border/60 pb-6">
+              <CardTitle className="text-2xl font-bold text-foreground md:text-3xl">
                 Workspace Details
               </CardTitle>
               <CardDescription className="text-sm leading-6">
@@ -416,12 +416,12 @@ export default function CreateWorkspacePage() {
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-800">Workspace name</label>
+                  <label className="text-sm font-semibold text-foreground">Workspace name</label>
                   <Input
                     type="text"
                     placeholder="e.g. Acme Support Team"
                     required
-                    className="h-13 border-slate-300 text-base"
+                    className="h-13 border-border text-base"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     maxLength={100}
@@ -432,14 +432,14 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-800">
+                  <label className="text-sm font-semibold text-foreground">
                     Description{' '}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
                   <Input
                     type="text"
                     placeholder="What does this workspace handle?"
-                    className="h-13 border-slate-300 text-base"
+                    className="h-13 border-border text-base"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     maxLength={500}
@@ -450,7 +450,7 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-800">
+                  <label className="text-sm font-semibold text-foreground">
                     Workspace logo{' '}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
@@ -475,18 +475,18 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-800">Ticket statuses</label>
+                  <label className="text-sm font-semibold text-foreground">Ticket statuses</label>
                   <p className="text-xs text-muted-foreground">
                     Choose and order the workflow columns for this workspace.
                   </p>
                   <TicketStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="rounded-2xl border border-border bg-muted p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">Initial categories</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                      <p className="text-sm font-semibold text-foreground">Initial categories</p>
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
                         Add custom categories and optional description templates for new tickets.
                       </p>
                     </div>
@@ -508,7 +508,7 @@ export default function CreateWorkspacePage() {
                       {categories.map((category, index) => (
                         <div
                           key={category.id}
-                          className="rounded-xl border border-slate-200 bg-white p-3"
+                          className="rounded-xl border border-border bg-card p-3"
                         >
                           <div className="flex items-start gap-2">
                             <Input
@@ -517,10 +517,10 @@ export default function CreateWorkspacePage() {
                                 updateCategoryDraft(category.id, 'name', e.target.value)
                               }
                               placeholder={`Category ${index + 1}`}
-                              className="h-10 border-slate-300"
+                              className="h-10 border-border"
                               maxLength={50}
                             />
-                            <div className="flex h-10 shrink-0 items-center gap-1 rounded-md border border-slate-300 bg-white px-2">
+                            <div className="flex h-10 shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2">
                               {CATEGORY_COLORS.map((color) => (
                                 <button
                                   key={color}
@@ -539,7 +539,7 @@ export default function CreateWorkspacePage() {
                             <button
                               type="button"
                               onClick={() => removeCategoryDraft(category.id)}
-                              className="rounded-md p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
                               aria-label="Remove category"
                             >
                               <Trash2 className="h-4 w-4" />

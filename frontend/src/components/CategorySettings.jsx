@@ -56,9 +56,9 @@ const TemplateEditor = ({ value, onChange }) => (
     value={value}
     onChange={onChange}
     placeholder="Ticket description template"
-    className="min-h-44 overflow-hidden rounded-lg bg-white"
+    className="min-h-44 overflow-hidden rounded-lg bg-card"
   >
-    <div className="border-b border-gray-100 bg-gray-50/50 px-3 py-2">
+    <div className="border-b border-border bg-muted/50/50 px-3 py-2">
       <RichTextEditorToolbar className="flex-wrap p-0" />
     </div>
     <RichTextEditorContent className="min-h-28 p-2" />
@@ -111,7 +111,7 @@ const CategoryRow = ({ category, workspaceId }) => {
 
   if (editing) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+      <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -143,14 +143,14 @@ const CategoryRow = ({ category, workspaceId }) => {
   }
 
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5 hover:bg-gray-50 transition-colors">
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 transition-colors">
       <div className="min-w-0">
         <div className="flex items-center gap-2.5">
           <span
             className="h-3 w-3 rounded-full shrink-0"
             style={{ backgroundColor: category.color }}
           />
-          <span className="text-sm font-medium text-gray-800">{category.name}</span>
+          <span className="text-sm font-medium text-foreground">{category.name}</span>
         </div>
         {category.descriptionTemplate && (
           <p className="mt-1 line-clamp-2 whitespace-pre-line pl-5 text-xs text-muted-foreground">
@@ -162,7 +162,7 @@ const CategoryRow = ({ category, workspaceId }) => {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Edit category"
         >
           <Pencil className="h-3.5 w-3.5" />
@@ -171,7 +171,7 @@ const CategoryRow = ({ category, workspaceId }) => {
           type="button"
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
-          className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
           aria-label="Delete category"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -217,7 +217,7 @@ const CategorySettings = ({ workspaceId }) => {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-gray-900">Ticket Categories</h3>
+        <h3 className="text-sm font-semibold text-foreground">Ticket Categories</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Manage categories used to classify tickets in this workspace.
         </p>
@@ -226,7 +226,7 @@ const CategorySettings = ({ workspaceId }) => {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 rounded-lg bg-gray-100 animate-pulse" />
+            <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
           ))}
         </div>
       ) : categories.length === 0 ? (
@@ -242,7 +242,7 @@ const CategorySettings = ({ workspaceId }) => {
       )}
 
       {showForm ? (
-        <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <div className="space-y-3 rounded-lg border border-border bg-muted/50 p-3">
           <Input
             placeholder="Category name"
             value={newName}

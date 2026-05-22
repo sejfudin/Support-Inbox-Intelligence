@@ -96,17 +96,17 @@ export default function TicketComments({
       collapsible
       value={openSection}
       onValueChange={(v) => setOpenSection(v || '')}
-      className="bg-white rounded-2xl border border-gray-200 shadow-md"
+      className="bg-card rounded-2xl border border-border shadow-md"
     >
       <AccordionItem value="activity" className="border-none">
-        <AccordionTrigger className="px-4 py-3 border-b border-gray-50 bg-gray-50/30 gap-2 hover:no-underline hover:bg-gray-50/60">
+        <AccordionTrigger className="gap-2 border-b border-separator bg-muted/30 px-4 py-3 hover:bg-muted/60 hover:no-underline">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5 text-gray-500" />
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               Comments
             </span>
             {commentCount > 0 && (
-              <span className="ml-1 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500 border border-gray-200">
+              <span className="ml-1 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
                 {commentCount}
               </span>
             )}
@@ -117,7 +117,7 @@ export default function TicketComments({
           <ScrollArea className={commentsAreaHeightClass}>
             <div className="p-6">
               {comments.length === 0 ? (
-                <div className="flex items-center justify-center text-sm text-gray-500 italic py-8">
+                <div className="flex items-center justify-center text-sm text-muted-foreground italic py-8">
                   No comments yet.
                 </div>
               ) : (

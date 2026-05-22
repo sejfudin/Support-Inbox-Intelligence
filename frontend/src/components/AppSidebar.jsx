@@ -111,9 +111,9 @@ export default function AppSidebar() {
   ];
 
   return (
-    <Sidebar className="border-r border-white/60 bg-white/88">
+    <Sidebar className="border-r border-border/50 bg-card shadow-elevated-sm">
       <SidebarHeader className="px-5 pt-6 pb-4">
-        <div className="rounded-[1.4rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-white px-4 py-4 shadow-[0_16px_40px_-32px_rgba(108,105,255,0.8)]">
+        <div className="rounded-[1.4rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-4 py-4 shadow-elevated-sm">
           <div className="text-xl font-semibold tracking-tight">
             <span className="text-foreground">Task</span>
             <span className="text-primary">Manager</span>
@@ -147,7 +147,7 @@ export default function AppSidebar() {
                         cn(
                           'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                           isActive
-                            ? 'bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]'
+                            ? 'bg-primary text-primary-foreground shadow-elevated-sm'
                             : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
                         )
                       }
@@ -186,7 +186,7 @@ export default function AppSidebar() {
                         cn(
                           'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                           isActive
-                            ? 'bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]'
+                            ? 'bg-primary text-primary-foreground shadow-elevated-sm'
                             : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
                         )
                       }
@@ -208,7 +208,7 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 pt-3">
-        <div className="overflow-hidden rounded-[1.4rem] border border-white/70 bg-white/90 shadow-[0_18px_40px_-28px_rgba(76,81,191,0.35)]">
+        <div className="overflow-hidden rounded-[1.4rem] app-elevated-sm">
           {isLoginPending ? (
             <div className="p-4 flex items-center gap-3 animate-pulse">
               <div className="h-9 w-9 rounded-full bg-muted" />
@@ -225,7 +225,7 @@ export default function AppSidebar() {
                     className={cn(
                       'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
                       isActive
-                        ? 'bg-primary text-primary-foreground shadow-[0_14px_28px_-20px_rgba(108,105,255,0.95)]'
+                        ? 'bg-primary text-primary-foreground shadow-elevated-sm'
                         : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
                     )}
                   >

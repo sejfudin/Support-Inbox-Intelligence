@@ -57,7 +57,7 @@ function WorkspaceLabel({ workspace, subtitle, compact }) {
 }
 
 const workspaceFaceClassName =
-  'flex h-auto w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-white/80 px-3 py-2 text-left shadow-none';
+  'flex h-auto w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 text-left shadow-none';
 
 function WorkspaceSwitcherFace({ workspace, subtitle, compact, showChevron = false }) {
   return (
@@ -131,7 +131,7 @@ export default function WorkspaceSwitcher({ className, compact = false }) {
         <Button
           variant="outline"
           size="sm"
-          className={cn(workspaceFaceClassName, 'font-normal hover:bg-white', className)}
+          className={cn(workspaceFaceClassName, 'font-normal hover:bg-muted/50', className)}
           disabled={isLoading || switchWorkspace.isPending}
         >
           <WorkspaceSwitcherFace
