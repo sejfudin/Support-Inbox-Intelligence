@@ -84,6 +84,7 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  handleMarkRead();
                   onOpenTicket({ ticketId: String(ticketId), commentId: String(commentId || '') });
                 }}
               >
