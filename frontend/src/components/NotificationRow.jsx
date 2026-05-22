@@ -18,13 +18,27 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
       : '';
 
   const isMention = notification.type === 'ticket_mention';
+  const canMarkRead = !notification.read && !markReadPending && notification._id;
+
+  const handleMarkRead = () => {
+    if (!canMarkRead) return;
+    onMarkRead(notification._id);
+  };
 
   return (
     <li
       className={cn(
         'px-3 py-2.5 transition-colors',
-        !notification.read ? 'bg-primary/5' : 'bg-transparent'
+        !notification.read ? 'cursor-pointer bg-primary/5 hover:bg-primary/10' : 'bg-transparent'
       )}
+      role={canMarkRead ? 'button' : undefined}
+      tabIndex={canMarkRead ? 0 : undefined}
+      onClick={handleMarkRead}
+      onKeyDown={(e) => {
+        if (!canMarkRead || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        handleMarkRead();
+      }}
     >
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
@@ -54,7 +68,7 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onMarkRead(notification._id);
+                  handleMarkRead();
                 }}
               >
                 <Check className="h-3 w-3" />
@@ -69,6 +83,8 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
                 className="h-7 gap-1 px-2 text-xs"
                 onClick={(e) => {
                   e.preventDefault();
+                  e.stopPropagation();
+                  handleMarkRead();
                   onOpenTicket({ ticketId: String(ticketId), commentId: String(commentId || '') });
                 }}
               >
