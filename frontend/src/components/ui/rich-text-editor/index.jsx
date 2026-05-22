@@ -29,7 +29,11 @@ function RichTextEditor({ children, className, ...props }) {
 
 RichTextEditor.displayName = 'RichTextEditor';
 
-function RichTextEditorContent({ className }) {
+function RichTextEditorContent({
+  className,
+  'data-test': dataTest = 'rte-content-input',
+  ...props
+}) {
   const { editor } = _useRichTextEditorContext();
 
   if (!editor) return null;
@@ -42,6 +46,7 @@ function RichTextEditorContent({ className }) {
       )}
     >
       <EditorContent
+        data-test={dataTest}
         data-slot="rich-text-editor-content"
         className={cn(
           'prose prose-sm dark:prose-invert text-foreground h-full w-full max-w-none',
@@ -56,6 +61,7 @@ function RichTextEditorContent({ className }) {
           className
         )}
         editor={editor}
+        {...props}
       />
     </ScrollArea>
   );

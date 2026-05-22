@@ -27,6 +27,7 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
 
   return (
     <li
+      data-test={`notification-row-${notification._id}`}
       className={cn(
         'px-3 py-2.5 transition-colors',
         !notification.read ? 'cursor-pointer bg-primary/5 hover:bg-primary/10' : 'bg-transparent'
@@ -63,6 +64,7 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
                 type="button"
                 variant="outline"
                 size="sm"
+                data-test={`notification-${notification._id}-mark-read-button`}
                 className="h-7 gap-1 px-2 text-xs"
                 disabled={markReadPending}
                 onClick={(e) => {
@@ -80,6 +82,7 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
                 type="button"
                 variant="default"
                 size="sm"
+                data-test={`notification-${notification._id}-open-task-button`}
                 className="h-7 gap-1 px-2 text-xs"
                 onClick={(e) => {
                   e.preventDefault();

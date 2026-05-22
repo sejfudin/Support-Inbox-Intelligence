@@ -79,6 +79,7 @@ const BoardTaskCardBody = memo(function BoardTaskCardBody({
       tabIndex={0}
       onClick={() => onOpen(task.id)}
       onKeyDown={(e) => e.key === 'Enter' && onOpen(task.id)}
+      data-test={`board-task-${task.id}-card`}
       className={cn(
         'cursor-pointer border-2 border-border/80 bg-card text-card-foreground shadow-sm',
         !compact &&
@@ -148,6 +149,7 @@ const DraggableBoardTaskCard = memo(function DraggableBoardTaskCard({
   return (
     <div
       ref={setNodeRef}
+      data-test={`board-task-${task.id}-drag`}
       className={cn('touch-none select-none', isDragging && 'opacity-40')}
       {...listeners}
       {...attributes}
@@ -233,6 +235,7 @@ const BoardColumn = memo(function BoardColumn({
   return (
     <Card
       ref={setNodeRef}
+      data-test={`board-column-${col.id}-drop`}
       className={cn(
         'flex w-[320px] shrink-0 flex-col border-border/50 bg-card shadow-elevated-sm border-t-4 transition-all duration-300 ease-in-out',
         flush ? 'h-full max-h-full min-h-0' : 'max-h-[min(96vh,calc(100vh-10rem))]',
@@ -257,6 +260,7 @@ const BoardColumn = memo(function BoardColumn({
               className="h-8 w-8 shrink-0 rounded-lg"
               aria-label={`New ticket in ${col.title}`}
               onClick={() => onNewTicketInColumn(columnStatusId)}
+              data-test={`board-column-${col.id}-new-button`}
             >
               <Plus className="h-4 w-4" />
             </Button>

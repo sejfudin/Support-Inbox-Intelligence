@@ -235,6 +235,7 @@ const SidebarTrigger = React.forwardRef(({ className, onClick, ...props }, ref) 
     <Button
       ref={ref}
       data-sidebar="trigger"
+      data-test="sidebar-toggle-button"
       variant="ghost"
       size="icon"
       className={cn(
@@ -261,6 +262,7 @@ const SidebarRail = React.forwardRef(({ className, ...props }, ref) => {
     <button
       ref={ref}
       data-sidebar="rail"
+      data-test="sidebar-rail-toggle-button"
       aria-label="Toggle Sidebar"
       tabIndex={-1}
       onClick={toggleSidebar}

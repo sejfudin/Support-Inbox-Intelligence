@@ -125,6 +125,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
           )}
           ref={textareaRef}
           onChange={handleMentionChange}
+          data-test="ticket-comment-input"
         />
 
         {mentionOpen && (
@@ -143,6 +144,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                       )}
                       onMouseDown={(evt) => evt.preventDefault()}
                       onClick={() => applyMention(item)}
+                      data-test={`ticket-comment-mention-option-${item.userId}`}
                     >
                       <div className="font-medium text-foreground">@{item.handle}</div>
                       <div className="truncate text-xs text-muted-foreground">
@@ -163,6 +165,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
           multiple
           className="hidden"
           onChange={handlePickImages}
+          data-test="ticket-comment-image-file-input"
         />
 
         <div className="mt-2 flex items-center justify-between">
@@ -171,6 +174,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
             onClick={() => fileInputRef.current?.click()}
             disabled={createMutation.isPending || selectedImages.length >= 3}
             className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+            data-test="ticket-comment-add-images-button"
           >
             <ImagePlus className="w-3.5 h-3.5" />
             Add Images ({selectedImages.length}/3)
@@ -193,6 +197,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                   type="button"
                   onClick={() => removeSelectedImage(idx)}
                   className="absolute top-1 right-1 rounded bg-card p-1"
+                  data-test={`ticket-comment-remove-image-button-${idx}`}
                 >
                   <X className="w-3 h-3 text-red-600" />
                 </button>
@@ -220,6 +225,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
               createMutation.isPending
             }
             onClick={handleSend}
+            data-test="ticket-comment-send-button"
             className={cn(
               'h-8 w-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all active:scale-95',
               isAtLimit && 'bg-orange-500 hover:bg-orange-600'

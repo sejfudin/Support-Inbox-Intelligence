@@ -88,6 +88,7 @@ const ProfilePage = () => {
               <Button
                 variant={isEditing ? 'outline' : 'default'}
                 className="w-full gap-2 md:w-auto"
+                data-test={isEditing ? 'profile-cancel-edit-button' : 'profile-edit-button'}
                 onClick={() => {
                   if (isEditing) {
                     setIsEditing(false);
@@ -134,13 +135,15 @@ const ProfilePage = () => {
             <form className="space-y-6" onSubmit={handleSave}>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Full name</Label>
+                  <Label htmlFor="profile-fullname">Full name</Label>
                   {isEditing ? (
                     <Input
+                      id="profile-fullname"
                       value={profile.fullName}
                       onChange={(e) =>
                         setDraftProfile((current) => ({ ...current, fullName: e.target.value }))
                       }
+                      data-test="profile-fullname-input"
                     />
                   ) : (
                     <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
@@ -161,10 +164,13 @@ const ProfilePage = () => {
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label>{isEditing ? 'New password (optional)' : 'Password'}</Label>
+                  <Label htmlFor="profile-password">
+                    {isEditing ? 'New password (optional)' : 'Password'}
+                  </Label>
                   {isEditing ? (
                     <div className="relative">
                       <Input
+                        id="profile-password"
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Leave blank to keep current password"
                         value={profile.password}
@@ -172,12 +178,14 @@ const ProfilePage = () => {
                           setDraftProfile((current) => ({ ...current, password: e.target.value }))
                         }
                         className="pr-12"
+                        data-test="profile-password-input"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword((current) => !current)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        data-test="profile-password-toggle-button"
                       >
                         {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       </button>
@@ -212,10 +220,15 @@ const ProfilePage = () => {
                       setShowPassword(false);
                       setDraftProfile({ fullName: '', password: '' });
                     }}
+                    data-test="profile-form-cancel-button"
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={updateUserMutation.isPending || !isFormValid}>
+                  <Button
+                    type="submit"
+                    disabled={updateUserMutation.isPending || !isFormValid}
+                    data-test="profile-save-button"
+                  >
                     {updateUserMutation.isPending ? 'Saving…' : 'Save changes'}
                   </Button>
                 </div>

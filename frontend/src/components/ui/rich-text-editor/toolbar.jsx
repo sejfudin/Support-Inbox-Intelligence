@@ -27,6 +27,26 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { _useRichTextEditorContext } from './context';
 import { _useHeading, _useToolbarItems } from './hooks';
 
+const TOOLBAR_TEST_IDS = {
+  Bold: 'rte-bold-button',
+  Italic: 'rte-italic-button',
+  Strike: 'rte-strike-button',
+  'Bullet List': 'rte-bullet-list-button',
+  'Numbered List': 'rte-numbered-list-button',
+  Code: 'rte-code-button',
+  Quote: 'rte-quote-button',
+  Undo: 'rte-undo-button',
+  Redo: 'rte-redo-button',
+};
+
+const HEADING_TEST_IDS = {
+  P: 'rte-heading-option-p',
+  H1: 'rte-heading-option-h1',
+  H2: 'rte-heading-option-h2',
+  H3: 'rte-heading-option-h3',
+  H4: 'rte-heading-option-h4',
+};
+
 function HeadingSelect() {
   const { headings, activeHeading } = _useHeading();
 
@@ -43,6 +63,7 @@ function HeadingSelect() {
   return (
     <Select value={activeHeading} onValueChange={handleHeadingChange}>
       <SelectTrigger
+        data-test="rte-heading-select"
         tabIndex={-1}
         className="h-8 w-14 border-none px-1.5 py-0 shadow-none dark:bg-transparent"
         aria-label="Text style"
@@ -58,7 +79,14 @@ function HeadingSelect() {
       >
         <SelectGroup>
           {headings.map((item) => (
-            <SelectItem key={item.label} value={item.label} disabled={item.disabled}>
+            <SelectItem
+              key={item.label}
+              value={item.label}
+              disabled={item.disabled}
+              data-test={
+                HEADING_TEST_IDS[item.label] || `rte-heading-option-${item.label.toLowerCase()}`
+              }
+            >
               {item.label}
               <span className="text-muted-foreground text-xs">({item.shortcut})</span>
             </SelectItem>
@@ -77,6 +105,7 @@ function ImageOptionsDropdown({ align, size, onAlignChange, onSizeChange }) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          data-test="rte-image-options-trigger"
           className="inline-flex h-8 w-10 items-center justify-center gap-1 rounded-md bg-muted/80 px-1 py-0 text-sm font-medium text-foreground shadow-none transition-colors hover:bg-muted dark:bg-transparent dark:text-foreground"
           aria-label={`Image options (${currentSummary})`}
         >
@@ -89,13 +118,25 @@ function ImageOptionsDropdown({ align, size, onAlignChange, onSizeChange }) {
           Image Position
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={align} onValueChange={onAlignChange}>
-          <DropdownMenuRadioItem value="left" onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuRadioItem
+            value="left"
+            data-test="rte-image-align-left-radio"
+            onSelect={(e) => e.preventDefault()}
+          >
             Left
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="center" onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuRadioItem
+            value="center"
+            data-test="rte-image-align-center-radio"
+            onSelect={(e) => e.preventDefault()}
+          >
             Center
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="right" onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuRadioItem
+            value="right"
+            data-test="rte-image-align-right-radio"
+            onSelect={(e) => e.preventDefault()}
+          >
             Right
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
@@ -104,13 +145,25 @@ function ImageOptionsDropdown({ align, size, onAlignChange, onSizeChange }) {
           Image Size
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={size} onValueChange={onSizeChange}>
-          <DropdownMenuRadioItem value="sm" onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuRadioItem
+            value="sm"
+            data-test="rte-image-size-sm-radio"
+            onSelect={(e) => e.preventDefault()}
+          >
             Small
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="md" onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuRadioItem
+            value="md"
+            data-test="rte-image-size-md-radio"
+            onSelect={(e) => e.preventDefault()}
+          >
             Medium
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="lg" onSelect={(e) => e.preventDefault()}>
+          <DropdownMenuRadioItem
+            value="lg"
+            data-test="rte-image-size-lg-radio"
+            onSelect={(e) => e.preventDefault()}
+          >
             Large
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
@@ -197,6 +250,10 @@ function RichTextEditorToolbar({ className }) {
             <Tooltip key={item.tooltip}>
               <TooltipTrigger asChild>
                 <Toggle
+                  data-test={
+                    TOOLBAR_TEST_IDS[item.tooltip] ||
+                    `rte-${item.tooltip.toLowerCase().replace(/\s+/g, '-')}-button`
+                  }
                   tabIndex={-1}
                   onPressedChange={item.onClick}
                   disabled={item.disabled}
@@ -222,7 +279,11 @@ function RichTextEditorToolbar({ className }) {
         <div className="flex items-center gap-1 px-1.5">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Toggle size="sm" onPressedChange={() => removeSelectedImage()}>
+              <Toggle
+                data-test="rte-remove-image-button"
+                size="sm"
+                onPressedChange={() => removeSelectedImage()}
+              >
                 <Trash2 />
                 <span className="sr-only">Remove image</span>
               </Toggle>

@@ -67,11 +67,15 @@ export const LoginPage = () => {
             )}
             <form className="space-y-6" onSubmit={handleLogin}>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground uppercase tracking-wide">
+                <label
+                  htmlFor="email"
+                  className="text-sm font-bold text-foreground uppercase tracking-wide"
+                >
                   Email address
                 </label>
                 <Input
                   id="email"
+                  data-test="login-email-input"
                   type="email"
                   placeholder="your@email.com"
                   required
@@ -81,11 +85,15 @@ export const LoginPage = () => {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-bold text-foreground uppercase tracking-wide">
+                <label
+                  htmlFor="password"
+                  className="text-sm font-bold text-foreground uppercase tracking-wide"
+                >
                   Password
                 </label>
                 <Input
                   id="password"
+                  data-test="login-password-input"
                   type="password"
                   placeholder="••••••••"
                   required
@@ -95,7 +103,11 @@ export const LoginPage = () => {
                 />
               </div>
 
-              <Button type="submit" className="h-14 w-full text-xl font-semibold">
+              <Button
+                type="submit"
+                data-test="login-submit-button"
+                className="h-14 w-full text-xl font-semibold"
+              >
                 {loginMutation.isPending ? 'Signing in...' : 'Login'}
               </Button>
 
@@ -106,6 +118,7 @@ export const LoginPage = () => {
                 </p>
                 <Link
                   to="/set-password"
+                  data-test="login-set-password-link"
                   className="mt-3 inline-flex text-sm font-semibold text-primary underline underline-offset-4"
                 >
                   Set password

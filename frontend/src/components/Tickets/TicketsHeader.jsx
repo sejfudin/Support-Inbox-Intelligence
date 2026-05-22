@@ -13,6 +13,7 @@ export default function TicketsHeader({
   hideViewMode = false,
   disableBoardView = false,
   hideNewTicket = false,
+  dataTestPrefix = 'tickets',
   title = 'Tickets',
   kicker = 'Workspace overview',
   subtitle,
@@ -33,6 +34,7 @@ export default function TicketsHeader({
                   size="sm"
                   onClick={() => onViewModeChange('list')}
                   className="gap-2 rounded-xl"
+                  data-test={`${dataTestPrefix}-view-list-button`}
                 >
                   <LayoutList className="h-4 w-4" />
                   <span className="hidden sm:inline">List</span>
@@ -43,6 +45,7 @@ export default function TicketsHeader({
                   onClick={() => onViewModeChange('board')}
                   className="gap-2 rounded-xl"
                   disabled={disableBoardView}
+                  data-test={`${dataTestPrefix}-view-board-button`}
                 >
                   <LayoutGrid className="h-4 w-4" />
                   <span className="hidden sm:inline">Board</span>
@@ -60,11 +63,12 @@ export default function TicketsHeader({
                 value={search}
                 onChange={(e) => onSearch(e.target.value)}
                 aria-label="Search tickets"
+                data-test={`${dataTestPrefix}-search-input`}
               />
             </div>
 
             {!hideNewTicket && (
-              <Button onClick={() => onNewTicket()}>
+              <Button onClick={() => onNewTicket()} data-test={`${dataTestPrefix}-new-button`}>
                 <Plus className="mr-2 h-4 w-4" />
                 New ticket
               </Button>

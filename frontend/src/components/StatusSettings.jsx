@@ -209,7 +209,12 @@ const StatusSettings = ({ workspaceId }) => {
         </p>
       </div>
 
-      <TicketStatusEditor items={items} onChange={handleChange} minItems={1} />
+      <TicketStatusEditor
+        items={items}
+        onChange={handleChange}
+        minItems={1}
+        dataTestPrefix="workspace-status"
+      />
 
       <Dialog
         open={Boolean(pendingDelete)}
@@ -230,14 +235,21 @@ const StatusSettings = ({ workspaceId }) => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="reassign-status">Move tickets to</Label>
+            <Label htmlFor="workspace-status-reassign-status">Move tickets to</Label>
             <Select value={reassignTargetId} onValueChange={setReassignTargetId}>
-              <SelectTrigger id="reassign-status">
+              <SelectTrigger
+                id="workspace-status-reassign-status"
+                data-test="workspace-status-reassign-select"
+              >
                 <SelectValue placeholder="Select a status" />
               </SelectTrigger>
               <SelectContent>
                 {reassignOptions.map((status) => (
-                  <SelectItem key={status._id} value={String(status._id)}>
+                  <SelectItem
+                    key={status._id}
+                    value={String(status._id)}
+                    data-test={`workspace-status-reassign-option-${status._id}`}
+                  >
                     {status.label}
                   </SelectItem>
                 ))}
@@ -252,6 +264,7 @@ const StatusSettings = ({ workspaceId }) => {
                 setReassignTargetId('');
                 resetFromServer();
               }}
+              data-test="workspace-status-reassign-cancel-button"
             >
               Cancel
             </Button>
@@ -259,6 +272,7 @@ const StatusSettings = ({ workspaceId }) => {
               variant="destructive"
               disabled={!reassignTargetId || deleteMutation.isPending}
               onClick={handleConfirmReassignDelete}
+              data-test="workspace-status-reassign-confirm-button"
             >
               {deleteMutation.isPending ? 'Deleting…' : 'Reassign and delete'}
             </Button>

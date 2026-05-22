@@ -41,6 +41,7 @@ export default function StoryPointsField({
         <DropdownMenuTrigger asChild disabled={disabled}>
           <button
             type="button"
+            data-test="ticket-story-points-trigger"
             className={cn(
               'flex w-full items-center justify-between gap-2 px-3 py-3 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted',
               disabled && 'cursor-not-allowed opacity-60'
@@ -56,7 +57,11 @@ export default function StoryPointsField({
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="start" className="w-44 z-[200]">
-          <DropdownMenuItem onSelect={() => onChange?.(null)} className="cursor-pointer">
+          <DropdownMenuItem
+            onSelect={() => onChange?.(null)}
+            className="cursor-pointer"
+            data-test="ticket-story-points-option-none"
+          >
             <span className="h-2 w-2 rounded-full bg-muted/500 mr-2" />
             <span className="flex-1">No estimate</span>
             {currentValue === null ? <Check className="w-4 h-4 opacity-80 ml-2" /> : null}
@@ -71,6 +76,7 @@ export default function StoryPointsField({
                 key={option.value}
                 onSelect={() => onChange?.(option.value)}
                 className="cursor-pointer"
+                data-test={`ticket-story-points-option-${option.value}`}
               >
                 <span className={cn('h-2 w-2 rounded-full mr-2', style.dot)} />
                 <span className="flex-1">{`SP ${option.label}`}</span>

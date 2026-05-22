@@ -65,8 +65,10 @@ const UserEditModal = ({ user, onClose }) => {
             Edit User
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 text-muted-foreground hover:text-muted-foreground hover:bg-muted rounded-lg transition-colors"
+            data-test="user-edit-modal-close-button"
           >
             <X className="h-5 w-5" />
           </button>
@@ -76,40 +78,42 @@ const UserEditModal = ({ user, onClose }) => {
           <form onSubmit={handleSave} className="space-y-5">
             <div className="space-y-2">
               <Label
-                htmlFor="fullname"
+                htmlFor="user-edit-modal-fullname"
                 className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Full Name
               </Label>
               <Input
-                id="fullname"
+                id="user-edit-modal-fullname"
                 value={editedUser.user}
                 onChange={(e) => setEditedUser({ ...editedUser, user: e.target.value })}
                 className="h-10"
                 placeholder="Enter full name"
+                data-test="user-edit-modal-fullname-input"
               />
             </div>
 
             <div className="space-y-2">
               <Label
-                htmlFor="email"
+                htmlFor="user-edit-modal-email"
                 className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Email
               </Label>
               <Input
-                id="email"
+                id="user-edit-modal-email"
                 type="email"
                 value={editedUser.email}
                 onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
                 className="h-10"
                 placeholder="Enter email address"
+                data-test="user-edit-modal-email-input"
               />
             </div>
 
             <div className="space-y-2">
               <Label
-                htmlFor="role"
+                htmlFor="user-edit-modal-role"
                 className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Role
@@ -118,19 +122,27 @@ const UserEditModal = ({ user, onClose }) => {
                 value={editedUser.role}
                 onValueChange={(value) => setEditedUser({ ...editedUser, role: value })}
               >
-                <SelectTrigger id="role" className="h-10">
+                <SelectTrigger
+                  id="user-edit-modal-role"
+                  className="h-10"
+                  data-test="user-edit-modal-role-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin" data-test="user-edit-modal-role-option-admin">
+                    Admin
+                  </SelectItem>
+                  <SelectItem value="user" data-test="user-edit-modal-role-option-user">
+                    User
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <Label
-                htmlFor="status"
+                htmlFor="user-edit-modal-status"
                 className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
               >
                 Status
@@ -141,21 +153,35 @@ const UserEditModal = ({ user, onClose }) => {
                   setEditedUser({ ...editedUser, active: value === 'Active' })
                 }
               >
-                <SelectTrigger id="status" className="h-10">
+                <SelectTrigger
+                  id="user-edit-modal-status"
+                  className="h-10"
+                  data-test="user-edit-modal-status-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Active" data-test="user-edit-modal-status-option-active">
+                    Active
+                  </SelectItem>
+                  <SelectItem value="Inactive" data-test="user-edit-modal-status-option-inactive">
+                    Inactive
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex gap-3 pt-6">
-              <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+                data-test="user-edit-modal-cancel-button"
+              >
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1">
+              <Button type="submit" className="flex-1" data-test="user-edit-modal-save-button">
                 Save Changes
               </Button>
             </div>

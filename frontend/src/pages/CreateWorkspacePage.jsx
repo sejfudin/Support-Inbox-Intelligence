@@ -39,7 +39,7 @@ const createEmptyCategory = () => ({
   descriptionTemplate: '',
 });
 
-const TemplateEditor = ({ value, onChange }) => (
+const TemplateEditor = ({ value, onChange, categoryId }) => (
   <RichTextEditor
     value={value}
     onChange={onChange}
@@ -49,7 +49,14 @@ const TemplateEditor = ({ value, onChange }) => (
     <div className="border-b border-border/60 bg-muted/60 px-3 py-2">
       <RichTextEditorToolbar className="flex-wrap p-0" />
     </div>
-    <RichTextEditorContent className="min-h-24 p-2" />
+    <RichTextEditorContent
+      className="min-h-24 p-2"
+      data-test={
+        categoryId
+          ? `create-workspace-category-${categoryId}-template-input`
+          : 'create-workspace-template-input'
+      }
+    />
   </RichTextEditor>
 );
 
@@ -182,8 +189,10 @@ export default function CreateWorkspacePage() {
 
                   <div className="pt-2">
                     <button
+                      type="button"
                       onClick={logout}
                       className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4"
+                      data-test="create-workspace-sign-out-link"
                     >
                       Sign out
                     </button>
@@ -265,12 +274,15 @@ export default function CreateWorkspacePage() {
                       variant="outline"
                       className="w-full"
                       onClick={() => window.location.reload()}
+                      data-test="create-workspace-refresh-invitations-button"
                     >
                       Refresh Invitations
                     </Button>
                     <button
+                      type="button"
                       onClick={logout}
                       className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4"
+                      data-test="create-workspace-sign-out-link"
                     >
                       Sign out
                     </button>
@@ -416,8 +428,14 @@ export default function CreateWorkspacePage() {
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground">Workspace name</label>
+                  <label
+                    htmlFor="create-workspace-name"
+                    className="text-sm font-semibold text-foreground"
+                  >
+                    Workspace name
+                  </label>
                   <Input
+                    id="create-workspace-name"
                     type="text"
                     placeholder="e.g. Acme Support Team"
                     required
@@ -425,6 +443,7 @@ export default function CreateWorkspacePage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     maxLength={100}
+                    data-test="create-workspace-name-input"
                   />
                   <p className="text-xs text-muted-foreground">
                     This is the main name your team will see across the app.
@@ -432,17 +451,22 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground">
+                  <label
+                    htmlFor="create-workspace-description"
+                    className="text-sm font-semibold text-foreground"
+                  >
                     Description{' '}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
                   <Input
+                    id="create-workspace-description"
                     type="text"
                     placeholder="What does this workspace handle?"
                     className="h-13 border-border text-base"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     maxLength={500}
+                    data-test="create-workspace-description-input"
                   />
                   <p className="text-xs text-muted-foreground">
                     Add a short summary to make this workspace easy to recognize.
@@ -450,13 +474,18 @@ export default function CreateWorkspacePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-foreground">
+                  <label
+                    htmlFor="create-workspace-logo"
+                    className="text-sm font-semibold text-foreground"
+                  >
                     Workspace logo{' '}
                     <span className="font-normal text-muted-foreground">(optional)</span>
                   </label>
                   <Input
+                    id="create-workspace-logo"
                     type="file"
                     accept={WORKSPACE_LOGO_ACCEPT}
+                    data-test="create-workspace-logo-input"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
                       if (!file) {
@@ -479,7 +508,11 @@ export default function CreateWorkspacePage() {
                   <p className="text-xs text-muted-foreground">
                     Choose and order the workflow columns for this workspace.
                   </p>
-                  <TicketStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
+                  <TicketStatusEditor
+                    items={statusDrafts}
+                    onChange={setStatusDrafts}
+                    dataTestPrefix="create-workspace"
+                  />
                 </div>
 
                 <div className="rounded-2xl border border-border bg-muted p-4">
@@ -497,6 +530,7 @@ export default function CreateWorkspacePage() {
                       onClick={() =>
                         setCategories((current) => [...current, createEmptyCategory()])
                       }
+                      data-test="create-workspace-category-add-button"
                     >
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
                       Add
@@ -512,6 +546,7 @@ export default function CreateWorkspacePage() {
                         >
                           <div className="flex items-start gap-2">
                             <Input
+                              id={`create-workspace-category-${category.id}-name`}
                               value={category.name}
                               onChange={(e) =>
                                 updateCategoryDraft(category.id, 'name', e.target.value)
@@ -519,6 +554,7 @@ export default function CreateWorkspacePage() {
                               placeholder={`Category ${index + 1}`}
                               className="h-10 border-border"
                               maxLength={50}
+                              data-test={`create-workspace-category-${category.id}-name-input`}
                             />
                             <div className="flex h-10 shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2">
                               {CATEGORY_COLORS.map((color) => (
@@ -533,6 +569,7 @@ export default function CreateWorkspacePage() {
                                       category.color === color ? '#1e293b' : 'transparent',
                                   }}
                                   aria-label={`Use ${color}`}
+                                  data-test={`create-workspace-category-${category.id}-color-${color.replace('#', '')}-button`}
                                 />
                               ))}
                             </div>
@@ -541,6 +578,7 @@ export default function CreateWorkspacePage() {
                               onClick={() => removeCategoryDraft(category.id)}
                               className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
                               aria-label="Remove category"
+                              data-test={`create-workspace-category-${category.id}-remove-button`}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -550,6 +588,7 @@ export default function CreateWorkspacePage() {
                             onChange={(html) =>
                               updateCategoryDraft(category.id, 'descriptionTemplate', html)
                             }
+                            categoryId={category.id}
                           />
                         </div>
                       ))}
@@ -561,6 +600,7 @@ export default function CreateWorkspacePage() {
                   type="submit"
                   disabled={createWorkspace.isPending || !name.trim()}
                   className="h-12 w-full text-base font-semibold"
+                  data-test="create-workspace-submit-button"
                 >
                   {createWorkspace.isPending ? 'Creating workspace...' : 'Create Workspace'}
                 </Button>

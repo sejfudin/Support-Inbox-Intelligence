@@ -26,6 +26,7 @@ export default function TicketsTabs({
                   <button
                     key={tab.key}
                     onClick={() => onChange(tab.key)}
+                    data-test={`tickets-tab-${tab.key}-tab`}
                     className={`flex flex-shrink-0 items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors ${
                       activeTab === tab.key
                         ? 'border-primary text-primary'

@@ -230,6 +230,7 @@ const NewTickets = ({
               onClick={() => handleDialogOpenChange(false)}
               className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
               aria-label="Close new ticket modal"
+              data-test="ticket-new-close-button"
             >
               <X className="w-5 h-5" />
             </button>
@@ -244,6 +245,7 @@ const NewTickets = ({
                 required
                 placeholder="Enter ticket subject…"
                 className="w-full min-w-0 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xl font-bold tracking-tight text-foreground outline-none transition sm:text-2xl placeholder:font-bold placeholder:text-muted-foreground hover:bg-muted focus:bg-card focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                data-test="ticket-new-subject-input"
               />
             </div>
 
@@ -271,7 +273,10 @@ const NewTickets = ({
                       </div>
                     </div>
                   </div>
-                  <RichTextEditorContent className="p-3 sm:p-4" />
+                  <RichTextEditorContent
+                    className="p-3 sm:p-4"
+                    data-test="ticket-new-description-input"
+                  />
                 </RichTextEditor>
 
                 <AiDescriptionPanel
@@ -316,6 +321,7 @@ const NewTickets = ({
                               type="button"
                               className="flex w-full items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between"
                               aria-label="Change assignees"
+                              data-test="ticket-new-assignees-trigger"
                             >
                               <span className="flex items-center gap-2 min-w-0 normal-case">
                                 {selectedUsersObjects.length > 0 ? (
@@ -367,6 +373,7 @@ const NewTickets = ({
                                       updateField('assignedTo', []);
                                     }}
                                     className="text-[10px] text-red-500 hover:underline font-bold"
+                                    data-test="ticket-new-assignees-clear-button"
                                   >
                                     Clear all
                                   </button>
@@ -381,11 +388,13 @@ const NewTickets = ({
                                         key={listUser._id}
                                         onClick={(e) => handleAgentToggle(listUser._id, e)}
                                         className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                        data-test={`ticket-new-assignee-option-${listUser._id}`}
                                       >
                                         <Checkbox
                                           checked={isSelected}
                                           className="pointer-events-none"
                                           onCheckedChange={() => {}}
+                                          data-test={`ticket-new-assignee-checkbox-${listUser._id}`}
                                         />
                                         <div className="flex flex-col min-w-0">
                                           <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
@@ -437,6 +446,7 @@ const NewTickets = ({
                           onClick={handleUseAiSuggestion}
                           disabled={!hasSuggestibleInput || isSuggesting}
                           title="AI suggest priority & story points"
+                          data-test="ticket-new-ai-suggest-button"
                           className={cn(
                             'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition',
                             !hasSuggestibleInput || isSuggesting
@@ -482,6 +492,7 @@ const NewTickets = ({
                         value={newTicket.dueDate}
                         onChange={(e) => updateField('dueDate', e.target.value)}
                         className="h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                        data-test="ticket-new-due-date-input"
                       />
                     </div>
 
@@ -500,6 +511,7 @@ const NewTickets = ({
                                 ? 'bg-foreground text-background border-foreground'
                                 : 'bg-muted text-muted-foreground border-border hover:bg-muted'
                             )}
+                            data-test="ticket-new-category-option-none"
                           >
                             None
                           </button>
@@ -508,6 +520,7 @@ const NewTickets = ({
                               key={cat._id}
                               type="button"
                               onClick={() => handleCategoryChange(cat)}
+                              data-test={`ticket-new-category-option-${cat._id}`}
                               className={cn(
                                 'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
                                 newTicket.category === cat._id
@@ -548,10 +561,17 @@ const NewTickets = ({
                 size="lg"
                 type="button"
                 onClick={() => handleDialogOpenChange(false)}
+                data-test="ticket-new-cancel-button"
               >
                 Cancel
               </Button>
-              <Button variant="default" size="lg" type="submit" disabled={isSubmitting}>
+              <Button
+                variant="default"
+                size="lg"
+                type="submit"
+                disabled={isSubmitting}
+                data-test="ticket-new-submit-button"
+              >
                 {createMutation.isPending ? 'Creating…' : 'Create Ticket'}
               </Button>
             </div>

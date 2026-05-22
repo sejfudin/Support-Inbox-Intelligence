@@ -99,7 +99,10 @@ export default function TicketComments({
       className="bg-card rounded-2xl border border-border shadow-md"
     >
       <AccordionItem value="activity" className="border-none">
-        <AccordionTrigger className="gap-2 border-b border-separator bg-muted/30 px-4 py-3 hover:bg-muted/60 hover:no-underline">
+        <AccordionTrigger
+          className="gap-2 border-b border-separator bg-muted/30 px-4 py-3 hover:bg-muted/60 hover:no-underline"
+          data-test="ticket-comments-accordion-trigger"
+        >
           <div className="flex items-center gap-2">
             <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">

@@ -76,26 +76,29 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
 
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className="cursor-pointer border-b border-border/70 transition-colors hover:bg-secondary/50"
-                  onClick={() => {
-                    const id = row.original.id ?? row.original._id;
-                    table.options.meta?.onRowClick?.(id, row.original);
-                  }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={`py-4 align-top ${cell.column.columnDef.meta?.cellClassName || ''}`}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const rowId = row.original.id ?? row.original._id;
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && 'selected'}
+                    className="cursor-pointer border-b border-border/70 transition-colors hover:bg-secondary/50"
+                    data-test={`tickets-table-row-${rowId}-card`}
+                    onClick={() => {
+                      table.options.meta?.onRowClick?.(rowId, row.original);
+                    }}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={`py-4 align-top ${cell.column.columnDef.meta?.cellClassName || ''}`}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
@@ -121,6 +124,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
             className="h-8 w-8"
             onClick={handlePrevious}
             disabled={!pagination || pagination.page <= 1}
+            data-test="tickets-table-pagination-prev-button"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -131,6 +135,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
             className="h-8 w-8"
             onClick={handleNext}
             disabled={!pagination || pagination.page >= pagination.pages}
+            data-test="tickets-table-pagination-next-button"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

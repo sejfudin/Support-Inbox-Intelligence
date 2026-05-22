@@ -131,6 +131,7 @@ export default function WorkspaceSwitcher({ className, compact = false }) {
         <Button
           variant="outline"
           size="sm"
+          data-test="workspace-switcher-trigger"
           className={cn(workspaceFaceClassName, 'font-normal hover:bg-muted/50', className)}
           disabled={isLoading || switchWorkspace.isPending}
         >
@@ -152,6 +153,7 @@ export default function WorkspaceSwitcher({ className, compact = false }) {
           return (
             <DropdownMenuItem
               key={wsId}
+              data-test={`workspace-switcher-option-${wsId}`}
               onClick={() => handleSwitch(wsId)}
               className="flex items-center gap-2"
             >

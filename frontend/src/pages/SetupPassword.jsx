@@ -129,6 +129,7 @@ export default function SetPassword() {
             <CardHeader className="space-y-3 border-b border-border/60 pb-6">
               <button
                 type="button"
+                data-test="setup-password-back-to-login-button"
                 onClick={() => navigate('/login')}
                 className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
@@ -155,6 +156,7 @@ export default function SetPassword() {
                     </label>
                     <Input
                       type="email"
+                      data-test="setup-password-email-input"
                       placeholder="your@company.com"
                       className={`h-12 ${
                         emailForm.formState.errors.email ? 'border-red-500' : 'border-border'
@@ -172,6 +174,7 @@ export default function SetPassword() {
 
                   <Button
                     type="submit"
+                    data-test="setup-password-email-continue-button"
                     disabled={emailChecking}
                     className="h-12 w-full text-base font-semibold"
                   >
@@ -204,6 +207,7 @@ export default function SetPassword() {
                       </label>
                       <Input
                         type="password"
+                        data-test="setup-password-password-input"
                         placeholder="••••••"
                         className={`h-12 ${
                           passwordForm.formState.errors.password
@@ -231,6 +235,7 @@ export default function SetPassword() {
                       </label>
                       <Input
                         type="password"
+                        data-test="setup-password-confirm-password-input"
                         placeholder="••••••"
                         className={`h-12 ${
                           passwordForm.formState.errors.confirmPassword
@@ -249,12 +254,17 @@ export default function SetPassword() {
                       )}
                     </div>
 
-                    <Button type="submit" className="h-12 w-full text-base font-semibold">
+                    <Button
+                      type="submit"
+                      data-test="setup-password-activate-button"
+                      className="h-12 w-full text-base font-semibold"
+                    >
                       Activate Account
                     </Button>
 
                     <button
                       type="button"
+                      data-test="setup-password-use-different-email-button"
                       onClick={() => {
                         setInviteInfo(null);
                         setError('');

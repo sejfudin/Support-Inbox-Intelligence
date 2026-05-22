@@ -105,8 +105,10 @@ export default function WorkspaceDetailPage() {
 
     setHeader(
       <button
+        type="button"
         onClick={() => navigate(isPlatformAdmin(user) ? '/admin/workspaces' : '/dashboard')}
         className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        data-test="workspace-detail-back-link"
       >
         <ArrowLeft className="h-4 w-4" />
         {isPlatformAdmin(user) ? 'All Workspaces' : 'Dashboard'}
@@ -222,6 +224,7 @@ export default function WorkspaceDetailPage() {
                   variant="outline"
                   onClick={handleSwitchWorkspace}
                   disabled={switchWorkspace.isPending}
+                  data-test="workspace-detail-switch-button"
                 >
                   {switchWorkspace.isPending ? 'Switching...' : 'Switch Workspace'}
                 </Button>
@@ -230,6 +233,7 @@ export default function WorkspaceDetailPage() {
                 variant="outline"
                 onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
                 className="gap-2"
+                data-test="workspace-detail-settings-button"
               >
                 <Settings className="h-4 w-4" />
                 Workspace Settings
@@ -238,11 +242,16 @@ export default function WorkspaceDetailPage() {
                 variant="outline"
                 onClick={() => navigate(`/tickets?workspaceId=${id}`)}
                 className="gap-2"
+                data-test="workspace-detail-view-tickets-button"
               >
                 <Ticket className="h-4 w-4" />
                 View Tickets
               </Button>
-              <Button onClick={() => setIsInviteOpen(true)} className="gap-2">
+              <Button
+                onClick={() => setIsInviteOpen(true)}
+                className="gap-2"
+                data-test="workspace-detail-invite-button"
+              >
                 <UserPlus className="h-4 w-4" />
                 Add Existing User
               </Button>
@@ -269,8 +278,10 @@ export default function WorkspaceDetailPage() {
               {workspace.owner?._id?.toString() === currentUserId?.toString() &&
                 activeMembers.length > 1 && (
                   <button
+                    type="button"
                     onClick={() => setIsTransferOpen(true)}
                     className="text-xs font-medium text-blue-600 hover:underline"
+                    data-test="workspace-detail-transfer-ownership-button"
                   >
                     Transfer
                   </button>
@@ -327,6 +338,7 @@ export default function WorkspaceDetailPage() {
                           onClick={() => handleRemoveMember(member)}
                           disabled={removeMember.isPending}
                           className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
+                          data-test={`workspace-detail-member-${memberId}-remove-button`}
                         >
                           <UserMinus className="h-4 w-4" />
                           Remove
@@ -375,6 +387,7 @@ export default function WorkspaceDetailPage() {
                       onClick={() => handleRemoveMember({ user: invitation.user })}
                       disabled={removeMember.isPending}
                       className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      data-test={`workspace-detail-invitation-${invitation._id}-cancel-button`}
                     >
                       <UserMinus className="h-4 w-4" />
                       Cancel
@@ -410,26 +423,39 @@ export default function WorkspaceDetailPage() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Registered user</label>
+              <label htmlFor="workspace-detail-invite-user" className="text-sm font-medium">
+                Registered user
+              </label>
               <Select
                 value={inviteForm.userId}
                 onValueChange={(value) =>
                   setInviteForm((current) => ({ ...current, userId: value }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="workspace-detail-invite-user"
+                  data-test="workspace-detail-invite-user-select"
+                >
                   <SelectValue
                     placeholder={loadingUsers ? 'Loading users...' : 'Choose a registered user'}
                   />
                 </SelectTrigger>
                 <SelectContent>
                   {availableUsers.length === 0 ? (
-                    <SelectItem value="no-users" disabled>
+                    <SelectItem
+                      value="no-users"
+                      disabled
+                      data-test="workspace-detail-invite-user-option-empty"
+                    >
                       No available platform users
                     </SelectItem>
                   ) : (
                     availableUsers.map((platformUser) => (
-                      <SelectItem key={platformUser._id} value={platformUser._id}>
+                      <SelectItem
+                        key={platformUser._id}
+                        value={platformUser._id}
+                        data-test={`workspace-detail-invite-user-option-${platformUser._id}`}
+                      >
                         {platformUser.fullname} ({platformUser.email})
                       </SelectItem>
                     ))
@@ -448,17 +474,26 @@ export default function WorkspaceDetailPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Workspace role</label>
+              <label htmlFor="workspace-detail-invite-role" className="text-sm font-medium">
+                Workspace role
+              </label>
               <Select
                 value={inviteForm.role}
                 onValueChange={(value) => setInviteForm((current) => ({ ...current, role: value }))}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="workspace-detail-invite-role"
+                  data-test="workspace-detail-invite-role-select"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="member" data-test="workspace-detail-invite-role-option-member">
+                    Member
+                  </SelectItem>
+                  <SelectItem value="admin" data-test="workspace-detail-invite-role-option-admin">
+                    Admin
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -473,10 +508,19 @@ export default function WorkspaceDetailPage() {
             </div>
 
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsInviteOpen(false)}
+                data-test="workspace-detail-invite-cancel-button"
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={inviteMember.isPending || !inviteForm.userId}>
+              <Button
+                type="submit"
+                disabled={inviteMember.isPending || !inviteForm.userId}
+                data-test="workspace-detail-invite-submit-button"
+              >
                 {inviteMember.isPending ? 'Saving...' : 'Save Member'}
               </Button>
             </DialogFooter>
@@ -549,12 +593,17 @@ export default function WorkspaceDetailPage() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">New Owner</label>
+              <label htmlFor="workspace-detail-transfer-owner" className="text-sm font-medium">
+                New Owner
+              </label>
               <Select
                 value={selectedNewOwner}
                 onValueChange={(value) => setSelectedNewOwner(value)}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="workspace-detail-transfer-owner"
+                  data-test="workspace-detail-transfer-owner-select"
+                >
                   <SelectValue placeholder="Select a new owner" />
                 </SelectTrigger>
                 <SelectContent>
@@ -562,7 +611,11 @@ export default function WorkspaceDetailPage() {
                     const memberId = (m.user?._id || m.user)?.toString();
                     return memberId !== workspace.owner?._id?.toString();
                   }).length === 0 ? (
-                    <SelectItem value="no-members" disabled>
+                    <SelectItem
+                      value="no-members"
+                      disabled
+                      data-test="workspace-detail-transfer-owner-option-empty"
+                    >
                       No eligible members found
                     </SelectItem>
                   ) : (
@@ -575,7 +628,11 @@ export default function WorkspaceDetailPage() {
                         const memberUser = member.user;
                         const memberId = memberUser?._id || memberUser;
                         return (
-                          <SelectItem key={memberId} value={memberId?.toString()}>
+                          <SelectItem
+                            key={memberId}
+                            value={memberId?.toString()}
+                            data-test={`workspace-detail-transfer-owner-option-${memberId}`}
+                          >
                             {memberUser?.fullname || 'Unnamed'} ({memberUser?.email})
                           </SelectItem>
                         );
@@ -594,10 +651,19 @@ export default function WorkspaceDetailPage() {
             </div>
 
             <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setIsTransferOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsTransferOpen(false)}
+                data-test="workspace-detail-transfer-cancel-button"
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={updateWorkspace.isPending || !selectedNewOwner}>
+              <Button
+                type="submit"
+                disabled={updateWorkspace.isPending || !selectedNewOwner}
+                data-test="workspace-detail-transfer-submit-button"
+              >
                 {updateWorkspace.isPending ? 'Transferring...' : 'Transfer Ownership'}
               </Button>
             </DialogFooter>

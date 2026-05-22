@@ -103,6 +103,7 @@ export default function UserDashboard() {
           title="Dashboard"
           subtitle="Track your assigned tickets"
           hideNewTicket={true}
+          dataTestPrefix="dashboard"
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           hideViewMode={isMobile}

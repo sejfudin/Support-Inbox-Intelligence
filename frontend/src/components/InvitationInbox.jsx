@@ -97,6 +97,7 @@ export default function InvitationInbox({
                   onClick={() => onAccept(invitationId)}
                   disabled={isLoadingAction}
                   className="w-full gap-2 sm:w-auto"
+                  data-test={`invitations-${invitationId}-accept-button`}
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {isLoadingAction ? 'Saving...' : 'Accept Invitation'}
@@ -106,6 +107,7 @@ export default function InvitationInbox({
                   onClick={() => onDecline(invitationId)}
                   disabled={isLoadingAction}
                   className="w-full gap-2 sm:w-auto"
+                  data-test={`invitations-${invitationId}-decline-button`}
                 >
                   <MailX className="h-4 w-4" />
                   Ignore

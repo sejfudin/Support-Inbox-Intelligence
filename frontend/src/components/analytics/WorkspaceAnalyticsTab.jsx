@@ -50,7 +50,11 @@ export default function WorkspaceAnalyticsTab({ workspaceAnalytics, days, onDays
           </div>
 
           <div className="flex items-center gap-3">
-            <AnalyticsPeriodSelect days={days} onDaysChange={onDaysChange} />
+            <AnalyticsPeriodSelect
+              days={days}
+              onDaysChange={onDaysChange}
+              dataTestPrefix="analytics-workspace"
+            />
           </div>
         </div>
       </div>

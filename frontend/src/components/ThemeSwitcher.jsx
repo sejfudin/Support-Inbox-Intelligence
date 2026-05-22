@@ -63,6 +63,7 @@ function ModeToggle({ className, size = 'sm' }) {
         <ToggleGroupItem
           key={value}
           value={value}
+          data-test={`theme-mode-${value}-button`}
           aria-label={label}
           className="flex flex-1 items-center justify-center gap-2.5 rounded-md px-2 py-1.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
         >
@@ -89,6 +90,7 @@ function PaletteGrid({ className }) {
           <button
             key={theme.id}
             type="button"
+            data-test={`theme-palette-${theme.id}-button`}
             onClick={() => setColorTheme(theme.id)}
             className={cn(
               'relative flex flex-col items-start gap-1 rounded-xl border p-2 text-left transition-colors',
@@ -136,7 +138,11 @@ function ThemeAppearanceMenu({ align = 'end' }) {
         }}
       >
         {MODE_OPTIONS.map(({ value, label, icon: Icon }) => (
-          <DropdownMenuRadioItem key={value} value={value}>
+          <DropdownMenuRadioItem
+            key={value}
+            value={value}
+            data-test={`theme-appearance-mode-${value}-radio`}
+          >
             <span className="flex items-center gap-2.5">
               <Icon className="size-4 shrink-0" />
               {label}
@@ -148,7 +154,11 @@ function ThemeAppearanceMenu({ align = 'end' }) {
       <DropdownMenuLabel className="text-xs text-muted-foreground">Color palette</DropdownMenuLabel>
       <DropdownMenuRadioGroup value={colorTheme} onValueChange={setColorTheme}>
         {themes.map((t) => (
-          <DropdownMenuRadioItem key={t.id} value={t.id}>
+          <DropdownMenuRadioItem
+            key={t.id}
+            value={t.id}
+            data-test={`theme-appearance-palette-${t.id}-radio`}
+          >
             {t.label}
           </DropdownMenuRadioItem>
         ))}
@@ -173,6 +183,7 @@ export function ThemeSwitcherIcon() {
         type="button"
         variant="ghost"
         size="icon"
+        data-test="theme-switcher-trigger"
         className={topBarIconButtonClass}
         disabled
         aria-label="Theme"
@@ -189,6 +200,7 @@ export function ThemeSwitcherIcon() {
           type="button"
           variant="ghost"
           size="icon"
+          data-test="theme-switcher-trigger"
           className={topBarIconButtonClass}
           aria-label="Change theme"
         >
@@ -212,7 +224,13 @@ export function ThemeSwitcherCompact() {
 
   if (!mounted) {
     return (
-      <Button variant="outline" size="sm" className="w-full justify-start" disabled>
+      <Button
+        variant="outline"
+        size="sm"
+        data-test="theme-switcher-compact-trigger"
+        className="w-full justify-start"
+        disabled
+      >
         <Palette className="size-4" />
         Theme
       </Button>
@@ -222,7 +240,12 @@ export function ThemeSwitcherCompact() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          data-test="theme-switcher-compact-trigger"
+          className="w-full justify-start gap-2"
+        >
           <Palette className="size-4 shrink-0" />
           <span className="truncate">{activePalette?.label ?? 'Theme'}</span>
         </Button>
