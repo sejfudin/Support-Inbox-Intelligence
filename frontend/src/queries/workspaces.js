@@ -14,8 +14,8 @@ import {
   uploadWorkspaceLogo,
   deleteWorkspaceLogo,
 } from '@/api/workspaces';
-import { authKeys } from '@/queries/auth';
 import { applyActiveWorkspaceChange } from '@/lib/workspaceQueryCache';
+import { invalidateUserScope, invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 
 export const workspaceKeys = {
   all: ['workspaces'],
@@ -66,11 +66,7 @@ export const useCreateWorkspace = () => {
     onSuccess: (workspace) => {
       const workspaceId = workspace?._id ?? workspace?.id;
       applyActiveWorkspaceChange(queryClient, workspaceId);
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
-      if (workspaceId) {
-        queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) });
-      }
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -81,8 +77,7 @@ export const useUpdateWorkspace = (id) => {
   return useMutation({
     mutationFn: (data) => updateWorkspace(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
+      invalidateWorkspaceScope(queryClient, id);
     },
   });
 };
@@ -93,7 +88,7 @@ export const useInviteWorkspaceMember = (workspaceId) => {
   return useMutation({
     mutationFn: (data) => inviteWorkspaceMember(workspaceId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) });
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -105,10 +100,7 @@ export const useSwitchWorkspace = () => {
     mutationFn: switchWorkspace,
     onSuccess: (_, workspaceId) => {
       applyActiveWorkspaceChange(queryClient, workspaceId);
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
-      if (workspaceId) {
-        queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) });
-      }
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -120,8 +112,7 @@ export const useDeleteWorkspace = () => {
     mutationFn: deleteWorkspace,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
-      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+      invalidateUserScope(queryClient);
     },
   });
 };
@@ -132,7 +123,7 @@ export const useRemoveWorkspaceMember = (workspaceId) => {
   return useMutation({
     mutationFn: (userId) => removeWorkspaceMember(workspaceId, userId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) });
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -163,9 +154,7 @@ export const useUploadWorkspaceLogo = (id) => {
   return useMutation({
     mutationFn: (file) => uploadWorkspaceLogo(id, file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
+      invalidateWorkspaceScope(queryClient, id);
     },
   });
 };
@@ -176,9 +165,7 @@ export const useDeleteWorkspaceLogo = (id) => {
   return useMutation({
     mutationFn: () => deleteWorkspaceLogo(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() });
+      invalidateWorkspaceScope(queryClient, id);
     },
   });
 };

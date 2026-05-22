@@ -21,7 +21,12 @@ router.get('/callback', handleCallback);
 
 // Integration management routes
 router.get('/workspaces/:workspaceId/integration', protect, getIntegration);
-router.patch('/workspaces/:workspaceId/integration', protect, requireWorkspaceManager, updateIntegration);
+router.patch(
+  '/workspaces/:workspaceId/integration',
+  protect,
+  requireWorkspaceManager,
+  updateIntegration
+);
 router.delete(
   '/workspaces/:workspaceId/integration',
   protect,

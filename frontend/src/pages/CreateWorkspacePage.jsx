@@ -13,7 +13,8 @@ import {
 } from '@/components/ui/rich-text-editor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import InvitationInbox from '@/components/InvitationInbox';
-import { useCreateWorkspace, workspaceKeys } from '@/queries/workspaces';
+import { useCreateWorkspace } from '@/queries/workspaces';
+import { invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 import TicketStatusEditor from '@/components/TicketStatusEditor';
 import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
 import { validateStatusDrafts } from '@/helpers/validateStatusDrafts';
@@ -334,11 +335,7 @@ export default function CreateWorkspacePage() {
       if (logoFile && workspaceId) {
         try {
           await uploadWorkspaceLogo(workspaceId, logoFile);
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: workspaceKeys.detail(workspaceId) }),
-            queryClient.invalidateQueries({ queryKey: workspaceKeys.mine() }),
-            queryClient.invalidateQueries({ queryKey: workspaceKeys.allAdmin() }),
-          ]);
+          invalidateWorkspaceScope(queryClient, workspaceId);
         } catch (uploadErr) {
           toast.error(
             uploadErr?.response?.data?.message || 'Workspace created, but logo upload failed.'

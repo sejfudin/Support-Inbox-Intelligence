@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { badgeTone } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
 
-const PR_STATE_CONFIG = {
+export const PR_STATE_CONFIG = {
   open: {
     variant: 'success',
     icon: GitPullRequest,

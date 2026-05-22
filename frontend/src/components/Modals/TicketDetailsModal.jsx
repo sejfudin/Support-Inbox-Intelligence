@@ -61,6 +61,7 @@ import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
 import { Button } from '@/components/ui/button';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useSocket } from '@/context/SocketContext';
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 const sanitizeDisplaySubject = (value) =>
@@ -77,6 +78,7 @@ export const TicketDetailsModal = ({
   onFocusConsumed = null,
 }) => {
   const { user } = useAuth();
+  const { socket, isConnected } = useSocket();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -216,6 +218,17 @@ export const TicketDetailsModal = ({
     window.addEventListener('scroll', handleAnyScroll, true);
     return () => window.removeEventListener('scroll', handleAnyScroll, true);
   }, []);
+
+  useEffect(() => {
+    if (!socket || !isConnected || !isOpen || !ticketId) return undefined;
+
+    socket.emit('join_ticket', { ticketId });
+
+    return () => {
+      socket.emit('leave_ticket', { ticketId });
+    };
+  }, [socket, isConnected, isOpen, ticketId]);
+
   const workspaceId =
     typeof ticket?.workspace === 'string'
       ? ticket.workspace

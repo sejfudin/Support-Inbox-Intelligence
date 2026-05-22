@@ -16,6 +16,7 @@ const {
 } = require('../services/statusAutomationService');
 const historyService = require('../services/historyService');
 const statusService = require('../services/statusService');
+const { emitTicketEvent } = require('../socket/events');
 
 /**
  * Initiates GitHub App installation flow.
@@ -458,6 +459,28 @@ const handlePullRequestEvent = async (payload) => {
     if (automationResult && automationResult.result === AUTOMATION_RESULT.ERROR) {
       console.error(`Auto-move error for ticket ${result.taskNumber}:`, automationResult.message);
     }
+
+    emitTicketEvent({
+      ticketId: result.ticketId,
+      workspaceId: integration.workspace,
+      eventName: 'ticket:updated',
+      extra: {
+        prNumber: prData.prNumber,
+        prAction: result.result === LINK_RESULT.LINKED ? 'linked' : 'refreshed',
+      },
+    });
+
+    if (automationResult?.result === AUTOMATION_RESULT.STATUS_UPDATED) {
+      emitTicketEvent({
+        ticketId: result.ticketId,
+        workspaceId: integration.workspace,
+        eventName: 'ticket:moved',
+        extra: {
+          prNumber: prData.prNumber,
+          status: automationResult.newStatus,
+        },
+      });
+    }
   }
 };
 
@@ -533,6 +556,16 @@ const refreshPR = async (req, res) => {
     ticket.linkedPullRequest = updatedPR;
     await ticket.save();
 
+    emitTicketEvent({
+      ticketId,
+      workspaceId: ticket.workspace,
+      eventName: 'ticket:updated',
+      extra: {
+        prNumber: updatedPR.prNumber,
+        prAction: 'refreshed',
+      },
+    });
+
     res.json({
       success: true,
       data: updatedPR,
@@ -587,6 +620,16 @@ const unlinkPR = async (req, res) => {
     await ticket.save();
 
     historyService.logEvent(ticketId, req.user._id, `PR #${unlinkedPrNumber} unlinked`);
+
+    emitTicketEvent({
+      ticketId,
+      workspaceId: ticket.workspace,
+      eventName: 'ticket:updated',
+      extra: {
+        prNumber: unlinkedPrNumber,
+        prAction: 'unlinked',
+      },
+    });
 
     res.json({
       success: true,

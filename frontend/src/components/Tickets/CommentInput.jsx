@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useCommentMentions } from '@/hooks/useCommentMentions';
+import { invalidateTicketScope } from '@/lib/invalidationScopes';
 
 export const CommentInput = ({ ticketId, users = [] }) => {
   const [newComment, setNewComment] = useState('');
@@ -83,7 +84,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
               queryClient.invalidateQueries({
                 queryKey: ['comment-images', createdComment._id],
               });
-              queryClient.invalidateQueries({ queryKey: ['comments', ticketId] });
+              invalidateTicketScope(queryClient, ticketId);
             }
             setNewComment('');
             setSelectedImages([]);

@@ -5,6 +5,17 @@ const User = require('../models/User');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
+const { emitCommentEvent } = require('../socket/events');
+
+const COMMENT_SOCKET_EVENTS = {
+  created: 'comment:created',
+  updated: 'comment:updated',
+  deleted: 'comment:deleted',
+};
+
+const emitCommentTicketEvent = ({ eventName, ticketId, workspaceId, commentId }) => {
+  emitCommentEvent({ eventName, ticketId, workspaceId, commentId });
+};
 
 const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
   if (!content || !content.trim()) throw new Error('Comment content is required');
@@ -33,6 +44,13 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
   historyService.logEvent(ticket, authorId, 'Comment Added');
 
   const populated = await comment.populate('author', 'fullname email');
+
+  emitCommentTicketEvent({
+    eventName: COMMENT_SOCKET_EVENTS.created,
+    ticketId: ticket,
+    workspaceId: foundTicket.workspace,
+    commentId: comment._id,
+  });
 
   let mentionRecipientIds = [];
   try {
@@ -123,6 +141,13 @@ const updateComment = async (commentId, content, userId) => {
 
   historyService.logEvent(comment.ticket._id, userId, 'Comment edited');
 
+  emitCommentTicketEvent({
+    eventName: COMMENT_SOCKET_EVENTS.updated,
+    ticketId: comment.ticket._id,
+    workspaceId: comment.ticket.workspace,
+    commentId: comment._id,
+  });
+
   return comment.populate('author', 'fullname email');
 };
 
@@ -145,6 +170,13 @@ const deleteComment = async (commentId, userId, role) => {
   await comment.save();
 
   historyService.logEvent(comment.ticket._id, userId, 'Comment deleted');
+
+  emitCommentTicketEvent({
+    eventName: COMMENT_SOCKET_EVENTS.deleted,
+    ticketId: comment.ticket._id,
+    workspaceId: comment.ticket.workspace,
+    commentId: comment._id,
+  });
 
   return { message: 'Comment removed successfully' };
 };
