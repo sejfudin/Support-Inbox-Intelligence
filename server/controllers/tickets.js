@@ -277,7 +277,7 @@ const archiveTicket = async (req, res, next) => {
 
 const getMyTickets = async (req, res, next) => {
   try {
-    const { page, limit, search, status, priority, priorities, priorityOrder, sortBy, sortOrder } =
+    const { page, limit, search, status, statusId, priority, priorities, priorityOrder, sortBy, sortOrder } =
       req.query;
 
     const result = await ticketService.getMyTickets({
@@ -287,6 +287,7 @@ const getMyTickets = async (req, res, next) => {
       limit: parseInt(limit, 10) || 10,
       search: search || '',
       status: status || '',
+      statusId: statusId || '',
       priority: priority || '',
       priorities: priorities || '',
       priorityOrder: priorityOrder || 'none',

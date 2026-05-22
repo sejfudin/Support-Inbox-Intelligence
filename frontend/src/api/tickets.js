@@ -5,6 +5,7 @@ export const getAllTickets = async ({
   limit,
   search,
   status,
+  statusId,
   priority,
   priorities,
   assigneeIds,
@@ -20,6 +21,7 @@ export const getAllTickets = async ({
       limit,
       search,
       status,
+      statusId,
       priority,
       priorities,
       assigneeIds,
@@ -65,11 +67,13 @@ export const getMyTickets = async ({
   limit,
   search,
   status,
+  statusId,
   priority,
   priorities,
   priorityOrder,
   sortBy,
   sortOrder,
+  workspaceId,
 } = {}) => {
   const response = await apiClient.get('/tickets/my-tickets', {
     params: {
@@ -77,11 +81,13 @@ export const getMyTickets = async ({
       limit,
       search,
       status,
+      statusId,
       priority,
       priorities,
       priorityOrder,
       sortBy,
       sortOrder,
+      workspaceId,
     },
   });
   return response.data;

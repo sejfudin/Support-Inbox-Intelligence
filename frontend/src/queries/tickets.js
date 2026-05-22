@@ -13,7 +13,9 @@ import {
   uploadTicketDescriptionImages,
   deleteTicketDescriptionImage,
 } from '@/api/tickets';
+import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 import { invalidateTicketScope, invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
+import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 
 export const useTickets = (params, options = {}) => {
   return useQuery({
@@ -50,6 +52,8 @@ export const useCreateTicket = () => {
     onSuccess: (ticket) => {
       const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
       invalidateWorkspaceTicketsScope(queryClient, workspaceId);
+      queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+      invalidateAnalyticsQueries(queryClient, workspaceId);
     },
   });
 };
@@ -64,6 +68,8 @@ export const useUpdateTicket = () => {
         variables.workspaceId ?? ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
       invalidateTicketScope(queryClient, variables.ticketId);
       invalidateWorkspaceTicketsScope(queryClient, workspaceId);
+      queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+      invalidateAnalyticsQueries(queryClient, workspaceId);
     },
   });
 };
