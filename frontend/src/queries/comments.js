@@ -8,6 +8,7 @@ import {
   uploadCommentImages,
   deleteCommentImage,
 } from '@/api/comments';
+import { invalidateTicketScope } from '@/lib/invalidationScopes';
 
 export const useComments = (ticketId) => {
   return useQuery({
@@ -23,8 +24,7 @@ export const useCreateComment = () => {
   return useMutation({
     mutationFn: createComment,
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['comments', variables.ticketId] });
-      queryClient.invalidateQueries({ queryKey: ['ticket-history', variables.ticketId] });
+      invalidateTicketScope(queryClient, variables.ticketId);
     },
   });
 };
@@ -34,7 +34,7 @@ export const useUpdateComment = (ticketId) => {
   return useMutation({
     mutationFn: ({ commentId, content }) => updateComment(commentId, content),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', ticketId] });
+      invalidateTicketScope(queryClient, ticketId);
     },
   });
 };
@@ -45,7 +45,7 @@ export const useDeleteComment = (ticketId) => {
   return useMutation({
     mutationFn: deleteComment,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', ticketId] });
+      invalidateTicketScope(queryClient, ticketId);
     },
   });
 };

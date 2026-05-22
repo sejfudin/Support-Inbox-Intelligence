@@ -1,6 +1,14 @@
 const Invitation = require('../models/Invitation');
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
+const { sendToUser } = require('../socket/socketServer');
+const { invalidationScopes } = require('../socket/invalidationScopes');
+
+const emitInvitationInvalidation = (userId) => {
+  sendToUser(userId, 'CACHE_INVALIDATED', {
+    scopes: [invalidationScopes.user(userId)],
+  });
+};
 
 const prepareInvitedUser = async ({ user, fullName, normalizedEmail, inviterId }) => {
   const inviteUser = user || new User();
@@ -74,6 +82,8 @@ const createWorkspaceInvitation = async ({
     workspaceRole,
   });
 
+  emitInvitationInvalidation(user._id);
+
   return {
     message: isActiveUser ? 'Invitation sent in-app' : 'User created and invitation sent',
     invitation,
@@ -100,6 +110,8 @@ const inviteExistingUserToWorkspace = async ({
     invitedBy: inviterId,
     workspaceRole,
   });
+
+  emitInvitationInvalidation(user._id);
 
   return {
     message: 'Invitation sent in-app',
@@ -157,6 +169,8 @@ const acceptInvitation = async ({ invitationId, userId }) => {
   invitation.respondedAt = new Date();
   await invitation.save();
 
+  emitInvitationInvalidation(userId);
+
   return { message: 'Invitation accepted', workspaceId: workspace._id };
 };
 
@@ -173,6 +187,8 @@ const declineInvitation = async ({ invitationId, userId }) => {
   invitation.respondedAt = new Date();
   await invitation.save();
 
+  emitInvitationInvalidation(userId);
+
   return { message: 'Invitation declined' };
 };
 
@@ -181,6 +197,7 @@ const cancelWorkspaceInvitationsForUser = async ({ workspaceId, userId }) => {
     { workspace: workspaceId, user: userId, status: 'pending' },
     { $set: { status: 'cancelled', respondedAt: new Date() } }
   );
+  emitInvitationInvalidation(userId);
 };
 
 module.exports = {

@@ -8,6 +8,7 @@ import {
   refreshPR,
   unlinkPR,
 } from '@/api/github';
+import { invalidateTicketScope, invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 
 export const useIntegration = (workspaceId) => {
   return useQuery({
@@ -37,7 +38,7 @@ export const useUpdateIntegration = () => {
   return useMutation({
     mutationFn: ({ workspaceId, data }) => updateIntegration(workspaceId, data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['integration', variables.workspaceId] });
+      invalidateWorkspaceScope(queryClient, variables.workspaceId);
     },
   });
 };
@@ -48,7 +49,7 @@ export const useDisconnectIntegration = () => {
   return useMutation({
     mutationFn: disconnectIntegration,
     onSuccess: (_, workspaceId) => {
-      queryClient.invalidateQueries({ queryKey: ['integration', workspaceId] });
+      invalidateWorkspaceScope(queryClient, workspaceId);
     },
   });
 };
@@ -59,7 +60,7 @@ export const useRefreshPR = () => {
   return useMutation({
     mutationFn: ({ ticketId, workspaceId }) => refreshPR(ticketId, workspaceId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', variables.ticketId] });
+      invalidateTicketScope(queryClient, variables.ticketId);
     },
   });
 };
@@ -70,7 +71,7 @@ export const useUnlinkPR = () => {
   return useMutation({
     mutationFn: unlinkPR,
     onSuccess: (_, ticketId) => {
-      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
+      invalidateTicketScope(queryClient, ticketId);
     },
   });
 };

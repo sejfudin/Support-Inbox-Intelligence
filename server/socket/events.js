@@ -1,0 +1,136 @@
+const { broadcastToTicket, broadcastToWorkspaceTicketAndUsers } = require('./socketServer');
+const { invalidationScopes } = require('./invalidationScopes');
+const User = require('../models/User');
+const Workspace = require('../models/Workspace');
+
+const toSocketId = (value) => {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+
+  if (typeof value === 'object') {
+    if (typeof value.toHexString === 'function') return value.toHexString();
+    if (value._id) return toSocketId(value._id);
+    if (value.id) return String(value.id);
+  }
+
+  if (typeof value.toString === 'function') return value.toString();
+  return null;
+};
+
+const buildTicketScopes = ({ ticketId, workspaceId }) => {
+  const scopes = [];
+
+  if (workspaceId) {
+    scopes.push(invalidationScopes.workspaceTickets(workspaceId));
+  }
+
+  if (ticketId) {
+    scopes.push(invalidationScopes.ticket(ticketId));
+  }
+
+  return scopes;
+};
+
+const getWorkspaceAudienceUserIds = async (workspaceId) => {
+  try {
+    const [workspace, users] = await Promise.all([
+      Workspace.findById(workspaceId).select('owner members.user members.status').lean(),
+      User.find({
+        active: true,
+        status: 'active',
+        $or: [{ role: 'admin' }, { workspaceId }],
+      })
+        .select('_id')
+        .lean(),
+    ]);
+
+    const userIds = new Set(users.map((user) => toSocketId(user._id)).filter(Boolean));
+
+    if (workspace?.owner) {
+      userIds.add(toSocketId(workspace.owner));
+    }
+
+    (workspace?.members || []).forEach((member) => {
+      if (member?.status === 'active' && member.user) {
+        userIds.add(toSocketId(member.user));
+      }
+    });
+
+    return [...userIds];
+  } catch (error) {
+    return [];
+  }
+};
+
+const emitTicketEvent = async ({ eventName, ticketId, workspaceId, extra = {}, options = {} }) => {
+  const resolvedTicketId = toSocketId(ticketId);
+  const resolvedWorkspaceId = toSocketId(workspaceId);
+
+  if (!resolvedTicketId || !resolvedWorkspaceId) return false;
+
+  const audienceUserIds = await getWorkspaceAudienceUserIds(resolvedWorkspaceId);
+
+  return broadcastToWorkspaceTicketAndUsers(
+    resolvedWorkspaceId,
+    resolvedTicketId,
+    audienceUserIds,
+    eventName,
+    {
+      ticketId: resolvedTicketId,
+      workspaceId: resolvedWorkspaceId,
+      scopes: buildTicketScopes({
+        ticketId: resolvedTicketId,
+        workspaceId: resolvedWorkspaceId,
+      }),
+      ...extra,
+    },
+    options
+  );
+};
+
+const emitCommentEvent = ({
+  eventName,
+  ticketId,
+  workspaceId,
+  commentId,
+  extra = {},
+  options = {},
+}) => {
+  const resolvedTicketId = toSocketId(ticketId);
+  const resolvedWorkspaceId = toSocketId(workspaceId);
+  const resolvedCommentId = toSocketId(commentId);
+
+  if (!resolvedTicketId) return false;
+
+  const payload = {
+    ticketId: resolvedTicketId,
+    workspaceId: resolvedWorkspaceId,
+    commentId: resolvedCommentId,
+    scopes: buildTicketScopes({ ticketId: resolvedTicketId }),
+    ...extra,
+  };
+
+  if (resolvedWorkspaceId) {
+    getWorkspaceAudienceUserIds(resolvedWorkspaceId).then((audienceUserIds) =>
+      broadcastToWorkspaceTicketAndUsers(
+        resolvedWorkspaceId,
+        resolvedTicketId,
+        audienceUserIds,
+        eventName,
+        payload,
+        options
+      )
+    );
+
+    return true;
+  }
+
+  return broadcastToTicket(resolvedTicketId, eventName, payload, options);
+};
+
+module.exports = {
+  toSocketId,
+  emitTicketEvent,
+  emitCommentEvent,
+};

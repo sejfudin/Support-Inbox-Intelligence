@@ -1,4 +1,25 @@
 const attachmentImageService = require('../services/attachmentImage');
+const Comment = require('../models/Comment');
+const Ticket = require('../models/Ticket');
+const { emitCommentEvent, toSocketId } = require('../socket/events');
+
+const emitCommentImageInvalidation = async (commentId) => {
+  const comment = await Comment.findById(commentId).select('ticket').lean();
+  const ticketId = toSocketId(comment?.ticket);
+  const resolvedCommentId = toSocketId(commentId);
+
+  if (!ticketId || !resolvedCommentId) return;
+
+  const ticket = await Ticket.findById(ticketId).select('workspace').lean();
+  const workspaceId = toSocketId(ticket?.workspace);
+
+  emitCommentEvent({
+    eventName: 'comment:updated',
+    ticketId,
+    workspaceId,
+    commentId: resolvedCommentId,
+  });
+};
 
 const handleError = (res, error) => {
   const status = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
@@ -109,6 +130,8 @@ const uploadCommentImages = async (req, res) => {
       uploadedByUserId,
     });
 
+    await emitCommentImageInvalidation(commentId);
+
     return res.status(201).json({
       success: true,
       message: 'Comment images uploaded successfully.',
@@ -129,6 +152,8 @@ const deleteCommentImage = async (req, res) => {
       imageId,
     });
 
+    await emitCommentImageInvalidation(commentId);
+
     return res.status(200).json({
       success: true,
       message: 'Comment image deleted successfully.',
@@ -146,6 +171,8 @@ const deleteAllCommentImages = async (req, res) => {
       entityType: attachmentImageService.ENTITY_TYPES.COMMENT,
       entityId: commentId,
     });
+
+    await emitCommentImageInvalidation(commentId);
 
     return res.status(200).json({
       success: true,
