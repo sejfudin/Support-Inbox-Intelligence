@@ -6,7 +6,7 @@ import {
   deleteTicketStatus,
   reorderTicketStatuses,
 } from '@/api/ticketStatuses';
-import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
+import { invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 
 export const TICKET_STATUSES_QUERY_KEY = 'ticket-statuses';
 
@@ -15,9 +15,7 @@ export const ticketStatusKeys = {
 };
 
 const invalidateAfterStatusChange = (queryClient, workspaceId) => {
-  queryClient.invalidateQueries({ queryKey: ticketStatusKeys.byWorkspace(workspaceId) });
-  invalidateAnalyticsQueries(queryClient);
-  queryClient.invalidateQueries({ queryKey: ['tickets'] });
+  invalidateWorkspaceScope(queryClient, workspaceId);
 };
 
 export const useTicketStatusesQuery = (workspaceId, options = {}) =>

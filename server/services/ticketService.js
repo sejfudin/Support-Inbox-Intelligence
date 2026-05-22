@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
+const { emitTicketEvent, toSocketId } = require('../socket/events');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -90,6 +91,81 @@ const sanitizeTicketSubject = (value) =>
 const ALLOWED_TICKET_SORT_FIELDS = new Set(['updatedAt', 'dueDate', 'taskNumber']);
 
 const STATUS_POPULATE_SELECT = 'slug label color isBacklog tracksTime isDone sortOrder';
+
+const TICKET_SOCKET_EVENTS = {
+  created: 'ticket:created',
+  updated: 'ticket:updated',
+  archived: 'ticket:archived',
+  moved: 'ticket:moved',
+  assigned: 'ticket:assigned',
+};
+
+const emitTicketWorkspaceEvent = ({ eventName, ticket, workspaceId, extra = {} }) => {
+  const ticketId = toSocketId(ticket?._id || ticket?.id);
+  const resolvedWorkspaceId = toSocketId(workspaceId || ticket?.workspace);
+
+  if (!ticketId || !resolvedWorkspaceId) return;
+
+  emitTicketEvent({
+    eventName,
+    ticketId,
+    workspaceId: resolvedWorkspaceId,
+    extra: {
+      ticket: buildTicketPayload(ticket),
+      ...extra,
+    },
+  });
+};
+
+const buildTicketPayload = (ticket) => {
+  if (!ticket) return null;
+  const source = typeof ticket.toObject === 'function' ? ticket.toObject() : ticket;
+
+  return {
+    ...source,
+    _id: toSocketId(source._id || source.id),
+    workspace: toSocketId(source.workspace),
+    status: buildStatusPayload(source.status),
+    creator:
+      source.creator && typeof source.creator === 'object'
+        ? {
+            ...source.creator,
+            _id: toSocketId(source.creator._id || source.creator.id),
+          }
+        : source.creator,
+    assignedTo: Array.isArray(source.assignedTo)
+      ? source.assignedTo.map((assignee) =>
+          assignee && typeof assignee === 'object'
+            ? {
+                ...assignee,
+                _id: toSocketId(assignee._id || assignee.id),
+              }
+            : assignee
+        )
+      : source.assignedTo,
+  };
+};
+
+const buildStatusPayload = (statusRef) => {
+  if (!statusRef) return null;
+
+  if (typeof statusRef.toObject === 'function') {
+    const status = statusRef.toObject();
+    return {
+      ...status,
+      _id: toSocketId(status._id),
+    };
+  }
+
+  if (typeof statusRef === 'object') {
+    return {
+      ...statusRef,
+      _id: toSocketId(statusRef._id || statusRef.id),
+    };
+  }
+
+  return null;
+};
 
 const statusLookupStages = () => [
   {
@@ -424,15 +500,37 @@ const createTicket = async (ticketData) => {
     });
   }
 
-  return await ticket.populate([
+  const populatedTicket = await ticket.populate([
     { path: 'status', select: STATUS_POPULATE_SELECT },
     { path: 'creator', select: 'fullName email' },
     { path: 'assignedTo', select: 'fullName email' },
   ]);
+
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.created,
+    ticket: populatedTicket,
+    workspaceId: ticketData.workspaceId,
+  });
+
+  if (newlyAssignedUserIds.length > 0) {
+    emitTicketWorkspaceEvent({
+      eventName: TICKET_SOCKET_EVENTS.assigned,
+      ticket: populatedTicket,
+      workspaceId: ticketData.workspaceId,
+      extra: { assignedUserIds: newlyAssignedUserIds.map(String) },
+    });
+  }
+
+  return populatedTicket;
 };
 
 const updateTicket = async (ticketId, updateData, actorUserId) => {
   try {
+    const requestedUpdateKeys = Object.keys(updateData);
+    const isStatusOnlyRequest =
+      requestedUpdateKeys.length > 0 &&
+      requestedUpdateKeys.every((key) => key === 'status' || key === 'statusId');
+
     if (Object.prototype.hasOwnProperty.call(updateData, 'subject')) {
       const sanitizedSubject = sanitizeTicketSubject(updateData.subject);
       if (!sanitizedSubject) {
@@ -445,6 +543,9 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     if (!oldTicket) throw new Error('Ticket not found');
 
     const previousAssignedTo = oldTicket.assignedTo || [];
+    let statusChanged = false;
+    let assigneesChanged = false;
+    let newlyAssignedUserIds = [];
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
       await ensureAssignableUsersBelongToWorkspace({
@@ -477,6 +578,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
+        statusChanged = true;
         const oldFlags = await statusService.getStatusFlags(oldTicket.workspace, oldStatusSlug);
         if (statusDoc.isBacklog && !oldFlags.isBacklog) {
           throw new Error('Tickets cannot be moved back to the backlog.');
@@ -526,14 +628,14 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     }
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
-      const newlyAssignedUserIds = getNewAssigneeIds({
+      newlyAssignedUserIds = getNewAssigneeIds({
         previousAssignedTo,
         nextAssignedTo: ticket.assignedTo || [],
       });
 
       const prevIds = normalizeAssignedUserIds(previousAssignedTo).sort();
       const nextIds = normalizeAssignedUserIds(updateData.assignedTo).sort();
-      const assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
+      assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
 
       if (assigneesChanged) {
         const currentAssignees = ticket.assignedTo || [];
@@ -627,6 +729,38 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       }
     }
 
+    if (!isStatusOnlyRequest) {
+      emitTicketWorkspaceEvent({
+        eventName: TICKET_SOCKET_EVENTS.updated,
+        ticket,
+        workspaceId: oldTicket.workspace,
+      });
+    }
+
+    if (statusChanged) {
+      emitTicketWorkspaceEvent({
+        eventName: TICKET_SOCKET_EVENTS.moved,
+        ticket,
+        workspaceId: oldTicket.workspace,
+        extra: {
+          statusId: toSocketId(ticket.status?._id || ticket.status),
+          status: buildStatusPayload(ticket.status),
+        },
+      });
+    }
+
+    if (assigneesChanged) {
+      emitTicketWorkspaceEvent({
+        eventName: TICKET_SOCKET_EVENTS.assigned,
+        ticket,
+        workspaceId: oldTicket.workspace,
+        extra: {
+          assignedUserIds: normalizeAssignedUserIds(ticket.assignedTo),
+          newlyAssignedUserIds: newlyAssignedUserIds.map(String),
+        },
+      });
+    }
+
     return ticket;
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -646,6 +780,10 @@ const archiveTicket = async (ticketId, actorUserId) => {
     throw new Error('Ticket not found');
   }
   historyService.logEvent(ticketId, actorUserId, 'Ticket Archived');
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.archived,
+    ticket,
+  });
   return ticket;
 };
 

@@ -4,8 +4,24 @@ import { useAuth } from '@/context/AuthContext';
 import { queryClient } from '@/lib/queryClient';
 import { NOTIFICATIONS_QUERY_KEY } from '@/queries/notifications';
 import { setActiveSocketId } from '@/lib/socketSession';
+import { invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes';
+import {
+  patchMovedTicketInLists,
+  removeTicketFromLists,
+  upsertTicketInLists,
+} from '@/lib/ticketQueryCache';
 
 const SocketContext = createContext(null);
+
+const TICKET_EVENTS = [
+  'ticket:created',
+  'ticket:updated',
+  'ticket:archived',
+  'ticket:moved',
+  'ticket:assigned',
+];
+
+const COMMENT_EVENTS = ['comment:created', 'comment:updated', 'comment:deleted'];
 
 const getAccessToken = () => localStorage.getItem('accessToken') || '';
 
@@ -25,11 +41,12 @@ const getSocketUrl = () => {
 };
 
 export const SocketProvider = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [accessToken, setAccessToken] = useState(getAccessToken);
   const socketRef = useRef(null);
   const tokenRef = useRef(accessToken);
+  const activeWorkspaceRoomRef = useRef(null);
 
   useEffect(() => {
     const syncToken = () => {
@@ -91,10 +108,58 @@ export const SocketProvider = ({ children }) => {
       };
 
       const onNewNotification = (payload) => {
-        queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+        invalidateScopes(queryClient, payload?.scopes);
+        invalidateUserScope(queryClient, payload?.recipientId);
+      };
+
+      const onCacheInvalidated = (payload) => {
+        invalidateScopes(queryClient, payload?.scopes ?? payload?.scope);
+      };
+
+      const patchTicketListEvent = (payload, eventName) => {
+        if (eventName === 'ticket:moved') {
+          return patchMovedTicketInLists(queryClient, payload);
+        }
+
+        if (eventName === 'ticket:archived') {
+          return removeTicketFromLists(queryClient, payload?.ticketId);
+        }
+
+        if (
+          eventName === 'ticket:created' ||
+          eventName === 'ticket:updated' ||
+          eventName === 'ticket:assigned'
+        ) {
+          return upsertTicketInLists(queryClient, payload?.ticket);
+        }
+
+        return false;
+      };
+
+      const onWorkspaceTicketEvent = (payload, eventName) => {
+        const patched = patchTicketListEvent(payload, eventName);
+
+        if (patched) {
+          invalidateScopes(queryClient, payload?.scopes);
+          return;
+        }
+
+        invalidateScopes(queryClient, payload?.scopes);
+      };
+
+      const onTicketCommentEvent = (payload) => {
+        invalidateScopes(queryClient, payload?.scopes);
+
+        if (payload?.commentId) {
+          queryClient.invalidateQueries({
+            queryKey: ['comment-images', String(payload.commentId)],
+          });
+        }
       };
 
       const onNotificationMarkedAsRead = (payload) => {
+        invalidateScopes(queryClient, payload?.scopes);
+
         const notificationIds = Array.isArray(payload?.notificationIds)
           ? payload.notificationIds.map((id) => String(id))
           : payload?.notificationId
@@ -148,6 +213,11 @@ export const SocketProvider = ({ children }) => {
       socket.on('disconnect', onDisconnect);
       socket.on('connect_error', onConnectError);
       socket.on('new_notification', onNewNotification);
+      socket.on('CACHE_INVALIDATED', onCacheInvalidated);
+      TICKET_EVENTS.forEach((eventName) =>
+        socket.on(eventName, (payload) => onWorkspaceTicketEvent(payload, eventName))
+      );
+      COMMENT_EVENTS.forEach((eventName) => socket.on(eventName, onTicketCommentEvent));
       socket.on('NOTIFICATION_MARKED_AS_READ', onNotificationMarkedAsRead);
 
       socketRef.current = socket;
@@ -163,6 +233,10 @@ export const SocketProvider = ({ children }) => {
         ...(socket.auth || {}),
         token: accessToken,
       };
+
+      if (socket.connected) {
+        socket.disconnect();
+      }
     }
 
     if (!socket.connected) {
@@ -180,6 +254,31 @@ export const SocketProvider = ({ children }) => {
       }
     };
   }, [isAuthenticated, accessToken]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    const workspaceId = user?.workspaceId ? String(user.workspaceId) : null;
+
+    if (!socket || !isConnected || !workspaceId) {
+      return undefined;
+    }
+
+    const previousWorkspaceId = activeWorkspaceRoomRef.current;
+
+    if (previousWorkspaceId && previousWorkspaceId !== workspaceId) {
+      socket.emit('leave_workspace', { workspaceId: previousWorkspaceId });
+    }
+
+    socket.emit('join_workspace', { workspaceId });
+    activeWorkspaceRoomRef.current = workspaceId;
+
+    return () => {
+      if (activeWorkspaceRoomRef.current === workspaceId) {
+        socket.emit('leave_workspace', { workspaceId });
+        activeWorkspaceRoomRef.current = null;
+      }
+    };
+  }, [isConnected, user?.workspaceId]);
 
   useEffect(() => {
     return () => {
