@@ -83,7 +83,10 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                   <TooltipProvider>
                     <Tooltip delayDuration={200}>
                       <TooltipTrigger asChild>
-                        <span className="italic cursor-pointer hover:text-blue-500 transition-colors">
+                        <span
+                          className="italic cursor-pointer hover:text-blue-500 transition-colors"
+                          data-test={`ticket-comment-edited-label-${comment._id}`}
+                        >
                           (edited)
                         </span>
                       </TooltipTrigger>
@@ -107,6 +110,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-blue-600"
                   onClick={() => setIsEditing(true)}
+                  data-test={`ticket-comment-edit-button-${comment._id}`}
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </Button>
@@ -117,6 +121,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                   size="icon"
                   className="h-7 w-7 text-muted-foreground hover:text-red-500"
                   onClick={() => onOpenDelete(comment._id)}
+                  data-test={`ticket-comment-delete-button-${comment._id}`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
@@ -131,12 +136,23 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               className="min-h-[60px] text-sm focus-visible:ring-blue-500 w-full resize-none"
+              data-test={`ticket-comment-edit-input-${comment._id}`}
             />
             <div className="flex justify-end gap-1">
-              <Button variant="ghost" size="sm" onClick={() => cancelEditing()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => cancelEditing()}
+                data-test={`ticket-comment-edit-cancel-button-${comment._id}`}
+              >
                 <X className="w-4 h-4 text-muted-foreground" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleUpdate}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleUpdate}
+                data-test={`ticket-comment-edit-save-button-${comment._id}`}
+              >
                 <Check className="w-4 h-4 text-blue-600" />
               </Button>
             </div>
@@ -178,12 +194,14 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                   alt={img.original_file_name || 'Comment image'}
                   className="w-full h-36 object-cover cursor-zoom-in"
                   onClick={() => setPreviewImageUrl(img.image_url)}
+                  data-test={`ticket-comment-image-preview-${comment._id}-${img.id}`}
                 />
                 {!isArchived && (
                   <button
                     type="button"
                     onClick={() => handleDeleteCommentImage(img.id)}
                     className="absolute top-1 right-1 bg-card rounded p-1 opacity-0 group-hover:opacity-100"
+                    data-test={`ticket-comment-image-delete-button-${comment._id}-${img.id}`}
                   >
                     <Trash2 className="w-3 h-3 text-red-600" />
                   </button>
@@ -203,6 +221,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
               className="absolute top-4 right-4 rounded-full bg-card p-2"
               onClick={() => setPreviewImageUrl(null)}
               aria-label="Close image preview"
+              data-test={`ticket-comment-preview-close-button-${comment._id}`}
             >
               <X className="w-5 h-5 text-foreground" />
             </button>

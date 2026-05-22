@@ -136,6 +136,7 @@ export default function AdminUserAnalyticsPage() {
       size="sm"
       onClick={() => navigate('/admin/users')}
       className="-ml-2 h-7 px-2 text-muted-foreground"
+      data-test="admin-user-analytics-back-button"
     >
       <ArrowLeft className="mr-2 h-4 w-4" />
       Back to Users
@@ -177,12 +178,19 @@ export default function AdminUserAnalyticsPage() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
           <Select value={selectedWorkspace?.id || ''} onValueChange={setSelectedWorkspaceId}>
-            <SelectTrigger className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[260px]">
+            <SelectTrigger
+              className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[260px]"
+              data-test="admin-user-analytics-workspace-select"
+            >
               <SelectValue placeholder="Select workspace" />
             </SelectTrigger>
             <SelectContent>
               {analyticsWorkspaces.map((workspace) => (
-                <SelectItem key={workspace.id} value={workspace.id}>
+                <SelectItem
+                  key={workspace.id}
+                  value={workspace.id}
+                  data-test={`admin-user-analytics-workspace-option-${workspace.id}`}
+                >
                   {workspace.name || 'Workspace'}
                 </SelectItem>
               ))}
@@ -190,12 +198,19 @@ export default function AdminUserAnalyticsPage() {
           </Select>
 
           <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-            <SelectTrigger className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[150px]">
+            <SelectTrigger
+              className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[150px]"
+              data-test="admin-user-analytics-period-select"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {ANALYTICS_PERIODS.map((period) => (
-                <SelectItem key={period} value={String(period)}>
+                <SelectItem
+                  key={period}
+                  value={String(period)}
+                  data-test={`admin-user-analytics-period-option-${period}`}
+                >
                   Last {period} Days
                 </SelectItem>
               ))}

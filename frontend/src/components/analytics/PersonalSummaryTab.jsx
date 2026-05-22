@@ -16,7 +16,13 @@ export default function PersonalSummaryTab({
       kicker="My Analytics"
       title="Personal Summary"
       description="Your ticket load and completion trend in the selected period."
-      headerAction={<AnalyticsPeriodSelect days={days} onDaysChange={onDaysChange} />}
+      headerAction={
+        <AnalyticsPeriodSelect
+          days={days}
+          onDaysChange={onDaysChange}
+          dataTestPrefix="analytics-personal"
+        />
+      }
     />
   );
 }

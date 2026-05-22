@@ -97,6 +97,9 @@ export default function AppSidebar() {
       : []),
   ];
 
+  const navTestSlug = (to) =>
+    to.replace(/^\//, '').replace(/\//g, '-').replace(/[^a-z0-9-]/gi, '') || 'home';
+
   const adminNav = [
     {
       label: 'All Users',
@@ -143,6 +146,7 @@ export default function AppSidebar() {
                     <NavLink
                       to={item.to}
                       end
+                      data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
                       className={({ isActive }) =>
                         cn(
                           'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
@@ -182,6 +186,7 @@ export default function AppSidebar() {
                     <NavLink
                       to={item.to}
                       end
+                      data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
                       className={({ isActive }) =>
                         cn(
                           'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
@@ -219,7 +224,12 @@ export default function AppSidebar() {
             </div>
           ) : (
             <>
-              <NavLink to="/profile" end className="block px-2 pb-2">
+              <NavLink
+                to="/profile"
+                end
+                data-test="sidebar-nav-profile-link"
+                className="block px-2 pb-2"
+              >
                 {({ isActive }) => (
                   <div
                     className={cn(
@@ -258,6 +268,7 @@ export default function AppSidebar() {
               <div className="px-4 pb-4">
                 <Button
                   variant="outline"
+                  data-test="sidebar-logout-button"
                   className="w-full justify-start"
                   onClick={(e) => {
                     e.stopPropagation();

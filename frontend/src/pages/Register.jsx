@@ -230,7 +230,12 @@ const Register = () => {
                   </div>
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                    <Button type="button" onClick={copyShareMessage} className="flex-1 gap-2">
+                    <Button
+                      type="button"
+                      data-test="register-copy-invite-message-button"
+                      onClick={copyShareMessage}
+                      className="flex-1 gap-2"
+                    >
                       <CheckCircle2 className="h-4 w-4" />
                       Copy Invite Message
                     </Button>
@@ -241,6 +246,7 @@ const Register = () => {
                   <Button
                     type="button"
                     variant="outline"
+                    data-test="register-create-another-user-button"
                     className="flex-1"
                     onClick={() => setCreatedUser(null)}
                   >
@@ -260,7 +266,12 @@ const Register = () => {
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button type="button" className="flex-1" onClick={() => navigate('/admin/users')}>
+                  <Button
+                    type="button"
+                    data-test="register-back-to-users-button"
+                    className="flex-1"
+                    onClick={() => navigate('/admin/users')}
+                  >
                     Back to All Users
                   </Button>
                 </div>
@@ -359,6 +370,7 @@ const Register = () => {
                     Full Name
                   </label>
                   <Input
+                    data-test="register-full-name-input"
                     {...register('fullName', {
                       required: 'Full name is required',
                       maxLength: { value: 50, message: 'Max 50 characters' },
@@ -377,6 +389,7 @@ const Register = () => {
                   </label>
                   <Input
                     type="email"
+                    data-test="register-email-input"
                     {...register('email', {
                       required: 'Email is required',
                       pattern: {
@@ -399,12 +412,19 @@ const Register = () => {
                     control={control}
                     render={({ field }) => (
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <SelectTrigger className="h-12 border-border bg-card text-foreground">
+                        <SelectTrigger
+                          data-test="register-global-role-select"
+                          className="h-12 border-border bg-card text-foreground"
+                        >
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent className="bg-card">
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="user" data-test="register-global-role-option-user">
+                            User
+                          </SelectItem>
+                          <SelectItem value="admin" data-test="register-global-role-option-admin">
+                            Admin
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -436,13 +456,25 @@ const Register = () => {
                         control={control}
                         render={({ field }) => (
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <SelectTrigger className="h-12 border-border bg-card text-foreground">
+                            <SelectTrigger
+                              data-test="register-workspace-select"
+                              className="h-12 border-border bg-card text-foreground"
+                            >
                               <SelectValue placeholder="Choose a workspace" />
                             </SelectTrigger>
                             <SelectContent className="bg-card">
-                              <SelectItem value="none">No workspace yet</SelectItem>
+                              <SelectItem
+                                value="none"
+                                data-test="register-workspace-option-none"
+                              >
+                                No workspace yet
+                              </SelectItem>
                               {workspaces.map((workspace) => (
-                                <SelectItem key={workspace._id} value={workspace._id}>
+                                <SelectItem
+                                  key={workspace._id}
+                                  value={workspace._id}
+                                  data-test={`register-workspace-option-${workspace._id}`}
+                                >
                                   {workspace.name}
                                 </SelectItem>
                               ))}
@@ -467,12 +499,25 @@ const Register = () => {
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <SelectTrigger className="h-12 border-border bg-card text-foreground">
+                              <SelectTrigger
+                                data-test="register-workspace-role-select"
+                                className="h-12 border-border bg-card text-foreground"
+                              >
                                 <SelectValue placeholder="Select workspace role" />
                               </SelectTrigger>
                               <SelectContent className="bg-card">
-                                <SelectItem value="member">Member</SelectItem>
-                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem
+                                  value="member"
+                                  data-test="register-workspace-role-option-member"
+                                >
+                                  Member
+                                </SelectItem>
+                                <SelectItem
+                                  value="admin"
+                                  data-test="register-workspace-role-option-admin"
+                                >
+                                  Admin
+                                </SelectItem>
                               </SelectContent>
                             </Select>
                           )}
@@ -484,6 +529,7 @@ const Register = () => {
 
                 <Button
                   type="submit"
+                  data-test="register-submit-button"
                   disabled={isPending}
                   className="mt-4 h-12 w-full text-lg font-bold"
                 >
@@ -493,6 +539,7 @@ const Register = () => {
                 <div className="text-center pt-2 text-sm text-muted-foreground">
                   <button
                     type="button"
+                    data-test="register-cancel-button"
                     onClick={() => navigate('/admin/users')}
                     className="font-semibold text-foreground hover:underline"
                   >

@@ -492,6 +492,7 @@ export default function TicketPage() {
             <button
               onClick={() => navigate(`/admin/workspaces/${overrideWorkspaceId}`)}
               className="ml-auto flex items-center gap-1 text-xs text-blue-600 hover:underline"
+              data-test="ticket-workspace-back-link"
             >
               <ArrowLeft className="h-3 w-3" />
               Back to workspace
@@ -526,6 +527,7 @@ export default function TicketPage() {
               className="w-full md:w-auto"
               onClick={handleExportCsv}
               disabled={isExporting}
+              data-test="ticket-export-csv-button"
             >
               <Download className="mr-2 h-4 w-4" />
               {isExporting ? 'Exporting...' : 'Export CSV'}

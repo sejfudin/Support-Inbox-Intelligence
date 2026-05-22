@@ -125,11 +125,13 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
           <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
             <input
               ref={fileInputRef}
+              id="workspace-logo-file"
               type="file"
               accept={WORKSPACE_LOGO_ACCEPT}
               className="sr-only"
               onChange={handleFileChange}
               disabled={isBusy}
+              data-test="workspace-logo-file-input"
             />
 
             <Button
@@ -139,6 +141,7 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
               disabled={isBusy}
               className="gap-1.5"
               onClick={() => fileInputRef.current?.click()}
+              data-test="workspace-logo-choose-button"
             >
               <ImagePlus className="h-3.5 w-3.5" />
               {hasLogo ? 'Change image' : 'Choose image'}
@@ -152,6 +155,7 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
                   disabled={isBusy}
                   onClick={handleUpload}
                   className="gap-1.5"
+                  data-test="workspace-logo-save-button"
                 >
                   {uploadMutation.isPending ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -165,6 +169,7 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
                   disabled={isBusy}
                   onClick={clearSelection}
                   aria-label="Clear selected image"
+                  data-test="workspace-logo-clear-selection-button"
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -179,6 +184,7 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
                 disabled={isBusy}
                 onClick={handleDelete}
                 className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                data-test="workspace-logo-remove-button"
               >
                 {deleteMutation.isPending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

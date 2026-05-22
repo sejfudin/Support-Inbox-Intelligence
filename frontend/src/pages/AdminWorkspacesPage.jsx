@@ -132,7 +132,11 @@ export default function AdminWorkspacesPage() {
           title="All Workspaces"
           subtitle="Overview of every workspace in the system."
           actions={
-            <Button onClick={() => setIsCreateOpen(true)} className="w-full gap-2 sm:w-auto">
+            <Button
+              onClick={() => setIsCreateOpen(true)}
+              className="w-full gap-2 sm:w-auto"
+              data-test="admin-workspaces-new-button"
+            >
               <Plus className="h-4 w-4" />
               New Workspace
             </Button>
@@ -167,6 +171,7 @@ export default function AdminWorkspacesPage() {
                   key={ws._id}
                   role={canSwitch && !isActive ? 'button' : undefined}
                   tabIndex={canSwitch && !isActive ? 0 : undefined}
+                  data-test={`admin-workspaces-card-${ws._id}-card`}
                   onClick={() => {
                     if (!isActive && canSwitch && !switchWorkspace.isPending) {
                       handleSwitch(ws._id);
@@ -234,21 +239,25 @@ export default function AdminWorkspacesPage() {
 
                     <div className="flex items-center gap-3 self-start sm:self-auto">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/admin/workspaces/${ws._id}`);
                         }}
                         className="text-xs font-medium text-foreground hover:underline"
+                        data-test={`admin-workspaces-card-${ws._id}-preview-link`}
                       >
                         Preview
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeleteError('');
                           setDeleteTargetId(ws._id);
                         }}
                         className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1"
+                        data-test={`admin-workspaces-card-${ws._id}-delete-button`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         Delete
@@ -334,6 +343,7 @@ export default function AdminWorkspacesPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       maxLength={100}
+                      data-test="admin-workspaces-create-name-input"
                     />
                   </div>
 
@@ -349,17 +359,20 @@ export default function AdminWorkspacesPage() {
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       maxLength={500}
+                      data-test="admin-workspaces-create-description-input"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">
+                    <label htmlFor="admin-workspace-logo" className="text-sm font-medium">
                       Workspace logo{' '}
                       <span className="font-normal text-muted-foreground">(optional)</span>
                     </label>
                     <Input
+                      id="admin-workspace-logo"
                       type="file"
                       accept={WORKSPACE_LOGO_ACCEPT}
+                      data-test="admin-workspaces-create-logo-input"
                       onChange={(e) => {
                         const file = e.target.files?.[0] || null;
                         if (!file) {
@@ -388,16 +401,29 @@ export default function AdminWorkspacesPage() {
                 </div>
 
                 <div className="rounded-xl border border-border bg-muted/80 p-4 sm:p-5">
-                  <TicketStatusEditor items={statusDrafts} onChange={setStatusDrafts} />
+                  <TicketStatusEditor
+                    items={statusDrafts}
+                    onChange={setStatusDrafts}
+                    dataTestPrefix="admin-workspaces"
+                  />
                 </div>
               </section>
             </div>
 
             <DialogFooter className="shrink-0 gap-2 border-t border-border/60 px-6 py-4 sm:justify-end">
-              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCreateOpen(false)}
+                data-test="admin-workspaces-create-cancel-button"
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createWorkspace.isPending || !name.trim()}>
+              <Button
+                type="submit"
+                disabled={createWorkspace.isPending || !name.trim()}
+                data-test="admin-workspaces-create-submit-button"
+              >
                 {createWorkspace.isPending ? 'Creating...' : 'Create workspace'}
               </Button>
             </DialogFooter>

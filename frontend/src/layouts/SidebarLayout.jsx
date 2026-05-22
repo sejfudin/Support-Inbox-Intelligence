@@ -18,7 +18,10 @@ export default function SidebarLayout() {
           {hasHeader ? (
             <PageHeader>
               <div className="flex w-full min-w-0 items-center gap-2">
-                <SidebarTrigger className="-ml-1 shrink-0 md:hidden" />
+                <SidebarTrigger
+                  data-test="sidebar-mobile-toggle-button"
+                  className="-ml-1 shrink-0 md:hidden"
+                />
                 <div className="min-w-0 flex-1">{header}</div>
               </div>
             </PageHeader>
@@ -26,7 +29,10 @@ export default function SidebarLayout() {
             <>
               <PageHeader className="border-b-0 bg-transparent md:hidden">
                 <div className="flex w-full items-center gap-2">
-                  <SidebarTrigger className="-ml-1 shrink-0" />
+                  <SidebarTrigger
+                    data-test="sidebar-mobile-toggle-button"
+                    className="-ml-1 shrink-0"
+                  />
                 </div>
               </PageHeader>
             </>

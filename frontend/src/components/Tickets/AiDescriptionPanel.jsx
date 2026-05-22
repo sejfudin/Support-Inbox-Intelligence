@@ -36,6 +36,7 @@ const AiDescriptionPanel = ({
           size="sm"
           onClick={onGenerate}
           disabled={!canGenerateDescription || disabled || isGeneratingDescription}
+          data-test="ticket-ai-generate-button"
         >
           {isGeneratingDescription
             ? 'Generating...'
@@ -52,6 +53,7 @@ const AiDescriptionPanel = ({
               variant="secondary"
               onClick={onAccept}
               disabled={isGeneratingDescription || disabled}
+              data-test="ticket-ai-accept-button"
             >
               Accept
             </Button>
@@ -62,6 +64,7 @@ const AiDescriptionPanel = ({
               variant="outline"
               onClick={onCancel}
               disabled={isGeneratingDescription || disabled}
+              data-test="ticket-ai-cancel-button"
             >
               Cancel
             </Button>

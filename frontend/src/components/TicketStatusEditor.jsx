@@ -38,7 +38,7 @@ const PRESET_COLORS = [
   '#6b7280',
 ];
 
-const ColorPicker = ({ value, onChange }) => (
+const ColorPicker = ({ value, onChange, dataTestPrefix = 'ticket-status' }) => (
   <div className="flex flex-wrap gap-1.5">
     {PRESET_COLORS.map((color) => (
       <button
@@ -51,6 +51,7 @@ const ColorPicker = ({ value, onChange }) => (
           borderColor: value === color ? '#1e293b' : 'transparent',
         }}
         aria-label={color}
+        data-test={`${dataTestPrefix}-color-option-${color.replace('#', '')}`}
       />
     ))}
   </div>
@@ -58,38 +59,44 @@ const ColorPicker = ({ value, onChange }) => (
 
 const getItemId = (item, index) => item._id || item.id || `draft-${index}`;
 
-const FlagFields = ({ item, onChange }) => (
+const FlagFields = ({ item, onChange, idPrefix = 'ticket-status' }) => (
   <div className="grid gap-2 sm:grid-cols-3">
-    <label className="flex items-start gap-2 text-xs">
+    <label htmlFor={`${idPrefix}-backlog-checkbox`} className="flex items-start gap-2 text-xs">
       <Checkbox
+        id={`${idPrefix}-backlog-checkbox`}
         checked={Boolean(item.isBacklog)}
         onCheckedChange={(checked) =>
           onChange(toggleStatusBehaviorFlag(item, 'isBacklog', Boolean(checked)))
         }
+        data-test={`${idPrefix}-backlog-checkbox`}
       />
       <span>
         <span className="font-medium text-foreground">Backlog</span>
         <span className="block text-muted-foreground">Separate inbox, excluded from board</span>
       </span>
     </label>
-    <label className="flex items-start gap-2 text-xs">
+    <label htmlFor={`${idPrefix}-tracks-time-checkbox`} className="flex items-start gap-2 text-xs">
       <Checkbox
+        id={`${idPrefix}-tracks-time-checkbox`}
         checked={Boolean(item.tracksTime)}
         onCheckedChange={(checked) =>
           onChange(toggleStatusBehaviorFlag(item, 'tracksTime', Boolean(checked)))
         }
+        data-test={`${idPrefix}-tracks-time-checkbox`}
       />
       <span>
         <span className="font-medium text-foreground">Tracks time</span>
         <span className="block text-muted-foreground">Starts time tracking when active</span>
       </span>
     </label>
-    <label className="flex items-start gap-2 text-xs">
+    <label htmlFor={`${idPrefix}-done-checkbox`} className="flex items-start gap-2 text-xs">
       <Checkbox
+        id={`${idPrefix}-done-checkbox`}
         checked={Boolean(item.isDone)}
         onCheckedChange={(checked) =>
           onChange(toggleStatusBehaviorFlag(item, 'isDone', Boolean(checked)))
         }
+        data-test={`${idPrefix}-done-checkbox`}
       />
       <span>
         <span className="font-medium text-foreground">Done</span>
@@ -99,7 +106,7 @@ const FlagFields = ({ item, onChange }) => (
   </div>
 );
 
-function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
+function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove, dataTestPrefix = 'ticket-status' }) {
   const id = getItemId(item, index);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -143,19 +150,38 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
           onChange={(e) => setDraft({ ...draft, label: e.target.value })}
           className="h-9"
           autoFocus
+          data-test={`${dataTestPrefix}-edit-label-input-${id}`}
           onKeyDown={(e) => {
             if (e.key === 'Enter') saveEdit();
             if (e.key === 'Escape') cancelEdit();
           }}
         />
-        <ColorPicker value={draft.color} onChange={(color) => setDraft({ ...draft, color })} />
-        <FlagFields item={draft} onChange={(next) => setDraft({ ...draft, ...next })} />
+        <ColorPicker
+          value={draft.color}
+          onChange={(color) => setDraft({ ...draft, color })}
+          dataTestPrefix={dataTestPrefix}
+        />
+        <FlagFields
+          item={draft}
+          onChange={(next) => setDraft({ ...draft, ...next })}
+          idPrefix={`${dataTestPrefix}-edit-${id}`}
+        />
         <div className="flex gap-2">
-          <Button size="sm" onClick={saveEdit} disabled={!draft.label?.trim()}>
+          <Button
+            size="sm"
+            onClick={saveEdit}
+            disabled={!draft.label?.trim()}
+            data-test={`${dataTestPrefix}-edit-save-button-${id}`}
+          >
             <Check className="h-3.5 w-3.5 mr-1" />
             Save
           </Button>
-          <Button size="sm" variant="ghost" onClick={cancelEdit}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={cancelEdit}
+            data-test={`${dataTestPrefix}-edit-cancel-button-${id}`}
+          >
             <X className="h-3.5 w-3.5 mr-1" />
             Cancel
           </Button>
@@ -177,6 +203,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
           {...attributes}
           {...listeners}
           aria-label="Drag to reorder"
+          data-test={`${dataTestPrefix}-drag-button-${id}`}
         >
           <GripVertical className="h-4 w-4" />
         </button>
@@ -199,6 +226,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
           }}
           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
           aria-label="Edit status"
+          data-test={`${dataTestPrefix}-edit-trigger-button-${id}`}
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -208,6 +236,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
             onClick={() => onRemove(index)}
             className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50"
             aria-label="Remove status"
+            data-test={`${dataTestPrefix}-remove-button-${id}`}
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -217,7 +246,7 @@ function SortableStatusRow({ item, index, onUpdate, onRemove, canRemove }) {
   );
 }
 
-export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
+export default function TicketStatusEditor({ items, onChange, minItems = 1, dataTestPrefix = 'ticket-status' }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -295,6 +324,7 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
                 onUpdate={updateItem}
                 onRemove={removeItem}
                 canRemove={items.length > minItems && (!item.isBacklog || mainBoardCount > 0)}
+                dataTestPrefix={dataTestPrefix}
               />
             ))}
           </div>
@@ -309,6 +339,7 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
             onChange={(e) => setNewItem({ ...newItem, label: e.target.value })}
             className="h-9"
             autoFocus
+            data-test={`${dataTestPrefix}-add-label-input`}
             onKeyDown={(e) => {
               if (e.key === 'Enter') addItem();
               if (e.key === 'Escape') setShowAdd(false);
@@ -317,20 +348,40 @@ export default function TicketStatusEditor({ items, onChange, minItems = 1 }) {
           <ColorPicker
             value={newItem.color}
             onChange={(color) => setNewItem({ ...newItem, color })}
+            dataTestPrefix={dataTestPrefix}
           />
-          <FlagFields item={newItem} onChange={(patch) => setNewItem({ ...newItem, ...patch })} />
+          <FlagFields
+            item={newItem}
+            onChange={(patch) => setNewItem({ ...newItem, ...patch })}
+            idPrefix={`${dataTestPrefix}-add`}
+          />
           <div className="flex gap-2">
-            <Button size="sm" onClick={addItem} disabled={!newItem.label.trim()}>
+            <Button
+              size="sm"
+              onClick={addItem}
+              disabled={!newItem.label.trim()}
+              data-test={`${dataTestPrefix}-add-submit-button`}
+            >
               <Plus className="h-3.5 w-3.5 mr-1" />
               Add status
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowAdd(false)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowAdd(false)}
+              data-test={`${dataTestPrefix}-add-cancel-button`}
+            >
               Cancel
             </Button>
           </div>
         </div>
       ) : (
-        <Button size="sm" variant="outline" onClick={() => setShowAdd(true)}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowAdd(true)}
+          data-test={`${dataTestPrefix}-add-open-button`}
+        >
           <Plus className="h-3.5 w-3.5 mr-1.5" />
           Add status
         </Button>

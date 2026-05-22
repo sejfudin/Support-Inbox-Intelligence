@@ -101,14 +101,17 @@ export default function AdminUsersExpandableTable({
                   <TableRow
                     className="border-b border-border/70 transition-colors hover:bg-secondary/50 cursor-pointer"
                     onClick={() => onRowClick?.(user.id)}
+                    data-test={`admin-users-row-${user.id}-card`}
                   >
                     <TableCell className="w-[5%] py-4 px-4">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleRow(user.id);
                         }}
                         className="inline-flex items-center justify-center rounded p-1 hover:bg-secondary"
+                        data-test={`admin-users-row-${user.id}-expand-button`}
                       >
                         {expandedRows.has(user.id) ? (
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -164,6 +167,7 @@ export default function AdminUsersExpandableTable({
                           e.stopPropagation();
                           onEditUser?.(user);
                         }}
+                        data-test={`admin-users-row-${user.id}-edit-button`}
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -267,6 +271,7 @@ export default function AdminUsersExpandableTable({
             className="h-8 w-8"
             onClick={handlePrevious}
             disabled={!pagination || pagination.page <= 1}
+            data-test="admin-users-pagination-prev-button"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -277,6 +282,7 @@ export default function AdminUsersExpandableTable({
             className="h-8 w-8"
             onClick={handleNext}
             disabled={!pagination || pagination.page >= pagination.pages}
+            data-test="admin-users-pagination-next-button"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

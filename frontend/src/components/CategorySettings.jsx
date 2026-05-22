@@ -33,7 +33,7 @@ const PRESET_COLORS = [
   '#6b7280',
 ];
 
-const ColorPicker = ({ value, onChange }) => (
+const ColorPicker = ({ value, onChange, testIdPrefix = 'workspace-category' }) => (
   <div className="flex flex-wrap gap-1.5">
     {PRESET_COLORS.map((color) => (
       <button
@@ -46,12 +46,13 @@ const ColorPicker = ({ value, onChange }) => (
           borderColor: value === color ? '#1e293b' : 'transparent',
         }}
         aria-label={color}
+        data-test={`${testIdPrefix}-color-${color.replace('#', '')}-button`}
       />
     ))}
   </div>
 );
 
-const TemplateEditor = ({ value, onChange }) => (
+const TemplateEditor = ({ value, onChange, categoryId }) => (
   <RichTextEditor
     value={value}
     onChange={onChange}
@@ -61,7 +62,14 @@ const TemplateEditor = ({ value, onChange }) => (
     <div className="border-b border-border bg-muted/50/50 px-3 py-2">
       <RichTextEditorToolbar className="flex-wrap p-0" />
     </div>
-    <RichTextEditorContent className="min-h-28 p-2" />
+    <RichTextEditorContent
+      className="min-h-28 p-2"
+      data-test={
+        categoryId
+          ? `workspace-category-${categoryId}-template-input`
+          : 'workspace-category-new-template-input'
+      }
+    />
   </RichTextEditor>
 );
 
@@ -113,6 +121,7 @@ const CategoryRow = ({ category, workspaceId }) => {
     return (
       <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
         <Input
+          id={`workspace-category-${category._id}-name`}
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="h-9"
@@ -121,19 +130,34 @@ const CategoryRow = ({ category, workspaceId }) => {
             if (e.key === 'Enter') handleSave();
             if (e.key === 'Escape') handleCancel();
           }}
+          data-test={`workspace-category-${category._id}-name-input`}
         />
-        <ColorPicker value={color} onChange={setColor} />
-        <TemplateEditor value={descriptionTemplate} onChange={setDescriptionTemplate} />
+        <ColorPicker
+          value={color}
+          onChange={setColor}
+          testIdPrefix={`workspace-category-${category._id}`}
+        />
+        <TemplateEditor
+          value={descriptionTemplate}
+          onChange={setDescriptionTemplate}
+          categoryId={category._id}
+        />
         <div className="flex gap-2">
           <Button
             size="sm"
             onClick={handleSave}
             disabled={!name.trim() || updateMutation.isPending}
+            data-test={`workspace-category-${category._id}-save-button`}
           >
             <Check className="h-3.5 w-3.5 mr-1" />
             Save
           </Button>
-          <Button size="sm" variant="ghost" onClick={handleCancel}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCancel}
+            data-test={`workspace-category-${category._id}-cancel-button`}
+          >
             <X className="h-3.5 w-3.5 mr-1" />
             Cancel
           </Button>
@@ -164,6 +188,7 @@ const CategoryRow = ({ category, workspaceId }) => {
           onClick={() => setEditing(true)}
           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Edit category"
+          data-test={`workspace-category-${category._id}-edit-button`}
         >
           <Pencil className="h-3.5 w-3.5" />
         </button>
@@ -173,6 +198,7 @@ const CategoryRow = ({ category, workspaceId }) => {
           disabled={deleteMutation.isPending}
           className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
           aria-label="Delete category"
+          data-test={`workspace-category-${category._id}-delete-button`}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -244,6 +270,7 @@ const CategorySettings = ({ workspaceId }) => {
       {showForm ? (
         <div className="space-y-3 rounded-lg border border-border bg-muted/50 p-3">
           <Input
+            id="workspace-category-new-name"
             placeholder="Category name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -253,25 +280,37 @@ const CategorySettings = ({ workspaceId }) => {
               if (e.key === 'Enter') handleCreate();
               if (e.key === 'Escape') setShowForm(false);
             }}
+            data-test="workspace-category-new-name-input"
           />
-          <ColorPicker value={newColor} onChange={setNewColor} />
+          <ColorPicker value={newColor} onChange={setNewColor} testIdPrefix="workspace-category-new" />
           <TemplateEditor value={newDescriptionTemplate} onChange={setNewDescriptionTemplate} />
           <div className="flex gap-2">
             <Button
               size="sm"
               onClick={handleCreate}
               disabled={!newName.trim() || createMutation.isPending}
+              data-test="workspace-category-new-submit-button"
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
               Add category
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowForm(false)}
+              data-test="workspace-category-new-cancel-button"
+            >
               Cancel
             </Button>
           </div>
         </div>
       ) : (
-        <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowForm(true)}
+          data-test="workspace-category-add-button"
+        >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           Add category
         </Button>

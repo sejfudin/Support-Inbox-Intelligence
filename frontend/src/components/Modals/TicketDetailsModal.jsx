@@ -592,6 +592,7 @@ export const TicketDetailsModal = ({
               }}
               className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
               aria-label="Close error modal"
+              data-test="ticket-modal-error-close-button"
             >
               <X className="w-5 h-5" />
             </button>
@@ -618,6 +619,7 @@ export const TicketDetailsModal = ({
                   onClose();
                 }}
                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-muted hover:bg-muted text-foreground transition-colors"
+                data-test="ticket-modal-error-dismiss-button"
               >
                 Close
               </button>
@@ -649,6 +651,7 @@ export const TicketDetailsModal = ({
               }}
               className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
               aria-label="Close ticket details"
+              data-test="ticket-modal-close-button"
             >
               <X className="w-5 h-5" />
             </button>
@@ -666,6 +669,7 @@ export const TicketDetailsModal = ({
                     className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm transition-all hover:bg-muted/50"
                     aria-label="Ticket actions"
                     title="Ticket actions"
+                    data-test="ticket-modal-actions-trigger"
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
@@ -675,6 +679,7 @@ export const TicketDetailsModal = ({
                     onSelect={handleExportSingleCsv}
                     disabled={!ticket}
                     className="cursor-pointer text-foreground"
+                    data-test="ticket-modal-export-csv-option"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Export CSV
@@ -683,6 +688,7 @@ export const TicketDetailsModal = ({
                     onSelect={handleArchiveToggle}
                     disabled={isArchiving}
                     className="cursor-pointer text-foreground"
+                    data-test="ticket-modal-archive-option"
                   >
                     <Archive className="w-4 h-4 mr-2" />
                     {isArchiving ? 'Archiving...' : 'Archive'}
@@ -702,6 +708,7 @@ export const TicketDetailsModal = ({
                   !hasChanges ||
                   !title.trim()
                 }
+                data-test="ticket-modal-save-button"
                 className={`flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all shadow-sm sm:w-auto sm:flex-initial ${
                   updateTicketMutation.isPending ||
                   isGeneratingDescription ||
@@ -758,6 +765,7 @@ export const TicketDetailsModal = ({
                   value={title}
                   readOnly={isArchived}
                   onChange={(e) => setTitle(e.target.value)}
+                  data-test="ticket-modal-title-input"
                   className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
                     !title.trim() ? 'text-destructive' : 'text-foreground'
                   } ${
@@ -787,6 +795,7 @@ export const TicketDetailsModal = ({
                           isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
                         }`}
                         aria-label="Change assignees"
+                        data-test="ticket-modal-assignees-trigger"
                       >
                         <span className="flex items-center gap-2 min-w-0 normal-case">
                           {selectedUsersObjects.length > 0 ? (
@@ -830,8 +839,10 @@ export const TicketDetailsModal = ({
                             </span>
                             {selectedAgents.length > 0 && (
                               <button
+                                type="button"
                                 onClick={() => setSelectedAgents([])}
                                 className="text-[10px] text-red-500 hover:underline font-bold"
+                                data-test="ticket-modal-assignees-clear-button"
                               >
                                 Clear all
                               </button>
@@ -853,11 +864,13 @@ export const TicketDetailsModal = ({
                                       );
                                     }}
                                     className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                    data-test={`ticket-modal-assignee-option-${user._id}`}
                                   >
                                     <Checkbox
                                       checked={isSelected}
                                       onCheckedChange={null}
                                       className="pointer-events-none"
+                                      data-test={`ticket-modal-assignee-checkbox-${user._id}`}
                                     />
                                     <div className="flex flex-col min-w-0">
                                       <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
@@ -945,12 +958,14 @@ export const TicketDetailsModal = ({
                         multiple
                         className="hidden"
                         onChange={handleDescriptionImagePick}
+                        data-test="ticket-modal-description-image-file-input"
                       />
                       <button
                         type="button"
                         onClick={() => descriptionInputRef.current?.click()}
                         disabled={isArchived || uploadDescriptionImagesMutation.isPending}
                         className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                        data-test="ticket-modal-description-upload-button"
                       >
                         <ImagePlus className="w-3.5 h-3.5" />
                         Upload
@@ -963,13 +978,17 @@ export const TicketDetailsModal = ({
                       </div>
                     </div>
                   </div>
-                  <RichTextEditorContent className="p-3 sm:p-4" />
+                  <RichTextEditorContent
+                    className="p-3 sm:p-4"
+                    data-test="ticket-modal-description-input"
+                  />
                 </RichTextEditor>
 
                 {descriptionHoverZoom && (
                   <button
                     type="button"
                     data-description-image-zoom
+                    data-test="ticket-modal-description-image-zoom-button"
                     className="fixed z-[230] flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition hover:bg-muted hover:text-foreground"
                     style={{
                       top: `${descriptionHoverZoom.top}px`,
@@ -995,6 +1014,7 @@ export const TicketDetailsModal = ({
                       className="absolute top-4 right-4 rounded-full bg-card p-2"
                       onClick={() => setPreviewImageUrl(null)}
                       aria-label="Close image preview"
+                      data-test="ticket-modal-description-preview-close-button"
                     >
                       <X className="w-5 h-5 text-foreground" />
                     </button>
@@ -1038,7 +1058,10 @@ export const TicketDetailsModal = ({
                 className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
               >
                 <AccordionItem value="details" className="border-none">
-                  <AccordionTrigger className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60">
+                  <AccordionTrigger
+                    className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60"
+                    data-test="ticket-modal-details-accordion-trigger"
+                  >
                     <div className="flex items-center gap-2">
                       <Ticket className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -1059,6 +1082,7 @@ export const TicketDetailsModal = ({
                           value={dueDateInput}
                           disabled={isArchived}
                           onChange={(e) => setDueDateInput(e.target.value)}
+                          data-test="ticket-modal-due-date-input"
                           className={`h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
                             isArchived ? 'cursor-not-allowed opacity-70' : ''
                           }`}
@@ -1083,6 +1107,7 @@ export const TicketDetailsModal = ({
                             type="button"
                             disabled={isArchived}
                             onClick={() => setCurrentCategory(null)}
+                            data-test="ticket-modal-category-option-none"
                             className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                               currentCategory === null
                                 ? 'bg-foreground text-background border-foreground'
@@ -1097,6 +1122,7 @@ export const TicketDetailsModal = ({
                               type="button"
                               disabled={isArchived}
                               onClick={() => setCurrentCategory(cat._id)}
+                              data-test={`ticket-modal-category-option-${cat._id}`}
                               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
                                 currentCategory === cat._id
                                   ? 'text-background border-transparent'
@@ -1133,7 +1159,10 @@ export const TicketDetailsModal = ({
                 className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
               >
                 <AccordionItem value="tracking" className="border-none">
-                  <AccordionTrigger className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60">
+                  <AccordionTrigger
+                    className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60"
+                    data-test="ticket-modal-tracking-accordion-trigger"
+                  >
                     <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -1185,7 +1214,10 @@ export const TicketDetailsModal = ({
                   className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
                 >
                   <AccordionItem value="pr" className="border-none">
-                    <AccordionTrigger className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60">
+                    <AccordionTrigger
+                      className="px-4 py-3 border-b border-separator bg-muted/30 gap-2 hover:no-underline hover:bg-muted/60"
+                      data-test="ticket-modal-pr-accordion-trigger"
+                    >
                       <div className="flex items-center gap-2">
                         <GitPullRequest className="w-3.5 h-3.5 text-muted-foreground" />
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">

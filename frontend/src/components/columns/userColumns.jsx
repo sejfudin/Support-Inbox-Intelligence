@@ -54,6 +54,7 @@ export const columns = [
           e.stopPropagation();
           table.options.meta?.onRowClick?.(row.original.id, row.original);
         }}
+        data-test={`admin-users-row-${row.original.id}-edit-button`}
       >
         <Pencil className="h-4 w-4" />
       </Button>

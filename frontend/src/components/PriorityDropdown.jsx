@@ -18,6 +18,7 @@ export default function PriorityDropdown({ priority, onChange, disabled = false,
         <button
           type="button"
           disabled={disabled}
+          data-test="ticket-priority-trigger"
           className={cn(
             'flex items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2',
             disabled && 'cursor-not-allowed opacity-60',
@@ -41,6 +42,7 @@ export default function PriorityDropdown({ priority, onChange, disabled = false,
               key={option.value}
               onSelect={() => onChange?.(option.value)}
               className="cursor-pointer flex items-center gap-2"
+              data-test={`ticket-priority-option-${option.value}`}
             >
               <span className={cn('w-2 h-2 rounded-full', config.dot)} />
               <span className="flex-1">{option.label}</span>

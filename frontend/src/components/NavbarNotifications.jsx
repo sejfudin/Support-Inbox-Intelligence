@@ -60,6 +60,7 @@ export default function NavbarNotifications() {
           type="button"
           variant="ghost"
           size="icon"
+          data-test="navbar-notifications-trigger"
           className="relative h-10 w-10 shrink-0 rounded-full text-foreground hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
           aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
         >
@@ -78,6 +79,7 @@ export default function NavbarNotifications() {
               type="button"
               variant="ghost"
               size="sm"
+              data-test="navbar-notifications-mark-all-read-button"
               className="h-7 text-xs"
               disabled={markAllRead.isPending}
               onClick={(e) => {

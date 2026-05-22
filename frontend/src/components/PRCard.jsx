@@ -41,6 +41,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-blue-600 transition-colors overflow-hidden"
+            data-test={`pr-card-${pr.prNumber}-title-link`}
           >
             <span className="text-muted-foreground">#{pr.prNumber}</span>
             <span className="truncate">{pr.prTitle}</span>
@@ -97,6 +98,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
                 disabled={isRefreshing || isUnlinking}
                 className="h-7 w-7 p-0"
                 title="Refresh PR status"
+                data-test={`pr-card-${pr.prNumber}-refresh-button`}
               >
                 <RefreshCw className={cn('w-3.5 h-3.5', isRefreshing && 'animate-spin')} />
               </Button>
@@ -109,6 +111,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
                 disabled={isUnlinking || isRefreshing}
                 className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
                 title="Unlink PR"
+                data-test={`pr-card-${pr.prNumber}-unlink-button`}
               >
                 <Unlink className={cn('w-3.5 h-3.5', isUnlinking && 'animate-pulse')} />
               </Button>

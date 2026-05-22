@@ -78,7 +78,11 @@ export default function TicketFiltersPanel({
       <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-start">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}>
+            <Button
+              variant="outline"
+              className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}
+              data-test="tickets-filter-trigger"
+            >
               <span className="inline-flex items-center gap-2">
                 <Filter className="h-4 w-4" />
                 <span>Filter</span>
@@ -97,12 +101,15 @@ export default function TicketFiltersPanel({
             <DropdownMenuSeparator />
 
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Priority</DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger data-test="tickets-filter-priority-submenu-trigger">
+                Priority
+              </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-56">
                 <DropdownMenuCheckboxItem
                   checked={selectedPriorities.length === 0}
                   onCheckedChange={() => onTogglePriority?.(PRIORITY_FILTER_VALUES.ALL)}
                   onSelect={(e) => e.preventDefault()}
+                  data-test="tickets-filter-priority-option-all"
                 >
                   All priorities
                 </DropdownMenuCheckboxItem>
@@ -118,6 +125,7 @@ export default function TicketFiltersPanel({
                         checked={selectedPriorities.includes(option.value)}
                         onCheckedChange={() => onTogglePriority?.(option.value)}
                         onSelect={(e) => e.preventDefault()}
+                        data-test={`tickets-filter-priority-option-${option.value}`}
                       >
                         <span className="flex items-center gap-2">
                           <span className={cn('h-2 w-2 rounded-full', visual.dot)} />
@@ -130,12 +138,15 @@ export default function TicketFiltersPanel({
             </DropdownMenuSub>
 
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Assigned To</DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger data-test="tickets-filter-assignee-submenu-trigger">
+                Assigned To
+              </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-64">
                 <DropdownMenuCheckboxItem
                   checked={selectedAssigneeIds.length === 0}
                   onCheckedChange={() => onToggleAssignee?.(ASSIGNEE_FILTER_VALUES.ALL)}
                   onSelect={(e) => e.preventDefault()}
+                  data-test="tickets-filter-assignee-option-all"
                 >
                   All assignees
                 </DropdownMenuCheckboxItem>
@@ -148,6 +159,7 @@ export default function TicketFiltersPanel({
                       checked={selectedAssigneeIds.includes(option.value)}
                       onCheckedChange={() => onToggleAssignee?.(option.value)}
                       onSelect={(e) => e.preventDefault()}
+                      data-test={`tickets-filter-assignee-option-${option.value}`}
                     >
                       <span className="truncate">{option.label}</span>
                     </DropdownMenuCheckboxItem>
@@ -159,7 +171,11 @@ export default function TicketFiltersPanel({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}>
+            <Button
+              variant="outline"
+              className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}
+              data-test="tickets-filter-sort-trigger"
+            >
               <span className="inline-flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4" />
                 <span>Sort</span>
@@ -178,14 +194,20 @@ export default function TicketFiltersPanel({
             <DropdownMenuSeparator />
 
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Priority</DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger data-test="tickets-filter-sort-priority-submenu-trigger">
+                Priority
+              </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-56">
                 <DropdownMenuRadioGroup
                   value={priorityOrder}
                   onValueChange={(value) => onPriorityOrderChange?.(value)}
                 >
                   {priorityOrderOptions.map((option) => (
-                    <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    <DropdownMenuRadioItem
+                      key={option.value}
+                      value={option.value}
+                      data-test={`tickets-filter-sort-priority-option-${option.value}`}
+                    >
                       {option.label}
                     </DropdownMenuRadioItem>
                   ))}
@@ -194,14 +216,20 @@ export default function TicketFiltersPanel({
             </DropdownMenuSub>
 
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Due date</DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger data-test="tickets-filter-sort-due-date-submenu-trigger">
+                Due date
+              </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-56">
                 <DropdownMenuRadioGroup
                   value={dueDateOrder}
                   onValueChange={(value) => onDueDateOrderChange?.(value)}
                 >
                   {dueDateOrderOptions.map((option) => (
-                    <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    <DropdownMenuRadioItem
+                      key={option.value}
+                      value={option.value}
+                      data-test={`tickets-filter-sort-due-date-option-${option.value}`}
+                    >
                       {option.label}
                     </DropdownMenuRadioItem>
                   ))}
@@ -210,14 +238,20 @@ export default function TicketFiltersPanel({
             </DropdownMenuSub>
 
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Ticket ID</DropdownMenuSubTrigger>
+              <DropdownMenuSubTrigger data-test="tickets-filter-sort-ticket-id-submenu-trigger">
+                Ticket ID
+              </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-56">
                 <DropdownMenuRadioGroup
                   value={ticketIdOrder}
                   onValueChange={(value) => onTicketIdOrderChange?.(value)}
                 >
                   {ticketIdOrderOptions.map((option) => (
-                    <DropdownMenuRadioItem key={option.value} value={option.value}>
+                    <DropdownMenuRadioItem
+                      key={option.value}
+                      value={option.value}
+                      data-test={`tickets-filter-sort-ticket-id-option-${option.value}`}
+                    >
                       {option.label}
                     </DropdownMenuRadioItem>
                   ))}
@@ -247,6 +281,7 @@ export default function TicketFiltersPanel({
                 onClick={() => onRemoveFilterChip?.(chip.key)}
                 className="rounded-full p-0.5 hover:bg-black/10"
                 aria-label={`Remove ${chip.label}`}
+                data-test={`tickets-filter-chip-remove-${chip.key}`}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -260,6 +295,7 @@ export default function TicketFiltersPanel({
               size="sm"
               onClick={onClearAllFilters}
               className="h-7 px-2 text-xs"
+              data-test="tickets-filter-clear-all-button"
             >
               Clear all
             </Button>

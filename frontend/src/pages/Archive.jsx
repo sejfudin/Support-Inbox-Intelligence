@@ -39,6 +39,7 @@ export default function ArchivePage() {
   return (
     <PageShell>
       <TicketsHeader
+        dataTestPrefix="archive"
         search={search}
         onSearch={(value) => {
           setSearch(value);

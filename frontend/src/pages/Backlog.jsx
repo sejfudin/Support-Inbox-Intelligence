@@ -58,6 +58,7 @@ export default function BacklogPage() {
         hideStatus={true}
       />
       <TicketsHeader
+        dataTestPrefix="backlog"
         search={search}
         onSearch={(value) => {
           setSearch(value);

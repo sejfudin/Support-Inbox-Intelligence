@@ -20,6 +20,8 @@ export const DeleteConfirmModal = ({
           <button
             onClick={onClose}
             className="p-1 hover:bg-muted rounded-full text-muted-foreground"
+            data-test="delete-confirm-close-button"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
@@ -43,6 +45,7 @@ export const DeleteConfirmModal = ({
             <button
               onClick={onClose}
               className="flex-1 px-4 py-2 text-sm font-semibold text-foreground bg-muted hover:bg-muted rounded-lg transition-colors"
+              data-test="delete-confirm-cancel-button"
             >
               Cancel
             </button>
@@ -50,6 +53,7 @@ export const DeleteConfirmModal = ({
               onClick={onConfirm}
               disabled={isLoading}
               className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              data-test="delete-confirm-submit-button"
             >
               {isLoading ? loadingLabel : confirmLabel}
             </button>

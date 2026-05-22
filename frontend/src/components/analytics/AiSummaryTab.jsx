@@ -13,7 +13,11 @@ export default function AiSummaryTab({ aiSummary, generateAiSummary, onGenerateA
           </p>
         </div>
 
-        <Button onClick={onGenerateAiSummary} disabled={generateAiSummary.isPending}>
+        <Button
+          onClick={onGenerateAiSummary}
+          disabled={generateAiSummary.isPending}
+          data-test="analytics-ai-generate-button"
+        >
           <Sparkles className="h-4 w-4" />
           {generateAiSummary.isPending ? 'Generating...' : 'Generate Summary'}
         </Button>

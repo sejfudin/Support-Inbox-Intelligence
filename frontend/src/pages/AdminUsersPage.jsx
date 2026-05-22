@@ -67,6 +67,7 @@ export default function AdminUsersPage() {
               <div className="relative w-full sm:flex-1 md:w-80 md:flex-none">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
+                  id="admin-users-search"
                   type="text"
                   placeholder="Search users..."
                   className="pl-9"
@@ -75,10 +76,15 @@ export default function AdminUsersPage() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
+                  data-test="admin-users-search-input"
                 />
               </div>
 
-              <Button onClick={() => navigate('/register')} className="w-full sm:w-auto">
+              <Button
+                onClick={() => navigate('/register')}
+                className="w-full sm:w-auto"
+                data-test="admin-users-create-button"
+              >
                 <UserPlus className="mr-2 h-4 w-4" />
                 Create User
               </Button>

@@ -125,6 +125,7 @@ export default function AnalyticsDashboard() {
                 <TabsTrigger
                   value="workspace"
                   className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                  data-test="analytics-workspace-tab"
                 >
                   Workspace Analytics
                 </TabsTrigger>
@@ -132,6 +133,7 @@ export default function AnalyticsDashboard() {
                   <TabsTrigger
                     value="personal"
                     className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    data-test="analytics-personal-tab"
                   >
                     My Analytics
                   </TabsTrigger>
@@ -140,6 +142,7 @@ export default function AnalyticsDashboard() {
                   <TabsTrigger
                     value="ai-summary"
                     className="flex-1 rounded-none border-b-[3px] border-transparent bg-transparent px-0 pb-3 pt-0 text-center text-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-primary data-[state=active]:shadow-none"
+                    data-test="analytics-ai-summary-tab"
                   >
                     Performance Summary
                   </TabsTrigger>
