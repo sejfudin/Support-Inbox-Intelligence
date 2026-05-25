@@ -10,6 +10,10 @@ const roundTo = (value, decimals = 2) => {
   return Math.round((value + Number.EPSILON) * factor) / factor;
 };
 
+const buildCycleMsExpression = () => ({
+  $multiply: [{ $ifNull: ['$totalTimeSpent', 0] }, 1000],
+});
+
 const getWorkspaceAnalytics = async ({ workspaceId, days = 30 }) => {
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
     throw new Error('Invalid workspaceId');
@@ -87,12 +91,11 @@ const getWorkspaceAnalytics = async ({ workspaceId, days = 30 }) => {
           ...baseMatch,
           status: { $in: doneIds },
           doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
-          inProgressAt: { $ne: null },
         },
       },
       {
         $addFields: {
-          cycleMs: { $subtract: ['$doneAt', '$inProgressAt'] },
+          cycleMs: buildCycleMsExpression(),
         },
       },
       {
@@ -270,20 +273,11 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
           ...baseMatch,
           status: { $in: doneIds },
           doneAt: { $gte: startDate, $lt: endExclusive, $ne: null },
-          inProgressAt: { $ne: null },
         },
       },
       {
         $addFields: {
-          cycleMs: {
-            $cond: [
-              {
-                $and: [{ $ne: ['$doneAt', null] }, { $ne: ['$inProgressAt', null] }],
-              },
-              { $subtract: ['$doneAt', '$inProgressAt'] },
-              null,
-            ],
-          },
+          cycleMs: buildCycleMsExpression(),
         },
       },
       {
