@@ -644,18 +644,7 @@ export const TicketDetailsModal = ({
       >
         <div className="flex shrink-0 flex-col gap-3 border-b bg-card px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4 lg:px-8">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <button
-              type="button"
-              onClick={(e) => {
-                onClose();
-              }}
-              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
-              aria-label="Close ticket details"
-              data-test="ticket-modal-close-button"
-            >
-              <X className="w-5 h-5" />
-            </button>
-            <span className="hidden text-xs font-bold text-muted-foreground uppercase tracking-widest sm:inline">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               Ticket Details
             </span>
           </div>
@@ -722,6 +711,17 @@ export const TicketDetailsModal = ({
                 {updateTicketMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             )}
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+              }}
+              className="shrink-0 p-1 ml-2 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
+              aria-label="Close ticket details"
+              data-test="ticket-modal-close-button"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
