@@ -24,7 +24,8 @@ const SIDEBAR_WIDTH = '16rem';
 const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
-const EDITABLE_SHORTCUT_SELECTOR = 'input, textarea, select, [contenteditable="true"], [role="textbox"]';
+const EDITABLE_SHORTCUT_SELECTOR =
+  'input, textarea, select, [contenteditable="true"], [role="textbox"]';
 
 const SidebarContext = React.createContext(null);
 
