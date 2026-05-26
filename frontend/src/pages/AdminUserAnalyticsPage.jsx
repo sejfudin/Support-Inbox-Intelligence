@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ANALYTICS_PERIODS } from '@/helpers/analyticsFormatters';
+import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import PageHeading from '@/components/PageHeading';
 
 export default function AdminUserAnalyticsPage() {
@@ -109,7 +110,7 @@ export default function AdminUserAnalyticsPage() {
       <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
         <User className="h-4 w-4 text-primary" />
         <div>
-          <div className="font-medium text-foreground">{user.role || 'user'}</div>
+          <div className="font-medium text-foreground">{capitalizeFirst(user.role || 'user')}</div>
           <div>Role</div>
         </div>
       </div>
@@ -123,7 +124,9 @@ export default function AdminUserAnalyticsPage() {
       <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
         <ShieldCheck className="h-4 w-4 text-primary" />
         <div>
-          <div className="font-medium text-foreground">{user.status || 'active'}</div>
+          <div className="font-medium text-foreground">
+            {capitalizeFirst(user.status || 'active')}
+          </div>
           <div>Status</div>
         </div>
       </div>

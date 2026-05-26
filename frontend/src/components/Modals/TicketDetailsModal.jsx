@@ -279,6 +279,7 @@ export const TicketDetailsModal = ({
     updateField,
     isPaused: shouldPauseMetadataSuggestion || isArchived,
     skipInitialAutoSuggestion: true,
+    enableAutoSuggestion: false,
   });
 
   useEffect(() => {
