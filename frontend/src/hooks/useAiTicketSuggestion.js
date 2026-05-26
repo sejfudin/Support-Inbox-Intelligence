@@ -12,6 +12,7 @@ export const useAiTicketSuggestion = ({
   updateField,
   isPaused = false,
   skipInitialAutoSuggestion = false,
+  enableAutoSuggestion = true,
 }) => {
   const suggestMetadataMutation = useSuggestTicketMetadata();
 
@@ -102,6 +103,11 @@ export const useAiTicketSuggestion = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    if (!enableAutoSuggestion) {
+      lastAutoSuggestionInputKeyRef.current = '';
+      return;
+    }
+
     if (isPaused) {
       lastAutoSuggestionInputKeyRef.current = '';
       return;
@@ -145,6 +151,7 @@ export const useAiTicketSuggestion = ({
     safeDescription,
     requestSuggestion,
     skipInitialAutoSuggestion,
+    enableAutoSuggestion,
   ]);
 
   const requestManualSuggestion = useCallback(() => {

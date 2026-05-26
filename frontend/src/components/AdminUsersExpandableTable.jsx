@@ -12,6 +12,7 @@ import {
 import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 
 function getInitials(name) {
   return name
@@ -208,7 +209,7 @@ export default function AdminUsersExpandableTable({
                                       </TableCell>
                                       <TableCell className="px-4 py-2.5">
                                         <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                                          {workspace.role || 'member'}
+                                          {capitalizeFirst(workspace.role || 'member')}
                                         </span>
                                       </TableCell>
                                       <TableCell className="px-4 py-2.5">
@@ -219,7 +220,7 @@ export default function AdminUsersExpandableTable({
                                               : 'bg-yellow/10 text-yellow-700'
                                           }`}
                                         >
-                                          {workspace.status}
+                                          {capitalizeFirst(workspace.status)}
                                         </span>
                                       </TableCell>
                                       <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">
