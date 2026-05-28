@@ -26,7 +26,11 @@ import {
   TICKET_ID_ORDER_VALUES,
   PRIORITY_FILTER_OPTIONS,
   buildAssigneeFilterOptions,
+  DEFAULT_EXPORT_PERIOD,
+  buildExportPeriodQueryParam,
+  getExportPeriodFilenameSuffix,
 } from '@/helpers/ticketFilters';
+import TicketExportPeriodSelect from '@/components/Tickets/TicketExportPeriodSelect';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import TicketFiltersPanel from '@/components/Tickets/TicketsFiltersPanel';
@@ -70,6 +74,7 @@ export default function TicketPage() {
       : TICKET_ID_ORDER_VALUES.NONE;
   const [activeTab, setActiveTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState(initialView);
+  const [exportPeriod, setExportPeriod] = useState(DEFAULT_EXPORT_PERIOD);
 
   const isMobile = useIsMobile();
   const effectiveViewMode = isMobile ? 'list' : viewMode;
@@ -438,10 +443,11 @@ export default function TicketPage() {
     return buildCsv(header, rows);
   };
 
-  const downloadCsv = (csvString) => {
+  const downloadCsv = (csvString, period = exportPeriod) => {
     const stamp = new Date().toISOString().slice(0, 10);
     const tabSlug = activeTab === 'all' ? 'all' : encodeTabParam(activeTab);
-    downloadCsvFile(`tickets-${tabSlug}-${stamp}.csv`, csvString);
+    const periodSlug = getExportPeriodFilenameSuffix(period);
+    downloadCsvFile(`tickets-${tabSlug}-${periodSlug}-${stamp}.csv`, csvString);
   };
 
   const handleExportCsv = async () => {
@@ -449,21 +455,24 @@ export default function TicketPage() {
       setIsExporting(true);
 
       let ticketsForExport = listTickets;
-      const exportParams = getTicketsQueryParams({
-        page: 1,
-        search: currentSearch,
-        activeTab,
-        archived: false,
-        status: listStatusFilter,
-        workspaceId: overrideWorkspaceId,
-        queryFilters,
-        listLimit: Math.max(isBoard ? 10000 : listData.pagination?.total || 0, 1),
-      }).list;
+      const exportParams = {
+        ...getTicketsQueryParams({
+          page: 1,
+          search: currentSearch,
+          activeTab,
+          archived: false,
+          status: listStatusFilter,
+          workspaceId: overrideWorkspaceId,
+          queryFilters,
+          listLimit: Math.max(isBoard ? 10000 : listData.pagination?.total || 0, 1),
+        }).list,
+        ...buildExportPeriodQueryParam(exportPeriod),
+      };
       const response = await getAllTicketsApi(exportParams);
       ticketsForExport = (response?.data || []).map((ticket) => normalizeTicket(ticket));
 
       if (!ticketsForExport.length) {
-        toast.info('No tickets to export for current filters.');
+        toast.info('No tickets to export for the selected filters and time period.');
         return;
       }
 
@@ -519,16 +528,27 @@ export default function TicketPage() {
         afterNewTicketSlot={
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
             <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start" />
-            <Button
-              variant="outline"
-              className="w-full md:w-auto"
-              onClick={handleExportCsv}
-              disabled={isExporting}
-              data-test="ticket-export-csv-button"
+            <div
+              className="flex w-full flex-col gap-2 rounded-2xl border border-border/80 bg-secondary/50 p-2 sm:flex-row sm:items-center md:w-auto"
+              data-test="ticket-export-controls"
             >
-              <Download className="mr-2 h-4 w-4" />
-              {isExporting ? 'Exporting...' : 'Export CSV'}
-            </Button>
+              <label className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+                <span className="shrink-0 px-1 text-xs font-medium text-muted-foreground">
+                  Export period
+                </span>
+                <TicketExportPeriodSelect value={exportPeriod} onValueChange={setExportPeriod} />
+              </label>
+              <Button
+                variant="outline"
+                className="w-full shrink-0 sm:w-auto"
+                onClick={handleExportCsv}
+                disabled={isExporting}
+                data-test="ticket-export-csv-button"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isExporting ? 'Exporting...' : 'Export CSV'}
+              </Button>
+            </div>
           </div>
         }
       />
