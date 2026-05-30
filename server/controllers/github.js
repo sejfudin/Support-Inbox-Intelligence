@@ -471,13 +471,20 @@ const handlePullRequestEvent = async (payload) => {
     });
 
     if (automationResult?.result === AUTOMATION_RESULT.STATUS_UPDATED) {
+      const movedTicket =
+        typeof automationResult.ticket?.toObject === 'function'
+          ? automationResult.ticket.toObject()
+          : automationResult.ticket;
+
       emitTicketEvent({
         ticketId: result.ticketId,
         workspaceId: integration.workspace,
         eventName: 'ticket:moved',
         extra: {
           prNumber: prData.prNumber,
-          status: automationResult.newStatus,
+          status: movedTicket?.status ?? automationResult.newStatus,
+          statusId: movedTicket?.status?._id ?? movedTicket?.status,
+          ticket: movedTicket,
         },
       });
     }

@@ -174,6 +174,7 @@ async function handlePROpened(ticketId, workspaceId, prData, eventTime) {
       previousStatus: execution.previousStatus,
       newStatus: targetStatusSlug,
       prNumber: prData.prNumber,
+      ticket: execution.ticket,
     };
   } catch (error) {
     console.error('Error handling PR opened:', error);
@@ -255,6 +256,7 @@ async function handlePRMerged(ticketId, workspaceId, prData, eventTime) {
       previousStatus: execution.previousStatus,
       newStatus: targetStatusSlug,
       prNumber: prData.prNumber,
+      ticket: execution.ticket,
     };
   } catch (error) {
     console.error('Error handling PR merged:', error);
