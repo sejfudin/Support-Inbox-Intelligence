@@ -11,17 +11,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useUpdateUser } from '@/queries/auth';
+import { useRoles } from '@/queries/roles';
 import { toast } from 'sonner';
 
 const UserEditModal = ({ user, onClose }) => {
   const [editedUser, setEditedUser] = useState({
     user: user.user || '',
     email: user.email || '',
-    role: user.role || 'user',
+    role: user.role || '',
     active: user.active ?? true,
   });
 
   const updateUserMutation = useUpdateUser();
+  const { data: roles = [] } = useRoles();
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -130,12 +132,15 @@ const UserEditModal = ({ user, onClose }) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin" data-test="user-edit-modal-role-option-admin">
-                    Admin
-                  </SelectItem>
-                  <SelectItem value="user" data-test="user-edit-modal-role-option-user">
-                    User
-                  </SelectItem>
+                  {roles.map((r) => (
+                    <SelectItem
+                      key={r.slug}
+                      value={r.slug}
+                      data-test={`user-edit-modal-role-option-${r.slug}`}
+                    >
+                      {r.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle2, ShieldCheck, Sparkles, UserPlus, Users } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, Sparkles, UserPlus } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/select';
 import { useAllWorkspaces } from '@/queries/workspaces';
 import { useRegisterUser } from '@/queries/auth';
+import { useRoles } from '@/queries/roles';
+import { ROLES } from '@/helpers/roles';
 import { toast } from 'sonner';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -24,6 +26,7 @@ const Register = () => {
   const [createdUser, setCreatedUser] = useState(null);
   const { mutate, isPending } = useRegisterUser();
   const { data: workspaces = [], isLoading: loadingWorkspaces } = useAllWorkspaces();
+  const { data: roles = [] } = useRoles();
 
   const {
     register,
@@ -38,14 +41,14 @@ const Register = () => {
     defaultValues: {
       fullName: '',
       email: '',
-      role: 'user',
+      role: '',
       workspaceId: 'none',
       workspaceRole: 'member',
     },
   });
   const selectedRole = watch('role');
   const selectedWorkspaceId = watch('workspaceId');
-  const isGlobalAdmin = selectedRole === 'admin';
+  const isGlobalAdmin = selectedRole === ROLES.ADMIN;
   const hasSelectedWorkspace =
     !isGlobalAdmin && selectedWorkspaceId && selectedWorkspaceId !== 'none';
 
@@ -69,9 +72,9 @@ const Register = () => {
     const payload = {
       ...data,
       workspaceId:
-        data.role === 'admin' || data.workspaceId === 'none' ? undefined : data.workspaceId,
+        data.role === ROLES.ADMIN || data.workspaceId === 'none' ? undefined : data.workspaceId,
       workspaceRole:
-        data.role === 'admin' || data.workspaceId === 'none' ? undefined : data.workspaceRole,
+        data.role === ROLES.ADMIN || data.workspaceId === 'none' ? undefined : data.workspaceRole,
     };
 
     mutate(payload, {
@@ -91,7 +94,7 @@ const Register = () => {
           reset({
             fullName: '',
             email: '',
-            role: 'user',
+            role: '',
             workspaceId: 'none',
             workspaceRole: 'member',
           });
@@ -200,7 +203,7 @@ const Register = () => {
                       {createdUser.role}
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {createdUser.role === 'admin'
+                      {createdUser.role === ROLES.ADMIN
                         ? 'Global workspace oversight'
                         : createdUser.workspaceId
                           ? 'Workspace invitation included'
@@ -317,18 +320,20 @@ const Register = () => {
                     <div>
                       <p className="text-sm font-semibold text-background">Admin</p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        Gets platform-wide access to all workspaces, user management, and workspace
-                        creation.
+                        Full platform access — user management, workspaces, intern data, and all
+                        programme controls.
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
-                    <Users className="mt-0.5 h-5 w-5 text-blue-300" />
+                    <ShieldCheck className="mt-0.5 h-5 w-5 text-blue-300" />
                     <div>
-                      <p className="text-sm font-semibold text-background">User</p>
+                      <p className="text-sm font-semibold text-background">
+                        Mentor / Intern / Leadership
+                      </p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                        Can optionally receive a workspace invitation and workspace role during
-                        creation.
+                        Scoped access based on role. Mentors manage interns; leadership sees
+                        dashboards and profiles; interns manage their own profile.
                       </p>
                     </div>
                   </div>
@@ -419,12 +424,15 @@ const Register = () => {
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent className="bg-card">
-                          <SelectItem value="user" data-test="register-global-role-option-user">
-                            User
-                          </SelectItem>
-                          <SelectItem value="admin" data-test="register-global-role-option-admin">
-                            Admin
-                          </SelectItem>
+                          {roles.map((r) => (
+                            <SelectItem
+                              key={r.slug}
+                              value={r.slug}
+                              data-test={`register-global-role-option-${r.slug}`}
+                            >
+                              {r.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     )}
@@ -432,7 +440,7 @@ const Register = () => {
                   <p className="text-xs text-muted-foreground">
                     {isGlobalAdmin
                       ? 'Platform-wide admin access. No workspace assignment needed.'
-                      : 'Regular users can optionally be assigned to a workspace below.'}
+                      : 'Non-admin users can optionally be assigned to a workspace below.'}
                   </p>
                 </div>
 

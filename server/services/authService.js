@@ -85,13 +85,13 @@ const register = async (userData) => {
     user = await User.create({
       fullname: fullName,
       email: normalizedEmail,
-      role: role || 'user',
+      role,
       active: false,
       status: 'invited',
     });
   } else {
     user.fullname = fullName;
-    user.role = role || user.role || 'user';
+    user.role = role || user.role;
     user.active = false;
     user.status = 'invited';
   }
@@ -223,7 +223,8 @@ const updateUser = async (userId, updateData) => {
   }
 };
 
-const createUserInvite = async ({ fullName, email, role = 'user', inviterId, inviterName }) => {
+const createUserInvite = async ({ fullName, email, role, inviterId, inviterName }) => {
+  if (!role) throw new Error('Role is required');
   const normalizedEmail = String(email).trim().toLowerCase();
   let user = await User.findOne({ email: normalizedEmail });
 

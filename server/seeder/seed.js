@@ -8,8 +8,9 @@ const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
 const TicketStatus = require('../models/TicketStatus');
+const Role = require('../models/Role');
+const { seedDefaultRoles } = require('../services/roleService');
 const { seedDefaultStatuses } = require('../services/statusService');
-// const AILog = require("../models/AILog");
 
 const seedData = async () => {
   try {
@@ -20,14 +21,17 @@ const seedData = async () => {
     await TicketStatus.deleteMany();
     await Workspace.deleteMany();
     await User.deleteMany();
+    await Role.deleteMany();
+
+    await seedDefaultRoles();
+    console.log('✅ Roles seeded (admin, mentor, intern, leadership).');
 
     const salt = await bcrypt.genSalt(10);
     const adminPassword = await bcrypt.hash('admin123', salt);
-    const agentPassword = await bcrypt.hash('agent123', salt);
+    const mentorPassword = await bcrypt.hash('mentor123', salt);
 
     const admin = await User.create({
       fullname: 'Primary Admin',
-      username: 'admin_user',
       email: 'admin@test.com',
       password: adminPassword,
       role: 'admin',
@@ -35,17 +39,16 @@ const seedData = async () => {
       status: 'active',
     });
 
-    const agent = await User.create({
-      fullname: 'Agent Mark',
-      username: 'agent_mark',
-      email: 'mark@test.com',
-      password: agentPassword,
-      role: 'user',
+    const mentor = await User.create({
+      fullname: 'Mentor Mark',
+      email: 'mentor@test.com',
+      password: mentorPassword,
+      role: 'mentor',
       active: true,
       status: 'active',
     });
 
-    console.log('✅ Users (Admin and Agent) created.');
+    console.log('✅ Users (Admin and Mentor) created.');
 
     const workspace = await Workspace.create({
       name: 'Support Inbox Demo',
@@ -59,7 +62,7 @@ const seedData = async () => {
           invitedBy: admin._id,
         },
         {
-          user: agent._id,
+          user: mentor._id,
           role: 'member',
           status: 'active',
           invitedBy: admin._id,
@@ -68,7 +71,7 @@ const seedData = async () => {
     });
 
     await User.updateMany(
-      { _id: { $in: [admin._id, agent._id] } },
+      { _id: { $in: [admin._id, mentor._id] } },
       { $set: { workspaceId: workspace._id } }
     );
 
@@ -91,9 +94,9 @@ const seedData = async () => {
           text: 'Hello, I have been charged twice for my subscription this month.',
         },
         {
-          senderType: 'user',
-          sender: agent._id,
-          text: 'Hello Lena, we are checking the transactions. Please wait a few minutes.',
+          senderType: 'admin',
+          sender: admin._id,
+          text: 'Hello, we are checking the transactions. Please wait a few minutes.',
         },
       ],
       ai: {
@@ -104,25 +107,15 @@ const seedData = async () => {
         confidenceScore: 0.98,
       },
       creator: admin._id,
-      assignedTo: [agent._id],
+      assignedTo: [mentor._id],
     });
 
     console.log('✅ Ticket with messages created.');
 
-    // await AILog.create({
-    //   ticketId: ticket._id,
-    //   userId: agent._id,
-    //   status: "success",
-    //   latencyMs: 1250,
-    //   errorMessage: "",
-    // });
-
-    console.log('✅ AI Log created.');
-
     console.log('\n🚀 SEEDING COMPLETED SUCCESSFULLY!');
     console.log('----------------------------------');
     console.log('Admin: admin@test.com / admin123');
-    console.log('Agent: mark@test.com / agent123');
+    console.log('Mentor: mentor@test.com / mentor123');
     console.log('----------------------------------');
 
     process.exit(0);

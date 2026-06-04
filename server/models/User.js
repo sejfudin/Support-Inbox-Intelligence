@@ -20,17 +20,13 @@ const userSchema = new mongoose.Schema(
       minlength: [6, 'Password must have at least 6 characters.'],
       select: false,
       required: function () {
-        // this requires password only when the user is active
         return this.active === true;
       },
     },
     role: {
       type: String,
-      enum: {
-        values: ['user', 'admin'],
-        message: '{VALUE} is not a supported role',
-      },
-      default: 'user',
+      required: [true, 'Role is required'],
+      default: 'admin',
     },
     active: {
       type: Boolean,
@@ -75,6 +71,10 @@ const userSchema = new mongoose.Schema(
     workspaceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Workspace',
+    },
+    hub: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Hub',
     },
   },
   {

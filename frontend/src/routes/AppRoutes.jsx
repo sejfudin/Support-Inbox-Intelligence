@@ -10,6 +10,7 @@ import BacklogPage from '@/pages/Backlog';
 import ProfilePage from '@/pages/ProfilePage';
 import ProtectedRoute from '@/routes/ProtectedRoutes';
 import { useAuth } from '@/context/AuthContext';
+import { ROLES } from '@/helpers/roles';
 import UserDashboard from '@/pages/UserDashboard';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
 import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
@@ -34,7 +35,7 @@ const HomeRedirect = () => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (user?.role === 'admin') {
+  if (user?.role === ROLES.ADMIN) {
     return <Navigate to="/admin/workspaces" replace />;
   }
 
@@ -65,7 +66,7 @@ export default function AppRoutes() {
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/profile" element={<ProfilePage />} />
 
-          <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<AdminWorkspacesPage />} />
@@ -84,7 +85,7 @@ export default function AppRoutes() {
               <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
             </Route>
 
-            <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
               <Route path="/admin/backlog" element={<BacklogPage />} />
             </Route>
           </Route>
