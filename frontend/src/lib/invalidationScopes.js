@@ -1,4 +1,5 @@
 import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
+import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -48,6 +49,7 @@ export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
 
 export const invalidateWorkspaceTicketsScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
+  queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
 };
 
 export const invalidateTicketScope = (queryClient, ticketId) => {

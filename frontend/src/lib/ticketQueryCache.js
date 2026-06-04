@@ -119,11 +119,26 @@ export const patchMovedTicketInLists = (queryClient, { ticketId, status, statusI
   const nextStatus = status || statusId;
   if (!ticketId || !nextStatus) return false;
 
-  return patchTicketListQueries(queryClient, ticketId, (currentTicket) => ({
-    ...currentTicket,
-    ...(ticket || {}),
-    status: nextStatus,
-  }));
+  return patchQueryData(queryClient, ({ queryKey, currentTickets }) => {
+    const index = currentTickets.findIndex(
+      (currentTicket) => String(getTicketId(currentTicket)) === String(ticketId)
+    );
+    if (index < 0) return currentTickets;
+
+    const patchedTicket = {
+      ...currentTickets[index],
+      ...(ticket || {}),
+      status: ticket?.status ?? nextStatus,
+    };
+
+    if (!ticketMatchesQuery(patchedTicket, queryKey)) {
+      return currentTickets.filter((_, currentIndex) => currentIndex !== index);
+    }
+
+    const nextTickets = [...currentTickets];
+    nextTickets[index] = patchedTicket;
+    return nextTickets;
+  });
 };
 
 export const upsertTicketInLists = (queryClient, ticket) => {
