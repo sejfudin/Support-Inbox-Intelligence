@@ -27,6 +27,7 @@ const getAllTickets = async (req, res) => {
       workspaceId: queryWorkspaceId,
       sortBy,
       sortOrder,
+      periodDays,
     } = req.query;
 
     const isAdmin = req.user?.role === 'admin';
@@ -46,6 +47,7 @@ const getAllTickets = async (req, res) => {
       workspaceId,
       sortBy: sortBy || 'updatedAt',
       sortOrder: sortOrder === 'asc' ? 'asc' : 'desc',
+      periodDays,
     });
 
     res.status(200).json({

@@ -53,6 +53,35 @@ export const TICKET_ID_ORDER_OPTIONS = [
   { value: TICKET_ID_ORDER_VALUES.DESC, label: 'Newest first (N -> 1)' },
 ];
 
+export const EXPORT_PERIOD_VALUES = {
+  LAST_7: '7',
+  LAST_30: '30',
+  ALL: 'all',
+};
+
+export const EXPORT_PERIOD_OPTIONS = [
+  { value: EXPORT_PERIOD_VALUES.LAST_7, label: 'Last 7 days' },
+  { value: EXPORT_PERIOD_VALUES.LAST_30, label: '30 days' },
+  { value: EXPORT_PERIOD_VALUES.ALL, label: 'All' },
+];
+
+export const DEFAULT_EXPORT_PERIOD = EXPORT_PERIOD_VALUES.ALL;
+
+export const buildExportPeriodQueryParam = (period) => {
+  const safe = String(period || DEFAULT_EXPORT_PERIOD);
+  if (safe === EXPORT_PERIOD_VALUES.LAST_7 || safe === EXPORT_PERIOD_VALUES.LAST_30) {
+    return { periodDays: Number(safe) };
+  }
+  return {};
+};
+
+export const getExportPeriodFilenameSuffix = (period) => {
+  const safe = String(period || DEFAULT_EXPORT_PERIOD);
+  if (safe === EXPORT_PERIOD_VALUES.LAST_7) return '7d';
+  if (safe === EXPORT_PERIOD_VALUES.LAST_30) return '30d';
+  return 'all';
+};
+
 export const DEFAULT_TICKET_CONTROLS = {
   priorities: [],
   assigneeIds: [],

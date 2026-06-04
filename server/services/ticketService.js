@@ -89,6 +89,19 @@ const sanitizeTicketSubject = (value) =>
     .trim();
 
 const ALLOWED_TICKET_SORT_FIELDS = new Set(['updatedAt', 'dueDate', 'taskNumber']);
+const ALLOWED_PERIOD_DAYS = new Set([7, 30]);
+const ONE_DAY_MS = 1000 * 60 * 60 * 24;
+
+const normalizePeriodDays = (value) => {
+  const parsed = Number.parseInt(value, 10);
+  return ALLOWED_PERIOD_DAYS.has(parsed) ? parsed : null;
+};
+
+const applyCreatedAtPeriodFilter = (query, periodDays) => {
+  const days = normalizePeriodDays(periodDays);
+  if (!days) return;
+  query.createdAt = { $gte: new Date(Date.now() - days * ONE_DAY_MS) };
+};
 
 const STATUS_POPULATE_SELECT = 'slug label color isBacklog tracksTime isDone sortOrder';
 
@@ -246,6 +259,7 @@ const getAllTickets = async ({
   workspaceId,
   sortBy,
   sortOrder,
+  periodDays,
 }) => {
   if (!workspaceId) {
     return {
@@ -268,6 +282,8 @@ const getAllTickets = async ({
   if (archived !== undefined) {
     query.isArchived = archived ? true : { $ne: true };
   }
+
+  applyCreatedAtPeriodFilter(query, periodDays);
 
   if (search) {
     const searchConditions = [
