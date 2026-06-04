@@ -14,6 +14,7 @@ export const getAllTickets = async ({
   workspaceId,
   sortBy,
   sortOrder,
+  periodDays,
 } = {}) => {
   const response = await apiClient.get('/tickets', {
     params: {
@@ -30,6 +31,7 @@ export const getAllTickets = async ({
       workspaceId,
       sortBy,
       sortOrder,
+      periodDays,
     },
   });
   return response.data;
