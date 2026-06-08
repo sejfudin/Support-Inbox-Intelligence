@@ -112,8 +112,8 @@ export function RegisterRoleGuide({ role }) {
 
         {isInternRole(role) && (
           <GuideBlock icon={GraduationCap} title="Intern onboarding">
-            Programme type, start date, and mentors are saved with the account. An optional secondary
-            mentor can cover DS, ML, QA, or other tracks.
+            Programme type, start date, and mentors are saved with the account. An optional
+            secondary mentor can cover DS, ML, QA, or other tracks.
           </GuideBlock>
         )}
 
@@ -125,17 +125,19 @@ export function RegisterRoleGuide({ role }) {
             <ChecklistItem icon={Briefcase}>Office hub for every employee</ChecklistItem>
             {isInternRole(role) && (
               <>
-                <ChecklistItem icon={GraduationCap}>
-                  Internship type and start date
+                <ChecklistItem icon={GraduationCap}>Internship type and start date</ChecklistItem>
+                <ChecklistItem icon={Users}>
+                  Primary mentor from the intern&apos;s hub
                 </ChecklistItem>
-                <ChecklistItem icon={Users}>Primary mentor from the intern&apos;s hub</ChecklistItem>
               </>
             )}
             {showsWorkspaceSelection(role) && (
               <ChecklistItem icon={Sparkles}>Workspace invitation is optional</ChecklistItem>
             )}
             {skipsWorkspaceSelection(role) && (
-              <ChecklistItem icon={ShieldCheck}>No workspace assignment for this role</ChecklistItem>
+              <ChecklistItem icon={ShieldCheck}>
+                No workspace assignment for this role
+              </ChecklistItem>
             )}
           </ul>
         </div>

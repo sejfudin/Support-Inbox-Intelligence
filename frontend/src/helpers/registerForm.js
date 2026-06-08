@@ -1,10 +1,8 @@
 import { ROLES } from '@/helpers/roles';
 
-export const skipsWorkspaceSelection = (role) =>
-  role === ROLES.ADMIN || role === ROLES.LEADERSHIP;
+export const skipsWorkspaceSelection = (role) => role === ROLES.ADMIN || role === ROLES.LEADERSHIP;
 
-export const showsWorkspaceSelection = (role) =>
-  role === ROLES.MENTOR || role === ROLES.INTERN;
+export const showsWorkspaceSelection = (role) => role === ROLES.MENTOR || role === ROLES.INTERN;
 
 export const isInternRole = (role) => role === ROLES.INTERN;
 
@@ -18,8 +16,7 @@ export const buildRegisterPayload = (data) => {
     role: data.role,
     hubId: data.hubId,
     workspaceId: workspaceSkipped || !workspaceSelected ? undefined : data.workspaceId,
-    workspaceRole:
-      workspaceSkipped || !workspaceSelected ? undefined : data.workspaceRole,
+    workspaceRole: workspaceSkipped || !workspaceSelected ? undefined : data.workspaceRole,
   };
 
   if (isInternRole(data.role)) {

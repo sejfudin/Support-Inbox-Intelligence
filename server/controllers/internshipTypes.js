@@ -3,8 +3,7 @@ const { ROLES } = require('../constants/roles');
 
 exports.getInternshipTypes = async (req, res, next) => {
   try {
-    const includeInactive =
-      req.user?.role === ROLES.ADMIN && req.query.includeInactive === 'true';
+    const includeInactive = req.user?.role === ROLES.ADMIN && req.query.includeInactive === 'true';
     const types = await internshipTypeService.getAllInternshipTypes({ includeInactive });
     res.json(types);
   } catch (error) {

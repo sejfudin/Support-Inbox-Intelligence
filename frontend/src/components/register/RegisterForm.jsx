@@ -445,10 +445,7 @@ export function RegisterForm({ onSuccess, onError }) {
                       <SelectValue placeholder="Select workspace role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem
-                        value="member"
-                        data-test="register-workspace-role-option-member"
-                      >
+                      <SelectItem value="member" data-test="register-workspace-role-option-member">
                         Member
                       </SelectItem>
                       <SelectItem value="admin" data-test="register-workspace-role-option-admin">

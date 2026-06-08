@@ -118,7 +118,9 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Email to use
                   </p>
-                  <p className="mt-2 text-base font-semibold text-foreground">{createdUser.email}</p>
+                  <p className="mt-2 text-base font-semibold text-foreground">
+                    {createdUser.email}
+                  </p>
                 </div>
                 <Button
                   type="button"

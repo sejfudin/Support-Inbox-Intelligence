@@ -3,8 +3,7 @@ const { ROLES } = require('../constants/roles');
 
 exports.getTechnologies = async (req, res, next) => {
   try {
-    const includeInactive =
-      req.user?.role === ROLES.ADMIN && req.query.includeInactive === 'true';
+    const includeInactive = req.user?.role === ROLES.ADMIN && req.query.includeInactive === 'true';
     const technologies = await technologyService.getAllTechnologies({ includeInactive });
     res.json(technologies);
   } catch (error) {

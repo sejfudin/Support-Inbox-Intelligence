@@ -15,7 +15,11 @@ exports.getUsers = async (req, res, next) => {
     } = req.query;
     const isAdmin = req.user?.role === 'admin';
     const workspaceId = isAdmin ? queryWorkspaceId : req.user?.workspaceId;
-    const roles = rolesParam ? String(rolesParam).split(',').map((r) => r.trim()) : undefined;
+    const roles = rolesParam
+      ? String(rolesParam)
+          .split(',')
+          .map((r) => r.trim())
+      : undefined;
 
     const result = await userService.getUsers({
       page,
