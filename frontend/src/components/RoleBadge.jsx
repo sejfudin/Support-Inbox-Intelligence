@@ -1,5 +1,6 @@
 import { Badge } from './ui/badge';
 import { badgeTone } from '@/helpers/badgeTones';
+import { getRoleLabel } from '@/helpers/roles';
 
 const ROLE_TONE = {
   admin: 'indigo',
@@ -14,7 +15,7 @@ export const RoleBadge = ({ role }) => {
 
   return (
     <Badge className={`${badgeTone(tone)} px-4 py-1 text-xs font-bold uppercase tracking-wider`}>
-      {role}
+      {getRoleLabel(slug)}
     </Badge>
   );
 };

@@ -73,13 +73,19 @@ const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, 
 
   if (pagination === 'false' || pagination === false) {
     const users = await User.find(query)
-      .select('fullname email role status workspaceId')
+      .select('fullname email role status workspaceId hub')
+      .populate('hub', 'name city country')
       .sort({ fullname: 1 });
     return { users };
   }
 
   const [users, total] = await Promise.all([
-    User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+    User.find(query)
+      .select('-password')
+      .populate('hub', 'name city country')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
     User.countDocuments(query),
   ]);
 

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const roleSchema = new mongoose.Schema(
+const internshipTypeSchema = new mongoose.Schema(
   {
     slug: {
       type: String,
@@ -13,13 +13,17 @@ const roleSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      maxlength: 50,
+      maxlength: 100,
     },
     description: {
       type: String,
       trim: true,
       maxlength: 200,
       default: '',
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     isSystem: {
       type: Boolean,
@@ -29,4 +33,4 @@ const roleSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Role', roleSchema);
+module.exports = mongoose.model('InternshipType', internshipTypeSchema);

@@ -14,8 +14,8 @@ import {
 } from '@/components/ui/select';
 import { useAllWorkspaces } from '@/queries/workspaces';
 import { useRegisterUser } from '@/queries/auth';
-import { useRoles } from '@/queries/roles';
-import { ROLES } from '@/helpers/roles';
+import { useHubs } from '@/queries/hubs';
+import { ROLES, ROLE_OPTIONS } from '@/helpers/roles';
 import { toast } from 'sonner';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -26,7 +26,7 @@ const Register = () => {
   const [createdUser, setCreatedUser] = useState(null);
   const { mutate, isPending } = useRegisterUser();
   const { data: workspaces = [], isLoading: loadingWorkspaces } = useAllWorkspaces();
-  const { data: roles = [] } = useRoles();
+  const { data: hubs = [] } = useHubs();
 
   const {
     register,
@@ -42,6 +42,7 @@ const Register = () => {
       fullName: '',
       email: '',
       role: '',
+      hubId: '',
       workspaceId: 'none',
       workspaceRole: 'member',
     },
@@ -95,6 +96,7 @@ const Register = () => {
             fullName: '',
             email: '',
             role: '',
+            hubId: '',
             workspaceId: 'none',
             workspaceRole: 'member',
           });
@@ -410,21 +412,58 @@ const Register = () => {
 
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-foreground uppercase tracking-wide">
+                    Office Hub
+                  </label>
+                  <Controller
+                    name="hubId"
+                    control={control}
+                    rules={{ required: 'Hub is required' }}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger
+                          data-test="register-hub-select"
+                          className={`h-12 bg-card text-foreground ${errors.hubId ? 'border-red-500' : 'border-border'}`}
+                        >
+                          <SelectValue placeholder="Select office hub" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card">
+                          {hubs.map((hub) => (
+                            <SelectItem
+                              key={hub._id}
+                              value={hub._id}
+                              data-test={`register-hub-option-${hub._id}`}
+                            >
+                              {hub.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.hubId && <p className="text-red-500 text-xs">{errors.hubId.message}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    Every employee must belong to a company office hub.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-foreground uppercase tracking-wide">
                     Global Role
                   </label>
                   <Controller
                     name="role"
                     control={control}
+                    rules={{ required: 'Role is required' }}
                     render={({ field }) => (
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <SelectTrigger
                           data-test="register-global-role-select"
-                          className="h-12 border-border bg-card text-foreground"
+                          className={`h-12 bg-card text-foreground ${errors.role ? 'border-red-500' : 'border-border'}`}
                         >
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>
                         <SelectContent className="bg-card">
-                          {roles.map((r) => (
+                          {ROLE_OPTIONS.map((r) => (
                             <SelectItem
                               key={r.slug}
                               value={r.slug}
@@ -437,6 +476,7 @@ const Register = () => {
                       </Select>
                     )}
                   />
+                  {errors.role && <p className="text-red-500 text-xs">{errors.role.message}</p>}
                   <p className="text-xs text-muted-foreground">
                     {isGlobalAdmin
                       ? 'Platform-wide admin access. No workspace assignment needed.'

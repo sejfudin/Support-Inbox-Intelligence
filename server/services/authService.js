@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const Hub = require('../models/Hub');
+const { isValidRole } = require('../constants/roles');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const RefreshToken = require('../models/RefreshToken');
@@ -15,6 +17,13 @@ const generateAccessToken = (id, tokenVersion) => {
 const generateInviteToken = () => crypto.randomBytes(32).toString('hex');
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const buildSetupUrl = (token) => `${process.env.CLIENT_URL}/set-password?token=${token}`;
+
+const resolveHubId = async (hubId) => {
+  if (!hubId) throw new Error('Hub is required');
+  const hub = await Hub.findById(hubId);
+  if (!hub || !hub.isActive) throw new Error('Invalid hub');
+  return hub._id;
+};
 
 const createRefreshToken = async (userId, tokenVersion) => {
   const token = jwt.sign({ id: userId, tokenVersion }, process.env.JWT_REFRESH_SECRET, {
@@ -35,13 +44,16 @@ const register = async (userData) => {
     fullName,
     email,
     role,
+    hubId,
     workspaceId: rawWorkspaceId,
     workspaceRole = 'member',
     inviterId,
     inviterName,
   } = userData;
+  if (!role || !isValidRole(role)) throw new Error('Invalid role');
   const isGlobalAdmin = role === 'admin';
   const workspaceId = isGlobalAdmin ? undefined : rawWorkspaceId;
+  const hub = await resolveHubId(hubId);
 
   const normalizedEmail = String(email).trim().toLowerCase();
   let user = await User.findOne({ email: normalizedEmail });
@@ -86,12 +98,14 @@ const register = async (userData) => {
       fullname: fullName,
       email: normalizedEmail,
       role,
+      hub,
       active: false,
       status: 'invited',
     });
   } else {
     user.fullname = fullName;
     user.role = role || user.role;
+    user.hub = hub;
     user.active = false;
     user.status = 'invited';
   }
@@ -219,12 +233,16 @@ const updateUser = async (userId, updateData) => {
     if (error.code === 11000) {
       throw new Error('This email is already in use by another user');
     }
+    if (error.name === 'ValidationError') {
+      throw new Error(error.message);
+    }
     throw error;
   }
 };
 
-const createUserInvite = async ({ fullName, email, role, inviterId, inviterName }) => {
-  if (!role) throw new Error('Role is required');
+const createUserInvite = async ({ fullName, email, role, hubId, inviterId, inviterName }) => {
+  if (!role || !isValidRole(role)) throw new Error('Invalid role');
+  const hub = await resolveHubId(hubId);
   const normalizedEmail = String(email).trim().toLowerCase();
   let user = await User.findOne({ email: normalizedEmail });
 
@@ -237,12 +255,14 @@ const createUserInvite = async ({ fullName, email, role, inviterId, inviterName 
       fullname: fullName,
       email: normalizedEmail,
       role,
+      hub,
       active: false,
       status: 'invited',
     });
   } else {
     user.fullname = fullName;
     user.role = role;
+    user.hub = hub;
     user.active = false;
     user.status = 'invited';
   }

@@ -24,6 +24,13 @@ const register = async (req, res, next) => {
       return res.status(404).json({ message: error.message });
     }
     if (
+      error.message === 'Hub is required' ||
+      error.message === 'Invalid hub' ||
+      error.message === 'Invalid role'
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+    if (
       error.message?.includes('already a member') ||
       error.message?.includes('already active') ||
       error.message?.includes('pending invitation')
@@ -125,6 +132,7 @@ const updateUser = async (req, res) => {
     if (req.user.role === 'admin') {
       if (req.body.email) updateData.email = req.body.email;
       if (req.body.role) updateData.role = req.body.role;
+      if (req.body.hub) updateData.hub = req.body.hub;
 
       if (req.body.active !== undefined) {
         updateData.active = req.body.active;
@@ -145,6 +153,9 @@ const updateUser = async (req, res) => {
       return res.status(409).json({
         message: error.message,
       });
+    }
+    if (error.message?.includes('Invalid role')) {
+      return res.status(400).json({ message: error.message });
     }
 
     res.status(500).json({

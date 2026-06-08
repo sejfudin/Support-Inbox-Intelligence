@@ -20,6 +20,7 @@ import WorkspaceSettingsPage from '@/pages/WorkspaceSettingsPage';
 import UserInvitationsPage from '@/pages/UserInvitationsPage';
 import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import AdminUserAnalyticsPage from '@/pages/AdminUserAnalyticsPage';
+import AdminReferenceDataPage from '@/pages/AdminReferenceDataPage';
 import WorkspaceManagementRoute from '@/routes/WorkspaceManagementRoute';
 
 const WorkspaceGuard = () => {
@@ -70,6 +71,11 @@ export default function AppRoutes() {
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<AdminWorkspacesPage />} />
+            <Route path="/admin/platform-management" element={<AdminReferenceDataPage />} />
+            <Route
+              path="/admin/reference-data"
+              element={<Navigate to="/admin/platform-management" replace />}
+            />
             <Route path="/register" element={<Register />} />
           </Route>
 

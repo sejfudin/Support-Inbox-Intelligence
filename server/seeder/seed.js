@@ -1,6 +1,5 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
-const mongoose = require('mongoose');
 const connectDB = require('../config/db');
 const bcrypt = require('bcryptjs');
 
@@ -8,8 +7,10 @@ const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
 const TicketStatus = require('../models/TicketStatus');
-const Role = require('../models/Role');
-const { seedDefaultRoles } = require('../services/roleService');
+const Hub = require('../models/Hub');
+const InternshipType = require('../models/InternshipType');
+const Technology = require('../models/Technology');
+const { seedReferenceData } = require('./referenceData');
 const { seedDefaultStatuses } = require('../services/statusService');
 
 const seedData = async () => {
@@ -21,11 +22,14 @@ const seedData = async () => {
     await TicketStatus.deleteMany();
     await Workspace.deleteMany();
     await User.deleteMany();
-    await Role.deleteMany();
+    await Technology.deleteMany();
+    await InternshipType.deleteMany();
+    await Hub.deleteMany();
 
-    await seedDefaultRoles();
-    console.log('✅ Roles seeded (admin, mentor, intern, leadership).');
+    await seedReferenceData();
+    console.log('✅ Reference data seeded (hubs, internship types, technologies).');
 
+    const sarajevoHub = await Hub.findOne({ name: 'Sarajevo' });
     const salt = await bcrypt.genSalt(10);
     const adminPassword = await bcrypt.hash('admin123', salt);
     const mentorPassword = await bcrypt.hash('mentor123', salt);
@@ -35,6 +39,7 @@ const seedData = async () => {
       email: 'admin@test.com',
       password: adminPassword,
       role: 'admin',
+      hub: sarajevoHub._id,
       active: true,
       status: 'active',
     });
@@ -44,6 +49,7 @@ const seedData = async () => {
       email: 'mentor@test.com',
       password: mentorPassword,
       role: 'mentor',
+      hub: sarajevoHub._id,
       active: true,
       status: 'active',
     });

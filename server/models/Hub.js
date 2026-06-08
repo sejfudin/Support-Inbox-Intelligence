@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Company office / location (e.g. Sarajevo, Belgrade, Novi Sad, Skopje).
+// Company office / location (Symphony hubs: SF, Amsterdam, Balkans, Medellín, etc.).
 // Admin-managed reference data shared across the whole platform.
 const hubSchema = new mongoose.Schema(
   {

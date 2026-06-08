@@ -10,6 +10,7 @@ import {
   ChartNoAxesCombined,
   Settings,
   Mail,
+  Database,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -114,6 +115,11 @@ export default function AppSidebar() {
       label: 'All Workspaces',
       to: '/admin/workspaces',
       icon: Building2,
+    },
+    {
+      label: 'Platform Management',
+      to: '/admin/platform-management',
+      icon: Database,
     },
   ];
 
