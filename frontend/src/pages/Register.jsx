@@ -33,11 +33,11 @@ export default function Register() {
     <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <Card className="border-border/50 bg-[#F8F9FC] shadow-elevated">
+          <Card className="border-border/50 bg-[#F8F9FC] shadow-elevated dark:border-surface-border dark:bg-surface-elevated">
             <RegisterRoleGuide role={selectedRole} />
           </Card>
 
-          <Card className="border-border/50 bg-card shadow-elevated">
+          <Card className="flex flex-col border-border/50 bg-card shadow-elevated">
             <CardHeader className="space-y-3 border-b border-border/60 pb-6">
               <CardTitle className="text-2xl font-bold text-foreground md:text-3xl">
                 Create User Account
@@ -47,7 +47,7 @@ export default function Register() {
               </p>
             </CardHeader>
 
-            <CardContent className="px-6 pb-12 pt-6 md:px-12">
+            <CardContent className="flex flex-1 flex-col px-6 pb-12 pt-6 md:px-12">
               {errorString && (
                 <div
                   className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-center text-sm text-destructive"

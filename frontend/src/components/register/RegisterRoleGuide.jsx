@@ -25,9 +25,9 @@ const ROLE_ICONS = {
 
 function GuideBlock({ icon: Icon, title, children }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm">
+    <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm dark:border-surface-border dark:bg-background/30 dark:shadow-none">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 dark:border-primary/25 dark:bg-primary/15">
           <Icon className="h-4 w-4 text-primary" />
         </div>
         <div className="min-w-0">
@@ -42,7 +42,7 @@ function GuideBlock({ icon: Icon, title, children }) {
 function ChecklistItem({ children }) {
   return (
     <li className="flex items-start gap-2.5 text-sm leading-6 text-muted-foreground">
-      <span className="mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <span className="mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary/15">
         <Check className="h-2.5 w-2.5" />
       </span>
       <span>{children}</span>
@@ -73,7 +73,7 @@ export function RegisterRoleGuide({ role }) {
             {roleLabel ? (
               <Badge
                 variant="outline"
-                className="gap-1.5 rounded-full border-primary/15 bg-white/75 px-3 py-1 text-primary"
+                className="gap-1.5 rounded-full border-primary/15 bg-white/75 px-3 py-1 text-primary dark:border-primary/25 dark:bg-primary/10"
               >
                 <Icon className="h-3.5 w-3.5" />
                 {roleLabel} selected
@@ -81,7 +81,7 @@ export function RegisterRoleGuide({ role }) {
             ) : (
               <Badge
                 variant="outline"
-                className="rounded-full border-border/70 bg-white/70 px-3 py-1 text-muted-foreground"
+                className="rounded-full border-border/70 bg-white/70 px-3 py-1 text-muted-foreground dark:border-surface-border dark:bg-background/25"
               >
                 Role pending
               </Badge>
@@ -131,7 +131,7 @@ export function RegisterRoleGuide({ role }) {
           </GuideBlock>
         )}
 
-        <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm">
+        <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm dark:border-surface-border dark:bg-background/30 dark:shadow-none">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Required at creation
           </p>

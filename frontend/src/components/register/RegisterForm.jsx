@@ -40,7 +40,7 @@ const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 const REGISTER_STEPS = {
   identity: {
     id: 'identity',
-    label: 'Identity + role and hub',
+    label: 'Personal information',
     icon: UserRound,
     fields: ['fullName', 'email', 'hubId', 'role'],
   },
@@ -314,7 +314,10 @@ export function RegisterForm({ onSuccess, onError }) {
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit(onSubmit, handleInvalidSubmit)}>
+    <form
+      className="flex flex-1 flex-col gap-6"
+      onSubmit={handleSubmit(onSubmit, handleInvalidSubmit)}
+    >
       <RegisterStepNav
         steps={visibleSteps}
         activeStepId={activeStep.id}
@@ -651,7 +654,7 @@ export function RegisterForm({ onSuccess, onError }) {
         )}
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-auto flex flex-col gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
         <Button
           type="button"
           variant="outline"
