@@ -1,5 +1,5 @@
 import {
-  Briefcase,
+  Check,
   GraduationCap,
   LineChart,
   ShieldCheck,
@@ -7,6 +7,7 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ROLES, getRoleLabel } from '@/helpers/roles';
 import {
@@ -24,9 +25,9 @@ const ROLE_ICONS = {
 
 function GuideBlock({ icon: Icon, title, children }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
+    <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-primary/10">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10">
           <Icon className="h-4 w-4 text-primary" />
         </div>
         <div className="min-w-0">
@@ -38,10 +39,12 @@ function GuideBlock({ icon: Icon, title, children }) {
   );
 }
 
-function ChecklistItem({ icon: Icon, children }) {
+function ChecklistItem({ children }) {
   return (
-    <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+    <li className="flex items-start gap-2.5 text-sm leading-6 text-muted-foreground">
+      <span className="mt-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <Check className="h-2.5 w-2.5" />
+      </span>
       <span>{children}</span>
     </li>
   );
@@ -64,8 +67,26 @@ export function RegisterRoleGuide({ role }) {
         </div>
         <div>
           <CardTitle className="text-2xl leading-tight text-foreground md:text-3xl">
-            {roleLabel ? `Creating a ${roleLabel}` : 'Create a new user'}
+            Create a New User
           </CardTitle>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {roleLabel ? (
+              <Badge
+                variant="outline"
+                className="gap-1.5 rounded-full border-primary/15 bg-white/75 px-3 py-1 text-primary"
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {roleLabel} selected
+              </Badge>
+            ) : (
+              <Badge
+                variant="outline"
+                className="rounded-full border-border/70 bg-white/70 px-3 py-1 text-muted-foreground"
+              >
+                Role pending
+              </Badge>
+            )}
+          </div>
           <p className="mt-3 max-w-xl text-sm leading-7 text-muted-foreground">
             {role === ROLES.ADMIN &&
               'Admins get full platform access. Assign a hub; workspace selection is not needed.'}
@@ -74,7 +95,7 @@ export function RegisterRoleGuide({ role }) {
             {role === ROLES.MENTOR &&
               'Mentors guide interns and use the task manager. Hub is required; workspace is optional.'}
             {isInternRole(role) &&
-              'Interns need a hub, programme track, start date, and a primary mentor from the same hub.'}
+              'Interns need a hub, programme track, start date, and a primary mentor.'}
             {!role &&
               'Pick a role in the form to see which fields apply. Every employee needs an office hub.'}
           </p>
@@ -82,13 +103,6 @@ export function RegisterRoleGuide({ role }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {role && (
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-foreground">
-            <Icon className="h-3.5 w-3.5 text-primary" />
-            {roleLabel} selected
-          </div>
-        )}
-
         {role === ROLES.ADMIN && (
           <GuideBlock icon={ShieldCheck} title="Admin access">
             Full control over users, platform settings, interns, and workspaces. No workspace
@@ -117,27 +131,23 @@ export function RegisterRoleGuide({ role }) {
           </GuideBlock>
         )}
 
-        <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
+        <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Required at creation
           </p>
           <ul className="mt-3 space-y-2">
-            <ChecklistItem icon={Briefcase}>Office hub for every employee</ChecklistItem>
+            <ChecklistItem>Office hub for every employee</ChecklistItem>
             {isInternRole(role) && (
               <>
-                <ChecklistItem icon={GraduationCap}>Internship type and start date</ChecklistItem>
-                <ChecklistItem icon={Users}>
-                  Primary mentor from the intern&apos;s hub
-                </ChecklistItem>
+                <ChecklistItem>Internship type and start date</ChecklistItem>
+                <ChecklistItem>Primary mentor assignment</ChecklistItem>
               </>
             )}
             {showsWorkspaceSelection(role) && (
-              <ChecklistItem icon={Sparkles}>Workspace invitation is optional</ChecklistItem>
+              <ChecklistItem>Workspace invitation is optional</ChecklistItem>
             )}
             {skipsWorkspaceSelection(role) && (
-              <ChecklistItem icon={ShieldCheck}>
-                No workspace assignment for this role
-              </ChecklistItem>
+              <ChecklistItem>No workspace assignment for this role</ChecklistItem>
             )}
           </ul>
         </div>

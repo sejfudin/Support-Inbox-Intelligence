@@ -6,7 +6,7 @@ const { ROLES } = require('../constants/roles');
 const MENTOR_ROLES = [ROLES.ADMIN, ROLES.MENTOR];
 
 const assertMentorUser = async (mentorId, label) => {
-  const mentor = await User.findById(mentorId).select('role status hub');
+  const mentor = await User.findById(mentorId).select('role status');
   if (!mentor || mentor.status !== 'active') {
     throw new Error(`Invalid ${label}`);
   }
@@ -22,7 +22,6 @@ const createInternProfile = async ({
   primaryMentorId,
   secondaryMentorId,
   startDate,
-  internHubId,
 }) => {
   if (!internshipTypeId) throw new Error('Internship type is required');
   if (!primaryMentorId) throw new Error('Primary mentor is required');
@@ -33,17 +32,13 @@ const createInternProfile = async ({
     throw new Error('Invalid internship type');
   }
 
-  const primaryMentor = await assertMentorUser(primaryMentorId, 'primary mentor');
-  if (internHubId && primaryMentor.hub?.toString() !== internHubId.toString()) {
-    throw new Error('Primary mentor must belong to the intern hub');
-  }
+  await assertMentorUser(primaryMentorId, 'primary mentor');
 
-  let secondaryMentor = null;
   if (secondaryMentorId) {
     if (secondaryMentorId === primaryMentorId) {
       throw new Error('Secondary mentor must be different from primary mentor');
     }
-    secondaryMentor = await assertMentorUser(secondaryMentorId, 'secondary mentor');
+    await assertMentorUser(secondaryMentorId, 'secondary mentor');
   }
 
   const parsedStart = new Date(startDate);

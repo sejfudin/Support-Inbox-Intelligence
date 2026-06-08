@@ -33,7 +33,7 @@ export default function Register() {
     <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <Card className="border-border/50 bg-card shadow-elevated">
+          <Card className="border-border/50 bg-[#F8F9FC] shadow-elevated">
             <RegisterRoleGuide role={selectedRole} />
           </Card>
 
