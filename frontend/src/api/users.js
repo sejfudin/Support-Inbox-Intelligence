@@ -6,9 +6,12 @@ export const getUsers = async ({
   search = '',
   pagination = true,
   workspaceId,
+  roles,
+  status,
+  hubId,
 }) => {
   const response = await apiClient.get('/admin/users', {
-    params: { page, limit, search, pagination, workspaceId },
+    params: { page, limit, search, pagination, workspaceId, roles, status, hubId },
   });
   return response.data;
 };

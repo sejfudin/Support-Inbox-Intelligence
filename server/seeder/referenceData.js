@@ -5,7 +5,6 @@ const { slugify } = require('../helpers/slugify');
 const DEFAULT_TECHNOLOGIES = require('./defaultTechnologies');
 
 const DEFAULT_HUBS = [
-  { name: 'San Francisco', city: 'San Francisco', country: 'United States' },
   { name: 'Belgrade', city: 'Belgrade', country: 'Serbia' },
   { name: 'Novi Sad', city: 'Novi Sad', country: 'Serbia' },
   { name: 'Niš', city: 'Niš', country: 'Serbia' },
@@ -38,6 +37,12 @@ const DEFAULT_INTERNSHIP_TYPES = [
     slug: 'one-on-one',
     name: '1-on-1',
     description: 'Individual mentorship internship track.',
+    isSystem: true,
+  },
+  {
+    slug: 'core-tool',
+    name: 'Core Tool',
+    description: 'Core tool internship track.',
     isSystem: true,
   },
 ];

@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Hub = require('../models/Hub');
-const { isValidRole } = require('../constants/roles');
+const { ROLES, isValidRole } = require('../constants/roles');
+const { createInternProfile } = require('./internProfileService');
+const InternProfile = require('../models/InternProfile');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const RefreshToken = require('../models/RefreshToken');
@@ -39,6 +41,12 @@ const createRefreshToken = async (userId, tokenVersion) => {
   return token;
 };
 
+const resolveWorkspaceId = (role, rawWorkspaceId) => {
+  if (role === ROLES.ADMIN || role === ROLES.LEADERSHIP) return undefined;
+  if (!rawWorkspaceId || rawWorkspaceId === 'none') return undefined;
+  return rawWorkspaceId;
+};
+
 const register = async (userData) => {
   const {
     fullName,
@@ -47,12 +55,15 @@ const register = async (userData) => {
     hubId,
     workspaceId: rawWorkspaceId,
     workspaceRole = 'member',
+    internshipTypeId,
+    primaryMentorId,
+    secondaryMentorId,
+    startDate,
     inviterId,
     inviterName,
   } = userData;
   if (!role || !isValidRole(role)) throw new Error('Invalid role');
-  const isGlobalAdmin = role === 'admin';
-  const workspaceId = isGlobalAdmin ? undefined : rawWorkspaceId;
+  const workspaceId = resolveWorkspaceId(role, rawWorkspaceId);
   const hub = await resolveHubId(hubId);
 
   const normalizedEmail = String(email).trim().toLowerCase();
@@ -118,6 +129,18 @@ const register = async (userData) => {
   user.inviteSetupSessionHash = null;
   user.inviteSetupSessionExpires = null;
   await user.save();
+
+  if (role === ROLES.INTERN) {
+    await InternProfile.deleteOne({ user: user._id });
+    await createInternProfile({
+      userId: user._id,
+      internshipTypeId,
+      primaryMentorId,
+      secondaryMentorId: secondaryMentorId || undefined,
+      startDate,
+      internHubId: hub,
+    });
+  }
 
   if (workspaceId) {
     const pendingInvitation = await Invitation.findOne({

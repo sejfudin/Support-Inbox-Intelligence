@@ -23,11 +23,23 @@ const register = async (req, res, next) => {
     if (error.message === 'Workspace not found') {
       return res.status(404).json({ message: error.message });
     }
-    if (
-      error.message === 'Hub is required' ||
-      error.message === 'Invalid hub' ||
-      error.message === 'Invalid role'
-    ) {
+    const clientErrors = [
+      'Hub is required',
+      'Invalid hub',
+      'Invalid role',
+      'Internship type is required',
+      'Primary mentor is required',
+      'Internship start date is required',
+      'Invalid internship type',
+      'Invalid primary mentor',
+      'Invalid secondary mentor',
+      'Primary mentor must be an admin or mentor',
+      'Secondary mentor must be an admin or mentor',
+      'Primary mentor must belong to the intern hub',
+      'Secondary mentor must be different from primary mentor',
+      'Invalid internship start date',
+    ];
+    if (clientErrors.includes(error.message)) {
       return res.status(400).json({ message: error.message });
     }
     if (

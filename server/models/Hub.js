@@ -1,7 +1,5 @@
 const mongoose = require('mongoose');
 
-// Company office / location (Symphony hubs: SF, Amsterdam, Balkans, Medellín, etc.).
-// Admin-managed reference data shared across the whole platform.
 const hubSchema = new mongoose.Schema(
   {
     name: {

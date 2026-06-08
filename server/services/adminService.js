@@ -39,7 +39,16 @@ const getUserWorkspaceMemberships = async (userId) => {
   });
 };
 
-const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, workspaceId }) => {
+const getUsers = async ({
+  page = 1,
+  limit = 10,
+  search = '',
+  pagination = true,
+  workspaceId,
+  roles,
+  status,
+  hubId,
+}) => {
   const skip = (page - 1) * limit;
   const query = {};
   if (workspaceId) {
@@ -69,6 +78,18 @@ const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, 
       { fullname: { $regex: search, $options: 'i' } },
       { email: { $regex: search, $options: 'i' } },
     ];
+  }
+
+  if (roles?.length) {
+    query.role = { $in: roles };
+  }
+
+  if (status) {
+    query.status = status;
+  }
+
+  if (hubId) {
+    query.hub = hubId;
   }
 
   if (pagination === 'false' || pagination === false) {

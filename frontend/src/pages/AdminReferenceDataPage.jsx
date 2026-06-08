@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function AdminReferenceDataPage() {
   return (
-    <div data-theme="symphony" className="min-h-full">
+    <div className="min-h-full">
       <PageShell>
         <PageSection className="space-y-6">
           <PageHeading
