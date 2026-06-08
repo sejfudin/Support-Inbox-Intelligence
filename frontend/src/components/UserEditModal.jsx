@@ -11,17 +11,21 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useUpdateUser } from '@/queries/auth';
+import { useHubs } from '@/queries/hubs';
+import { ROLE_OPTIONS } from '@/helpers/roles';
 import { toast } from 'sonner';
 
 const UserEditModal = ({ user, onClose }) => {
   const [editedUser, setEditedUser] = useState({
-    user: user.user || '',
+    user: user.user || user.fullName || '',
     email: user.email || '',
-    role: user.role || 'user',
+    role: user.role || '',
+    hub: user.hub || '',
     active: user.active ?? true,
   });
 
   const updateUserMutation = useUpdateUser();
+  const { data: hubs = [] } = useHubs();
 
   const handleSave = (e) => {
     e.preventDefault();
@@ -30,6 +34,7 @@ const UserEditModal = ({ user, onClose }) => {
       fullname: editedUser.user,
       email: editedUser.email,
       role: editedUser.role.toLowerCase(),
+      hub: editedUser.hub,
       active: editedUser.active,
     };
 
@@ -130,12 +135,47 @@ const UserEditModal = ({ user, onClose }) => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin" data-test="user-edit-modal-role-option-admin">
-                    Admin
-                  </SelectItem>
-                  <SelectItem value="user" data-test="user-edit-modal-role-option-user">
-                    User
-                  </SelectItem>
+                  {ROLE_OPTIONS.map((r) => (
+                    <SelectItem
+                      key={r.slug}
+                      value={r.slug}
+                      data-test={`user-edit-modal-role-option-${r.slug}`}
+                    >
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="user-edit-modal-hub"
+                className="text-xs font-bold text-muted-foreground uppercase tracking-widest"
+              >
+                Hub
+              </Label>
+              <Select
+                value={editedUser.hub}
+                onValueChange={(value) => setEditedUser({ ...editedUser, hub: value })}
+              >
+                <SelectTrigger
+                  id="user-edit-modal-hub"
+                  className="h-10"
+                  data-test="user-edit-modal-hub-select"
+                >
+                  <SelectValue placeholder="Select hub" />
+                </SelectTrigger>
+                <SelectContent>
+                  {hubs.map((hub) => (
+                    <SelectItem
+                      key={hub._id}
+                      value={hub._id}
+                      data-test={`user-edit-modal-hub-option-${hub._id}`}
+                    >
+                      {hub.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

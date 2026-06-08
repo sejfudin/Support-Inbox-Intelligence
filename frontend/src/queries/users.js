@@ -17,3 +17,17 @@ export const useUser = (id) => {
     staleTime: 2 * 60 * 1000,
   });
 };
+
+export const useMentorCandidates = ({ hubId, hubScoped = false } = {}) =>
+  useQuery({
+    queryKey: ['mentor-candidates', hubScoped ? hubId : 'all'],
+    queryFn: () =>
+      getUsers({
+        pagination: false,
+        roles: 'admin,mentor',
+        status: 'active',
+        hubId: hubScoped ? hubId : undefined,
+      }),
+    enabled: !hubScoped || Boolean(hubId),
+    staleTime: 5 * 60 * 1000,
+  });

@@ -1,4 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { isAdmin } from '@/helpers/roles';
 import {
   User,
   Archive,
@@ -9,6 +10,7 @@ import {
   ChartNoAxesCombined,
   Settings,
   Mail,
+  Database,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -114,6 +116,11 @@ export default function AppSidebar() {
       to: '/admin/workspaces',
       icon: Building2,
     },
+    {
+      label: 'Platform Management',
+      to: '/admin/platform-management',
+      icon: Database,
+    },
   ];
 
   return (
@@ -139,7 +146,7 @@ export default function AppSidebar() {
             </div>
             <SidebarMenu>
               {workspaceNav.map((item) => {
-                if (item.adminOnly && user?.role !== 'admin') {
+                if (item.adminOnly && !isAdmin(user?.role)) {
                   return null;
                 }
                 const Icon = item.icon;
@@ -174,7 +181,7 @@ export default function AppSidebar() {
           </div>
         )}
 
-        {user?.role === 'admin' && (
+        {isAdmin(user?.role) && (
           <div>
             {user?.workspaceId && <Separator className="mb-4" />}
             <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

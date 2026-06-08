@@ -11,6 +11,7 @@ import {
 } from '@/queries/workspaces';
 import { invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 import { useAuth } from '@/context/AuthContext';
+import { isAdmin } from '@/helpers/roles';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -159,7 +160,7 @@ export default function AdminWorkspacesPage() {
             {workspaces.map((ws) => {
               const isActive = user?.workspaceId?.toString() === ws._id?.toString();
               const canSwitch =
-                user?.role === 'admin' ||
+                isAdmin(user?.role) ||
                 ws.members?.some(
                   (member) =>
                     member.status === 'active' &&

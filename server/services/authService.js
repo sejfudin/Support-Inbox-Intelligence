@@ -1,4 +1,8 @@
 const User = require('../models/User');
+const Hub = require('../models/Hub');
+const { ROLES, isValidRole } = require('../constants/roles');
+const { createInternProfile } = require('./internProfileService');
+const InternProfile = require('../models/InternProfile');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const RefreshToken = require('../models/RefreshToken');
@@ -16,6 +20,13 @@ const generateInviteToken = () => crypto.randomBytes(32).toString('hex');
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
 const buildSetupUrl = (token) => `${process.env.CLIENT_URL}/set-password?token=${token}`;
 
+const resolveHubId = async (hubId) => {
+  if (!hubId) throw new Error('Hub is required');
+  const hub = await Hub.findById(hubId);
+  if (!hub || !hub.isActive) throw new Error('Invalid hub');
+  return hub._id;
+};
+
 const createRefreshToken = async (userId, tokenVersion) => {
   const token = jwt.sign({ id: userId, tokenVersion }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: '7d',
@@ -30,18 +41,30 @@ const createRefreshToken = async (userId, tokenVersion) => {
   return token;
 };
 
+const resolveWorkspaceId = (role, rawWorkspaceId) => {
+  if (role === ROLES.ADMIN || role === ROLES.LEADERSHIP) return undefined;
+  if (!rawWorkspaceId || rawWorkspaceId === 'none') return undefined;
+  return rawWorkspaceId;
+};
+
 const register = async (userData) => {
   const {
     fullName,
     email,
     role,
+    hubId,
     workspaceId: rawWorkspaceId,
     workspaceRole = 'member',
+    internshipTypeId,
+    primaryMentorId,
+    secondaryMentorId,
+    startDate,
     inviterId,
     inviterName,
   } = userData;
-  const isGlobalAdmin = role === 'admin';
-  const workspaceId = isGlobalAdmin ? undefined : rawWorkspaceId;
+  if (!role || !isValidRole(role)) throw new Error('Invalid role');
+  const workspaceId = resolveWorkspaceId(role, rawWorkspaceId);
+  const hub = await resolveHubId(hubId);
 
   const normalizedEmail = String(email).trim().toLowerCase();
   let user = await User.findOne({ email: normalizedEmail });
@@ -85,13 +108,15 @@ const register = async (userData) => {
     user = await User.create({
       fullname: fullName,
       email: normalizedEmail,
-      role: role || 'user',
+      role,
+      hub,
       active: false,
       status: 'invited',
     });
   } else {
     user.fullname = fullName;
-    user.role = role || user.role || 'user';
+    user.role = role || user.role;
+    user.hub = hub;
     user.active = false;
     user.status = 'invited';
   }
@@ -104,6 +129,18 @@ const register = async (userData) => {
   user.inviteSetupSessionHash = null;
   user.inviteSetupSessionExpires = null;
   await user.save();
+
+  if (role === ROLES.INTERN) {
+    await InternProfile.deleteOne({ user: user._id });
+    await createInternProfile({
+      userId: user._id,
+      internshipTypeId,
+      primaryMentorId,
+      secondaryMentorId: secondaryMentorId || undefined,
+      startDate,
+      internHubId: hub,
+    });
+  }
 
   if (workspaceId) {
     const pendingInvitation = await Invitation.findOne({
@@ -219,11 +256,16 @@ const updateUser = async (userId, updateData) => {
     if (error.code === 11000) {
       throw new Error('This email is already in use by another user');
     }
+    if (error.name === 'ValidationError') {
+      throw new Error(error.message);
+    }
     throw error;
   }
 };
 
-const createUserInvite = async ({ fullName, email, role = 'user', inviterId, inviterName }) => {
+const createUserInvite = async ({ fullName, email, role, hubId, inviterId, inviterName }) => {
+  if (!role || !isValidRole(role)) throw new Error('Invalid role');
+  const hub = await resolveHubId(hubId);
   const normalizedEmail = String(email).trim().toLowerCase();
   let user = await User.findOne({ email: normalizedEmail });
 
@@ -236,12 +278,14 @@ const createUserInvite = async ({ fullName, email, role = 'user', inviterId, inv
       fullname: fullName,
       email: normalizedEmail,
       role,
+      hub,
       active: false,
       status: 'invited',
     });
   } else {
     user.fullname = fullName;
     user.role = role;
+    user.hub = hub;
     user.active = false;
     user.status = 'invited';
   }

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Building2, Check, ChevronsUpDown } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { isAdmin } from '@/helpers/roles';
 import { useMyWorkspaces, useSwitchWorkspace, useWorkspace } from '@/queries/workspaces';
 import { Button } from '@/components/ui/button';
 import {
@@ -85,7 +86,7 @@ export default function WorkspaceSwitcher({ className, compact = false }) {
   const displayWorkspace = activeFromList || activeWorkspace;
 
   if (!user?.workspaceId) {
-    const label = displayWorkspace?.name || (user?.role === 'admin' ? 'Global admin mode' : null);
+    const label = displayWorkspace?.name || (isAdmin(user?.role) ? 'Global admin mode' : null);
 
     if (!label) return null;
 

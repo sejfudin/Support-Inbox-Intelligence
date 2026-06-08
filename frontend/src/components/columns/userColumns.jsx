@@ -24,17 +24,28 @@ export const columns = [
     accessorKey: 'role',
     header: 'ROLE',
     meta: {
-      headerClassName: 'w-[18%]',
-      cellClassName: 'w-[18%] whitespace-nowrap',
+      headerClassName: 'w-[14%]',
+      cellClassName: 'w-[14%] whitespace-nowrap',
     },
     cell: ({ row }) => <RoleBadge role={row.original.role} />,
+  },
+  {
+    accessorKey: 'hubName',
+    header: 'HUB',
+    meta: {
+      headerClassName: 'w-[14%]',
+      cellClassName: 'w-[14%] whitespace-nowrap',
+    },
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">{row.original.hubName || '—'}</span>
+    ),
   },
   {
     accessorKey: 'status',
     header: 'STATUS',
     meta: {
-      headerClassName: 'w-[18%]',
-      cellClassName: 'w-[18%] whitespace-nowrap',
+      headerClassName: 'w-[14%]',
+      cellClassName: 'w-[14%] whitespace-nowrap',
     },
     cell: ({ row }) => <UserStatusBadge status={row.original.status} />,
   },

@@ -20,6 +20,9 @@ const historyRoutes = require('./routes/history');
 const categoryRoutes = require('./routes/categories');
 const ticketStatusRoutes = require('./routes/ticketStatuses');
 const aiSummaryRoutes = require('./routes/aiSummary');
+const hubsRoutes = require('./routes/hubs');
+const internshipTypesRoutes = require('./routes/internshipTypes');
+const technologiesRoutes = require('./routes/technologies');
 const { handleWebhook } = require('./controllers/github');
 
 const PORT = process.env.PORT || 4000;
@@ -55,6 +58,9 @@ app.use('/api/history', historyRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/ticket-statuses', ticketStatusRoutes);
 app.use('/api/ai-summaries', aiSummaryRoutes);
+app.use('/api/hubs', hubsRoutes);
+app.use('/api/internship-types', internshipTypesRoutes);
+app.use('/api/technologies', technologiesRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {

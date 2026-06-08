@@ -1,6 +1,8 @@
+import { ROLES } from '@/helpers/roles';
+
 export const getUserId = (user) => (user?._id ?? user?.id)?.toString() ?? null;
 
-export const isPlatformAdmin = (user) => user?.role === 'admin';
+export const isPlatformAdmin = (user) => user?.role === ROLES.ADMIN;
 
 export const isWorkspaceAdminMember = (user, workspace) => {
   const userId = getUserId(user);

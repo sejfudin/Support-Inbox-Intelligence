@@ -39,7 +39,16 @@ const getUserWorkspaceMemberships = async (userId) => {
   });
 };
 
-const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, workspaceId }) => {
+const getUsers = async ({
+  page = 1,
+  limit = 10,
+  search = '',
+  pagination = true,
+  workspaceId,
+  roles,
+  status,
+  hubId,
+}) => {
   const skip = (page - 1) * limit;
   const query = {};
   if (workspaceId) {
@@ -71,15 +80,33 @@ const getUsers = async ({ page = 1, limit = 10, search = '', pagination = true, 
     ];
   }
 
+  if (roles?.length) {
+    query.role = { $in: roles };
+  }
+
+  if (status) {
+    query.status = status;
+  }
+
+  if (hubId) {
+    query.hub = hubId;
+  }
+
   if (pagination === 'false' || pagination === false) {
     const users = await User.find(query)
-      .select('fullname email role status workspaceId')
+      .select('fullname email role status workspaceId hub')
+      .populate('hub', 'name city country')
       .sort({ fullname: 1 });
     return { users };
   }
 
   const [users, total] = await Promise.all([
-    User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+    User.find(query)
+      .select('-password')
+      .populate('hub', 'name city country')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit)),
     User.countDocuments(query),
   ]);
 

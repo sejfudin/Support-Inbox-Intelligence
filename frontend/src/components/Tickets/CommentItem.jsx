@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { splitMentionsForRender } from '@/helpers/commentMentions';
+import { isAdmin as checkIsAdmin } from '@/helpers/roles';
 
 export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -21,7 +22,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
 
   const updateMutation = useUpdateComment(ticketId);
   const isAuthor = user?._id === comment.author?._id;
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = checkIsAdmin(user?.role);
   const isDeleted = comment.isDeleted;
 
   // supabase

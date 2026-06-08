@@ -1,15 +1,21 @@
 import { Badge } from './ui/badge';
 import { badgeTone } from '@/helpers/badgeTones';
+import { getRoleLabel } from '@/helpers/roles';
+
+const ROLE_TONE = {
+  admin: 'indigo',
+  mentor: 'violet',
+  intern: 'cyan',
+  leadership: 'warning',
+};
 
 export const RoleBadge = ({ role }) => {
-  const r = role.toLowerCase();
-  let style = badgeTone('neutral');
-  if (r === 'admin') style = badgeTone('indigo');
-  if (r === 'user') style = badgeTone('warning');
+  const slug = role?.toLowerCase() ?? '';
+  const tone = ROLE_TONE[slug] ?? 'neutral';
 
   return (
-    <Badge className={`${style} px-4 py-1 text-xs font-bold uppercase tracking-wider`}>
-      {role}
+    <Badge className={`${badgeTone(tone)} px-4 py-1 text-xs font-bold uppercase tracking-wider`}>
+      {getRoleLabel(slug)}
     </Badge>
   );
 };
