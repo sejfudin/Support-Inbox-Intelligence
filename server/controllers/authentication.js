@@ -35,7 +35,6 @@ const register = async (req, res, next) => {
       'Invalid secondary mentor',
       'Primary mentor must be an admin or mentor',
       'Secondary mentor must be an admin or mentor',
-      'Primary mentor must belong to the intern hub',
       'Secondary mentor must be different from primary mentor',
       'Invalid internship start date',
     ];

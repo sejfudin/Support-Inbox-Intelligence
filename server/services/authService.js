@@ -138,7 +138,6 @@ const register = async (userData) => {
       primaryMentorId,
       secondaryMentorId: secondaryMentorId || undefined,
       startDate,
-      internHubId: hub,
     });
   }
 
