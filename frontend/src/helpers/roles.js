@@ -36,6 +36,8 @@ export const isIntern = (role) => role === ROLES.INTERN;
 export const isLeadership = (role) => role === ROLES.LEADERSHIP;
 
 export const canManageInterns = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
+export const canViewFepDirectory = (role) => role === ROLES.LEADERSHIP;
+export const canWriteInternMentorData = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
 export const canViewComments = (role) =>
   role === ROLES.ADMIN || role === ROLES.MENTOR || role === ROLES.LEADERSHIP;
 
