@@ -46,8 +46,7 @@
   --symphony-foreground: 0 0% 98%;
   --symphony-muted: 220 8% 62%;
   --symphony-border: 220 10% 18%;
-  --symphony-card-shadow:
-    0 1px 0 hsl(0 0% 100% / 0.04), 0 8px 24px -8px hsl(0 0% 0% / 0.45);
+  --symphony-card-shadow: 0 1px 0 hsl(0 0% 100% / 0.04), 0 8px 24px -8px hsl(0 0% 0% / 0.45);
   --symphony-brand-strong: 243 100% 76%;
   --symphony-brand-ink: 243 90% 82%;
 }
@@ -422,7 +421,9 @@
   font-size: 0.875rem;
   font-weight: 500;
   color: hsl(var(--symphony-muted));
-  transition: background-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
 [data-surface='symphony'] .symphony-nav-link:hover {

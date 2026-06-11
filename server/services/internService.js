@@ -241,9 +241,7 @@ const formatReadyCandidate = (profile, readyTechnologies, latestEvaluationAverag
   userId: profile.user?._id || profile.user,
   fullname: profile.user?.fullname || 'Unknown',
   email: profile.user?.email || '',
-  hub: profile.user?.hub
-    ? { _id: profile.user.hub._id, name: profile.user.hub.name }
-    : null,
+  hub: profile.user?.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
   programme: profile.internshipType
     ? {
         _id: profile.internshipType._id,
@@ -459,9 +457,7 @@ const getProgrammeStats = async (user) => {
     userId: profile.user?._id || profile.user,
     fullname: profile.user?.fullname || 'Unknown',
     email: profile.user?.email || '',
-    hub: profile.user?.hub
-      ? { _id: profile.user.hub._id, name: profile.user.hub.name }
-      : null,
+    hub: profile.user?.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
     programme: profile.internshipType
       ? {
           _id: profile.internshipType._id,
@@ -473,7 +469,9 @@ const getProgrammeStats = async (user) => {
   }));
 
   const funnel = buildFunnel(funnelRows);
-  const technologiesWithReadySupply = technologySupplyRows.filter((row) => row.readyCount > 0).length;
+  const technologiesWithReadySupply = technologySupplyRows.filter(
+    (row) => row.readyCount > 0
+  ).length;
 
   return {
     funnel,

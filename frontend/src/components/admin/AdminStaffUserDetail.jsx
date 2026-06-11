@@ -81,11 +81,7 @@ function MentorInternsPanel({ mentorUserId }) {
 
 function WorkspaceMembershipsTable({ workspaces, activeWorkspaceId }) {
   if (workspaces.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Not a member of any workspace yet.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">Not a member of any workspace yet.</p>;
   }
 
   return (
@@ -218,9 +214,7 @@ export function AdminStaffUserDetail({ user, userId, backButton, editUserButton 
                   <div className="flex justify-between gap-4">
                     <dt className="text-muted-foreground">Member since</dt>
                     <dd className="font-medium text-foreground">
-                      {user.createdAt
-                        ? format(new Date(user.createdAt), 'MMM d, yyyy')
-                        : '—'}
+                      {user.createdAt ? format(new Date(user.createdAt), 'MMM d, yyyy') : '—'}
                     </dd>
                   </div>
                 </dl>
@@ -235,9 +229,7 @@ export function AdminStaffUserDetail({ user, userId, backButton, editUserButton 
                   </div>
                   <div className="flex justify-between gap-4">
                     <dt className="text-muted-foreground">Active workspace</dt>
-                    <dd className="font-medium text-foreground">
-                      {activeWorkspace?.name || '—'}
-                    </dd>
+                    <dd className="font-medium text-foreground">{activeWorkspace?.name || '—'}</dd>
                   </div>
                   {workspaces.length > 0 && (
                     <div className="flex justify-between gap-4">

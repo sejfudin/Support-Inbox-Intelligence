@@ -74,9 +74,7 @@ export default function LeadershipCandidatePage() {
             <StatTile label="Programme" value={intern.internshipType?.name || '—'} />
             <StatTile
               label="Start date"
-              value={
-                intern.startDate ? format(new Date(intern.startDate), 'MMM d, yyyy') : '—'
-              }
+              value={intern.startDate ? format(new Date(intern.startDate), 'MMM d, yyyy') : '—'}
             />
             <StatTile label="Primary mentor" value={intern.primaryMentor?.fullname || '—'} />
           </div>

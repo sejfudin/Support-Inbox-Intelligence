@@ -28,9 +28,7 @@ function TechSupplyBar({ technology, readyCount, learningCount, maxReady }) {
         <span className="truncate font-medium">{technology?.name || 'Unknown'}</span>
         <span className="shrink-0 tabular-nums text-muted-foreground">
           {readyCount}
-          {learningCount > 0 && (
-            <span className="text-xs"> +{learningCount} soon</span>
-          )}
+          {learningCount > 0 && <span className="text-xs"> +{learningCount} soon</span>}
         </span>
       </div>
       <div className="symphony-bar-track flex">
@@ -156,14 +154,11 @@ export default function LeadershipDashboardPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{candidate.fullname}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {candidate.hub?.name || '—'} ·{' '}
-                      {candidate.programme?.name || '—'}
+                      {candidate.hub?.name || '—'} · {candidate.programme?.name || '—'}
                     </p>
                   </div>
                   <span className="symphony-urgency-days shrink-0 text-sm">
-                    {days !== null && days < 0
-                      ? `${Math.abs(days)}d overdue`
-                      : `${days}d left`}
+                    {days !== null && days < 0 ? `${Math.abs(days)}d overdue` : `${days}d left`}
                   </span>
                 </Link>
               );
@@ -316,7 +311,9 @@ export default function LeadershipDashboardPage() {
 
           {isPending && <p className="text-sm text-muted-foreground">Loading supply...</p>}
           {!isPending && technologySupply.length === 0 && (
-            <p className="text-sm text-muted-foreground">No mentor-confirmed technology supply yet.</p>
+            <p className="text-sm text-muted-foreground">
+              No mentor-confirmed technology supply yet.
+            </p>
           )}
           {!isPending && technologySupply.length > 0 && (
             <div className="space-y-4">
@@ -345,7 +342,9 @@ export default function LeadershipDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <SymphonyCard>
           <h2 className="text-lg font-semibold">Programme funnel</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Distribution across lifecycle stages.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Distribution across lifecycle stages.
+          </p>
           <div className="mt-4 space-y-3">
             {isPending && <p className="text-sm text-muted-foreground">Loading funnel...</p>}
             {!isPending &&

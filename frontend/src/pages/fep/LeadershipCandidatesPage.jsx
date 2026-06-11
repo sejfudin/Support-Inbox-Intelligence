@@ -60,7 +60,9 @@ export default function LeadershipCandidatesPage() {
       <SymphonyCard className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            {isPending ? 'Loading candidates…' : `${totalMatching} matching candidate${totalMatching === 1 ? '' : 's'}`}
+            {isPending
+              ? 'Loading candidates…'
+              : `${totalMatching} matching candidate${totalMatching === 1 ? '' : 's'}`}
           </p>
           <Link
             to="/programme"
@@ -148,7 +150,10 @@ export default function LeadershipCandidatesPage() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="symphony-input" data-test="leadership-candidates-ready-select">
+            <SelectTrigger
+              className="symphony-input"
+              data-test="leadership-candidates-ready-select"
+            >
               <SelectValue placeholder="Placement readiness" />
             </SelectTrigger>
             <SelectContent>
@@ -161,12 +166,8 @@ export default function LeadershipCandidatesPage() {
       </SymphonyCard>
 
       <SymphonyCard className="overflow-hidden p-0">
-        {isError && (
-          <p className="p-6 text-sm text-destructive">Failed to load candidates.</p>
-        )}
-        {isPending && (
-          <p className="p-6 text-sm text-muted-foreground">Loading candidates...</p>
-        )}
+        {isError && <p className="p-6 text-sm text-destructive">Failed to load candidates.</p>}
+        {isPending && <p className="p-6 text-sm text-muted-foreground">Loading candidates...</p>}
         {!isPending && !isError && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] text-left text-sm">

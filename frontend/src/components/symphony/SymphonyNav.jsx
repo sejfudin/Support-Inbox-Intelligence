@@ -109,7 +109,6 @@ export function SymphonyNav() {
           </div>
         </div>
       </div>
-
     </header>
   );
 }

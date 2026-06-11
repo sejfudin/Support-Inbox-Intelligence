@@ -14,8 +14,7 @@ const normalizeRefId = (ref) => {
 const isAssignedMentor = (profile, userId) => {
   const id = userId.toString();
   return (
-    normalizeRefId(profile.primaryMentor) === id ||
-    normalizeRefId(profile.secondaryMentor) === id
+    normalizeRefId(profile.primaryMentor) === id || normalizeRefId(profile.secondaryMentor) === id
   );
 };
 
