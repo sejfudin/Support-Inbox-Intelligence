@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
+import { InternSelfServicePanel } from '@/components/interns/InternSelfServicePanel';
+import { isIntern } from '@/helpers/roles';
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
@@ -235,6 +237,8 @@ const ProfilePage = () => {
               )}
             </form>
           </PagePanel>
+
+          {isIntern(user?.role) && <InternSelfServicePanel />}
         </div>
       </PageSection>
     </PageShell>

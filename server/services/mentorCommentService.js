@@ -1,0 +1,84 @@
+const User = require('../models/User');
+const MentorComment = require('../models/MentorComment');
+const { ROLES } = require('../constants/roles');
+const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
+
+const VIEWER_ROLES = [ROLES.ADMIN, ROLES.MENTOR, ROLES.LEADERSHIP];
+
+const formatComment = (comment, viewerId) => {
+  const plain = comment.toObject ? comment.toObject() : comment;
+  return {
+    ...plain,
+    id: plain._id,
+    isAuthor: plain.author?._id?.toString() === viewerId.toString(),
+  };
+};
+
+const canReadComment = (comment, viewerId) => {
+  const viewer = viewerId.toString();
+  if (comment.author?._id?.toString() === viewer || comment.author?.toString() === viewer) {
+    return true;
+  }
+  return (comment.visibleTo || []).some(
+    (id) => id?._id?.toString() === viewer || id?.toString() === viewer
+  );
+};
+
+const listComments = async (user, internUserId) => {
+  const profile = await assertInternAccess(user, internUserId);
+
+  if (user.role === ROLES.INTERN) {
+    const err = new Error('Not authorized');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const comments = await MentorComment.find({ internProfile: profile._id })
+    .populate('author', 'fullname email role')
+    .populate('visibleTo', 'fullname email role')
+    .sort({ createdAt: -1 });
+
+  return comments.filter((c) => canReadComment(c, user._id)).map((c) => formatComment(c, user._id));
+};
+
+const createComment = async (user, internUserId, { content, visibleTo = [] }) => {
+  const profile = await assertInternAccess(user, internUserId, { write: true });
+
+  if (!canWriteMentorData(user, profile)) {
+    const err = new Error('Not authorized to add comments');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (!content?.trim()) throw new Error('Comment content is required');
+
+  const visibleIds = [...new Set(visibleTo.map(String))].filter((id) => id !== user._id.toString());
+
+  if (visibleIds.length > 0) {
+    const viewers = await User.find({
+      _id: { $in: visibleIds },
+      role: { $in: VIEWER_ROLES },
+      status: 'active',
+    }).select('_id');
+
+    if (viewers.length !== visibleIds.length) {
+      throw new Error('One or more visibility recipients are invalid');
+    }
+  }
+
+  const comment = await MentorComment.create({
+    internProfile: profile._id,
+    author: user._id,
+    content: content.trim(),
+    visibleTo: visibleIds,
+  });
+
+  await comment.populate([
+    { path: 'author', select: 'fullname email role' },
+    { path: 'visibleTo', select: 'fullname email role' },
+  ]);
+
+  return formatComment(comment, user._id);
+};
+
+module.exports = { listComments, createComment };

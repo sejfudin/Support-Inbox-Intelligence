@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { isAdmin } from '@/helpers/roles';
+import { isAdmin, isMentor } from '@/helpers/roles';
 import {
   User,
   Archive,
@@ -11,6 +11,7 @@ import {
   Settings,
   Mail,
   Database,
+  GraduationCap,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -87,23 +88,28 @@ export default function AppSidebar() {
           },
         ]
       : []),
-    ...(hasInvitations
-      ? [
-          {
-            label: 'Invitations',
-            to: '/invitations',
-            icon: Mail,
-            badge: pendingCount,
-          },
-        ]
-      : []),
   ];
+
+  const invitationNav = hasInvitations
+    ? [
+        {
+          label: 'Invitations',
+          to: '/invitations',
+          icon: Mail,
+          badge: pendingCount,
+        },
+      ]
+    : [];
 
   const navTestSlug = (to) =>
     to
       .replace(/^\//, '')
       .replace(/\//g, '-')
       .replace(/[^a-z0-9-]/gi, '') || 'home';
+
+  const mentorNav = isMentor(user?.role)
+    ? [{ label: 'My Interns', to: '/my-interns', icon: GraduationCap }]
+    : [];
 
   const adminNav = [
     {
@@ -139,8 +145,47 @@ export default function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="px-3 pb-2">
+        {invitationNav.length > 0 && (
+          <div className="mb-4">
+            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Access
+            </div>
+            <SidebarMenu>
+              {invitationNav.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      end
+                      data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
+                      className={({ isActive }) =>
+                        cn(
+                          'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-elevated-sm'
+                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">{item.label}</span>
+                      {item.badge && (
+                        <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground px-1.5">
+                          {item.badge > 99 ? '99+' : item.badge}
+                        </span>
+                      )}
+                    </NavLink>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </div>
+        )}
+
         {user?.workspaceId && (
           <div className="mb-4">
+            {invitationNav.length > 0 && <Separator className="mb-4" />}
             <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Workspace
             </div>
@@ -181,9 +226,43 @@ export default function AppSidebar() {
           </div>
         )}
 
+        {mentorNav.length > 0 && (
+          <div className="mb-4">
+            {(user?.workspaceId || invitationNav.length > 0) && <Separator className="mb-4" />}
+            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Mentoring
+            </div>
+            <SidebarMenu>
+              {mentorNav.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      end
+                      data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
+                      className={({ isActive }) =>
+                        cn(
+                          'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-elevated-sm'
+                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">{item.label}</span>
+                    </NavLink>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </div>
+        )}
+
         {isAdmin(user?.role) && (
           <div>
-            {user?.workspaceId && <Separator className="mb-4" />}
+            {(user?.workspaceId || mentorNav.length > 0) && <Separator className="mb-4" />}
             <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Admin
             </div>

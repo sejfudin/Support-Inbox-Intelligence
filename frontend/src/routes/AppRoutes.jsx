@@ -22,15 +22,32 @@ import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import AdminUserAnalyticsPage from '@/pages/AdminUserAnalyticsPage';
 import AdminReferenceDataPage from '@/pages/AdminReferenceDataPage';
 import WorkspaceManagementRoute from '@/routes/WorkspaceManagementRoute';
+import SymphonyLayout from '@/layouts/SymphonyLayout';
+import LeadershipDashboardPage from '@/pages/fep/LeadershipDashboardPage';
+import LeadershipCandidatesPage from '@/pages/fep/LeadershipCandidatesPage';
+import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
+import MentorInternsPage from '@/pages/MentorInternsPage';
+import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
+  if (user?.role === ROLES.LEADERSHIP) {
+    return <Navigate to="/programme" replace />;
+  }
   if (!user?.workspaceId) return <Navigate to="/create-workspace" replace />;
   return <Outlet />;
 };
 
 const HomeRedirect = () => {
   const { user } = useAuth();
+
+  if (user?.role === ROLES.LEADERSHIP) {
+    return <Navigate to="/programme" replace />;
+  }
+
+  if (user?.role === ROLES.MENTOR && !user?.workspaceId) {
+    return <Navigate to="/my-interns" replace />;
+  }
 
   if (user?.workspaceId) {
     return <Navigate to="/dashboard" replace />;
@@ -59,13 +76,47 @@ export default function AppRoutes() {
         <Route
           path="/create-workspace"
           element={
-            user?.workspaceId ? <Navigate to="/dashboard" replace /> : <CreateWorkspacePage />
+            user?.role === ROLES.LEADERSHIP ? (
+              <Navigate to="/programme" replace />
+            ) : user?.role === ROLES.MENTOR ? (
+              <Navigate to="/my-interns" replace />
+            ) : user?.workspaceId ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <CreateWorkspacePage />
+            )
           }
         />
 
+        <Route path="/my-internship" element={<Navigate to="/create-workspace" replace />} />
+
+        <Route element={<SymphonyLayout />}>
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.LEADERSHIP]} />}>
+            <Route path="/programme" element={<LeadershipDashboardPage />} />
+            <Route path="/interns" element={<LeadershipCandidatesPage />} />
+            <Route path="/interns/:userId" element={<LeadershipCandidatePage />} />
+          </Route>
+        </Route>
+
         <Route element={<SidebarLayout />}>
           <Route path="/" element={<HomeRedirect />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route
+            path="/profile"
+            element={
+              user?.role === ROLES.LEADERSHIP ? (
+                <Navigate to="/programme" replace />
+              ) : (
+                <ProfilePage />
+              )
+            }
+          />
+
+          <Route path="/invitations" element={<UserInvitationsPage />} />
+
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
+            <Route path="/my-interns" element={<MentorInternsPage />} />
+            <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
+          </Route>
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/users" element={<AdminUsersPage />} />
@@ -84,7 +135,6 @@ export default function AppRoutes() {
             <Route path="/admin/archive" element={<ArchivePage />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
-            <Route path="/invitations" element={<UserInvitationsPage />} />
 
             <Route element={<WorkspaceManagementRoute />}>
               <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />

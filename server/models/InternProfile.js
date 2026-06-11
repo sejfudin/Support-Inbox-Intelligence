@@ -33,6 +33,23 @@ const internProfileSchema = new mongoose.Schema(
       enum: INTERN_STATUSES,
       default: 'active',
     },
+    readyForPlacement: {
+      type: Boolean,
+      default: false,
+    },
+    expectedEndDate: {
+      type: Date,
+    },
+    selfTechnologies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Technology',
+      },
+    ],
+    cvPath: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

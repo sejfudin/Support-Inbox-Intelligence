@@ -1,0 +1,161 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  createInternComment,
+  createInternEvaluation,
+  deleteMyCv,
+  fetchCommentViewers,
+  fetchIntern,
+  fetchInternComments,
+  fetchInternEvaluations,
+  fetchInternReadiness,
+  fetchInterns,
+  fetchInternStats,
+  fetchMyInternProfile,
+  updateIntern,
+  updateMyTechnologies,
+  uploadMyCv,
+  upsertInternReadiness,
+} from '@/api/interns';
+
+export const INTERNS_QUERY_KEY = ['interns'];
+export const INTERN_STATS_QUERY_KEY = ['interns', 'stats'];
+export const MY_INTERN_PROFILE_QUERY_KEY = ['intern-profile', 'me'];
+
+export const internDetailKey = (userId) => ['intern', userId];
+export const internCommentsKey = (userId) => ['intern-comments', userId];
+export const internEvaluationsKey = (userId) => ['intern-evaluations', userId];
+export const internReadinessKey = (userId) => ['intern-readiness', userId];
+
+export const useInterns = (params = {}, options = {}) =>
+  useQuery({
+    queryKey: [...INTERNS_QUERY_KEY, params],
+    queryFn: () => fetchInterns(params),
+    ...options,
+  });
+
+export const useInternStats = (options = {}) =>
+  useQuery({
+    queryKey: INTERN_STATS_QUERY_KEY,
+    queryFn: fetchInternStats,
+    staleTime: 60 * 1000,
+    ...options,
+  });
+
+export const useIntern = (userId, options = {}) =>
+  useQuery({
+    queryKey: internDetailKey(userId),
+    queryFn: () => fetchIntern(userId),
+    enabled: Boolean(userId),
+    ...options,
+  });
+
+export const useMyInternProfile = (options = {}) =>
+  useQuery({
+    queryKey: MY_INTERN_PROFILE_QUERY_KEY,
+    queryFn: fetchMyInternProfile,
+    ...options,
+  });
+
+export const useUpdateMyTechnologies = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMyTechnologies,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
+    },
+  });
+};
+
+export const useUploadMyCv = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: uploadMyCv,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
+    },
+  });
+};
+
+export const useDeleteMyCv = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteMyCv,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateIntern = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, payload }) => updateIntern(userId, payload),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: internDetailKey(userId) });
+      queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INTERN_STATS_QUERY_KEY });
+    },
+  });
+};
+
+export const useInternComments = (userId, options = {}) =>
+  useQuery({
+    queryKey: internCommentsKey(userId),
+    queryFn: () => fetchInternComments(userId),
+    enabled: Boolean(userId),
+    ...options,
+  });
+
+export const useCommentViewers = (options = {}) =>
+  useQuery({
+    queryKey: ['comment-viewers'],
+    queryFn: fetchCommentViewers,
+    ...options,
+  });
+
+export const useCreateInternComment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, payload }) => createInternComment(userId, payload),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: internCommentsKey(userId) });
+    },
+  });
+};
+
+export const useInternEvaluations = (userId, options = {}) =>
+  useQuery({
+    queryKey: internEvaluationsKey(userId),
+    queryFn: () => fetchInternEvaluations(userId),
+    enabled: Boolean(userId),
+    ...options,
+  });
+
+export const useCreateInternEvaluation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, payload }) => createInternEvaluation(userId, payload),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: internEvaluationsKey(userId) });
+    },
+  });
+};
+
+export const useInternReadiness = (userId, options = {}) =>
+  useQuery({
+    queryKey: internReadinessKey(userId),
+    queryFn: () => fetchInternReadiness(userId),
+    enabled: Boolean(userId),
+    ...options,
+  });
+
+export const useUpsertInternReadiness = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, payload }) => upsertInternReadiness(userId, payload),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: internReadinessKey(userId) });
+      queryClient.invalidateQueries({ queryKey: INTERN_STATS_QUERY_KEY });
+    },
+  });
+};

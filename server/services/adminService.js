@@ -149,7 +149,9 @@ const updateUserRole = async (userId, role) => {
 };
 
 const getUserById = async (userId) => {
-  const user = await User.findById(userId).select('fullname email role status workspaceId');
+  const user = await User.findById(userId)
+    .select('fullname email role status workspaceId hub createdAt')
+    .populate('hub', 'name city country');
 
   if (!user) {
     throw new Error('User not found');
