@@ -34,7 +34,7 @@ const updateCategory = async (categoryId, { name, color, descriptionTemplate }) 
   const category = await Category.findByIdAndUpdate(
     categoryId,
     { $set: updates },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
   if (!category) throw new Error('Category not found');
   return category;

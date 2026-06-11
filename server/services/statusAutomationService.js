@@ -81,7 +81,7 @@ async function executeStatusChange(ticketId, targetStatusSlug, metadata = {}) {
     const ticket = await Ticket.findByIdAndUpdate(
       ticketId,
       { $set: updateData },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('status', 'slug label color isBacklog tracksTime isDone');
 
     const triggerLabel = metadata.trigger === 'pr_merged' ? 'merged' : 'opened';

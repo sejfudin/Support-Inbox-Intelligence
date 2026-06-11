@@ -61,7 +61,7 @@ async function tryAtomicLink(ticketId, prData) {
         linkedPullRequest: prPayload,
       },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (result) {
@@ -161,7 +161,7 @@ async function linkPullRequestToTicket(prData, workspaceId) {
       await Ticket.findByIdAndUpdate(
         ticket._id,
         { $set: { linkedPullRequest: buildPrPayload(prData) } },
-        { new: true }
+        { returnDocument: 'after' }
       );
       return {
         result: LINK_RESULT.ALREADY_LINKED,
@@ -224,7 +224,7 @@ async function replaceLinkedPullRequest(prData, workspaceId) {
     await Ticket.findByIdAndUpdate(
       ticket._id,
       { $set: { linkedPullRequest: buildPrPayload(prData) } },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     return {

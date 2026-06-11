@@ -56,6 +56,11 @@ CLIENT_URL=http://localhost:5173   # frontend origin used by CORS
 PORT=4000                          # optional, defaults to 4000
 JWT_SECRET=your_jwt_secret
 JWT_REFRESH_SECRET=your_jwt_refresh_secret
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+SUPABASE_ATTACHMENT_BUCKET=attachment-images
+SUPABASE_WORKSPACE_LOGO_BUCKET=workspace-logos
+SUPABASE_CV_BUCKET=intern-cvs
 NODE_ENV=development
 ```
 
@@ -63,6 +68,7 @@ Notes:
 - `MONGODB_URI` is used by `server/config/db.js` to connect Mongoose to MongoDB.
 - `CLIENT_URL` is read in `server/index.js` to configure CORS.
 - `JWT_SECRET` and `JWT_REFRESH_SECRET` are used by the auth service for signing tokens.
+- `SUPABASE_CV_BUCKET` must point to a Supabase Storage bucket that allows `application/pdf`.
 
 ## Local development
 

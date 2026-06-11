@@ -148,7 +148,7 @@ const updateWorkspace = async (workspaceId, { name, description, owner }, reques
     const updatedWorkspace = await Workspace.findByIdAndUpdate(
       workspaceId,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
     return attachLogoUrl(updatedWorkspace);
   }
