@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -26,8 +26,12 @@ import { useMentorCandidates } from '@/queries/users';
 import { useAllWorkspaces } from '@/queries/workspaces';
 import { ROLE_OPTIONS } from '@/helpers/roles';
 import {
-  REGISTER_DEFAULT_VALUES,
   buildRegisterPayload,
+  buildSuggestedEmail,
+  findDefaultHubId,
+  findDefaultInternshipTypeId,
+  getRegisterDefaultValues,
+  getTodayIsoDate,
   isInternRole,
   showsWorkspaceSelection,
   skipsWorkspaceSelection,
@@ -166,13 +170,19 @@ export function RegisterForm({ onSuccess, onError }) {
     handleSubmit,
     control,
     watch,
+    getValues,
     setValue,
     reset,
     trigger,
     formState: { errors },
   } = useFormContext();
 
+  const lastSuggestedEmailRef = useRef('');
+  const fullName = watch('fullName');
   const selectedRole = watch('role');
+  const selectedHubId = watch('hubId');
+  const selectedInternshipTypeId = watch('internshipTypeId');
+  const selectedStartDate = watch('startDate');
   const selectedWorkspaceId = watch('workspaceId');
   const showInternFields = isInternRole(selectedRole);
   const showWorkspaceFields = showsWorkspaceSelection(selectedRole);
@@ -212,13 +222,40 @@ export function RegisterForm({ onSuccess, onError }) {
   }, [selectedRole, setValue]);
 
   useEffect(() => {
+    const suggestedEmail = buildSuggestedEmail(fullName);
+    if (!suggestedEmail) return;
+
+    const currentEmail = getValues('email');
+    if (!currentEmail || currentEmail === lastSuggestedEmailRef.current) {
+      setValue('email', suggestedEmail, { shouldValidate: Boolean(fullName.trim()) });
+    }
+
+    lastSuggestedEmailRef.current = suggestedEmail;
+  }, [fullName, getValues, setValue]);
+
+  useEffect(() => {
+    if (!hubs.length || selectedHubId) return;
+    const defaultHubId = findDefaultHubId(hubs);
+    if (defaultHubId) setValue('hubId', defaultHubId);
+  }, [hubs, selectedHubId, setValue]);
+
+  useEffect(() => {
     if (!showInternFields) {
       setValue('internshipTypeId', '');
       setValue('primaryMentorId', '');
       setValue('secondaryMentorId', 'none');
       setValue('startDate', '');
+      return;
     }
-  }, [showInternFields, setValue]);
+
+    if (!selectedStartDate) {
+      setValue('startDate', getTodayIsoDate());
+    }
+
+    if (!internshipTypes.length || selectedInternshipTypeId) return;
+    const defaultTypeId = findDefaultInternshipTypeId(internshipTypes);
+    if (defaultTypeId) setValue('internshipTypeId', defaultTypeId);
+  }, [showInternFields, internshipTypes, selectedInternshipTypeId, selectedStartDate, setValue]);
 
   useEffect(() => {
     if (!hasSelectedWorkspace) {
@@ -249,7 +286,13 @@ export function RegisterForm({ onSuccess, onError }) {
             workspaceId: payload.workspaceId,
           });
           toast.success('User created successfully');
-          reset(REGISTER_DEFAULT_VALUES);
+          const defaults = getRegisterDefaultValues();
+          const defaultHubId = findDefaultHubId(hubs);
+          const defaultTypeId = findDefaultInternshipTypeId(internshipTypes);
+          if (defaultHubId) defaults.hubId = defaultHubId;
+          if (defaultTypeId) defaults.internshipTypeId = defaultTypeId;
+          reset(defaults);
+          lastSuggestedEmailRef.current = '';
           setActiveStepId(REGISTER_STEPS.identity.id);
         } else {
           toast.success('User registered successfully');
