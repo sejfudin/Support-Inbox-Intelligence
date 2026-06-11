@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InternCommentsPanel } from '@/components/interns/InternCommentsPanel';
 import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPanel';
+import { InternRecommendationsPanel } from '@/components/interns/InternRecommendationsPanel';
 import { InternReadinessPanel } from '@/components/interns/InternReadinessPanel';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
@@ -92,6 +93,9 @@ export default function LeadershipCandidatePage() {
           <TabsTrigger value="evaluations" className="symphony-tab-trigger">
             Evaluations
           </TabsTrigger>
+          <TabsTrigger value="recommendations" className="symphony-tab-trigger">
+            Recommendations
+          </TabsTrigger>
           <TabsTrigger value="notes" className="symphony-tab-trigger">
             Notes
           </TabsTrigger>
@@ -161,6 +165,12 @@ export default function LeadershipCandidatePage() {
         <TabsContent value="evaluations">
           <SymphonyCard>
             <InternEvaluationsPanel userId={userId} readOnly />
+          </SymphonyCard>
+        </TabsContent>
+
+        <TabsContent value="recommendations">
+          <SymphonyCard>
+            <InternRecommendationsPanel userId={userId} readOnly />
           </SymphonyCard>
         </TabsContent>
 

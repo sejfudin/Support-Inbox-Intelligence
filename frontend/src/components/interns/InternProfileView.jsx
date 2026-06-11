@@ -9,10 +9,11 @@ import { InternMentorControls } from '@/components/interns/InternMentorControls'
 import { InternCommentsPanel } from '@/components/interns/InternCommentsPanel';
 import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPanel';
 import { InternReadinessPanel } from '@/components/interns/InternReadinessPanel';
+import { InternRecommendationsPanel } from '@/components/interns/InternRecommendationsPanel';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
-import { canViewComments, canWriteInternMentorData } from '@/helpers/roles';
+import { ROLES, canViewComments, canWriteInternMentorData } from '@/helpers/roles';
 import { getInternStatusLabel } from '@/helpers/internProfile';
 
 export function InternProfileView({
@@ -31,6 +32,8 @@ export function InternProfileView({
   const canWrite = !readOnly && canWriteInternMentorData(user?.role);
   const showComments = canViewComments(user?.role);
   const showEvaluations = showComments;
+  const showRecommendations =
+    user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR || user?.role === ROLES.LEADERSHIP;
 
   if (isPending) {
     return (
@@ -125,6 +128,11 @@ export function InternProfileView({
                 Evaluations
               </TabsTrigger>
             )}
+            {showRecommendations && (
+              <TabsTrigger value="recommendations" data-test="intern-detail-recommendations-tab">
+                Recommendations
+              </TabsTrigger>
+            )}
             {showComments && (
               <TabsTrigger value="notes" data-test="intern-detail-notes-tab">
                 Mentor notes
@@ -209,6 +217,12 @@ export function InternProfileView({
           {showEvaluations && (
             <TabsContent value="evaluations">
               <InternEvaluationsPanel userId={userId} readOnly={readOnly} />
+            </TabsContent>
+          )}
+
+          {showRecommendations && (
+            <TabsContent value="recommendations">
+              <InternRecommendationsPanel userId={userId} readOnly={readOnly} />
             </TabsContent>
           )}
 
