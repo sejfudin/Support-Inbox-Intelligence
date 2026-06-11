@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarDays, GraduationCap, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import PageHeading from '@/components/PageHeading';
@@ -15,6 +15,71 @@ import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, canViewComments, canWriteInternMentorData } from '@/helpers/roles';
 import { getInternStatusLabel } from '@/helpers/internProfile';
+import { cn } from '@/lib/utils';
+
+const INTERN_STATUS_TAG_STYLES = {
+  active: {
+    tag: 'border-sky-200/80 bg-sky-500/10 text-sky-800 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-200',
+    dot: 'bg-sky-500',
+  },
+  ready: {
+    tag: 'border-emerald-200/80 bg-emerald-500/10 text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200',
+    dot: 'bg-emerald-500',
+  },
+  placed: {
+    tag: 'border-emerald-200/80 bg-emerald-500/10 text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200',
+    dot: 'bg-emerald-500',
+  },
+  completed: {
+    tag: 'border-violet-200/80 bg-violet-500/10 text-violet-800 dark:border-violet-400/25 dark:bg-violet-400/10 dark:text-violet-200',
+    dot: 'bg-violet-500',
+  },
+  discontinued: {
+    tag: 'border-rose-200/80 bg-rose-500/10 text-rose-800 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-200',
+    dot: 'bg-rose-500',
+  },
+  default: {
+    tag: 'border-border/70 bg-background/70 text-foreground',
+    dot: 'bg-muted-foreground',
+  },
+};
+
+const internProfileTagBaseClass =
+  'inline-flex min-h-9 max-w-full min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold shadow-sm backdrop-blur-md';
+
+const internTabListClassName =
+  'flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-none border-b border-border/70 bg-transparent p-0 text-muted-foreground';
+
+const internTabTriggerClassName =
+  'h-11 rounded-none border-b-2 border-transparent bg-transparent px-3 py-3 text-sm font-semibold text-muted-foreground shadow-none transition-colors first:pl-0 hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none';
+
+function HeaderInfoTag({ icon: Icon, label, value, className }) {
+  return (
+    <span className={cn(internProfileTagBaseClass, className)}>
+      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="text-xs font-medium opacity-70">{label}</span>
+      <span className="min-w-0 truncate">{value || '—'}</span>
+    </span>
+  );
+}
+
+function StatusInfoTag({ status }) {
+  const statusStyle = INTERN_STATUS_TAG_STYLES[status] || INTERN_STATUS_TAG_STYLES.default;
+
+  return (
+    <span className={cn(internProfileTagBaseClass, statusStyle.tag)}>
+      <span
+        className={cn(
+          'h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-white/70 dark:ring-white/10',
+          statusStyle.dot
+        )}
+        aria-hidden="true"
+      />
+      <span className="text-xs font-medium opacity-70">Status</span>
+      <span className="min-w-0 truncate">{getInternStatusLabel(status) || '—'}</span>
+    </span>
+  );
+}
 
 export function InternProfileView({
   userId,
@@ -77,6 +142,9 @@ export function InternProfileView({
       {backLabel}
     </Button>
   ) : null;
+  const formattedStartDate = intern.startDate
+    ? format(new Date(intern.startDate), 'MMM d, yyyy')
+    : '—';
 
   return (
     <PageShell>
@@ -87,54 +155,81 @@ export function InternProfileView({
           subtitle={intern.user?.email}
           beforeKicker={backButton}
           actions={headingActions}
-        >
-          <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <p className="text-xs text-muted-foreground">Programme</p>
-              <p className="font-medium text-foreground">{intern.internshipType?.name || '—'}</p>
+          showMetaDivider
+          meta={
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <HeaderInfoTag
+                icon={GraduationCap}
+                label="Programme"
+                value={intern.internshipType?.name}
+                className="border-indigo-200/80 bg-indigo-500/10 text-indigo-800 dark:border-indigo-400/25 dark:bg-indigo-400/10 dark:text-indigo-200"
+              />
+              <StatusInfoTag status={intern.status} />
+              <HeaderInfoTag
+                icon={MapPin}
+                label="Hub"
+                value={intern.user?.hub?.name}
+                className="border-cyan-200/80 bg-cyan-500/10 text-cyan-800 dark:border-cyan-400/25 dark:bg-cyan-400/10 dark:text-cyan-200"
+              />
+              <HeaderInfoTag
+                icon={CalendarDays}
+                label="Start"
+                value={formattedStartDate}
+                className="border-amber-200/80 bg-amber-500/10 text-amber-800 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200"
+              />
             </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <p className="text-xs text-muted-foreground">Status</p>
-              <p className="font-medium text-foreground">{getInternStatusLabel(intern.status)}</p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <p className="text-xs text-muted-foreground">Hub</p>
-              <p className="font-medium text-foreground">{intern.user?.hub?.name || '—'}</p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-              <p className="text-xs text-muted-foreground">Start date</p>
-              <p className="font-medium text-foreground">
-                {intern.startDate ? format(new Date(intern.startDate), 'MMM d, yyyy') : '—'}
-              </p>
-            </div>
-          </div>
-        </PageHeading>
+          }
+        />
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList data-test="intern-detail-tabs">
-            <TabsTrigger value="overview" data-test="intern-detail-overview-tab">
+          <TabsList className={internTabListClassName} data-test="intern-detail-tabs">
+            <TabsTrigger
+              value="overview"
+              className={internTabTriggerClassName}
+              data-test="intern-detail-overview-tab"
+            >
               Overview
             </TabsTrigger>
             {analyticsSection && (
-              <TabsTrigger value="analytics" data-test="intern-detail-analytics-tab">
+              <TabsTrigger
+                value="analytics"
+                className={internTabTriggerClassName}
+                data-test="intern-detail-analytics-tab"
+              >
                 Analytics
               </TabsTrigger>
             )}
-            <TabsTrigger value="technologies" data-test="intern-detail-technologies-tab">
+            <TabsTrigger
+              value="technologies"
+              className={internTabTriggerClassName}
+              data-test="intern-detail-technologies-tab"
+            >
               Technologies
             </TabsTrigger>
             {showEvaluations && (
-              <TabsTrigger value="evaluations" data-test="intern-detail-evaluations-tab">
+              <TabsTrigger
+                value="evaluations"
+                className={internTabTriggerClassName}
+                data-test="intern-detail-evaluations-tab"
+              >
                 Evaluations
               </TabsTrigger>
             )}
             {showRecommendations && (
-              <TabsTrigger value="recommendations" data-test="intern-detail-recommendations-tab">
+              <TabsTrigger
+                value="recommendations"
+                className={internTabTriggerClassName}
+                data-test="intern-detail-recommendations-tab"
+              >
                 Recommendations
               </TabsTrigger>
             )}
             {showComments && (
-              <TabsTrigger value="notes" data-test="intern-detail-notes-tab">
+              <TabsTrigger
+                value="notes"
+                className={internTabTriggerClassName}
+                data-test="intern-detail-notes-tab"
+              >
                 Mentor notes
               </TabsTrigger>
             )}
