@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RegisterForm } from '@/components/register/RegisterForm';
 import { RegisterRoleGuide } from '@/components/register/RegisterRoleGuide';
 import { RegisterSuccess } from '@/components/register/RegisterSuccess';
-import { REGISTER_DEFAULT_VALUES } from '@/helpers/registerForm';
+import { getRegisterDefaultValues } from '@/helpers/registerForm';
 
 export default function Register() {
   const [errorString, setErrorString] = useState('');
@@ -12,7 +12,7 @@ export default function Register() {
 
   const methods = useForm({
     mode: 'onChange',
-    defaultValues: REGISTER_DEFAULT_VALUES,
+    defaultValues: getRegisterDefaultValues(),
   });
 
   const selectedRole = methods.watch('role');
@@ -23,7 +23,7 @@ export default function Register() {
         createdUser={createdUser}
         onCreateAnother={() => {
           setCreatedUser(null);
-          methods.reset(REGISTER_DEFAULT_VALUES);
+          methods.reset(getRegisterDefaultValues());
         }}
       />
     );
