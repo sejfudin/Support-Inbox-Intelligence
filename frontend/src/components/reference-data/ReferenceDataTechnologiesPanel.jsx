@@ -23,6 +23,8 @@ import { useCreateTechnology, useTechnologies, useUpdateTechnology } from '@/que
 import { toast } from 'sonner';
 
 const emptyForm = { name: '', isActive: true };
+const tableHeadClass =
+  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
 
 export function ReferenceDataTechnologiesPanel() {
   const { data: technologies = [], isPending } = useTechnologies({ includeInactive: true });
@@ -86,11 +88,11 @@ export function ReferenceDataTechnologiesPanel() {
       <div className="rounded-2xl border border-border/70 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+            <TableRow className="bg-secondary/60">
+              <TableHead className={tableHeadClass}>Name</TableHead>
+              <TableHead className={tableHeadClass}>Slug</TableHead>
+              <TableHead className={tableHeadClass}>Status</TableHead>
+              <TableHead className={`${tableHeadClass} w-[80px]`}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
