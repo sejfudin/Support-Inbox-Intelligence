@@ -6,12 +6,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useTechnologies } from '@/queries/technologies';
 import { useInternReadiness, useUpsertInternReadiness } from '@/queries/interns';
 import { getReadinessLabel, READINESS_LEVELS } from '@/helpers/internProfile';
 import { useAuth } from '@/context/AuthContext';
 import { canWriteInternMentorData } from '@/helpers/roles';
 import { toast } from 'sonner';
+
+const tableHeadClass =
+  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground md:px-5';
+const tableCellClass = 'px-4 py-4 md:px-5';
 
 export function InternReadinessPanel({ userId, declaredTechnologies = [], readOnly = false }) {
   const { user } = useAuth();
@@ -66,22 +78,27 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
         )}
         {!isPending && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-left text-sm">
-              <thead className="border-b border-border/60 bg-muted/40">
-                <tr>
-                  <th className="px-5 py-3 font-semibold text-foreground md:px-6">Technology</th>
-                  <th className="px-5 py-3 font-semibold text-foreground md:px-6">Readiness</th>
-                  <th className="px-5 py-3 font-semibold text-foreground md:px-6">Set by</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="min-w-[640px]">
+              <TableHeader>
+                <TableRow className="bg-secondary/60">
+                  <TableHead className={tableHeadClass}>Technology</TableHead>
+                  <TableHead className={tableHeadClass}>Readiness</TableHead>
+                  <TableHead className={tableHeadClass}>Set by</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {technologies.map((tech) => {
                   const flag = flagMap[tech._id];
                   const level = flag?.level || 'none';
                   return (
-                    <tr key={tech._id} className="border-t border-border/60">
-                      <td className="px-5 py-3 font-medium md:px-6">{tech.name}</td>
-                      <td className="px-5 py-3 md:px-6">
+                    <TableRow
+                      key={tech._id}
+                      className="border-border/60 transition-colors hover:bg-muted/30"
+                    >
+                      <TableCell className={`${tableCellClass} font-medium`}>
+                        {tech.name}
+                      </TableCell>
+                      <TableCell className={tableCellClass}>
                         {canWrite ? (
                           <Select
                             value={level}
@@ -104,15 +121,15 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
                         ) : (
                           getReadinessLabel(level)
                         )}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground md:px-6">
+                      </TableCell>
+                      <TableCell className={`${tableCellClass} text-muted-foreground`}>
                         {flag?.setBy?.fullname || '—'}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </InternPanel>

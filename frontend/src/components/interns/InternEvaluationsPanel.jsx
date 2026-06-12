@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { EVALUATION_CRITERIA } from '@/helpers/internProfile';
@@ -31,6 +32,12 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!periodStart || !periodEnd) {
+      toast.error('Select a period start and end date');
+      return;
+    }
+
     mutate(
       {
         userId,
@@ -58,45 +65,49 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="eval-period-start">Period start</Label>
-                <Input
+                <DatePicker
                   id="eval-period-start"
-                  type="date"
                   value={periodStart}
-                  onChange={(e) => setPeriodStart(e.target.value)}
-                  required
+                  onChange={setPeriodStart}
+                  placeholder="Select start date"
                   data-test="intern-evaluation-start-input"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="eval-period-end">Period end</Label>
-                <Input
+                <DatePicker
                   id="eval-period-end"
-                  type="date"
                   value={periodEnd}
-                  onChange={(e) => setPeriodEnd(e.target.value)}
-                  required
+                  onChange={setPeriodEnd}
+                  placeholder="Select end date"
                   data-test="intern-evaluation-end-input"
                 />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {EVALUATION_CRITERIA.map((criterion) => (
-                <div key={criterion.key} className="space-y-2">
+                <div key={criterion.key} className="max-w-[12rem] space-y-3">
                   <Label htmlFor={`eval-${criterion.key}`}>{criterion.label}</Label>
-                  <Input
+                  <Slider
                     id={`eval-${criterion.key}`}
-                    type="number"
                     min={1}
                     max={5}
-                    value={scores[criterion.key]}
-                    onChange={(e) =>
+                    step={1}
+                    showMarks
+                    value={[scores[criterion.key]]}
+                    onValueChange={([value]) =>
                       setScores((prev) => ({
                         ...prev,
-                        [criterion.key]: Number(e.target.value),
+                        [criterion.key]: value,
                       }))
                     }
                     data-test={`intern-evaluation-${criterion.key}-input`}
                   />
+                  <div className="-mt-2 flex justify-between text-[11px] font-medium text-muted-foreground">
+                    {[1, 2, 3, 4, 5].map((tick) => (
+                      <span key={tick}>{tick}</span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

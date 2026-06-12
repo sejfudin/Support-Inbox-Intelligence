@@ -200,13 +200,12 @@ export default function MentorRecommendationsPage() {
                     <TableHead className={tableHeadClass}>Status</TableHead>
                     <TableHead className={tableHeadClass}>Result</TableHead>
                     <TableHead className={tableHeadClass}>Updated</TableHead>
-                    <TableHead className={`${tableHeadClass} text-right`}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {recommendations.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                         No recommendations match your filters.
                       </TableCell>
                     </TableRow>
@@ -270,19 +269,6 @@ export default function MentorRecommendationsPage() {
                         </TableCell>
                         <TableCell className={`${tableCellClass} text-muted-foreground`}>
                           {formatDate(recommendation.updatedAt)}
-                        </TableCell>
-                        <TableCell className={`${tableCellClass} text-right`}>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (userId) navigate(profilePathFor(userId));
-                            }}
-                          >
-                            View
-                          </Button>
                         </TableCell>
                       </TableRow>
                     );
