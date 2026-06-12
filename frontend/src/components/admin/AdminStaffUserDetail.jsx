@@ -67,7 +67,7 @@ function MentorInternsPanel({ mentorUserId }) {
                     className="text-sm font-medium text-primary hover:underline"
                     data-test={`staff-user-intern-${internUserId}-link`}
                   >
-                    View profile
+                    View
                   </Link>
                 </TableCell>
               </TableRow>

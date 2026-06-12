@@ -122,11 +122,6 @@ export default function AppSidebar() {
       icon: User,
     },
     {
-      label: 'Recommendations',
-      to: '/recommendations',
-      icon: Send,
-    },
-    {
       label: 'All Workspaces',
       to: '/admin/workspaces',
       icon: Building2,
@@ -135,6 +130,11 @@ export default function AppSidebar() {
       label: 'Platform Management',
       to: '/admin/platform-management',
       icon: Database,
+    },
+    {
+      label: 'Recommendations',
+      to: '/recommendations',
+      icon: Send,
     },
   ];
 
