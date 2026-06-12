@@ -48,9 +48,9 @@ const assertReadAccess = (user) => {
   }
 };
 
-const assertMentorWriteAccess = (user, profile) => {
-  if (user.role !== ROLES.MENTOR || !isAssignedMentor(profile, user._id)) {
-    throw createError('Not authorized to modify this recommendation', 403);
+const assertRecommendationWriteAccess = (user) => {
+  if (user.role !== ROLES.ADMIN) {
+    throw createError('Only admins can modify recommendations', 403);
   }
 };
 
@@ -327,8 +327,9 @@ const getRecommendation = async (user, recommendationId) => {
 };
 
 const createRecommendation = async (user, payload = {}) => {
+  assertRecommendationWriteAccess(user);
+
   const profile = await loadInternProfileByUserId(payload.internUserId);
-  assertMentorWriteAccess(user, profile);
 
   assertValidStatus(payload.status);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
@@ -376,13 +377,14 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
 };
 
 const updateRecommendation = async (user, recommendationId, payload = {}) => {
+  assertRecommendationWriteAccess(user);
+
   assertValidObjectId(recommendationId, 'Recommendation');
   const recommendation = await Recommendation.findById(recommendationId);
   if (!recommendation) throw createError('Recommendation not found', 404);
 
   const profile = await InternProfile.findById(recommendation.internProfile);
   if (!profile) throw createError('Intern profile not found', 404);
-  assertMentorWriteAccess(user, profile);
 
   if (payload.technologyIds !== undefined) {
     recommendation.technologies = await ensureTechnologyIds(payload.technologyIds);
