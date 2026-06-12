@@ -24,6 +24,7 @@ const hubsRoutes = require('./routes/hubs');
 const internshipTypesRoutes = require('./routes/internshipTypes');
 const technologiesRoutes = require('./routes/technologies');
 const internsRoutes = require('./routes/interns');
+const recommendationRoutes = require('./routes/recommendations');
 const { handleWebhook } = require('./controllers/github');
 
 const PORT = process.env.PORT || 4000;
@@ -63,6 +64,7 @@ app.use('/api/hubs', hubsRoutes);
 app.use('/api/internship-types', internshipTypesRoutes);
 app.use('/api/technologies', technologiesRoutes);
 app.use('/api/interns', internsRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {

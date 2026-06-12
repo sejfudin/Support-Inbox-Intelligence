@@ -12,6 +12,7 @@ import {
   Mail,
   Database,
   GraduationCap,
+  Send,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -108,7 +109,10 @@ export default function AppSidebar() {
       .replace(/[^a-z0-9-]/gi, '') || 'home';
 
   const mentorNav = isMentor(user?.role)
-    ? [{ label: 'My Interns', to: '/my-interns', icon: GraduationCap }]
+    ? [
+        { label: 'My Interns', to: '/my-interns', icon: GraduationCap },
+        { label: 'Recommendations', to: '/recommendations', icon: Send },
+      ]
     : [];
 
   const adminNav = [

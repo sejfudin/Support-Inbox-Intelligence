@@ -6,6 +6,8 @@ export default function PageHeading({
   subtitle,
   actions,
   titleAdornment,
+  meta,
+  showMetaDivider = false,
   beforeKicker,
   children,
   className,
@@ -21,6 +23,11 @@ export default function PageHeading({
             {titleAdornment}
           </div>
           {subtitle ? <p className="app-subtitle">{subtitle}</p> : null}
+          {meta ? (
+            <div className={cn('mt-4', showMetaDivider && 'border-t border-border/60 pt-4')}>
+              {meta}
+            </div>
+          ) : null}
         </div>
 
         {actions ? (

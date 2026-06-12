@@ -42,7 +42,7 @@ const upsertReadinessFlag = async (user, internUserId, { technologyId, level }) 
   const flag = await ReadinessFlag.findOneAndUpdate(
     { internProfile: profile._id, technology: technologyId },
     { level, setBy: user._id },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   )
     .populate('technology', 'name slug')
     .populate('setBy', 'fullname');

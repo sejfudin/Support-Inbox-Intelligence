@@ -242,7 +242,7 @@ const updateUser = async (userId, updateData) => {
 
   try {
     const updatedUser = await User.findByIdAndUpdate(userId, updateOperation, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     }).select('-password');
 

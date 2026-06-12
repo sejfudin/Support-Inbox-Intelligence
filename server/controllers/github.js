@@ -110,7 +110,7 @@ const handleCallback = async (req, res) => {
         lastSyncAt: new Date(),
         settings,
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     res.redirect(
@@ -298,7 +298,7 @@ const updateIntegration = async (req, res) => {
     const updated = await Integration.findByIdAndUpdate(
       integration._id,
       { $set: updateData },
-      { new: true }
+      { returnDocument: 'after' }
     ).lean();
 
     // Remove sensitive data

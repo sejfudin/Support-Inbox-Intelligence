@@ -640,7 +640,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       ticketId,
       { $set: updateData },
       {
-        new: true,
+        returnDocument: 'after',
         runValidators: true,
       }
     )
@@ -799,7 +799,7 @@ const archiveTicket = async (ticketId, actorUserId) => {
   const ticket = await Ticket.findByIdAndUpdate(
     ticketId,
     { $set: { isArchived: true } },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!ticket) {
     throw new Error('Ticket not found');

@@ -138,7 +138,7 @@ const updateUserRole = async (userId, role) => {
   const user = await User.findByIdAndUpdate(
     userId,
     { role },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   ).select('-password');
 
   if (!user) {

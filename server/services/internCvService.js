@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { supabase, supabaseWorkspaceLogoBucket } = require('../config/supabase');
+const { supabase, supabaseCvBucket } = require('../config/supabase');
 const InternProfile = require('../models/InternProfile');
 
 const buildInternCvPath = (userId) => {
@@ -10,13 +10,13 @@ const buildInternCvPath = (userId) => {
 
 const buildCvUrl = (cvPath) => {
   if (!cvPath) return null;
-  const { data } = supabase.storage.from(supabaseWorkspaceLogoBucket).getPublicUrl(cvPath);
+  const { data } = supabase.storage.from(supabaseCvBucket).getPublicUrl(cvPath);
   return data?.publicUrl || null;
 };
 
 const removeCvFromStorage = async (cvPath) => {
   if (!cvPath) return;
-  await supabase.storage.from(supabaseWorkspaceLogoBucket).remove([cvPath]);
+  await supabase.storage.from(supabaseCvBucket).remove([cvPath]);
 };
 
 const uploadInternCv = async ({ userId, file }) => {
@@ -25,7 +25,7 @@ const uploadInternCv = async ({ userId, file }) => {
 
   const path = buildInternCvPath(userId);
   const { error } = await supabase.storage
-    .from(supabaseWorkspaceLogoBucket)
+    .from(supabaseCvBucket)
     .upload(path, file.buffer, {
       contentType: file.mimetype,
       upsert: false,
