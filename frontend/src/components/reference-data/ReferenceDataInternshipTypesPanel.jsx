@@ -25,11 +25,20 @@ import {
   useInternshipTypes,
   useUpdateInternshipType,
 } from '@/queries/internshipTypes';
+import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { toast } from 'sonner';
 
 const emptyForm = { name: '', description: '', isActive: true };
 const tableHeadClass =
   'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
+
+function SlugBadge({ children }) {
+  return (
+    <span className="inline-flex rounded-md bg-secondary px-2 py-1 font-mono text-xs font-medium text-muted-foreground">
+      {children}
+    </span>
+  );
+}
 
 export function ReferenceDataInternshipTypesPanel() {
   const { data: types = [], isPending } = useInternshipTypes({ includeInactive: true });
@@ -119,9 +128,13 @@ export function ReferenceDataInternshipTypesPanel() {
               types.map((type) => (
                 <TableRow key={type._id}>
                   <TableCell className="font-medium">{type.name}</TableCell>
-                  <TableCell>{type.slug}</TableCell>
+                  <TableCell>
+                    <SlugBadge>{type.slug}</SlugBadge>
+                  </TableCell>
                   <TableCell className="max-w-xs truncate">{type.description || '—'}</TableCell>
-                  <TableCell>{type.isActive ? 'Active' : 'Inactive'}</TableCell>
+                  <TableCell>
+                    <UserStatusBadge status={type.isActive ? 'active' : 'inactive'} />
+                  </TableCell>
                   <TableCell>
                     <Button
                       type="button"

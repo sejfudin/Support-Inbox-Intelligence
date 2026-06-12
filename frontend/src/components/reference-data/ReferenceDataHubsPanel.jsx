@@ -19,6 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useCreateHub, useHubs, useUpdateHub } from '@/queries/hubs';
 import { toast } from 'sonner';
 
@@ -117,7 +118,9 @@ export function ReferenceDataHubsPanel() {
                   <TableCell className="font-medium">{hub.name}</TableCell>
                   <TableCell>{hub.city || '—'}</TableCell>
                   <TableCell>{hub.country || '—'}</TableCell>
-                  <TableCell>{hub.isActive ? 'Active' : 'Inactive'}</TableCell>
+                  <TableCell>
+                    <UserStatusBadge status={hub.isActive ? 'active' : 'inactive'} />
+                  </TableCell>
                   <TableCell>
                     <Button
                       type="button"

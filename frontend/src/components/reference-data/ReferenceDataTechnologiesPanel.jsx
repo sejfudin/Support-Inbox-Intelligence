@@ -19,12 +19,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useCreateTechnology, useTechnologies, useUpdateTechnology } from '@/queries/technologies';
 import { toast } from 'sonner';
 
 const emptyForm = { name: '', isActive: true };
 const tableHeadClass =
   'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
+
+function SlugBadge({ children }) {
+  return (
+    <span className="inline-flex rounded-md bg-secondary px-2 py-1 font-mono text-xs font-medium text-muted-foreground">
+      {children}
+    </span>
+  );
+}
 
 export function ReferenceDataTechnologiesPanel() {
   const { data: technologies = [], isPending } = useTechnologies({ includeInactive: true });
@@ -112,8 +121,12 @@ export function ReferenceDataTechnologiesPanel() {
               technologies.map((technology) => (
                 <TableRow key={technology._id}>
                   <TableCell className="font-medium">{technology.name}</TableCell>
-                  <TableCell>{technology.slug}</TableCell>
-                  <TableCell>{technology.isActive ? 'Active' : 'Inactive'}</TableCell>
+                  <TableCell>
+                    <SlugBadge>{technology.slug}</SlugBadge>
+                  </TableCell>
+                  <TableCell>
+                    <UserStatusBadge status={technology.isActive ? 'active' : 'inactive'} />
+                  </TableCell>
                   <TableCell>
                     <Button
                       type="button"
