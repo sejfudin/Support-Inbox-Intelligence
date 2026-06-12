@@ -22,6 +22,8 @@ import {
   RECOMMENDATION_RESULTS,
   RECOMMENDATION_STATUSES,
 } from '@/helpers/recommendations';
+import { useAuth } from '@/context/AuthContext';
+import { ROLES } from '@/helpers/roles';
 import { useHubs } from '@/queries/hubs';
 import { useRecommendations } from '@/queries/recommendations';
 import { useTechnologies } from '@/queries/technologies';
@@ -33,6 +35,7 @@ const formatDate = (date) => {
 
 export default function MentorRecommendationsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -56,6 +59,8 @@ export default function MentorRecommendationsPage() {
   const recommendations = data?.recommendations ?? [];
   const pagination = data?.pagination;
   const totalMatching = pagination?.total ?? 0;
+  const profilePathFor = (userId) =>
+    user?.role === ROLES.ADMIN ? `/user/${userId}` : `/my-interns/${userId}`;
 
   return (
     <PageShell>
@@ -202,7 +207,7 @@ export default function MentorRecommendationsPage() {
                       <tr
                         key={recommendation._id}
                         className="cursor-pointer border-t border-border/60 hover:bg-muted/30"
-                        onClick={() => userId && navigate(`/my-interns/${userId}`)}
+                        onClick={() => userId && navigate(profilePathFor(userId))}
                         data-test={`recommendation-row-${recommendation._id}`}
                       >
                         <td className="px-5 py-4">
@@ -261,7 +266,7 @@ export default function MentorRecommendationsPage() {
                             size="sm"
                             onClick={(event) => {
                               event.stopPropagation();
-                              if (userId) navigate(`/my-interns/${userId}`);
+                              if (userId) navigate(profilePathFor(userId));
                             }}
                           >
                             View profile

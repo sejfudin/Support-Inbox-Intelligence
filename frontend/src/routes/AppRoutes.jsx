@@ -117,6 +117,9 @@ export default function AppRoutes() {
           <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
             <Route path="/my-interns" element={<MentorInternsPage />} />
             <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MENTOR]} />}>
             <Route path="/recommendations" element={<MentorRecommendationsPage />} />
           </Route>
 

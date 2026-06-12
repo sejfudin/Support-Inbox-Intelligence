@@ -291,7 +291,7 @@ function RecommendationSummary({ recommendation, canWrite, onEdit }) {
 
 export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
-  const canWrite = !readOnly && user?.role === ROLES.MENTOR;
+  const canWrite = !readOnly && user?.role === ROLES.ADMIN;
   const { data: technologies = [] } = useTechnologies();
   const { data, isPending, isError } = useRecommendations({
     internUserId: userId,

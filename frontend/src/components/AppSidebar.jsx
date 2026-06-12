@@ -122,6 +122,11 @@ export default function AppSidebar() {
       icon: User,
     },
     {
+      label: 'Recommendations',
+      to: '/recommendations',
+      icon: Send,
+    },
+    {
       label: 'All Workspaces',
       to: '/admin/workspaces',
       icon: Building2,
