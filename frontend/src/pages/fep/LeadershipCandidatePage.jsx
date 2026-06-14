@@ -1,4 +1,5 @@
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,9 +22,22 @@ function StatTile({ label, value }) {
   );
 }
 
+const CANDIDATE_TABS = ['overview', 'technologies', 'evaluations', 'recommendations', 'notes'];
+
 export default function LeadershipCandidatePage() {
   const { userId } = useParams();
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    CANDIDATE_TABS.includes(tabParam) ? tabParam : 'overview'
+  );
   const { data: intern, isPending, isError } = useIntern(userId);
+
+  useEffect(() => {
+    if (CANDIDATE_TABS.includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   if (isPending) {
     return <p className="text-sm text-muted-foreground">Loading candidate profile...</p>;
@@ -82,7 +96,7 @@ export default function LeadershipCandidatePage() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="symphony-tabs-list" data-test="leadership-candidate-tabs">
           <TabsTrigger value="overview" className="symphony-tab-trigger">
             Overview
