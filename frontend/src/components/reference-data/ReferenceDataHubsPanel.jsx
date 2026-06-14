@@ -19,10 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useCreateHub, useHubs, useUpdateHub } from '@/queries/hubs';
 import { toast } from 'sonner';
 
 const emptyForm = { name: '', city: '', country: '', isActive: true };
+const tableHeadClass =
+  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
 
 export function ReferenceDataHubsPanel() {
   const { data: hubs = [], isPending } = useHubs({ includeInactive: true });
@@ -88,12 +91,12 @@ export function ReferenceDataHubsPanel() {
       <div className="rounded-2xl border border-border/70 overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>City</TableHead>
-              <TableHead>Country</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
+            <TableRow className="bg-secondary/60">
+              <TableHead className={tableHeadClass}>Name</TableHead>
+              <TableHead className={tableHeadClass}>City</TableHead>
+              <TableHead className={tableHeadClass}>Country</TableHead>
+              <TableHead className={tableHeadClass}>Status</TableHead>
+              <TableHead className={`${tableHeadClass} w-[80px]`}>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -115,7 +118,9 @@ export function ReferenceDataHubsPanel() {
                   <TableCell className="font-medium">{hub.name}</TableCell>
                   <TableCell>{hub.city || '—'}</TableCell>
                   <TableCell>{hub.country || '—'}</TableCell>
-                  <TableCell>{hub.isActive ? 'Active' : 'Inactive'}</TableCell>
+                  <TableCell>
+                    <UserStatusBadge status={hub.isActive ? 'active' : 'inactive'} />
+                  </TableCell>
                   <TableCell>
                     <Button
                       type="button"

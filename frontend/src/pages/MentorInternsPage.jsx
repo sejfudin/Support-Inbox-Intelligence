@@ -176,7 +176,7 @@ export default function MentorInternsPage() {
                               navigate(`/my-interns/${userId}`);
                             }}
                           >
-                            View profile
+                            View
                           </Button>
                         </td>
                       </tr>

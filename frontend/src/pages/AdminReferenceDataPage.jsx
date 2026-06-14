@@ -5,6 +5,9 @@ import { ReferenceDataInternshipTypesPanel } from '@/components/reference-data/R
 import { ReferenceDataTechnologiesPanel } from '@/components/reference-data/ReferenceDataTechnologiesPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
+const platformTabTriggerClass =
+  '-mb-[2px] w-full rounded-none border-b-2 border-transparent bg-transparent px-0 pb-4 pt-0 text-center text-sm font-medium text-muted-foreground shadow-none transition-colors hover:border-border hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:hover:border-primary';
+
 export default function AdminReferenceDataPage() {
   return (
     <div className="min-h-full">
@@ -18,25 +21,37 @@ export default function AdminReferenceDataPage() {
 
           <PagePanel className="p-6">
             <Tabs defaultValue="hubs">
-              <TabsList className="mb-6 grid w-full grid-cols-3">
-                <TabsTrigger value="hubs" data-test="platform-management-hubs-tab">
+              <TabsList className="mb-8 grid h-auto w-full grid-cols-3 rounded-none border-b border-border bg-transparent p-0">
+                <TabsTrigger
+                  value="hubs"
+                  className={platformTabTriggerClass}
+                  data-test="platform-management-hubs-tab"
+                >
                   Hubs
                 </TabsTrigger>
-                <TabsTrigger value="types" data-test="platform-management-internship-types-tab">
+                <TabsTrigger
+                  value="types"
+                  className={platformTabTriggerClass}
+                  data-test="platform-management-internship-types-tab"
+                >
                   Internship Types
                 </TabsTrigger>
-                <TabsTrigger value="technologies" data-test="platform-management-technologies-tab">
+                <TabsTrigger
+                  value="technologies"
+                  className={platformTabTriggerClass}
+                  data-test="platform-management-technologies-tab"
+                >
                   Technologies
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="hubs">
+              <TabsContent value="hubs" className="mt-0">
                 <ReferenceDataHubsPanel />
               </TabsContent>
-              <TabsContent value="types">
+              <TabsContent value="types" className="mt-0">
                 <ReferenceDataInternshipTypesPanel />
               </TabsContent>
-              <TabsContent value="technologies">
+              <TabsContent value="technologies" className="mt-0">
                 <ReferenceDataTechnologiesPanel />
               </TabsContent>
             </Tabs>

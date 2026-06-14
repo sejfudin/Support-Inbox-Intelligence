@@ -1,4 +1,6 @@
+import { useMemo, useState } from 'react';
 import { InternPanel } from '@/components/interns/InternPanel';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -13,14 +15,22 @@ import { useAuth } from '@/context/AuthContext';
 import { canWriteInternMentorData } from '@/helpers/roles';
 import { toast } from 'sonner';
 
+const READINESS_PAGE_SIZE = 9;
+
 export function InternReadinessPanel({ userId, declaredTechnologies = [], readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && canWriteInternMentorData(user?.role);
   const { data: technologies = [] } = useTechnologies();
   const { data: flags = [], isPending } = useInternReadiness(userId);
   const { mutate } = useUpsertInternReadiness();
+  const [visibleCount, setVisibleCount] = useState(READINESS_PAGE_SIZE);
 
   const flagMap = Object.fromEntries(flags.map((f) => [f.technology?._id || f.technology, f]));
+  const visibleTechnologies = useMemo(
+    () => technologies.slice(0, visibleCount),
+    [technologies, visibleCount]
+  );
+  const hasMoreTechnologies = visibleCount < technologies.length;
 
   const handleLevelChange = (technologyId, level) => {
     if (!canWrite) return;
@@ -65,55 +75,68 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
           <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">Loading readiness...</p>
         )}
         {!isPending && (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-left text-sm">
-              <thead className="border-b border-border/60 bg-muted/40">
-                <tr>
-                  <th className="px-5 py-3 font-semibold text-foreground md:px-6">Technology</th>
-                  <th className="px-5 py-3 font-semibold text-foreground md:px-6">Readiness</th>
-                  <th className="px-5 py-3 font-semibold text-foreground md:px-6">Set by</th>
-                </tr>
-              </thead>
-              <tbody>
-                {technologies.map((tech) => {
-                  const flag = flagMap[tech._id];
-                  const level = flag?.level || 'none';
-                  return (
-                    <tr key={tech._id} className="border-t border-border/60">
-                      <td className="px-5 py-3 font-medium md:px-6">{tech.name}</td>
-                      <td className="px-5 py-3 md:px-6">
-                        {canWrite ? (
-                          <Select
-                            value={level}
-                            onValueChange={(v) => handleLevelChange(tech._id, v)}
+          <>
+            <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2 md:p-6 xl:grid-cols-3">
+              {visibleTechnologies.map((tech) => {
+                const flag = flagMap[tech._id];
+                const level = flag?.level || 'none';
+
+                return (
+                  <div
+                    key={tech._id}
+                    className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50/70 dark:border-border/60 dark:bg-card dark:hover:bg-muted/30"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <h4 className="min-w-0 truncate font-semibold text-gray-900 dark:text-foreground">
+                        {tech.name}
+                      </h4>
+                      {canWrite ? (
+                        <Select
+                          value={level}
+                          onValueChange={(v) => handleLevelChange(tech._id, v)}
+                        >
+                          <SelectTrigger
+                            className="h-8 w-32 shrink-0 rounded-lg border-gray-200 bg-white px-2.5 text-xs shadow-none dark:border-border/70 dark:bg-background"
+                            data-test={`intern-readiness-${tech.slug}-select`}
                           >
-                            <SelectTrigger
-                              className="h-9 w-40"
-                              data-test={`intern-readiness-${tech.slug}-select`}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {READINESS_LEVELS.map((r) => (
-                                <SelectItem key={r.value} value={r.value}>
-                                  {r.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          getReadinessLabel(level)
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-muted-foreground md:px-6">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {READINESS_LEVELS.map((r) => (
+                              <SelectItem key={r.value} value={r.value}>
+                                {r.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="shrink-0 rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 dark:border-border/60 dark:bg-muted/30 dark:text-muted-foreground">
+                          {getReadinessLabel(level)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Assessed by:{' '}
+                      <span className="font-medium text-gray-500">
                         {flag?.setBy?.fullname || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </span>
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            {hasMoreTechnologies && (
+              <div className="border-t border-border/60 px-5 py-4 text-center md:px-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setVisibleCount((count) => count + READINESS_PAGE_SIZE)}
+                >
+                  Load more
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </InternPanel>
     </div>
