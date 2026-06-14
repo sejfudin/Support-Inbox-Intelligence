@@ -12,6 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import PageHeading from '@/components/PageHeading';
 import { PageShell, PageSection } from '@/components/PageShell';
 import {
@@ -32,6 +40,10 @@ const formatDate = (date) => {
   if (!date) return '-';
   return format(new Date(date), 'MMM d, yyyy');
 };
+
+const tableHeadClass =
+  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
+const tableCellClass = 'px-4 py-4';
 
 export default function MentorRecommendationsPage() {
   const navigate = useNavigate();
@@ -168,7 +180,7 @@ export default function MentorRecommendationsPage() {
           </div>
         </div>
 
-        <div className="app-panel overflow-hidden">
+        <div className="app-panel overflow-hidden pb-2">
           {isError && (
             <p className="p-6 text-sm text-destructive" data-test="recommendations-error">
               Failed to load recommendations.
@@ -179,49 +191,48 @@ export default function MentorRecommendationsPage() {
           )}
           {!isPending && !isError && (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="border-b border-border/60 bg-muted/40">
-                  <tr>
-                    <th className="px-5 py-3 font-semibold text-foreground">Intern</th>
-                    <th className="px-5 py-3 font-semibold text-foreground">Hub</th>
-                    <th className="px-5 py-3 font-semibold text-foreground">Technologies</th>
-                    <th className="px-5 py-3 font-semibold text-foreground">Status</th>
-                    <th className="px-5 py-3 font-semibold text-foreground">Result</th>
-                    <th className="px-5 py-3 font-semibold text-foreground">Updated</th>
-                    <th className="px-5 py-3 font-semibold text-foreground" />
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="min-w-[980px]">
+                <TableHeader>
+                  <TableRow className="bg-secondary/60">
+                    <TableHead className={tableHeadClass}>Intern</TableHead>
+                    <TableHead className={tableHeadClass}>Hub</TableHead>
+                    <TableHead className={tableHeadClass}>Technologies</TableHead>
+                    <TableHead className={tableHeadClass}>Status</TableHead>
+                    <TableHead className={tableHeadClass}>Result</TableHead>
+                    <TableHead className={tableHeadClass}>Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {recommendations.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                         No recommendations match your filters.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
                   {recommendations.map((recommendation) => {
                     const intern = recommendation.internProfile;
                     const userId = intern?.user?._id;
 
                     return (
-                      <tr
+                      <TableRow
                         key={recommendation._id}
-                        className="cursor-pointer border-t border-border/60 hover:bg-muted/30"
+                        className="cursor-pointer hover:bg-muted/30"
                         onClick={() => userId && navigate(profilePathFor(userId))}
                         data-test={`recommendation-row-${recommendation._id}`}
                       >
-                        <td className="px-5 py-4">
+                        <TableCell className={tableCellClass}>
                           <p className="font-semibold text-foreground">
                             {intern?.user?.fullname || 'Unknown'}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {intern?.user?.email || '-'}
                           </p>
-                        </td>
-                        <td className="px-5 py-4 text-muted-foreground">
+                        </TableCell>
+                        <TableCell className={`${tableCellClass} text-muted-foreground`}>
                           {intern?.user?.hub?.name || '-'}
-                        </td>
-                        <td className="px-5 py-4">
+                        </TableCell>
+                        <TableCell className={tableCellClass}>
                           <div className="flex flex-wrap gap-1.5">
                             {(recommendation.technologies || []).length === 0 && (
                               <span className="text-muted-foreground">-</span>
@@ -237,13 +248,13 @@ export default function MentorRecommendationsPage() {
                               </Badge>
                             )}
                           </div>
-                        </td>
-                        <td className="px-5 py-4">
+                        </TableCell>
+                        <TableCell className={tableCellClass}>
                           <Badge variant={getRecommendationStatusVariant(recommendation.status)}>
                             {getRecommendationStatusLabel(recommendation.status)}
                           </Badge>
-                        </td>
-                        <td className="px-5 py-4">
+                        </TableCell>
+                        <TableCell className={tableCellClass}>
                           {recommendation.result?.outcome ? (
                             <Badge
                               variant={getRecommendationResultVariant(
@@ -255,28 +266,15 @@ export default function MentorRecommendationsPage() {
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
-                        </td>
-                        <td className="px-5 py-4 text-muted-foreground">
+                        </TableCell>
+                        <TableCell className={`${tableCellClass} text-muted-foreground`}>
                           {formatDate(recommendation.updatedAt)}
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (userId) navigate(profilePathFor(userId));
-                            }}
-                          >
-                            View profile
-                          </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
           {pagination && pagination.pages > 1 && (
