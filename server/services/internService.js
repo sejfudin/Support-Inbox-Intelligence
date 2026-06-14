@@ -1,8 +1,11 @@
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const InternProfile = require('../models/InternProfile');
 const { INTERN_STATUSES } = require('../models/InternProfile');
 const ReadinessFlag = require('../models/ReadinessFlag');
 const Evaluation = require('../models/Evaluation');
+const Recommendation = require('../models/Recommendation');
+const { RECOMMENDATION_STATUSES } = require('../models/Recommendation');
 const Technology = require('../models/Technology');
 const { ROLES } = require('../constants/roles');
 const {
@@ -216,6 +219,104 @@ const updateInternByMentor = async (user, internUserId, payload) => {
 };
 
 const URGENCY_WINDOW_DAYS = 60;
+const PIPELINE_STALLED_DAYS = 14;
+const ACTIVE_PIPELINE_STATUSES = ['recommended', 'interviewing'];
+const ACTIVE_PIPELINE_LIMIT = 20;
+
+const buildRecommendationFunnel = (rows) => {
+  const funnel = Object.fromEntries(RECOMMENDATION_STATUSES.map((status) => [status, 0]));
+  rows.forEach(({ _id, count }) => {
+    if (_id && funnel[_id] !== undefined) {
+      funnel[_id] = count;
+    }
+  });
+  return funnel;
+};
+
+const getInterviewTiming = (interviews = []) => {
+  const now = new Date();
+  let latestCompany = '';
+  let latestRole = '';
+  let nextInterviewAt = null;
+
+  const withDates = interviews.filter((interview) => interview.scheduledAt);
+  if (withDates.length > 0) {
+    const sortedDesc = [...withDates].sort(
+      (a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt)
+    );
+    latestCompany = sortedDesc[0].company || '';
+    latestRole = sortedDesc[0].role || '';
+  }
+
+  const upcoming = withDates
+    .filter((interview) => new Date(interview.scheduledAt) >= now)
+    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+
+  if (upcoming.length > 0) {
+    nextInterviewAt = upcoming[0].scheduledAt;
+    latestCompany = upcoming[0].company || latestCompany;
+    latestRole = upcoming[0].role || latestRole;
+  }
+
+  return { latestCompany, latestRole, nextInterviewAt };
+};
+
+const hasUpcomingInterview = (interviews = []) => {
+  const now = new Date();
+  return interviews.some(
+    (interview) => interview.scheduledAt && new Date(interview.scheduledAt) >= now
+  );
+};
+
+const resolveProfileUserId = (profile) => {
+  const user = profile?.user;
+  if (!user) return null;
+  if (user._id) return user._id;
+  if (mongoose.Types.ObjectId.isValid(user)) return user;
+  return null;
+};
+
+const formatPipelineCandidate = (profile) => {
+  const userId = resolveProfileUserId(profile);
+  if (!userId || !profile?.user || typeof profile.user !== 'object') return null;
+  return {
+    userId,
+    fullname: profile.user.fullname || 'Unknown',
+    hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
+    programme: profile.internshipType
+      ? {
+          _id: profile.internshipType._id,
+          name: profile.internshipType.name,
+          slug: profile.internshipType.slug,
+        }
+      : null,
+  };
+};
+
+const formatActivePipelineRow = (recommendation) => {
+  const profile = recommendation.internProfile;
+  const candidate = formatPipelineCandidate(profile);
+  if (!candidate) return null;
+
+  const { latestCompany, latestRole, nextInterviewAt } = getInterviewTiming(
+    recommendation.interviews || []
+  );
+
+  return {
+    recommendationId: recommendation._id,
+    status: recommendation.status,
+    ...candidate,
+    technologies: (recommendation.technologies || []).map((tech) => ({
+      _id: tech._id,
+      name: tech.name,
+      slug: tech.slug,
+    })),
+    latestCompany,
+    latestRole,
+    nextInterviewAt,
+    updatedAt: recommendation.updatedAt,
+  };
+};
 
 const averageEvaluationScore = (scores) => {
   if (!scores) return null;
@@ -236,28 +337,39 @@ const buildFunnel = (rows) => {
   return funnel;
 };
 
-const formatReadyCandidate = (profile, readyTechnologies, latestEvaluationAverage) => ({
-  profileId: profile._id,
-  userId: profile.user?._id || profile.user,
-  fullname: profile.user?.fullname || 'Unknown',
-  email: profile.user?.email || '',
-  hub: profile.user?.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
-  programme: profile.internshipType
-    ? {
-        _id: profile.internshipType._id,
-        name: profile.internshipType.name,
-        slug: profile.internshipType.slug,
-      }
-    : null,
-  primaryMentor: profile.primaryMentor
-    ? { _id: profile.primaryMentor._id, fullname: profile.primaryMentor.fullname }
-    : null,
-  status: profile.status,
-  expectedEndDate: profile.expectedEndDate || null,
-  cvUrl: buildCvUrl(profile.cvPath),
+const formatReadyCandidate = (
+  profile,
   readyTechnologies,
   latestEvaluationAverage,
-});
+  activeRecommendation = null
+) => {
+  const userId = resolveProfileUserId(profile);
+  if (!userId || !profile?.user || typeof profile.user !== 'object') return null;
+
+  return {
+    profileId: profile._id,
+    userId,
+    fullname: profile.user.fullname || 'Unknown',
+    email: profile.user.email || '',
+    hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
+    programme: profile.internshipType
+      ? {
+          _id: profile.internshipType._id,
+          name: profile.internshipType.name,
+          slug: profile.internshipType.slug,
+        }
+      : null,
+    primaryMentor: profile.primaryMentor
+      ? { _id: profile.primaryMentor._id, fullname: profile.primaryMentor.fullname }
+      : null,
+    status: profile.status,
+    expectedEndDate: profile.expectedEndDate || null,
+    cvUrl: buildCvUrl(profile.cvPath),
+    readyTechnologies,
+    latestEvaluationAverage,
+    activeRecommendation,
+  };
+};
 
 const getProgrammeStats = async (user) => {
   if (user.role !== ROLES.ADMIN && user.role !== ROLES.LEADERSHIP) {
@@ -270,6 +382,9 @@ const getProgrammeStats = async (user) => {
   const excludedSupplyStatuses = ['placed', 'completed', 'discontinued'];
   const urgencyCutoff = new Date();
   urgencyCutoff.setDate(urgencyCutoff.getDate() + URGENCY_WINDOW_DAYS);
+  const stalledCutoff = new Date();
+  stalledCutoff.setDate(stalledCutoff.getDate() - PIPELINE_STALLED_DAYS);
+  const now = new Date();
 
   const [
     funnelRows,
@@ -279,6 +394,11 @@ const getProgrammeStats = async (user) => {
     technologySupplyRows,
     readyProfiles,
     recentlyReadyProfiles,
+    recommendationFunnelRows,
+    recommendationOutcomeRows,
+    activePipelineRecs,
+    recentOutcomeRecs,
+    allActiveRecommendations,
   ] = await Promise.all([
     InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
     InternProfile.countDocuments({ readyForPlacement: true }),
@@ -395,6 +515,44 @@ const getProgrammeStats = async (user) => {
       .sort({ updatedAt: -1 })
       .limit(5)
       .lean(),
+    Recommendation.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    Recommendation.aggregate([
+      { $match: { status: 'resulted', 'result.outcome': { $ne: null } } },
+      { $group: { _id: '$result.outcome', count: { $sum: 1 } } },
+    ]),
+    Recommendation.find({ status: { $in: ACTIVE_PIPELINE_STATUSES } })
+      .populate([
+        {
+          path: 'internProfile',
+          populate: [
+            {
+              path: 'user',
+              select: 'fullname email hub',
+              populate: { path: 'hub', select: 'name' },
+            },
+            { path: 'internshipType', select: 'name slug' },
+          ],
+        },
+        { path: 'technologies', select: 'name slug' },
+      ])
+      .sort({ updatedAt: -1 })
+      .lean(),
+    Recommendation.find({ status: 'resulted', 'result.outcome': { $ne: null } })
+      .populate([
+        {
+          path: 'internProfile',
+          populate: {
+            path: 'user',
+            select: 'fullname email',
+          },
+        },
+      ])
+      .sort({ 'result.decidedAt': -1, updatedAt: -1 })
+      .limit(5)
+      .lean(),
+    Recommendation.find({ status: { $in: ACTIVE_PIPELINE_STATUSES } })
+      .select('internProfile status updatedAt interviews')
+      .lean(),
   ]);
 
   const profileIds = readyProfiles.map((profile) => profile._id);
@@ -436,13 +594,113 @@ const getProgrammeStats = async (user) => {
     latestEvaluations.map((row) => [row._id.toString(), averageEvaluationScore(row.scores)])
   );
 
-  const readyBench = readyProfiles.map((profile) =>
-    formatReadyCandidate(
-      profile,
-      readyTechByProfile[profile._id.toString()] || [],
-      evaluationByProfile[profile._id.toString()] ?? null
-    )
-  );
+  const activeRecByProfile = allActiveRecommendations.reduce((acc, recommendation) => {
+    const profileId = recommendation.internProfile?.toString();
+    if (!profileId) return acc;
+    const existing = acc[profileId];
+    if (!existing || new Date(recommendation.updatedAt) > new Date(existing.updatedAt)) {
+      acc[profileId] = recommendation;
+    }
+    return acc;
+  }, {});
+
+  const readyProfileIdsWithActiveRec = new Set(Object.keys(activeRecByProfile));
+
+  const readyBench = readyProfiles
+    .map((profile) => {
+      const activeRec = activeRecByProfile[profile._id.toString()];
+      return formatReadyCandidate(
+        profile,
+        readyTechByProfile[profile._id.toString()] || [],
+        evaluationByProfile[profile._id.toString()] ?? null,
+        activeRec ? { _id: activeRec._id, status: activeRec.status } : null
+      );
+    })
+    .filter(Boolean);
+
+  const activePipeline = activePipelineRecs
+    .map(formatActivePipelineRow)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aTime = a.nextInterviewAt ? new Date(a.nextInterviewAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const bTime = b.nextInterviewAt ? new Date(b.nextInterviewAt).getTime() : Number.MAX_SAFE_INTEGER;
+      if (aTime !== bTime) return aTime - bTime;
+      return new Date(b.updatedAt) - new Date(a.updatedAt);
+    })
+    .slice(0, ACTIVE_PIPELINE_LIMIT);
+
+  const pipelineAttention = activePipelineRecs
+    .map((recommendation) => {
+      const candidate = formatPipelineCandidate(recommendation.internProfile);
+      if (!candidate) return null;
+
+      if (
+        recommendation.status === 'interviewing' &&
+        !hasUpcomingInterview(recommendation.interviews)
+      ) {
+        return {
+          recommendationId: recommendation._id,
+          userId: candidate.userId,
+          fullname: candidate.fullname,
+          reason: 'no_upcoming_interview',
+          status: recommendation.status,
+          daysStalled: null,
+        };
+      }
+
+      if (
+        recommendation.status === 'recommended' &&
+        new Date(recommendation.updatedAt) <= stalledCutoff
+      ) {
+        const daysStalled = Math.floor(
+          (now - new Date(recommendation.updatedAt)) / (1000 * 60 * 60 * 24)
+        );
+        return {
+          recommendationId: recommendation._id,
+          userId: candidate.userId,
+          fullname: candidate.fullname,
+          reason: 'stalled_recommended',
+          status: recommendation.status,
+          daysStalled,
+        };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  const recentOutcomes = recentOutcomeRecs
+    .map((recommendation) => {
+      const profile = recommendation.internProfile;
+      const userId = resolveProfileUserId(profile);
+      if (!userId || !profile?.user || typeof profile.user !== 'object') return null;
+
+      const interviews = recommendation.interviews || [];
+      const latestInterview =
+        interviews.length > 0
+          ? [...interviews].sort(
+              (a, b) =>
+                new Date(b.scheduledAt || b.updatedAt || 0) -
+                new Date(a.scheduledAt || a.updatedAt || 0)
+            )[0]
+          : null;
+
+      return {
+        recommendationId: recommendation._id,
+        userId,
+        fullname: profile.user?.fullname || 'Unknown',
+        outcome: recommendation.result?.outcome || null,
+        company: latestInterview?.company || '',
+        decidedAt: recommendation.result?.decidedAt || recommendation.updatedAt,
+      };
+    })
+    .filter(Boolean);
+
+  const recommendationFunnel = buildRecommendationFunnel(recommendationFunnelRows);
+  const recommendationOutcomes = {
+    placed: recommendationOutcomeRows.find((row) => row._id === 'placed')?.count || 0,
+    not_placed: recommendationOutcomeRows.find((row) => row._id === 'not_placed')?.count || 0,
+  };
 
   const urgent = readyBench
     .filter((candidate) => {
@@ -452,21 +710,28 @@ const getProgrammeStats = async (user) => {
     })
     .sort((a, b) => new Date(a.expectedEndDate) - new Date(b.expectedEndDate));
 
-  const recentlyReady = recentlyReadyProfiles.map((profile) => ({
-    profileId: profile._id,
-    userId: profile.user?._id || profile.user,
-    fullname: profile.user?.fullname || 'Unknown',
-    email: profile.user?.email || '',
-    hub: profile.user?.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
-    programme: profile.internshipType
-      ? {
-          _id: profile.internshipType._id,
-          name: profile.internshipType.name,
-          slug: profile.internshipType.slug,
-        }
-      : null,
-    readySince: profile.updatedAt,
-  }));
+  const recentlyReady = recentlyReadyProfiles
+    .map((profile) => {
+      const userId = resolveProfileUserId(profile);
+      if (!userId || !profile?.user || typeof profile.user !== 'object') return null;
+
+      return {
+        profileId: profile._id,
+        userId,
+        fullname: profile.user.fullname || 'Unknown',
+        email: profile.user.email || '',
+        hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
+        programme: profile.internshipType
+          ? {
+              _id: profile.internshipType._id,
+              name: profile.internshipType.name,
+              slug: profile.internshipType.slug,
+            }
+          : null,
+        readySince: profile.updatedAt,
+      };
+    })
+    .filter(Boolean);
 
   const funnel = buildFunnel(funnelRows);
   const technologiesWithReadySupply = technologySupplyRows.filter(
@@ -492,10 +757,21 @@ const getProgrammeStats = async (user) => {
     readyBench,
     urgent,
     recentlyReady,
+    recommendationFunnel,
+    recommendationOutcomes,
+    activePipeline,
+    pipelineAttention,
+    recentOutcomes,
     summary: {
       activeInterns: funnel.active + funnel.ready,
       placedInterns: funnel.placed,
       technologiesWithReadySupply,
+      activeRecommendations:
+        recommendationFunnel.recommended + recommendationFunnel.interviewing,
+      interviewingCount: recommendationFunnel.interviewing,
+      readyWithoutActiveRecommendation: readyProfiles.filter(
+        (profile) => !readyProfileIdsWithActiveRec.has(profile._id.toString())
+      ).length,
     },
   };
 };

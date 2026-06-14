@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
 
 export default function LeadershipCandidatesPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -179,13 +180,12 @@ export default function LeadershipCandidatesPage() {
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Ready</th>
                   <th className="px-5 py-3">Mentor</th>
-                  <th className="px-5 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {interns.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
                       No candidates match your filters.
                     </td>
                   </tr>
@@ -195,7 +195,11 @@ export default function LeadershipCandidatesPage() {
                   return (
                     <tr
                       key={intern._id}
-                      className="border-t border-border/50 transition-colors hover:bg-muted/20"
+                      className="cursor-pointer border-t border-border/50 transition-colors hover:bg-muted/20"
+                      onClick={() => {
+                        if (userId) navigate(`/interns/${userId}`);
+                      }}
+                      data-test={`leadership-candidate-row-${userId}`}
                     >
                       <td className="px-5 py-4">
                         <p className="font-medium">{intern.user?.fullname}</p>
@@ -219,15 +223,6 @@ export default function LeadershipCandidatesPage() {
                       </td>
                       <td className="px-5 py-4 text-muted-foreground">
                         {intern.primaryMentor?.fullname || '—'}
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <Link
-                          to={`/interns/${userId}`}
-                          className="text-sm font-semibold text-primary hover:underline"
-                          data-test={`leadership-candidate-${userId}-link`}
-                        >
-                          View
-                        </Link>
                       </td>
                     </tr>
                   );
