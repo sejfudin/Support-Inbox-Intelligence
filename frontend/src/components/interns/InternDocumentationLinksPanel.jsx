@@ -9,12 +9,7 @@ import { cn } from '@/lib/utils';
 
 const emptyLink = () => ({ label: '', url: '' });
 
-export function InternDocumentationLinksPanel({
-  userId,
-  links = [],
-  canEdit = false,
-  className,
-}) {
+export function InternDocumentationLinksPanel({ userId, links = [], canEdit = false, className }) {
   const { mutate, isPending } = useUpdateInternDocumentationLinks();
   const [isEditing, setIsEditing] = useState(false);
   const [draftLinks, setDraftLinks] = useState([]);
@@ -72,9 +67,7 @@ export function InternDocumentationLinksPanel({
 
   const updateDraftLink = (index, field, value) => {
     setDraftLinks((current) =>
-      current.map((link, linkIndex) =>
-        linkIndex === index ? { ...link, [field]: value } : link
-      )
+      current.map((link, linkIndex) => (linkIndex === index ? { ...link, [field]: value } : link))
     );
   };
 
@@ -125,7 +118,10 @@ export function InternDocumentationLinksPanel({
                   <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   <span className="truncate">{link.label}</span>
                 </span>
-                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <ExternalLink
+                  className="h-4 w-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </a>
             </li>
           ))}

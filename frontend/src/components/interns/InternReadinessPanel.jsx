@@ -119,10 +119,7 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
                         {tech.name}
                       </h4>
                       {canWrite ? (
-                        <Select
-                          value={level}
-                          onValueChange={(v) => handleLevelChange(tech._id, v)}
-                        >
+                        <Select value={level} onValueChange={(v) => handleLevelChange(tech._id, v)}>
                           <SelectTrigger
                             className={cn(
                               'h-8 w-32 shrink-0 rounded-lg border px-2.5 text-xs font-semibold shadow-none',

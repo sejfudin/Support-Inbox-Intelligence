@@ -59,9 +59,7 @@ export function ActivePipelineTable({ isPending, activePipeline = [] }) {
                     >
                       {row.fullname}
                     </Link>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {row.hub?.name || '—'}
-                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{row.hub?.name || '—'}</p>
                   </td>
                   <td className="py-3 pr-4">
                     <PipelineStatusPill status={row.status} />
@@ -86,20 +84,16 @@ export function ActivePipelineTable({ isPending, activePipeline = [] }) {
                     {row.latestCompany ? (
                       <>
                         <p className="font-medium text-foreground">{row.latestCompany}</p>
-                        {row.latestRole && (
-                          <p className="text-xs">{row.latestRole}</p>
-                        )}
+                        {row.latestRole && <p className="text-xs">{row.latestRole}</p>}
                       </>
                     ) : (
                       '—'
                     )}
                   </td>
                   <td className="py-3 text-muted-foreground">
-                    {row.nextInterviewAt ? (
-                      format(new Date(row.nextInterviewAt), 'MMM d, yyyy')
-                    ) : (
-                      '—'
-                    )}
+                    {row.nextInterviewAt
+                      ? format(new Date(row.nextInterviewAt), 'MMM d, yyyy')
+                      : '—'}
                   </td>
                 </tr>
               ))}

@@ -683,8 +683,12 @@ const getProgrammeStats = async (user) => {
     .map(formatActivePipelineRow)
     .filter(Boolean)
     .sort((a, b) => {
-      const aTime = a.nextInterviewAt ? new Date(a.nextInterviewAt).getTime() : Number.MAX_SAFE_INTEGER;
-      const bTime = b.nextInterviewAt ? new Date(b.nextInterviewAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const aTime = a.nextInterviewAt
+        ? new Date(a.nextInterviewAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      const bTime = b.nextInterviewAt
+        ? new Date(b.nextInterviewAt).getTime()
+        : Number.MAX_SAFE_INTEGER;
       if (aTime !== bTime) return aTime - bTime;
       return new Date(b.updatedAt) - new Date(a.updatedAt);
     })
@@ -827,8 +831,7 @@ const getProgrammeStats = async (user) => {
       activeInterns: funnel.active + funnel.ready,
       placedInterns: funnel.placed,
       technologiesWithReadySupply,
-      activeRecommendations:
-        recommendationFunnel.recommended + recommendationFunnel.interviewing,
+      activeRecommendations: recommendationFunnel.recommended + recommendationFunnel.interviewing,
       interviewingCount: recommendationFunnel.interviewing,
       readyWithoutActiveRecommendation: readyProfiles.filter(
         (profile) => !readyProfileIdsWithActiveRec.has(profile._id.toString())
