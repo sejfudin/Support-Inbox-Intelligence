@@ -11,6 +11,8 @@ const { ROLES } = require('../constants/roles');
 const {
   canViewFepDirectory,
   canWriteMentorData,
+  canManageDocumentationLinks,
+  canViewInternProfile,
   canEditOwnInternProfile,
   isAssignedMentor,
 } = require('../helpers/internAccess');
@@ -214,6 +216,65 @@ const updateInternByMentor = async (user, internUserId, payload) => {
     profile.expectedEndDate = payload.expectedEndDate ? new Date(payload.expectedEndDate) : null;
   }
 
+  await profile.save();
+  return getInternByUserId(user, internUserId);
+};
+
+const MAX_DOCUMENTATION_LINKS = 20;
+
+const isValidDocumentationUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const validateDocumentationLinks = (links) => {
+  if (!Array.isArray(links)) {
+    throw new Error('Documentation links must be an array');
+  }
+
+  if (links.length > MAX_DOCUMENTATION_LINKS) {
+    throw new Error(`A maximum of ${MAX_DOCUMENTATION_LINKS} documentation links is allowed`);
+  }
+
+  return links.map((link, index) => {
+    const label = String(link?.label || '').trim();
+    const url = String(link?.url || '').trim();
+
+    if (!label) {
+      throw new Error(`Documentation link ${index + 1} requires a label`);
+    }
+    if (!url) {
+      throw new Error(`Documentation link ${index + 1} requires a URL`);
+    }
+    if (!isValidDocumentationUrl(url)) {
+      throw new Error(`Documentation link ${index + 1} must use an http or https URL`);
+    }
+
+    return { label, url };
+  });
+};
+
+const updateDocumentationLinks = async (user, internUserId, links) => {
+  const profile = await InternProfile.findOne({ user: internUserId });
+  if (!profile) throw new Error('Intern profile not found');
+
+  if (!canManageDocumentationLinks(user)) {
+    const err = new Error('Not authorized to manage documentation links');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (!canViewInternProfile(user, profile)) {
+    const err = new Error('Not authorized to access this intern');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  profile.documentationLinks = validateDocumentationLinks(links);
   await profile.save();
   return getInternByUserId(user, internUserId);
 };
@@ -782,6 +843,7 @@ module.exports = {
   getMyInternProfile,
   updateSelfTechnologies,
   updateInternByMentor,
+  updateDocumentationLinks,
   createInternProfile,
   getProgrammeStats,
 };

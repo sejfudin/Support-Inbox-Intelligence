@@ -7,11 +7,13 @@ import { InternCommentsPanel } from '@/components/interns/InternCommentsPanel';
 import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPanel';
 import { InternRecommendationsPanel } from '@/components/interns/InternRecommendationsPanel';
 import { InternReadinessPanel } from '@/components/interns/InternReadinessPanel';
+import { InternCandidateOverview } from '@/components/interns/InternCandidateOverview';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
 import { useIntern } from '@/queries/interns';
-import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { canManageInternDocumentationLinks } from '@/helpers/roles';
 
 function StatTile({ label, value }) {
   return (
@@ -25,6 +27,7 @@ function StatTile({ label, value }) {
 const CANDIDATE_TABS = ['overview', 'technologies', 'evaluations', 'recommendations', 'notes'];
 
 export default function LeadershipCandidatePage() {
+  const { user } = useAuth();
   const { userId } = useParams();
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -32,6 +35,7 @@ export default function LeadershipCandidatePage() {
     CANDIDATE_TABS.includes(tabParam) ? tabParam : 'overview'
   );
   const { data: intern, isPending, isError } = useIntern(userId);
+  const canEditDocumentation = canManageInternDocumentationLinks(user?.role);
 
   useEffect(() => {
     if (CANDIDATE_TABS.includes(tabParam)) {
@@ -73,7 +77,7 @@ export default function LeadershipCandidatePage() {
             title={intern.user?.fullname}
             subtitle={intern.user?.email}
             actions={
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <SymphonyStatusBadge status={intern.status} />
                 {intern.readyForPlacement && (
                   <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
@@ -84,7 +88,7 @@ export default function LeadershipCandidatePage() {
             }
           />
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <StatTile label="Hub" value={intern.user?.hub?.name || '—'} />
             <StatTile label="Programme" value={intern.internshipType?.name || '—'} />
             <StatTile
@@ -92,6 +96,15 @@ export default function LeadershipCandidatePage() {
               value={intern.startDate ? format(new Date(intern.startDate), 'MMM d, yyyy') : '—'}
             />
             <StatTile label="Primary mentor" value={intern.primaryMentor?.fullname || '—'} />
+            <StatTile label="Secondary mentor" value={intern.secondaryMentor?.fullname || '—'} />
+            <StatTile
+              label="Expected end"
+              value={
+                intern.expectedEndDate
+                  ? format(new Date(intern.expectedEndDate), 'MMM d, yyyy')
+                  : '—'
+              }
+            />
           </div>
         </div>
       </div>
@@ -115,55 +128,15 @@ export default function LeadershipCandidatePage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <SymphonyCard>
-              <h3 className="text-base font-semibold">Programme details</h3>
-              <dl className="mt-4 space-y-3 text-sm">
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">Secondary mentor</dt>
-                  <dd className="font-medium">{intern.secondaryMentor?.fullname || '—'}</dd>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <dt className="text-muted-foreground">Expected end</dt>
-                  <dd className="font-medium">
-                    {intern.expectedEndDate
-                      ? format(new Date(intern.expectedEndDate), 'MMM d, yyyy')
-                      : '—'}
-                  </dd>
-                </div>
-              </dl>
-            </SymphonyCard>
-            <SymphonyCard>
-              <h3 className="text-base font-semibold">Declared technologies</h3>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(intern.selfTechnologies || []).length === 0 && (
-                  <p className="text-sm text-muted-foreground">None declared yet.</p>
-                )}
-                {(intern.selfTechnologies || []).map((tech) => (
-                  <span
-                    key={tech._id}
-                    className={cn(
-                      'rounded-full border border-border/60 bg-muted/30 px-3 py-1 text-sm'
-                    )}
-                  >
-                    {tech.name}
-                  </span>
-                ))}
-              </div>
-              {intern.cvUrl && (
-                <a
-                  href={intern.cvUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-4 inline-flex text-sm font-semibold text-primary hover:underline"
-                  data-test="leadership-candidate-cv-link"
-                >
-                  View CV
-                </a>
-              )}
-            </SymphonyCard>
-          </div>
+        <TabsContent value="overview">
+          <SymphonyCard className="p-6 md:p-8">
+            <InternCandidateOverview
+              intern={intern}
+              userId={userId}
+              canEditDocumentation={canEditDocumentation}
+              programmeMode="none"
+            />
+          </SymphonyCard>
         </TabsContent>
 
         <TabsContent value="technologies">

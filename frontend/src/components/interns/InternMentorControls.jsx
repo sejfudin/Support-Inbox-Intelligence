@@ -41,48 +41,46 @@ export function InternMentorControls({ intern, className }) {
   };
 
   return (
-    <InternPanel className={cn('flex h-full flex-col', className)}>
+    <InternPanel className={cn('flex flex-col', className)}>
       <h3 className="text-lg font-semibold text-foreground">Programme controls</h3>
       <p className="mt-1 text-sm text-muted-foreground">
         Update lifecycle status and placement readiness for this intern.
       </p>
-      <div className="mt-5 flex flex-1 flex-col">
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="intern-status-select">Lifecycle status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger
-                id="intern-status-select"
-                className="w-full"
-                data-test="intern-status-select"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INTERN_STATUSES.map((s) => (
-                  <SelectItem key={s.value} value={s.value} data-test={`intern-status-${s.value}`}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <label className="flex items-start gap-3">
-            <Checkbox
-              checked={readyForPlacement}
-              onCheckedChange={setReadyForPlacement}
-              className="mt-0.5"
-              data-test="intern-ready-for-placement-checkbox"
-            />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Ready for placement</p>
-              <p className="text-xs text-muted-foreground">Visible to mentors and leadership</p>
-            </div>
-          </label>
+      <div className="mt-5 space-y-5">
+        <div className="space-y-2">
+          <Label htmlFor="intern-status-select">Lifecycle status</Label>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger
+              id="intern-status-select"
+              className="w-full"
+              data-test="intern-status-select"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INTERN_STATUSES.map((s) => (
+                <SelectItem key={s.value} value={s.value} data-test={`intern-status-${s.value}`}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
+        <label className="flex items-start gap-3">
+          <Checkbox
+            checked={readyForPlacement}
+            onCheckedChange={setReadyForPlacement}
+            className="mt-0.5"
+            data-test="intern-ready-for-placement-checkbox"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Ready for placement</p>
+            <p className="text-xs text-muted-foreground">Visible to mentors and leadership</p>
+          </div>
+        </label>
         <Button
           type="button"
-          className="mt-auto w-full"
+          className="w-full"
           disabled={isPending}
           onClick={handleSave}
           data-test="intern-mentor-controls-save-button"

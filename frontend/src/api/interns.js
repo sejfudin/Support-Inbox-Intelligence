@@ -44,6 +44,11 @@ export const updateIntern = async (userId, payload) => {
   return data.intern;
 };
 
+export const updateInternDocumentationLinks = async (userId, links) => {
+  const { data } = await apiClient.put(`/interns/${userId}/documentation-links`, { links });
+  return data.intern;
+};
+
 export const fetchInternComments = async (userId) => {
   const { data } = await apiClient.get(`/interns/${userId}/comments`);
   return data.comments;

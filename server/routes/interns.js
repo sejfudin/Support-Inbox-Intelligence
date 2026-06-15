@@ -9,6 +9,7 @@ const {
   getMyProfile,
   updateMyTechnologies,
   updateIntern,
+  updateDocumentationLinks,
   uploadMyCv,
   deleteMyCv,
   listComments,
@@ -31,6 +32,7 @@ router.get('/stats', protect, getProgrammeStats);
 
 router.get('/:userId', protect, getIntern);
 router.patch('/:userId', protect, updateIntern);
+router.put('/:userId/documentation-links', protect, updateDocumentationLinks);
 
 router.get('/:userId/comments', protect, listComments);
 router.post('/:userId/comments', protect, createComment);
