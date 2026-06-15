@@ -854,8 +854,7 @@ const seedTestingData = async () => {
 
     for (const spec of internSpecs) {
       const primaryMentor = mentors[spec.mentorIdx];
-      const secondaryMentor =
-        spec.secondaryIdx != null ? mentors[spec.secondaryIdx] : undefined;
+      const secondaryMentor = spec.secondaryIdx != null ? mentors[spec.secondaryIdx] : undefined;
       const selfTechIds = (spec.techs || []).map((slug) => techBySlug(slug)._id);
 
       const user = await User.create({
@@ -1021,7 +1020,7 @@ const seedTestingData = async () => {
       }
     }
 
-  // Extra historical resulted recommendations for dashboard "recent outcomes"
+    // Extra historical resulted recommendations for dashboard "recent outcomes"
     const recentOutcomeIntern = internProfiles.find(
       (e) => e.spec.email === 'intern.completed.gamma@symphony.is'
     );
@@ -1068,12 +1067,18 @@ const seedTestingData = async () => {
     console.log('');
     console.log('Leadership:  leadership@symphony.is, leadership2@symphony.is');
     console.log('Admin:       admin@symphony.is');
-    console.log('Mentors:     mentor.sarajevo@symphony.is, mentor.belgrade@symphony.is, mentor.novisad@symphony.is');
+    console.log(
+      'Mentors:     mentor.sarajevo@symphony.is, mentor.belgrade@symphony.is, mentor.novisad@symphony.is'
+    );
     console.log('Interns:     intern.*@symphony.is (19 profiles — all statuses & pipeline combos)');
-    console.log('Edge cases:  invited.mentor@symphony.is, disabled.intern@symphony.is, waiting@symphony.is');
+    console.log(
+      'Edge cases:  invited.mentor@symphony.is, disabled.intern@symphony.is, waiting@symphony.is'
+    );
     console.log('Invites:     invite.pending@symphony.is, invite.declined@symphony.is');
     console.log('');
-    console.log('Base seed still available: admin@test.com / admin123, mentor@test.com / mentor123');
+    console.log(
+      'Base seed still available: admin@test.com / admin123, mentor@test.com / mentor123'
+    );
     console.log('Workspaces:  Support Inbox Demo + Symphony FEP QA');
     if (connectedIntegration) {
       console.log('Integration: symphony-is/fep-qa connected on QA workspace');

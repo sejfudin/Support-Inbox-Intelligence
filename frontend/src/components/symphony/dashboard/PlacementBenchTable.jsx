@@ -99,9 +99,7 @@ export function PlacementBenchTable({ isPending, readyBench = [] }) {
                     <td className="py-3 pr-4">
                       {candidate.expectedEndDate ? (
                         <span
-                          className={
-                            urgentDate ? 'symphony-date-urgent' : 'text-muted-foreground'
-                          }
+                          className={urgentDate ? 'symphony-date-urgent' : 'text-muted-foreground'}
                         >
                           {format(new Date(candidate.expectedEndDate), 'MMM d, yyyy')}
                         </span>

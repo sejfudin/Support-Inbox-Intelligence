@@ -39,7 +39,14 @@ function buildCalendarDays(monthDate) {
   return days;
 }
 
-export function DatePicker({ id, value, onChange, placeholder = 'Pick a date', className, ...props }) {
+export function DatePicker({
+  id,
+  value,
+  onChange,
+  placeholder = 'Pick a date',
+  className,
+  ...props
+}) {
   const selectedDate = value ? parseISO(value) : null;
   const [open, setOpen] = React.useState(false);
   const [month, setMonth] = React.useState(selectedDate || new Date());

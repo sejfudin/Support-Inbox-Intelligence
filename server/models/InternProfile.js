@@ -2,6 +2,24 @@ const mongoose = require('mongoose');
 
 const INTERN_STATUSES = ['active', 'ready', 'placed', 'completed', 'discontinued'];
 
+const documentationLinkSchema = new mongoose.Schema(
+  {
+    label: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
+    url: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 2000,
+    },
+  },
+  { timestamps: true }
+);
+
 const internProfileSchema = new mongoose.Schema(
   {
     user: {
@@ -49,6 +67,10 @@ const internProfileSchema = new mongoose.Schema(
     cvPath: {
       type: String,
       default: null,
+    },
+    documentationLinks: {
+      type: [documentationLinkSchema],
+      default: [],
     },
   },
   { timestamps: true }

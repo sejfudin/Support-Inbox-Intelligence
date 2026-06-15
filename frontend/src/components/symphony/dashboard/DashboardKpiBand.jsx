@@ -13,11 +13,7 @@ function DashboardStat({ label, value, hint, primary = false }) {
 
 function KpiPanel({ title, children, testId }) {
   return (
-    <SymphonyCard
-      variant="brand"
-      className="symphony-dashboard-kpi-panel"
-      data-test={testId}
-    >
+    <SymphonyCard variant="brand" className="symphony-dashboard-kpi-panel" data-test={testId}>
       <p className="symphony-dashboard-kpi-title">{title}</p>
       {children}
     </SymphonyCard>
@@ -63,11 +59,7 @@ export function DashboardKpiBand({ isPending, stats, summary, funnel }) {
             value={interviewing}
             hint="Active interview processes"
           />
-          <DashboardStat
-            label="Placed"
-            value={placed}
-            hint="Successfully placed in programme"
-          />
+          <DashboardStat label="Placed" value={placed} hint="Successfully placed in programme" />
         </div>
       </KpiPanel>
     </div>

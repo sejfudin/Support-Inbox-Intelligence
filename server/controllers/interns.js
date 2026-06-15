@@ -73,6 +73,27 @@ exports.updateIntern = async (req, res, next) => {
   }
 };
 
+exports.updateDocumentationLinks = async (req, res, next) => {
+  try {
+    const intern = await internService.updateDocumentationLinks(
+      req.user,
+      req.params.userId,
+      req.body.links
+    );
+    res.json({ intern });
+  } catch (error) {
+    if (
+      error.message === 'Intern profile not found' ||
+      error.message === 'Documentation links must be an array' ||
+      error.message?.startsWith('Documentation link') ||
+      error.message?.startsWith('A maximum of')
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+    handleError(res, error, next);
+  }
+};
+
 exports.uploadMyCv = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'CV file is required' });

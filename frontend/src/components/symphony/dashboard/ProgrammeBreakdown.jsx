@@ -13,9 +13,7 @@ export function ProgrammeBreakdown({
     <div className="grid gap-6 lg:grid-cols-2">
       <SymphonyCard>
         <h2 className="text-lg font-semibold">Programme funnel</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Distribution across lifecycle stages.
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Distribution across lifecycle stages.</p>
         <div className="mt-4 space-y-3">
           {isPending && <p className="text-sm text-muted-foreground">Loading funnel...</p>}
           {!isPending &&

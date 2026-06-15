@@ -10,12 +10,31 @@ import {
 } from '@/components/ui/select';
 import { useTechnologies } from '@/queries/technologies';
 import { useInternReadiness, useUpsertInternReadiness } from '@/queries/interns';
-import { getReadinessLabel, READINESS_LEVELS } from '@/helpers/internProfile';
+import { READINESS_LEVELS, getReadinessBadgeClassName } from '@/helpers/internProfile';
+import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
 import { useAuth } from '@/context/AuthContext';
 import { canWriteInternMentorData } from '@/helpers/roles';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const READINESS_PAGE_SIZE = 9;
+
+const READINESS_SORT_ORDER = {
+  ready: 0,
+  learning: 1,
+  none: 2,
+};
+
+const getTechnologyReadinessLevel = (technologyId, flagMap) =>
+  flagMap[technologyId]?.level || 'none';
+
+const sortTechnologiesByReadiness = (technologyList, flagMap) =>
+  [...technologyList].sort((a, b) => {
+    const orderA = READINESS_SORT_ORDER[getTechnologyReadinessLevel(a._id, flagMap)] ?? 2;
+    const orderB = READINESS_SORT_ORDER[getTechnologyReadinessLevel(b._id, flagMap)] ?? 2;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.name.localeCompare(b.name);
+  });
 
 export function InternReadinessPanel({ userId, declaredTechnologies = [], readOnly = false }) {
   const { user } = useAuth();
@@ -25,12 +44,21 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
   const { mutate } = useUpsertInternReadiness();
   const [visibleCount, setVisibleCount] = useState(READINESS_PAGE_SIZE);
 
-  const flagMap = Object.fromEntries(flags.map((f) => [f.technology?._id || f.technology, f]));
-  const visibleTechnologies = useMemo(
-    () => technologies.slice(0, visibleCount),
-    [technologies, visibleCount]
+  const flagMap = useMemo(
+    () => Object.fromEntries(flags.map((f) => [f.technology?._id || f.technology, f])),
+    [flags]
   );
-  const hasMoreTechnologies = visibleCount < technologies.length;
+
+  const sortedTechnologies = useMemo(
+    () => sortTechnologiesByReadiness(technologies, flagMap),
+    [technologies, flagMap]
+  );
+
+  const visibleTechnologies = useMemo(
+    () => sortedTechnologies.slice(0, visibleCount),
+    [sortedTechnologies, visibleCount]
+  );
+  const hasMoreTechnologies = visibleCount < sortedTechnologies.length;
 
   const handleLevelChange = (technologyId, level) => {
     if (!canWrite) return;
@@ -91,12 +119,12 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
                         {tech.name}
                       </h4>
                       {canWrite ? (
-                        <Select
-                          value={level}
-                          onValueChange={(v) => handleLevelChange(tech._id, v)}
-                        >
+                        <Select value={level} onValueChange={(v) => handleLevelChange(tech._id, v)}>
                           <SelectTrigger
-                            className="h-8 w-32 shrink-0 rounded-lg border-gray-200 bg-white px-2.5 text-xs shadow-none dark:border-border/70 dark:bg-background"
+                            className={cn(
+                              'h-8 w-32 shrink-0 rounded-lg border px-2.5 text-xs font-semibold shadow-none',
+                              getReadinessBadgeClassName(level)
+                            )}
                             data-test={`intern-readiness-${tech.slug}-select`}
                           >
                             <SelectValue />
@@ -110,9 +138,7 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
                           </SelectContent>
                         </Select>
                       ) : (
-                        <span className="shrink-0 rounded-lg border border-gray-100 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 dark:border-border/60 dark:bg-muted/30 dark:text-muted-foreground">
-                          {getReadinessLabel(level)}
-                        </span>
+                        <ReadinessLevelBadge level={level} />
                       )}
                     </div>
                     <p className="text-xs text-gray-400">

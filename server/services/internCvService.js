@@ -24,12 +24,10 @@ const uploadInternCv = async ({ userId, file }) => {
   if (!profile) throw new Error('Intern profile not found');
 
   const path = buildInternCvPath(userId);
-  const { error } = await supabase.storage
-    .from(supabaseCvBucket)
-    .upload(path, file.buffer, {
-      contentType: file.mimetype,
-      upsert: false,
-    });
+  const { error } = await supabase.storage.from(supabaseCvBucket).upload(path, file.buffer, {
+    contentType: file.mimetype,
+    upsert: false,
+  });
 
   if (error) throw new Error(error.message || 'Failed to upload CV');
 
