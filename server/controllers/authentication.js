@@ -23,6 +23,24 @@ const register = async (req, res, next) => {
     if (error.message === 'Workspace not found') {
       return res.status(404).json({ message: error.message });
     }
+    const clientErrors = [
+      'Hub is required',
+      'Invalid hub',
+      'Invalid role',
+      'Internship type is required',
+      'Primary mentor is required',
+      'Internship start date is required',
+      'Invalid internship type',
+      'Invalid primary mentor',
+      'Invalid secondary mentor',
+      'Primary mentor must be an admin or mentor',
+      'Secondary mentor must be an admin or mentor',
+      'Secondary mentor must be different from primary mentor',
+      'Invalid internship start date',
+    ];
+    if (clientErrors.includes(error.message)) {
+      return res.status(400).json({ message: error.message });
+    }
     if (
       error.message?.includes('already a member') ||
       error.message?.includes('already active') ||
@@ -125,6 +143,7 @@ const updateUser = async (req, res) => {
     if (req.user.role === 'admin') {
       if (req.body.email) updateData.email = req.body.email;
       if (req.body.role) updateData.role = req.body.role;
+      if (req.body.hub) updateData.hub = req.body.hub;
 
       if (req.body.active !== undefined) {
         updateData.active = req.body.active;
@@ -145,6 +164,9 @@ const updateUser = async (req, res) => {
       return res.status(409).json({
         message: error.message,
       });
+    }
+    if (error.message?.includes('Invalid role')) {
+      return res.status(400).json({ message: error.message });
     }
 
     res.status(500).json({

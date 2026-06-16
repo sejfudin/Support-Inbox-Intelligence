@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Mail, ShieldCheck, User } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUser } from '@/queries/users';
@@ -13,21 +13,125 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ANALYTICS_PERIODS } from '@/helpers/analyticsFormatters';
-import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-import PageHeading from '@/components/PageHeading';
+import { InternProfileView } from '@/components/interns/InternProfileView';
+import { AdminStaffUserDetail } from '@/components/admin/AdminStaffUserDetail';
+import UserEditModal from '@/components/UserEditModal';
+import { ROLES } from '@/helpers/roles';
+
+function WorkspaceAnalyticsControls({
+  analyticsWorkspaces,
+  selectedWorkspace,
+  onWorkspaceChange,
+  days,
+  onDaysChange,
+}) {
+  if (analyticsWorkspaces.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+      <Select value={selectedWorkspace?.id || ''} onValueChange={onWorkspaceChange}>
+        <SelectTrigger
+          className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[260px]"
+          data-test="admin-user-analytics-workspace-select"
+        >
+          <SelectValue placeholder="Select workspace" />
+        </SelectTrigger>
+        <SelectContent>
+          {analyticsWorkspaces.map((workspace) => (
+            <SelectItem
+              key={workspace.id}
+              value={workspace.id}
+              data-test={`admin-user-analytics-workspace-option-${workspace.id}`}
+            >
+              {workspace.name || 'Workspace'}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select value={String(days)} onValueChange={(value) => onDaysChange(Number(value))}>
+        <SelectTrigger
+          className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[150px]"
+          data-test="admin-user-analytics-period-select"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {ANALYTICS_PERIODS.map((period) => (
+            <SelectItem
+              key={period}
+              value={String(period)}
+              data-test={`admin-user-analytics-period-option-${period}`}
+            >
+              Last {period} Days
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function WorkspaceAnalyticsSection({
+  analyticsWorkspaces,
+  selectedWorkspace,
+  onWorkspaceChange,
+  days,
+  onDaysChange,
+  userAnalytics,
+  isAnalyticsLoading,
+  isAnalyticsError,
+}) {
+  if (analyticsWorkspaces.length === 0) {
+    return (
+      <div className="app-panel flex min-h-[180px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
+        Ticket analytics appear once this intern joins an active workspace and starts working on
+        assigned tickets.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <WorkspaceAnalyticsControls
+        analyticsWorkspaces={analyticsWorkspaces}
+        selectedWorkspace={selectedWorkspace}
+        onWorkspaceChange={onWorkspaceChange}
+        days={days}
+        onDaysChange={onDaysChange}
+      />
+
+      <PersonalAnalyticsSection
+        userAnalytics={userAnalytics}
+        isLoading={isAnalyticsLoading}
+        isError={isAnalyticsError}
+        activityTitle="Activity Trend"
+        workloadTitle="Workload Distribution"
+        showHeader={false}
+      />
+    </div>
+  );
+}
 
 export default function AdminUserAnalyticsPage() {
   const { userId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const [days, setDays] = useState(30);
+  const [editingUser, setEditingUser] = useState(null);
 
   const { data: loadedUser, isLoading, isError } = useUser(userId);
   const user = loadedUser || location.state?.user;
-  const userName = user?.fullname || user?.fullName || 'No name';
+
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
 
   const analyticsWorkspaces = useMemo(() => {
+    if (!user || user.role !== ROLES.INTERN) {
+      return [];
+    }
+
     const memberships =
       user?.workspaces
         ?.filter((workspace) => workspace.status === 'active')
@@ -69,7 +173,6 @@ export default function AdminUserAnalyticsPage() {
   const selectedWorkspace =
     analyticsWorkspaces.find((workspace) => workspace.id === selectedWorkspaceId) ||
     analyticsWorkspaces[0];
-  const selectedWorkspaceName = selectedWorkspace?.name || 'Workspace';
 
   const {
     data: userAnalytics,
@@ -77,9 +180,59 @@ export default function AdminUserAnalyticsPage() {
     isError: isAnalyticsError,
   } = useUserAnalytics({
     userId,
-    workspaceId: selectedWorkspace?.id,
+    workspaceId: user?.role === ROLES.INTERN ? selectedWorkspace?.id : undefined,
     days,
   });
+
+  const analyticsSection = (
+    <WorkspaceAnalyticsSection
+      analyticsWorkspaces={analyticsWorkspaces}
+      selectedWorkspace={selectedWorkspace}
+      onWorkspaceChange={setSelectedWorkspaceId}
+      days={days}
+      onDaysChange={setDays}
+      userAnalytics={userAnalytics}
+      isAnalyticsLoading={isAnalyticsLoading}
+      isAnalyticsError={isAnalyticsError}
+    />
+  );
+
+  const editModalUser = user
+    ? {
+        id: user._id || userId,
+        user: user.fullname || user.fullName || '',
+        fullName: user.fullname || user.fullName || '',
+        email: user.email || '',
+        role: user.role || '',
+        hub: user.hub?._id || user.hub || '',
+        active: user.status === 'active',
+      }
+    : null;
+
+  const backButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => navigate('/admin/users')}
+      className="-ml-2 h-7 px-2 text-muted-foreground"
+      data-test="admin-user-analytics-back-button"
+    >
+      <ArrowLeft className="mr-2 h-4 w-4" />
+      Back to Users
+    </Button>
+  );
+
+  const editUserButton = (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => setEditingUser(editModalUser)}
+      data-test="admin-user-analytics-edit-button"
+    >
+      <Pencil className="mr-2 h-4 w-4" />
+      Edit user
+    </Button>
+  );
 
   if (isError) {
     return (
@@ -98,138 +251,38 @@ export default function AdminUserAnalyticsPage() {
       <div className="app-page">
         <div className="app-page-content space-y-6">
           <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-sm text-muted-foreground">
-            Loading user analytics...
+            Loading user details...
           </div>
         </div>
       </div>
     );
   }
 
-  const userInfoGrid = (
-    <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3">
-      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-        <User className="h-4 w-4 text-primary" />
-        <div>
-          <div className="font-medium text-foreground">{capitalizeFirst(user.role || 'user')}</div>
-          <div>Role</div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-        <Mail className="h-4 w-4 text-primary" />
-        <div>
-          <div className="font-medium text-foreground">{user.email}</div>
-          <div>Email</div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
-        <ShieldCheck className="h-4 w-4 text-primary" />
-        <div>
-          <div className="font-medium text-foreground">
-            {capitalizeFirst(user.status || 'active')}
-          </div>
-          <div>Status</div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const backButton = (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => navigate('/admin/users')}
-      className="-ml-2 h-7 px-2 text-muted-foreground"
-      data-test="admin-user-analytics-back-button"
-    >
-      <ArrowLeft className="mr-2 h-4 w-4" />
-      Back to Users
-    </Button>
-  );
-
-  if (analyticsWorkspaces.length === 0) {
+  if (user.role === ROLES.INTERN) {
     return (
-      <div className="app-page">
-        <div className="app-page-content space-y-6">
-          <PageHeading
-            kicker="Admin user analytics"
-            title={userName}
-            subtitle="This user is not an active member of any workspace yet."
-            beforeKicker={backButton}
-          >
-            {userInfoGrid}
-          </PageHeading>
-
-          <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            Personal analytics are unavailable until this user joins an active workspace.
-          </div>
-        </div>
-      </div>
+      <>
+        <InternProfileView
+          userId={userId}
+          backTo="/admin/users"
+          backLabel="Back to users"
+          kicker="Intern profile"
+          analyticsSection={analyticsSection}
+          headingActions={editUserButton}
+        />
+        {editingUser && <UserEditModal user={editingUser} onClose={() => setEditingUser(null)} />}
+      </>
     );
   }
 
   return (
-    <div className="app-page">
-      <div className="app-page-content space-y-6">
-        <PageHeading
-          kicker="Admin user analytics"
-          title={userName}
-          subtitle={`Viewing personal analytics for ${selectedWorkspaceName}.`}
-          beforeKicker={backButton}
-        >
-          {userInfoGrid}
-        </PageHeading>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-          <Select value={selectedWorkspace?.id || ''} onValueChange={setSelectedWorkspaceId}>
-            <SelectTrigger
-              className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[260px]"
-              data-test="admin-user-analytics-workspace-select"
-            >
-              <SelectValue placeholder="Select workspace" />
-            </SelectTrigger>
-            <SelectContent>
-              {analyticsWorkspaces.map((workspace) => (
-                <SelectItem
-                  key={workspace.id}
-                  value={workspace.id}
-                  data-test={`admin-user-analytics-workspace-option-${workspace.id}`}
-                >
-                  {workspace.name || 'Workspace'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={String(days)} onValueChange={(value) => setDays(Number(value))}>
-            <SelectTrigger
-              className="w-full rounded-full border-primary/15 bg-primary/10 text-primary sm:w-[150px]"
-              data-test="admin-user-analytics-period-select"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ANALYTICS_PERIODS.map((period) => (
-                <SelectItem
-                  key={period}
-                  value={String(period)}
-                  data-test={`admin-user-analytics-period-option-${period}`}
-                >
-                  Last {period} Days
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <PersonalAnalyticsSection
-          userAnalytics={userAnalytics}
-          isLoading={isAnalyticsLoading}
-          isError={isAnalyticsError}
-          activityTitle="Activity Trend"
-          workloadTitle="Workload Distribution"
-          showHeader={false}
-        />
-      </div>
-    </div>
+    <>
+      <AdminStaffUserDetail
+        user={user}
+        userId={userId}
+        backButton={backButton}
+        editUserButton={editUserButton}
+      />
+      {editingUser && <UserEditModal user={editingUser} onClose={() => setEditingUser(null)} />}
+    </>
   );
 }

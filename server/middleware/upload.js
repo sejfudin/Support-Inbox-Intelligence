@@ -108,12 +108,63 @@ const uploadLogo = (req, res, next) => {
   });
 };
 
+const MAX_CV_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_CV_MIME_TYPES = new Set(['application/pdf']);
+
+const cvFileFilter = (req, file, cb) => {
+  if (!file || !ALLOWED_CV_MIME_TYPES.has(file.mimetype)) {
+    return cb(new Error('Only PDF files are allowed for CV upload.'));
+  }
+  cb(null, true);
+};
+
+const uploadCvMulter = multer({
+  storage,
+  fileFilter: cvFileFilter,
+  limits: {
+    fileSize: MAX_CV_FILE_SIZE_BYTES,
+    files: 1,
+  },
+});
+
+const uploadCvRaw = uploadCvMulter.single('cv');
+
+const uploadCv = (req, res, next) => {
+  uploadCvRaw(req, res, (err) => {
+    if (!err) return next();
+
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'CV must be 5MB or smaller.',
+        });
+      }
+
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Use "cv" as the upload field name.',
+        });
+      }
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: err.message || 'Invalid CV upload request.',
+    });
+  });
+};
+
 module.exports = {
   uploadImages,
   uploadLogo,
+  uploadCv,
   MAX_FILE_SIZE_BYTES,
   MAX_FILES_PER_REQUEST,
   ALLOWED_MIME_TYPES,
   MAX_LOGO_FILE_SIZE_BYTES,
   ALLOWED_LOGO_MIME_TYPES,
+  MAX_CV_FILE_SIZE_BYTES,
+  ALLOWED_CV_MIME_TYPES,
 };

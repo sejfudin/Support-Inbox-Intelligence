@@ -12,7 +12,9 @@
     "start": "node index.js",
     "build": "node -e \"console.log('server: no compile step');\"",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "seed": "node seeder/seed.js",
+    "seed:test": "node seeder/seedTestingData.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",

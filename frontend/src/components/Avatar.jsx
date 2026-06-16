@@ -44,7 +44,7 @@ export const Avatar = ({ users, size = 'md' }) => {
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="font-bold text-xs">{capitalizeFirst(user.role || 'user')}</p>
+              <p className="font-bold text-xs">{capitalizeFirst(user.role || '')}</p>
               <p className="text-[10px] opacity-80">{user.email || 'Unknown email'}</p>
             </TooltipContent>
           </Tooltip>

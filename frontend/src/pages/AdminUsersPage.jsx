@@ -26,8 +26,12 @@ export default function AdminUsersPage() {
     usersData?.users?.map((user) => ({
       id: user._id,
       fullName: user.fullname || 'No name',
+      user: user.fullname || 'No name',
       email: user.email,
       role: user.role,
+      hub: user.hub?._id || user.hub || '',
+      hubName: user.hub?.name || '',
+      active: user.status === 'active',
       status: user.status === 'active' ? 'active' : 'inactive',
       workspaceCount: user.workspaceCount || 0,
       workspaces: user.workspaces || [],

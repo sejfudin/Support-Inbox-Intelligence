@@ -12,6 +12,7 @@ import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useAuth } from '@/context/AuthContext';
+import { isAdmin as checkIsAdmin } from '@/helpers/roles';
 
 export default function BacklogPage() {
   const [activeTab] = useState('all');
@@ -47,7 +48,7 @@ export default function BacklogPage() {
     closeTicketDetails,
   } = useTicketModals();
   const { data: me } = useGetMe();
-  const isAdmin = me?.role === 'admin';
+  const isAdmin = checkIsAdmin(me?.role);
 
   return (
     <PageShell>
