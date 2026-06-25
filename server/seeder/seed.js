@@ -1,7 +1,19 @@
 const path = require('path');
+const readline = require('readline');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const connectDB = require('../config/db');
 const bcrypt = require('bcryptjs');
+
+const confirm = () =>
+  new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    console.log('\n⚠️  WARNING: This will permanently delete ALL data in the database.');
+    console.log(`    Connected to: ${process.env.MONGODB_URI}\n`);
+    rl.question('    Type "wipe" to confirm, or anything else to cancel: ', (answer) => {
+      rl.close();
+      resolve(answer.trim() === 'wipe');
+    });
+  });
 
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
@@ -28,6 +40,12 @@ const { seedDefaultStatuses } = require('../services/statusService');
 
 const seedData = async () => {
   try {
+    const confirmed = await confirm();
+    if (!confirmed) {
+      console.log('\n❌ Cancelled. No data was changed.');
+      process.exit(0);
+    }
+
     await connectDB();
     console.log('🟢 Seed process: Connected to database.');
 
