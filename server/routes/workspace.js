@@ -7,6 +7,7 @@ const {
   updateWorkspace,
   inviteMember,
   removeMember,
+  cancelInvitation,
   getAllWorkspaces,
   switchWorkspace,
   deleteWorkspace,
@@ -31,5 +32,6 @@ router.delete('/:id', protect, requireRole('admin'), deleteWorkspace);
 router.post('/:id/switch', protect, switchWorkspace);
 router.post('/:id/invite', protect, requireWorkspaceManager, inviteMember);
 router.delete('/:id/members/:userId', protect, requireWorkspaceManager, removeMember);
+router.delete('/:id/invitations/:invitationId', protect, requireWorkspaceManager, cancelInvitation);
 
 module.exports = router;

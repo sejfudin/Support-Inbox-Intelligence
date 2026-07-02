@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "seed": "node seeder/seed.js",
-    "seed:test": "node seeder/seedTestingData.js"
+    "seed:test": "node seeder/seedTestingData.js",
+    "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
