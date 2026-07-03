@@ -35,6 +35,11 @@ export const removeWorkspaceMember = async (id, userId) => {
   return response.data;
 };
 
+export const cancelWorkspaceInvitation = async (id, invitationId) => {
+  const response = await apiClient.delete(`/workspaces/${id}/invitations/${invitationId}`);
+  return response.data;
+};
+
 export const switchWorkspace = async (id) => {
   const response = await apiClient.post(`/workspaces/${id}/switch`);
   return response.data;

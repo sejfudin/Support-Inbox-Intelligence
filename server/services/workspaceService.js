@@ -8,6 +8,7 @@ const Invitation = require('../models/Invitation');
 const {
   inviteExistingUserToWorkspace,
   cancelWorkspaceInvitationsForUser,
+  cancelWorkspaceInvitation,
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
 const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
@@ -262,6 +263,13 @@ const removeMember = async ({ workspaceId, userId }) => {
   return { message: 'Member removed' };
 };
 
+const cancelInvitation = async ({ workspaceId, invitationId }) => {
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace) throw new Error('Workspace not found');
+
+  return cancelWorkspaceInvitation({ workspaceId, invitationId });
+};
+
 const deleteWorkspace = async (workspaceId) => {
   const workspace = await Workspace.findById(workspaceId);
   if (!workspace) throw new Error('Workspace not found');
@@ -333,6 +341,7 @@ module.exports = {
   updateWorkspace,
   inviteMemberToWorkspace,
   removeMember,
+  cancelInvitation,
   getAllWorkspaces,
   deleteWorkspace,
   uploadWorkspaceLogo,

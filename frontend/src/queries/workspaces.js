@@ -7,6 +7,7 @@ import {
   updateWorkspace,
   inviteWorkspaceMember,
   removeWorkspaceMember,
+  cancelWorkspaceInvitation,
   switchWorkspace,
   deleteWorkspace,
   getWorkspaceAnalytics,
@@ -122,6 +123,17 @@ export const useRemoveWorkspaceMember = (workspaceId) => {
 
   return useMutation({
     mutationFn: (userId) => removeWorkspaceMember(workspaceId, userId),
+    onSuccess: () => {
+      invalidateWorkspaceScope(queryClient, workspaceId);
+    },
+  });
+};
+
+export const useCancelWorkspaceInvitation = (workspaceId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (invitationId) => cancelWorkspaceInvitation(workspaceId, invitationId),
     onSuccess: () => {
       invalidateWorkspaceScope(queryClient, workspaceId);
     },

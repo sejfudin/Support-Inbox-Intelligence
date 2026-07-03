@@ -143,6 +143,21 @@ exports.removeMember = async (req, res, next) => {
   }
 };
 
+exports.cancelInvitation = async (req, res, next) => {
+  try {
+    const result = await workspaceService.cancelInvitation({
+      workspaceId: req.params.id,
+      invitationId: req.params.invitationId,
+    });
+    res.json(result);
+  } catch (err) {
+    if (err.message === 'Workspace not found' || err.message === 'Invitation not found') {
+      return res.status(404).json({ message: err.message });
+    }
+    next(err);
+  }
+};
+
 exports.getAllWorkspaces = async (req, res, next) => {
   try {
     const workspaces = await workspaceService.getAllWorkspaces();
