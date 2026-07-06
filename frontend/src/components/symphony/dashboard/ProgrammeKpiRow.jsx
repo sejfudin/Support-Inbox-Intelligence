@@ -118,7 +118,18 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = 'R
       sub: !isPending && recommended > 0 ? `${recommended} recommended` : null,
       hint: 'Interns ready for a project',
       dot: '#726BFF',
-      info: 'Interns a mentor has approved as ready to be put forward to clients. Some are already recommended for a project.',
+      info: (
+        <>
+          A mentor has confirmed these interns have enough knowledge to take on a real project
+          once a position opens, so they can go to interviews.
+          <span className="mt-2 block">
+            <span className="font-semibold text-foreground">Recommended</span> is the next step:
+            a mentor thinks the intern fits a specific open position and puts them forward for it.
+            Every recommended intern is still ready for a project; not every ready intern has been
+            recommended yet.
+          </span>
+        </>
+      ),
     },
     {
       label: 'In pipeline',
@@ -128,9 +139,13 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = 'R
       dot: '#5B7CFA',
       info: (
         <>
-          Candidates being pitched to clients — either recommended or actively interviewing. They
-          move through:
+          Interns being pitched to clients, either recommended or actively interviewing. They move
+          through:
           <PipelineFlow />
+          <span className="mt-2 block">
+            If an interview does not work out, the intern goes back to being ready and can be
+            recommended again.
+          </span>
         </>
       ),
     },
