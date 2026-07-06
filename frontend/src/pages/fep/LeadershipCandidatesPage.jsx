@@ -22,13 +22,17 @@ export default function LeadershipCandidatesPage() {
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [hubId, setHubId] = useState('');
-  const [internshipTypeId, setInternshipTypeId] = useState('');
+  const [hubId, setHubId] = useState(searchParams.get('hubId') || '');
+  const [internshipTypeId, setInternshipTypeId] = useState(
+    searchParams.get('internshipTypeId') || ''
+  );
   const [profileStatus, setProfileStatus] = useState(searchParams.get('status') || '');
   const [readyFilter, setReadyFilter] = useState(searchParams.get('ready') || '');
   const [debouncedSearch] = useDebounce(search, 400);
 
   useEffect(() => {
+    setHubId(searchParams.get('hubId') || '');
+    setInternshipTypeId(searchParams.get('internshipTypeId') || '');
     setProfileStatus(searchParams.get('status') || '');
     setReadyFilter(searchParams.get('ready') || '');
     setPage(1);
