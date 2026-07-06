@@ -101,7 +101,15 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = 'R
   const interviewing = summary?.interviewingCount ?? 0;
   const notInPipeline = summary?.readyWithoutActiveRecommendation ?? 0;
   const recommended = Math.max(0, ready - notInPipeline);
+  const awaitingInterview = Math.max(0, inPipeline - interviewing);
   const placed = funnel?.placed ?? summary?.placedInterns ?? 0;
+
+  const pipelineHint = [
+    interviewing > 0 && `${interviewing} in a process of interviewing`,
+    awaitingInterview > 0 && `${awaitingInterview} recommended and awaiting an interview`,
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   const kpis = [
     {
@@ -116,7 +124,7 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = 'R
       label: 'In pipeline',
       value: isPending ? dash : inPipeline,
       sub: !isPending && interviewing > 0 ? `${interviewing} interviewing` : null,
-      hint: 'In a process of interview or waiting interview results',
+      hint: pipelineHint || 'In a process of interview or waiting interview results',
       dot: '#5B7CFA',
       info: (
         <>
