@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { verifyInvite, setPasswordFromInvite } from '@/api/invite';
 import { useAuth } from '@/context/AuthContext';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 const MIN_LEN = 6;
 
@@ -93,10 +94,7 @@ export default function SetPassword() {
                 <KeyRound className="h-3.5 w-3.5" />
                 Password Setup
               </div>
-              <div className="text-3xl font-semibold tracking-tight md:text-4xl">
-                <span className="text-background">Task</span>
-                <span className="text-blue-300">Manager</span>
-              </div>
+              <TaskManagerBrand size="lg" onDark linkTo={null} />
               <div>
                 <CardTitle className="text-3xl leading-tight text-background md:text-4xl">
                   Activate your internal account

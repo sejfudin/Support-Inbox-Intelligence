@@ -35,6 +35,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCanManageActiveWorkspace } from '@/hooks/useCanManageActiveWorkspace';
 import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 export default function AppSidebar() {
   const { user, isLoginPending } = useAuth();
@@ -141,14 +142,8 @@ export default function AppSidebar() {
   return (
     <Sidebar className="border-r border-border/50 bg-card shadow-elevated-sm">
       <SidebarHeader className="px-4 pb-3 pt-4">
-        <div className="rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-4 py-3 shadow-elevated-sm">
-          <div className="text-lg font-semibold tracking-tight">
-            <span className="text-foreground">Task</span>
-            <span className="text-primary">Manager</span>
-          </div>
-          <div className="mt-1 text-[11px] font-medium leading-4 text-muted-foreground">
-            Calm control for tickets, teams, and workspaces
-          </div>
+        <div className="rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-3 py-2.5 shadow-elevated-sm">
+          <TaskManagerBrand size="md" linkTo="/dashboard" />
         </div>
         <WorkspaceSwitcher className="mt-2 py-1.5" compact />
       </SidebarHeader>
