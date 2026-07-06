@@ -34,6 +34,7 @@ export const useLoginUser = () => {
     onSuccess: (data) => {
       clearSessionQueries(queryClient);
       localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
       queryClient.invalidateQueries({ queryKey: authKeys.me() });
       navigate('/');
     },
@@ -61,11 +62,12 @@ export const useLogoutUser = () => {
   const clearAuth = () => {
     clearSessionQueries(queryClient);
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     navigate('/login');
   };
 
   return useMutation({
-    mutationFn: logoutUser,
+    mutationFn: () => logoutUser(localStorage.getItem('refreshToken')),
     onSuccess: clearAuth,
     onError: (error) => {
       clearAuth();

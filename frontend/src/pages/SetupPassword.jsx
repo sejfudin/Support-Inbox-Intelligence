@@ -16,6 +16,7 @@ export default function SetPassword() {
   const navigate = useNavigate();
   const { refetchUser, isAuthenticated, loading } = useAuth();
   const [inviteInfo, setInviteInfo] = useState(null);
+  const [setupToken, setSetupToken] = useState('');
   const [error, setError] = useState('');
   const [emailChecking, setEmailChecking] = useState(false);
 
@@ -38,6 +39,7 @@ export default function SetPassword() {
     try {
       const data = await verifyInvite({ email });
       setInviteInfo(data);
+      setSetupToken(data.setupToken);
       toast.success('Account found', {
         description: 'You can now create your password.',
       });
@@ -55,9 +57,10 @@ export default function SetPassword() {
     const loadingToast = toast.loading('Activating your account...');
 
     try {
-      const data = await setPasswordFromInvite(password);
+      const data = await setPasswordFromInvite(password, setupToken);
 
       localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
       await refetchUser();
 
       toast.dismiss(loadingToast);
@@ -267,6 +270,7 @@ export default function SetPassword() {
                       data-test="setup-password-use-different-email-button"
                       onClick={() => {
                         setInviteInfo(null);
+                        setSetupToken('');
                         setError('');
                         passwordForm.reset();
                       }}
