@@ -4,6 +4,7 @@ import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { PipelineCard } from '@/components/symphony/dashboard/PipelineCard';
 import { ProgrammeBreakdowns } from '@/components/symphony/dashboard/ProgrammeBreakdowns';
 import { ProgrammeKpiRow } from '@/components/symphony/dashboard/ProgrammeKpiRow';
+import { TechnologySupply } from '@/components/symphony/dashboard/TechnologySupply';
 import { useInternStats } from '@/queries/interns';
 
 export default function LeadershipDashboardPage() {
@@ -44,6 +45,8 @@ export default function LeadershipDashboardPage() {
         activeByProgramme={stats?.activeByProgramme ?? []}
         activeByHub={stats?.activeByHub ?? []}
       />
+
+      <TechnologySupply isPending={isPending} technologySupply={stats?.technologySupply ?? []} />
     </div>
   );
 }
