@@ -94,7 +94,7 @@ function KpiCard({ label, value, sub, hint, dot, highlighted, info }) {
   );
 }
 
-export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = 'Ready for a project' }) {
+export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = null }) {
   const dash = '—';
   const ready = stats?.readyForPlacement ?? 0;
   const inPipeline = summary?.activeRecommendations ?? 0;
