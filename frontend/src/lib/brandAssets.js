@@ -1,6 +1,6 @@
 export const TASK_MANAGER_LOGO_FULL_SRC = '/brand/TMLogo.png';
 export const TASK_MANAGER_LOGO_WHITE_SRC = '/brand/TMLogoWhite.png';
-export const TASK_MANAGER_FAVICON_SRC = TASK_MANAGER_LOGO_FULL_SRC;
+export const TASK_MANAGER_FAVICON_SRC = '/favicon.svg';
 
 export const LOGO_PRESENTATION_SHELL = 'shell';
 
