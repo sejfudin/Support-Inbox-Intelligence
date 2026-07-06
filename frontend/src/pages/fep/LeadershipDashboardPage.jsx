@@ -39,14 +39,14 @@ export default function LeadershipDashboardPage() {
         recommendationOutcomes={stats?.recommendationOutcomes}
       />
 
+      <TechnologySupply isPending={isPending} technologySupply={stats?.technologySupply ?? []} />
+
       <ProgrammeBreakdowns
         isPending={isPending}
         funnel={stats?.funnel}
         activeByProgramme={stats?.activeByProgramme ?? []}
         activeByHub={stats?.activeByHub ?? []}
       />
-
-      <TechnologySupply isPending={isPending} technologySupply={stats?.technologySupply ?? []} />
     </div>
   );
 }
