@@ -11,8 +11,8 @@ const {
 } = require('../controllers/recommendations');
 
 router.get('/', protect, listRecommendations);
-router.post('/', protect, requireRole(ROLES.ADMIN), createRecommendation);
+router.post('/', protect, requireRole(ROLES.MENTOR), createRecommendation);
 router.get('/:id', protect, getRecommendation);
-router.patch('/:id', protect, requireRole(ROLES.ADMIN), updateRecommendation);
+router.patch('/:id', protect, requireRole(ROLES.MENTOR), updateRecommendation);
 
 module.exports = router;
