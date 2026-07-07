@@ -7,7 +7,7 @@ export const INTERN_STATUSES = [
 ];
 
 export const READINESS_LEVELS = [
-  { value: 'none', label: 'Not started' },
+  { value: 'none', label: 'Not assessed' },
   { value: 'learning', label: 'Learning' },
   { value: 'ready', label: 'Ready' },
 ];

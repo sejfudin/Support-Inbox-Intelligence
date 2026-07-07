@@ -74,6 +74,11 @@ export const createInternEvaluation = async (userId, payload) => {
   return data.evaluation;
 };
 
+export const fetchMyInternReadiness = async () => {
+  const { data } = await apiClient.get('/interns/me/readiness');
+  return data.flags;
+};
+
 export const fetchInternReadiness = async (userId) => {
   const { data } = await apiClient.get(`/interns/${userId}/readiness`);
   return data.flags;

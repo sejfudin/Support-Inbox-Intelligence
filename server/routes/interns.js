@@ -19,11 +19,13 @@ const {
   listReadiness,
   upsertReadiness,
   listCommentViewers,
+  getMyReadiness,
 } = require('../controllers/interns');
 
 router.get('/', protect, listInterns);
 router.get('/me', protect, getMyProfile);
 router.patch('/me/technologies', protect, updateMyTechnologies);
+router.get('/me/readiness', protect, getMyReadiness);
 router.post('/me/cv', protect, uploadCv, uploadMyCv);
 router.delete('/me/cv', protect, deleteMyCv);
 
