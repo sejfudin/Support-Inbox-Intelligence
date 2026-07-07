@@ -29,6 +29,7 @@ import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
+import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -113,6 +114,10 @@ export default function AppRoutes() {
           />
 
           <Route path="/invitations" element={<UserInvitationsPage />} />
+
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.INTERN]} />}>
+            <Route path="/my-technologies" element={<MyTechnologiesPage />} />
+          </Route>
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
             <Route path="/my-interns" element={<MentorInternsPage />} />

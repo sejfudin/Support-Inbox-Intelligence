@@ -1,0 +1,153 @@
+import { useMemo, useState } from 'react';
+import { X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { InternPanel } from '@/components/interns/InternPanel';
+import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
+import { useMyInternProfile, useUpdateMyTechnologies, useMyInternReadiness } from '@/queries/interns';
+import { useTechnologies } from '@/queries/technologies';
+import { toast } from 'sonner';
+
+export function InternTechnologyDeclaration() {
+  const { data: intern } = useMyInternProfile();
+  const { data: allTechnologies = [] } = useTechnologies();
+  const { data: flags = [] } = useMyInternReadiness();
+  const { mutate: saveTechnologies, isPending: isSaving } = useUpdateMyTechnologies();
+
+  const [search, setSearch] = useState('');
+
+  // Set of declared tech IDs — fast lookup for "already declared?"
+  const declaredIds = useMemo(
+    () => new Set((intern?.selfTechnologies || []).map((t) => t._id || t)),
+    [intern]
+  );
+
+  // { techId → flag } — used to look up readiness level per tech
+  const flagMap = useMemo(
+    () => Object.fromEntries(flags.map((f) => [f.technology?._id || f.technology, f])),
+    [flags]
+  );
+
+  // Only the techs the intern has declared, in catalog order
+  const declaredTechnologies = useMemo(
+    () => allTechnologies.filter((t) => declaredIds.has(t._id)),
+    [allTechnologies, declaredIds]
+  );
+
+  // Catalog filtered by search text, excluding already-declared ones
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return allTechnologies.filter(
+      (t) => !declaredIds.has(t._id) && t.name.toLowerCase().includes(q)
+    );
+  }, [search, allTechnologies, declaredIds]);
+
+  const addTechnology = (tech) => {
+    const newIds = [...declaredIds, tech._id];
+    saveTechnologies(newIds, {
+      onSuccess: () => {
+        toast.success(`${tech.name} added`);
+        setSearch('');
+      },
+      onError: (err) => toast.error(err?.response?.data?.message || 'Failed to add technology'),
+    });
+  };
+
+  const removeTechnology = (tech) => {
+    const newIds = [...declaredIds].filter((id) => id !== tech._id);
+    saveTechnologies(newIds, {
+      onSuccess: () => toast.success(`${tech.name} removed`),
+      onError: (err) => toast.error(err?.response?.data?.message || 'Failed to remove technology'),
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Search + add section */}
+      <InternPanel className="px-5 py-6 md:px-6">
+        <h3 className="text-base font-semibold text-foreground">Add a technology</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Search the catalog and add the technologies you are working toward.
+        </p>
+        <div className="relative mt-4">
+          <Input
+            placeholder="Search technologies..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            data-test="technology-search-input"
+          />
+          {searchResults.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full rounded-xl border border-border bg-card shadow-md">
+              {searchResults.map((tech) => (
+                <div
+                  key={tech._id}
+                  className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/50 first:rounded-t-xl last:rounded-b-xl"
+                >
+                  <span className="font-medium">{tech.name}</span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isSaving}
+                    onClick={() => addTechnology(tech)}
+                    data-test={`technology-add-${tech.slug}-button`}
+                  >
+                    Add
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {search.trim() && searchResults.length === 0 && (
+            <div className="absolute z-10 mt-1 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-md">
+              No technologies found.
+            </div>
+          )}
+        </div>
+      </InternPanel>
+
+      {/* Declared technologies list */}
+      <InternPanel className="overflow-hidden p-0">
+        <div className="border-b border-border/60 px-5 py-4 md:px-6">
+          <h3 className="text-lg font-semibold">My technologies</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Technologies you have declared. Your mentor will assess your readiness for each.
+          </p>
+        </div>
+        {declaredTechnologies.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">
+            No technologies declared yet. Use the search above to add some.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border/60">
+            {declaredTechnologies.map((tech) => {
+              const level = flagMap[tech._id]?.level || 'none';
+              return (
+                <li
+                  key={tech._id}
+                  className="flex items-center justify-between gap-4 px-5 py-3 md:px-6"
+                >
+                  <span className="font-medium text-sm">{tech.name}</span>
+                  <div className="flex items-center gap-3">
+                    <ReadinessLevelBadge level={level} />
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => removeTechnology(tech)}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label={`Remove ${tech.name}`}
+                      data-test={`technology-remove-${tech.slug}-button`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </InternPanel>
+    </div>
+  );
+}
