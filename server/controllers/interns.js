@@ -171,6 +171,15 @@ exports.createEvaluation = async (req, res, next) => {
   }
 };
 
+exports.getMyReadiness = async (req, res, next) => {
+  try {
+    const flags = await readinessFlagService.listMyReadinessFlags(req.user);
+    res.json({ flags });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
 exports.listReadiness = async (req, res, next) => {
   try {
     const flags = await readinessFlagService.listReadinessFlags(req.user, req.params.userId);

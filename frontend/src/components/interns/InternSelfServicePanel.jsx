@@ -1,44 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { PagePanel } from '@/components/PageShell';
 import {
   useDeleteMyCv,
   useMyInternProfile,
-  useUpdateMyTechnologies,
   useUploadMyCv,
 } from '@/queries/interns';
-import { useTechnologies } from '@/queries/technologies';
 import { getInternStatusLabel } from '@/helpers/internProfile';
 import { toast } from 'sonner';
 
 export function InternSelfServicePanel() {
   const fileRef = useRef(null);
   const { data: intern, isPending, isError } = useMyInternProfile();
-  const { data: technologies = [] } = useTechnologies();
-  const { mutate: saveTechnologies, isPending: isSavingTech } = useUpdateMyTechnologies();
   const { mutate: uploadCv, isPending: isUploading } = useUploadMyCv();
   const { mutate: deleteCv, isPending: isDeleting } = useDeleteMyCv();
-
-  const [selectedTech, setSelectedTech] = useState([]);
-
-  useEffect(() => {
-    if (!intern) return;
-    setSelectedTech((intern.selfTechnologies || []).map((t) => t._id || t));
-  }, [intern]);
-
-  const toggleTech = (id) => {
-    setSelectedTech((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  };
-
-  const handleSaveTechnologies = () => {
-    saveTechnologies(selectedTech, {
-      onSuccess: () => toast.success('Technologies updated'),
-      onError: (err) =>
-        toast.error(err?.response?.data?.message || 'Failed to update technologies'),
-    });
-  };
 
   const handleCvUpload = (e) => {
     const file = e.target.files?.[0];
@@ -71,7 +47,7 @@ export function InternSelfServicePanel() {
       <PagePanel className="px-5 py-6 md:px-6">
         <h2 className="text-lg font-semibold text-foreground">Internship programme</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Keep your declared technologies and CV up to date for placement tracking.
+          Keep your CV up to date for placement tracking.
         </p>
 
         <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
@@ -154,36 +130,6 @@ export function InternSelfServicePanel() {
         </div>
       </PagePanel>
 
-      <PagePanel className="px-5 py-6 md:px-6">
-        <h3 className="text-base font-semibold text-foreground">Declared technologies</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Select the placement tracks you are working toward.
-        </p>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {technologies.map((tech) => (
-            <label
-              key={tech._id}
-              className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm"
-            >
-              <Checkbox
-                checked={selectedTech.includes(tech._id)}
-                onCheckedChange={() => toggleTech(tech._id)}
-                data-test={`my-internship-tech-${tech.slug}-checkbox`}
-              />
-              {tech.name}
-            </label>
-          ))}
-        </div>
-        <Button
-          type="button"
-          className="mt-5"
-          disabled={isSavingTech}
-          onClick={handleSaveTechnologies}
-          data-test="my-internship-technologies-save-button"
-        >
-          {isSavingTech ? 'Saving...' : 'Save technologies'}
-        </Button>
-      </PagePanel>
     </div>
   );
 }

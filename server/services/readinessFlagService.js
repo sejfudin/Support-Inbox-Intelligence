@@ -1,5 +1,6 @@
 const Technology = require('../models/Technology');
 const ReadinessFlag = require('../models/ReadinessFlag');
+const InternProfile = require('../models/InternProfile');
 const { READINESS_LEVELS } = require('../models/ReadinessFlag');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
@@ -51,4 +52,23 @@ const upsertReadinessFlag = async (user, internUserId, { technologyId, level }) 
   return { ...plain, id: plain._id };
 };
 
-module.exports = { listReadinessFlags, upsertReadinessFlag, READINESS_LEVELS };
+const listMyReadinessFlags = async (user) => {
+  const profile = await InternProfile.findOne({ user: user._id });
+  if (!profile) {
+    const err = new Error('Intern profile not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const flags = await ReadinessFlag.find({ internProfile: profile._id })
+    .populate('technology', 'name slug')
+    .populate('setBy', 'fullname')
+    .sort({ 'technology.name': 1 });
+
+  return flags.map((flag) => {
+    const plain = flag.toObject();
+    return { ...plain, id: plain._id };
+  });
+};
+
+module.exports = { listReadinessFlags, listMyReadinessFlags, upsertReadinessFlag, READINESS_LEVELS };

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { isAdmin, isMentor } from '@/helpers/roles';
+import { isAdmin, isMentor, isIntern } from '@/helpers/roles';
 import {
   User,
   Archive,
@@ -13,6 +13,7 @@ import {
   Database,
   GraduationCap,
   Send,
+  Code2,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -114,6 +115,10 @@ export default function AppSidebar() {
         { label: 'My Interns', to: '/my-interns', icon: GraduationCap },
         { label: 'Recommendations', to: '/recommendations', icon: Send },
       ]
+    : [];
+
+  const internNav = isIntern(user?.role)
+    ? [{ label: 'My Technologies', to: '/my-technologies', icon: Code2 }]
     : [];
 
   const adminNav = [
@@ -238,6 +243,40 @@ export default function AppSidebar() {
             </div>
             <SidebarMenu>
               {mentorNav.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      end
+                      data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
+                      className={({ isActive }) =>
+                        cn(
+                          'group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-elevated-sm'
+                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">{item.label}</span>
+                    </NavLink>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </div>
+        )}
+
+        {internNav.length > 0 && (
+          <div className="mb-3">
+            {(user?.workspaceId || invitationNav.length > 0) && <Separator className="mb-3" />}
+            <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Internship
+            </div>
+            <SidebarMenu>
+              {internNav.map((item) => {
                 const Icon = item.icon;
                 return (
                   <SidebarMenuItem key={item.to}>
