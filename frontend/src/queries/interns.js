@@ -177,6 +177,7 @@ export const useUpsertInternReadiness = () => {
     mutationFn: ({ userId, payload }) => upsertInternReadiness(userId, payload),
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: internReadinessKey(userId) });
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_READINESS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: INTERN_STATS_QUERY_KEY });
     },
   });
