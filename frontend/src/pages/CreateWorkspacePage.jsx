@@ -29,6 +29,7 @@ import {
   getWorkspaceLogoValidationError,
 } from '@/constants/upload';
 import { uploadWorkspaceLogo } from '@/api/workspaces';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 const CATEGORY_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -131,10 +132,7 @@ export default function CreateWorkspacePage() {
               <Mail className="h-3.5 w-3.5" />
               Workspace Access
             </div>
-            <div className="mt-5 text-3xl font-semibold tracking-tight md:text-4xl">
-              <span className="text-foreground">Task</span>
-              <span className="text-blue-600">Manager</span>
-            </div>
+            <TaskManagerBrand size="lg" linkTo={null} className="justify-center" />
           </div>
 
           {hasInvitations ? (
@@ -372,11 +370,8 @@ export default function CreateWorkspacePage() {
                 <Sparkles className="h-3.5 w-3.5" />
                 Admin Setup
               </div>
+              <TaskManagerBrand size="lg" onDark linkTo={null} />
               <div>
-                <div className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  <span className="text-background">Task</span>
-                  <span className="text-blue-300">Manager</span>
-                </div>
                 <CardTitle className="mt-8 text-3xl leading-tight text-background md:text-4xl">
                   Create your first workspace
                 </CardTitle>

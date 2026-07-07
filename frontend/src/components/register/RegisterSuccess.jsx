@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ROLES, getRoleLabel } from '@/helpers/roles';
 import { toast } from 'sonner';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 export function RegisterSuccess({ createdUser, onCreateAnother }) {
   const navigate = useNavigate();
@@ -25,10 +26,7 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Account created
               </div>
-              <div className="text-3xl font-semibold tracking-tight md:text-4xl">
-                <span className="text-foreground">Task</span>
-                <span className="text-primary">Manager</span>
-              </div>
+              <TaskManagerBrand size="lg" linkTo={null} />
               <div>
                 <CardTitle className="text-2xl leading-tight text-foreground md:text-3xl">
                   The user still needs to create a password
