@@ -1,5 +1,6 @@
 const Technology = require('../models/Technology');
 const ReadinessFlag = require('../models/ReadinessFlag');
+const InternProfile = require('../models/InternProfile');
 const { READINESS_LEVELS } = require('../models/ReadinessFlag');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
