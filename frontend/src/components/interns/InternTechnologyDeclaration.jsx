@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
 import { useMyInternProfile, useUpdateMyTechnologies, useMyInternReadiness } from '@/queries/interns';
@@ -15,6 +15,8 @@ export function InternTechnologyDeclaration() {
   const { mutate: saveTechnologies, isPending: isSaving } = useUpdateMyTechnologies();
 
   const [search, setSearch] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const itemRefs = useRef([]);
 
   // Set of declared tech IDs — fast lookup for "already declared?"
   const declaredIds = useMemo(
@@ -43,6 +45,29 @@ export function InternTechnologyDeclaration() {
     );
   }, [search, allTechnologies, declaredIds]);
 
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [searchResults]);
+
+  useEffect(() => {
+    itemRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
+
+  const handleSearchKeyDown = (e) => {
+    if (searchResults.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i + 1) % searchResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i - 1 + searchResults.length) % searchResults.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const tech = searchResults[highlightedIndex];
+      if (tech && !isSaving) addTechnology(tech);
+    }
+  };
+
   const addTechnology = (tech) => {
     const newIds = [...declaredIds, tech._id];
     saveTechnologies(newIds, {
@@ -70,41 +95,54 @@ export function InternTechnologyDeclaration() {
         <p className="mt-1 text-sm text-muted-foreground">
           Search the catalog and add the technologies you are working toward.
         </p>
-        <div className="relative mt-4">
-          <Input
-            placeholder="Search technologies..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            data-test="technology-search-input"
-          />
-          {searchResults.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full rounded-xl border border-border bg-card shadow-md">
-              {searchResults.map((tech) => (
+        <Popover
+          open={search.trim().length > 0}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) setSearch('');
+          }}
+        >
+          <PopoverAnchor asChild>
+            <div className="mt-4">
+              <Input
+                placeholder="Search technologies..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                data-test="technology-search-input"
+              />
+            </div>
+          </PopoverAnchor>
+          <PopoverContent
+            align="start"
+            sideOffset={4}
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            className="max-h-72 w-[var(--radix-popper-anchor-width)] overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-md"
+          >
+            {searchResults.length > 0 ? (
+              searchResults.map((tech, index) => (
                 <div
                   key={tech._id}
-                  className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/50 first:rounded-t-xl last:rounded-b-xl"
+                  ref={(el) => (itemRefs.current[index] = el)}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => !isSaving && addTechnology(tech)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && !isSaving) addTechnology(tech);
+                  }}
+                  className={`cursor-pointer px-4 py-2.5 text-sm first:rounded-t-xl last:rounded-b-xl ${
+                    index === highlightedIndex ? 'bg-muted/50' : ''
+                  }`}
+                  data-test={`technology-add-${tech.slug}-button`}
                 >
                   <span className="font-medium">{tech.name}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={isSaving}
-                    onClick={() => addTechnology(tech)}
-                    data-test={`technology-add-${tech.slug}-button`}
-                  >
-                    Add
-                  </Button>
                 </div>
-              ))}
-            </div>
-          )}
-          {search.trim() && searchResults.length === 0 && (
-            <div className="absolute z-10 mt-1 w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground shadow-md">
-              No technologies found.
-            </div>
-          )}
-        </div>
+              ))
+            ) : (
+              <div className="px-4 py-3 text-sm text-muted-foreground">No technologies found.</div>
+            )}
+          </PopoverContent>
+        </Popover>
       </InternPanel>
 
       {/* Declared technologies list */}
