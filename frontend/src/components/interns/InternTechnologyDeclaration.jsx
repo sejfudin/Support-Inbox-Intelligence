@@ -4,9 +4,31 @@ import { Input } from '@/components/ui/input';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
-import { useMyInternProfile, useUpdateMyTechnologies, useMyInternReadiness } from '@/queries/interns';
+import {
+  useMyInternProfile,
+  useUpdateMyTechnologies,
+  useMyInternReadiness,
+} from '@/queries/interns';
 import { useTechnologies } from '@/queries/technologies';
 import { toast } from 'sonner';
+
+function DropdownMessage({ children }) {
+  return <div className="px-4 py-3 text-sm text-muted-foreground">{children}</div>;
+}
+
+function TechnologyOption({ tech }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-tech-id={tech._id}
+      className="cursor-pointer px-4 py-2.5 text-sm outline-none first:rounded-t-xl last:rounded-b-xl hover:bg-muted/50 focus:bg-muted/50"
+      data-test={`technology-add-${tech.slug}-button`}
+    >
+      <span className="font-medium">{tech.name}</span>
+    </div>
+  );
+}
 
 export function InternTechnologyDeclaration() {
   const { data: intern } = useMyInternProfile();
@@ -15,8 +37,10 @@ export function InternTechnologyDeclaration() {
   const { mutate: saveTechnologies, isPending: isSaving } = useUpdateMyTechnologies();
 
   const [search, setSearch] = useState('');
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
-  const itemRefs = useRef([]);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const listRef = useRef(null);
+  const debounceRef = useRef(null);
 
   // Set of declared tech IDs — fast lookup for "already declared?"
   const declaredIds = useMemo(
@@ -38,33 +62,46 @@ export function InternTechnologyDeclaration() {
 
   // Catalog filtered by search text, excluding already-declared ones
   const searchResults = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return [];
     return allTechnologies.filter(
       (t) => !declaredIds.has(t._id) && t.name.toLowerCase().includes(q)
     );
-  }, [search, allTechnologies, declaredIds]);
+  }, [debouncedSearch, allTechnologies, declaredIds]);
 
   useEffect(() => {
-    setHighlightedIndex(0);
-  }, [searchResults]);
+    return () => clearTimeout(debounceRef.current);
+  }, []);
 
-  useEffect(() => {
-    itemRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
-  }, [highlightedIndex]);
+  // ArrowDown from the search input hands focus to the first row.
+  const focusFirstRow = (e) => {
+    if (e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    listRef.current?.querySelector('[role="button"]')?.focus();
+  };
 
-  const handleSearchKeyDown = (e) => {
-    if (searchResults.length === 0) return;
+  // Single delegated handler on the row wrapper — resolves the tech from
+  // the row's data-tech-id instead of each row carrying its own handlers.
+  const handleListClick = (e) => {
+    const row = e.target.closest('[data-tech-id]');
+    if (!row || isSaving) return;
+    const tech = searchResults.find((t) => t._id === row.dataset.techId);
+    if (tech) addTechnology(tech);
+  };
+
+  const handleListKeyDown = (e) => {
+    const row = e.target.closest('[data-tech-id]');
+    if (!row) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setHighlightedIndex((i) => (i + 1) % searchResults.length);
+      row.nextElementSibling?.focus();
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlightedIndex((i) => (i - 1 + searchResults.length) % searchResults.length);
-    } else if (e.key === 'Enter') {
+      row.previousElementSibling?.focus();
+    } else if ((e.key === 'Enter' || e.key === ' ') && !isSaving) {
       e.preventDefault();
-      const tech = searchResults[highlightedIndex];
-      if (tech && !isSaving) addTechnology(tech);
+      const tech = searchResults.find((t) => t._id === row.dataset.techId);
+      if (tech) addTechnology(tech);
     }
   };
 
@@ -87,6 +124,17 @@ export function InternTechnologyDeclaration() {
     });
   };
 
+  const onSearchChange = (e) => {
+    const value = e.target.value;
+    setSearch(value);
+    setIsLoading(true);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+      setIsLoading(false);
+    }, 300);
+  };
+
   return (
     <div className="space-y-6">
       {/* Search + add section */}
@@ -106,8 +154,8 @@ export function InternTechnologyDeclaration() {
               <Input
                 placeholder="Search technologies..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={handleSearchKeyDown}
+                onChange={onSearchChange}
+                onKeyDown={focusFirstRow}
                 data-test="technology-search-input"
               />
             </div>
@@ -118,28 +166,16 @@ export function InternTechnologyDeclaration() {
             onOpenAutoFocus={(e) => e.preventDefault()}
             className="max-h-72 w-[var(--radix-popper-anchor-width)] overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-md"
           >
-            {searchResults.length > 0 ? (
-              searchResults.map((tech, index) => (
-                <div
-                  key={tech._id}
-                  ref={(el) => (itemRefs.current[index] = el)}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => !isSaving && addTechnology(tech)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                  onKeyDown={(e) => {
-                    if ((e.key === 'Enter' || e.key === ' ') && !isSaving) addTechnology(tech);
-                  }}
-                  className={`cursor-pointer px-4 py-2.5 text-sm first:rounded-t-xl last:rounded-b-xl ${
-                    index === highlightedIndex ? 'bg-muted/50' : ''
-                  }`}
-                  data-test={`technology-add-${tech.slug}-button`}
-                >
-                  <span className="font-medium">{tech.name}</span>
-                </div>
-              ))
-            ) : (
-              <div className="px-4 py-3 text-sm text-muted-foreground">No technologies found.</div>
+            {isLoading && <DropdownMessage>Searching...</DropdownMessage>}
+            {!isLoading && searchResults.length === 0 && (
+              <DropdownMessage>No technologies found.</DropdownMessage>
+            )}
+            {!isLoading && searchResults.length > 0 && (
+              <div ref={listRef} onClick={handleListClick} onKeyDown={handleListKeyDown}>
+                {searchResults.map((tech) => (
+                  <TechnologyOption key={tech._id} tech={tech} />
+                ))}
+              </div>
             )}
           </PopoverContent>
         </Popover>
