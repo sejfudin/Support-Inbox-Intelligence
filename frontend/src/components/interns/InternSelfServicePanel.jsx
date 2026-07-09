@@ -7,7 +7,7 @@ import {
   useMyInternProfile,
   useUploadMyCv,
 } from '@/queries/interns';
-import { getInternStatusLabel } from '@/helpers/internProfile';
+import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
 import { toast } from 'sonner';
 
 export function InternSelfServicePanel() {
@@ -55,9 +55,15 @@ export function InternSelfServicePanel() {
             <dt className="text-muted-foreground">Type</dt>
             <dd className="font-medium text-foreground">{intern.internshipType?.name}</dd>
           </div>
-          <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
             <dt className="text-muted-foreground">Status</dt>
-            <dd className="font-medium text-foreground">{getInternStatusLabel(intern.status)}</dd>
+            <dd>
+              {intern.status ? (
+                <SymphonyStatusBadge status={intern.status} />
+              ) : (
+                <span className="font-medium text-foreground">—</span>
+              )}
+            </dd>
           </div>
           <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
             <dt className="text-muted-foreground">Start date</dt>

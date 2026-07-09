@@ -15,7 +15,7 @@ import { PageShell, PageSection } from '@/components/PageShell';
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
-import { getInternStatusLabel } from '@/helpers/internProfile';
+import { getInternStatusLabel, INTERN_STATUSES } from '@/helpers/internProfile';
 
 export default function MentorInternsPage() {
   const navigate = useNavigate();
@@ -110,11 +110,11 @@ export default function MentorInternsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="ready">Ready</SelectItem>
-                <SelectItem value="placed">Placed</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="discontinued">Discontinued</SelectItem>
+                {INTERN_STATUSES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

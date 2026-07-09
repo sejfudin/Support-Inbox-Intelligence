@@ -1,5 +1,6 @@
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { FunnelRow } from '@/components/symphony/dashboard/FunnelRow';
+import { getInternStatusLabel, INTERN_STATUSES } from '@/helpers/internProfile';
 
 export function ProgrammeBreakdown({
   isPending,
@@ -17,11 +18,11 @@ export function ProgrammeBreakdown({
         <div className="mt-4 space-y-3">
           {isPending && <p className="text-sm text-muted-foreground">Loading funnel...</p>}
           {!isPending &&
-            ['active', 'ready', 'placed', 'completed', 'discontinued'].map((status) => (
+            INTERN_STATUSES.map(({ value }) => (
               <FunnelRow
-                key={status}
-                label={status}
-                count={funnel[status] ?? 0}
+                key={value}
+                label={getInternStatusLabel(value)}
+                count={funnel[value] ?? 0}
                 total={funnelTotal}
               />
             ))}

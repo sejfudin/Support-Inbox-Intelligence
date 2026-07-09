@@ -103,7 +103,6 @@ export function InternProfileView({
           fullname={intern.user?.fullname}
           email={intern.user?.email}
           status={intern.status}
-          readyForPlacement={intern.readyForPlacement}
           programme={intern.internshipType?.name}
           hub={intern.user?.hub?.name}
           startDate={formattedStartDate}
