@@ -1,6 +1,6 @@
 export const INTERN_STATUSES = [
-  { value: 'active', label: 'Active' },
-  { value: 'ready', label: 'Ready' },
+  { value: 'active', label: 'Learning' },
+  { value: 'ready', label: 'Recommended' },
   { value: 'placed', label: 'Placed' },
   { value: 'completed', label: 'Completed' },
   { value: 'discontinued', label: 'Discontinued' },
