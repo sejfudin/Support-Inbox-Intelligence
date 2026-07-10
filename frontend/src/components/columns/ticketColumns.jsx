@@ -1,3 +1,5 @@
+import { format } from 'date-fns';
+import { ArchiveRestore } from 'lucide-react';
 import TicketStatusBadge from '../StatusBadge';
 import PriorityIndicator from '../PriorityIndicator';
 import AssigneesAvatar from '../Tickets/AssigneesAvatar';
@@ -12,8 +14,10 @@ export function createTicketColumns({
   statusBadgeConfig = {},
   statusIsDone,
   statusTracksTime,
+  variant = 'default',
+  onRestore,
 } = {}) {
-  return [
+  const columns = [
     {
       accessorKey: 'taskNumber',
       header: 'ID',
@@ -160,6 +164,62 @@ export function createTicketColumns({
       cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
     },
   ];
+
+  if (variant === 'archive') {
+    const archivedColumn = {
+      accessorKey: 'archivedAt',
+      header: 'ARCHIVED',
+      meta: {
+        headerClassName: 'w-[14%]',
+        cellClassName: 'w-[14%] whitespace-nowrap text-xs font-medium text-muted-foreground',
+      },
+      cell: ({ row }) => {
+        const archivedAt = row.original.archivedAt;
+        if (!archivedAt) return <span className="text-muted-foreground/60">—</span>;
+        try {
+          return format(new Date(archivedAt), 'MMM d, yyyy');
+        } catch {
+          return <span className="text-muted-foreground/60">—</span>;
+        }
+      },
+    };
+
+    // Archived tickets are a record: keep identity/outcome columns, drop planning
+    // signals (priority, due date, story points) that no longer apply.
+    const keep = new Set(['taskNumber', 'title', 'status', 'totalTimeSpent', 'assignedTo']);
+    const archiveColumns = columns.filter((column) => keep.has(column.accessorKey));
+    archiveColumns.push(archivedColumn);
+
+    if (onRestore) {
+      archiveColumns.push({
+        id: 'actions',
+        header: '',
+        meta: {
+          headerClassName: 'w-[10%]',
+          cellClassName: 'w-[10%] whitespace-nowrap text-right',
+        },
+        cell: ({ row }) => (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRestore(row.original);
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+            title="Restore ticket"
+            data-test="archive-row-restore"
+          >
+            <ArchiveRestore className="h-3.5 w-3.5" />
+            Restore
+          </button>
+        ),
+      });
+    }
+
+    return archiveColumns;
+  }
+
+  return columns;
 }
 
 export const columns = createTicketColumns();

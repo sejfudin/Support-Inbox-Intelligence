@@ -85,9 +85,6 @@ export const TicketDetailsModal = ({
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isActionPending, setIsActionPending] = useState(false);
   const [actionError, setActionError] = useState(null);
-  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
-  const [isRestorePending, setIsRestorePending] = useState(false);
-  const [restoreError, setRestoreError] = useState(null);
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
   const [unlinkError, setUnlinkError] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
@@ -390,8 +387,24 @@ export const TicketDetailsModal = ({
   };
 
   const handleRestore = () => {
-    setRestoreError(null);
-    setIsRestoreModalOpen(true);
+    if (!ticketId) return;
+    unarchiveTicket(ticketId, {
+      onSuccess: () => {
+        onClose();
+        toast.success('Ticket restored', {
+          description: 'The ticket is back in the active views under its current status.',
+          action: {
+            label: 'Undo',
+            onClick: () => archiveTicket(ticketId),
+          },
+        });
+      },
+      onError: (error) => {
+        toast.error('Failed to restore ticket', {
+          description: error?.response?.data?.message || 'Please try again.',
+        });
+      },
+    });
   };
 
   const handleExportSingleCsv = () => {
@@ -514,31 +527,6 @@ export const TicketDetailsModal = ({
         const message =
           error?.response?.data?.message || 'Failed to archive ticket. Please try again.';
         setActionError(message);
-        toast.error('Action failed', {
-          description: message,
-        });
-      },
-    });
-  };
-
-  const handleConfirmRestore = () => {
-    setIsRestorePending(true);
-    setRestoreError(null);
-
-    unarchiveTicket(ticketId, {
-      onSuccess: () => {
-        setIsRestoreModalOpen(false);
-        setIsRestorePending(false);
-        onClose();
-        toast.success('Ticket restored', {
-          description: 'The ticket is back in the active views under its current status.',
-        });
-      },
-      onError: (error) => {
-        setIsRestorePending(false);
-        const message =
-          error?.response?.data?.message || 'Failed to restore ticket. Please try again.';
-        setRestoreError(message);
         toast.error('Action failed', {
           description: message,
         });
@@ -787,18 +775,6 @@ export const TicketDetailsModal = ({
             loadingLabel="Archiving..."
           />
 
-          <DeleteConfirmModal
-            isOpen={isRestoreModalOpen}
-            onClose={() => setIsRestoreModalOpen(false)}
-            onConfirm={handleConfirmRestore}
-            isLoading={isRestorePending}
-            errorMessage={restoreError}
-            title="Restore Ticket"
-            description="Restore this ticket? It will reappear in the active ticket views under its current status."
-            confirmLabel="Restore"
-            loadingLabel="Restoring..."
-            tone="primary"
-          />
 
           <DeleteConfirmModal
             isOpen={isUnlinkModalOpen}
