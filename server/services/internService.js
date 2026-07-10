@@ -204,6 +204,13 @@ const updateInternByMentor = async (user, internUserId, payload) => {
   const allowedStatuses = INTERN_STATUSES;
 
   if (payload.status !== undefined) {
+    // Lifecycle status is the assigned mentor's responsibility only — not admins
+    // or unassigned mentors, even though they can write other mentor data.
+    if (!isAssignedMentor(profile, user._id)) {
+      const err = new Error('Only the assigned mentor can change this intern’s status');
+      err.statusCode = 403;
+      throw err;
+    }
     if (!allowedStatuses.includes(payload.status)) throw new Error('Invalid status');
     profile.status = payload.status;
   }
