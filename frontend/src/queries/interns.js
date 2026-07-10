@@ -15,6 +15,7 @@ import {
   updateIntern,
   updateInternDocumentationLinks,
   updateMyTechnologies,
+  updateMyPosition,
   uploadMyCv,
   upsertInternReadiness,
 } from '@/api/interns';
@@ -73,6 +74,16 @@ export const useUpdateMyTechnologies = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: MY_INTERN_READINESS_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateMyPosition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMyPosition,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
     },
   });
 };
