@@ -18,7 +18,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-export function DataTable({ columns, data, pagination, onPageChange, meta }) {
+export function DataTable({
+  columns,
+  data,
+  pagination,
+  onPageChange,
+  meta,
+  hideHeader = false,
+  tableClassName = 'min-w-[900px] table-fixed',
+}) {
   const [sorting, setSorting] = React.useState([]);
   const currentPage = pagination?.page || 1;
   const totalResults = pagination?.total || 0;
@@ -56,7 +64,8 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
   return (
     <div className="w-full">
       <div className="w-full overflow-x-auto">
-        <Table className="min-w-[900px] table-fixed">
+        <Table className={tableClassName}>
+          {!hideHeader && (
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -73,6 +82,7 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
               </TableRow>
             ))}
           </TableHeader>
+          )}
 
           <TableBody>
             {table.getRowModel().rows?.length ? (

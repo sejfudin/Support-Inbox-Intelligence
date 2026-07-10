@@ -77,7 +77,7 @@ export default function ArchivePage() {
         hideViewMode={true}
         hideNewTicket={true}
         title="Archive"
-        subtitle="Review completed and closed tickets from this workspace."
+        subtitle="Archived tickets — restore any to bring it back to the active board."
       />
 
       <PageSection className="flex-1 pt-6">
@@ -95,6 +95,8 @@ export default function ArchivePage() {
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{ onRowClick: openTicketDetails }}
+              hideHeader
+              tableClassName="w-full"
             />
           </TicketsState>
         </PagePanel>
