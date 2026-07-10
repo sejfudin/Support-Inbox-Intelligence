@@ -184,9 +184,9 @@ export function createTicketColumns({
       },
     };
 
-    // Archived tickets are a record: keep identity/outcome columns, drop planning
-    // signals (priority, due date, story points) that no longer apply.
-    const keep = new Set(['taskNumber', 'title', 'status', 'totalTimeSpent', 'assignedTo']);
+    // Archived tickets are a record you scan to restore: keep only identity
+    // (id, subject) plus the archive date; everything else lives in the modal.
+    const keep = new Set(['taskNumber', 'title']);
     const archiveColumns = columns.filter((column) => keep.has(column.accessorKey));
     archiveColumns.push(archivedColumn);
 
