@@ -20,6 +20,8 @@ import {
 import { useTicket, useUpdateTicket, useUploadTicketDescriptionImages } from '@/queries/tickets';
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
+import TicketStatusBadge from '@/components/StatusBadge';
+import PriorityIndicator from '@/components/PriorityIndicator';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { useArchiveTicket, useUnarchiveTicket } from '@/queries/tickets';
 import { useUsers } from '@/queries/users';
@@ -813,28 +815,29 @@ export const TicketDetailsModal = ({
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8">
               <div className="flex min-w-0 flex-1">
-                <input
-                  type="text"
-                  value={title}
-                  readOnly={isArchived}
-                  onChange={(e) => setTitle(e.target.value)}
-                  data-test="ticket-modal-title-input"
-                  className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
-                    !title.trim() ? 'text-destructive' : 'text-foreground'
-                  } ${
-                    isArchived
-                      ? 'cursor-default'
-                      : 'cursor-text hover:bg-muted/50 focus:bg-muted/50 focus:border-border focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background'
-                  }`}
-                  placeholder="Enter ticket title..."
-                />
+                {isArchived ? (
+                  <h1
+                    data-test="ticket-modal-title-heading"
+                    className="w-full min-w-0 break-words px-2 py-1 text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-3xl lg:text-4xl"
+                  >
+                    {title}
+                  </h1>
+                ) : (
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    data-test="ticket-modal-title-input"
+                    className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
+                      !title.trim() ? 'text-destructive' : 'text-foreground'
+                    } cursor-text hover:bg-muted/50 focus:bg-muted/50 focus:border-border focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background`}
+                    placeholder="Enter ticket title..."
+                  />
+                )}
               </div>
 
-              <div
-                className={`grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px] ${
-                  isArchived ? 'pointer-events-none' : ''
-                }`}
-              >
+              {!isArchived && (
+                <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px]">
                 <div className="space-y-2 min-w-0">
                   <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                     Assignees
@@ -971,7 +974,59 @@ export const TicketDetailsModal = ({
                     className="w-full justify-between"
                   />
                 </div>
-              </div>
+                </div>
+              )}
+
+              {isArchived && (
+                <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px]">
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Assignees
+                    </div>
+                    <div className="flex min-h-[40px] items-center gap-2 px-1 py-2">
+                      {selectedUsersObjects.length > 0 ? (
+                        <>
+                          <AssigneesAvatar users={selectedUsersObjects.slice(0, 3)} size="sm" />
+                          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                            {selectedUsersObjects[0]?.fullName ||
+                              selectedUsersObjects[0]?.fullname ||
+                              selectedUsersObjects[0]?.email ||
+                              'Assigned'}
+                          </span>
+                          {selectedUsersObjects.length > 1 && (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              +{selectedUsersObjects.length - 1}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Status
+                    </div>
+                    <div className="px-1 py-2">
+                      <TicketStatusBadge
+                        status={ticket?.status}
+                        statusBadgeConfig={helpers.statusBadgeConfig}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Priority
+                    </div>
+                    <div className="px-1 py-2">
+                      <PriorityIndicator priority={ticket?.priority} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {!title.trim() && (
