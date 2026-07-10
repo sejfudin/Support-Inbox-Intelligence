@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "seed": "node seeder/seed.js",
     "seed:test": "node seeder/seedTestingData.js",
+    "seed:positions": "node seeder/seedPositions.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js"
   },
   "dependencies": {
