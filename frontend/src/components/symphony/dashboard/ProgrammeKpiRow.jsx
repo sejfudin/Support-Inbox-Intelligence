@@ -96,7 +96,7 @@ function KpiCard({ label, value, sub, hint, dot, highlighted, info }) {
 
 export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = null }) {
   const dash = '—';
-  const ready = stats?.readyForPlacement ?? 0;
+  const ready = stats?.readyCount ?? 0;
   const inPipeline = summary?.activeRecommendations ?? 0;
   const interviewing = summary?.interviewingCount ?? 0;
   const notInPipeline = summary?.readyWithoutActiveRecommendation ?? 0;

@@ -39,21 +39,14 @@ const PROFILE_POPULATE = [
   { path: 'selfTechnologies', select: 'name slug' },
 ];
 
-const formatProfile = (profile, viewerRole) => {
+const formatProfile = (profile) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  const isInternViewer = viewerRole === ROLES.INTERN;
 
-  const formatted = {
+  return {
     ...plain,
     id: plain._id,
     cvUrl: buildCvUrl(plain.cvPath),
   };
-
-  if (isInternViewer) {
-    delete formatted.readyForPlacement;
-  }
-
-  return formatted;
 };
 
 const buildListFilter = (user, query) => {
@@ -80,8 +73,6 @@ const buildListFilter = (user, query) => {
 
   if (query.internshipTypeId) filter.internshipType = query.internshipTypeId;
   if (query.profileStatus) filter.status = query.profileStatus;
-  if (query.readyForPlacement === 'true') filter.readyForPlacement = true;
-  if (query.readyForPlacement === 'false') filter.readyForPlacement = false;
   if (query.technologyId) filter.selfTechnologies = query.technologyId;
 
   return { profileFilter: filter, userFilter };
@@ -206,10 +197,6 @@ const updateInternByMentor = async (user, internUserId, payload) => {
   if (payload.status !== undefined) {
     if (!allowedStatuses.includes(payload.status)) throw new Error('Invalid status');
     profile.status = payload.status;
-  }
-
-  if (payload.readyForPlacement !== undefined) {
-    profile.readyForPlacement = Boolean(payload.readyForPlacement);
   }
 
   if (payload.expectedEndDate !== undefined) {
@@ -449,7 +436,7 @@ const getProgrammeStats = async (user) => {
 
   const [
     funnelRows,
-    readyForPlacement,
+    readyCount,
     activeByProgrammeRows,
     activeByHubRows,
     technologySupplyRows,
@@ -462,7 +449,7 @@ const getProgrammeStats = async (user) => {
     allActiveRecommendations,
   ] = await Promise.all([
     InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-    InternProfile.countDocuments({ readyForPlacement: true }),
+    InternProfile.countDocuments({ status: 'ready' }),
     InternProfile.aggregate([
       { $match: { status: { $in: activeStatuses } } },
       { $group: { _id: '$internshipType', count: { $sum: 1 } } },
@@ -552,7 +539,7 @@ const getProgrammeStats = async (user) => {
       },
       { $sort: { readyCount: -1, learningCount: -1, 'technology.name': 1 } },
     ]),
-    InternProfile.find({ readyForPlacement: true })
+    InternProfile.find({ status: 'ready' })
       .populate([
         {
           path: 'user',
@@ -564,7 +551,7 @@ const getProgrammeStats = async (user) => {
       ])
       .sort({ expectedEndDate: 1, updatedAt: -1 })
       .lean(),
-    InternProfile.find({ readyForPlacement: true })
+    InternProfile.find({ status: 'ready' })
       .populate([
         {
           path: 'user',
@@ -805,7 +792,7 @@ const getProgrammeStats = async (user) => {
 
   return {
     funnel,
-    readyForPlacement,
+    readyCount,
     activeByProgramme: activeByProgrammeRows.map((row) => ({
       programme: row.programme,
       count: row.count,

@@ -875,7 +875,6 @@ const seedTestingData = async () => {
         secondaryMentor: secondaryMentor?._id,
         startDate: monthsAgo(4),
         status: spec.status,
-        readyForPlacement: spec.ready,
         expectedEndDate: spec.endDays != null ? daysFromNow(spec.endDays) : undefined,
         selfTechnologies: selfTechIds,
       });
