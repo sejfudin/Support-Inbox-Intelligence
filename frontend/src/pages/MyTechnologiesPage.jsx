@@ -1,5 +1,6 @@
 import { PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
+import { InternPositionDeclaration } from '@/components/interns/InternPositionDeclaration';
 import { InternTechnologyDeclaration } from '@/components/interns/InternTechnologyDeclaration';
 
 const MyTechnologiesPage = () => {
@@ -9,9 +10,10 @@ const MyTechnologiesPage = () => {
         <div className="mx-auto w-full max-w-3xl space-y-6">
           <PageHeading
             kicker="Internship"
-            title="My Technologies"
-            subtitle="Declare the technologies you are working toward. Your mentor will assess your readiness for each."
+            title="Position & Technologies"
+            subtitle="Declare your main position and the technologies you are working toward. Your mentor will assess your readiness for each technology."
           />
+          <InternPositionDeclaration />
           <InternTechnologyDeclaration />
         </div>
       </PageSection>
