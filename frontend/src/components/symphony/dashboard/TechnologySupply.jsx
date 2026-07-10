@@ -2,24 +2,18 @@ import { useState } from 'react';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
 
-const PALETTE = ['#6C63FF', '#4F86E8', '#2FA98C', '#DA7328', '#E0568A', '#3FB1C8', '#BC8A0E', '#B26BD6'];
+const PALETTE = [
+  '#6C63FF',
+  '#4F86E8',
+  '#2FA98C',
+  '#DA7328',
+  '#E0568A',
+  '#3FB1C8',
+  '#BC8A0E',
+  '#B26BD6',
+];
 
 const INITIAL_VISIBLE = 7;
-
-const POSITION_POOL = [
-  { name: 'Fullstack Engineer', count: 28 },
-  { name: 'Frontend Engineer', count: 22 },
-  { name: 'Backend Engineer', count: 19 },
-  { name: 'Data Engineer', count: 14 },
-  { name: 'Data Analyst', count: 11 },
-  { name: 'DevOps Engineer', count: 9 },
-  { name: 'Mobile Engineer', count: 8 },
-  { name: 'ML Engineer', count: 7 },
-  { name: 'QA Engineer', count: 5 },
-  { name: 'Cloud Engineer', count: 4 },
-  { name: 'Security Engineer', count: 3 },
-  { name: 'Product Designer', count: 1 },
-];
 
 function RankedRow({ rank, name, count, pct, color, max, highlighted }) {
   const width = max > 0 ? Math.max(4, (count / max) * 100) : 0;
@@ -111,11 +105,19 @@ function RankedPool({ kicker, title, unit, rows, emptyLabel }) {
   );
 }
 
-export function TechnologySupply({ isPending, technologySupply = [] }) {
+export function TechnologySupply({ isPending, technologySupply = [], positionSupply = [] }) {
   const techRows = technologySupply
     .map((row) => ({
       name: row.technology?.name || 'Unknown',
       count: (row.readyCount ?? 0) + (row.learningCount ?? 0),
+    }))
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const roleRows = positionSupply
+    .map((row) => ({
+      name: row.position?.name || 'Unknown',
+      count: row.count ?? 0,
     }))
     .filter((r) => r.count > 0)
     .sort((a, b) => b.count - a.count);
@@ -141,8 +143,8 @@ export function TechnologySupply({ isPending, technologySupply = [] }) {
           kicker="BY POSITION"
           title="Roles in the pool"
           unit="people"
-          rows={POSITION_POOL}
-          emptyLabel="No role data yet."
+          rows={isPending ? [] : roleRows}
+          emptyLabel={isPending ? 'Loading…' : 'No role data yet.'}
         />
       </div>
     </div>

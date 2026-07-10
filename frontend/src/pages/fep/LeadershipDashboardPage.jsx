@@ -39,7 +39,11 @@ export default function LeadershipDashboardPage() {
         recommendationOutcomes={stats?.recommendationOutcomes}
       />
 
-      <TechnologySupply isPending={isPending} technologySupply={stats?.technologySupply ?? []} />
+      <TechnologySupply
+        isPending={isPending}
+        technologySupply={stats?.technologySupply ?? []}
+        positionSupply={stats?.positionSupply ?? []}
+      />
 
       <ProgrammeBreakdowns
         isPending={isPending}
