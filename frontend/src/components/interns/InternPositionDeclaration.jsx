@@ -23,37 +23,33 @@ export function InternPositionDeclaration() {
   };
 
   return (
-    <InternPanel className="overflow-hidden p-0">
-      <div className="border-b border-border/60 px-5 py-4 md:px-6">
-        <h3 className="text-lg font-semibold">My position</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Declare your main position in the firm.
+    <InternPanel className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between md:px-6">
+      <div>
+        <h3 className="text-base font-semibold text-foreground">My position</h3>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Your main position in the firm.
         </p>
       </div>
-      <div className="px-5 py-4 md:px-6">
-        {positions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No positions configured yet. Check back later.
-          </p>
-        ) : (
-          <Select
-            value={intern?.declaredPosition?._id || ''}
-            onValueChange={handleChange}
-            disabled={isSaving}
-          >
-            <SelectTrigger className="w-full max-w-sm" data-test="position-select">
-              <SelectValue placeholder="Select your position" />
-            </SelectTrigger>
-            <SelectContent>
-              {positions.map((position) => (
-                <SelectItem key={position._id} value={position._id}>
-                  {position.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
+      {positions.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No positions configured yet.</p>
+      ) : (
+        <Select
+          value={intern?.declaredPosition?._id || ''}
+          onValueChange={handleChange}
+          disabled={isSaving}
+        >
+          <SelectTrigger className="w-full sm:w-56" data-test="position-select">
+            <SelectValue placeholder="Select your position" />
+          </SelectTrigger>
+          <SelectContent>
+            {positions.map((position) => (
+              <SelectItem key={position._id} value={position._id}>
+                {position.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </InternPanel>
   );
 }
