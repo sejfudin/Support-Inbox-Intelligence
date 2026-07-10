@@ -56,7 +56,7 @@ export function TechnologySupplyCard({ isPending, technologySupply = [], maxRead
         </div>
       )}
       <Link
-        to="/interns?ready=true"
+        to="/interns?status=ready"
         className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
         data-test="leadership-dashboard-tech-supply-link"
       >
