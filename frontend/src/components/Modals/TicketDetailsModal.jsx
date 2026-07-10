@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
+import { formatDuration } from '@/helpers/formatDuration';
 import {
   Calendar,
   Clock,
@@ -788,6 +789,19 @@ export const TicketDetailsModal = ({
             loadingLabel="Unlinking..."
           />
 
+          {isArchived && (
+            <div
+              className="mb-6 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
+              data-test="ticket-modal-archived-banner"
+            >
+              <Archive className="h-4 w-4 shrink-0" />
+              <span>
+                <span className="font-semibold text-foreground">Archived</span> — read-only record.
+                Restore to edit.
+              </span>
+            </div>
+          )}
+
           <div className="group relative mb-8 flex flex-col gap-3">
             {ticket?.taskNumber && (
               <div className="flex">
@@ -818,7 +832,7 @@ export const TicketDetailsModal = ({
 
               <div
                 className={`grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px] ${
-                  isArchived ? 'pointer-events-none opacity-70' : ''
+                  isArchived ? 'pointer-events-none' : ''
                 }`}
               >
                 <div className="space-y-2 min-w-0">
@@ -989,33 +1003,35 @@ export const TicketDetailsModal = ({
                         Description
                       </span>
                     </div>
-                    <div className="min-w-0 flex items-center gap-2 justify-end">
-                      <input
-                        ref={descriptionInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        multiple
-                        className="hidden"
-                        onChange={handleDescriptionImagePick}
-                        data-test="ticket-modal-description-image-file-input"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => descriptionInputRef.current?.click()}
-                        disabled={isArchived || uploadDescriptionImagesMutation.isPending}
-                        className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                        data-test="ticket-modal-description-upload-button"
-                      >
-                        <ImagePlus className="w-3.5 h-3.5" />
-                        Upload
-                      </button>
-                      <RichTextEditorImageOptions />
-                      <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
-                        <div className="w-max">
-                          <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
+                    {!isArchived && (
+                      <div className="min-w-0 flex items-center gap-2 justify-end">
+                        <input
+                          ref={descriptionInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          multiple
+                          className="hidden"
+                          onChange={handleDescriptionImagePick}
+                          data-test="ticket-modal-description-image-file-input"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => descriptionInputRef.current?.click()}
+                          disabled={uploadDescriptionImagesMutation.isPending}
+                          className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                          data-test="ticket-modal-description-upload-button"
+                        >
+                          <ImagePlus className="w-3.5 h-3.5" />
+                          Upload
+                        </button>
+                        <RichTextEditorImageOptions />
+                        <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
+                          <div className="w-max">
+                            <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   <RichTextEditorContent
                     className="p-3 sm:p-4"
@@ -1241,6 +1257,33 @@ export const TicketDetailsModal = ({
                           </div>
                         </div>
                       </div>
+
+                      {isArchived && ticket?.doneAt && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                              Resolution time
+                            </span>
+                          </div>
+                          <div className="flex min-h-[44px] flex-col justify-center px-1.5 py-2">
+                            <span className="text-sm font-semibold text-foreground leading-none">
+                              {formatDuration(
+                                Math.max(
+                                  0,
+                                  Math.floor(
+                                    (new Date(ticket.doneAt).getTime() -
+                                      new Date(ticket.createdAt).getTime()) /
+                                      1000
+                                  )
+                                )
+                              )}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-medium mt-1">
+                              Resolved {format(new Date(ticket.doneAt), 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -1267,9 +1310,9 @@ export const TicketDetailsModal = ({
                     <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
                       <PRCard
                         pr={ticket.linkedPullRequest}
-                        onRefresh={handleRefreshPR}
+                        onRefresh={isArchived ? undefined : handleRefreshPR}
                         isRefreshing={isRefreshingPR}
-                        onUnlink={handleUnlinkPR}
+                        onUnlink={isArchived ? undefined : handleUnlinkPR}
                         isUnlinking={isUnlinkingPR}
                       />
                     </AccordionContent>
