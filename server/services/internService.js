@@ -7,6 +7,7 @@ const Evaluation = require('../models/Evaluation');
 const Recommendation = require('../models/Recommendation');
 const { RECOMMENDATION_STATUSES } = require('../models/Recommendation');
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
 const { ROLES } = require('../constants/roles');
 const {
   canViewFepDirectory,
@@ -37,6 +38,7 @@ const PROFILE_POPULATE = [
     populate: { path: 'hub', select: 'name' },
   },
   { path: 'selfTechnologies', select: 'name slug' },
+  { path: 'declaredPosition', select: 'name slug' },
 ];
 
 const formatProfile = (profile, viewerRole) => {
@@ -187,6 +189,25 @@ const updateSelfTechnologies = async (user, technologyIds = []) => {
   }
 
   profile.selfTechnologies = ids;
+  await profile.save();
+  return getMyInternProfile(user);
+};
+
+const updateSelfPosition = async (user, positionId = null) => {
+  const profile = await InternProfile.findOne({ user: user._id });
+  if (!profile) throw new Error('Intern profile not found');
+  if (!canEditOwnInternProfile(user, profile)) {
+    const err = new Error('Not authorized');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (positionId) {
+    const position = await Position.findById(positionId);
+    if (!position) throw new Error('Invalid position');
+  }
+
+  profile.declaredPosition = positionId || null;
   await profile.save();
   return getMyInternProfile(user);
 };
@@ -845,6 +866,7 @@ module.exports = {
   getInternByUserId,
   getMyInternProfile,
   updateSelfTechnologies,
+  updateSelfPosition,
   updateInternByMentor,
   updateDocumentationLinks,
   createInternProfile,

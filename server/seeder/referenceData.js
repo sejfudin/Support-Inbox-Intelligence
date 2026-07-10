@@ -1,8 +1,10 @@
 const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
 const { slugify } = require('../helpers/slugify');
 const DEFAULT_TECHNOLOGIES = require('./defaultTechnologies');
+const DEFAULT_POSITIONS = require('./defaultPositions');
 
 const DEFAULT_HUBS = [
   { name: 'Belgrade', city: 'Belgrade', country: 'Serbia' },
@@ -67,15 +69,23 @@ const seedTechnologies = async () => {
   }
 };
 
+const seedPositions = async () => {
+  for (const { name, slug } of DEFAULT_POSITIONS) {
+    await Position.updateOne({ slug }, { $setOnInsert: { name, slug } }, { upsert: true });
+  }
+};
+
 const seedReferenceData = async () => {
   await seedHubs();
   await seedInternshipTypes();
   await seedTechnologies();
+  await seedPositions();
 };
 
 module.exports = {
   seedHubs,
   seedInternshipTypes,
   seedTechnologies,
+  seedPositions,
   seedReferenceData,
 };
