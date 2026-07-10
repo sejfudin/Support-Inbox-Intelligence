@@ -277,6 +277,24 @@ const archiveTicket = async (req, res, next) => {
   }
 };
 
+const unarchiveTicket = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const ticket = await ticketService.unarchiveTicket(id, req.user._id);
+
+    res.status(200).json({
+      success: true,
+      data: ticket,
+      message: 'Ticket restored successfully',
+    });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
 const getMyTickets = async (req, res, next) => {
   try {
     const {
@@ -390,6 +408,7 @@ module.exports = {
   createTicket,
   updateTicket,
   archiveTicket,
+  unarchiveTicket,
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
