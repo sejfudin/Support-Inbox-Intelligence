@@ -1187,24 +1187,46 @@ export const TicketDetailsModal = ({
                             Due date
                           </span>
                         </div>
-                        <input
-                          type="date"
-                          value={dueDateInput}
-                          disabled={isArchived}
-                          onChange={(e) => setDueDateInput(e.target.value)}
-                          data-test="ticket-modal-due-date-input"
-                          className={`h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
-                            isArchived ? 'cursor-not-allowed opacity-70' : ''
-                          }`}
-                        />
+                        {isArchived ? (
+                          <div className="flex min-h-[40px] items-center px-1 text-sm font-semibold text-foreground">
+                            {dueDateInput ? (
+                              format(new Date(dueDateInput), 'MMM d, yyyy')
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        ) : (
+                          <input
+                            type="date"
+                            value={dueDateInput}
+                            onChange={(e) => setDueDateInput(e.target.value)}
+                            data-test="ticket-modal-due-date-input"
+                            className="h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                          />
+                        )}
                       </div>
 
-                      <StoryPointsField
-                        value={currentStoryPoints}
-                        onChange={handleStoryPointsChange}
-                        disabled={isArchived}
-                        className="space-y-3"
-                      />
+                      {isArchived ? (
+                        <div className="space-y-3">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            Story Points
+                          </span>
+                          <div className="flex min-h-[40px] items-center px-1 text-sm font-semibold text-foreground">
+                            {currentStoryPoints ? (
+                              `SP ${currentStoryPoints}`
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <StoryPointsField
+                          value={currentStoryPoints}
+                          onChange={handleStoryPointsChange}
+                          disabled={isArchived}
+                          className="space-y-3"
+                        />
+                      )}
                     </div>
 
                     {categories.length > 0 && (
@@ -1212,6 +1234,33 @@ export const TicketDetailsModal = ({
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                           Category
                         </span>
+                        {isArchived ? (
+                          <div className="mt-2">
+                            {(() => {
+                              const selected = categories.find(
+                                (c) => String(c._id) === String(currentCategory)
+                              );
+                              if (!selected) {
+                                return <span className="text-sm text-muted-foreground">None</span>;
+                              }
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold text-background"
+                                  style={{
+                                    backgroundColor: selected.color,
+                                    borderColor: selected.color,
+                                  }}
+                                >
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: 'rgba(255,255,255,0.7)' }}
+                                  />
+                                  {selected.name}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        ) : (
                         <div className="flex flex-wrap gap-2 mt-2">
                           <button
                             type="button"
@@ -1257,6 +1306,7 @@ export const TicketDetailsModal = ({
                             </button>
                           ))}
                         </div>
+                        )}
                       </div>
                     )}
                   </AccordionContent>
