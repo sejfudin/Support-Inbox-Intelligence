@@ -5,6 +5,7 @@ import {
   addMessage,
   createTicket,
   archiveTicket,
+  unarchiveTicket,
   updateTicket,
   getMyTickets,
   suggestTicketMetadata,
@@ -79,6 +80,19 @@ export const useArchiveTicket = () => {
 
   return useMutation({
     mutationFn: archiveTicket,
+    onSuccess: (ticket, ticketId) => {
+      const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
+      invalidateTicketScope(queryClient, ticketId);
+      invalidateWorkspaceTicketsScope(queryClient, workspaceId);
+    },
+  });
+};
+
+export const useUnarchiveTicket = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: unarchiveTicket,
     onSuccess: (ticket, ticketId) => {
       const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
       invalidateTicketScope(queryClient, ticketId);

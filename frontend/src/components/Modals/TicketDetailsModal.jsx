@@ -7,6 +7,7 @@ import {
   X,
   Save,
   Archive,
+  ArchiveRestore,
   UserPen,
   Ticket,
   Download,
@@ -19,7 +20,7 @@ import { useTicket, useUpdateTicket, useUploadTicketDescriptionImages } from '@/
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
-import { useArchiveTicket } from '@/queries/tickets';
+import { useArchiveTicket, useUnarchiveTicket } from '@/queries/tickets';
 import { useUsers } from '@/queries/users';
 import { useAuth } from '@/context/AuthContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -84,6 +85,9 @@ export const TicketDetailsModal = ({
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [isActionPending, setIsActionPending] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isRestorePending, setIsRestorePending] = useState(false);
+  const [restoreError, setRestoreError] = useState(null);
   const [isUnlinkModalOpen, setIsUnlinkModalOpen] = useState(false);
   const [unlinkError, setUnlinkError] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
@@ -99,6 +103,7 @@ export const TicketDetailsModal = ({
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
+  const { mutate: unarchiveTicket, isPending: isUnarchiving } = useUnarchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
   const { mutate: unlinkPR, isPending: isUnlinkingPR } = useUnlinkPR();
 
@@ -384,6 +389,11 @@ export const TicketDetailsModal = ({
     setIsActionModalOpen(true);
   };
 
+  const handleRestore = () => {
+    setRestoreError(null);
+    setIsRestoreModalOpen(true);
+  };
+
   const handleExportSingleCsv = () => {
     if (!ticket) return;
 
@@ -504,6 +514,31 @@ export const TicketDetailsModal = ({
         const message =
           error?.response?.data?.message || 'Failed to archive ticket. Please try again.';
         setActionError(message);
+        toast.error('Action failed', {
+          description: message,
+        });
+      },
+    });
+  };
+
+  const handleConfirmRestore = () => {
+    setIsRestorePending(true);
+    setRestoreError(null);
+
+    unarchiveTicket(ticketId, {
+      onSuccess: () => {
+        setIsRestoreModalOpen(false);
+        setIsRestorePending(false);
+        onClose();
+        toast.success('Ticket restored', {
+          description: 'The ticket is back in the active views under its current status.',
+        });
+      },
+      onError: (error) => {
+        setIsRestorePending(false);
+        const message =
+          error?.response?.data?.message || 'Failed to restore ticket. Please try again.';
+        setRestoreError(message);
         toast.error('Action failed', {
           description: message,
         });
@@ -712,6 +747,20 @@ export const TicketDetailsModal = ({
                 {updateTicketMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             )}
+            {isArchived && (
+              <Button
+                variant="default"
+                size="lg"
+                type="button"
+                onClick={handleRestore}
+                disabled={isUnarchiving}
+                data-test="ticket-modal-restore-button"
+                className="flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-all sm:w-auto sm:flex-initial"
+              >
+                <ArchiveRestore className="w-4 h-4" />
+                {isUnarchiving ? 'Restoring...' : 'Restore'}
+              </Button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -733,9 +782,22 @@ export const TicketDetailsModal = ({
             isLoading={isActionPending}
             errorMessage={actionError}
             title="Archive Ticket"
-            description="Archive this ticket? This action cannot be undone."
+            description="Archive this ticket? You can restore it later from the Archive page."
             confirmLabel="Archive"
             loadingLabel="Archiving..."
+          />
+
+          <DeleteConfirmModal
+            isOpen={isRestoreModalOpen}
+            onClose={() => setIsRestoreModalOpen(false)}
+            onConfirm={handleConfirmRestore}
+            isLoading={isRestorePending}
+            errorMessage={restoreError}
+            title="Restore Ticket"
+            description="Restore this ticket? It will reappear in the active ticket views under its current status."
+            confirmLabel="Restore"
+            loadingLabel="Restoring..."
+            tone="primary"
           />
 
           <DeleteConfirmModal
