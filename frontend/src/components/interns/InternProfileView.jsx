@@ -17,8 +17,8 @@ import { useAuth } from '@/context/AuthContext';
 import {
   ROLES,
   canViewComments,
-  canWriteInternMentorData,
   canManageInternDocumentationLinks,
+  canChangeInternStatus,
 } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 
@@ -41,7 +41,6 @@ export function InternProfileView({
   const { user } = useAuth();
   const { data: intern, isPending, isError } = useIntern(userId);
 
-  const canWrite = !readOnly && canWriteInternMentorData(user?.role);
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user?.role);
   const showComments = canViewComments(user?.role);
   const showEvaluations = showComments;
@@ -90,7 +89,10 @@ export function InternProfileView({
       {backLabel}
     </Button>
   ) : null;
-  const hasOverviewSidebar = canWrite;
+  // Lifecycle status is the assigned mentor's responsibility only — not admins
+  // or unassigned mentors. This mirrors the backend guard in updateInternByMentor.
+  const canChangeStatus = !readOnly && canChangeInternStatus(user, intern);
+  const hasOverviewSidebar = canChangeStatus;
   const formattedStartDate = intern.startDate
     ? format(new Date(intern.startDate), 'MMM d, yyyy')
     : '—';
@@ -181,7 +183,7 @@ export function InternProfileView({
                 />
               </InternPanel>
 
-              {hasOverviewSidebar && canWrite && <InternMentorControls intern={intern} />}
+              {hasOverviewSidebar && canChangeStatus && <InternMentorControls intern={intern} />}
             </div>
           </TabsContent>
 

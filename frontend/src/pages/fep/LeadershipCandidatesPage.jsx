@@ -27,13 +27,13 @@ export default function LeadershipCandidatesPage() {
   const [internshipTypeId, setInternshipTypeId] = useState(
     searchParams.get('internshipTypeId') || ''
   );
-  const [profileStatus, setProfileStatus] = useState(searchParams.get('status') || '');
+  const [profileStatus, setProfileStatus] = useState(searchParams.get('status') || 'active');
   const [debouncedSearch] = useDebounce(search, 400);
 
   useEffect(() => {
     setHubId(searchParams.get('hubId') || '');
     setInternshipTypeId(searchParams.get('internshipTypeId') || '');
-    setProfileStatus(searchParams.get('status') || '');
+    setProfileStatus(searchParams.get('status') || 'active');
     setPage(1);
   }, [searchParams]);
 
@@ -135,10 +135,10 @@ export default function LeadershipCandidatesPage() {
               className="symphony-input"
               data-test="leadership-candidates-status-select"
             >
-              <SelectValue placeholder="All statuses" />
+              <SelectValue placeholder="Placement stage" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="all">All stages</SelectItem>
               {INTERN_STATUSES.map((s) => (
                 <SelectItem key={s.value} value={s.value}>
                   {s.label}

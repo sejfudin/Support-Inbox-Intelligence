@@ -8,6 +8,7 @@ const {
   getIntern,
   getMyProfile,
   updateMyTechnologies,
+  updateMyPosition,
   updateIntern,
   updateDocumentationLinks,
   uploadMyCv,
@@ -25,6 +26,7 @@ const {
 router.get('/', protect, listInterns);
 router.get('/me', protect, getMyProfile);
 router.patch('/me/technologies', protect, updateMyTechnologies);
+router.patch('/me/position', protect, updateMyPosition);
 router.get('/me/readiness', protect, getMyReadiness);
 router.post('/me/cv', protect, uploadCv, uploadMyCv);
 router.delete('/me/cv', protect, deleteMyCv);

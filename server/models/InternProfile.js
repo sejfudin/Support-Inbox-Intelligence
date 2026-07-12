@@ -60,6 +60,11 @@ const internProfileSchema = new mongoose.Schema(
         ref: 'Technology',
       },
     ],
+    declaredPosition: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Position',
+      default: null,
+    },
     cvPath: {
       type: String,
       default: null,

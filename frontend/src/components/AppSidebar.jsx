@@ -118,7 +118,7 @@ export default function AppSidebar() {
     : [];
 
   const internNav = isIntern(user?.role)
-    ? [{ label: 'My Technologies', to: '/my-technologies', icon: Code2 }]
+    ? [{ label: 'Position & Technologies', to: '/my-technologies', icon: Code2 }]
     : [];
 
   const adminNav = [

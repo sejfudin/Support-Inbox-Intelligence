@@ -23,6 +23,7 @@ const TicketStatus = require('../models/TicketStatus');
 const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
 const InternProfile = require('../models/InternProfile');
 const ReadinessFlag = require('../models/ReadinessFlag');
 const Evaluation = require('../models/Evaluation');
@@ -84,6 +85,7 @@ const seedTestingData = async () => {
     const hubs = await Hub.find().sort({ name: 1 });
     const programmes = await InternshipType.find({ isActive: true }).sort({ slug: 1 });
     const technologies = await Technology.find().sort({ name: 1 });
+    const positions = await Position.find().sort({ name: 1 });
 
     const hubByName = (name) => {
       const hub = hubs.find((h) => h.name === name);
@@ -102,6 +104,8 @@ const seedTestingData = async () => {
       if (!tech) throw new Error(`Technology not found: ${slug}`);
       return tech;
     };
+
+    const randomPosition = () => positions[Math.floor(Math.random() * positions.length)];
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(PASSWORD, salt);
@@ -877,6 +881,7 @@ const seedTestingData = async () => {
         status: spec.status,
         expectedEndDate: spec.endDays != null ? daysFromNow(spec.endDays) : undefined,
         selfTechnologies: selfTechIds,
+        declaredPosition: positions.length > 0 ? randomPosition()._id : null,
       });
 
       internProfiles.push({ user, profile, spec, primaryMentor, secondaryMentor });

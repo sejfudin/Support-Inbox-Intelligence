@@ -36,6 +36,26 @@ export const isIntern = (role) => role === ROLES.INTERN;
 export const isLeadership = (role) => role === ROLES.LEADERSHIP;
 
 export const canManageInterns = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
+
+const refId = (ref) => {
+  if (!ref) return null;
+  if (typeof ref === 'string') return ref;
+  return ref._id || ref.id || null;
+};
+
+// Whether `user` is the primary/secondary mentor assigned to `intern`.
+// The intern's lifecycle status is the assigned mentor's responsibility only.
+export const isAssignedMentor = (user, intern) => {
+  if (!user || !intern) return false;
+  const userId = user._id || user.id;
+  if (!userId) return false;
+  return (
+    refId(intern.primaryMentor) === userId || refId(intern.secondaryMentor) === userId
+  );
+};
+
+export const canChangeInternStatus = (user, intern) =>
+  user?.role === ROLES.MENTOR && isAssignedMentor(user, intern);
 export const canManageInternDocumentationLinks = (role) =>
   role === ROLES.ADMIN || role === ROLES.LEADERSHIP;
 export const canViewFepDirectory = (role) => role === ROLES.LEADERSHIP;
