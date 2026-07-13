@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
+import { formatDuration } from '@/helpers/formatDuration';
 import {
   Calendar,
   Clock,
@@ -7,6 +8,7 @@ import {
   X,
   Save,
   Archive,
+  ArchiveRestore,
   UserPen,
   Ticket,
   Download,
@@ -18,8 +20,10 @@ import {
 import { useTicket, useUpdateTicket, useUploadTicketDescriptionImages } from '@/queries/tickets';
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
+import TicketStatusBadge from '@/components/StatusBadge';
+import PriorityIndicator from '@/components/PriorityIndicator';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
-import { useArchiveTicket } from '@/queries/tickets';
+import { useArchiveTicket, useUnarchiveTicket } from '@/queries/tickets';
 import { useUsers } from '@/queries/users';
 import { useAuth } from '@/context/AuthContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -99,6 +103,7 @@ export const TicketDetailsModal = ({
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
 
   const { mutate: archiveTicket, isPending: isArchiving } = useArchiveTicket();
+  const { mutate: unarchiveTicket, isPending: isUnarchiving } = useUnarchiveTicket();
   const { mutate: refreshPR, isPending: isRefreshingPR } = useRefreshPR();
   const { mutate: unlinkPR, isPending: isUnlinkingPR } = useUnlinkPR();
 
@@ -382,6 +387,27 @@ export const TicketDetailsModal = ({
 
   const handleArchiveToggle = () => {
     setIsActionModalOpen(true);
+  };
+
+  const handleRestore = () => {
+    if (!ticketId) return;
+    unarchiveTicket(ticketId, {
+      onSuccess: () => {
+        onClose();
+        toast.success('Ticket restored', {
+          description: 'The ticket is back in the active views under its current status.',
+          action: {
+            label: 'Undo',
+            onClick: () => archiveTicket(ticketId),
+          },
+        });
+      },
+      onError: (error) => {
+        toast.error('Failed to restore ticket', {
+          description: error?.response?.data?.message || 'Please try again.',
+        });
+      },
+    });
   };
 
   const handleExportSingleCsv = () => {
@@ -712,6 +738,20 @@ export const TicketDetailsModal = ({
                 {updateTicketMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             )}
+            {isArchived && (
+              <Button
+                variant="default"
+                size="lg"
+                type="button"
+                onClick={handleRestore}
+                disabled={isUnarchiving}
+                data-test="ticket-modal-restore-button"
+                className="flex min-h-[44px] min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold shadow-sm transition-all sm:w-auto sm:flex-initial"
+              >
+                <ArchiveRestore className="w-4 h-4" />
+                {isUnarchiving ? 'Restoring...' : 'Restore'}
+              </Button>
+            )}
             <button
               type="button"
               onClick={() => {
@@ -733,7 +773,7 @@ export const TicketDetailsModal = ({
             isLoading={isActionPending}
             errorMessage={actionError}
             title="Archive Ticket"
-            description="Archive this ticket? This action cannot be undone."
+            description="Archive this ticket? You can restore it later from the Archive page."
             confirmLabel="Archive"
             loadingLabel="Archiving..."
           />
@@ -750,6 +790,19 @@ export const TicketDetailsModal = ({
             loadingLabel="Unlinking..."
           />
 
+          {isArchived && (
+            <div
+              className="mb-6 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
+              data-test="ticket-modal-archived-banner"
+            >
+              <Archive className="h-4 w-4 shrink-0" />
+              <span>
+                <span className="font-semibold text-foreground">Archived</span> — read-only record.
+                Restore to edit.
+              </span>
+            </div>
+          )}
+
           <div className="group relative mb-8 flex flex-col gap-3">
             {ticket?.taskNumber && (
               <div className="flex">
@@ -761,165 +814,221 @@ export const TicketDetailsModal = ({
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8">
               <div className="flex min-w-0 flex-1">
-                <input
-                  type="text"
-                  value={title}
-                  readOnly={isArchived}
-                  onChange={(e) => setTitle(e.target.value)}
-                  data-test="ticket-modal-title-input"
-                  className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
-                    !title.trim() ? 'text-destructive' : 'text-foreground'
-                  } ${
-                    isArchived
-                      ? 'cursor-default'
-                      : 'cursor-text hover:bg-muted/50 focus:bg-muted/50 focus:border-border focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background'
-                  }`}
-                  placeholder="Enter ticket title..."
-                />
+                {isArchived ? (
+                  <h1
+                    data-test="ticket-modal-title-heading"
+                    className="w-full min-w-0 break-words px-2 py-1 text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-3xl lg:text-4xl"
+                  >
+                    {title}
+                  </h1>
+                ) : (
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    data-test="ticket-modal-title-input"
+                    className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
+                      !title.trim() ? 'text-destructive' : 'text-foreground'
+                    } cursor-text hover:bg-muted/50 focus:bg-muted/50 focus:border-border focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background`}
+                    placeholder="Enter ticket title..."
+                  />
+                )}
               </div>
 
-              <div
-                className={`grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px] ${
-                  isArchived ? 'pointer-events-none opacity-70' : ''
-                }`}
-              >
-                <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Assignees
-                  </div>
+              {!isArchived && (
+                <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px]">
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Assignees
+                    </div>
 
-                  <Popover>
-                    <PopoverTrigger asChild disabled={isArchived}>
-                      <button
-                        type="button"
-                        className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between ${
-                          isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
-                        }`}
-                        aria-label="Change assignees"
-                        data-test="ticket-modal-assignees-trigger"
-                      >
-                        <span className="flex items-center gap-2 min-w-0 normal-case">
-                          {selectedUsersObjects.length > 0 ? (
-                            <>
-                              <AssigneesAvatar users={selectedUsersObjects.slice(0, 3)} size="sm" />
-                              <span className="min-w-0 truncate text-foreground font-semibold">
-                                {selectedUsersObjects[0]?.fullName ||
-                                  selectedUsersObjects[0]?.fullname ||
-                                  selectedUsersObjects[0]?.email ||
-                                  'Assigned'}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <User className="w-5 h-5 text-muted-foreground" />
-                              <span className="text-muted-foreground font-medium whitespace-nowrap">
-                                Unassigned
-                              </span>
-                            </>
-                          )}
-                        </span>
-
-                        {selectedUsersObjects.length > 1 ? (
-                          <span className="shrink-0 inline-flex items-center rounded-full bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
-                            +{selectedUsersObjects.length - 1}
-                          </span>
-                        ) : null}
-                      </button>
-                    </PopoverTrigger>
-
-                    {!isArchived && (
-                      <PopoverContent
-                        className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
-                        align="center"
-                        sideOffset={8}
-                      >
-                        <div className="space-y-1">
-                          <div className="mb-1 flex items-center justify-between border-b border-separator px-2 py-1.5">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Assign Agents
-                            </span>
-                            {selectedAgents.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedAgents([])}
-                                className="text-[10px] text-red-500 hover:underline font-bold"
-                                data-test="ticket-modal-assignees-clear-button"
-                              >
-                                Clear all
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
-                            {users.length > 0 ? (
-                              users.map((user) => {
-                                const isSelected = selectedAgents.includes(user._id);
-                                return (
-                                  <div
-                                    key={user._id}
-                                    onClick={() => {
-                                      setSelectedAgents((prev) =>
-                                        isSelected
-                                          ? prev.filter((id) => id !== user._id)
-                                          : [...prev, user._id]
-                                      );
-                                    }}
-                                    className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
-                                    data-test={`ticket-modal-assignee-option-${user._id}`}
-                                  >
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onCheckedChange={null}
-                                      className="pointer-events-none"
-                                      data-test={`ticket-modal-assignee-checkbox-${user._id}`}
-                                    />
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
-                                        {user.fullName || user.fullname || user.email}
-                                      </span>
-                                      <span className="text-[10px] text-muted-foreground truncate">
-                                        {user.email}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })
+                    <Popover>
+                      <PopoverTrigger asChild disabled={isArchived}>
+                        <button
+                          type="button"
+                          className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between ${
+                            isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
+                          }`}
+                          aria-label="Change assignees"
+                          data-test="ticket-modal-assignees-trigger"
+                        >
+                          <span className="flex items-center gap-2 min-w-0 normal-case">
+                            {selectedUsersObjects.length > 0 ? (
+                              <>
+                                <AssigneesAvatar
+                                  users={selectedUsersObjects.slice(0, 3)}
+                                  size="sm"
+                                />
+                                <span className="min-w-0 truncate text-foreground font-semibold">
+                                  {selectedUsersObjects[0]?.fullName ||
+                                    selectedUsersObjects[0]?.fullname ||
+                                    selectedUsersObjects[0]?.email ||
+                                    'Assigned'}
+                                </span>
+                              </>
                             ) : (
-                              <div className="p-4 text-center text-xs text-muted-foreground">
-                                No users found
-                              </div>
+                              <>
+                                <User className="w-5 h-5 text-muted-foreground" />
+                                <span className="text-muted-foreground font-medium whitespace-nowrap">
+                                  Unassigned
+                                </span>
+                              </>
                             )}
+                          </span>
+
+                          {selectedUsersObjects.length > 1 ? (
+                            <span className="shrink-0 inline-flex items-center rounded-full bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
+                              +{selectedUsersObjects.length - 1}
+                            </span>
+                          ) : null}
+                        </button>
+                      </PopoverTrigger>
+
+                      {!isArchived && (
+                        <PopoverContent
+                          className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
+                          align="center"
+                          sideOffset={8}
+                        >
+                          <div className="space-y-1">
+                            <div className="mb-1 flex items-center justify-between border-b border-separator px-2 py-1.5">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Assign Agents
+                              </span>
+                              {selectedAgents.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedAgents([])}
+                                  className="text-[10px] text-red-500 hover:underline font-bold"
+                                  data-test="ticket-modal-assignees-clear-button"
+                                >
+                                  Clear all
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                              {users.length > 0 ? (
+                                users.map((user) => {
+                                  const isSelected = selectedAgents.includes(user._id);
+                                  return (
+                                    <div
+                                      key={user._id}
+                                      onClick={() => {
+                                        setSelectedAgents((prev) =>
+                                          isSelected
+                                            ? prev.filter((id) => id !== user._id)
+                                            : [...prev, user._id]
+                                        );
+                                      }}
+                                      className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                      data-test={`ticket-modal-assignee-option-${user._id}`}
+                                    >
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={null}
+                                        className="pointer-events-none"
+                                        data-test={`ticket-modal-assignee-checkbox-${user._id}`}
+                                      />
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
+                                          {user.fullName || user.fullname || user.email}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground truncate">
+                                          {user.email}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="p-4 text-center text-xs text-muted-foreground">
+                                  No users found
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    )}
-                  </Popover>
-                </div>
-
-                <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Status
+                        </PopoverContent>
+                      )}
+                    </Popover>
                   </div>
-                  <StatusDropdown
-                    status={currentStatus}
-                    onChange={setCurrentStatus}
-                    statusOptions={detailStatusOptions}
-                    className="w-full justify-between"
-                  />
-                </div>
 
-                <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Priority
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Status
+                    </div>
+                    <StatusDropdown
+                      status={currentStatus}
+                      onChange={setCurrentStatus}
+                      statusOptions={detailStatusOptions}
+                      className="w-full justify-between"
+                    />
                   </div>
-                  <PriorityDropdown
-                    priority={currentPriority}
-                    onChange={handlePriorityChange}
-                    disabled={isArchived}
-                    className="w-full justify-between"
-                  />
+
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Priority
+                    </div>
+                    <PriorityDropdown
+                      priority={currentPriority}
+                      onChange={handlePriorityChange}
+                      disabled={isArchived}
+                      className="w-full justify-between"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {isArchived && (
+                <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px]">
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Assignees
+                    </div>
+                    <div className="flex min-h-[40px] items-center gap-2 px-1 py-2">
+                      {selectedUsersObjects.length > 0 ? (
+                        <>
+                          <AssigneesAvatar users={selectedUsersObjects.slice(0, 3)} size="sm" />
+                          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
+                            {selectedUsersObjects[0]?.fullName ||
+                              selectedUsersObjects[0]?.fullname ||
+                              selectedUsersObjects[0]?.email ||
+                              'Assigned'}
+                          </span>
+                          {selectedUsersObjects.length > 1 && (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              +{selectedUsersObjects.length - 1}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Status
+                    </div>
+                    <div className="px-1 py-2">
+                      <TicketStatusBadge
+                        status={ticket?.status}
+                        statusBadgeConfig={helpers.statusBadgeConfig}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Priority
+                    </div>
+                    <div className="px-1 py-2">
+                      <PriorityIndicator priority={ticket?.priority} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {!title.trim() && (
@@ -951,33 +1060,35 @@ export const TicketDetailsModal = ({
                         Description
                       </span>
                     </div>
-                    <div className="min-w-0 flex items-center gap-2 justify-end">
-                      <input
-                        ref={descriptionInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        multiple
-                        className="hidden"
-                        onChange={handleDescriptionImagePick}
-                        data-test="ticket-modal-description-image-file-input"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => descriptionInputRef.current?.click()}
-                        disabled={isArchived || uploadDescriptionImagesMutation.isPending}
-                        className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                        data-test="ticket-modal-description-upload-button"
-                      >
-                        <ImagePlus className="w-3.5 h-3.5" />
-                        Upload
-                      </button>
-                      <RichTextEditorImageOptions />
-                      <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
-                        <div className="w-max">
-                          <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
+                    {!isArchived && (
+                      <div className="min-w-0 flex items-center gap-2 justify-end">
+                        <input
+                          ref={descriptionInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          multiple
+                          className="hidden"
+                          onChange={handleDescriptionImagePick}
+                          data-test="ticket-modal-description-image-file-input"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => descriptionInputRef.current?.click()}
+                          disabled={uploadDescriptionImagesMutation.isPending}
+                          className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                          data-test="ticket-modal-description-upload-button"
+                        >
+                          <ImagePlus className="w-3.5 h-3.5" />
+                          Upload
+                        </button>
+                        <RichTextEditorImageOptions />
+                        <div className="min-w-0 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] pb-0.5 sm:pb-0">
+                          <div className="w-max">
+                            <RichTextEditorToolbar className="w-max flex-nowrap whitespace-nowrap p-0 sm:flex-wrap" />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   <RichTextEditorContent
                     className="p-3 sm:p-4"
@@ -1078,24 +1189,46 @@ export const TicketDetailsModal = ({
                             Due date
                           </span>
                         </div>
-                        <input
-                          type="date"
-                          value={dueDateInput}
-                          disabled={isArchived}
-                          onChange={(e) => setDueDateInput(e.target.value)}
-                          data-test="ticket-modal-due-date-input"
-                          className={`h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background ${
-                            isArchived ? 'cursor-not-allowed opacity-70' : ''
-                          }`}
-                        />
+                        {isArchived ? (
+                          <div className="flex min-h-[40px] items-center px-1 text-sm font-semibold text-foreground">
+                            {dueDateInput ? (
+                              format(new Date(dueDateInput), 'MMM d, yyyy')
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        ) : (
+                          <input
+                            type="date"
+                            value={dueDateInput}
+                            onChange={(e) => setDueDateInput(e.target.value)}
+                            data-test="ticket-modal-due-date-input"
+                            className="h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                          />
+                        )}
                       </div>
 
-                      <StoryPointsField
-                        value={currentStoryPoints}
-                        onChange={handleStoryPointsChange}
-                        disabled={isArchived}
-                        className="space-y-3"
-                      />
+                      {isArchived ? (
+                        <div className="space-y-3">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            Story Points
+                          </span>
+                          <div className="flex min-h-[40px] items-center px-1 text-sm font-semibold text-foreground">
+                            {currentStoryPoints ? (
+                              `SP ${currentStoryPoints}`
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <StoryPointsField
+                          value={currentStoryPoints}
+                          onChange={handleStoryPointsChange}
+                          disabled={isArchived}
+                          className="space-y-3"
+                        />
+                      )}
                     </div>
 
                     {categories.length > 0 && (
@@ -1103,51 +1236,79 @@ export const TicketDetailsModal = ({
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                           Category
                         </span>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <button
-                            type="button"
-                            disabled={isArchived}
-                            onClick={() => setCurrentCategory(null)}
-                            data-test="ticket-modal-category-option-none"
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                              currentCategory === null
-                                ? 'bg-foreground text-background border-foreground'
-                                : 'bg-muted text-muted-foreground border-border hover:bg-muted'
-                            } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
-                          >
-                            None
-                          </button>
-                          {categories.map((cat) => (
+                        {isArchived ? (
+                          <div className="mt-2">
+                            {(() => {
+                              const selected = categories.find(
+                                (c) => String(c._id) === String(currentCategory)
+                              );
+                              if (!selected) {
+                                return <span className="text-sm text-muted-foreground">None</span>;
+                              }
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold text-background"
+                                  style={{
+                                    backgroundColor: selected.color,
+                                    borderColor: selected.color,
+                                  }}
+                                >
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: 'rgba(255,255,255,0.7)' }}
+                                  />
+                                  {selected.name}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2 mt-2">
                             <button
-                              key={cat._id}
                               type="button"
                               disabled={isArchived}
-                              onClick={() => setCurrentCategory(cat._id)}
-                              data-test={`ticket-modal-category-option-${cat._id}`}
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                                currentCategory === cat._id
-                                  ? 'text-background border-transparent'
-                                  : 'bg-muted text-foreground border-border hover:bg-muted'
+                              onClick={() => setCurrentCategory(null)}
+                              data-test="ticket-modal-category-option-none"
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                                currentCategory === null
+                                  ? 'bg-foreground text-background border-foreground'
+                                  : 'bg-muted text-muted-foreground border-border hover:bg-muted'
                               } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
-                              style={
-                                currentCategory === cat._id
-                                  ? { backgroundColor: cat.color, borderColor: cat.color }
-                                  : {}
-                              }
                             >
-                              <span
-                                className="h-2 w-2 rounded-full shrink-0"
-                                style={{
-                                  backgroundColor:
-                                    currentCategory === cat._id
-                                      ? 'rgba(255,255,255,0.7)'
-                                      : cat.color,
-                                }}
-                              />
-                              {cat.name}
+                              None
                             </button>
-                          ))}
-                        </div>
+                            {categories.map((cat) => (
+                              <button
+                                key={cat._id}
+                                type="button"
+                                disabled={isArchived}
+                                onClick={() => setCurrentCategory(cat._id)}
+                                data-test={`ticket-modal-category-option-${cat._id}`}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                                  currentCategory === cat._id
+                                    ? 'text-background border-transparent'
+                                    : 'bg-muted text-foreground border-border hover:bg-muted'
+                                } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                                style={
+                                  currentCategory === cat._id
+                                    ? { backgroundColor: cat.color, borderColor: cat.color }
+                                    : {}
+                                }
+                              >
+                                <span
+                                  className="h-2 w-2 rounded-full shrink-0"
+                                  style={{
+                                    backgroundColor:
+                                      currentCategory === cat._id
+                                        ? 'rgba(255,255,255,0.7)'
+                                        : cat.color,
+                                  }}
+                                />
+                                {cat.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </AccordionContent>
@@ -1203,6 +1364,33 @@ export const TicketDetailsModal = ({
                           </div>
                         </div>
                       </div>
+
+                      {isArchived && ticket?.doneAt && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                              Resolution time
+                            </span>
+                          </div>
+                          <div className="flex min-h-[44px] flex-col justify-center px-1.5 py-2">
+                            <span className="text-sm font-semibold text-foreground leading-none">
+                              {formatDuration(
+                                Math.max(
+                                  0,
+                                  Math.floor(
+                                    (new Date(ticket.doneAt).getTime() -
+                                      new Date(ticket.createdAt).getTime()) /
+                                      1000
+                                  )
+                                )
+                              )}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground font-medium mt-1">
+                              Resolved {format(new Date(ticket.doneAt), 'MMM d, yyyy')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -1229,9 +1417,9 @@ export const TicketDetailsModal = ({
                     <AccordionContent className="px-4 pb-5 pt-4 data-[state=closed]:hidden">
                       <PRCard
                         pr={ticket.linkedPullRequest}
-                        onRefresh={handleRefreshPR}
+                        onRefresh={isArchived ? undefined : handleRefreshPR}
                         isRefreshing={isRefreshingPR}
-                        onUnlink={handleUnlinkPR}
+                        onUnlink={isArchived ? undefined : handleUnlinkPR}
                         isUnlinking={isUnlinkingPR}
                       />
                     </AccordionContent>

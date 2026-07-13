@@ -109,6 +109,7 @@ const TICKET_SOCKET_EVENTS = {
   created: 'ticket:created',
   updated: 'ticket:updated',
   archived: 'ticket:archived',
+  unarchived: 'ticket:unarchived',
   moved: 'ticket:moved',
   assigned: 'ticket:assigned',
 };
@@ -798,7 +799,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
 const archiveTicket = async (ticketId, actorUserId) => {
   const ticket = await Ticket.findByIdAndUpdate(
     ticketId,
-    { $set: { isArchived: true } },
+    { $set: { isArchived: true, archivedAt: new Date() } },
     { returnDocument: 'after' }
   );
   if (!ticket) {
@@ -807,6 +808,23 @@ const archiveTicket = async (ticketId, actorUserId) => {
   historyService.logEvent(ticketId, actorUserId, 'Ticket Archived');
   emitTicketWorkspaceEvent({
     eventName: TICKET_SOCKET_EVENTS.archived,
+    ticket,
+  });
+  return ticket;
+};
+
+const unarchiveTicket = async (ticketId, actorUserId) => {
+  const ticket = await Ticket.findByIdAndUpdate(
+    ticketId,
+    { $set: { isArchived: false, archivedAt: null } },
+    { returnDocument: 'after' }
+  );
+  if (!ticket) {
+    throw new Error('Ticket not found');
+  }
+  historyService.logEvent(ticketId, actorUserId, 'Ticket Restored');
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.unarchived,
     ticket,
   });
   return ticket;
@@ -964,6 +982,7 @@ module.exports = {
   getTicketById,
   updateTicket,
   archiveTicket,
+  unarchiveTicket,
   getMyTickets,
   INVALID_ASSIGNEE_ERROR,
 };

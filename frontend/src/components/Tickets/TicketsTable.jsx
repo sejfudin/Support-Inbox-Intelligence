@@ -18,7 +18,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
-export function DataTable({ columns, data, pagination, onPageChange, meta }) {
+export function DataTable({
+  columns,
+  data,
+  pagination,
+  onPageChange,
+  meta,
+  hideHeader = false,
+  tableClassName = 'min-w-[900px] table-fixed',
+}) {
   const [sorting, setSorting] = React.useState([]);
   const currentPage = pagination?.page || 1;
   const totalResults = pagination?.total || 0;
@@ -56,23 +64,25 @@ export function DataTable({ columns, data, pagination, onPageChange, meta }) {
   return (
     <div className="w-full">
       <div className="w-full overflow-x-auto">
-        <Table className="min-w-[900px] table-fixed">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ''}`}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
+        <Table className={tableClassName}>
+          {!hideHeader && (
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ''}`}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+          )}
 
           <TableBody>
             {table.getRowModel().rows?.length ? (
