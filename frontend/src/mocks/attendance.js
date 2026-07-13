@@ -13,14 +13,7 @@
  *                         attendanceRate, lastCheckIn }
  */
 
-import {
-  format,
-  subDays,
-  isWeekend,
-  eachDayOfInterval,
-  startOfMonth,
-  endOfMonth,
-} from 'date-fns';
+import { format, subDays, isWeekend, eachDayOfInterval, startOfMonth, endOfMonth } from 'date-fns';
 
 export const ATTENDANCE_MOCK_ENABLED = true;
 
@@ -76,14 +69,70 @@ const buildRecords = ({ seed, days = 60, presentBias = 0.9, checkedInToday }) =>
 // ---- Roster of interns for the mentor/admin overview -----------------------
 
 const ROSTER_SEED = [
-  { id: 'i-1', fullname: 'Amina Kovač', email: 'amina.kovac@symphony.is', hub: 'Sarajevo', bias: 0.98, today: true },
-  { id: 'i-2', fullname: 'Bilal Mehić', email: 'bilal.mehic@symphony.is', hub: 'Sarajevo', bias: 0.72, today: false },
-  { id: 'i-3', fullname: 'Carla Orozco', email: 'carla.orozco@symphony.is', hub: 'Mostar', bias: 0.88, today: true },
-  { id: 'i-4', fullname: 'Deniz Arslan', email: 'deniz.arslan@symphony.is', hub: 'Sarajevo', bias: 0.95, today: true },
-  { id: 'i-5', fullname: 'Elena Petrova', email: 'elena.petrova@symphony.is', hub: 'Banja Luka', bias: 0.6, today: false },
-  { id: 'i-6', fullname: 'Faris Hodžić', email: 'faris.hodzic@symphony.is', hub: 'Mostar', bias: 0.83, today: true },
-  { id: 'i-7', fullname: 'Goran Ilić', email: 'goran.ilic@symphony.is', hub: 'Sarajevo', bias: 0.91, today: true },
-  { id: 'i-8', fullname: 'Hana Suljić', email: 'hana.suljic@symphony.is', hub: 'Banja Luka', bias: 0.77, today: false },
+  {
+    id: 'i-1',
+    fullname: 'Amina Kovač',
+    email: 'amina.kovac@symphony.is',
+    hub: 'Sarajevo',
+    bias: 0.98,
+    today: true,
+  },
+  {
+    id: 'i-2',
+    fullname: 'Bilal Mehić',
+    email: 'bilal.mehic@symphony.is',
+    hub: 'Sarajevo',
+    bias: 0.72,
+    today: false,
+  },
+  {
+    id: 'i-3',
+    fullname: 'Carla Orozco',
+    email: 'carla.orozco@symphony.is',
+    hub: 'Mostar',
+    bias: 0.88,
+    today: true,
+  },
+  {
+    id: 'i-4',
+    fullname: 'Deniz Arslan',
+    email: 'deniz.arslan@symphony.is',
+    hub: 'Sarajevo',
+    bias: 0.95,
+    today: true,
+  },
+  {
+    id: 'i-5',
+    fullname: 'Elena Petrova',
+    email: 'elena.petrova@symphony.is',
+    hub: 'Banja Luka',
+    bias: 0.6,
+    today: false,
+  },
+  {
+    id: 'i-6',
+    fullname: 'Faris Hodžić',
+    email: 'faris.hodzic@symphony.is',
+    hub: 'Mostar',
+    bias: 0.83,
+    today: true,
+  },
+  {
+    id: 'i-7',
+    fullname: 'Goran Ilić',
+    email: 'goran.ilic@symphony.is',
+    hub: 'Sarajevo',
+    bias: 0.91,
+    today: true,
+  },
+  {
+    id: 'i-8',
+    fullname: 'Hana Suljić',
+    email: 'hana.suljic@symphony.is',
+    hub: 'Banja Luka',
+    bias: 0.77,
+    today: false,
+  },
 ];
 
 export const MOCK_HUBS = ['Sarajevo', 'Mostar', 'Banja Luka'];
@@ -93,9 +142,8 @@ export const MOCK_HUBS = ['Sarajevo', 'Mostar', 'Banja Luka'];
  */
 const countWorkingDays = (days = 60) => {
   const today = new Date();
-  return eachDayOfInterval({ start: subDays(today, days), end: today }).filter(
-    (d) => !isWeekend(d)
-  ).length;
+  return eachDayOfInterval({ start: subDays(today, days), end: today }).filter((d) => !isWeekend(d))
+    .length;
 };
 
 const WINDOW_DAYS = 60;
@@ -161,6 +209,8 @@ export const getMyMockAttendance = () => {
 export const checkInMock = () => {
   const today = new Date();
   const key = toKey(today);
+  // Weekends aren't working days and can't be checked into.
+  if (isWeekend(today)) return getMyMockAttendance();
   // Cannot check in on a day already cancelled.
   if (myCancelledDates.includes(key)) return getMyMockAttendance();
   const already = myRecords.some((r) => r.date === key);

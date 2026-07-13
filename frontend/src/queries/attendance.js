@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   fetchMyAttendance,
   checkInToday,
@@ -45,5 +45,6 @@ export const useAttendanceRoster = (params = {}, options = {}) =>
   useQuery({
     queryKey: [...ATTENDANCE_ROSTER_QUERY_KEY, params],
     queryFn: () => fetchAttendanceRoster(params),
+    placeholderData: keepPreviousData,
     ...options,
   });

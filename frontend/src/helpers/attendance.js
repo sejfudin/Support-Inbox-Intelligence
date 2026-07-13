@@ -31,15 +31,19 @@ const toKey = (date) => format(date, 'yyyy-MM-dd');
  * @param {Date} date
  * @param {Set<string>} presentKeys - 'yyyy-MM-dd' the intern checked in
  * @param {Set<string>} [cancelledKeys] - 'yyyy-MM-dd' the intern cancelled (locked absent)
+ * @param {Date} [now]
  */
-export const classifyDay = (date, presentKeys, cancelledKeys = new Set()) => {
+export const classifyDay = (date, presentKeys, cancelledKeys = new Set(), now = new Date()) => {
   const key = toKey(date);
   if (presentKeys.has(key)) return DAY_STATUS.PRESENT;
   if (isWeekend(date)) return DAY_STATUS.WEEKEND;
   // A cancelled day is locked absent even if it's today.
   if (cancelledKeys.has(key)) return DAY_STATUS.ABSENT;
-  if (isToday(date)) return DAY_STATUS.TODAY_PENDING;
-  if (isAfter(startOfDay(date), startOfDay(new Date()))) return DAY_STATUS.FUTURE;
+  if (isToday(date)) {
+    // Once the check-in window closes, a no-show today is absent, not pending.
+    return checkInWindowState(now) === 'closed' ? DAY_STATUS.ABSENT : DAY_STATUS.TODAY_PENDING;
+  }
+  if (isAfter(startOfDay(date), startOfDay(now))) return DAY_STATUS.FUTURE;
   return DAY_STATUS.ABSENT;
 };
 
@@ -104,9 +108,7 @@ export const currentMonthAttendance = (records = [], now = new Date()) => {
   const start = startOfMonth(now);
   const today = startOfDay(now);
 
-  const elapsedWorkingDays = eachDayOfInterval({ start, end: today }).filter(
-    (d) => !isWeekend(d)
-  );
+  const elapsedWorkingDays = eachDayOfInterval({ start, end: today }).filter((d) => !isWeekend(d));
   const workingDaysElapsed = elapsedWorkingDays.length;
   const present = elapsedWorkingDays.filter((d) => presentKeys.has(toKey(d))).length;
   const rate = workingDaysElapsed === 0 ? 0 : Math.round((present / workingDaysElapsed) * 100);
@@ -138,8 +140,7 @@ export const todayRecord = (records = []) => {
 export const isCheckedInToday = (records = []) => Boolean(todayRecord(records));
 
 /** Whether the intern cancelled today's check-in (locked absent, no re-check-in). */
-export const isCancelledToday = (cancelledDates = []) =>
-  cancelledDates.includes(toKey(new Date()));
+export const isCancelledToday = (cancelledDates = []) => cancelledDates.includes(toKey(new Date()));
 
 // Check-in is only open 07:00–11:00 (office timezone). This mirrors the
 // server-enforced rule for UX only — the backend is the source of truth.

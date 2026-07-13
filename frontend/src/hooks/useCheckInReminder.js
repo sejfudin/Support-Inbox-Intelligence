@@ -1,3 +1,4 @@
+import { isWeekend } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { isIntern } from '@/helpers/roles';
 import { useMyAttendance } from '@/queries/attendance';
@@ -29,6 +30,7 @@ export function useCheckInReminder() {
   const windowState = checkInWindowState();
   const active =
     intern &&
+    !isWeekend(new Date()) &&
     windowState === 'open' &&
     !isCheckedInToday(records) &&
     !isCancelledToday(cancelledDates);
