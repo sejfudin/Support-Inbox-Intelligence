@@ -778,7 +778,6 @@ export const TicketDetailsModal = ({
             loadingLabel="Archiving..."
           />
 
-
           <DeleteConfirmModal
             isOpen={isUnlinkModalOpen}
             onClose={() => setIsUnlinkModalOpen(false)}
@@ -838,142 +837,145 @@ export const TicketDetailsModal = ({
 
               {!isArchived && (
                 <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3 lg:w-[420px]">
-                <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Assignees
-                  </div>
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Assignees
+                    </div>
 
-                  <Popover>
-                    <PopoverTrigger asChild disabled={isArchived}>
-                      <button
-                        type="button"
-                        className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between ${
-                          isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
-                        }`}
-                        aria-label="Change assignees"
-                        data-test="ticket-modal-assignees-trigger"
-                      >
-                        <span className="flex items-center gap-2 min-w-0 normal-case">
-                          {selectedUsersObjects.length > 0 ? (
-                            <>
-                              <AssigneesAvatar users={selectedUsersObjects.slice(0, 3)} size="sm" />
-                              <span className="min-w-0 truncate text-foreground font-semibold">
-                                {selectedUsersObjects[0]?.fullName ||
-                                  selectedUsersObjects[0]?.fullname ||
-                                  selectedUsersObjects[0]?.email ||
-                                  'Assigned'}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <User className="w-5 h-5 text-muted-foreground" />
-                              <span className="text-muted-foreground font-medium whitespace-nowrap">
-                                Unassigned
-                              </span>
-                            </>
-                          )}
-                        </span>
-
-                        {selectedUsersObjects.length > 1 ? (
-                          <span className="shrink-0 inline-flex items-center rounded-full bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
-                            +{selectedUsersObjects.length - 1}
-                          </span>
-                        ) : null}
-                      </button>
-                    </PopoverTrigger>
-
-                    {!isArchived && (
-                      <PopoverContent
-                        className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
-                        align="center"
-                        sideOffset={8}
-                      >
-                        <div className="space-y-1">
-                          <div className="mb-1 flex items-center justify-between border-b border-separator px-2 py-1.5">
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                              Assign Agents
-                            </span>
-                            {selectedAgents.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedAgents([])}
-                                className="text-[10px] text-red-500 hover:underline font-bold"
-                                data-test="ticket-modal-assignees-clear-button"
-                              >
-                                Clear all
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
-                            {users.length > 0 ? (
-                              users.map((user) => {
-                                const isSelected = selectedAgents.includes(user._id);
-                                return (
-                                  <div
-                                    key={user._id}
-                                    onClick={() => {
-                                      setSelectedAgents((prev) =>
-                                        isSelected
-                                          ? prev.filter((id) => id !== user._id)
-                                          : [...prev, user._id]
-                                      );
-                                    }}
-                                    className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
-                                    data-test={`ticket-modal-assignee-option-${user._id}`}
-                                  >
-                                    <Checkbox
-                                      checked={isSelected}
-                                      onCheckedChange={null}
-                                      className="pointer-events-none"
-                                      data-test={`ticket-modal-assignee-checkbox-${user._id}`}
-                                    />
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
-                                        {user.fullName || user.fullname || user.email}
-                                      </span>
-                                      <span className="text-[10px] text-muted-foreground truncate">
-                                        {user.email}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })
+                    <Popover>
+                      <PopoverTrigger asChild disabled={isArchived}>
+                        <button
+                          type="button"
+                          className={`flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between ${
+                            isArchived ? 'cursor-not-allowed opacity-70 pointer-events-none' : ''
+                          }`}
+                          aria-label="Change assignees"
+                          data-test="ticket-modal-assignees-trigger"
+                        >
+                          <span className="flex items-center gap-2 min-w-0 normal-case">
+                            {selectedUsersObjects.length > 0 ? (
+                              <>
+                                <AssigneesAvatar
+                                  users={selectedUsersObjects.slice(0, 3)}
+                                  size="sm"
+                                />
+                                <span className="min-w-0 truncate text-foreground font-semibold">
+                                  {selectedUsersObjects[0]?.fullName ||
+                                    selectedUsersObjects[0]?.fullname ||
+                                    selectedUsersObjects[0]?.email ||
+                                    'Assigned'}
+                                </span>
+                              </>
                             ) : (
-                              <div className="p-4 text-center text-xs text-muted-foreground">
-                                No users found
-                              </div>
+                              <>
+                                <User className="w-5 h-5 text-muted-foreground" />
+                                <span className="text-muted-foreground font-medium whitespace-nowrap">
+                                  Unassigned
+                                </span>
+                              </>
                             )}
+                          </span>
+
+                          {selectedUsersObjects.length > 1 ? (
+                            <span className="shrink-0 inline-flex items-center rounded-full bg-card px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
+                              +{selectedUsersObjects.length - 1}
+                            </span>
+                          ) : null}
+                        </button>
+                      </PopoverTrigger>
+
+                      {!isArchived && (
+                        <PopoverContent
+                          className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
+                          align="center"
+                          sideOffset={8}
+                        >
+                          <div className="space-y-1">
+                            <div className="mb-1 flex items-center justify-between border-b border-separator px-2 py-1.5">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                Assign Agents
+                              </span>
+                              {selectedAgents.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedAgents([])}
+                                  className="text-[10px] text-red-500 hover:underline font-bold"
+                                  data-test="ticket-modal-assignees-clear-button"
+                                >
+                                  Clear all
+                                </button>
+                              )}
+                            </div>
+
+                            <div className="max-h-[250px] overflow-y-auto custom-scrollbar">
+                              {users.length > 0 ? (
+                                users.map((user) => {
+                                  const isSelected = selectedAgents.includes(user._id);
+                                  return (
+                                    <div
+                                      key={user._id}
+                                      onClick={() => {
+                                        setSelectedAgents((prev) =>
+                                          isSelected
+                                            ? prev.filter((id) => id !== user._id)
+                                            : [...prev, user._id]
+                                        );
+                                      }}
+                                      className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                      data-test={`ticket-modal-assignee-option-${user._id}`}
+                                    >
+                                      <Checkbox
+                                        checked={isSelected}
+                                        onCheckedChange={null}
+                                        className="pointer-events-none"
+                                        data-test={`ticket-modal-assignee-checkbox-${user._id}`}
+                                      />
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
+                                          {user.fullName || user.fullname || user.email}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground truncate">
+                                          {user.email}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="p-4 text-center text-xs text-muted-foreground">
+                                  No users found
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    )}
-                  </Popover>
-                </div>
-
-                <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Status
+                        </PopoverContent>
+                      )}
+                    </Popover>
                   </div>
-                  <StatusDropdown
-                    status={currentStatus}
-                    onChange={setCurrentStatus}
-                    statusOptions={detailStatusOptions}
-                    className="w-full justify-between"
-                  />
-                </div>
 
-                <div className="space-y-2 min-w-0">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                    Priority
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Status
+                    </div>
+                    <StatusDropdown
+                      status={currentStatus}
+                      onChange={setCurrentStatus}
+                      statusOptions={detailStatusOptions}
+                      className="w-full justify-between"
+                    />
                   </div>
-                  <PriorityDropdown
-                    priority={currentPriority}
-                    onChange={handlePriorityChange}
-                    disabled={isArchived}
-                    className="w-full justify-between"
-                  />
-                </div>
+
+                  <div className="space-y-2 min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      Priority
+                    </div>
+                    <PriorityDropdown
+                      priority={currentPriority}
+                      onChange={handlePriorityChange}
+                      disabled={isArchived}
+                      className="w-full justify-between"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -1261,51 +1263,51 @@ export const TicketDetailsModal = ({
                             })()}
                           </div>
                         ) : (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          <button
-                            type="button"
-                            disabled={isArchived}
-                            onClick={() => setCurrentCategory(null)}
-                            data-test="ticket-modal-category-option-none"
-                            className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                              currentCategory === null
-                                ? 'bg-foreground text-background border-foreground'
-                                : 'bg-muted text-muted-foreground border-border hover:bg-muted'
-                            } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
-                          >
-                            None
-                          </button>
-                          {categories.map((cat) => (
+                          <div className="flex flex-wrap gap-2 mt-2">
                             <button
-                              key={cat._id}
                               type="button"
                               disabled={isArchived}
-                              onClick={() => setCurrentCategory(cat._id)}
-                              data-test={`ticket-modal-category-option-${cat._id}`}
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-                                currentCategory === cat._id
-                                  ? 'text-background border-transparent'
-                                  : 'bg-muted text-foreground border-border hover:bg-muted'
+                              onClick={() => setCurrentCategory(null)}
+                              data-test="ticket-modal-category-option-none"
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                                currentCategory === null
+                                  ? 'bg-foreground text-background border-foreground'
+                                  : 'bg-muted text-muted-foreground border-border hover:bg-muted'
                               } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
-                              style={
-                                currentCategory === cat._id
-                                  ? { backgroundColor: cat.color, borderColor: cat.color }
-                                  : {}
-                              }
                             >
-                              <span
-                                className="h-2 w-2 rounded-full shrink-0"
-                                style={{
-                                  backgroundColor:
-                                    currentCategory === cat._id
-                                      ? 'rgba(255,255,255,0.7)'
-                                      : cat.color,
-                                }}
-                              />
-                              {cat.name}
+                              None
                             </button>
-                          ))}
-                        </div>
+                            {categories.map((cat) => (
+                              <button
+                                key={cat._id}
+                                type="button"
+                                disabled={isArchived}
+                                onClick={() => setCurrentCategory(cat._id)}
+                                data-test={`ticket-modal-category-option-${cat._id}`}
+                                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                                  currentCategory === cat._id
+                                    ? 'text-background border-transparent'
+                                    : 'bg-muted text-foreground border-border hover:bg-muted'
+                                } ${isArchived ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                                style={
+                                  currentCategory === cat._id
+                                    ? { backgroundColor: cat.color, borderColor: cat.color }
+                                    : {}
+                                }
+                              >
+                                <span
+                                  className="h-2 w-2 rounded-full shrink-0"
+                                  style={{
+                                    backgroundColor:
+                                      currentCategory === cat._id
+                                        ? 'rgba(255,255,255,0.7)'
+                                        : cat.color,
+                                  }}
+                                />
+                                {cat.name}
+                              </button>
+                            ))}
+                          </div>
                         )}
                       </div>
                     )}

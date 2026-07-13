@@ -66,22 +66,22 @@ export function DataTable({
       <div className="w-full overflow-x-auto">
         <Table className={tableClassName}>
           {!hideHeader && (
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ''}`}
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className={`h-14 whitespace-nowrap border-b border-border/70 bg-secondary/60 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground ${header.column.columnDef.meta?.headerClassName || ''}`}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
           )}
 
           <TableBody>
