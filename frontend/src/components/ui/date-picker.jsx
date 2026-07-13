@@ -45,7 +45,6 @@ export function DatePicker({
   onChange,
   placeholder = 'Pick a date',
   className,
-  isDateDisabled,
   ...props
 }) {
   const selectedDate = value ? parseISO(value) : null;
@@ -105,35 +104,28 @@ export function DatePicker({
           ))}
         </div>
         <div className="mt-1 grid grid-cols-7 gap-1">
-          {days.map((day, index) => {
-            if (!day) return <div key={`empty-${index}`} className="h-8" />;
-            const disabled = typeof isDateDisabled === 'function' && isDateDisabled(day);
-            return (
+          {days.map((day, index) =>
+            day ? (
               <button
                 key={toDateValue(day)}
                 type="button"
-                disabled={disabled}
-                aria-disabled={disabled || undefined}
                 className={cn(
-                  'flex h-8 items-center justify-center rounded-md text-sm transition-colors',
-                  disabled
-                    ? 'cursor-not-allowed text-muted-foreground/30'
-                    : 'hover:bg-primary/10 hover:text-primary',
-                  !disabled &&
-                    selectedDate &&
+                  'flex h-8 items-center justify-center rounded-md text-sm transition-colors hover:bg-primary/10 hover:text-primary',
+                  selectedDate &&
                     isSameDay(day, selectedDate) &&
                     'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
                 )}
                 onClick={() => {
-                  if (disabled) return;
                   onChange(toDateValue(day));
                   setOpen(false);
                 }}
               >
                 {format(day, 'd')}
               </button>
-            );
-          })}
+            ) : (
+              <div key={`empty-${index}`} className="h-8" />
+            )
+          )}
         </div>
       </PopoverContent>
     </Popover>
