@@ -214,9 +214,11 @@ exports.upsertReadiness = async (req, res, next) => {
     res.json({ flag });
   } catch (error) {
     if (
-      error.message === 'Technology is required' ||
+      error.message === 'Technology or position is required' ||
+      error.message === 'Provide a technology or a position, not both' ||
       error.message === 'Invalid readiness level' ||
-      error.message === 'Invalid technology'
+      error.message === 'Invalid technology' ||
+      error.message === 'Invalid position'
     ) {
       return res.status(400).json({ message: error.message });
     }

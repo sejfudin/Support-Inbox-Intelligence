@@ -70,8 +70,8 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
   };
 
   return (
-    <div className="space-y-6">
-      <InternPanel className="overflow-hidden p-0">
+    <div className="h-full">
+      <InternPanel className="h-full overflow-hidden p-0">
         <div className="border-b border-border/60 px-5 py-4 md:px-6">
           <h3 className="text-lg font-semibold">Placement readiness by technology</h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -88,7 +88,7 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
         )}
         {!isPending && declaredTechnologies.length > 0 && (
           <>
-            <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2 md:p-6 xl:grid-cols-3">
+            <div className="grid gap-4 p-5 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))] md:p-6">
               {visibleTechnologies.map((tech) => {
                 const flag = flagMap[tech._id];
                 const level = flag?.level || 'none';

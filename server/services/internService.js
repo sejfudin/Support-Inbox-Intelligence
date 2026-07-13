@@ -481,6 +481,7 @@ const getProgrammeStats = async (user) => {
     activeByProgrammeRows,
     activeByHubRows,
     technologySupplyRows,
+    positionSupplyRows,
     readyProfiles,
     recentlyReadyProfiles,
     recommendationFunnelRows,
@@ -579,6 +580,31 @@ const getProgrammeStats = async (user) => {
         },
       },
       { $sort: { readyCount: -1, learningCount: -1, 'technology.name': 1 } },
+    ]),
+    InternProfile.aggregate([
+      {
+        $match: {
+          status: { $nin: excludedSupplyStatuses },
+          declaredPosition: { $ne: null },
+        },
+      },
+      { $group: { _id: '$declaredPosition', count: { $sum: 1 } } },
+      {
+        $lookup: {
+          from: 'positions',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'position',
+        },
+      },
+      { $unwind: '$position' },
+      {
+        $project: {
+          position: { _id: '$_id', name: '$position.name', slug: '$position.slug' },
+          count: 1,
+        },
+      },
+      { $sort: { count: -1, 'position.name': 1 } },
     ]),
     InternProfile.find({ readyForPlacement: true })
       .populate([
@@ -846,6 +872,10 @@ const getProgrammeStats = async (user) => {
       technology: row.technology,
       readyCount: row.readyCount,
       learningCount: row.learningCount,
+    })),
+    positionSupply: positionSupplyRows.map((row) => ({
+      position: row.position,
+      count: row.count,
     })),
     readyBench,
     urgent,
