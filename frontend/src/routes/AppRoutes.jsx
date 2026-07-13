@@ -30,8 +30,6 @@ import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
 import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
-import MyAttendancePage from '@/pages/MyAttendancePage';
-import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -119,16 +117,11 @@ export default function AppRoutes() {
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.INTERN]} />}>
             <Route path="/my-technologies" element={<MyTechnologiesPage />} />
-            <Route path="/my-attendance" element={<MyAttendancePage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
             <Route path="/my-interns" element={<MentorInternsPage />} />
             <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MENTOR]} />}>
-            <Route path="/attendance" element={<AttendanceOverviewPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MENTOR]} />}>
