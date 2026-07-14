@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
+const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
@@ -31,15 +32,10 @@ const createComment = async ({ content, ticket, authorId, role }) => {
 
   // Admins and mentors can comment on tickets in any workspace. Everyone else
   // must be an active member of the ticket's workspace.
-  const canCommentAnyWorkspace = role === 'admin' || role === 'mentor';
-
-  if (!canCommentAnyWorkspace) {
+  if (!canAccessAnyWorkspace(role)) {
     const workspace = await Workspace.findById(foundTicket.workspace).select('members');
-    const isActiveMember = workspace?.members?.some(
-      (member) => member.user && member.user.equals(authorId) && member.status === 'active'
-    );
 
-    if (!isActiveMember) {
+    if (!isActiveWorkspaceMember(workspace, authorId)) {
       throw new Error('Unauthorized: You do not belong to this workspace');
     }
   }
@@ -118,15 +114,10 @@ const getCommentsByTicketId = async (ticketId, userId, role) => {
 
   // Admins and mentors can view comments on any workspace's tickets. Everyone
   // else must be an active member of the ticket's workspace.
-  const canViewAnyWorkspace = role === 'admin' || role === 'mentor';
-
-  if (!canViewAnyWorkspace) {
+  if (!canAccessAnyWorkspace(role)) {
     const workspace = await Workspace.findById(foundTicket.workspace).select('members');
-    const isActiveMember = workspace?.members?.some(
-      (member) => member.user && member.user.equals(userId) && member.status === 'active'
-    );
 
-    if (!isActiveMember) {
+    if (!isActiveWorkspaceMember(workspace, userId)) {
       throw new Error('Unauthorized to view comments for this ticket');
     }
   }

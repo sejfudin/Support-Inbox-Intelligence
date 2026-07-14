@@ -1,6 +1,7 @@
 const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
 const Workspace = require('../models/Workspace');
+const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -78,20 +79,12 @@ const getTicketById = async (req, res) => {
     }
 
     // Admins and mentors can read tickets in any workspace. Everyone else
-    // (interns, leadership) may only read a ticket if they are an active member
-    // of that ticket's workspace. Note: a user can belong to multiple
-    // workspaces, so we check the workspace's member list rather than the
-    // user's single active `workspaceId`.
-    const role = req.user?.role;
-    const canReadAnyWorkspace = role === 'admin' || role === 'mentor';
-
-    if (!canReadAnyWorkspace) {
+    // (interns, leadership) may only read a ticket if they are an active
+    // member of that ticket's workspace.
+    if (!canAccessAnyWorkspace(req.user?.role)) {
       const workspace = await Workspace.findById(ticket.workspace).select('members');
-      const isActiveMember = workspace?.members?.some(
-        (member) => member.user && member.user.equals(req.user._id) && member.status === 'active'
-      );
 
-      if (!isActiveMember) {
+      if (!isActiveWorkspaceMember(workspace, req.user._id)) {
         // Return 404 (not 403) so a caller can't probe which ticket IDs exist.
         return res.status(404).json({
           success: false,
@@ -214,6 +207,20 @@ const updateTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+
+    const existingTicket = await ticketService.getTicketById(id);
+
+    // Admins and mentors can edit tickets in any workspace. Everyone else
+    // may only edit a ticket if they are an active member of that ticket's
+    // workspace.
+    if (!canAccessAnyWorkspace(req.user?.role)) {
+      const workspace = await Workspace.findById(existingTicket.workspace).select('members');
+
+      if (!isActiveWorkspaceMember(workspace, req.user._id)) {
+        // Return 404 (not 403) so a caller can't probe which ticket IDs exist.
+        return res.status(404).json({ success: false, message: 'Ticket not found' });
+      }
+    }
 
     const hasStoryPoints = Object.prototype.hasOwnProperty.call(updateData, 'storyPoints');
 
