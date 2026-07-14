@@ -25,7 +25,7 @@ exports.getCommentsByTicketId = async (req, res, next) => {
   try {
     const comments = await commentService.getCommentsByTicketId(
       req.params.id,
-      req.user.workspaceId,
+      req.user._id,
       req.user.role
     );
     res.json(comments);

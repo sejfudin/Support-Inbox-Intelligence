@@ -103,17 +103,28 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
   return populated;
 };
 
-const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
+const getCommentsByTicketId = async (ticketId, userId, role) => {
   const foundTicket = await Ticket.findById(ticketId);
+  if (!foundTicket) throw new Error('Unauthorized to view comments for this ticket');
 
-  if (role != 'admin') {
-    if (!foundTicket || foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
+  // Admins and mentors can view comments on any workspace's tickets. Everyone
+  // else must be an active member of the ticket's workspace.
+  const canViewAnyWorkspace = role === 'admin' || role === 'mentor';
+
+  if (!canViewAnyWorkspace) {
+    const workspace = await Workspace.findById(foundTicket.workspace).select('members');
+    const isActiveMember = workspace?.members?.some(
+      (member) => member.user && member.user.equals(userId) && member.status === 'active'
+    );
+
+    if (!isActiveMember) {
       throw new Error('Unauthorized to view comments for this ticket');
     }
   }
 
   return await Comment.find({
     ticket: ticketId,
+    isDeleted: { $ne: true },
   })
     .populate('author', 'fullname email')
     .sort({ createdAt: 1 });
