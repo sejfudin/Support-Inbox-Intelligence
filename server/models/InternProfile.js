@@ -51,10 +51,6 @@ const internProfileSchema = new mongoose.Schema(
       enum: INTERN_STATUSES,
       default: 'active',
     },
-    readyForPlacement: {
-      type: Boolean,
-      default: false,
-    },
     expectedEndDate: {
       type: Date,
     },

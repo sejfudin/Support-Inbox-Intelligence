@@ -76,7 +76,6 @@ const formatInternProfile = (profile) => {
     primaryMentor: formatUser(profile.primaryMentor),
     secondaryMentor: formatUser(profile.secondaryMentor),
     status: profile.status,
-    readyForPlacement: profile.readyForPlacement,
     expectedEndDate: profile.expectedEndDate || null,
     cvUrl: buildCvUrl(profile.cvPath),
   };
@@ -409,7 +408,6 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
 
   if (recommendation.result?.outcome === 'placed') {
     profile.status = 'placed';
-    profile.readyForPlacement = false;
     await profile.save();
   }
 

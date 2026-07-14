@@ -41,21 +41,14 @@ const PROFILE_POPULATE = [
   { path: 'declaredPosition', select: 'name slug' },
 ];
 
-const formatProfile = (profile, viewerRole) => {
+const formatProfile = (profile) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  const isInternViewer = viewerRole === ROLES.INTERN;
 
-  const formatted = {
+  return {
     ...plain,
     id: plain._id,
     cvUrl: buildCvUrl(plain.cvPath),
   };
-
-  if (isInternViewer) {
-    delete formatted.readyForPlacement;
-  }
-
-  return formatted;
 };
 
 const buildListFilter = (user, query) => {
@@ -82,8 +75,6 @@ const buildListFilter = (user, query) => {
 
   if (query.internshipTypeId) filter.internshipType = query.internshipTypeId;
   if (query.profileStatus) filter.status = query.profileStatus;
-  if (query.readyForPlacement === 'true') filter.readyForPlacement = true;
-  if (query.readyForPlacement === 'false') filter.readyForPlacement = false;
   if (query.technologyId) filter.selfTechnologies = query.technologyId;
 
   return { profileFilter: filter, userFilter };
@@ -121,7 +112,7 @@ const listInterns = async (user, query = {}) => {
   ]);
 
   return {
-    interns: profiles.map((p) => formatProfile(p, user.role)),
+    interns: profiles.map((p) => formatProfile(p)),
     pagination: {
       page,
       limit,
@@ -152,7 +143,7 @@ const getInternByUserId = async (user, internUserId) => {
     throw err;
   }
 
-  return formatProfile(profile, user.role);
+  return formatProfile(profile);
 };
 
 const getMyInternProfile = async (user) => {
@@ -170,7 +161,7 @@ const getMyInternProfile = async (user) => {
     throw err;
   }
 
-  return formatProfile(profile, user.role);
+  return formatProfile(profile);
 };
 
 const updateSelfTechnologies = async (user, technologyIds = []) => {
@@ -225,19 +216,15 @@ const updateInternByMentor = async (user, internUserId, payload) => {
   const allowedStatuses = INTERN_STATUSES;
 
   if (payload.status !== undefined) {
-    // Lifecycle status is the assigned mentor's responsibility only — not admins
-    // or unassigned mentors, even though they can write other mentor data.
-    if (!isAssignedMentor(profile, user._id)) {
-      const err = new Error('Only the assigned mentor can change this intern’s status');
+    // Lifecycle status can be changed by admins and the assigned mentor —
+    // not by unassigned mentors, even though they can write other mentor data.
+    if (user.role !== ROLES.ADMIN && !isAssignedMentor(profile, user._id)) {
+      const err = new Error('Only admins or the assigned mentor can change this intern’s status');
       err.statusCode = 403;
       throw err;
     }
     if (!allowedStatuses.includes(payload.status)) throw new Error('Invalid status');
     profile.status = payload.status;
-  }
-
-  if (payload.readyForPlacement !== undefined) {
-    profile.readyForPlacement = Boolean(payload.readyForPlacement);
   }
 
   if (payload.expectedEndDate !== undefined) {
@@ -491,7 +478,7 @@ const getProgrammeStats = async (user) => {
     allActiveRecommendations,
   ] = await Promise.all([
     InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-    InternProfile.countDocuments({ readyForPlacement: true }),
+    InternProfile.countDocuments({ status: 'ready' }),
     InternProfile.aggregate([
       { $match: { status: { $in: activeStatuses } } },
       { $group: { _id: '$internshipType', count: { $sum: 1 } } },
@@ -606,7 +593,7 @@ const getProgrammeStats = async (user) => {
       },
       { $sort: { count: -1, 'position.name': 1 } },
     ]),
-    InternProfile.find({ readyForPlacement: true })
+    InternProfile.find({ status: 'ready' })
       .populate([
         {
           path: 'user',
@@ -618,7 +605,7 @@ const getProgrammeStats = async (user) => {
       ])
       .sort({ expectedEndDate: 1, updatedAt: -1 })
       .lean(),
-    InternProfile.find({ readyForPlacement: true })
+    InternProfile.find({ status: 'ready' })
       .populate([
         {
           path: 'user',
