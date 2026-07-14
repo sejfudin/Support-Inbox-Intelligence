@@ -111,6 +111,7 @@ export function InternProfileView({
           hub={intern.user?.hub?.name}
           startDate={formattedStartDate}
           primaryMentor={intern.primaryMentor?.fullname}
+          secondaryMentor={intern.secondaryMentor?.fullname}
           backButton={backButton}
           titleAdornment={headingActions}
         />
