@@ -2,12 +2,7 @@ import { useRef } from 'react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { PagePanel } from '@/components/PageShell';
-import {
-  useDeleteMyCv,
-  useMyInternProfile,
-  useUploadMyCv,
-} from '@/queries/interns';
-import { getInternStatusLabel } from '@/helpers/internProfile';
+import { useDeleteMyCv, useMyInternProfile, useUploadMyCv } from '@/queries/interns';
 import { toast } from 'sonner';
 
 export function InternSelfServicePanel() {
@@ -57,7 +52,7 @@ export function InternSelfServicePanel() {
           </div>
           <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
             <dt className="text-muted-foreground">Status</dt>
-            <dd className="font-medium text-foreground">{getInternStatusLabel(intern.status)}</dd>
+            <dd className="font-medium text-foreground">{intern.status}</dd>
           </div>
           <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
             <dt className="text-muted-foreground">Start date</dt>
@@ -129,7 +124,6 @@ export function InternSelfServicePanel() {
           )}
         </div>
       </PagePanel>
-
     </div>
   );
 }

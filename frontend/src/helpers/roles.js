@@ -44,18 +44,16 @@ const refId = (ref) => {
 };
 
 // Whether `user` is the primary/secondary mentor assigned to `intern`.
-// The intern's lifecycle status is the assigned mentor's responsibility only.
 export const isAssignedMentor = (user, intern) => {
   if (!user || !intern) return false;
   const userId = user._id || user.id;
   if (!userId) return false;
-  return (
-    refId(intern.primaryMentor) === userId || refId(intern.secondaryMentor) === userId
-  );
+  return refId(intern.primaryMentor) === userId || refId(intern.secondaryMentor) === userId;
 };
 
+// Lifecycle status can be changed by admins and the intern's assigned mentor.
 export const canChangeInternStatus = (user, intern) =>
-  user?.role === ROLES.MENTOR && isAssignedMentor(user, intern);
+  user?.role === ROLES.ADMIN || (user?.role === ROLES.MENTOR && isAssignedMentor(user, intern));
 export const canManageInternDocumentationLinks = (role) =>
   role === ROLES.ADMIN || role === ROLES.LEADERSHIP;
 export const canViewFepDirectory = (role) => role === ROLES.LEADERSHIP;

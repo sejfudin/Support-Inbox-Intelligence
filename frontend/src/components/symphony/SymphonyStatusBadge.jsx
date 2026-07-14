@@ -1,4 +1,3 @@
-import { getInternStatusLabel } from '@/helpers/internProfile';
 import { cn } from '@/lib/utils';
 
 const STATUS_TONE = {
@@ -18,7 +17,7 @@ export function SymphonyStatusBadge({ status, className }) {
         className
       )}
     >
-      {getInternStatusLabel(status)}
+      {status}
     </span>
   );
 }

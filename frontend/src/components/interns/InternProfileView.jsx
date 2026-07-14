@@ -90,8 +90,8 @@ export function InternProfileView({
       {backLabel}
     </Button>
   ) : null;
-  // Lifecycle status is the assigned mentor's responsibility only — not admins
-  // or unassigned mentors. This mirrors the backend guard in updateInternByMentor.
+  // Lifecycle status can be changed by admins and the assigned mentor — not by
+  // unassigned mentors. This mirrors the backend guard in updateInternByMentor.
   const canChangeStatus = !readOnly && canChangeInternStatus(user, intern);
   const hasOverviewSidebar = canChangeStatus;
   const formattedStartDate = intern.startDate
@@ -106,7 +106,6 @@ export function InternProfileView({
           fullname={intern.user?.fullname}
           email={intern.user?.email}
           status={intern.status}
-          readyForPlacement={intern.readyForPlacement}
           programme={intern.internshipType?.name}
           hub={intern.user?.hub?.name}
           startDate={formattedStartDate}

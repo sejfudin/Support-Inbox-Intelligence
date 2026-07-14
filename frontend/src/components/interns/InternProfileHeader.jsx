@@ -19,7 +19,6 @@ export function InternProfileHeader({
   fullname,
   email,
   status,
-  readyForPlacement = false,
   programme,
   hub,
   startDate,
@@ -61,11 +60,6 @@ export function InternProfileHeader({
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {status ? <SymphonyStatusBadge status={status} /> : null}
-            {readyForPlacement ? (
-              <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                Ready for placement
-              </span>
-            ) : null}
           </div>
         </div>
       </div>

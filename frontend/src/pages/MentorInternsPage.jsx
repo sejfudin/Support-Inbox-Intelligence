@@ -15,7 +15,7 @@ import { PageShell, PageSection } from '@/components/PageShell';
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
-import { getInternStatusLabel, INTERN_STATUSES } from '@/helpers/internProfile';
+import { INTERN_STATUSES } from '@/helpers/internProfile';
 
 export default function MentorInternsPage() {
   const navigate = useNavigate();
@@ -111,8 +111,8 @@ export default function MentorInternsPage() {
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 {INTERN_STATUSES.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
+                  <SelectItem key={s} value={s}>
+                    {s}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -164,7 +164,7 @@ export default function MentorInternsPage() {
                         </td>
                         <td className="px-5 py-4">{intern.user?.hub?.name || '—'}</td>
                         <td className="px-5 py-4">{intern.internshipType?.name || '—'}</td>
-                        <td className="px-5 py-4">{getInternStatusLabel(intern.status)}</td>
+                        <td className="px-5 py-4">{intern.status}</td>
                         <td className="px-5 py-4 text-right">
                           <Button
                             type="button"

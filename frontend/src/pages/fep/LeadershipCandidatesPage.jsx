@@ -27,13 +27,13 @@ export default function LeadershipCandidatesPage() {
   const [internshipTypeId, setInternshipTypeId] = useState(
     searchParams.get('internshipTypeId') || ''
   );
-  const [profileStatus, setProfileStatus] = useState(searchParams.get('status') || 'active');
+  const [profileStatus, setProfileStatus] = useState(searchParams.get('status') || '');
   const [debouncedSearch] = useDebounce(search, 400);
 
   useEffect(() => {
     setHubId(searchParams.get('hubId') || '');
     setInternshipTypeId(searchParams.get('internshipTypeId') || '');
-    setProfileStatus(searchParams.get('status') || 'active');
+    setProfileStatus(searchParams.get('status') || '');
     setPage(1);
   }, [searchParams]);
 
@@ -140,8 +140,8 @@ export default function LeadershipCandidatesPage() {
             <SelectContent>
               <SelectItem value="all">All stages</SelectItem>
               {INTERN_STATUSES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
+                <SelectItem key={s} value={s}>
+                  {s}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -161,14 +161,13 @@ export default function LeadershipCandidatesPage() {
                   <th className="px-5 py-3">Hub</th>
                   <th className="px-5 py-3">Programme</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Ready</th>
                   <th className="px-5 py-3">Mentor</th>
                 </tr>
               </thead>
               <tbody>
                 {interns.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">
                       No candidates match your filters.
                     </td>
                   </tr>
@@ -194,15 +193,6 @@ export default function LeadershipCandidatesPage() {
                       <td className="px-5 py-4">{intern.internshipType?.name || '—'}</td>
                       <td className="px-5 py-4">
                         <SymphonyStatusBadge status={intern.status} />
-                      </td>
-                      <td className="px-5 py-4">
-                        {intern.readyForPlacement ? (
-                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No</span>
-                        )}
                       </td>
                       <td className="px-5 py-4 text-muted-foreground">
                         {intern.primaryMentor?.fullname || '—'}
