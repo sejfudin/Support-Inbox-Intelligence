@@ -151,7 +151,9 @@ export default function AppRoutes() {
               <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
             </Route>
 
-            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
+            <Route
+              element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.INTERN, ROLES.MENTOR]} />}
+            >
               <Route path="/admin/backlog" element={<BacklogPage />} />
             </Route>
           </Route>
