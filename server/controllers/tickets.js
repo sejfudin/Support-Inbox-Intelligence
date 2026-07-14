@@ -1,5 +1,6 @@
 const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
+const Workspace = require('../models/Workspace');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -76,12 +77,39 @@ const getTicketById = async (req, res) => {
       });
     }
 
+    // Admins and mentors can read tickets in any workspace. Everyone else
+    // (interns, leadership) may only read a ticket if they are an active member
+    // of that ticket's workspace. Note: a user can belong to multiple
+    // workspaces, so we check the workspace's member list rather than the
+    // user's single active `workspaceId`.
+    const role = req.user?.role;
+    const canReadAnyWorkspace = role === 'admin' || role === 'mentor';
+
+    if (!canReadAnyWorkspace) {
+      const workspace = await Workspace.findById(ticket.workspace).select('members');
+      const isActiveMember = workspace?.members?.some(
+        (member) => member.user && member.user.equals(req.user._id) && member.status === 'active'
+      );
+
+      if (!isActiveMember) {
+        // Return 404 (not 403) so a caller can't probe which ticket IDs exist.
+        return res.status(404).json({
+          success: false,
+          message: 'Ticket not found',
+        });
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: ticket,
     });
   } catch (error) {
     if (error.kind === 'ObjectId') {
+      return res.status(404).json({ success: false, message: 'Ticket not found' });
+    }
+
+    if (error.message === 'Ticket not found') {
       return res.status(404).json({ success: false, message: 'Ticket not found' });
     }
 
