@@ -140,7 +140,7 @@ export default function LeadershipCandidatesPage() {
             <SelectContent>
               <SelectItem value="all">All stages</SelectItem>
               {INTERN_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>
+                <SelectItem key={s} value={s} className="capitalize">
                   {s}
                 </SelectItem>
               ))}

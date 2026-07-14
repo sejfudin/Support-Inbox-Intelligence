@@ -58,7 +58,7 @@ function MentorInternsPanel({ mentorUserId }) {
                   <p className="text-xs text-muted-foreground">{intern.user?.email}</p>
                 </TableCell>
                 <TableCell>{intern.internshipType?.name || '—'}</TableCell>
-                <TableCell>{intern.status}</TableCell>
+                <TableCell className="capitalize">{intern.status}</TableCell>
                 <TableCell>{isPrimary ? 'Primary mentor' : 'Secondary mentor'}</TableCell>
                 <TableCell className="text-right">
                   <Link

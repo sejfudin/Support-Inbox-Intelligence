@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const InternProfile = require('../models/InternProfile');
-const { INTERN_STATUSES } = require('../models/InternProfile');
+const { INTERN_STATUSES, READY_STATUS } = require('../models/InternProfile');
 const ReadinessFlag = require('../models/ReadinessFlag');
 const Evaluation = require('../models/Evaluation');
 const Recommendation = require('../models/Recommendation');
@@ -203,7 +203,7 @@ const updateSelfPosition = async (user, positionId = null) => {
   return getMyInternProfile(user);
 };
 
-const updateInternByMentor = async (user, internUserId, payload) => {
+const updateInternProgramme = async (user, internUserId, payload) => {
   const profile = await InternProfile.findOne({ user: internUserId });
   if (!profile) throw new Error('Intern profile not found');
 
@@ -454,7 +454,7 @@ const getProgrammeStats = async (user) => {
     throw err;
   }
 
-  const activeStatuses = ['active', 'ready'];
+  const activeStatuses = ['active', READY_STATUS];
   const excludedSupplyStatuses = ['placed', 'completed', 'discontinued'];
   const urgencyCutoff = new Date();
   urgencyCutoff.setDate(urgencyCutoff.getDate() + URGENCY_WINDOW_DAYS);
@@ -464,7 +464,6 @@ const getProgrammeStats = async (user) => {
 
   const [
     funnelRows,
-    readyForPlacement,
     activeByProgrammeRows,
     activeByHubRows,
     technologySupplyRows,
@@ -478,7 +477,6 @@ const getProgrammeStats = async (user) => {
     allActiveRecommendations,
   ] = await Promise.all([
     InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-    InternProfile.countDocuments({ status: 'ready' }),
     InternProfile.aggregate([
       { $match: { status: { $in: activeStatuses } } },
       { $group: { _id: '$internshipType', count: { $sum: 1 } } },
@@ -593,7 +591,7 @@ const getProgrammeStats = async (user) => {
       },
       { $sort: { count: -1, 'position.name': 1 } },
     ]),
-    InternProfile.find({ status: 'ready' })
+    InternProfile.find({ status: READY_STATUS })
       .populate([
         {
           path: 'user',
@@ -605,7 +603,7 @@ const getProgrammeStats = async (user) => {
       ])
       .sort({ expectedEndDate: 1, updatedAt: -1 })
       .lean(),
-    InternProfile.find({ status: 'ready' })
+    InternProfile.find({ status: READY_STATUS })
       .populate([
         {
           path: 'user',
@@ -846,7 +844,8 @@ const getProgrammeStats = async (user) => {
 
   return {
     funnel,
-    readyForPlacement,
+    // Kept under its historical name for the KPI consumers; sourced from the funnel.
+    readyForPlacement: funnel[READY_STATUS],
     activeByProgramme: activeByProgrammeRows.map((row) => ({
       programme: row.programme,
       count: row.count,
@@ -891,7 +890,7 @@ module.exports = {
   getMyInternProfile,
   updateSelfTechnologies,
   updateSelfPosition,
-  updateInternByMentor,
+  updateInternProgramme,
   updateDocumentationLinks,
   createInternProfile,
   getProgrammeStats,

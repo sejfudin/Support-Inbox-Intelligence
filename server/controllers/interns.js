@@ -78,7 +78,7 @@ exports.updateMyPosition = async (req, res, next) => {
 
 exports.updateIntern = async (req, res, next) => {
   try {
-    const intern = await internService.updateInternByMentor(req.user, req.params.userId, req.body);
+    const intern = await internService.updateInternProgramme(req.user, req.params.userId, req.body);
     res.json({ intern });
   } catch (error) {
     if (error.message === 'Intern profile not found' || error.message === 'Invalid status') {

@@ -52,7 +52,7 @@ export function InternSelfServicePanel() {
           </div>
           <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
             <dt className="text-muted-foreground">Status</dt>
-            <dd className="font-medium text-foreground">{intern.status}</dd>
+            <dd className="font-medium capitalize text-foreground">{intern.status}</dd>
           </div>
           <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
             <dt className="text-muted-foreground">Start date</dt>

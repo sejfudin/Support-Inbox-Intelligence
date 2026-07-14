@@ -14,7 +14,7 @@ import { useUpdateIntern } from '@/queries/interns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-export function InternMentorControls({ intern, className }) {
+export function InternProgrammeControls({ intern, className }) {
   const userId = intern.user?._id || intern.user;
   const { mutate, isPending } = useUpdateIntern();
   const [status, setStatus] = useState(intern.status);
@@ -50,14 +50,19 @@ export function InternMentorControls({ intern, className }) {
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger
               id="intern-status-select"
-              className="w-full"
+              className="w-full capitalize"
               data-test="intern-status-select"
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {INTERN_STATUSES.map((s) => (
-                <SelectItem key={s} value={s} data-test={`intern-status-${s}`}>
+                <SelectItem
+                  key={s}
+                  value={s}
+                  className="capitalize"
+                  data-test={`intern-status-${s}`}
+                >
                   {s}
                 </SelectItem>
               ))}
@@ -69,7 +74,7 @@ export function InternMentorControls({ intern, className }) {
           className="w-full"
           disabled={isPending}
           onClick={handleSave}
-          data-test="intern-mentor-controls-save-button"
+          data-test="intern-programme-controls-save-button"
         >
           {isPending ? 'Saving...' : 'Save changes'}
         </Button>

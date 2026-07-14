@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PagePanel, PageShell, PageSection } from '@/components/PageShell';
-import { InternMentorControls } from '@/components/interns/InternMentorControls';
+import { InternProgrammeControls } from '@/components/interns/InternProgrammeControls';
 import { InternCommentsPanel } from '@/components/interns/InternCommentsPanel';
 import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPanel';
 import { InternReadinessPanel } from '@/components/interns/InternReadinessPanel';
@@ -91,7 +91,7 @@ export function InternProfileView({
     </Button>
   ) : null;
   // Lifecycle status can be changed by admins and the assigned mentor — not by
-  // unassigned mentors. This mirrors the backend guard in updateInternByMentor.
+  // unassigned mentors. This mirrors the backend guard in updateInternProgramme.
   const canChangeStatus = !readOnly && canChangeInternStatus(user, intern);
   const hasOverviewSidebar = canChangeStatus;
   const formattedStartDate = intern.startDate
@@ -184,7 +184,7 @@ export function InternProfileView({
                 />
               </InternPanel>
 
-              {hasOverviewSidebar && canChangeStatus && <InternMentorControls intern={intern} />}
+              {hasOverviewSidebar && canChangeStatus && <InternProgrammeControls intern={intern} />}
             </div>
           </TabsContent>
 

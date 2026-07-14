@@ -111,7 +111,7 @@ export default function MentorInternsPage() {
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 {INTERN_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
+                  <SelectItem key={s} value={s} className="capitalize">
                     {s}
                   </SelectItem>
                 ))}
@@ -164,7 +164,7 @@ export default function MentorInternsPage() {
                         </td>
                         <td className="px-5 py-4">{intern.user?.hub?.name || '—'}</td>
                         <td className="px-5 py-4">{intern.internshipType?.name || '—'}</td>
-                        <td className="px-5 py-4">{intern.status}</td>
+                        <td className="px-5 py-4 capitalize">{intern.status}</td>
                         <td className="px-5 py-4 text-right">
                           <Button
                             type="button"
