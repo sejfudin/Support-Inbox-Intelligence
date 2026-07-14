@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/table';
 import { useInterns } from '@/queries/interns';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-import { getInternStatusLabel } from '@/helpers/internProfile';
 import { getRoleLabel, ROLES } from '@/helpers/roles';
 
 function MentorInternsPanel({ mentorUserId }) {
@@ -59,7 +58,7 @@ function MentorInternsPanel({ mentorUserId }) {
                   <p className="text-xs text-muted-foreground">{intern.user?.email}</p>
                 </TableCell>
                 <TableCell>{intern.internshipType?.name || '—'}</TableCell>
-                <TableCell>{getInternStatusLabel(intern.status)}</TableCell>
+                <TableCell className="capitalize">{intern.status}</TableCell>
                 <TableCell>{isPrimary ? 'Primary mentor' : 'Secondary mentor'}</TableCell>
                 <TableCell className="text-right">
                   <Link

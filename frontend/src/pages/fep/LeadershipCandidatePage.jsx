@@ -79,11 +79,6 @@ export default function LeadershipCandidatePage() {
             actions={
               <div className="flex flex-wrap items-center gap-2">
                 <SymphonyStatusBadge status={intern.status} />
-                {intern.readyForPlacement && (
-                  <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    Ready for placement
-                  </span>
-                )}
               </div>
             }
           />
