@@ -8,7 +8,6 @@ exports.createComment = async (req, res, next) => {
       content,
       ticket,
       authorId: req.user._id,
-      userWorkspaceId: req.user.workspaceId,
       role: req.user.role,
     });
 
