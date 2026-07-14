@@ -24,6 +24,7 @@ export function InternProfileHeader({
   hub,
   startDate,
   primaryMentor,
+  secondaryMentor,
   backButton,
   titleAdornment,
   className,
@@ -70,11 +71,19 @@ export function InternProfileHeader({
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 border-t border-border/60 bg-muted/20 px-5 py-4 md:grid-cols-4 md:px-6">
+      <dl
+        className={cn(
+          'grid grid-cols-2 gap-4 border-t border-border/60 bg-muted/20 px-5 py-4 md:grid-cols-4 md:px-6',
+          secondaryMentor && 'md:grid-cols-5'
+        )}
+      >
         <MetaField label="Programme" value={programme} />
         <MetaField label="Hub" value={hub} />
         <MetaField label="Start date" value={startDate} />
         <MetaField label="Primary mentor" value={primaryMentor} />
+        {secondaryMentor ? (
+          <MetaField label="Secondary mentor" value={secondaryMentor} />
+        ) : null}
       </dl>
     </header>
   );
