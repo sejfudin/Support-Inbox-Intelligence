@@ -15,7 +15,7 @@ import { PageShell, PageSection } from '@/components/PageShell';
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
-import { getInternStatusLabel } from '@/helpers/internProfile';
+import { INTERN_STATUSES } from '@/helpers/internProfile';
 
 export default function MentorInternsPage() {
   const navigate = useNavigate();
@@ -110,11 +110,11 @@ export default function MentorInternsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="ready">Ready</SelectItem>
-                <SelectItem value="placed">Placed</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="discontinued">Discontinued</SelectItem>
+                {INTERN_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s} className="capitalize">
+                    {s}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -164,7 +164,7 @@ export default function MentorInternsPage() {
                         </td>
                         <td className="px-5 py-4">{intern.user?.hub?.name || '—'}</td>
                         <td className="px-5 py-4">{intern.internshipType?.name || '—'}</td>
-                        <td className="px-5 py-4">{getInternStatusLabel(intern.status)}</td>
+                        <td className="px-5 py-4 capitalize">{intern.status}</td>
                         <td className="px-5 py-4 text-right">
                           <Button
                             type="button"

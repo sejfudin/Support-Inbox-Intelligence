@@ -1,4 +1,3 @@
-import { getInternStatusLabel } from '@/helpers/internProfile';
 import { cn } from '@/lib/utils';
 
 const STATUS_TONE = {
@@ -13,12 +12,12 @@ export function SymphonyStatusBadge({ status, className }) {
   return (
     <span
       className={cn(
-        'inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+        'inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold capitalize',
         STATUS_TONE[status] || 'symphony-status-muted',
         className
       )}
     >
-      {getInternStatusLabel(status)}
+      {status}
     </span>
   );
 }

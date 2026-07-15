@@ -4,10 +4,11 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PagePanel, PageShell, PageSection } from '@/components/PageShell';
-import { InternMentorControls } from '@/components/interns/InternMentorControls';
+import { InternProgrammeControls } from '@/components/interns/InternProgrammeControls';
 import { InternCommentsPanel } from '@/components/interns/InternCommentsPanel';
 import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPanel';
 import { InternReadinessPanel } from '@/components/interns/InternReadinessPanel';
+import { InternRoleReadinessPanel } from '@/components/interns/InternRoleReadinessPanel';
 import { InternRecommendationsPanel } from '@/components/interns/InternRecommendationsPanel';
 import { InternCandidateOverview } from '@/components/interns/InternCandidateOverview';
 import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
@@ -89,8 +90,8 @@ export function InternProfileView({
       {backLabel}
     </Button>
   ) : null;
-  // Lifecycle status is the assigned mentor's responsibility only — not admins
-  // or unassigned mentors. This mirrors the backend guard in updateInternByMentor.
+  // Lifecycle status can be changed by admins and the assigned mentor — not by
+  // unassigned mentors. This mirrors the backend guard in updateInternProgramme.
   const canChangeStatus = !readOnly && canChangeInternStatus(user, intern);
   const hasOverviewSidebar = canChangeStatus;
   const formattedStartDate = intern.startDate
@@ -105,11 +106,11 @@ export function InternProfileView({
           fullname={intern.user?.fullname}
           email={intern.user?.email}
           status={intern.status}
-          readyForPlacement={intern.readyForPlacement}
           programme={intern.internshipType?.name}
           hub={intern.user?.hub?.name}
           startDate={formattedStartDate}
           primaryMentor={intern.primaryMentor?.fullname}
+          secondaryMentor={intern.secondaryMentor?.fullname}
           backButton={backButton}
           titleAdornment={headingActions}
         />
@@ -124,11 +125,11 @@ export function InternProfileView({
               Overview
             </TabsTrigger>
             <TabsTrigger
-              value="technologies"
+              value="readiness"
               className={internTabTriggerClassName}
-              data-test="intern-detail-technologies-tab"
+              data-test="intern-detail-readiness-tab"
             >
-              Technologies
+              Readiness
             </TabsTrigger>
             {showEvaluations && (
               <TabsTrigger
@@ -184,7 +185,7 @@ export function InternProfileView({
                 />
               </InternPanel>
 
-              {hasOverviewSidebar && canChangeStatus && <InternMentorControls intern={intern} />}
+              {hasOverviewSidebar && canChangeStatus && <InternProgrammeControls intern={intern} />}
             </div>
           </TabsContent>
 
@@ -194,12 +195,19 @@ export function InternProfileView({
             </TabsContent>
           )}
 
-          <TabsContent value="technologies">
-            <InternReadinessPanel
-              userId={userId}
-              declaredTechnologies={intern.selfTechnologies || []}
-              readOnly={readOnly}
-            />
+          <TabsContent value="readiness">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+              <InternReadinessPanel
+                userId={userId}
+                declaredTechnologies={intern.selfTechnologies || []}
+                readOnly={readOnly}
+              />
+              <InternRoleReadinessPanel
+                userId={userId}
+                declaredPosition={intern.declaredPosition}
+                readOnly={readOnly}
+              />
+            </div>
           </TabsContent>
 
           {showEvaluations && (

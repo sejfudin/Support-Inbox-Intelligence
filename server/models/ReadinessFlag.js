@@ -12,7 +12,12 @@ const readinessFlagSchema = new mongoose.Schema(
     technology: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Technology',
-      required: true,
+      default: null,
+    },
+    position: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Position',
+      default: null,
     },
     level: {
       type: String,
@@ -28,6 +33,18 @@ const readinessFlagSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+readinessFlagSchema.pre('validate', function (next) {
+  if (!this.technology && !this.position) {
+    return next(new Error('A readiness flag requires a technology or a position'));
+  }
+  if (this.technology && this.position) {
+    return next(new Error('A readiness flag cannot target both a technology and a position'));
+  }
+  next();
+});
+
+// Position flags carry technology: null, so this index also caps role flags at
+// one per intern — the flag is rewritten when the declared position changes.
 readinessFlagSchema.index({ internProfile: 1, technology: 1 }, { unique: true });
 
 module.exports = mongoose.model('ReadinessFlag', readinessFlagSchema);

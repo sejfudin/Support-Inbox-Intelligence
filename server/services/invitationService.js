@@ -163,7 +163,11 @@ const acceptInvitation = async ({ invitationId, userId }) => {
 
   await workspace.save();
 
-  await User.findByIdAndUpdate(userId, { workspaceId: workspace._id });
+  const acceptingUser = await User.findById(userId).select('workspaceId');
+  const becameActiveWorkspace = !acceptingUser?.workspaceId;
+  if (becameActiveWorkspace) {
+    await User.findByIdAndUpdate(userId, { workspaceId: workspace._id });
+  }
 
   invitation.status = 'accepted';
   invitation.respondedAt = new Date();
@@ -171,7 +175,7 @@ const acceptInvitation = async ({ invitationId, userId }) => {
 
   emitInvitationInvalidation(userId);
 
-  return { message: 'Invitation accepted', workspaceId: workspace._id };
+  return { message: 'Invitation accepted', workspaceId: workspace._id, becameActiveWorkspace };
 };
 
 const declineInvitation = async ({ invitationId, userId }) => {

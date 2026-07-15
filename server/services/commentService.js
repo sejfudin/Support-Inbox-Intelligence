@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
+const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
@@ -17,7 +18,7 @@ const emitCommentTicketEvent = ({ eventName, ticketId, workspaceId, commentId })
   emitCommentEvent({ eventName, ticketId, workspaceId, commentId });
 };
 
-const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
+const createComment = async ({ content, ticket, authorId, role }) => {
   if (!content || !content.trim()) throw new Error('Comment content is required');
 
   if (content.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
@@ -29,8 +30,12 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
     throw new Error('Unauthorized: Cannot comment on an archived ticket');
   }
 
-  if (role != 'admin') {
-    if (foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
+  // Admins and mentors can comment on tickets in any workspace. Everyone else
+  // must be an active member of the ticket's workspace.
+  if (!canAccessAnyWorkspace(role)) {
+    const workspace = await Workspace.findById(foundTicket.workspace).select('members');
+
+    if (!isActiveWorkspaceMember(workspace, authorId)) {
       throw new Error('Unauthorized: You do not belong to this workspace');
     }
   }
@@ -103,17 +108,23 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
   return populated;
 };
 
-const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
+const getCommentsByTicketId = async (ticketId, userId, role) => {
   const foundTicket = await Ticket.findById(ticketId);
+  if (!foundTicket) throw new Error('Unauthorized to view comments for this ticket');
 
-  if (role != 'admin') {
-    if (!foundTicket || foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
+  // Admins and mentors can view comments on any workspace's tickets. Everyone
+  // else must be an active member of the ticket's workspace.
+  if (!canAccessAnyWorkspace(role)) {
+    const workspace = await Workspace.findById(foundTicket.workspace).select('members');
+
+    if (!isActiveWorkspaceMember(workspace, userId)) {
       throw new Error('Unauthorized to view comments for this ticket');
     }
   }
 
   return await Comment.find({
     ticket: ticketId,
+    isDeleted: { $ne: true },
   })
     .populate('author', 'fullname email')
     .sort({ createdAt: 1 });

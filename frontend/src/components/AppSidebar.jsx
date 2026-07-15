@@ -69,14 +69,14 @@ export default function AppSidebar() {
     },
     {
       label: 'Archive',
-      to: '/admin/archive',
+      to: '/archive',
       icon: Archive,
     },
     {
       label: 'Backlog',
-      to: '/admin/backlog',
+      to: '/backlog',
       icon: FileQuestionMark,
-      adminOnly: true,
+      hidden: !(isAdmin(user?.role) || isMentor(user?.role) || isIntern(user?.role)),
     },
     {
       label: 'Analytics',
@@ -210,7 +210,7 @@ export default function AppSidebar() {
             </div>
             <SidebarMenu>
               {workspaceNav.map((item) => {
-                if (item.adminOnly && !isAdmin(user?.role)) {
+                if (item.hidden) {
                   return null;
                 }
                 const Icon = item.icon;

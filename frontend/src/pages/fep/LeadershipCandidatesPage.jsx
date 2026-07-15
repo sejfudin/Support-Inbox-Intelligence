@@ -13,6 +13,7 @@ import {
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { INTERN_STATUSES } from '@/helpers/internProfile';
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
@@ -27,14 +28,12 @@ export default function LeadershipCandidatesPage() {
     searchParams.get('internshipTypeId') || ''
   );
   const [profileStatus, setProfileStatus] = useState(searchParams.get('status') || '');
-  const [readyFilter, setReadyFilter] = useState(searchParams.get('ready') || '');
   const [debouncedSearch] = useDebounce(search, 400);
 
   useEffect(() => {
     setHubId(searchParams.get('hubId') || '');
     setInternshipTypeId(searchParams.get('internshipTypeId') || '');
     setProfileStatus(searchParams.get('status') || '');
-    setReadyFilter(searchParams.get('ready') || '');
     setPage(1);
   }, [searchParams]);
 
@@ -47,7 +46,6 @@ export default function LeadershipCandidatesPage() {
     hubId: hubId || undefined,
     internshipTypeId: internshipTypeId || undefined,
     profileStatus: profileStatus || undefined,
-    readyForPlacement: readyFilter || undefined,
   });
 
   const interns = data?.interns ?? [];
@@ -77,7 +75,7 @@ export default function LeadershipCandidatesPage() {
             View programme dashboard
           </Link>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <Input
             className="symphony-input"
             placeholder="Search name or email..."
@@ -137,34 +135,15 @@ export default function LeadershipCandidatesPage() {
               className="symphony-input"
               data-test="leadership-candidates-status-select"
             >
-              <SelectValue placeholder="All statuses" />
+              <SelectValue placeholder="Placement stage" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="ready">Ready</SelectItem>
-              <SelectItem value="placed">Placed</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="discontinued">Discontinued</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={readyFilter || 'all'}
-            onValueChange={(v) => {
-              setReadyFilter(v === 'all' ? '' : v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger
-              className="symphony-input"
-              data-test="leadership-candidates-ready-select"
-            >
-              <SelectValue placeholder="Placement readiness" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All readiness</SelectItem>
-              <SelectItem value="true">Ready for placement</SelectItem>
-              <SelectItem value="false">Not ready</SelectItem>
+              <SelectItem value="all">All stages</SelectItem>
+              {INTERN_STATUSES.map((s) => (
+                <SelectItem key={s} value={s} className="capitalize">
+                  {s}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -182,14 +161,13 @@ export default function LeadershipCandidatesPage() {
                   <th className="px-5 py-3">Hub</th>
                   <th className="px-5 py-3">Programme</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Ready</th>
                   <th className="px-5 py-3">Mentor</th>
                 </tr>
               </thead>
               <tbody>
                 {interns.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">
                       No candidates match your filters.
                     </td>
                   </tr>
@@ -215,15 +193,6 @@ export default function LeadershipCandidatesPage() {
                       <td className="px-5 py-4">{intern.internshipType?.name || '—'}</td>
                       <td className="px-5 py-4">
                         <SymphonyStatusBadge status={intern.status} />
-                      </td>
-                      <td className="px-5 py-4">
-                        {intern.readyForPlacement ? (
-                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No</span>
-                        )}
                       </td>
                       <td className="px-5 py-4 text-muted-foreground">
                         {intern.primaryMentor?.fullname || '—'}

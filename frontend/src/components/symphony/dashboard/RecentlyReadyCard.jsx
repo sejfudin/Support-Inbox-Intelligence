@@ -14,7 +14,7 @@ export function RecentlyReadyCard({ isPending, recentlyReady = [] }) {
           </p>
         </div>
         <Link
-          to="/interns?ready=true"
+          to="/interns?status=ready"
           className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
           data-test="leadership-dashboard-recently-ready-link"
         >

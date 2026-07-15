@@ -69,7 +69,7 @@ export function InternCandidateOverview({
             description={
               programmeMode === 'supplemental'
                 ? 'Additional mentorship and timeline details.'
-                : 'Mentorship assignment and placement readiness.'
+                : 'Mentorship assignment details.'
             }
           >
             <dl className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -77,12 +77,6 @@ export function InternCandidateOverview({
                 <>
                   <DetailItem label="Primary mentor" value={intern.primaryMentor?.fullname} />
                   <DetailItem label="Secondary mentor" value={intern.secondaryMentor?.fullname} />
-                  {intern.readyForPlacement !== undefined && (
-                    <DetailItem
-                      label="Ready for placement"
-                      value={intern.readyForPlacement ? 'Yes' : 'No'}
-                    />
-                  )}
                 </>
               )}
               {programmeMode === 'supplemental' && (

@@ -1,6 +1,6 @@
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { BreakdownDonut } from '@/components/symphony/dashboard/BreakdownDonut';
-import { getInternStatusLabel, INTERN_STATUSES } from '@/helpers/internProfile';
+import { INTERN_STATUSES } from '@/helpers/internProfile';
 
 function BreakdownCard({ kicker, title, rows, emptyLabel }) {
   return (
@@ -36,10 +36,10 @@ export function ProgrammeBreakdowns({
       href: row.hub?._id ? `/interns?hubId=${row.hub._id}` : undefined,
     }));
 
-  const stageRows = INTERN_STATUSES.map(({ value }) => ({
-    name: getInternStatusLabel(value),
-    value: funnel[value] ?? 0,
-    href: `/interns?status=${value}`,
+  const stageRows = INTERN_STATUSES.map((status) => ({
+    name: status,
+    value: funnel[status] ?? 0,
+    href: `/interns?status=${status}`,
   })).filter((row) => row.value > 0);
 
   return (

@@ -1,3 +1,5 @@
+import { format } from 'date-fns';
+import { ArchiveRestore } from 'lucide-react';
 import TicketStatusBadge from '../StatusBadge';
 import PriorityIndicator from '../PriorityIndicator';
 import AssigneesAvatar from '../Tickets/AssigneesAvatar';
@@ -8,12 +10,23 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import StoryPointsIndicator from '../StoryPointsIndicator';
 
+const stripHtml = (html) => {
+  if (!html) return '';
+  const spacedHtml = html.replace(/</g, ' <').replace(/>/g, '> ').replace(/\s+/g, ' ');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = spacedHtml;
+  const text = tmp.textContent || tmp.innerText || '';
+  return text.replace(/\s+/g, ' ').trim();
+};
+
 export function createTicketColumns({
   statusBadgeConfig = {},
   statusIsDone,
   statusTracksTime,
+  variant = 'default',
+  onRestore,
 } = {}) {
-  return [
+  const columns = [
     {
       accessorKey: 'taskNumber',
       header: 'ID',
@@ -34,17 +47,6 @@ export function createTicketColumns({
         cellClassName: 'w-[36%]',
       },
       cell: ({ row }) => {
-        const stripHtml = (html) => {
-          if (!html) return '';
-
-          const spacedHtml = html.replace(/</g, ' <').replace(/>/g, '> ').replace(/\s+/g, ' ');
-
-          const tmp = document.createElement('div');
-          tmp.innerHTML = spacedHtml;
-
-          const text = tmp.textContent || tmp.innerText || '';
-          return text.replace(/\s+/g, ' ').trim();
-        };
         const plainDescription = stripHtml(row.original.description);
 
         return (
@@ -160,6 +162,73 @@ export function createTicketColumns({
       cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
     },
   ];
+
+  if (variant === 'archive') {
+    // Sparse, scan-to-restore data: render each ticket as one full-width row
+    // (identity + archive date + restore) rather than a column grid.
+    return [
+      {
+        id: 'summary',
+        header: '',
+        cell: ({ row }) => {
+          const ticket = row.original;
+          const snippet = stripHtml(ticket.description);
+          let archivedLabel = null;
+          if (ticket.archivedAt) {
+            try {
+              archivedLabel = format(new Date(ticket.archivedAt), 'MMM d, yyyy');
+            } catch {
+              archivedLabel = null;
+            }
+          }
+
+          return (
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="mt-0.5 shrink-0 text-xs font-semibold text-muted-foreground">
+                  #{ticket.taskNumber ?? '—'}
+                </span>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-foreground" title={ticket.title}>
+                    {ticket.title}
+                  </div>
+                  {snippet && (
+                    <div className="line-clamp-1 text-sm text-muted-foreground" title={snippet}>
+                      {snippet}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-4">
+                <div className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+                  {archivedLabel ? `Archived ${archivedLabel}` : '—'}
+                </div>
+
+                {onRestore && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRestore(ticket);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+                    title="Restore ticket"
+                    data-test="archive-row-restore"
+                  >
+                    <ArchiveRestore className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Restore</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        },
+      },
+    ];
+  }
+
+  return columns;
 }
 
 export const columns = createTicketColumns();

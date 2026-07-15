@@ -78,7 +78,7 @@ exports.updateMyPosition = async (req, res, next) => {
 
 exports.updateIntern = async (req, res, next) => {
   try {
-    const intern = await internService.updateInternByMentor(req.user, req.params.userId, req.body);
+    const intern = await internService.updateInternProgramme(req.user, req.params.userId, req.body);
     res.json({ intern });
   } catch (error) {
     if (error.message === 'Intern profile not found' || error.message === 'Invalid status') {
@@ -214,9 +214,11 @@ exports.upsertReadiness = async (req, res, next) => {
     res.json({ flag });
   } catch (error) {
     if (
-      error.message === 'Technology is required' ||
+      error.message === 'Technology or position is required' ||
+      error.message === 'Provide a technology or a position, not both' ||
       error.message === 'Invalid readiness level' ||
-      error.message === 'Invalid technology'
+      error.message === 'Invalid technology' ||
+      error.message === 'Invalid position'
     ) {
       return res.status(400).json({ message: error.message });
     }

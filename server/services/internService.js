@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const InternProfile = require('../models/InternProfile');
-const { INTERN_STATUSES } = require('../models/InternProfile');
+const { INTERN_STATUSES, READY_STATUS } = require('../models/InternProfile');
 const ReadinessFlag = require('../models/ReadinessFlag');
 const Evaluation = require('../models/Evaluation');
 const Recommendation = require('../models/Recommendation');
@@ -41,21 +41,14 @@ const PROFILE_POPULATE = [
   { path: 'declaredPosition', select: 'name slug' },
 ];
 
-const formatProfile = (profile, viewerRole) => {
+const formatProfile = (profile) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  const isInternViewer = viewerRole === ROLES.INTERN;
 
-  const formatted = {
+  return {
     ...plain,
     id: plain._id,
     cvUrl: buildCvUrl(plain.cvPath),
   };
-
-  if (isInternViewer) {
-    delete formatted.readyForPlacement;
-  }
-
-  return formatted;
 };
 
 const buildListFilter = (user, query) => {
@@ -82,8 +75,6 @@ const buildListFilter = (user, query) => {
 
   if (query.internshipTypeId) filter.internshipType = query.internshipTypeId;
   if (query.profileStatus) filter.status = query.profileStatus;
-  if (query.readyForPlacement === 'true') filter.readyForPlacement = true;
-  if (query.readyForPlacement === 'false') filter.readyForPlacement = false;
   if (query.technologyId) filter.selfTechnologies = query.technologyId;
 
   return { profileFilter: filter, userFilter };
@@ -121,7 +112,7 @@ const listInterns = async (user, query = {}) => {
   ]);
 
   return {
-    interns: profiles.map((p) => formatProfile(p, user.role)),
+    interns: profiles.map((p) => formatProfile(p)),
     pagination: {
       page,
       limit,
@@ -152,7 +143,7 @@ const getInternByUserId = async (user, internUserId) => {
     throw err;
   }
 
-  return formatProfile(profile, user.role);
+  return formatProfile(profile);
 };
 
 const getMyInternProfile = async (user) => {
@@ -170,7 +161,7 @@ const getMyInternProfile = async (user) => {
     throw err;
   }
 
-  return formatProfile(profile, user.role);
+  return formatProfile(profile);
 };
 
 const updateSelfTechnologies = async (user, technologyIds = []) => {
@@ -212,7 +203,7 @@ const updateSelfPosition = async (user, positionId = null) => {
   return getMyInternProfile(user);
 };
 
-const updateInternByMentor = async (user, internUserId, payload) => {
+const updateInternProgramme = async (user, internUserId, payload) => {
   const profile = await InternProfile.findOne({ user: internUserId });
   if (!profile) throw new Error('Intern profile not found');
 
@@ -225,19 +216,15 @@ const updateInternByMentor = async (user, internUserId, payload) => {
   const allowedStatuses = INTERN_STATUSES;
 
   if (payload.status !== undefined) {
-    // Lifecycle status is the assigned mentor's responsibility only — not admins
-    // or unassigned mentors, even though they can write other mentor data.
-    if (!isAssignedMentor(profile, user._id)) {
-      const err = new Error('Only the assigned mentor can change this intern’s status');
+    // Lifecycle status can be changed by admins and the assigned mentor —
+    // not by unassigned mentors, even though they can write other mentor data.
+    if (user.role !== ROLES.ADMIN && !isAssignedMentor(profile, user._id)) {
+      const err = new Error('Only admins or the assigned mentor can change this intern’s status');
       err.statusCode = 403;
       throw err;
     }
     if (!allowedStatuses.includes(payload.status)) throw new Error('Invalid status');
     profile.status = payload.status;
-  }
-
-  if (payload.readyForPlacement !== undefined) {
-    profile.readyForPlacement = Boolean(payload.readyForPlacement);
   }
 
   if (payload.expectedEndDate !== undefined) {
@@ -467,7 +454,7 @@ const getProgrammeStats = async (user) => {
     throw err;
   }
 
-  const activeStatuses = ['active', 'ready'];
+  const activeStatuses = ['active', READY_STATUS];
   const excludedSupplyStatuses = ['placed', 'completed', 'discontinued'];
   const urgencyCutoff = new Date();
   urgencyCutoff.setDate(urgencyCutoff.getDate() + URGENCY_WINDOW_DAYS);
@@ -477,10 +464,10 @@ const getProgrammeStats = async (user) => {
 
   const [
     funnelRows,
-    readyForPlacement,
     activeByProgrammeRows,
     activeByHubRows,
     technologySupplyRows,
+    positionSupplyRows,
     readyProfiles,
     recentlyReadyProfiles,
     recommendationFunnelRows,
@@ -490,7 +477,6 @@ const getProgrammeStats = async (user) => {
     allActiveRecommendations,
   ] = await Promise.all([
     InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-    InternProfile.countDocuments({ readyForPlacement: true }),
     InternProfile.aggregate([
       { $match: { status: { $in: activeStatuses } } },
       { $group: { _id: '$internshipType', count: { $sum: 1 } } },
@@ -580,7 +566,32 @@ const getProgrammeStats = async (user) => {
       },
       { $sort: { readyCount: -1, learningCount: -1, 'technology.name': 1 } },
     ]),
-    InternProfile.find({ readyForPlacement: true })
+    InternProfile.aggregate([
+      {
+        $match: {
+          status: { $nin: excludedSupplyStatuses },
+          declaredPosition: { $ne: null },
+        },
+      },
+      { $group: { _id: '$declaredPosition', count: { $sum: 1 } } },
+      {
+        $lookup: {
+          from: 'positions',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'position',
+        },
+      },
+      { $unwind: '$position' },
+      {
+        $project: {
+          position: { _id: '$_id', name: '$position.name', slug: '$position.slug' },
+          count: 1,
+        },
+      },
+      { $sort: { count: -1, 'position.name': 1 } },
+    ]),
+    InternProfile.find({ status: READY_STATUS })
       .populate([
         {
           path: 'user',
@@ -592,7 +603,7 @@ const getProgrammeStats = async (user) => {
       ])
       .sort({ expectedEndDate: 1, updatedAt: -1 })
       .lean(),
-    InternProfile.find({ readyForPlacement: true })
+    InternProfile.find({ status: READY_STATUS })
       .populate([
         {
           path: 'user',
@@ -833,7 +844,8 @@ const getProgrammeStats = async (user) => {
 
   return {
     funnel,
-    readyForPlacement,
+    // Kept under its historical name for the KPI consumers; sourced from the funnel.
+    readyForPlacement: funnel[READY_STATUS],
     activeByProgramme: activeByProgrammeRows.map((row) => ({
       programme: row.programme,
       count: row.count,
@@ -846,6 +858,10 @@ const getProgrammeStats = async (user) => {
       technology: row.technology,
       readyCount: row.readyCount,
       learningCount: row.learningCount,
+    })),
+    positionSupply: positionSupplyRows.map((row) => ({
+      position: row.position,
+      count: row.count,
     })),
     readyBench,
     urgent,
@@ -874,7 +890,7 @@ module.exports = {
   getMyInternProfile,
   updateSelfTechnologies,
   updateSelfPosition,
-  updateInternByMentor,
+  updateInternProgramme,
   updateDocumentationLinks,
   createInternProfile,
   getProgrammeStats,
