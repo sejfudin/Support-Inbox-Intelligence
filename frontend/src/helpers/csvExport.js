@@ -1,7 +1,8 @@
 export const escapeCsvCell = (value) => {
   const str = String(value ?? '');
-  const escaped = str.replace(/"/g, '""');
-  return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+  const guarded = /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
+  const escaped = guarded.replace(/"/g, '""');
+  return /[",\n\r]/.test(escaped) ? `"${escaped}"` : escaped;
 };
 
 export const formatCsvDate = (value) => {
