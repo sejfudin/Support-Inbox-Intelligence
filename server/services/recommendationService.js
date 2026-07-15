@@ -5,7 +5,7 @@ const InternProfile = require('../models/InternProfile');
 const Technology = require('../models/Technology');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
-const { isAssignedMentor } = require('../helpers/internAccess');
+const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
 
 const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP, ROLES.MENTOR];
@@ -48,9 +48,11 @@ const assertReadAccess = (user) => {
   }
 };
 
-const assertRecommendationWriteAccess = (user) => {
-  if (user.role !== ROLES.ADMIN) {
-    throw createError('Only admins can modify recommendations', 403);
+// Admins may write any recommendation; a mentor may write only for interns they
+// are assigned to (mirrors canWriteInternMentorData on the client + evaluations/notes).
+const assertRecommendationWriteAccess = (user, profile) => {
+  if (!canWriteMentorData(user, profile)) {
+    throw createError('Not authorized to modify this recommendation', 403);
   }
 };
 
@@ -327,9 +329,8 @@ const getRecommendation = async (user, recommendationId) => {
 };
 
 const createRecommendation = async (user, payload = {}) => {
-  assertRecommendationWriteAccess(user);
-
   const profile = await loadInternProfileByUserId(payload.internUserId);
+  assertRecommendationWriteAccess(user, profile);
 
   assertValidStatus(payload.status);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
@@ -377,14 +378,14 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
 };
 
 const updateRecommendation = async (user, recommendationId, payload = {}) => {
-  assertRecommendationWriteAccess(user);
-
   assertValidObjectId(recommendationId, 'Recommendation');
   const recommendation = await Recommendation.findById(recommendationId);
   if (!recommendation) throw createError('Recommendation not found', 404);
 
   const profile = await InternProfile.findById(recommendation.internProfile);
   if (!profile) throw createError('Intern profile not found', 404);
+
+  assertRecommendationWriteAccess(user, profile);
 
   if (payload.technologyIds !== undefined) {
     recommendation.technologies = await ensureTechnologyIds(payload.technologyIds);
