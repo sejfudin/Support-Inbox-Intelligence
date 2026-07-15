@@ -7,7 +7,7 @@
 - Supabase project + Storage buckets — **required**, server throws on startup without it.
 - Optional: Groq API key (AI), GitHub App (PR linking).
 
-Config lives in `server/.env`. Full variable list in @README.md ("Environment variables").
+Config lives in `server/.env`. Full variable list in `README.md` ("Environment variables").
 
 ## Install
 
@@ -58,7 +58,7 @@ npm run backfill:intern-positions
 npm run cleanup:invitations
 ```
 
-Demo accounts (after seeding): full table in @README.md ("Demo accounts").
+Demo accounts (after seeding): full table in `README.md` ("Demo accounts").
 - `admin@test.com` / `admin123`, `mentor@test.com` / `mentor123` (from `seed`).
 - `*@symphony.is` accounts / `password` (from `seed:test`).
 

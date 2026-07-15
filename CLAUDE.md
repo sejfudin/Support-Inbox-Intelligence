@@ -11,20 +11,20 @@ Detail lives in the referenced docs below — read them when the task calls for 
 
 - `frontend/` — React + Vite SPA. Has its own `CLAUDE.md` (auto-loads when you work there).
 - `server/` — Express API + Socket.IO. Has its own `CLAUDE.md`.
-- `README.md` — human-facing overview, full feature list, env vars, seeding. See @README.md.
+- `README.md` — human-facing overview, full feature list, env vars, seeding.
 
 ## Read before you act
 
-- **Designing a feature / touching data model, roles, auth, or sockets** → read @.claude/docs/architecture.md
-- **Anything touching tickets, workspaces, rooms, or role guards** → read @.claude/docs/security.md (authz is scoped per-workspace; get this wrong and you leak cross-tenant data)
-- **Writing code** → follow @.claude/docs/conventions.md
-- **Running, seeding, building, verifying** → @.claude/docs/workflows.md
+- **Designing a feature / touching data model, roles, auth, or sockets** → read `.claude/docs/architecture.md`
+- **Anything touching tickets, workspaces, rooms, or role guards** → read `.claude/docs/security.md` (authz is scoped per-workspace; get this wrong and you leak cross-tenant data)
+- **Writing code** → follow `.claude/docs/conventions.md`
+- **Running, seeding, building, verifying** → `.claude/docs/workflows.md`
 
 ## Hard rules
 
 - **Never run the seeders against any non-local DB.** `npm run seed` wipes all collections.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
-- **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See @.claude/docs/security.md.
+- **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
 - **No automated tests exist yet.** Do not claim a change is verified by tests — verify by driving the app (`/verify`, `/run`).
 - Match surrounding code style. Prettier is the formatter; run `npm run format` in the package you changed.
 - Backend is CommonJS (`require`), frontend is ESM (`import`). Don't mix.
@@ -45,6 +45,9 @@ describe, update the relevant doc **in the same change** — don't leave it for 
 - A coding pattern, naming, layering, or the data-layer flow changes → update `.claude/docs/conventions.md`
 - A command, env var, seeding, or run/build step changes → update `.claude/docs/workflows.md`
 - A rule that only applies to one side changes → update `frontend/CLAUDE.md` or `server/CLAUDE.md`
+
+Reference these docs by plain (backticked) path, never with `@path` syntax — `@` eagerly
+imports the file into every context window and defeats the read-on-demand design.
 
 Rule for Claude: if a task changes any of the above, update the matching doc as part of the work.
 If the correct wording is genuinely unclear, make your best edit and flag it to the developer in

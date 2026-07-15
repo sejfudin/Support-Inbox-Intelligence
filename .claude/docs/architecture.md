@@ -23,7 +23,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 **Two authorization layers** — do not conflate:
 - **Platform role** (above) — `admin/mentor/intern/leadership`.
 - **Workspace membership role** — `admin` / `member` — controls per-workspace management actions,
-  independent of platform role. See @.claude/docs/security.md.
+  independent of platform role. See `.claude/docs/security.md`.
 
 ## Data model (Mongoose, `server/models/`)
 

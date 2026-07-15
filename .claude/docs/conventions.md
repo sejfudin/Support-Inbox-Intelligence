@@ -9,7 +9,7 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   `server/models/Ticket.js`. Thin controller, logic in the service, workspace-scoped throughout.
 - **A workspace-scoped / authz'd endpoint**: copy the `resolveWorkspaceId` +
   `assertStatusInWorkspace` pattern in `server/controllers/ticketStatuses.js` — fetch by id,
-  404 if missing, reject if `resource.workspace` ≠ caller's workspace. See @security.md.
+  404 if missing, reject if `resource.workspace` ≠ caller's workspace. See `.claude/docs/security.md`.
 - **A role-gated endpoint**: mirror `server/routes/hubs.js`
   (`protect, requireRole(ROLES.ADMIN), handler`).
 - **A frontend resource** (HTTP + data hooks): mirror `src/api/tickets.js` (axios helper) +
