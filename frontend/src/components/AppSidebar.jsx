@@ -68,12 +68,12 @@ export default function AppSidebar() {
     },
     {
       label: 'Archive',
-      to: '/admin/archive',
+      to: '/archive',
       icon: Archive,
     },
     {
       label: 'Backlog',
-      to: '/admin/backlog',
+      to: '/backlog',
       icon: FileQuestionMark,
       hidden: !(isAdmin(user?.role) || isMentor(user?.role) || isIntern(user?.role)),
     },
