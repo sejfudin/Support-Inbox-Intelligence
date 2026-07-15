@@ -102,6 +102,13 @@ const listInterns = async (user, query = {}) => {
 
   const fullFilter = { user: { $in: internUserIds }, ...profileFilter };
 
+  if (query.inPipeline === 'true') {
+    const pipelineProfileIds = await Recommendation.distinct('internProfile', {
+      status: { $in: ACTIVE_PIPELINE_STATUSES },
+    });
+    fullFilter._id = { $in: pipelineProfileIds };
+  }
+
   const [profiles, total] = await Promise.all([
     InternProfile.find(fullFilter)
       .populate(PROFILE_POPULATE)

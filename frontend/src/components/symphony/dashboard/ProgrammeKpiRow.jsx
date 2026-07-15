@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { HelpCircle } from 'lucide-react';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { IN_PIPELINE_STAGE } from '@/helpers/internProfile';
 import { cn } from '@/lib/utils';
 
 function InfoPopover({ title, children }) {
@@ -38,7 +40,9 @@ function FlowStep({ label, muted }) {
     <span
       className={cn(
         'rounded-md px-1.5 py-0.5 text-[11px] font-medium',
-        muted ? 'bg-muted/60 text-muted-foreground' : 'bg-[hsl(var(--symphony-brand)/0.12)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]'
+        muted
+          ? 'bg-muted/60 text-muted-foreground'
+          : 'bg-[hsl(var(--symphony-brand)/0.12)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]'
       )}
     >
       {label}
@@ -58,21 +62,32 @@ function PipelineFlow() {
   );
 }
 
-function KpiCard({ label, value, sub, hint, dot, highlighted, info }) {
+function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId }) {
   return (
-    <SymphonyCard className="relative overflow-hidden p-0">
+    <SymphonyCard className="relative overflow-hidden p-0 transition-shadow hover:shadow-md">
       {highlighted && (
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[hsl(var(--symphony-brand)/0.1)]"
         />
       )}
+      {to && (
+        <Link
+          to={to}
+          aria-label={`View candidates: ${label}`}
+          data-test={testId}
+          className="absolute inset-0 z-[1] rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--symphony-brand))]/40"
+        />
+      )}
       <div className="relative px-5 py-[22px]">
         <div className="flex items-center gap-2">
-          <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ backgroundColor: dot }} />
+          <span
+            className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
+            style={{ backgroundColor: dot }}
+          />
           <span className="text-[12.5px] font-semibold text-foreground/80">{label}</span>
           {info && (
-            <span className="ml-auto">
+            <span className="relative z-[2] ml-auto">
               <InfoPopover title={label}>{info}</InfoPopover>
             </span>
           )}
@@ -118,13 +133,15 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
       sub: !isPending && recommended > 0 ? `${recommended} recommended` : null,
       hint: 'Interns ready for a project',
       dot: '#726BFF',
+      to: '/interns?status=ready',
+      testId: 'programme-kpi-ready-link',
       info: (
         <>
-          A mentor has confirmed these interns have enough knowledge to take on a real project
-          once a position opens, so they can go to interviews.
+          A mentor has confirmed these interns have enough knowledge to take on a real project once
+          a position opens, so they can go to interviews.
           <span className="mt-2 block">
-            <span className="font-semibold text-foreground">Recommended</span> is the next step:
-            a mentor thinks the intern fits a specific open position and puts them forward for it.
+            <span className="font-semibold text-foreground">Recommended</span> is the next step: a
+            mentor thinks the intern fits a specific open position and puts them forward for it.
             Every recommended intern is still ready for a project; not every ready intern has been
             recommended yet.
           </span>
@@ -137,6 +154,8 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
       sub: !isPending && interviewing > 0 ? `${interviewing} interviewing` : null,
       hint: pipelineHint || 'In a process of interview or waiting interview results',
       dot: '#5B7CFA',
+      to: `/interns?status=${IN_PIPELINE_STAGE}`,
+      testId: 'programme-kpi-pipeline-link',
       info: (
         <>
           Interns being pitched to clients, either recommended or actively interviewing. They move
@@ -154,12 +173,16 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
       value: isPending ? dash : placed,
       hint: 'Successfully placed on the project',
       dot: '#E88AA6',
+      to: '/interns?status=placed',
+      testId: 'programme-kpi-placed-link',
       info: 'Candidates who cleared interviews and have been placed on a client project.',
     },
   ];
 
   return (
-    <section className={cn('grid gap-4', '[grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]')}>
+    <section
+      className={cn('grid gap-4', '[grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]')}
+    >
       {kpis.map((kpi) => (
         <KpiCard key={kpi.label} {...kpi} highlighted={!isPending && kpi.label === accent} />
       ))}
