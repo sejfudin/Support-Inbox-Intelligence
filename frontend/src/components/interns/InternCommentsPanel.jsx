@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { HistoryPanel } from '@/components/interns/HistoryPanel';
+import { Chips, DetailModal, DetailText } from '@/components/interns/DetailModal';
 import { useCommentViewers, useCreateInternComment, useInternComments } from '@/queries/interns';
 import { canWriteInternMentorData } from '@/helpers/roles';
 import { getInitials } from '@/helpers/getInitials';
@@ -177,53 +178,36 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      <DetailModal
         open={Boolean(detailComment)}
-        onOpenChange={(open) => !open && setDetailComment(null)}
-      >
-        <DialogContent
-          className="max-w-lg overflow-hidden"
-          data-test="intern-comment-detail-dialog"
-        >
-          {detailComment && (
-            <>
-              <DialogHeader className="min-w-0">
-                <DialogTitle>{detailComment.author?.fullname ?? 'Mentor note'}</DialogTitle>
-                <DialogDescription>
-                  {format(new Date(detailComment.createdAt), 'MMM d, yyyy')}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="min-w-0 space-y-4">
-                <p className="whitespace-pre-line text-sm leading-6 text-foreground [overflow-wrap:anywhere]">
-                  {detailComment.content}
-                </p>
-                {detailComment.visibleTo?.length > 0 && (
-                  <div className="space-y-1.5">
-                    <p className="text-sm font-medium text-foreground">Shared with</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detailComment.visibleTo
-                        .filter((viewer) => viewer?.fullname)
-                        .map((viewer) => (
-                          <span
-                            key={viewer._id || viewer.id}
-                            className="rounded-md bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground"
-                          >
-                            {viewer.fullname}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDetailComment(null)}>
-                  Close
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+        onClose={() => setDetailComment(null)}
+        dataTest="intern-comment-detail-dialog"
+        title={detailComment?.author?.fullname ?? 'Mentor note'}
+        subtitle={
+          detailComment ? format(new Date(detailComment.createdAt), 'MMM d, yyyy') : undefined
+        }
+        sections={
+          detailComment
+            ? [
+                { content: <DetailText>{detailComment.content}</DetailText> },
+                ...(detailComment.visibleTo?.length > 0
+                  ? [
+                      {
+                        label: 'Shared with',
+                        content: (
+                          <Chips
+                            items={detailComment.visibleTo
+                              .filter((viewer) => viewer?.fullname)
+                              .map((viewer) => viewer.fullname)}
+                          />
+                        ),
+                      },
+                    ]
+                  : []),
+              ]
+            : []
+        }
+      />
     </div>
   );
 }
