@@ -2,6 +2,7 @@ import { PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
 import { InternPositionDeclaration } from '@/components/interns/InternPositionDeclaration';
 import { InternTechnologyDeclaration } from '@/components/interns/InternTechnologyDeclaration';
+import { InternCvPanel } from '@/components/interns/InternCvPanel';
 
 const MyTechnologiesPage = () => {
   return (
@@ -15,6 +16,7 @@ const MyTechnologiesPage = () => {
           />
           <InternPositionDeclaration />
           <InternTechnologyDeclaration />
+          <InternCvPanel />
         </div>
       </PageSection>
     </PageShell>
