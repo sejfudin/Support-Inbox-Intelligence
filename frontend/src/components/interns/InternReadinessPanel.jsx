@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useTechnologies } from '@/queries/technologies';
 import { useInternReadiness, useUpsertInternReadiness } from '@/queries/interns';
 import { READINESS_LEVELS, getReadinessBadgeClassName } from '@/helpers/internProfile';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
@@ -39,7 +38,6 @@ const sortTechnologiesByReadiness = (technologyList, flagMap) =>
 export function InternReadinessPanel({ userId, declaredTechnologies = [], readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && canWriteInternMentorData(user?.role);
-  const { data: technologies = [] } = useTechnologies();
   const { data: flags = [], isPending } = useInternReadiness(userId);
   const { mutate } = useUpsertInternReadiness();
   const [visibleCount, setVisibleCount] = useState(READINESS_PAGE_SIZE);
@@ -50,8 +48,8 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
   );
 
   const sortedTechnologies = useMemo(
-    () => sortTechnologiesByReadiness(technologies, flagMap),
-    [technologies, flagMap]
+    () => sortTechnologiesByReadiness(declaredTechnologies, flagMap),
+    [declaredTechnologies, flagMap]
   );
 
   const visibleTechnologies = useMemo(
@@ -72,39 +70,25 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
   };
 
   return (
-    <div className="space-y-6">
-      {declaredTechnologies.length > 0 && (
-        <InternPanel>
-          <h3 className="text-lg font-semibold">Declared technologies</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Technologies the intern selected on their profile.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {declaredTechnologies.map((tech) => (
-              <span
-                key={tech._id || tech}
-                className="rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-sm font-medium"
-              >
-                {tech.name || tech}
-              </span>
-            ))}
-          </div>
-        </InternPanel>
-      )}
-
-      <InternPanel className="overflow-hidden p-0">
+    <div className="h-full">
+      <InternPanel className="h-full overflow-hidden p-0">
         <div className="border-b border-border/60 px-5 py-4 md:px-6">
           <h3 className="text-lg font-semibold">Placement readiness by technology</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Mentor-assessed readiness for client placement tracks.
           </p>
         </div>
-        {isPending && (
+        {declaredTechnologies.length === 0 && (
+          <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">
+            This intern hasn't declared any technologies yet.
+          </p>
+        )}
+        {isPending && declaredTechnologies.length > 0 && (
           <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">Loading readiness...</p>
         )}
-        {!isPending && (
+        {!isPending && declaredTechnologies.length > 0 && (
           <>
-            <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2 md:p-6 xl:grid-cols-3">
+            <div className="grid gap-4 p-5 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))] md:p-6">
               {visibleTechnologies.map((tech) => {
                 const flag = flagMap[tech._id];
                 const level = flag?.level || 'none';

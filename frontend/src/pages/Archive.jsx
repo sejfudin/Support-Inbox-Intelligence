@@ -10,11 +10,38 @@ import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useAuth } from '@/context/AuthContext';
+import { useArchiveTicket, useUnarchiveTicket } from '@/queries/tickets';
+import { toast } from 'sonner';
 
 export default function ArchivePage() {
   const [activeTab] = useState('all');
   const { user } = useAuth();
   const { helpers } = useTicketStatuses(user?.workspaceId);
+
+  const { mutate: unarchiveTicket } = useUnarchiveTicket();
+  const { mutate: archiveTicket } = useArchiveTicket();
+
+  // Restore is reversible and low-harm, so act on click without a confirm dialog.
+  // The success toast offers Undo (re-archive) for accidental clicks.
+  const handleRestore = (ticket) => {
+    if (!ticket?.id) return;
+    unarchiveTicket(ticket.id, {
+      onSuccess: () => {
+        toast.success('Ticket restored', {
+          description: `#${ticket.taskNumber ?? ''} is back in the active views.`,
+          action: {
+            label: 'Undo',
+            onClick: () => archiveTicket(ticket.id),
+          },
+        });
+      },
+      onError: (error) => {
+        toast.error('Failed to restore ticket', {
+          description: error?.response?.data?.message || 'Please try again.',
+        });
+      },
+    });
+  };
 
   const {
     tickets: normalizedTickets,
@@ -31,6 +58,8 @@ export default function ArchivePage() {
     statusBadgeConfig: helpers.statusBadgeConfig,
     statusIsDone: helpers.statusIsDone,
     statusTracksTime: helpers.statusTracksTime,
+    variant: 'archive',
+    onRestore: handleRestore,
   });
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
@@ -48,7 +77,7 @@ export default function ArchivePage() {
         hideViewMode={true}
         hideNewTicket={true}
         title="Archive"
-        subtitle="Review completed and closed tickets from this workspace."
+        subtitle="Archived tickets — restore any to bring it back to the active board."
       />
 
       <PageSection className="flex-1 pt-6">
@@ -66,6 +95,8 @@ export default function ArchivePage() {
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{ onRowClick: openTicketDetails }}
+              hideHeader
+              tableClassName="w-full"
             />
           </TicketsState>
         </PagePanel>

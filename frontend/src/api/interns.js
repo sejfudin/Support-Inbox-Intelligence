@@ -25,6 +25,11 @@ export const updateMyTechnologies = async (technologyIds) => {
   return data.intern;
 };
 
+export const updateMyPosition = async (positionId) => {
+  const { data } = await apiClient.patch('/interns/me/position', { positionId });
+  return data.intern;
+};
+
 export const uploadMyCv = async (file) => {
   const formData = new FormData();
   formData.append('cv', file);
@@ -72,6 +77,11 @@ export const fetchInternEvaluations = async (userId) => {
 export const createInternEvaluation = async (userId, payload) => {
   const { data } = await apiClient.post(`/interns/${userId}/evaluations`, payload);
   return data.evaluation;
+};
+
+export const fetchMyInternReadiness = async () => {
+  const { data } = await apiClient.get('/interns/me/readiness');
+  return data.flags;
 };
 
 export const fetchInternReadiness = async (userId) => {

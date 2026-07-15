@@ -23,6 +23,7 @@ const TicketStatus = require('../models/TicketStatus');
 const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
 const InternProfile = require('../models/InternProfile');
 const ReadinessFlag = require('../models/ReadinessFlag');
 const Evaluation = require('../models/Evaluation');
@@ -84,6 +85,7 @@ const seedTestingData = async () => {
     const hubs = await Hub.find().sort({ name: 1 });
     const programmes = await InternshipType.find({ isActive: true }).sort({ slug: 1 });
     const technologies = await Technology.find().sort({ name: 1 });
+    const positions = await Position.find().sort({ name: 1 });
 
     const hubByName = (name) => {
       const hub = hubs.find((h) => h.name === name);
@@ -102,6 +104,8 @@ const seedTestingData = async () => {
       if (!tech) throw new Error(`Technology not found: ${slug}`);
       return tech;
     };
+
+    const randomPosition = () => positions[Math.floor(Math.random() * positions.length)];
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(PASSWORD, salt);
@@ -616,7 +620,6 @@ const seedTestingData = async () => {
         mentorIdx: 0,
         secondaryIdx: 1,
         status: 'active',
-        ready: false,
         endDays: 45,
         techs: ['react', 'node-js'],
         readiness: { react: 'learning', 'node-js': 'none' },
@@ -628,7 +631,6 @@ const seedTestingData = async () => {
         programme: 'shadow',
         mentorIdx: 1,
         status: 'active',
-        ready: false,
         endDays: 60,
         techs: ['angular'],
         readiness: { angular: 'learning' },
@@ -640,7 +642,6 @@ const seedTestingData = async () => {
         programme: 'industrial',
         mentorIdx: 2,
         status: 'active',
-        ready: false,
         endDays: 30,
         techs: ['spring-boot', 'kotlin'],
       },
@@ -651,7 +652,6 @@ const seedTestingData = async () => {
         programme: 'one-on-one',
         mentorIdx: 3,
         status: 'active',
-        ready: false,
         endDays: 20,
         techs: ['django'],
       },
@@ -663,7 +663,6 @@ const seedTestingData = async () => {
         mentorIdx: 0,
         secondaryIdx: 2,
         status: 'active',
-        ready: false,
         endDays: 15,
         techs: ['devops', 'go'],
       },
@@ -674,7 +673,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 0,
         status: 'ready',
-        ready: true,
         endDays: 10,
         techs: ['react', 'next-js'],
         readiness: { react: 'ready', 'next-js': 'ready' },
@@ -687,7 +685,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 1,
         status: 'ready',
-        ready: true,
         endDays: 25,
         techs: ['vue-js'],
         readiness: { 'vue-js': 'ready' },
@@ -700,7 +697,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 2,
         status: 'ready',
-        ready: true,
         endDays: 18,
         techs: ['react-native', 'kotlin'],
         readiness: { 'react-native': 'ready', kotlin: 'ready' },
@@ -714,7 +710,6 @@ const seedTestingData = async () => {
         programme: 'shadow',
         mentorIdx: 0,
         status: 'ready',
-        ready: true,
         endDays: 12,
         techs: ['flutter'],
         readiness: { flutter: 'ready' },
@@ -728,7 +723,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 1,
         status: 'ready',
-        ready: true,
         endDays: 8,
         techs: ['node-js', 'react'],
         readiness: { 'node-js': 'ready', react: 'learning' },
@@ -742,7 +736,6 @@ const seedTestingData = async () => {
         programme: 'industrial',
         mentorIdx: 2,
         status: 'ready',
-        ready: true,
         endDays: 5,
         techs: ['data-engineering'],
         readiness: { 'data-engineering': 'ready' },
@@ -756,7 +749,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 3,
         status: 'ready',
-        ready: true,
         endDays: 2,
         techs: ['fastapi', 'data-science'],
         readiness: { fastapi: 'ready', 'data-science': 'learning' },
@@ -771,7 +763,6 @@ const seedTestingData = async () => {
         mentorIdx: 0,
         secondaryIdx: 1,
         status: 'ready',
-        ready: true,
         endDays: 14,
         techs: ['react', 'node-js', 'devops'],
         readiness: { react: 'ready', 'node-js': 'ready', devops: 'learning' },
@@ -785,7 +776,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 1,
         status: 'placed',
-        ready: true,
         endDays: -30,
         techs: ['dotnet'],
         rec: 'placed',
@@ -797,7 +787,6 @@ const seedTestingData = async () => {
         programme: 'shadow',
         mentorIdx: 2,
         status: 'placed',
-        ready: true,
         endDays: -10,
         techs: ['ruby-on-rails'],
         rec: 'placed',
@@ -809,7 +798,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 0,
         status: 'completed',
-        ready: true,
         endDays: -60,
         techs: ['react'],
         rec: 'not_placed',
@@ -821,7 +809,6 @@ const seedTestingData = async () => {
         programme: 'one-on-one',
         mentorIdx: 3,
         status: 'completed',
-        ready: false,
         endDays: -45,
         techs: ['manual-qa', 'test-automation'],
         rec: 'not_placed',
@@ -833,7 +820,6 @@ const seedTestingData = async () => {
         programme: 'industrial',
         mentorIdx: 2,
         status: 'discontinued',
-        ready: false,
         endDays: 40,
         techs: ['cpp'],
       },
@@ -844,7 +830,6 @@ const seedTestingData = async () => {
         programme: 'core-tool',
         mentorIdx: 1,
         status: 'discontinued',
-        ready: false,
         endDays: 35,
         techs: ['rust'],
       },
@@ -875,9 +860,9 @@ const seedTestingData = async () => {
         secondaryMentor: secondaryMentor?._id,
         startDate: monthsAgo(4),
         status: spec.status,
-        readyForPlacement: spec.ready,
         expectedEndDate: spec.endDays != null ? daysFromNow(spec.endDays) : undefined,
         selfTechnologies: selfTechIds,
+        declaredPosition: positions.length > 0 ? randomPosition()._id : null,
       });
 
       internProfiles.push({ user, profile, spec, primaryMentor, secondaryMentor });

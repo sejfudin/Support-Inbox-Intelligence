@@ -11,9 +11,11 @@ import {
   fetchInterns,
   fetchInternStats,
   fetchMyInternProfile,
+  fetchMyInternReadiness,
   updateIntern,
   updateInternDocumentationLinks,
   updateMyTechnologies,
+  updateMyPosition,
   uploadMyCv,
   upsertInternReadiness,
 } from '@/api/interns';
@@ -21,6 +23,7 @@ import {
 export const INTERNS_QUERY_KEY = ['interns'];
 export const INTERN_STATS_QUERY_KEY = ['interns', 'stats'];
 export const MY_INTERN_PROFILE_QUERY_KEY = ['intern-profile', 'me'];
+export const MY_INTERN_READINESS_QUERY_KEY = ['intern-readiness', 'me'];
 
 export const internDetailKey = (userId) => ['intern', userId];
 export const internCommentsKey = (userId) => ['intern-comments', userId];
@@ -57,10 +60,28 @@ export const useMyInternProfile = (options = {}) =>
     ...options,
   });
 
+export const useMyInternReadiness = (options = {}) =>
+  useQuery({
+    queryKey: MY_INTERN_READINESS_QUERY_KEY,
+    queryFn: fetchMyInternReadiness,
+    ...options,
+  });
+
 export const useUpdateMyTechnologies = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updateMyTechnologies,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_READINESS_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateMyPosition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMyPosition,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
     },
@@ -167,6 +188,7 @@ export const useUpsertInternReadiness = () => {
     mutationFn: ({ userId, payload }) => upsertInternReadiness(userId, payload),
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: internReadinessKey(userId) });
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_READINESS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: INTERN_STATS_QUERY_KEY });
     },
   });

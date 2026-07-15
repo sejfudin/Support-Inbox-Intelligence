@@ -61,9 +61,24 @@ exports.updateMyTechnologies = async (req, res, next) => {
   }
 };
 
+exports.updateMyPosition = async (req, res, next) => {
+  try {
+    const intern = await internService.updateSelfPosition(req.user, req.body.positionId);
+    res.json({ intern });
+  } catch (error) {
+    if (error.message === 'Intern profile not found') {
+      return res.status(404).json({ message: error.message });
+    }
+    if (error.message === 'Invalid position') {
+      return res.status(400).json({ message: error.message });
+    }
+    handleError(res, error, next);
+  }
+};
+
 exports.updateIntern = async (req, res, next) => {
   try {
-    const intern = await internService.updateInternByMentor(req.user, req.params.userId, req.body);
+    const intern = await internService.updateInternProgramme(req.user, req.params.userId, req.body);
     res.json({ intern });
   } catch (error) {
     if (error.message === 'Intern profile not found' || error.message === 'Invalid status') {
@@ -171,6 +186,15 @@ exports.createEvaluation = async (req, res, next) => {
   }
 };
 
+exports.getMyReadiness = async (req, res, next) => {
+  try {
+    const flags = await readinessFlagService.listMyReadinessFlags(req.user);
+    res.json({ flags });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
 exports.listReadiness = async (req, res, next) => {
   try {
     const flags = await readinessFlagService.listReadinessFlags(req.user, req.params.userId);
@@ -190,9 +214,11 @@ exports.upsertReadiness = async (req, res, next) => {
     res.json({ flag });
   } catch (error) {
     if (
-      error.message === 'Technology is required' ||
+      error.message === 'Technology or position is required' ||
+      error.message === 'Provide a technology or a position, not both' ||
       error.message === 'Invalid readiness level' ||
-      error.message === 'Invalid technology'
+      error.message === 'Invalid technology' ||
+      error.message === 'Invalid position'
     ) {
       return res.status(400).json({ message: error.message });
     }

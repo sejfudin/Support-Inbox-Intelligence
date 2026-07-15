@@ -8,6 +8,7 @@ const Invitation = require('../models/Invitation');
 const {
   inviteExistingUserToWorkspace,
   cancelWorkspaceInvitationsForUser,
+  cancelWorkspaceInvitation,
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
 const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
@@ -262,6 +263,13 @@ const removeMember = async ({ workspaceId, userId }) => {
   return { message: 'Member removed' };
 };
 
+const cancelInvitation = async ({ workspaceId, invitationId }) => {
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace) throw new Error('Workspace not found');
+
+  return cancelWorkspaceInvitation({ workspaceId, invitationId });
+};
+
 const deleteWorkspace = async (workspaceId) => {
   const workspace = await Workspace.findById(workspaceId);
   if (!workspace) throw new Error('Workspace not found');
@@ -284,11 +292,29 @@ const deleteWorkspace = async (workspaceId) => {
     }
 
     await Invitation.deleteMany({ workspace: workspaceId }, { session });
-    await User.updateMany(
+
+    const affectedUsers = await User.find(
       { workspaceId, role: { $ne: 'admin' } },
-      { $unset: { workspaceId: '' } },
+      { _id: 1 },
       { session }
     );
+
+    for (const affectedUser of affectedUsers) {
+      const fallback = await Workspace.findOne(
+        {
+          _id: { $ne: workspaceId },
+          members: { $elemMatch: { user: affectedUser._id, status: 'active' } },
+        },
+        null,
+        { session }
+      );
+
+      await User.findByIdAndUpdate(
+        affectedUser._id,
+        fallback ? { workspaceId: fallback._id } : { $unset: { workspaceId: '' } },
+        { session }
+      );
+    }
 
     await session.commitTransaction();
   } catch (err) {
@@ -333,6 +359,7 @@ module.exports = {
   updateWorkspace,
   inviteMemberToWorkspace,
   removeMember,
+  cancelInvitation,
   getAllWorkspaces,
   deleteWorkspace,
   uploadWorkspaceLogo,

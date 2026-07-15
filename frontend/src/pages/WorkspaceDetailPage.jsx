@@ -40,6 +40,7 @@ import { isPlatformAdmin } from '@/helpers/workspacePermissions';
 import { useTickets } from '@/queries/tickets';
 import { useUsers } from '@/queries/users';
 import {
+  useCancelWorkspaceInvitation,
   useInviteWorkspaceMember,
   useRemoveWorkspaceMember,
   useSwitchWorkspace,
@@ -72,6 +73,7 @@ export default function WorkspaceDetailPage() {
 
   const inviteMember = useInviteWorkspaceMember(id);
   const removeMember = useRemoveWorkspaceMember(id);
+  const cancelInvitation = useCancelWorkspaceInvitation(id);
   const switchWorkspace = useSwitchWorkspace();
   const updateWorkspace = useUpdateWorkspace(id);
 
@@ -157,6 +159,22 @@ export default function WorkspaceDetailPage() {
       onError: (error) => {
         toast.dismiss(loadingToast);
         toast.error(error.response?.data?.message || 'Failed to remove workspace member.');
+      },
+    });
+  };
+
+  const handleCancelInvitation = (invitation) => {
+    const inviteeName = invitation.user?.fullname || invitation.user?.email || 'this invitation';
+    const loadingToast = toast.loading(`Cancelling invitation for ${inviteeName}...`);
+
+    cancelInvitation.mutate(invitation._id, {
+      onSuccess: () => {
+        toast.dismiss(loadingToast);
+        toast.success('Invitation cancelled');
+      },
+      onError: (error) => {
+        toast.dismiss(loadingToast);
+        toast.error(error.response?.data?.message || 'Failed to cancel invitation.');
       },
     });
   };
@@ -384,8 +402,8 @@ export default function WorkspaceDetailPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleRemoveMember({ user: invitation.user })}
-                      disabled={removeMember.isPending}
+                      onClick={() => handleCancelInvitation(invitation)}
+                      disabled={cancelInvitation.isPending}
                       className="text-red-600 hover:bg-red-50 hover:text-red-700"
                       data-test={`workspace-detail-invitation-${invitation._id}-cancel-button`}
                     >

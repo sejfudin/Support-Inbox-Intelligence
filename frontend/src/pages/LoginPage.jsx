@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLoginUser } from '@/queries/auth';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -31,10 +32,8 @@ export const LoginPage = () => {
     <div className="fixed inset-0 flex h-screen w-screen items-center justify-center overflow-y-auto bg-transparent p-4">
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card className="hidden border-primary/10 bg-foreground text-background shadow-elevated lg:block">
-          <CardHeader className="space-y-6 p-10">
-            <div className="app-kicker w-fit border-primary-foreground/10 bg-primary-foreground/10 text-background/90">
-              TaskManager
-            </div>
+          <CardHeader className="p-10">
+            <TaskManagerBrand size="xl" onDark linkTo={null} className="mb-8" />
             <div>
               <CardTitle className="text-4xl font-semibold leading-tight text-background">
                 Stay on top of tickets, teams, and workspace operations.
@@ -48,12 +47,9 @@ export const LoginPage = () => {
         </Card>
 
         <Card className="border-border/50 bg-card shadow-elevated">
-          <CardHeader className="space-y-4 pt-10 pb-6">
-            <div className="text-center">
-              <div className="text-3xl font-semibold tracking-tight">
-                <span className="text-foreground">Task</span>
-                <span className="text-primary">Manager</span>
-              </div>
+          <CardHeader className="space-y-3 pt-10 pb-6">
+            <div className="flex justify-center lg:hidden">
+              <TaskManagerBrand size="md" linkTo={null} />
             </div>
             <CardTitle className="text-center text-2xl font-semibold text-foreground md:text-3xl">
               Sign in

@@ -6,7 +6,6 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
 });
 
 let isRefreshing = false;
@@ -62,13 +61,17 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const response = await axios.post(
-          `${apiClient.defaults.baseURL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
+        const storedRefreshToken = localStorage.getItem('refreshToken');
 
-        const { accessToken } = response.data;
+        if (!storedRefreshToken) {
+          throw new Error('No refresh token available');
+        }
+
+        const response = await axios.post(`${apiClient.defaults.baseURL}/auth/refresh`, {
+          refreshToken: storedRefreshToken,
+        });
+
+        const { accessToken, refreshToken } = response.data;
         const token = accessToken;
 
         if (!token) {
@@ -76,6 +79,9 @@ apiClient.interceptors.response.use(
         }
 
         localStorage.setItem('accessToken', token);
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken);
+        }
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
         processQueue(null, token);
@@ -85,6 +91,7 @@ apiClient.interceptors.response.use(
       } catch (err) {
         processQueue(err, null);
         localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         window.location.href = '/login';
 
         return Promise.reject(err);

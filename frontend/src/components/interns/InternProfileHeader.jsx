@@ -19,11 +19,11 @@ export function InternProfileHeader({
   fullname,
   email,
   status,
-  readyForPlacement = false,
   programme,
   hub,
   startDate,
   primaryMentor,
+  secondaryMentor,
   backButton,
   titleAdornment,
   className,
@@ -61,20 +61,23 @@ export function InternProfileHeader({
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {status ? <SymphonyStatusBadge status={status} /> : null}
-            {readyForPlacement ? (
-              <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                Ready for placement
-              </span>
-            ) : null}
           </div>
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 border-t border-border/60 bg-muted/20 px-5 py-4 md:grid-cols-4 md:px-6">
+      <dl
+        className={cn(
+          'grid grid-cols-2 gap-4 border-t border-border/60 bg-muted/20 px-5 py-4 md:grid-cols-4 md:px-6',
+          secondaryMentor && 'md:grid-cols-5'
+        )}
+      >
         <MetaField label="Programme" value={programme} />
         <MetaField label="Hub" value={hub} />
         <MetaField label="Start date" value={startDate} />
         <MetaField label="Primary mentor" value={primaryMentor} />
+        {secondaryMentor ? (
+          <MetaField label="Secondary mentor" value={secondaryMentor} />
+        ) : null}
       </dl>
     </header>
   );

@@ -163,7 +163,11 @@ const acceptInvitation = async ({ invitationId, userId }) => {
 
   await workspace.save();
 
-  await User.findByIdAndUpdate(userId, { workspaceId: workspace._id });
+  const acceptingUser = await User.findById(userId).select('workspaceId');
+  const becameActiveWorkspace = !acceptingUser?.workspaceId;
+  if (becameActiveWorkspace) {
+    await User.findByIdAndUpdate(userId, { workspaceId: workspace._id });
+  }
 
   invitation.status = 'accepted';
   invitation.respondedAt = new Date();
@@ -171,7 +175,7 @@ const acceptInvitation = async ({ invitationId, userId }) => {
 
   emitInvitationInvalidation(userId);
 
-  return { message: 'Invitation accepted', workspaceId: workspace._id };
+  return { message: 'Invitation accepted', workspaceId: workspace._id, becameActiveWorkspace };
 };
 
 const declineInvitation = async ({ invitationId, userId }) => {
@@ -200,6 +204,28 @@ const cancelWorkspaceInvitationsForUser = async ({ workspaceId, userId }) => {
   emitInvitationInvalidation(userId);
 };
 
+// Cancel a single pending invitation by its own id. Unlike
+// cancelWorkspaceInvitationsForUser, this does not depend on the invited user
+// still existing, so it can also clear "orphaned" invitations whose referenced
+// user has been removed (which otherwise become impossible to cancel from the UI).
+const cancelWorkspaceInvitation = async ({ workspaceId, invitationId }) => {
+  const invitation = await Invitation.findOne({
+    _id: invitationId,
+    workspace: workspaceId,
+    status: 'pending',
+  });
+
+  if (!invitation) throw new Error('Invitation not found');
+
+  invitation.status = 'cancelled';
+  invitation.respondedAt = new Date();
+  await invitation.save();
+
+  if (invitation.user) emitInvitationInvalidation(invitation.user);
+
+  return { message: 'Invitation cancelled' };
+};
+
 module.exports = {
   createWorkspaceInvitation,
   inviteExistingUserToWorkspace,
@@ -207,4 +233,5 @@ module.exports = {
   acceptInvitation,
   declineInvitation,
   cancelWorkspaceInvitationsForUser,
+  cancelWorkspaceInvitation,
 };

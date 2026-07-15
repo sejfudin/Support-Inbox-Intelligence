@@ -17,6 +17,7 @@ const TICKET_EVENTS = [
   'ticket:created',
   'ticket:updated',
   'ticket:archived',
+  'ticket:unarchived',
   'ticket:moved',
   'ticket:assigned',
 ];
@@ -128,7 +129,8 @@ export const SocketProvider = ({ children }) => {
         if (
           eventName === 'ticket:created' ||
           eventName === 'ticket:updated' ||
-          eventName === 'ticket:assigned'
+          eventName === 'ticket:assigned' ||
+          eventName === 'ticket:unarchived'
         ) {
           return upsertTicketInLists(queryClient, payload?.ticket);
         }

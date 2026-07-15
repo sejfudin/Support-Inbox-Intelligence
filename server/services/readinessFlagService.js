@@ -1,5 +1,7 @@
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
 const ReadinessFlag = require('../models/ReadinessFlag');
+const InternProfile = require('../models/InternProfile');
 const { READINESS_LEVELS } = require('../models/ReadinessFlag');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
@@ -15,6 +17,7 @@ const listReadinessFlags = async (user, internUserId) => {
 
   const flags = await ReadinessFlag.find({ internProfile: profile._id })
     .populate('technology', 'name slug')
+    .populate('position', 'name slug')
     .populate('setBy', 'fullname')
     .sort({ 'technology.name': 1 });
 
@@ -24,7 +27,7 @@ const listReadinessFlags = async (user, internUserId) => {
   });
 };
 
-const upsertReadinessFlag = async (user, internUserId, { technologyId, level }) => {
+const upsertReadinessFlag = async (user, internUserId, { technologyId, positionId, level }) => {
   const profile = await assertInternAccess(user, internUserId, { write: true });
 
   if (!canWriteMentorData(user, profile)) {
@@ -33,22 +36,61 @@ const upsertReadinessFlag = async (user, internUserId, { technologyId, level }) 
     throw err;
   }
 
-  if (!technologyId) throw new Error('Technology is required');
+  if (!technologyId && !positionId) throw new Error('Technology or position is required');
+  if (technologyId && positionId) throw new Error('Provide a technology or a position, not both');
   if (!READINESS_LEVELS.includes(level)) throw new Error('Invalid readiness level');
 
-  const technology = await Technology.findOne({ _id: technologyId, isActive: true });
-  if (!technology) throw new Error('Invalid technology');
+  let filter;
+  const update = { level, setBy: user._id };
 
-  const flag = await ReadinessFlag.findOneAndUpdate(
-    { internProfile: profile._id, technology: technologyId },
-    { level, setBy: user._id },
-    { upsert: true, returnDocument: 'after' }
-  )
+  if (technologyId) {
+    const technology = await Technology.findOne({ _id: technologyId, isActive: true });
+    if (!technology) throw new Error('Invalid technology');
+    filter = { internProfile: profile._id, technology: technologyId };
+  } else {
+    const position = await Position.findById(positionId);
+    if (!position) throw new Error('Invalid position');
+    // An intern holds a single role, so the role flag is a singleton per
+    // profile — it gets rewritten in place when the declared position changes.
+    filter = { internProfile: profile._id, position: { $ne: null } };
+    update.position = positionId;
+  }
+
+  const flag = await ReadinessFlag.findOneAndUpdate(filter, update, {
+    upsert: true,
+    returnDocument: 'after',
+  })
     .populate('technology', 'name slug')
+    .populate('position', 'name slug')
     .populate('setBy', 'fullname');
 
   const plain = flag.toObject();
   return { ...plain, id: plain._id };
 };
 
-module.exports = { listReadinessFlags, upsertReadinessFlag, READINESS_LEVELS };
+const listMyReadinessFlags = async (user) => {
+  const profile = await InternProfile.findOne({ user: user._id });
+  if (!profile) {
+    const err = new Error('Intern profile not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const flags = await ReadinessFlag.find({ internProfile: profile._id })
+    .populate('technology', 'name slug')
+    .populate('position', 'name slug')
+    .populate('setBy', 'fullname')
+    .sort({ 'technology.name': 1 });
+
+  return flags.map((flag) => {
+    const plain = flag.toObject();
+    return { ...plain, id: plain._id };
+  });
+};
+
+module.exports = {
+  listReadinessFlags,
+  listMyReadinessFlags,
+  upsertReadinessFlag,
+  READINESS_LEVELS,
+};

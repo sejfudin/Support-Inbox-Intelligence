@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 
-const INTERN_STATUSES = ['active', 'ready', 'placed', 'completed', 'discontinued'];
+// `ready` marks an intern as ready for placement — the bench, urgency list, and
+// leadership KPIs are all derived from it.
+const READY_STATUS = 'ready';
+const INTERN_STATUSES = ['active', READY_STATUS, 'placed', 'completed', 'discontinued'];
 
 const documentationLinkSchema = new mongoose.Schema(
   {
@@ -51,10 +54,6 @@ const internProfileSchema = new mongoose.Schema(
       enum: INTERN_STATUSES,
       default: 'active',
     },
-    readyForPlacement: {
-      type: Boolean,
-      default: false,
-    },
     expectedEndDate: {
       type: Date,
     },
@@ -64,6 +63,11 @@ const internProfileSchema = new mongoose.Schema(
         ref: 'Technology',
       },
     ],
+    declaredPosition: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Position',
+      default: null,
+    },
     cvPath: {
       type: String,
       default: null,
@@ -78,3 +82,4 @@ const internProfileSchema = new mongoose.Schema(
 
 module.exports = mongoose.model('InternProfile', internProfileSchema);
 module.exports.INTERN_STATUSES = INTERN_STATUSES;
+module.exports.READY_STATUS = READY_STATUS;

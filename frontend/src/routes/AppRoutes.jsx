@@ -29,6 +29,7 @@ import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
+import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -114,6 +115,10 @@ export default function AppRoutes() {
 
           <Route path="/invitations" element={<UserInvitationsPage />} />
 
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.INTERN]} />}>
+            <Route path="/my-technologies" element={<MyTechnologiesPage />} />
+          </Route>
+
           <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
             <Route path="/my-interns" element={<MentorInternsPage />} />
             <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
@@ -137,17 +142,14 @@ export default function AppRoutes() {
 
           <Route element={<WorkspaceGuard />}>
             <Route path="/tickets" element={<TicketPage />} />
-            <Route path="/admin/archive" element={<ArchivePage />} />
+            <Route path="/archive" element={<ArchivePage />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
+            <Route path="/backlog" element={<BacklogPage />} />
 
             <Route element={<WorkspaceManagementRoute />}>
               <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
               <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
-            </Route>
-
-            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
-              <Route path="/admin/backlog" element={<BacklogPage />} />
             </Route>
           </Route>
         </Route>

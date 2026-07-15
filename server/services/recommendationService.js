@@ -48,8 +48,6 @@ const assertReadAccess = (user) => {
   }
 };
 
-// Only the assigned mentor may create/update a recommendation (admins are
-// read-only here). Matches the client gate (role === MENTOR) and development.
 const assertRecommendationWriteAccess = (user, profile) => {
   if (user.role !== ROLES.MENTOR || !isAssignedMentor(profile, user._id)) {
     throw createError('Only the assigned mentor can modify recommendations', 403);
@@ -78,7 +76,6 @@ const formatInternProfile = (profile) => {
     primaryMentor: formatUser(profile.primaryMentor),
     secondaryMentor: formatUser(profile.secondaryMentor),
     status: profile.status,
-    readyForPlacement: profile.readyForPlacement,
     expectedEndDate: profile.expectedEndDate || null,
     cvUrl: buildCvUrl(profile.cvPath),
   };
@@ -411,7 +408,6 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
 
   if (recommendation.result?.outcome === 'placed') {
     profile.status = 'placed';
-    profile.readyForPlacement = false;
     await profile.save();
   }
 

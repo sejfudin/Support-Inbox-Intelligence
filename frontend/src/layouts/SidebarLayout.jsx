@@ -4,6 +4,7 @@ import AppSidebar from '@/components/AppSidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import PageHeader from '@/components/PageHeader';
 import AppTopActions from '@/components/AppTopActions';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 export default function SidebarLayout() {
   const [header, setHeader] = useState(null);
@@ -33,6 +34,7 @@ export default function SidebarLayout() {
                     data-test="sidebar-mobile-toggle-button"
                     className="-ml-1 shrink-0"
                   />
+                  <TaskManagerBrand size="sm" linkTo="/dashboard" className="min-w-0 flex-1" />
                 </div>
               </PageHeader>
             </>

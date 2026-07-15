@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { isAdmin, isMentor } from '@/helpers/roles';
+import { isAdmin, isMentor, isIntern } from '@/helpers/roles';
 import {
   User,
   Archive,
@@ -13,6 +13,7 @@ import {
   Database,
   GraduationCap,
   Send,
+  Code2,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCanManageActiveWorkspace } from '@/hooks/useCanManageActiveWorkspace';
 import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 export default function AppSidebar() {
   const { user, isLoginPending } = useAuth();
@@ -66,14 +68,14 @@ export default function AppSidebar() {
     },
     {
       label: 'Archive',
-      to: '/admin/archive',
+      to: '/archive',
       icon: Archive,
     },
     {
       label: 'Backlog',
-      to: '/admin/backlog',
+      to: '/backlog',
       icon: FileQuestionMark,
-      adminOnly: true,
+      hidden: !(isAdmin(user?.role) || isMentor(user?.role) || isIntern(user?.role)),
     },
     {
       label: 'Analytics',
@@ -115,6 +117,10 @@ export default function AppSidebar() {
       ]
     : [];
 
+  const internNav = isIntern(user?.role)
+    ? [{ label: 'Position & Technologies', to: '/my-technologies', icon: Code2 }]
+    : [];
+
   const adminNav = [
     {
       label: 'All Users',
@@ -141,14 +147,8 @@ export default function AppSidebar() {
   return (
     <Sidebar className="border-r border-border/50 bg-card shadow-elevated-sm">
       <SidebarHeader className="px-4 pb-3 pt-4">
-        <div className="rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-4 py-3 shadow-elevated-sm">
-          <div className="text-lg font-semibold tracking-tight">
-            <span className="text-foreground">Task</span>
-            <span className="text-primary">Manager</span>
-          </div>
-          <div className="mt-1 text-[11px] font-medium leading-4 text-muted-foreground">
-            Calm control for tickets, teams, and workspaces
-          </div>
+        <div className="rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-3 py-2.5 shadow-elevated-sm">
+          <TaskManagerBrand size="md" linkTo="/dashboard" />
         </div>
         <WorkspaceSwitcher className="mt-2 py-1.5" compact />
       </SidebarHeader>
@@ -200,7 +200,7 @@ export default function AppSidebar() {
             </div>
             <SidebarMenu>
               {workspaceNav.map((item) => {
-                if (item.adminOnly && !isAdmin(user?.role)) {
+                if (item.hidden) {
                   return null;
                 }
                 const Icon = item.icon;
@@ -243,6 +243,40 @@ export default function AppSidebar() {
             </div>
             <SidebarMenu>
               {mentorNav.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <NavLink
+                      to={item.to}
+                      end
+                      data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
+                      className={({ isActive }) =>
+                        cn(
+                          'group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all',
+                          isActive
+                            ? 'bg-primary text-primary-foreground shadow-elevated-sm'
+                            : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+                        )
+                      }
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="font-medium">{item.label}</span>
+                    </NavLink>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </div>
+        )}
+
+        {internNav.length > 0 && (
+          <div className="mb-3">
+            {(user?.workspaceId || invitationNav.length > 0) && <Separator className="mb-3" />}
+            <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Internship
+            </div>
+            <SidebarMenu>
+              {internNav.map((item) => {
                 const Icon = item.icon;
                 return (
                   <SidebarMenuItem key={item.to}>
