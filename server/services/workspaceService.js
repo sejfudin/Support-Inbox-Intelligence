@@ -292,11 +292,29 @@ const deleteWorkspace = async (workspaceId) => {
     }
 
     await Invitation.deleteMany({ workspace: workspaceId }, { session });
-    await User.updateMany(
+
+    const affectedUsers = await User.find(
       { workspaceId, role: { $ne: 'admin' } },
-      { $unset: { workspaceId: '' } },
+      { _id: 1 },
       { session }
     );
+
+    for (const affectedUser of affectedUsers) {
+      const fallback = await Workspace.findOne(
+        {
+          _id: { $ne: workspaceId },
+          members: { $elemMatch: { user: affectedUser._id, status: 'active' } },
+        },
+        null,
+        { session }
+      );
+
+      await User.findByIdAndUpdate(
+        affectedUser._id,
+        fallback ? { workspaceId: fallback._id } : { $unset: { workspaceId: '' } },
+        { session }
+      );
+    }
 
     await session.commitTransaction();
   } catch (err) {
