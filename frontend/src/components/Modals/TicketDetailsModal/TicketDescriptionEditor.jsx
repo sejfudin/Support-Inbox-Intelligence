@@ -19,7 +19,6 @@ export function TicketDescriptionEditor({
   handleDescriptionImagePaste,
   uploadDescriptionImagesMutation,
   descriptionHoverZoom,
-  setDescriptionHoverZoom,
   previewImageUrl,
   setPreviewImageUrl,
   aiDescription,
@@ -91,7 +90,7 @@ export function TicketDescriptionEditor({
           }}
           onClick={() => {
             setPreviewImageUrl(descriptionHoverZoom.src);
-            setDescriptionHoverZoom(null);
+            clearDescriptionImageHover();
           }}
           aria-label="Preview description image"
         >

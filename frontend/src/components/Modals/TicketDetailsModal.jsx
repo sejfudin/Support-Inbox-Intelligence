@@ -370,7 +370,6 @@ export const TicketDetailsModal = ({
                 handleDescriptionImagePaste={descriptionImages.handleDescriptionImagePaste}
                 uploadDescriptionImagesMutation={descriptionImages.uploadDescriptionImagesMutation}
                 descriptionHoverZoom={descriptionImages.descriptionHoverZoom}
-                setDescriptionHoverZoom={descriptionImages.setDescriptionHoverZoom}
                 previewImageUrl={descriptionImages.previewImageUrl}
                 setPreviewImageUrl={descriptionImages.setPreviewImageUrl}
                 aiDescription={aiDescription}
