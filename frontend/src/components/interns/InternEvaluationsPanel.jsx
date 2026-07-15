@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -15,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { HistoryPanel } from '@/components/interns/HistoryPanel';
+import { DetailModal, DetailText, ScoreBanner, ScoreTiles } from '@/components/interns/DetailModal';
 import { EVALUATION_CRITERIA } from '@/helpers/internProfile';
 import { getInitials } from '@/helpers/getInitials';
 import { useAuth } from '@/context/AuthContext';
@@ -34,12 +33,6 @@ const getAverage = (evaluation) => {
   const values = EVALUATION_CRITERIA.map((criterion) => evaluation.scores?.[criterion.key] ?? 0);
   const sum = values.reduce((total, value) => total + value, 0);
   return values.length ? sum / values.length : 0;
-};
-
-const getAverageVariant = (average) => {
-  if (average >= 4) return 'success';
-  if (average >= 3) return 'default';
-  return 'warning';
 };
 
 export function InternEvaluationsPanel({ userId, readOnly = false }) {
@@ -110,9 +103,7 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
       id: evaluation._id,
       raw: evaluation,
       featured: isLatest,
-      tag: isLatest
-        ? { label: 'Latest', color: 'green' }
-        : { label: 'Mid-programme', color: 'indigo' },
+      tag: isLatest ? { label: 'Latest', color: 'green' } : undefined,
       title: formatPeriod(evaluation),
       ring: { value: avg, label: 'Overall', trend },
       avatar: {
@@ -238,63 +229,46 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      <DetailModal
         open={Boolean(detailEvaluation)}
-        onOpenChange={(open) => !open && setDetailEvaluation(null)}
-      >
-        <DialogContent
-          className="max-w-lg overflow-hidden"
-          data-test="intern-evaluation-detail-dialog"
-        >
-          {detailEvaluation && (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  {format(new Date(detailEvaluation.periodStart), 'MMM d, yyyy')} –{' '}
-                  {format(new Date(detailEvaluation.periodEnd), 'MMM d, yyyy')}
-                </DialogTitle>
-                <DialogDescription>
-                  Evaluated by {detailEvaluation.evaluator?.fullname ?? 'Unknown'}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-5">
-                <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3">
-                  <span className="text-sm font-medium text-muted-foreground">Average score</span>
-                  <Badge variant={getAverageVariant(getAverage(detailEvaluation))}>
-                    {Number(getAverage(detailEvaluation)).toFixed(1)}/5
-                  </Badge>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {EVALUATION_CRITERIA.map((criterion) => (
-                    <div
-                      key={criterion.key}
-                      className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-2.5"
-                    >
-                      <span className="text-sm text-muted-foreground">{criterion.label}</span>
-                      <span className="text-sm font-semibold tabular-nums text-foreground">
-                        {detailEvaluation.scores?.[criterion.key] ?? '—'}/5
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {detailEvaluation.notes && (
-                  <div className="min-w-0 space-y-1.5">
-                    <p className="text-sm font-medium text-foreground">Notes</p>
-                    <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
-                      {detailEvaluation.notes}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setDetailEvaluation(null)}>
-                  Close
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+        onClose={() => setDetailEvaluation(null)}
+        dataTest="intern-evaluation-detail-dialog"
+        title={
+          detailEvaluation
+            ? `${format(new Date(detailEvaluation.periodStart), 'MMM d, yyyy')} – ${format(
+                new Date(detailEvaluation.periodEnd),
+                'MMM d, yyyy'
+              )}`
+            : ''
+        }
+        subtitle={
+          detailEvaluation
+            ? `Evaluated by ${detailEvaluation.evaluator?.fullname ?? 'Unknown'}`
+            : undefined
+        }
+        sections={
+          detailEvaluation
+            ? [
+                {
+                  content: <ScoreBanner value={getAverage(detailEvaluation)} />,
+                },
+                {
+                  content: (
+                    <ScoreTiles
+                      items={EVALUATION_CRITERIA.map((criterion) => ({
+                        label: criterion.label,
+                        score: detailEvaluation.scores?.[criterion.key] ?? 0,
+                      }))}
+                    />
+                  ),
+                },
+                ...(detailEvaluation.notes
+                  ? [{ label: 'Notes', content: <DetailText>{detailEvaluation.notes}</DetailText> }]
+                  : []),
+              ]
+            : []
+        }
+      />
     </div>
   );
 }
