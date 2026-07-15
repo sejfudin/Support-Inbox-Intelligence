@@ -14,8 +14,9 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
-import { SectionHistory, TruncatedCell } from '@/components/interns/SectionHistory';
+import { HistoryPanel } from '@/components/interns/HistoryPanel';
 import { EVALUATION_CRITERIA } from '@/helpers/internProfile';
+import { getInitials } from '@/helpers/getInitials';
 import { useAuth } from '@/context/AuthContext';
 import { canWriteInternMentorData } from '@/helpers/roles';
 import { useCreateInternEvaluation, useInternEvaluations } from '@/queries/interns';
@@ -90,69 +91,70 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
     );
   };
 
-  const columns = [
-    {
-      key: 'period',
-      header: 'Period',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) => new Date(row.periodStart).getTime(),
-      render: (row) => (
-        <span className="font-medium text-foreground">
-          {format(new Date(row.periodStart), 'MMM d, yyyy')} –{' '}
-          {format(new Date(row.periodEnd), 'MMM d, yyyy')}
-        </span>
-      ),
-    },
-    ...EVALUATION_CRITERIA.map((criterion) => ({
-      key: criterion.key,
-      header: criterion.label,
-      sortable: true,
-      align: 'center',
-      accessor: (row) => row.scores?.[criterion.key] ?? 0,
-      render: (row) => <span className="tabular-nums">{row.scores?.[criterion.key] ?? '—'}/5</span>,
-    })),
-    {
-      key: 'average',
-      header: 'Avg',
-      sortable: true,
-      align: 'center',
-      accessor: (row) => getAverage(row),
-      render: (row) => {
-        const average = getAverage(row);
-        return <Badge variant={getAverageVariant(average)}>{Number(average).toFixed(1)}/5</Badge>;
+  const formatPeriod = (evaluation) =>
+    `${format(new Date(evaluation.periodStart), 'MMM d')} – ${format(new Date(evaluation.periodEnd), 'MMM d, yyyy')}`;
+
+  // Newest first so the latest evaluation is the featured card and we can
+  // compute the trend delta against the chronologically previous one.
+  const ordered = [...evaluations].sort(
+    (a, b) => new Date(b.periodStart) - new Date(a.periodStart)
+  );
+
+  const cards = ordered.map((evaluation, index) => {
+    const avg = getAverage(evaluation);
+    const isLatest = index === 0;
+    const prev = ordered[index + 1];
+    const delta = prev ? avg - getAverage(prev) : 0;
+    const trend = prev && delta > 0.05 ? { kind: 'up', delta } : { kind: 'flat' };
+    return {
+      id: evaluation._id,
+      raw: evaluation,
+      featured: isLatest,
+      tag: isLatest
+        ? { label: 'Latest', color: 'green' }
+        : { label: 'Mid-programme', color: 'indigo' },
+      title: formatPeriod(evaluation),
+      ring: { value: avg, label: 'Overall', trend },
+      avatar: {
+        initials: getInitials(evaluation.evaluator?.fullname),
+        name: evaluation.evaluator?.fullname ?? 'Unknown',
       },
-    },
-    {
-      key: 'evaluator',
-      header: 'Evaluator',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) => row.evaluator?.fullname ?? '',
-      render: (row) => (
-        <span className="text-muted-foreground">{row.evaluator?.fullname ?? '—'}</span>
-      ),
-    },
-    {
-      key: 'notes',
-      header: 'Notes',
-      render: (row) => <TruncatedCell text={row.notes} />,
-    },
-  ];
+      blocks: [
+        {
+          kind: 'bars',
+          items: EVALUATION_CRITERIA.map((criterion) => ({
+            label: criterion.label,
+            score: evaluation.scores?.[criterion.key] ?? 0,
+          })),
+        },
+      ],
+      note: evaluation.notes,
+      sortVals: { period: new Date(evaluation.periodStart).getTime(), average: avg },
+    };
+  });
+
+  const trendingUp = cards.length > 1 && cards[0].ring.value > (getAverage(ordered[1]) ?? 0);
+  const subtitle = `${cards.length} evaluation${cards.length === 1 ? '' : 's'}${
+    cards.length > 1 ? (trendingUp ? ' · trending upward' : ' · steady') : ''
+  }`;
 
   return (
     <div className="space-y-6">
-      <SectionHistory
+      <HistoryPanel
         title="Evaluation history"
-        columns={columns}
-        data={evaluations}
-        isLoading={isPending}
+        subtitle={subtitle}
+        buttonLabel="New evaluation"
         canWrite={canWrite}
-        newLabel="New evaluation"
+        isLoading={isPending}
+        cards={cards}
+        sortOptions={[
+          { key: 'period', label: 'Period' },
+          { key: 'average', label: 'Average' },
+        ]}
         onNew={openDialog}
-        onRowClick={setDetailEvaluation}
+        onReadMore={(id) => setDetailEvaluation(cards.find((c) => c.id === id)?.raw)}
+        onCardClick={(card) => setDetailEvaluation(card.raw)}
         emptyMessage="No evaluations recorded yet."
-        dataTestPrefix="intern-evaluation"
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

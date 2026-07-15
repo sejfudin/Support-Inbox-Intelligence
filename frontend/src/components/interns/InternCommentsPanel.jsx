@@ -11,9 +11,10 @@ import {
 import { Label } from '@/components/ui/label';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ChipsCell, SectionHistory, TruncatedCell } from '@/components/interns/SectionHistory';
+import { HistoryPanel } from '@/components/interns/HistoryPanel';
 import { useCommentViewers, useCreateInternComment, useInternComments } from '@/queries/interns';
 import { canWriteInternMentorData } from '@/helpers/roles';
+import { getInitials } from '@/helpers/getInitials';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -61,64 +62,58 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
     );
   };
 
-  const columns = [
-    {
-      key: 'author',
-      header: 'Author',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) => row.author?.fullname ?? '',
-      render: (row) => (
-        <span className="font-medium text-foreground">{row.author?.fullname ?? '—'}</span>
-      ),
+  const roleTag = (role) => {
+    if (role === 'mentor') return { label: 'Mentor', color: 'indigo' };
+    if (role === 'leadership') return { label: 'Leadership', color: 'slate' };
+    if (role === 'admin') return { label: 'Admin', color: 'slate' };
+    return { label: role || 'Note', color: 'slate' };
+  };
+
+  const ordered = [...comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const cards = ordered.map((comment, index) => ({
+    id: comment._id,
+    raw: comment,
+    featured: index === 0,
+    tag: roleTag(comment.author?.role),
+    title: format(new Date(comment.createdAt), 'MMM d, yyyy'),
+    avatar: {
+      initials: getInitials(comment.author?.fullname),
+      name: comment.author?.fullname ?? 'Unknown',
     },
-    {
-      key: 'date',
-      header: 'Date',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) => new Date(row.createdAt).getTime(),
-      render: (row) => (
-        <span className="tabular-nums text-muted-foreground">
-          {format(new Date(row.createdAt), 'MMM d, yyyy')}
-        </span>
-      ),
+    blocks: [
+      {
+        kind: 'chips',
+        label: 'Shared with',
+        items: (comment.visibleTo || []).map((viewer) => viewer?.fullname).filter(Boolean),
+      },
+    ],
+    note: comment.content,
+    sortVals: {
+      date: new Date(comment.createdAt).getTime(),
+      author: comment.author?.fullname ?? '',
     },
-    {
-      key: 'content',
-      header: 'Note',
-      render: (row) => <TruncatedCell text={row.content} />,
-    },
-    {
-      key: 'sharedWith',
-      header: 'Shared with',
-      sortable: true,
-      accessor: (row) => (row.visibleTo || []).length,
-      render: (row) => (
-        <ChipsCell
-          variant="secondary"
-          emptyLabel="Private"
-          items={(row.visibleTo || [])
-            .filter((viewer) => viewer?.fullname)
-            .map((viewer) => ({ key: viewer._id || viewer.id, label: viewer.fullname }))}
-        />
-      ),
-    },
-  ];
+  }));
+
+  const subtitle = `${cards.length} note${cards.length === 1 ? '' : 's'}`;
 
   return (
     <div className="space-y-6">
-      <SectionHistory
+      <HistoryPanel
         title="Mentor notes"
-        columns={columns}
-        data={comments}
-        isLoading={isPending}
+        subtitle={subtitle}
+        buttonLabel="New note"
         canWrite={canWrite}
-        newLabel="New note"
+        isLoading={isPending}
+        cards={cards}
+        sortOptions={[
+          { key: 'date', label: 'Date' },
+          { key: 'author', label: 'Author' },
+        ]}
         onNew={openDialog}
-        onRowClick={setDetailComment}
+        onReadMore={(id) => setDetailComment(cards.find((c) => c.id === id)?.raw)}
+        onCardClick={(card) => setDetailComment(card.raw)}
         emptyMessage="No comments you can view yet."
-        dataTestPrefix="intern-comment"
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

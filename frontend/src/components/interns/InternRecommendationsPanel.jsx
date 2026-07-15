@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
-import { ChipsCell, SectionHistory, TruncatedCell } from '@/components/interns/SectionHistory';
+import { HistoryPanel } from '@/components/interns/HistoryPanel';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import {
@@ -197,92 +197,69 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     }
   };
 
-  const columns = [
-    {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) => getRecommendationStatusLabel(row.status),
-      render: (row) => (
-        <Badge variant={getRecommendationStatusVariant(row.status)}>
-          {getRecommendationStatusLabel(row.status)}
-        </Badge>
-      ),
+  const statusTagColor = (status) => {
+    if (status === 'resulted') return 'green';
+    if (status === 'draft') return 'slate';
+    return 'indigo';
+  };
+  const resultTitle = (recommendation) =>
+    recommendation.result?.outcome
+      ? getRecommendationResultLabel(recommendation.result.outcome)
+      : 'No result yet';
+
+  const ordered = [...recommendations].sort(
+    (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+  );
+
+  const cards = ordered.map((recommendation, index) => ({
+    id: recommendation._id,
+    raw: recommendation,
+    featured: index === 0,
+    tag: {
+      label: getRecommendationStatusLabel(recommendation.status),
+      color: statusTagColor(recommendation.status),
     },
-    {
-      key: 'result',
-      header: 'Result',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) =>
-        row.result?.outcome ? getRecommendationResultLabel(row.result.outcome) : '',
-      render: (row) =>
-        row.result?.outcome ? (
-          <Badge variant={getRecommendationResultVariant(row.result.outcome)}>
-            {getRecommendationResultLabel(row.result.outcome)}
-          </Badge>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        ),
+    title: resultTitle(recommendation),
+    metaSub: `Updated ${formatDate(recommendation.updatedAt)} · ${
+      recommendation.updatedBy?.fullname || 'Unknown'
+    }`,
+    blocks: [
+      {
+        kind: 'chips',
+        label: 'Technologies',
+        items: (recommendation.technologies || []).map((technology) => technology.name),
+      },
+    ],
+    note: recommendation.recommendationNote,
+    sortVals: {
+      updated: new Date(recommendation.updatedAt).getTime(),
+      status: getRecommendationStatusLabel(recommendation.status),
     },
-    {
-      key: 'technologies',
-      header: 'Technologies',
-      sortable: true,
-      accessor: (row) => (row.technologies || []).length,
-      render: (row) => (
-        <ChipsCell
-          items={(row.technologies || []).map((technology) => ({
-            key: technology._id,
-            label: technology.name,
-          }))}
-        />
-      ),
-    },
-    {
-      key: 'note',
-      header: 'Note',
-      render: (row) => <TruncatedCell text={row.recommendationNote} />,
-    },
-    {
-      key: 'updatedBy',
-      header: 'Updated by',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) => row.updatedBy?.fullname ?? '',
-      render: (row) => (
-        <span className="text-muted-foreground">{row.updatedBy?.fullname || 'Unknown'}</span>
-      ),
-    },
-    {
-      key: 'updatedAt',
-      header: 'Updated',
-      sortable: true,
-      nowrap: true,
-      accessor: (row) => new Date(row.updatedAt).getTime(),
-      render: (row) => (
-        <span className="tabular-nums text-muted-foreground">{formatDate(row.updatedAt)}</span>
-      ),
-    },
-  ];
+  }));
+
+  const subtitle = `${cards.length} recommendation${cards.length === 1 ? '' : 's'}`;
 
   return (
     <div className="space-y-6">
-      <SectionHistory
+      <HistoryPanel
         title="Recommendation history"
-        columns={columns}
-        data={recommendations}
-        isLoading={isPending}
+        subtitle={subtitle}
+        buttonLabel="New recommendation"
         canWrite={canWrite}
-        newLabel="New recommendation"
+        isLoading={isPending}
+        cards={cards}
+        sortOptions={[
+          { key: 'updated', label: 'Updated' },
+          { key: 'status', label: 'Status' },
+        ]}
         onNew={handleNew}
-        onRowClick={setDetailRecommendation}
-        rowAction={{ label: 'Update', onClick: handleEdit }}
+        onReadMore={(id) => setDetailRecommendation(cards.find((c) => c.id === id)?.raw)}
+        onCardClick={(card) =>
+          canWrite ? handleEdit(card.raw) : setDetailRecommendation(card.raw)
+        }
         emptyMessage={
           isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'
         }
-        dataTestPrefix="intern-recommendation"
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
