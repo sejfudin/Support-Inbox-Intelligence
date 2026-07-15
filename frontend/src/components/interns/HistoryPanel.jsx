@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Plus } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -27,24 +27,33 @@ import { cn } from '@/lib/utils';
 // ---- color maps (theme-aware: primary token for indigo, muted for neutral,
 // and the same emerald/amber/red tints the app's Badge uses for semantics) ----
 const TAG_COLORS = {
-  green: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  indigo: 'bg-primary/10 text-primary',
+  green: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+  indigo: 'bg-primary/20 text-primary',
   slate: 'bg-muted text-muted-foreground',
 };
 
 const PILL_COLORS = {
-  green: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-  indigo: 'bg-primary/10 text-primary',
-  amber: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
-  red: 'bg-red-500/15 text-red-700 dark:text-red-300',
+  green: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+  indigo: 'bg-primary/20 text-primary',
+  amber: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
+  red: 'bg-red-500/20 text-red-700 dark:text-red-300',
   slate: 'bg-muted text-muted-foreground',
 };
 
-// Ring fill uses the theme primary (indigo) or emerald; the empty track uses
-// the muted token so it adapts to light/dark.
-const ringFill = (value) => (value >= 4 ? 'hsl(160 84% 39%)' : 'hsl(var(--primary))');
+// Ring fill uses the theme primary (indigo) or emerald; the empty track picks up
+// a faint tint of the same hue so the ring reads as color, not gray-on-gray.
+const ringFill = (value) =>
+  value >= 4.5 ? 'hsl(160 84% 39%)' : value >= 3.5 ? 'hsl(var(--primary))' : 'hsl(38 92% 50%)';
+const ringTrack = (value) =>
+  value >= 4.5
+    ? 'hsl(160 84% 39% / 0.16)'
+    : value >= 3.5
+      ? 'hsl(var(--primary) / 0.16)'
+      : 'hsl(38 92% 50% / 0.16)';
 const barColor = (score) =>
-  score >= 5 ? 'bg-emerald-500' : score >= 4 ? 'bg-primary' : 'bg-amber-500';
+  score >= 4.5 ? 'bg-emerald-500' : score >= 3.5 ? 'bg-primary' : 'bg-amber-500';
+const barTrack = (score) =>
+  score >= 4.5 ? 'bg-emerald-500/15' : score >= 3.5 ? 'bg-primary/15' : 'bg-amber-500/15';
 
 function Ring({ value, label = 'Overall', trend }) {
   const pct = Math.max(0, Math.min(1, value / 5)) * 100;
@@ -52,9 +61,12 @@ function Ring({ value, label = 'Overall', trend }) {
     <div className="flex items-center gap-3">
       <div
         className="grid h-14 w-14 place-items-center rounded-full"
-        style={{ background: `conic-gradient(${ringFill(value)} ${pct}%, hsl(var(--muted)) 0)` }}
+        style={{
+          background: `conic-gradient(${ringFill(value)} ${pct}%, ${ringTrack(value)} 0)`,
+          boxShadow: `0 0 0 1px ${ringTrack(value)}, 0 6px 16px -6px ${ringFill(value)}`,
+        }}
       >
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-card text-sm font-bold text-foreground">
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-card text-sm font-extrabold text-foreground">
           {Number(value).toFixed(1)}
         </div>
       </div>
@@ -92,13 +104,24 @@ function renderBlock(block, index) {
       <div key={index} className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         {block.items.map((item) => {
           const pct = Math.max(0, Math.min(1, item.score / 5)) * 100;
+          const scoreTone =
+            item.score >= 4.5
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : item.score >= 3.5
+                ? 'text-primary'
+                : 'text-amber-600 dark:text-amber-500';
           return (
             <div key={item.label}>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{item.label}</span>
-                <span className="text-sm font-bold text-foreground">{item.score}/5</span>
+                <span className="text-sm font-bold tabular-nums">
+                  <span className={scoreTone}>{item.score}</span>
+                  <span className="text-muted-foreground">/5</span>
+                </span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn('mt-1.5 h-2.5 overflow-hidden rounded-full', barTrack(item.score))}
+              >
                 <div
                   className={cn('h-full rounded-full', barColor(item.score))}
                   style={{ width: `${pct}%` }}
@@ -160,7 +183,7 @@ function HistoryCardView({ card, onReadMore, onCardClick }) {
         'rounded-[18px] p-5 transition sm:p-6',
         onCardClick && 'cursor-pointer hover:shadow-lg',
         card.featured
-          ? 'border border-primary/20 bg-primary/5 shadow-md shadow-primary/10'
+          ? 'border border-primary/30 bg-primary/[0.07] shadow-lg shadow-primary/15'
           : 'border border-border bg-card'
       )}
       onClick={onCardClick ? () => onCardClick(card) : undefined}
@@ -353,26 +376,32 @@ export function HistoryPanel({
 
         <div className="flex flex-wrap items-center gap-2">
           {sortOptions.length > 0 && (
-            <>
-              <select
-                value={sortKey}
-                onChange={(event) => setSortKey(event.target.value)}
-                className="rounded-xl border border-input bg-background px-3 py-2 text-sm text-muted-foreground outline-none focus:border-ring"
-                data-test={`${dataTestId(title)}-sort`}
-              >
-                <option value="">Default</option>
-                {sortOptions.map((opt) => (
-                  <option key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+            <div className="flex h-10 items-center rounded-xl border border-input bg-background transition focus-within:border-ring">
+              <ArrowUpDown className="ml-3 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <div className="relative">
+                <select
+                  value={sortKey}
+                  onChange={(event) => setSortKey(event.target.value)}
+                  className="h-10 cursor-pointer appearance-none bg-transparent py-0 pl-2 pr-8 text-sm font-medium text-foreground outline-none"
+                  data-test={`${dataTestId(title)}-sort`}
+                  aria-label="Sort by"
+                >
+                  <option value="">Sort: Default</option>
+                  {sortOptions.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      Sort: {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              </div>
               <button
                 type="button"
                 disabled={!sortKey}
                 onClick={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                className="grid h-9 w-9 place-items-center rounded-xl border border-input bg-background text-muted-foreground transition hover:bg-accent disabled:opacity-40"
-                aria-label="Toggle sort direction"
+                className="grid h-10 w-9 place-items-center border-l border-input text-muted-foreground transition hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground"
+                aria-label={`Sort direction: ${sortDir === 'asc' ? 'ascending' : 'descending'}`}
+                title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
               >
                 {sortDir === 'asc' ? (
                   <ArrowUp className="h-4 w-4" />
@@ -380,7 +409,7 @@ export function HistoryPanel({
                   <ArrowDown className="h-4 w-4" />
                 )}
               </button>
-            </>
+            </div>
           )}
           {canWrite && (
             <button
