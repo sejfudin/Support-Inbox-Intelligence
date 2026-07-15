@@ -5,7 +5,7 @@ const InternProfile = require('../models/InternProfile');
 const Technology = require('../models/Technology');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
-const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
+const { isAssignedMentor } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
 
 const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP, ROLES.MENTOR];
@@ -48,11 +48,11 @@ const assertReadAccess = (user) => {
   }
 };
 
-// Admins may write any recommendation; a mentor may write only for interns they
-// are assigned to (mirrors canWriteInternMentorData on the client + evaluations/notes).
+// Only the assigned mentor may create/update a recommendation (admins are
+// read-only here). Matches the client gate (role === MENTOR) and development.
 const assertRecommendationWriteAccess = (user, profile) => {
-  if (!canWriteMentorData(user, profile)) {
-    throw createError('Not authorized to modify this recommendation', 403);
+  if (user.role !== ROLES.MENTOR || !isAssignedMentor(profile, user._id)) {
+    throw createError('Only the assigned mentor can modify recommendations', 403);
   }
 };
 

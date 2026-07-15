@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, ChevronsUpDown, Plus } from 'lucide-react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, ChevronsUpDown, MoreHorizontal, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InternPanel } from '@/components/interns/InternPanel';
@@ -94,7 +94,9 @@ export function SectionHistory({
 
   return (
     <InternPanel className="p-0">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 md:px-6">
+      {/* px-4 matches the Table cell padding so the title lines up with the
+          first column and the button lines up with the last column's edge. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <h3 className="text-lg font-semibold text-foreground">{title}</h3>
         {canWrite && (
           <Button
@@ -122,6 +124,7 @@ export function SectionHistory({
                     className={cn(
                       headTone,
                       alignClass[column.align] || alignClass.left,
+                      column.widthClass,
                       canSort && 'cursor-pointer select-none hover:text-foreground'
                     )}
                     onClick={canSort ? () => toggleSort(column) : undefined}
@@ -183,6 +186,7 @@ export function SectionHistory({
                         className={cn(
                           'align-top text-sm text-foreground',
                           alignClass[column.align] || alignClass.left,
+                          column.widthClass,
                           column.nowrap && 'whitespace-nowrap'
                         )}
                       >
@@ -218,23 +222,44 @@ export function SectionHistory({
 }
 
 /**
- * One-line truncated cell with a tooltip for the full text and click-to-expand.
- * Pass the `{ isExpanded, toggleExpanded }` meta from the column `render` args.
- */
-/**
  * One-line truncated cell, capped width so a long unbroken string can never
- * widen the cell past the viewport. Full text is available on hover via tooltip.
+ * widen the cell past the viewport. When the text actually overflows, a soft
+ * right-edge fade signals there is more, and the full text shows on hover.
  */
 export function TruncatedCell({ text }) {
+  const spanRef = useRef(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = spanRef.current;
+    if (!el) return;
+    setIsOverflowing(el.scrollWidth > el.clientWidth);
+  }, [text]);
+
   if (!text) return <span className="text-muted-foreground">—</span>;
+
+  // Cap the width so the note truncates instead of stretching the column, but
+  // stay a max (not fixed) so the cell flexes on narrow screens. Trailing "…"
+  // + reader icon when clipped signals "there's more, open the row to read".
+  const content = (
+    <span className="flex w-full max-w-[16rem] items-center gap-1.5 sm:max-w-[20rem]">
+      <span ref={spanRef} className="min-w-0 flex-1 truncate text-sm text-foreground">
+        {text}
+      </span>
+      {isOverflowing && (
+        <MoreHorizontal aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+      )}
+    </span>
+  );
+
+  // Only attach the tooltip when there is hidden text worth revealing.
+  if (!isOverflowing) return content;
 
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="block max-w-[16rem] cursor-default truncate text-sm text-foreground sm:max-w-[22rem]">
-            {text}
-          </span>
+          <span className="cursor-default">{content}</span>
         </TooltipTrigger>
         <TooltipContent className="max-w-[min(24rem,90vw)] whitespace-pre-line [overflow-wrap:anywhere]">
           {text}
