@@ -376,14 +376,6 @@ const setPasswordFromInvite = async ({ setupToken, password }) => {
 
   await user.save();
 
-  // Activate workspace membership if the user was invited to one
-  if (user.workspaceId) {
-    await Workspace.updateOne(
-      { _id: user.workspaceId, 'members.user': user._id },
-      { $set: { 'members.$.status': 'active', 'members.$.joinedAt': user.inviteAcceptedAt } }
-    );
-  }
-
   const accessToken = generateAccessToken(user._id, user.tokenVersion);
   const refreshToken = await createRefreshToken(user._id, user.tokenVersion);
 
