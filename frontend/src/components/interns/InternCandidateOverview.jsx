@@ -37,7 +37,7 @@ export function InternCandidateOverview({
 }) {
   const formattedEndDate = intern.expectedEndDate
     ? format(new Date(intern.expectedEndDate), 'MMM d, yyyy')
-    : '—';
+    : null;
 
   const showProgramme = programmeMode !== 'none' && programmeMode !== 'minimal';
 
@@ -48,14 +48,7 @@ export function InternCandidateOverview({
           <OverviewSection title="Programme" description="Additional mentorship details.">
             <dl className="grid gap-6 sm:grid-cols-2">
               <DetailItem label="Secondary mentor" value={intern.secondaryMentor?.fullname} />
-              <DetailItem
-                label="Expected end"
-                value={
-                  intern.expectedEndDate
-                    ? format(new Date(intern.expectedEndDate), 'MMM d, yyyy')
-                    : '—'
-                }
-              />
+              {formattedEndDate && <DetailItem label="Expected end" value={formattedEndDate} />}
             </dl>
           </OverviewSection>
           <div className="border-t border-border/60" />
@@ -82,7 +75,7 @@ export function InternCandidateOverview({
               {programmeMode === 'supplemental' && (
                 <>
                   <DetailItem label="Secondary mentor" value={intern.secondaryMentor?.fullname} />
-                  <DetailItem label="Expected end" value={formattedEndDate} />
+                  {formattedEndDate && <DetailItem label="Expected end" value={formattedEndDate} />}
                 </>
               )}
             </dl>
