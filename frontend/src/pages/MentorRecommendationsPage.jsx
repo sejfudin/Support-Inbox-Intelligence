@@ -192,7 +192,7 @@ export default function MentorRecommendationsPage() {
           )}
           {!isPending && !isError && (
             <div className="overflow-x-auto">
-              <Table className="min-w-[1180px]">
+              <Table className="min-w-[1480px]">
                 <TableHeader>
                   <TableRow className="bg-secondary/60">
                     <TableHead className={tableHeadClass}>Intern</TableHead>
@@ -201,6 +201,9 @@ export default function MentorRecommendationsPage() {
                     <TableHead className={tableHeadClass}>Project</TableHead>
                     <TableHead className={tableHeadClass}>Technologies</TableHead>
                     <TableHead className={tableHeadClass}>Status</TableHead>
+                    <TableHead className={tableHeadClass}>Recommended</TableHead>
+                    <TableHead className={tableHeadClass}>Interviewing</TableHead>
+                    <TableHead className={tableHeadClass}>Resulted</TableHead>
                     <TableHead className={tableHeadClass}>Result</TableHead>
                     <TableHead className={tableHeadClass}>Updated</TableHead>
                   </TableRow>
@@ -208,7 +211,7 @@ export default function MentorRecommendationsPage() {
                 <TableBody>
                   {recommendations.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">
                         No recommendations match your filters.
                       </TableCell>
                     </TableRow>
@@ -279,6 +282,21 @@ export default function MentorRecommendationsPage() {
                           <Badge variant={getRecommendationStatusVariant(recommendation.status)}>
                             {getRecommendationStatusLabel(recommendation.status)}
                           </Badge>
+                        </TableCell>
+                        <TableCell
+                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
+                        >
+                          {formatDate(recommendation.statusDates?.recommended)}
+                        </TableCell>
+                        <TableCell
+                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
+                        >
+                          {formatDate(recommendation.statusDates?.interviewing)}
+                        </TableCell>
+                        <TableCell
+                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
+                        >
+                          {formatDate(recommendation.statusDates?.resulted)}
                         </TableCell>
                         <TableCell className={tableCellClass}>
                           {recommendation.result?.outcome ? (
