@@ -428,6 +428,8 @@ const seedTestingData = async () => {
     await History.insertMany([
       {
         ticketId: ticketHigh._id,
+        entityType: 'ticket',
+        entityId: ticketHigh._id,
         action: 'Status changed to In progress',
         userId: mentorSarajevo._id,
         userName: mentorSarajevo.fullname,
@@ -435,6 +437,8 @@ const seedTestingData = async () => {
       },
       {
         ticketId: ticketHigh._id,
+        entityType: 'ticket',
+        entityId: ticketHigh._id,
         action: 'Priority set to high',
         userId: baseAdmin._id,
         userName: baseAdmin.fullname,
@@ -442,6 +446,8 @@ const seedTestingData = async () => {
       },
       {
         ticketId: ticketCritical._id,
+        entityType: 'ticket',
+        entityId: ticketCritical._id,
         action: 'Assigned to Mentor Mark',
         userId: adminSymphony._id,
         userName: adminSymphony.fullname,
@@ -449,6 +455,8 @@ const seedTestingData = async () => {
       },
       {
         ticketId: ticketWithPr._id,
+        entityType: 'ticket',
+        entityId: ticketWithPr._id,
         action: 'Linked PR #142',
         userId: mentorBelgrade._id,
         userName: mentorBelgrade.fullname,
@@ -916,8 +924,25 @@ const seedTestingData = async () => {
 
     console.log('📋 Seeding recommendations…');
 
+    // Append-only status history rows for a seeded recommendation. `events` is
+    // an ordered list of { statusKey, at } so the new table date columns and the
+    // per-status labels have realistic data after seeding.
+    const logRecommendationHistory = async (rec, author, events) => {
+      await History.insertMany(
+        events.map((event) => ({
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: event.statusKey,
+          action: `Status set to ${event.statusKey.charAt(0).toUpperCase() + event.statusKey.slice(1)}`,
+          userId: author,
+          userName: leadership.fullname,
+          timestamp: event.at,
+        }))
+      );
+    };
+
     const createRecommendation = async (profileEntry, recSpec) => {
-      const { profile, spec, primaryMentor } = profileEntry;
+      const { profile, spec } = profileEntry;
       const techIds = (spec.techs || []).map((slug) => techBySlug(slug)._id);
       const leadershipAuthor = leadership._id;
 
@@ -934,15 +959,15 @@ const seedTestingData = async () => {
       };
 
       if (recSpec === 'recommended') {
-        const rec = await Recommendation.create({
-          ...base,
-          status: 'recommended',
-        });
         const age = spec.recAgeDays ?? 7;
+        const rec = await Recommendation.create({ ...base, status: 'recommended' });
         await Recommendation.updateOne(
           { _id: rec._id },
           { $set: { createdAt: daysAgo(age), updatedAt: daysAgo(age) } }
         );
+        await logRecommendationHistory(rec, leadershipAuthor, [
+          { statusKey: 'recommended', at: daysAgo(age) },
+        ]);
         return rec;
       }
 
@@ -961,15 +986,21 @@ const seedTestingData = async () => {
             rating: 4,
           },
         };
-        return Recommendation.create({
+        const rec = await Recommendation.create({
           ...base,
           status: 'interviewing',
           interviews: [interview],
         });
+        // Progressed: recommended first, then interviewing.
+        await logRecommendationHistory(rec, leadershipAuthor, [
+          { statusKey: 'recommended', at: daysAgo(14) },
+          { statusKey: 'interviewing', at: daysAgo(5) },
+        ]);
+        return rec;
       }
 
       if (recSpec === 'placed' || recSpec === 'not_placed') {
-        return Recommendation.create({
+        const rec = await Recommendation.create({
           ...base,
           status: 'resulted',
           interviews: [
@@ -992,6 +1023,14 @@ const seedTestingData = async () => {
             decidedBy: leadershipAuthor,
           },
         });
+        // Full status lifecycle; both placed and not_placed reach 'resulted'
+        // (the placed/not_placed distinction lives in the Result field).
+        await logRecommendationHistory(rec, leadershipAuthor, [
+          { statusKey: 'recommended', at: daysAgo(30) },
+          { statusKey: 'interviewing', at: daysAgo(20) },
+          { statusKey: 'resulted', at: daysAgo(7) },
+        ]);
+        return rec;
       }
 
       return null;
@@ -1008,7 +1047,7 @@ const seedTestingData = async () => {
       (e) => e.spec.email === 'intern.completed.gamma@symphony.is'
     );
     if (recentOutcomeIntern) {
-      await Recommendation.create({
+      const rec = await Recommendation.create({
         internProfile: recentOutcomeIntern.profile._id,
         createdBy: leadership2._id,
         updatedBy: leadership2._id,
@@ -1024,13 +1063,34 @@ const seedTestingData = async () => {
           decidedBy: leadership2._id,
         },
       });
+      // not_placed → no 'placed' event, only recommended + interviewing.
+      await History.insertMany([
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'recommended',
+          action: 'Status set to Recommended',
+          userId: leadership2._id,
+          userName: leadership2.fullname,
+          timestamp: daysAgo(18),
+        },
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'interviewing',
+          action: 'Status set to Interviewing',
+          userId: leadership2._id,
+          userName: leadership2.fullname,
+          timestamp: daysAgo(9),
+        },
+      ]);
     }
 
     const placedIntern = internProfiles.find(
       (e) => e.spec.email === 'intern.placed.alpha@symphony.is'
     );
     if (placedIntern) {
-      await Recommendation.create({
+      const rec = await Recommendation.create({
         internProfile: placedIntern.profile._id,
         createdBy: leadership._id,
         updatedBy: leadership._id,
@@ -1046,6 +1106,35 @@ const seedTestingData = async () => {
           decidedBy: leadership._id,
         },
       });
+      await History.insertMany([
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'recommended',
+          action: 'Status set to Recommended',
+          userId: leadership._id,
+          userName: leadership.fullname,
+          timestamp: daysAgo(25),
+        },
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'interviewing',
+          action: 'Status set to Interviewing',
+          userId: leadership._id,
+          userName: leadership.fullname,
+          timestamp: daysAgo(12),
+        },
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'resulted',
+          action: 'Status set to Resulted',
+          userId: leadership._id,
+          userName: leadership.fullname,
+          timestamp: daysAgo(1),
+        },
+      ]);
     }
 
     console.log('\n🚀 TEST SEEDING COMPLETED SUCCESSFULLY!');

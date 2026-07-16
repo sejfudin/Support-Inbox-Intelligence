@@ -6,6 +6,11 @@
  *      recommendation that predates them, so those records still satisfy model
  *      validation and remain editable. Position falls back to the intern's
  *      declaredPosition, then to any Position; project gets a neutral marker.
+ *   3. Removes any stale 'placed' status-history rows from an earlier version
+ *      of this migration (the timeline now tracks 'resulted', not 'placed').
+ *   4. Seeds append-only status History rows for recommendations that have none,
+ *      reconstructing recommended/interviewing/resulted dates from the record's
+ *      current status so the new table date columns aren't empty.
  *
  * Safe to re-run — only touches records that still need it.
  *
@@ -19,6 +24,7 @@ const connectDB = require('../config/db');
 const Recommendation = require('../models/Recommendation');
 const InternProfile = require('../models/InternProfile');
 const Position = require('../models/Position');
+const History = require('../models/History');
 
 const LEGACY_PROJECT = 'Unspecified project';
 
@@ -66,6 +72,59 @@ const run = async () => {
       positionCount += 1;
     }
     console.log(`✅ Backfilled position on ${positionCount} recommendation(s).`);
+
+    // 3b. Drop stale 'placed' status rows from the earlier migration version —
+    //     the timeline tracks 'resulted' now; placed/not_placed is the Result.
+    const stale = await History.deleteMany({
+      entityType: 'recommendation',
+      statusKey: 'placed',
+    });
+    console.log(`✅ Removed ${stale.deletedCount} stale 'placed' history row(s).`);
+
+    // 4. Ensure each recommendation has the status milestones it should, per
+    //    its current status. Idempotent top-up: adds only the missing milestones
+    //    (so records seeded by the earlier 'placed' version get their 'resulted'
+    //    row, and records with no history get the full lifecycle).
+    const allRecs = await Recommendation.find()
+      .select('_id status result createdAt updatedAt createdBy')
+      .lean();
+
+    let historyCount = 0;
+    for (const rec of allRecs) {
+      const created = rec.createdAt || new Date();
+      const decided = rec.result?.decidedAt || rec.updatedAt || created;
+
+      const expected = [{ statusKey: 'recommended', at: created }];
+      if (rec.status === 'interviewing' || rec.status === 'resulted') {
+        expected.push({ statusKey: 'interviewing', at: rec.updatedAt || created });
+      }
+      if (rec.status === 'resulted') {
+        expected.push({ statusKey: 'resulted', at: decided });
+      }
+
+      const existingKeys = new Set(
+        await History.distinct('statusKey', {
+          entityType: 'recommendation',
+          entityId: rec._id,
+        })
+      );
+      const missing = expected.filter((row) => !existingKeys.has(row.statusKey));
+      if (missing.length === 0) continue;
+
+      await History.insertMany(
+        missing.map((row) => ({
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: row.statusKey,
+          action: `Status set to ${row.statusKey.charAt(0).toUpperCase() + row.statusKey.slice(1)}`,
+          userId: rec.createdBy || null,
+          userName: 'History backfill',
+          timestamp: row.at,
+        }))
+      );
+      historyCount += 1;
+    }
+    console.log(`✅ Topped up status history for ${historyCount} recommendation(s).`);
 
     process.exit(0);
   } catch (error) {
