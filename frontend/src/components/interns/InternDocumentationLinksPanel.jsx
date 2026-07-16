@@ -120,7 +120,10 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
                   <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   <span className="truncate">{link.label}</span>
                 </span>
-                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <ExternalLink
+                  className="h-4 w-4 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
               </a>
             </li>
           ))}

@@ -476,13 +476,13 @@
 /* ——— Status badges ——— */
 
 .symphony-status-active {
-  border-color: hsl(var(--symphony-brand) / 0.35);
-  background: hsl(var(--symphony-brand) / 0.1);
-  color: hsl(var(--symphony-brand-strong));
+  border-color: hsl(243 100% 71% / 0.35);
+  background: hsl(243 100% 71% / 0.1);
+  color: hsl(243 55% 48%);
 }
 
 .dark .symphony-status-active {
-  color: hsl(var(--symphony-brand));
+  color: hsl(243 100% 71%);
 }
 
 .symphony-status-ready,
@@ -498,9 +498,15 @@
 }
 
 .symphony-status-muted {
-  border-color: hsl(var(--symphony-border));
-  background: hsl(var(--symphony-surface));
-  color: hsl(var(--symphony-muted));
+  border-color: hsl(220 13% 90%);
+  background: hsl(0 0% 98%);
+  color: hsl(220 9% 46%);
+}
+
+.dark .symphony-status-muted {
+  border-color: hsl(220 10% 18%);
+  background: hsl(220 13% 9%);
+  color: hsl(220 8% 62%);
 }
 
 /* ——— Hero (solid brand panel, no gradient) ——— */

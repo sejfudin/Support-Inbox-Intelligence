@@ -43,15 +43,15 @@ const PROFILE_POPULATE = [
 
 const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
+  const { internalCvUrl, ...rest } = plain;
   const canSeeInternalCv =
-    Boolean(viewer) &&
-    (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
+    Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
 
   return {
-    ...plain,
+    ...rest,
     id: plain._id,
     cvUrl: buildCvUrl(plain.cvPath),
-    ...(canSeeInternalCv ? { internalCvUrl: plain.internalCvUrl || null } : {}),
+    ...(canSeeInternalCv ? { internalCvUrl: internalCvUrl || null } : {}),
   };
 };
 
