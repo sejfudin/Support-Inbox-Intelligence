@@ -149,4 +149,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE_URL          
-        value: https://support-inbox-intelligence-app-dev.onrender.com
+        value: https://support-inbox-intelligence-app-dev.onrender.com/api
