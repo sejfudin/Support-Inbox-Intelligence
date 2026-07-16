@@ -16,7 +16,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 | Role | Lands on | Capability |
 |---|---|---|
 | Admin | `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
-| Mentor | `/my-interns` | Guides interns (evaluations, comments, readiness, recommendations). Works in workspaces on tickets. |
+| Mentor | `/my-interns` | Guides interns (evaluations, comments, readiness, recommendations). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
 | Leadership | `/programme` | Read-oriented stakeholder view. No ticket/workspace workflow — redirected to `/programme`. |
 | Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. |
 

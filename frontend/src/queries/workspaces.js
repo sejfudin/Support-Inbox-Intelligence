@@ -33,11 +33,12 @@ export const workspaceKeys = {
   ],
 };
 
-export const useAllWorkspaces = () => {
+export const useAllWorkspaces = ({ enabled = true } = {}) => {
   return useQuery({
     queryKey: workspaceKeys.allAdmin(),
     queryFn: getAllWorkspaces,
     staleTime: 2 * 60 * 1000,
+    enabled,
   });
 };
 

@@ -7,6 +7,7 @@ import {
   Mail,
   Settings,
   Ticket,
+  Trash2,
   UserMinus,
   UserPlus,
   Users,
@@ -37,11 +38,13 @@ import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useAuth } from '@/context/AuthContext';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-import { isPlatformAdmin } from '@/helpers/workspacePermissions';
+import { canDeleteWorkspace, isPlatformAdmin } from '@/helpers/workspacePermissions';
+import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
 import { useTickets } from '@/queries/tickets';
 import { useUsers } from '@/queries/users';
 import {
   useCancelWorkspaceInvitation,
+  useDeleteWorkspace,
   useInviteWorkspaceMember,
   useRemoveWorkspaceMember,
   useSwitchWorkspace,
@@ -62,6 +65,8 @@ export default function WorkspaceDetailPage() {
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [transferError, setTransferError] = useState('');
   const [selectedNewOwner, setSelectedNewOwner] = useState('');
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const { data: workspace, isLoading: loadingWorkspace } = useWorkspace(id);
   const { data: usersData, isLoading: loadingUsers } = useUsers({ pagination: false });
@@ -72,6 +77,7 @@ export default function WorkspaceDetailPage() {
   const cancelInvitation = useCancelWorkspaceInvitation(id);
   const switchWorkspace = useSwitchWorkspace();
   const updateWorkspace = useUpdateWorkspace(id);
+  const deleteWorkspace = useDeleteWorkspace();
 
   const currentUserId = user?._id || user?.id;
   const allUsers = usersData?.users ?? [];
@@ -216,6 +222,21 @@ export default function WorkspaceDetailPage() {
       onError: (error) => {
         toast.dismiss(loadingToast);
         toast.error(error.response?.data?.message || 'Failed to cancel invitation.');
+      },
+    });
+  };
+
+  const handleDeleteWorkspace = () => {
+    deleteWorkspace.mutate(id, {
+      onSuccess: async () => {
+        setIsDeleteOpen(false);
+        setDeleteError('');
+        toast.success('Workspace deleted');
+        await refetchUser();
+        navigate(isPlatformAdmin(user) ? '/admin/workspaces' : '/');
+      },
+      onError: (error) => {
+        setDeleteError(error.response?.data?.message || 'Failed to delete workspace.');
       },
     });
   };
@@ -457,7 +478,48 @@ export default function WorkspaceDetailPage() {
             </ul>
           </section>
         </div>
+
+        {canDeleteWorkspace(user, workspace) && (
+          <section className="app-panel p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-red-600">Danger zone</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Deleting removes access for all members. Workspaces with tickets are archived
+                  instead of permanently removed.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteError('');
+                  setIsDeleteOpen(true);
+                }}
+                className="gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                data-test="workspace-detail-delete-button"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Workspace
+              </Button>
+            </div>
+          </section>
+        )}
       </div>
+
+      <DeleteConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setDeleteError('');
+        }}
+        onConfirm={handleDeleteWorkspace}
+        isLoading={deleteWorkspace.isPending}
+        errorMessage={deleteError}
+        title="Delete Workspace"
+        description="Are you sure you want to delete this workspace? If it has tickets, it will be archived. Otherwise it will be permanently removed."
+        confirmLabel="Delete"
+        loadingLabel="Deleting..."
+      />
 
       <Dialog
         open={isInviteOpen}

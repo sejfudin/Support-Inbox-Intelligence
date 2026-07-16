@@ -14,7 +14,7 @@ import { ROLES } from '@/helpers/roles';
 import UserDashboard from '@/pages/UserDashboard';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
 import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
-import AdminWorkspacesPage from '@/pages/AdminWorkspacesPage';
+import WorkspacesOverviewPage from '@/pages/WorkspacesOverviewPage';
 import WorkspaceDetailPage from '@/pages/WorkspaceDetailPage';
 import WorkspaceSettingsPage from '@/pages/WorkspaceSettingsPage';
 import UserInvitationsPage from '@/pages/UserInvitationsPage';
@@ -81,7 +81,7 @@ export default function AppRoutes() {
             user?.role === ROLES.LEADERSHIP ? (
               <Navigate to="/programme" replace />
             ) : user?.role === ROLES.MENTOR ? (
-              <Navigate to="/my-interns" replace />
+              <CreateWorkspacePage />
             ) : user?.workspaceId ? (
               <Navigate to="/dashboard" replace />
             ) : (
@@ -122,6 +122,7 @@ export default function AppRoutes() {
           <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
             <Route path="/my-interns" element={<MentorInternsPage />} />
             <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
+            <Route path="/workspaces" element={<WorkspacesOverviewPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MENTOR]} />}>
@@ -131,7 +132,7 @@ export default function AppRoutes() {
           <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
-            <Route path="/admin/workspaces" element={<AdminWorkspacesPage />} />
+            <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />
             <Route path="/admin/platform-management" element={<AdminReferenceDataPage />} />
             <Route
               path="/admin/reference-data"
