@@ -1,0 +1,142 @@
+services:
+  # ─────────────────────────────────────────────
+  # PROD — Backend API
+  # ─────────────────────────────────────────────
+  - type: web
+    name: support-inbox-intelligence-app
+    runtime: node
+    repo: https://github.com/sejfudin/Support-Inbox-Intelligence
+    branch: master
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: CLIENT_URL
+        sync: false          
+      - key: SERVER_URL
+        sync: false          
+      - key: MONGODB_URI
+        sync: false          
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ATTACHMENT_BUCKET
+        sync: false
+      - key: SUPABASE_BUCKET_VISIBILITY
+        sync: false
+      - key: SUPABASE_WORKSPACE_LOGO_BUCKET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        sync: false
+      - key: GROQ_URL
+        sync: false
+      - key: GROQ_TIMEOUT_MS
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_NAME
+        sync: false
+      - key: GITHUB_PRIVATE_KEY
+        sync: false
+      - key: GITHUB_ENCRYPTION_KEY
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+
+  # ─────────────────────────────────────────────
+  # DEV — Backend API
+  # ─────────────────────────────────────────────
+  - type: web
+    name: support-inbox-intelligence-app-dev
+    runtime: node
+    repo: https://github.com/sejfudin/Support-Inbox-Intelligence
+    branch: development
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: development
+      - key: PORT
+        value: 4000
+      - key: CLIENT_URL
+        value: https://insightdesk-app-dev.onrender.com  
+      - key: SERVER_URL
+        value: https://support-inbox-intelligence-app-dev.onrender.com   
+      - key: MONGODB_URI
+        sync: false          
+      - key: JWT_SECRET
+        sync: false          
+      - key: JWT_REFRESH_SECRET
+        sync: false          
+      - key: SUPABASE_URL
+        sync: false          
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_ATTACHMENT_BUCKET
+        sync: false
+      - key: SUPABASE_BUCKET_VISIBILITY
+        sync: false
+      - key: SUPABASE_WORKSPACE_LOGO_BUCKET
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false          # can reuse prod key if cost isn't a concern
+      - key: GROQ_MODEL
+        sync: false
+      - key: GROQ_URL
+        sync: false
+      - key: GROQ_TIMEOUT_MS
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_APP_NAME
+        sync: false
+      - key: GITHUB_PRIVATE_KEY
+        sync: false
+      - key: GITHUB_ENCRYPTION_KEY
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+
+  # ─────────────────────────────────────────────
+  # PROD — Frontend (Static Site)
+  # ─────────────────────────────────────────────
+  - type: web
+    name: insightdesk-app
+    runtime: static
+    repo: https://github.com/sejfudin/Support-Inbox-Intelligence
+    branch: master
+    rootDir: frontend
+    buildCommand: npm install; npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL          
+        sync: false
+
+  # ─────────────────────────────────────────────
+  # DEV — Frontend (Static Site)
+  # ─────────────────────────────────────────────
+  - type: web
+    name: insightdesk-app-dev
+    runtime: static
+    repo: https://github.com/sejfudin/Support-Inbox-Intelligence
+    branch: development
+    rootDir: frontend
+    buildCommand: npm install; npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL          
+        value: https://support-inbox-intelligence-app-dev.onrender.com
