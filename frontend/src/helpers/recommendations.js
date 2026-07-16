@@ -1,5 +1,4 @@
 export const RECOMMENDATION_STATUSES = [
-  { value: 'draft', label: 'Draft' },
   { value: 'recommended', label: 'Recommended' },
   { value: 'interviewing', label: 'Interviewing' },
   { value: 'resulted', label: 'Resulted' },

@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Plus } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from 'lucide-react';
 import { InternPanel } from '@/components/interns/InternPanel';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   scoreFillClass,
   scoreFillHsl,
@@ -9,6 +16,10 @@ import {
   scoreTrackHsl,
 } from '@/helpers/scoreBand';
 import { cn } from '@/lib/utils';
+
+// Radix Select forbids an empty-string item value, so the "Default" (no sort)
+// option uses this sentinel while the component still tracks sortKey as ''.
+const SORT_DEFAULT = 'default';
 
 const dataTestId = (title) =>
   String(title || 'history')
@@ -130,6 +141,8 @@ function renderBlock(block, index) {
   }
 
   if (block.kind === 'chips') {
+    // Each item is either a plain string or `{ label, icon }` (icon is a React
+    // node rendered before the label — e.g. a technology brand logo).
     return (
       <div key={index}>
         <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -137,15 +150,31 @@ function renderBlock(block, index) {
         </p>
         <div className="flex flex-wrap gap-1.5">
           {block.items.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
-          {block.items.map((chip, i) => (
-            <span
-              key={`${chip}-${i}`}
-              className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
-            >
-              {chip}
-            </span>
-          ))}
+          {block.items.map((chip, i) => {
+            const label = typeof chip === 'string' ? chip : chip.label;
+            const icon = typeof chip === 'string' ? null : chip.icon;
+            return (
+              <span
+                key={`${label}-${i}`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
+              >
+                {icon}
+                {label}
+              </span>
+            );
+          })}
         </div>
+      </div>
+    );
+  }
+
+  if (block.kind === 'text') {
+    return (
+      <div key={index}>
+        <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+          {block.label}
+        </p>
+        <p className="text-sm text-foreground [overflow-wrap:anywhere]">{block.value || '—'}</p>
       </div>
     );
   }
@@ -301,23 +330,26 @@ export function HistoryPanel({
           {sortOptions.length > 0 && (
             <div className="flex h-10 items-center rounded-xl border border-input bg-background transition focus-within:border-ring">
               <ArrowUpDown className="ml-3 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <div className="relative">
-                <select
-                  value={sortKey}
-                  onChange={(event) => setSortKey(event.target.value)}
-                  className="h-10 cursor-pointer appearance-none bg-transparent py-0 pl-2 pr-8 text-sm font-medium text-foreground outline-none"
+              <Select
+                value={sortKey || SORT_DEFAULT}
+                onValueChange={(value) => setSortKey(value === SORT_DEFAULT ? '' : value)}
+              >
+                <SelectTrigger
+                  className="h-10 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus:ring-0 focus:ring-offset-0"
                   data-test={`${dataTestId(title)}-sort`}
                   aria-label="Sort by"
                 >
-                  <option value="">Sort: Default</option>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  <SelectItem value={SORT_DEFAULT}>Sort: Default</SelectItem>
                   {sortOptions.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
+                    <SelectItem key={opt.key} value={opt.key}>
                       Sort: {opt.label}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              </div>
+                </SelectContent>
+              </Select>
               <button
                 type="button"
                 disabled={!sortKey}

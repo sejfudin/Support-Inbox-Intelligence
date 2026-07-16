@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const RECOMMENDATION_STATUSES = ['draft', 'recommended', 'interviewing', 'resulted'];
+const RECOMMENDATION_STATUSES = ['recommended', 'interviewing', 'resulted'];
 const RECOMMENDATION_RESULTS = ['placed', 'not_placed'];
 
 const feedbackSchema = new mongoose.Schema(
@@ -94,6 +94,18 @@ const recommendationSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    position: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Position',
+      required: true,
+      index: true,
+    },
+    project: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      required: true,
+    },
     technologies: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -103,7 +115,7 @@ const recommendationSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: RECOMMENDATION_STATUSES,
-      default: 'draft',
+      default: 'recommended',
       index: true,
     },
     recommendationNote: {

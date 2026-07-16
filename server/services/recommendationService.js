@@ -3,9 +3,10 @@ const Recommendation = require('../models/Recommendation');
 const { RECOMMENDATION_STATUSES, RECOMMENDATION_RESULTS } = require('../models/Recommendation');
 const InternProfile = require('../models/InternProfile');
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
-const { isAssignedMentor } = require('../helpers/internAccess');
+const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
 
 const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP, ROLES.MENTOR];
@@ -24,6 +25,7 @@ const RECOMMENDATION_POPULATE = [
       { path: 'secondaryMentor', select: 'fullname email role' },
     ],
   },
+  { path: 'position', select: 'name slug' },
   { path: 'technologies', select: 'name slug' },
   { path: 'createdBy', select: 'fullname email role' },
   { path: 'updatedBy', select: 'fullname email role' },
@@ -49,8 +51,12 @@ const assertReadAccess = (user) => {
 };
 
 const assertRecommendationWriteAccess = (user, profile) => {
-  if (user.role !== ROLES.MENTOR || !isAssignedMentor(profile, user._id)) {
-    throw createError('Only the assigned mentor can modify recommendations', 403);
+  // Admins can always write; mentors only for interns they are assigned to.
+  // Mirrors canWriteMentorData used by evaluations/mentor notes so the
+  // frontend's admin+mentor button state matches the backend (the ticket's
+  // FE/BE 403 mismatch).
+  if (!canWriteMentorData(user, profile)) {
+    throw createError('Not authorized to modify recommendations', 403);
   }
 };
 
@@ -111,6 +117,29 @@ const ensureTechnologyIds = async (technologyIds = []) => {
   }
 
   return ids;
+};
+
+const ensurePositionId = async (positionId) => {
+  if (!positionId) {
+    throw createError('Position is required', 400);
+  }
+
+  assertValidObjectId(positionId, 'Position');
+
+  const exists = await Position.exists({ _id: positionId });
+  if (!exists) {
+    throw createError('Position is invalid', 400);
+  }
+
+  return positionId;
+};
+
+const ensureProject = (project) => {
+  const value = cleanText(project);
+  if (!value) {
+    throw createError('Project is required', 400);
+  }
+  return value;
 };
 
 const parseDate = (value, label) => {
@@ -330,6 +359,8 @@ const createRecommendation = async (user, payload = {}) => {
   assertRecommendationWriteAccess(user, profile);
 
   assertValidStatus(payload.status);
+  const position = await ensurePositionId(payload.positionId);
+  const project = ensureProject(payload.project);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
   const interviews = normalizeInterviews(payload.interviews || []);
 
@@ -337,8 +368,10 @@ const createRecommendation = async (user, payload = {}) => {
     internProfile: profile._id,
     createdBy: user._id,
     updatedBy: user._id,
+    position,
+    project,
     technologies,
-    status: payload.status || 'draft',
+    status: payload.status || 'recommended',
     recommendationNote: cleanText(payload.recommendationNote),
     interviews,
   });
@@ -383,6 +416,14 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   if (!profile) throw createError('Intern profile not found', 404);
 
   assertRecommendationWriteAccess(user, profile);
+
+  if (payload.positionId !== undefined) {
+    recommendation.position = await ensurePositionId(payload.positionId);
+  }
+
+  if (payload.project !== undefined) {
+    recommendation.project = ensureProject(payload.project);
+  }
 
   if (payload.technologyIds !== undefined) {
     recommendation.technologies = await ensureTechnologyIds(payload.technologyIds);

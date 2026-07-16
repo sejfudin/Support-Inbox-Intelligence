@@ -688,7 +688,7 @@ const seedTestingData = async () => {
         endDays: 25,
         techs: ['vue-js'],
         readiness: { 'vue-js': 'ready' },
-        rec: 'draft',
+        rec: 'recommended',
       },
       {
         email: 'intern.ready.recommended@symphony.is',
@@ -927,13 +927,11 @@ const seedTestingData = async () => {
         internProfile: profile._id,
         createdBy: leadershipAuthor,
         updatedBy: leadershipAuthor,
+        position: profile.declaredPosition || randomPosition()._id,
+        project: `${spec.fullname.split(' ')[0]} placement track`,
         technologies: techIds,
         recommendationNote: `Recommendation for ${spec.fullname} — ${recSpec} track.`,
       };
-
-      if (recSpec === 'draft') {
-        return Recommendation.create({ ...base, status: 'draft' });
-      }
 
       if (recSpec === 'recommended') {
         const rec = await Recommendation.create({
@@ -1014,6 +1012,8 @@ const seedTestingData = async () => {
         internProfile: recentOutcomeIntern.profile._id,
         createdBy: leadership2._id,
         updatedBy: leadership2._id,
+        position: recentOutcomeIntern.profile.declaredPosition || randomPosition()._id,
+        project: 'Client pipeline — earlier attempt',
         technologies: [techBySlug('react')._id],
         status: 'resulted',
         recommendationNote: 'Earlier pipeline attempt.',
@@ -1034,6 +1034,8 @@ const seedTestingData = async () => {
         internProfile: placedIntern.profile._id,
         createdBy: leadership._id,
         updatedBy: leadership._id,
+        position: placedIntern.profile.declaredPosition || randomPosition()._id,
+        project: 'Enterprise Co. — .NET placement',
         technologies: [techBySlug('dotnet')._id],
         status: 'resulted',
         recommendationNote: 'Successful placement at Enterprise Co.',
