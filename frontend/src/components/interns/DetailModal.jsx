@@ -59,12 +59,18 @@ export function DetailModal({
   onSubmit,
   dataTest,
   className,
+  headerAside,
 }) {
   const body = (
     <>
       <DialogHeader className="min-w-0">
-        <DialogTitle>{title}</DialogTitle>
-        {subtitle && <DialogDescription>{subtitle}</DialogDescription>}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <DialogTitle>{title}</DialogTitle>
+            {subtitle && <DialogDescription>{subtitle}</DialogDescription>}
+          </div>
+          {headerAside && <div className="shrink-0">{headerAside}</div>}
+        </div>
       </DialogHeader>
 
       <div className="min-w-0 space-y-6">
@@ -95,6 +101,7 @@ export function DetailModal({
       <DialogContent
         className={cn('max-h-[88vh] max-w-xl overflow-y-auto', className)}
         data-test={dataTest}
+        hideCloseButton
       >
         {onSubmit ? (
           <form
