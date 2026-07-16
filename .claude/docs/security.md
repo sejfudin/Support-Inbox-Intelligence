@@ -21,6 +21,17 @@ caller's workspace.
   404 if absent, then compare `resource.workspace.toString()` to the resolved workspace id and
   reject on mismatch.
 
+## Workspace lifecycle roles
+
+- **Create** (`POST /api/workspaces`): platform `admin` or `mentor`. The creator becomes the
+  workspace owner and an active workspace-`admin` member, and their active workspace switches
+  to the new one.
+- **Delete** (`DELETE /api/workspaces/:id`): platform `admin` (any workspace), or `mentor` who
+  owns / is workspace-admin of that workspace — enforced by `requireRole(ADMIN, MENTOR)` +
+  `requireWorkspaceManager` chained. Other workspace-admin members (e.g. interns) cannot delete.
+- **List all** (`GET /api/workspaces/all`): platform `admin` only. Mentors have no global
+  workspace surface — they only see workspaces they belong to.
+
 ## Intern access
 
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
