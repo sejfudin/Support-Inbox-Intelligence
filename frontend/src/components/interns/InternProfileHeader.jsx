@@ -1,6 +1,7 @@
 import { cloneElement, isValidElement } from 'react';
 import { Pencil } from 'lucide-react';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { getInitials } from '@/helpers/getInitials';
 import { cn } from '@/lib/utils';
 
 function MetaField({ label, value, className }) {
@@ -51,12 +52,20 @@ export function InternProfileHeader({
         {kicker ? <p className="app-kicker mb-2">{kicker}</p> : null}
 
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="app-title break-words">{fullname || 'Intern'}</h1>
-              {editAction}
+          <div className="flex min-w-0 items-start gap-4">
+            <div
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-foreground text-lg font-bold text-background"
+              aria-hidden="true"
+            >
+              {getInitials(fullname || '')}
             </div>
-            {email ? <p className="app-subtitle mt-1">{email}</p> : null}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="app-title break-words">{fullname || 'Intern'}</h1>
+                {editAction}
+              </div>
+              {email ? <p className="app-subtitle mt-1">{email}</p> : null}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">

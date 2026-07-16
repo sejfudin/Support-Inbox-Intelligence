@@ -81,7 +81,7 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
     <div className={cn('space-y-4', className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold">Documentation</h3>
+          <h4 className="text-sm font-semibold">Documentation</h4>
           <p className="mt-1 text-sm text-muted-foreground">
             Related documents for this candidate.
           </p>
@@ -100,7 +100,9 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
       </div>
 
       {!isEditing && !hasLinks && (
-        <p className="text-sm text-muted-foreground">No documentation links yet.</p>
+        <p className="rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+          No documentation links yet.
+        </p>
       )}
 
       {!isEditing && hasLinks && (

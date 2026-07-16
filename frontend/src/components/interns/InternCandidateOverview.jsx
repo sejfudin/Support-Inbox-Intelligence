@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { InternDocumentationLinksPanel } from '@/components/interns/InternDocumentationLinksPanel';
-import { InternCvLink } from '@/components/interns/InternCvLink';
+import { InternInternalCvPanel } from '@/components/interns/InternInternalCvPanel';
 import { InternDeclaredTechnologies } from '@/components/interns/InternDeclaredTechnologies';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +32,7 @@ export function InternCandidateOverview({
   intern,
   userId,
   canEditDocumentation = false,
+  canEditInternalCv = false,
   programmeMode = 'full',
   className,
 }) {
@@ -43,18 +44,6 @@ export function InternCandidateOverview({
 
   return (
     <div className={cn('space-y-8', className)}>
-      {programmeMode === 'minimal' && (
-        <>
-          <OverviewSection title="Programme" description="Additional mentorship details.">
-            <dl className="grid gap-6 sm:grid-cols-2">
-              <DetailItem label="Secondary mentor" value={intern.secondaryMentor?.fullname} />
-              {formattedEndDate && <DetailItem label="Expected end" value={formattedEndDate} />}
-            </dl>
-          </OverviewSection>
-          <div className="border-t border-border/60" />
-        </>
-      )}
-
       {showProgramme && (
         <>
           <OverviewSection
@@ -87,20 +76,26 @@ export function InternCandidateOverview({
       <OverviewSection
         title="Declared technologies"
         description="Stacks the candidate selected on their profile."
-        action={
-          <InternCvLink cvUrl={intern.cvUrl} showEmptyState testId="intern-overview-cv-link" />
-        }
       >
         <InternDeclaredTechnologies technologies={intern.selfTechnologies || []} />
       </OverviewSection>
 
       <div className="border-t border-border/60" />
 
-      <InternDocumentationLinksPanel
-        userId={userId}
-        links={intern.documentationLinks || []}
-        canEdit={canEditDocumentation}
-      />
+      <div className="grid gap-4 md:grid-cols-2">
+        <InternInternalCvPanel
+          userId={userId}
+          internalCvUrl={intern.internalCvUrl}
+          internName={intern.user?.fullname}
+          canEdit={canEditInternalCv}
+        />
+        <InternDocumentationLinksPanel
+          userId={userId}
+          links={intern.documentationLinks || []}
+          canEdit={canEditDocumentation}
+          className="rounded-2xl border border-border/60 p-5"
+        />
+      </div>
     </div>
   );
 }
