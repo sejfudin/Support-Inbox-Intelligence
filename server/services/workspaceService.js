@@ -220,18 +220,50 @@ const deleteWorkspaceLogo = async (workspaceId) => {
   return attachLogoUrl(updated);
 };
 
-const inviteMemberToWorkspace = async ({ workspaceId, userId, role = 'member', inviterId }) => {
-  if (!userId) throw new Error('User is required');
+// Invite one or many existing users in a single call. Each invite is attempted
+// independently — one failure (already a member, pending invite, etc.) does
+// not abort the rest — and a per-user result is returned so the caller can
+// report exactly which succeeded and which failed.
+const inviteMembersToWorkspace = async ({ workspaceId, invites = [], inviterId }) => {
+  if (!Array.isArray(invites) || invites.length === 0) {
+    throw new Error('At least one invite is required');
+  }
 
-  const workspaceRole = role === 'admin' ? 'admin' : 'member';
-  const result = await inviteExistingUserToWorkspace({
-    workspaceId,
-    userId,
-    workspaceRole,
-    inviterId,
-  });
+  // Existence check only — the per-user invite re-fetches the workspace it needs,
+  // so avoid hydrating the full document here.
+  const workspaceExists = await Workspace.exists({ _id: workspaceId });
+  if (!workspaceExists) throw new Error('Workspace not found');
 
-  return { message: result.message };
+  const results = [];
+  for (const invite of invites) {
+    const userId = invite?.userId;
+    const workspaceRole = invite?.role === 'admin' ? 'admin' : 'member';
+
+    if (!userId) {
+      results.push({ userId: userId ?? null, status: 'failed', message: 'User is required' });
+      continue;
+    }
+
+    try {
+      const result = await inviteExistingUserToWorkspace({
+        workspaceId,
+        userId,
+        workspaceRole,
+        inviterId,
+      });
+      results.push({ userId, status: 'invited', message: result.message });
+    } catch (err) {
+      results.push({ userId, status: 'failed', message: err.message });
+    }
+  }
+
+  const invited = results.filter((r) => r.status === 'invited').length;
+  const failed = results.length - invited;
+  const message = failed
+    ? `Invited ${invited} user${invited === 1 ? '' : 's'}, ${failed} failed`
+    : `Invited ${invited} user${invited === 1 ? '' : 's'}`;
+
+  return { message, results };
 };
 
 const removeMember = async ({ workspaceId, userId }) => {
@@ -357,7 +389,7 @@ module.exports = {
   getWorkspaceById,
   getUserWorkspaces,
   updateWorkspace,
-  inviteMemberToWorkspace,
+  inviteMembersToWorkspace,
   removeMember,
   cancelInvitation,
   getAllWorkspaces,

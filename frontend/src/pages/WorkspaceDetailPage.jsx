@@ -5,12 +5,12 @@ import {
   Building2,
   Crown,
   Mail,
-  Search,
   Settings,
   Ticket,
   UserMinus,
   UserPlus,
   Users,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useAuth } from '@/context/AuthContext';
@@ -49,11 +50,6 @@ import {
 } from '@/queries/workspaces';
 import PageHeading from '@/components/PageHeading';
 
-const initialInviteForm = {
-  userId: '',
-  role: 'member',
-};
-
 export default function WorkspaceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -61,7 +57,7 @@ export default function WorkspaceDetailPage() {
   const { setHeader } = useOutletContext() ?? {};
 
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState(initialInviteForm);
+  const [inviteForm, setInviteForm] = useState([]);
   const [inviteError, setInviteError] = useState('');
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [transferError, setTransferError] = useState('');
@@ -93,14 +89,13 @@ export default function WorkspaceDetailPage() {
   const unavailableUserIds = new Set([
     ...members.map((member) => (member.user?._id || member.user)?.toString()),
     ...pendingInvitations.map((invitation) => invitation.user?._id?.toString()),
+    // already queued for this batch
+    ...inviteForm.map((invite) => invite.user._id?.toString()),
   ]);
   const availableUsers = allUsers.filter((platformUser) => {
     const platformUserId = platformUser._id?.toString();
     return platformUserId && !unavailableUserIds.has(platformUserId);
   });
-  const selectedUser = availableUsers.find(
-    (platformUser) => platformUser._id === inviteForm.userId
-  );
 
   useEffect(() => {
     if (!setHeader) return undefined;
@@ -119,31 +114,77 @@ export default function WorkspaceDetailPage() {
     return () => setHeader(null);
   }, [setHeader, navigate, user]);
 
+  // Queue a picked user for invitation (default role member). No-op if already queued.
+  const handleAddInvite = (platformUser) => {
+    setInviteForm((current) =>
+      current.some((invite) => invite.user._id === platformUser._id)
+        ? current
+        : [...current, { user: platformUser, role: 'member' }]
+    );
+  };
+
+  const handleInviteRoleChange = (userId, role) => {
+    setInviteForm((current) =>
+      current.map((invite) => (invite.user._id === userId ? { ...invite, role } : invite))
+    );
+  };
+
+  const handleRemoveInvite = (userId) => {
+    setInviteForm((current) => current.filter((invite) => invite.user._id !== userId));
+  };
+
   const handleInviteSubmit = (e) => {
     e.preventDefault();
     setInviteError('');
 
-    const payload = {
-      userId: inviteForm.userId,
-      role: inviteForm.role,
-    };
+    if (inviteForm.length === 0) return;
 
-    const loadingToast = toast.loading('Saving workspace member...');
+    const invites = inviteForm.map((invite) => ({
+      userId: invite.user._id,
+      role: invite.role,
+    }));
 
-    inviteMember.mutate(payload, {
-      onSuccess: (result) => {
-        toast.dismiss(loadingToast);
-        toast.success(result?.message || 'Workspace member saved');
-        setInviteForm(initialInviteForm);
-        setIsInviteOpen(false);
-      },
-      onError: (error) => {
-        toast.dismiss(loadingToast);
-        const message = error.response?.data?.message || 'Failed to save workspace member.';
-        setInviteError(message);
-        toast.error(message);
-      },
-    });
+    const loadingToast = toast.loading('Saving workspace members...');
+
+    inviteMember.mutate(
+      { invites },
+      {
+        onSuccess: (result) => {
+          toast.dismiss(loadingToast);
+
+          const results = result?.results ?? [];
+          const failures = results.filter((entry) => entry.status === 'failed');
+          const invited = results.length - failures.length;
+
+          // Surface any per-user failures (already a member, pending invite, etc.)
+          failures.forEach((entry) => {
+            const name =
+              inviteForm.find((invite) => invite.user._id === entry.userId)?.user.fullname ||
+              'A user';
+            toast.error(`${name}: ${entry.message}`);
+          });
+
+          if (invited > 0) {
+            toast.success(result?.message || 'Workspace members saved');
+          }
+
+          if (failures.length === 0) {
+            setInviteForm([]);
+            setIsInviteOpen(false);
+          } else {
+            // Keep the ones that failed queued so the user can review/remove them.
+            const failedIds = new Set(failures.map((entry) => entry.userId));
+            setInviteForm((current) => current.filter((invite) => failedIds.has(invite.user._id)));
+          }
+        },
+        onError: (error) => {
+          toast.dismiss(loadingToast);
+          const message = error.response?.data?.message || 'Failed to save workspace members.';
+          setInviteError(message);
+          toast.error(message);
+        },
+      }
+    );
   };
 
   const handleRemoveMember = (member) => {
@@ -424,7 +465,7 @@ export default function WorkspaceDetailPage() {
           setIsInviteOpen(open);
           setInviteError('');
           if (!open) {
-            setInviteForm(initialInviteForm);
+            setInviteForm([]);
           }
         }}
       >
@@ -442,79 +483,75 @@ export default function WorkspaceDetailPage() {
 
             <div className="space-y-1.5">
               <label htmlFor="workspace-detail-invite-user" className="text-sm font-medium">
-                Registered user
+                Registered users
               </label>
-              <Select
-                value={inviteForm.userId}
-                onValueChange={(value) =>
-                  setInviteForm((current) => ({ ...current, userId: value }))
+              <SearchableSelect
+                items={availableUsers}
+                onSelect={handleAddInvite}
+                filter={(platformUser, q) =>
+                  `${platformUser.fullname} ${platformUser.email}`.toLowerCase().includes(q)
                 }
-              >
-                <SelectTrigger
-                  id="workspace-detail-invite-user"
-                  data-test="workspace-detail-invite-user-select"
-                >
-                  <SelectValue
-                    placeholder={loadingUsers ? 'Loading users...' : 'Choose a registered user'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableUsers.length === 0 ? (
-                    <SelectItem
-                      value="no-users"
-                      disabled
-                      data-test="workspace-detail-invite-user-option-empty"
-                    >
-                      No available platform users
-                    </SelectItem>
-                  ) : (
-                    availableUsers.map((platformUser) => (
-                      <SelectItem
-                        key={platformUser._id}
-                        value={platformUser._id}
-                        data-test={`workspace-detail-invite-user-option-${platformUser._id}`}
-                      >
-                        {platformUser.fullname} ({platformUser.email})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {selectedUser && (
-                <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-2 font-medium text-foreground">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    {selectedUser.fullname}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">{selectedUser.email}</div>
-                </div>
-              )}
+                renderItem={(platformUser) => (
+                  <span>
+                    <span className="font-medium">{platformUser.fullname}</span>{' '}
+                    <span className="text-muted-foreground">({platformUser.email})</span>
+                  </span>
+                )}
+                getItemDataTest={(platformUser) =>
+                  `workspace-detail-invite-user-option-${platformUser._id}`
+                }
+                placeholder={
+                  loadingUsers ? 'Loading users...' : 'Search a registered user by name or email'
+                }
+                emptyMessage="No available platform users"
+                disabled={loadingUsers}
+                id="workspace-detail-invite-user"
+                dataTest="workspace-detail-invite-user-select"
+              />
             </div>
 
-            <div className="space-y-1.5">
-              <label htmlFor="workspace-detail-invite-role" className="text-sm font-medium">
-                Workspace role
-              </label>
-              <Select
-                value={inviteForm.role}
-                onValueChange={(value) => setInviteForm((current) => ({ ...current, role: value }))}
-              >
-                <SelectTrigger
-                  id="workspace-detail-invite-role"
-                  data-test="workspace-detail-invite-role-select"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member" data-test="workspace-detail-invite-role-option-member">
-                    Member
-                  </SelectItem>
-                  <SelectItem value="admin" data-test="workspace-detail-invite-role-option-admin">
-                    Admin
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {inviteForm.length > 0 && (
+              <ul className="space-y-2" data-test="workspace-detail-invite-selected-list">
+                {inviteForm.map(({ user: invitee, role }) => (
+                  <li
+                    key={invitee._id}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-muted px-3 py-2"
+                    data-test={`workspace-detail-invite-selected-${invitee._id}`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {invitee.fullname}
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground">{invitee.email}</div>
+                    </div>
+                    <Select
+                      value={role}
+                      onValueChange={(value) => handleInviteRoleChange(invitee._id, value)}
+                    >
+                      <SelectTrigger
+                        className="h-8 w-28"
+                        data-test={`workspace-detail-invite-selected-${invitee._id}-role`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveInvite(invitee._id)}
+                      className="text-muted-foreground transition-colors hover:text-destructive"
+                      aria-label={`Remove ${invitee.fullname}`}
+                      data-test={`workspace-detail-invite-selected-${invitee._id}-remove`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">What happens next</label>
@@ -536,10 +573,14 @@ export default function WorkspaceDetailPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={inviteMember.isPending || !inviteForm.userId}
+                disabled={inviteMember.isPending || inviteForm.length === 0}
                 data-test="workspace-detail-invite-submit-button"
               >
-                {inviteMember.isPending ? 'Saving...' : 'Save Member'}
+                {inviteMember.isPending
+                  ? 'Saving...'
+                  : inviteForm.length > 1
+                    ? `Save ${inviteForm.length} members`
+                    : 'Save member'}
               </Button>
             </DialogFooter>
           </form>
