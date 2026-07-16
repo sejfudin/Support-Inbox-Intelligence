@@ -203,7 +203,11 @@ function TechnologyPicker({ technologies, selectedIds, onChange }) {
 
 // Segmented control for the (now 3) recommendation statuses — cleaner than a
 // dropdown for a small, fixed option set and keeps every choice visible.
-function StatusSegmented({ value, onChange }) {
+// `disabledValues` greys out statuses that can't be picked in the current
+// context (a new recommendation must start at "recommended", otherwise the
+// skipped milestones never get a history date and the timeline shows a
+// permanently unreached first step).
+function StatusSegmented({ value, onChange, disabledValues = [], disabledHint }) {
   return (
     <div
       className="grid grid-cols-3 gap-1 rounded-xl border border-input bg-muted/40 p-1"
@@ -213,18 +217,22 @@ function StatusSegmented({ value, onChange }) {
     >
       {RECOMMENDATION_STATUSES.map((status) => {
         const active = value === status.value;
+        const disabled = disabledValues.includes(status.value);
         return (
           <button
             key={status.value}
             type="button"
             role="radio"
             aria-checked={active}
+            disabled={disabled}
+            title={disabled ? disabledHint : undefined}
             onClick={() => onChange(status.value)}
             className={cn(
               'rounded-lg px-3 py-2 text-sm font-semibold transition',
               active
                 ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
-                : 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+              disabled && 'cursor-not-allowed opacity-40 hover:text-muted-foreground'
             )}
             data-test={`recommendation-status-option-${status.value}`}
           >
@@ -256,6 +264,11 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const recommendations = data?.recommendations ?? [];
   const isSaving = isCreating || isUpdating;
   const isEditing = Boolean(activeRecommendation);
+  // A result already recorded on the server. The backend can change a recorded
+  // outcome but never remove it, so the form must not offer "No result" once
+  // this is true, and must keep the outcome visible even when the status moves
+  // back off "resulted" (otherwise the card shows a result the form hides).
+  const hasRecordedOutcome = Boolean(activeRecommendation?.result?.outcome);
 
   // The edit form is seeded once from the record when the dialog opens
   // (handleEdit). We deliberately do NOT re-sync it from `recommendations` on
@@ -295,7 +308,8 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     };
 
     // Placement outcome only applies to a resulted recommendation; ignore any
-    // stale outcome if the status isn't 'resulted' (the section is hidden then).
+    // stale outcome if the status isn't 'resulted' (the section shows a
+    // read-only notice then instead of editable fields).
     if (activeRecommendation && form.status === 'resulted' && form.resultOutcome !== 'none') {
       payload.result = {
         outcome: form.resultOutcome,
@@ -433,7 +447,14 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     },
   }));
 
-  const subtitle = `${cards.length} recommendation${cards.length === 1 ? '' : 's'}`;
+  // Count from the server, not from the fetched page — the query is capped at
+  // the API's max page size (50), so an intern with more records would
+  // otherwise be silently undercounted. When truncated, say so.
+  const totalCount = data?.pagination?.total ?? cards.length;
+  const subtitle =
+    totalCount > cards.length
+      ? `${totalCount} recommendations · showing the latest ${cards.length}`
+      : `${cards.length} recommendation${cards.length === 1 ? '' : 's'}`;
 
   return (
     <div className="space-y-6">
@@ -515,7 +536,15 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
                   <StatusSegmented
                     value={form.status}
                     onChange={(status) => setForm((prev) => ({ ...prev, status }))}
+                    disabledValues={isEditing ? [] : ['interviewing', 'resulted']}
+                    disabledHint="New recommendations start as Recommended"
                   />
+                  {!isEditing && (
+                    <p className="text-xs text-muted-foreground">
+                      New recommendations start as Recommended — move the status forward as the
+                      process progresses so each milestone date is tracked.
+                    </p>
+                  )}
                 </div>
                 <TechnologyPicker
                   technologies={technologies}
@@ -538,49 +567,80 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
               </div>
             ),
           },
-          ...(isEditing && form.status === 'resulted'
+          ...(isEditing && (form.status === 'resulted' || hasRecordedOutcome)
             ? [
                 {
                   label: 'Placement outcome',
-                  content: (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Placement result</Label>
-                        <Select
-                          value={form.resultOutcome}
-                          onValueChange={(resultOutcome) =>
-                            setForm((prev) => ({ ...prev, resultOutcome }))
-                          }
-                        >
-                          <SelectTrigger data-test="recommendation-result-select">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No result</SelectItem>
-                            {RECOMMENDATION_RESULTS.map((result) => (
-                              <SelectItem key={result.value} value={result.value}>
-                                {result.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  content:
+                    form.status === 'resulted' ? (
+                      <div className="space-y-3">
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Placement result</Label>
+                            <Select
+                              value={form.resultOutcome}
+                              onValueChange={(resultOutcome) =>
+                                setForm((prev) => ({ ...prev, resultOutcome }))
+                              }
+                            >
+                              <SelectTrigger data-test="recommendation-result-select">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {/* Once an outcome is recorded the server keeps it
+                                    forever — offering "No result" here would be a
+                                    silent no-op, so the option only exists while
+                                    no outcome has been recorded yet. */}
+                                {!hasRecordedOutcome && (
+                                  <SelectItem value="none">No result</SelectItem>
+                                )}
+                                {RECOMMENDATION_RESULTS.map((result) => (
+                                  <SelectItem key={result.value} value={result.value}>
+                                    {result.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="recommendation-result-note">Result note</Label>
+                            <AutoTextarea
+                              id="recommendation-result-note"
+                              value={form.resultNote}
+                              onChange={(event) =>
+                                setForm((prev) => ({ ...prev, resultNote: event.target.value }))
+                              }
+                              rows={3}
+                              required={form.resultOutcome !== 'none'}
+                              placeholder="Notes on the result…"
+                              data-test="recommendation-result-note-input"
+                            />
+                          </div>
+                        </div>
+                        {hasRecordedOutcome && (
+                          <p className="text-xs text-muted-foreground">
+                            A recorded result can be changed but not removed.
+                          </p>
+                        )}
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recommendation-result-note">Result note</Label>
-                        <AutoTextarea
-                          id="recommendation-result-note"
-                          value={form.resultNote}
-                          onChange={(event) =>
-                            setForm((prev) => ({ ...prev, resultNote: event.target.value }))
-                          }
-                          rows={3}
-                          required={form.resultOutcome !== 'none'}
-                          placeholder="Notes on the result…"
-                          data-test="recommendation-result-note-input"
-                        />
+                    ) : (
+                      // Status was moved back while a result is already recorded.
+                      // The server keeps the result, so show it instead of hiding
+                      // it — hiding left the card's result pill with no way to see
+                      // or change it from the form.
+                      <div
+                        className="space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4"
+                        data-test="recommendation-stale-result-notice"
+                      >
+                        <p className="text-sm font-semibold text-foreground">
+                          {getRecommendationResultLabel(activeRecommendation.result.outcome)} — kept
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          This recommendation already has a recorded result. Moving the status back
+                          does not clear it — set the status to Resulted to change the outcome.
+                        </p>
                       </div>
-                    </div>
-                  ),
+                    ),
                 },
               ]
             : []),
