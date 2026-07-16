@@ -40,7 +40,22 @@ caller's workspace.
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.
-- `requireWorkspaceManager.js` — gate for per-workspace management actions (workspace `admin` role).
+- `requireWorkspaceManager.js` — gate for per-workspace management actions (workspace `admin`
+  role / owner). Exports:
+  - `requireWorkspaceManager` — default guard. Resolves the workspace from
+    `params.workspaceId` / `params.id` / body / query / the caller's active workspace.
+    **Only use it when `:id` in the route IS a workspace id.**
+  - `workspaceManagerGuard(resolveWorkspaceId)` — factory for routes whose `:id` is a
+    resource id (categories, ticket statuses): pass an async resolver that loads the resource
+    and returns its `workspace`; throw an error with `statusCode: 404` if the resource is gone.
+  - On success the guard stashes the authorized id on `req.managedWorkspaceId` (non-admins
+    only). **Controllers on guarded routes must write to `req.managedWorkspaceId`** — never
+    re-resolve from body/user — so the write target can't drift from what was authorized.
+    A non-admin may pass `workspaceId` in body/query only because the guard verifies they
+    manage that exact workspace first.
+- `GET /api/workspaces/:id` is scoped in `workspaceService.getWorkspaceById(id, caller)`:
+  active members only (platform admins/mentors bypass via `hasWorkspaceAccess`) — the payload
+  includes member emails and pending invitations, so it must not be readable cross-tenant.
 - `role` (file, exports `requireRole(...allowedRoles)`) — platform-role guard; 403s if
   `req.user.role` is not in the allowed list. Import `ROLES` and pass them:
   ```js

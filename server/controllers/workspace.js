@@ -33,11 +33,17 @@ exports.getMyWorkspaces = async (req, res, next) => {
 
 exports.getWorkspace = async (req, res, next) => {
   try {
-    const workspace = await workspaceService.getWorkspaceById(req.params.id);
+    const workspace = await workspaceService.getWorkspaceById(req.params.id, {
+      userId: req.user._id,
+      role: req.user.role,
+    });
     res.json(workspace);
   } catch (err) {
     if (err.message === 'Workspace not found') {
       return res.status(404).json({ message: err.message });
+    }
+    if (err.statusCode === 403) {
+      return res.status(403).json({ message: err.message });
     }
     next(err);
   }
