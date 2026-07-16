@@ -295,7 +295,8 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
 
   profile.documentationLinks = validateDocumentationLinks(links);
   await profile.save();
-  return getInternByUserId(user, internUserId);
+  await profile.populate(PROFILE_POPULATE);
+  return formatProfile(profile, user);
 };
 
 const updateInternalCvLink = async (user, internUserId, url) => {
@@ -315,7 +316,8 @@ const updateInternalCvLink = async (user, internUserId, url) => {
 
   profile.internalCvUrl = trimmed || null;
   await profile.save();
-  return getInternByUserId(user, internUserId);
+  await profile.populate(PROFILE_POPULATE);
+  return formatProfile(profile, user);
 };
 
 const URGENCY_WINDOW_DAYS = 60;

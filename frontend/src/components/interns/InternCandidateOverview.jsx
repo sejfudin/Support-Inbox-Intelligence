@@ -47,7 +47,6 @@ export function InternCandidateOverview({
           userId={userId}
           links={intern.documentationLinks || []}
           canEdit={canEditDocumentation}
-          className="rounded-2xl border border-border/60 p-5"
         />
       </div>
     </div>

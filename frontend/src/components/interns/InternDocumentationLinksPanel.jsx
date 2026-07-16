@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUpdateInternDocumentationLinks } from '@/queries/interns';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { InternEditablePanel } from '@/components/interns/InternEditablePanel';
 
 const emptyLink = () => ({ label: '', url: '' });
 
@@ -78,33 +78,34 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
   const hasLinks = links.length > 0;
 
   return (
-    <div className={cn('space-y-4', className)}>
-      <div className="space-y-1">
-        <div className="flex items-start justify-between gap-3">
-          <h4 className="text-sm font-semibold">Documentation</h4>
-          {canEdit && !isEditing && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleStartEditing}
-              className="shrink-0"
-              data-test="intern-documentation-edit-button"
-            >
-              {hasLinks ? 'Edit links' : 'Add links'}
-            </Button>
-          )}
-        </div>
-        <p className="text-sm text-muted-foreground">Related documents for this candidate.</p>
-      </div>
-
-      {!isEditing && !hasLinks && (
-        <p className="rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
-          No documentation links yet.
-        </p>
-      )}
-
-      {!isEditing && hasLinks && (
+    <InternEditablePanel
+      className={className}
+      testIdPrefix="intern-documentation"
+      title="Documentation"
+      description="Related documents for this candidate."
+      canEdit={canEdit}
+      isEditing={isEditing}
+      hasContent={hasLinks}
+      editButtonLabel={hasLinks ? 'Edit links' : 'Add links'}
+      onStartEditing={handleStartEditing}
+      emptyMessage="No documentation links yet."
+      onSave={handleSave}
+      onCancel={handleCancel}
+      isSaving={isPending}
+      saveLabel="Save links"
+      extraEditActions={
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setDraftLinks((current) => [...current, emptyLink()])}
+          data-test="intern-documentation-add-button"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add link
+        </Button>
+      }
+      viewContent={
         <ul className="space-y-2">
           {links.map((link) => (
             <li key={link._id || `${link.label}-${link.url}`}>
@@ -119,95 +120,57 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
                   <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   <span className="truncate">{link.label}</span>
                 </span>
-                <ExternalLink
-                  className="h-4 w-4 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
+                <ExternalLink className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </a>
             </li>
           ))}
         </ul>
-      )}
-
-      {isEditing && (
-        <div className="space-y-4">
-          <div className="max-h-[min(24rem,50vh)] space-y-3 overflow-y-auto pr-1">
-            {draftLinks.map((link, index) => (
-              <div
-                key={`draft-${index}`}
-                className="grid gap-3 rounded-xl border border-border/60 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]"
-              >
-                <div className="min-w-0 space-y-2">
-                  <Label htmlFor={`intern-doc-label-${index}`}>Label</Label>
-                  <Input
-                    id={`intern-doc-label-${index}`}
-                    value={link.label}
-                    onChange={(event) => updateDraftLink(index, 'label', event.target.value)}
-                    placeholder="e.g. Evaluation report"
-                    data-test={`intern-documentation-label-input-${index}`}
-                  />
-                </div>
-                <div className="min-w-0 space-y-2">
-                  <Label htmlFor={`intern-doc-url-${index}`}>URL</Label>
-                  <Input
-                    id={`intern-doc-url-${index}`}
-                    type="url"
-                    value={link.url}
-                    onChange={(event) => updateDraftLink(index, 'url', event.target.value)}
-                    placeholder="https://..."
-                    className="min-w-0"
-                    data-test={`intern-documentation-url-input-${index}`}
-                  />
-                </div>
-                <div className="flex items-end md:justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeDraftLink(index)}
-                    aria-label="Remove link"
-                    data-test={`intern-documentation-remove-button-${index}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+      }
+      editContent={
+        <div className="max-h-[min(24rem,50vh)] space-y-3 overflow-y-auto pr-1">
+          {draftLinks.map((link, index) => (
+            <div
+              key={`draft-${index}`}
+              className="grid gap-3 rounded-xl border border-border/60 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]"
+            >
+              <div className="min-w-0 space-y-2">
+                <Label htmlFor={`intern-doc-label-${index}`}>Label</Label>
+                <Input
+                  id={`intern-doc-label-${index}`}
+                  value={link.label}
+                  onChange={(event) => updateDraftLink(index, 'label', event.target.value)}
+                  placeholder="e.g. Evaluation report"
+                  data-test={`intern-documentation-label-input-${index}`}
+                />
               </div>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setDraftLinks((current) => [...current, emptyLink()])}
-              data-test="intern-documentation-add-button"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add link
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSave}
-              disabled={isPending}
-              data-test="intern-documentation-save-button"
-            >
-              {isPending ? 'Saving...' : 'Save links'}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleCancel}
-              disabled={isPending}
-              data-test="intern-documentation-cancel-button"
-            >
-              Cancel
-            </Button>
-          </div>
+              <div className="min-w-0 space-y-2">
+                <Label htmlFor={`intern-doc-url-${index}`}>URL</Label>
+                <Input
+                  id={`intern-doc-url-${index}`}
+                  type="url"
+                  value={link.url}
+                  onChange={(event) => updateDraftLink(index, 'url', event.target.value)}
+                  placeholder="https://..."
+                  className="min-w-0"
+                  data-test={`intern-documentation-url-input-${index}`}
+                />
+              </div>
+              <div className="flex items-end md:justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeDraftLink(index)}
+                  aria-label="Remove link"
+                  data-test={`intern-documentation-remove-button-${index}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
         </div>
-      )}
-    </div>
+      }
+    />
   );
 }
