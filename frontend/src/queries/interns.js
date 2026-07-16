@@ -138,7 +138,6 @@ export const useUpdateInternalCvLink = () => {
     mutationFn: ({ userId, url }) => updateInternalCvLink(userId, url),
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: internDetailKey(userId) });
-      queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
     },
   });
 };

@@ -131,7 +131,6 @@ export default function LeadershipCandidatePage() {
               userId={userId}
               canEditDocumentation={canEditDocumentation}
               canEditInternalCv={false}
-              programmeMode="none"
             />
           </SymphonyCard>
         </TabsContent>

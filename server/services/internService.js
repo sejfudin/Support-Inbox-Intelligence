@@ -41,10 +41,11 @@ const PROFILE_POPULATE = [
   { path: 'declaredPosition', select: 'name slug' },
 ];
 
-const formatProfile = (profile, viewerRole = null) => {
+const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
   const canSeeInternalCv =
-    viewerRole === ROLES.ADMIN || viewerRole === ROLES.MENTOR || viewerRole === ROLES.LEADERSHIP;
+    Boolean(viewer) &&
+    (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
 
   return {
     ...plain,
@@ -115,7 +116,7 @@ const listInterns = async (user, query = {}) => {
   ]);
 
   return {
-    interns: profiles.map((p) => formatProfile(p, user.role)),
+    interns: profiles.map((p) => formatProfile(p, user)),
     pagination: {
       page,
       limit,
@@ -146,7 +147,7 @@ const getInternByUserId = async (user, internUserId) => {
     throw err;
   }
 
-  return formatProfile(profile, user.role);
+  return formatProfile(profile, user);
 };
 
 const getMyInternProfile = async (user) => {

@@ -185,7 +185,6 @@ export function InternProfileView({
                   userId={userId}
                   canEditDocumentation={canEditDocumentation}
                   canEditInternalCv={canEditInternalCv}
-                  programmeMode="none"
                 />
               </InternPanel>
 
