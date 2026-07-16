@@ -41,13 +41,16 @@ const PROFILE_POPULATE = [
   { path: 'declaredPosition', select: 'name slug' },
 ];
 
-const formatProfile = (profile) => {
+const formatProfile = (profile, viewerRole = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
+  const canSeeInternalCv =
+    viewerRole === ROLES.ADMIN || viewerRole === ROLES.MENTOR || viewerRole === ROLES.LEADERSHIP;
 
   return {
     ...plain,
     id: plain._id,
     cvUrl: buildCvUrl(plain.cvPath),
+    ...(canSeeInternalCv ? { internalCvUrl: plain.internalCvUrl || null } : {}),
   };
 };
 
@@ -112,7 +115,7 @@ const listInterns = async (user, query = {}) => {
   ]);
 
   return {
-    interns: profiles.map((p) => formatProfile(p)),
+    interns: profiles.map((p) => formatProfile(p, user.role)),
     pagination: {
       page,
       limit,
@@ -143,7 +146,7 @@ const getInternByUserId = async (user, internUserId) => {
     throw err;
   }
 
-  return formatProfile(profile);
+  return formatProfile(profile, user.role);
 };
 
 const getMyInternProfile = async (user) => {
@@ -290,6 +293,26 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
   }
 
   profile.documentationLinks = validateDocumentationLinks(links);
+  await profile.save();
+  return getInternByUserId(user, internUserId);
+};
+
+const updateInternalCvLink = async (user, internUserId, url) => {
+  const profile = await InternProfile.findOne({ user: internUserId });
+  if (!profile) throw new Error('Intern profile not found');
+
+  if (!canWriteMentorData(user, profile)) {
+    const err = new Error('Not authorized to modify this intern');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const trimmed = String(url || '').trim();
+  if (trimmed && !isValidDocumentationUrl(trimmed)) {
+    throw new Error('Internal CV must use an http or https URL');
+  }
+
+  profile.internalCvUrl = trimmed || null;
   await profile.save();
   return getInternByUserId(user, internUserId);
 };
@@ -892,6 +915,7 @@ module.exports = {
   updateSelfPosition,
   updateInternProgramme,
   updateDocumentationLinks,
+  updateInternalCvLink,
   createInternProfile,
   getProgrammeStats,
 };
