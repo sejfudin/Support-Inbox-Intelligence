@@ -154,9 +154,9 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     setDialogOpen(true);
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-
+  // DetailModal's <form> already calls preventDefault and invokes onSubmit()
+  // with no arguments, so this handler must not expect an event.
+  const handleSubmit = () => {
     const payload = {
       internUserId: userId,
       technologyIds: form.technologyIds,
