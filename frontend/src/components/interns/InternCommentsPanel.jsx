@@ -1,11 +1,21 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { InternPanel } from '@/components/interns/InternPanel';
+import { HistoryPanel } from '@/components/interns/HistoryPanel';
+import { Chips, DetailModal, DetailText } from '@/components/interns/DetailModal';
 import { useCommentViewers, useCreateInternComment, useInternComments } from '@/queries/interns';
 import { canWriteInternMentorData } from '@/helpers/roles';
+import { getInitials } from '@/helpers/getInitials';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -17,8 +27,20 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
   const { data: viewers = [] } = useCommentViewers({ enabled: canWrite });
   const { mutate, isPending: isSaving } = useCreateInternComment();
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailComment, setDetailComment] = useState(null);
   const [content, setContent] = useState('');
   const [visibleTo, setVisibleTo] = useState([]);
+
+  const resetForm = () => {
+    setContent('');
+    setVisibleTo([]);
+  };
+
+  const openDialog = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
 
   const toggleViewer = (id) => {
     setVisibleTo((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
@@ -32,8 +54,8 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
       { userId, payload: { content: content.trim(), visibleTo } },
       {
         onSuccess: () => {
-          setContent('');
-          setVisibleTo([]);
+          resetForm();
+          setDialogOpen(false);
           toast.success('Comment added');
         },
         onError: (err) => toast.error(err?.response?.data?.message || 'Failed to add comment'),
@@ -41,18 +63,72 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
     );
   };
 
+  const roleTag = (role) => {
+    if (role === 'mentor') return { label: 'Mentor', color: 'indigo' };
+    if (role === 'leadership') return { label: 'Leadership', color: 'slate' };
+    if (role === 'admin') return { label: 'Admin', color: 'slate' };
+    return { label: role || 'Note', color: 'slate' };
+  };
+
+  const ordered = [...comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const cards = ordered.map((comment, index) => ({
+    id: comment._id,
+    raw: comment,
+    featured: index === 0,
+    tag: roleTag(comment.author?.role),
+    title: format(new Date(comment.createdAt), 'MMM d, yyyy'),
+    avatar: {
+      initials: getInitials(comment.author?.fullname),
+      name: comment.author?.fullname ?? 'Unknown',
+    },
+    blocks: [
+      {
+        kind: 'chips',
+        label: 'Shared with',
+        items: (comment.visibleTo || []).map((viewer) => viewer?.fullname).filter(Boolean),
+      },
+    ],
+    note: comment.content,
+    sortVals: {
+      date: new Date(comment.createdAt).getTime(),
+      author: comment.author?.fullname ?? '',
+    },
+  }));
+
+  const subtitle = `${cards.length} note${cards.length === 1 ? '' : 's'}`;
+
   return (
     <div className="space-y-6">
-      {canWrite && (
-        <InternPanel>
-          <h3 className="text-lg font-semibold">Add private note</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Interns cannot see mentor notes. Choose who else may read this comment.
-          </p>
-          <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+      <HistoryPanel
+        title="Mentor notes"
+        subtitle={subtitle}
+        buttonLabel="New note"
+        canWrite={canWrite}
+        isLoading={isPending}
+        cards={cards}
+        sortOptions={[
+          { key: 'date', label: 'Date' },
+          { key: 'author', label: 'Author' },
+        ]}
+        onNew={openDialog}
+        onReadMore={(id) => setDetailComment(cards.find((c) => c.id === id)?.raw)}
+        onCardClick={(card) => setDetailComment(card.raw)}
+        emptyMessage="No comments you can view yet."
+      />
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>New mentor note</DialogTitle>
+            <DialogDescription>
+              Interns cannot see mentor notes. Choose who else may read this comment.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="mentor-comment-content">Comment</Label>
-              <Textarea
+              <AutoTextarea
                 id="mentor-comment-content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -86,50 +162,52 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
                   })}
               </div>
             </div>
-            <Button
-              type="submit"
-              disabled={isSaving || !content.trim()}
-              data-test="intern-comment-submit-button"
-            >
-              {isSaving ? 'Saving...' : 'Add comment'}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSaving || !content.trim()}
+                data-test="intern-comment-submit-button"
+              >
+                {isSaving ? 'Saving...' : 'Add comment'}
+              </Button>
+            </DialogFooter>
           </form>
-        </InternPanel>
-      )}
+        </DialogContent>
+      </Dialog>
 
-      <InternPanel>
-        <h3 className="text-lg font-semibold">Mentor notes</h3>
-        {isPending && <p className="mt-4 text-sm text-muted-foreground">Loading comments...</p>}
-        {!isPending && comments.length === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">No comments you can view yet.</p>
-        )}
-        <ul className="mt-4 space-y-4">
-          {comments.map((comment) => (
-            <li
-              key={comment._id}
-              className="rounded-xl border border-border/60 bg-muted/30 p-4"
-              data-test={`intern-comment-${comment._id}`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{comment.author?.fullname}</span>
-                <span>{format(new Date(comment.createdAt), 'MMM d, yyyy')}</span>
-              </div>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-foreground">
-                {comment.content}
-              </p>
-              {comment.visibleTo?.length > 0 && (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Shared with:{' '}
-                  {comment.visibleTo
-                    .map((v) => v.fullname)
-                    .filter(Boolean)
-                    .join(', ')}
-                </p>
-              )}
-            </li>
-          ))}
-        </ul>
-      </InternPanel>
+      <DetailModal
+        open={Boolean(detailComment)}
+        onClose={() => setDetailComment(null)}
+        dataTest="intern-comment-detail-dialog"
+        title={detailComment?.author?.fullname ?? 'Mentor note'}
+        subtitle={
+          detailComment ? format(new Date(detailComment.createdAt), 'MMM d, yyyy') : undefined
+        }
+        sections={
+          detailComment
+            ? [
+                { content: <DetailText>{detailComment.content}</DetailText> },
+                ...(detailComment.visibleTo?.length > 0
+                  ? [
+                      {
+                        label: 'Shared with',
+                        content: (
+                          <Chips
+                            items={detailComment.visibleTo
+                              .filter((viewer) => viewer?.fullname)
+                              .map((viewer) => viewer.fullname)}
+                          />
+                        ),
+                      },
+                    ]
+                  : []),
+              ]
+            : []
+        }
+      />
     </div>
   );
 }
