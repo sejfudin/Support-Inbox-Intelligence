@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useAuth } from '@/context/AuthContext';
@@ -444,42 +445,31 @@ export default function WorkspaceDetailPage() {
               <label htmlFor="workspace-detail-invite-user" className="text-sm font-medium">
                 Registered user
               </label>
-              <Select
-                value={inviteForm.userId}
-                onValueChange={(value) =>
-                  setInviteForm((current) => ({ ...current, userId: value }))
+              <SearchableSelect
+                items={availableUsers}
+                onSelect={(platformUser) =>
+                  setInviteForm((current) => ({ ...current, userId: platformUser._id }))
                 }
-              >
-                <SelectTrigger
-                  id="workspace-detail-invite-user"
-                  data-test="workspace-detail-invite-user-select"
-                >
-                  <SelectValue
-                    placeholder={loadingUsers ? 'Loading users...' : 'Choose a registered user'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableUsers.length === 0 ? (
-                    <SelectItem
-                      value="no-users"
-                      disabled
-                      data-test="workspace-detail-invite-user-option-empty"
-                    >
-                      No available platform users
-                    </SelectItem>
-                  ) : (
-                    availableUsers.map((platformUser) => (
-                      <SelectItem
-                        key={platformUser._id}
-                        value={platformUser._id}
-                        data-test={`workspace-detail-invite-user-option-${platformUser._id}`}
-                      >
-                        {platformUser.fullname} ({platformUser.email})
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+                filter={(platformUser, q) =>
+                  `${platformUser.fullname} ${platformUser.email}`.toLowerCase().includes(q)
+                }
+                renderItem={(platformUser) => (
+                  <span>
+                    <span className="font-medium">{platformUser.fullname}</span>{' '}
+                    <span className="text-muted-foreground">({platformUser.email})</span>
+                  </span>
+                )}
+                getItemDataTest={(platformUser) =>
+                  `workspace-detail-invite-user-option-${platformUser._id}`
+                }
+                placeholder={
+                  loadingUsers ? 'Loading users...' : 'Search a registered user by name or email'
+                }
+                emptyMessage="No available platform users"
+                disabled={loadingUsers}
+                id="workspace-detail-invite-user"
+                dataTest="workspace-detail-invite-user-select"
+              />
               {selectedUser && (
                 <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2 font-medium text-foreground">
