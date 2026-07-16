@@ -475,37 +475,29 @@
 
 /* ——— Status badges ——— */
 
-[data-surface='symphony'] .symphony-status-active {
+.symphony-status-active {
   border-color: hsl(var(--symphony-brand) / 0.35);
   background: hsl(var(--symphony-brand) / 0.1);
   color: hsl(var(--symphony-brand-strong));
 }
 
-.dark [data-surface='symphony'] .symphony-status-active {
+.dark .symphony-status-active {
   color: hsl(var(--symphony-brand));
 }
 
-[data-surface='symphony'] .symphony-status-ready {
+.symphony-status-ready,
+.symphony-status-placed {
   border-color: hsl(152 60% 40% / 0.35);
   background: hsl(152 60% 40% / 0.1);
   color: hsl(152 55% 32%);
 }
 
-.dark [data-surface='symphony'] .symphony-status-ready {
+.dark .symphony-status-ready,
+.dark .symphony-status-placed {
   color: hsl(152 55% 62%);
 }
 
-[data-surface='symphony'] .symphony-status-placed {
-  border-color: hsl(var(--symphony-brand) / 0.25);
-  background: hsl(var(--symphony-brand) / 0.08);
-  color: hsl(var(--symphony-brand-ink));
-}
-
-.dark [data-surface='symphony'] .symphony-status-placed {
-  color: hsl(var(--symphony-brand));
-}
-
-[data-surface='symphony'] .symphony-status-muted {
+.symphony-status-muted {
   border-color: hsl(var(--symphony-border));
   background: hsl(var(--symphony-surface));
   color: hsl(var(--symphony-muted));

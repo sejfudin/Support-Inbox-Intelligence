@@ -280,7 +280,7 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
   const profile = await InternProfile.findOne({ user: internUserId });
   if (!profile) throw new Error('Intern profile not found');
 
-  if (!canManageDocumentationLinks(user)) {
+  if (!canManageDocumentationLinks(user, profile)) {
     const err = new Error('Not authorized to manage documentation links');
     err.statusCode = 403;
     throw err;

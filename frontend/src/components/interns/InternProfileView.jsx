@@ -43,7 +43,7 @@ export function InternProfileView({
   const { user } = useAuth();
   const { data: intern, isPending, isError } = useIntern(userId);
 
-  const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user?.role);
+  const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
   const canEditInternalCv = !readOnly && canWriteInternMentorData(user?.role);
   const showComments = canViewComments(user?.role);
   const showEvaluations = showComments;
@@ -85,7 +85,7 @@ export function InternProfileView({
       variant="ghost"
       size="sm"
       onClick={() => navigate(backTo)}
-      className="-ml-2 h-7 px-2 text-muted-foreground"
+      className="h-7 px-2 text-muted-foreground"
       data-test="intern-profile-back-button"
     >
       <ArrowLeft className="mr-2 h-4 w-4" />
@@ -108,6 +108,7 @@ export function InternProfileView({
           fullname={intern.user?.fullname}
           email={intern.user?.email}
           status={intern.status}
+          declaredPosition={intern.declaredPosition?.name}
           programme={intern.internshipType?.name}
           hub={intern.user?.hub?.name}
           startDate={formattedStartDate}

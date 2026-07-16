@@ -49,24 +49,23 @@ export function InternInternalCvPanel({
       className={cn('space-y-4 rounded-2xl border border-border/60 p-5', className)}
       data-test="intern-internal-cv-panel"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="space-y-1">
+        <div className="flex items-start justify-between gap-3">
           <h4 className="text-sm font-semibold">CV / Résumé</h4>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Google Drive link to the candidate's CV.
-          </p>
+          {canEdit && !isEditing && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleStartEditing}
+              className="shrink-0"
+              data-test="intern-internal-cv-edit-button"
+            >
+              {hasLink ? 'Edit link' : 'Add link'}
+            </Button>
+          )}
         </div>
-        {canEdit && !isEditing && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleStartEditing}
-            data-test="intern-internal-cv-edit-button"
-          >
-            {hasLink ? 'Edit link' : 'Add link'}
-          </Button>
-        )}
+        <p className="text-sm text-muted-foreground">Google Drive link to the candidate's CV.</p>
       </div>
 
       {!isEditing && !hasLink && (
