@@ -96,30 +96,22 @@ exports.deleteWorkspaceLogo = async (req, res, next) => {
   }
 };
 
+// Accepts one or many invites via req.body.invites: [{ userId, role }].
+// Each invite is attempted independently; response carries per-user results.
 exports.inviteMember = async (req, res, next) => {
   try {
-    const result = await workspaceService.inviteMemberToWorkspace({
+    const result = await workspaceService.inviteMembersToWorkspace({
       workspaceId: req.params.id,
-      ...req.body,
+      invites: req.body.invites,
       inviterId: req.user._id,
-      inviterName: req.user.fullname,
     });
     res.status(201).json(result);
   } catch (err) {
+    if (err.message === 'At least one invite is required') {
+      return res.status(400).json({ message: err.message });
+    }
     if (err.message === 'Workspace not found') {
       return res.status(404).json({ message: err.message });
-    }
-    if (err.message === 'User not found') {
-      return res.status(404).json({ message: err.message });
-    }
-    if (
-      err.message === 'User is required' ||
-      err.message === 'User is already a member of this workspace' ||
-      err.message === 'User already has a pending invitation for this workspace'
-    ) {
-      return res
-        .status(err.message === 'User is required' ? 400 : 409)
-        .json({ message: err.message });
     }
     next(err);
   }
