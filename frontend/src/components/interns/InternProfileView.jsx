@@ -20,7 +20,7 @@ import {
   canViewComments,
   canManageInternDocumentationLinks,
   canChangeInternStatus,
-  canWriteInternMentorData,
+  canWriteAssignedInternMentorData,
 } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +44,7 @@ export function InternProfileView({
   const { data: intern, isPending, isError } = useIntern(userId);
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
-  const canEditInternalCv = !readOnly && canWriteInternMentorData(user?.role);
+  const canEditInternalCv = !readOnly && canWriteAssignedInternMentorData(user, intern);
   const showComments = canViewComments(user?.role);
   const showEvaluations = showComments;
   const showRecommendations =
@@ -85,7 +85,7 @@ export function InternProfileView({
       variant="ghost"
       size="sm"
       onClick={() => navigate(backTo)}
-      className="h-7 px-2 text-muted-foreground"
+      className="-ml-2 h-7 px-2 text-muted-foreground"
       data-test="intern-profile-back-button"
     >
       <ArrowLeft className="mr-2 h-4 w-4" />

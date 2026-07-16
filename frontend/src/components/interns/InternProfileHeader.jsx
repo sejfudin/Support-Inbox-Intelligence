@@ -48,7 +48,7 @@ export function InternProfileHeader({
 
   return (
     <div className="space-y-4">
-      {backButton}
+      {backButton ? <div className="px-5 md:px-6">{backButton}</div> : null}
 
       <header className={cn('app-panel overflow-hidden', className)}>
         <div className="px-5 py-5 md:px-6 md:py-6">
