@@ -12,7 +12,8 @@ const {
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
 const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
-const { hasWorkspaceAccess } = require('../helpers/workspaceAuthz');
+const { isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
+const { ROLES } = require('../constants/roles');
 
 const LOGO_MIME_TO_EXT = {
   'image/jpeg': 'jpg',
@@ -91,8 +92,10 @@ const getWorkspaceById = async (workspaceId, caller) => {
   if (!workspace) throw new Error('Workspace not found');
 
   // Members list + pending invitations leak emails cross-tenant — restrict to
-  // active members (admins/mentors bypass via hasWorkspaceAccess by design).
-  if (caller && !hasWorkspaceAccess({ role: caller.role, workspace, userId: caller.userId })) {
+  // active members. Deliberately NOT hasWorkspaceAccess: its mentor bypass
+  // would let any mentor read any workspace; only platform admins skip the
+  // membership check here. Mentor owners/managers are always active members.
+  if (caller && caller.role !== ROLES.ADMIN && !isActiveWorkspaceMember(workspace, caller.userId)) {
     const err = new Error('Forbidden: Not a member of this workspace');
     err.statusCode = 403;
     throw err;

@@ -54,8 +54,9 @@ caller's workspace.
     A non-admin may pass `workspaceId` in body/query only because the guard verifies they
     manage that exact workspace first.
 - `GET /api/workspaces/:id` is scoped in `workspaceService.getWorkspaceById(id, caller)`:
-  active members only (platform admins/mentors bypass via `hasWorkspaceAccess`) — the payload
-  includes member emails and pending invitations, so it must not be readable cross-tenant.
+  active members only; **only platform admins bypass** (not mentors — `hasWorkspaceAccess`'s
+  mentor bypass is deliberately not used here). The payload includes member emails and pending
+  invitations, so it must not be readable cross-tenant.
 - `role` (file, exports `requireRole(...allowedRoles)`) — platform-role guard; 403s if
   `req.user.role` is not in the allowed list. Import `ROLES` and pass them:
   ```js
