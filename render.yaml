@@ -5,6 +5,7 @@ services:
   - type: web
     name: support-inbox-intelligence-app
     runtime: node
+    plan: free
     repo: https://github.com/sejfudin/Support-Inbox-Intelligence
     branch: master
     rootDir: server
@@ -61,6 +62,7 @@ services:
   - type: web
     name: support-inbox-intelligence-app-dev
     runtime: node
+    plan: free
     repo: https://github.com/sejfudin/Support-Inbox-Intelligence
     branch: development
     rootDir: server
@@ -73,7 +75,7 @@ services:
       - key: PORT
         value: 4000
       - key: CLIENT_URL
-        value: https://insightdesk-app-dev.onrender.com  
+        value: https://insightdesk-app-dev.onrender.com   
       - key: SERVER_URL
         value: https://support-inbox-intelligence-app-dev.onrender.com   
       - key: MONGODB_URI
@@ -93,7 +95,7 @@ services:
       - key: SUPABASE_WORKSPACE_LOGO_BUCKET
         sync: false
       - key: GROQ_API_KEY
-        sync: false          # can reuse prod key if cost isn't a concern
+        sync: false          
       - key: GROQ_MODEL
         sync: false
       - key: GROQ_URL
