@@ -358,6 +358,17 @@ export function HistoryPanel({
   const [sortKey, setSortKey] = useState('');
   const [sortDir, setSortDir] = useState('desc');
 
+  // A given sort key is numeric (dates/scores) or text (names/labels). Numeric
+  // fields default to descending (newest/highest first); text fields default to
+  // ascending (A→Z). This keeps the direction meaning consistent across
+  // sections instead of "desc" meaning newest-first for dates but Z→A for names.
+  const isNumericKey = (key) => cards.some((card) => typeof card.sortVals?.[key] === 'number');
+
+  const handleSortKeyChange = (key) => {
+    setSortKey(key);
+    if (key) setSortDir(isNumericKey(key) ? 'desc' : 'asc');
+  };
+
   const sortedCards = useMemo(() => {
     if (!sortKey) return cards;
     const factor = sortDir === 'asc' ? 1 : -1;
@@ -383,7 +394,7 @@ export function HistoryPanel({
               <ArrowUpDown className="ml-3 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <Select
                 value={sortKey || SORT_DEFAULT}
-                onValueChange={(value) => setSortKey(value === SORT_DEFAULT ? '' : value)}
+                onValueChange={(value) => handleSortKeyChange(value === SORT_DEFAULT ? '' : value)}
               >
                 <SelectTrigger
                   className="h-10 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus:ring-0 focus:ring-offset-0"
