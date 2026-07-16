@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from 'lucide-react';
 import { InternPanel } from '@/components/interns/InternPanel';
+import { StatusTimeline } from '@/components/interns/StatusTimeline';
 import {
   Select,
   SelectContent,
@@ -39,6 +40,14 @@ const dataTestId = (title) =>
  * @property {string} [note]
  * @property {Record<string, string|number>} [sortVals]
  */
+
+// Responsive column classes for `blockRows` grids. Full literal strings so
+// Tailwind's JIT compiler keeps them. Single column on mobile, N across at sm+.
+const ROW_GRID_COLS = {
+  1: 'sm:grid-cols-1',
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-3',
+};
 
 // ---- color maps (theme-aware: primary token for indigo, muted for neutral,
 // and the same emerald/amber/red tints the app's Badge uses for semantics) ----
@@ -169,12 +178,39 @@ function renderBlock(block, index) {
   }
 
   if (block.kind === 'text') {
+    // Optional leading status dot: pass `block.dot` as a Tailwind bg-* class
+    // (e.g. 'bg-primary'). `block.bold` renders the value in semibold.
     return (
       <div key={index}>
         <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
           {block.label}
         </p>
-        <p className="text-sm text-foreground [overflow-wrap:anywhere]">{block.value || '—'}</p>
+        <p
+          className={cn(
+            'flex items-center gap-2 text-sm text-foreground [overflow-wrap:anywhere]',
+            block.bold && 'font-semibold'
+          )}
+        >
+          {block.dot && (
+            <span
+              className={cn('h-2.5 w-2.5 shrink-0 rounded-full', block.dot)}
+              aria-hidden="true"
+            />
+          )}
+          {block.value || '—'}
+        </p>
+      </div>
+    );
+  }
+
+  if (block.kind === 'timeline') {
+    // Circles-and-lines status stepper (shared with the detail modal).
+    return (
+      <div key={index}>
+        <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+          {block.label}
+        </p>
+        <StatusTimeline steps={block.items} size="sm" />
       </div>
     );
   }
@@ -255,9 +291,24 @@ function HistoryCardView({ card, onReadMore, onCardClick }) {
           )}
         </div>
 
-        {/* Right column */}
-        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:pl-7">
-          {(card.blocks || []).map((block, index) => renderBlock(block, index))}
+        {/* Right column. A card can either provide a flat `blocks` list (stacked
+            vertically) or `blockRows` (array of rows) that render as responsive
+            grids — one column per block on desktop, collapsing to a single
+            column on narrow screens. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-5 sm:pl-7">
+          {card.blockRows
+            ? card.blockRows.map((row, rowIndex) => (
+                <div
+                  key={rowIndex}
+                  className={cn(
+                    'grid grid-cols-1 gap-x-8 gap-y-5',
+                    ROW_GRID_COLS[row.length] || ''
+                  )}
+                >
+                  {row.map((block, index) => renderBlock(block, `${rowIndex}-${index}`))}
+                </div>
+              ))
+            : (card.blocks || []).map((block, index) => renderBlock(block, index))}
 
           {card.note && (
             <div className="mt-1 border-t border-border pt-3.5">

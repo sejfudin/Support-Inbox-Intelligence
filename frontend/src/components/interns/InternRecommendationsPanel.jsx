@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { HistoryPanel } from '@/components/interns/HistoryPanel';
+import { StatusTimeline } from '@/components/interns/StatusTimeline';
 import { DetailModal, DetailText, TAG_TONE } from '@/components/interns/DetailModal';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -43,6 +44,15 @@ const createEmptyForm = () => ({
   resultOutcome: 'none',
   resultNote: '',
 });
+
+// The three tracked status milestones shown in the timeline, in order. This is
+// the status lifecycle; the placement outcome (placed / not placed) is a
+// separate "Result" field, not a timeline step.
+const STATUS_TIMELINE = [
+  { key: 'recommended', label: 'Recommended' },
+  { key: 'interviewing', label: 'Interviewing' },
+  { key: 'resulted', label: 'Resulted' },
+];
 
 const formatDate = (date) => {
   if (!date) return 'No date';
@@ -284,7 +294,9 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
       status: form.status,
     };
 
-    if (activeRecommendation && form.resultOutcome !== 'none') {
+    // Placement outcome only applies to a resulted recommendation; ignore any
+    // stale outcome if the status isn't 'resulted' (the section is hidden then).
+    if (activeRecommendation && form.status === 'resulted' && form.resultOutcome !== 'none') {
       payload.result = {
         outcome: form.resultOutcome,
         note: form.resultNote,
@@ -313,11 +325,46 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     if (status === 'resulted') return 'green';
     return 'indigo';
   };
+  // Leading dot color for the "Current status" block, keyed to each milestone.
+  const statusDotClass = (status) => {
+    if (status === 'resulted') return 'bg-emerald-500';
+    if (status === 'interviewing') return 'bg-amber-500';
+    return 'bg-primary';
+  };
   const positionName = (recommendation) => recommendation.position?.name || 'Position not set';
   const resultTitle = (recommendation) =>
     recommendation.result?.outcome
       ? getRecommendationResultLabel(recommendation.result.outcome)
       : 'No result yet';
+
+  // The current status is simply the recommendation's status — one of the three
+  // tracked timeline milestones (recommended / interviewing / resulted).
+  const currentStatusKey = (recommendation) => recommendation.status;
+
+  const currentStatusLabel = (recommendation) =>
+    getRecommendationStatusLabel(recommendation.status);
+
+  // Date the current status was applied, read from the history-backed
+  // statusDates (falls back to updatedAt if the log has no row yet).
+  const currentStatusDate = (recommendation) => {
+    const dates = recommendation.statusDates || {};
+    return dates[recommendation.status] || recommendation.updatedAt;
+  };
+
+  // Timeline steps for the circles-and-lines stepper (card + detail modal). A
+  // step is "reached" when the history log has a date for it; the current step
+  // is the recommendation's active milestone.
+  const buildTimelineSteps = (recommendation) => {
+    const dates = recommendation.statusDates || {};
+    const current = currentStatusKey(recommendation);
+    return STATUS_TIMELINE.map((step) => ({
+      key: step.key,
+      label: step.label,
+      date: dates[step.key] ? formatDate(dates[step.key]) : null,
+      reached: Boolean(dates[step.key]),
+      current: current === step.key,
+    }));
+  };
 
   const ordered = [...recommendations].sort(
     (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
@@ -337,26 +384,46 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     metaSub: `Updated ${formatDate(recommendation.updatedAt)} · ${
       recommendation.updatedBy?.fullname || 'Unknown'
     }`,
-    blocks: [
-      {
-        kind: 'text',
-        label: 'Project',
-        value: recommendation.project,
-      },
-      {
-        kind: 'chips',
-        label: 'Technologies',
-        items: (recommendation.technologies || []).map((technology) => ({
-          label: technology.name,
-          icon: <TechnologyIcon technology={technology} size={13} className="shrink-0" />,
-        })),
-      },
-      {
-        kind: 'pill',
-        label: 'Result',
-        value: resultTitle(recommendation),
-        color: recommendation.result?.outcome === 'placed' ? 'green' : 'slate',
-      },
+    // Two-row grid (matches the mockup): row 1 = current status + timeline,
+    // row 2 = project + technologies + result. Rows collapse to a single column
+    // on narrow screens (handled by HistoryPanel's responsive grid).
+    blockRows: [
+      [
+        {
+          // Current status + the date that status was applied (history-backed).
+          kind: 'text',
+          label: 'Current status',
+          dot: statusDotClass(recommendation.status),
+          value: `${currentStatusLabel(recommendation)} · ${formatDate(currentStatusDate(recommendation))}`,
+        },
+        {
+          kind: 'timeline',
+          label: 'Status timeline',
+          items: buildTimelineSteps(recommendation),
+        },
+      ],
+      [
+        {
+          kind: 'text',
+          label: 'Project',
+          bold: true,
+          value: recommendation.project,
+        },
+        {
+          kind: 'chips',
+          label: 'Technologies',
+          items: (recommendation.technologies || []).map((technology) => ({
+            label: technology.name,
+            icon: <TechnologyIcon technology={technology} size={13} className="shrink-0" />,
+          })),
+        },
+        {
+          kind: 'pill',
+          label: 'Result',
+          value: resultTitle(recommendation),
+          color: recommendation.result?.outcome === 'placed' ? 'green' : 'slate',
+        },
+      ],
     ],
     note: recommendation.recommendationNote,
     sortVals: {
@@ -471,7 +538,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
               </div>
             ),
           },
-          ...(isEditing
+          ...(isEditing && form.status === 'resulted'
             ? [
                 {
                   label: 'Placement outcome',
@@ -546,6 +613,18 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
               }`
             : undefined
         }
+        headerAside={
+          detailRecommendation ? (
+            <span
+              className={cn(
+                'inline-flex rounded-md px-2 py-1 text-xs font-semibold',
+                TAG_TONE[statusTagColor(detailRecommendation.status)]
+              )}
+            >
+              {getRecommendationStatusLabel(detailRecommendation.status)}
+            </span>
+          ) : undefined
+        }
         sections={
           detailRecommendation
             ? [
@@ -553,16 +632,6 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
                   label: 'Recommendation',
                   content: (
                     <div className="space-y-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={cn(
-                            'rounded-md px-2 py-1 text-xs font-semibold',
-                            TAG_TONE[statusTagColor(detailRecommendation.status)]
-                          )}
-                        >
-                          {getRecommendationStatusLabel(detailRecommendation.status)}
-                        </span>
-                      </div>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-1.5">
                           <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -614,6 +683,18 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
                           <DetailText>{detailRecommendation.recommendationNote}</DetailText>
                         </div>
                       )}
+                    </div>
+                  ),
+                },
+                {
+                  label: 'Status timeline',
+                  content: (
+                    <div className="px-2 pt-2">
+                      <StatusTimeline
+                        steps={buildTimelineSteps(detailRecommendation)}
+                        size="md"
+                        showCurrentTag
+                      />
                     </div>
                   ),
                 },
