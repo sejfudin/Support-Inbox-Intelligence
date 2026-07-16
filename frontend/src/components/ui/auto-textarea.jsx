@@ -27,7 +27,9 @@ const AutoTextarea = React.forwardRef(
       el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
     }, [maxRows]);
 
-    // Resize on mount and whenever the value changes (covers programmatic resets).
+    // Resize on mount and whenever the controlled value changes — this covers
+    // typing (onChange updates value) and programmatic resets, so onChange
+    // doesn't need to resize as well.
     React.useLayoutEffect(() => {
       resize();
     }, [value, resize]);
@@ -37,10 +39,7 @@ const AutoTextarea = React.forwardRef(
         ref={setRefs}
         rows={rows}
         value={value}
-        onChange={(event) => {
-          onChange?.(event);
-          resize();
-        }}
+        onChange={onChange}
         className={cn('resize-none', className)}
         {...props}
       />

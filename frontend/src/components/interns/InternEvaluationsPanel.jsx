@@ -98,7 +98,9 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
     const isLatest = index === 0;
     const prev = ordered[index + 1];
     const delta = prev ? avg - getAverage(prev) : 0;
-    const trend = prev && delta > 0.05 ? { kind: 'up', delta } : { kind: 'flat' };
+    let trend = { kind: 'flat' };
+    if (prev && delta > 0.05) trend = { kind: 'up', delta };
+    else if (prev && delta < -0.05) trend = { kind: 'down', delta };
     return {
       id: evaluation._id,
       raw: evaluation,
@@ -124,9 +126,15 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
     };
   });
 
-  const trendingUp = cards.length > 1 && cards[0].ring.value > (getAverage(ordered[1]) ?? 0);
+  const latestDelta = cards.length > 1 ? cards[0].ring.value - getAverage(ordered[1]) : 0;
+  const trendLabel =
+    latestDelta > 0.05
+      ? ' · trending upward'
+      : latestDelta < -0.05
+        ? ' · trending down'
+        : ' · steady';
   const subtitle = `${cards.length} evaluation${cards.length === 1 ? '' : 's'}${
-    cards.length > 1 ? (trendingUp ? ' · trending upward' : ' · steady') : ''
+    cards.length > 1 ? trendLabel : ''
   }`;
 
   return (

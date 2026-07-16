@@ -246,9 +246,10 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
         ]}
         onNew={handleNew}
         onReadMore={(id) => setDetailRecommendation(cards.find((c) => c.id === id)?.raw)}
-        onCardClick={(card) =>
-          canWrite ? handleEdit(card.raw) : setDetailRecommendation(card.raw)
-        }
+        // Card click always opens the read-only detail (consistent with the
+        // other sections, and reachable even for a result-with-no-note). The
+        // detail modal's Update button (mentor-only) enters the edit form.
+        onCardClick={(card) => setDetailRecommendation(card.raw)}
         emptyMessage={
           isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'
         }

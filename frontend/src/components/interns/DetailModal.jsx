@@ -7,7 +7,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { scoreBand } from '@/helpers/scoreBand';
 import { cn } from '@/lib/utils';
+
+// Band-keyed tone maps (shared thresholds via scoreBand) so the banner and the
+// tiles in the same modal never disagree on a value like 4.0.
+const BANNER_TONE = {
+  high: 'bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  mid: 'bg-primary/15 ring-1 ring-inset ring-primary/30 text-primary',
+  low: 'bg-amber-500/15 ring-1 ring-inset ring-amber-500/30 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+};
+const TILE_TONE = {
+  high: 'bg-emerald-500/12 ring-1 ring-inset ring-emerald-500/25 dark:bg-emerald-500/15',
+  mid: 'bg-primary/12 ring-1 ring-inset ring-primary/25',
+  low: 'bg-amber-500/12 ring-1 ring-inset ring-amber-500/25 dark:bg-amber-500/15',
+};
+const TILE_VALUE_TONE = {
+  high: 'text-emerald-600 dark:text-emerald-400',
+  mid: 'text-primary',
+  low: 'text-amber-600 dark:text-amber-400',
+};
+const TILE_LABEL_TONE = {
+  high: 'text-emerald-700/80 dark:text-emerald-300/80',
+  mid: 'text-primary/80',
+  low: 'text-amber-700/80 dark:text-amber-300/80',
+};
 
 /**
  * One reusable modal shell for the intern detail/edit dialogs. It renders a
@@ -99,16 +123,15 @@ export const TAG_TONE = {
 
 // ---------- presentational blocks (read-only) ----------
 
-/** Big highlighted average-score banner (green ≥4, indigo ≥3, amber below). */
+/** Big highlighted average-score banner, tinted by its score band. */
 export function ScoreBanner({ label = 'Average score', value }) {
-  const tone =
-    value >= 4
-      ? 'bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
-      : value >= 3
-        ? 'bg-primary/15 ring-1 ring-inset ring-primary/30 text-primary'
-        : 'bg-amber-500/15 ring-1 ring-inset ring-amber-500/30 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300';
   return (
-    <div className={cn('flex items-center justify-between rounded-xl px-4 py-3.5', tone)}>
+    <div
+      className={cn(
+        'flex items-center justify-between rounded-xl px-4 py-3.5',
+        BANNER_TONE[scoreBand(value)]
+      )}
+    >
       <span className="text-[11px] font-bold uppercase tracking-wide">{label}</span>
       <span className="text-2xl font-extrabold tabular-nums">{Number(value).toFixed(1)}/5</span>
     </div>
@@ -119,41 +142,26 @@ export function ScoreBanner({ label = 'Average score', value }) {
 export function ScoreTiles({ items }) {
   // The whole tile carries the score's color (bg + border + value) so the grid
   // reads as color at a glance; higher = greener, lower = amber.
-  const tileTone = (score) =>
-    score >= 4.5
-      ? 'bg-emerald-500/12 ring-1 ring-inset ring-emerald-500/25 dark:bg-emerald-500/15'
-      : score >= 3.5
-        ? 'bg-primary/12 ring-1 ring-inset ring-primary/25'
-        : 'bg-amber-500/12 ring-1 ring-inset ring-amber-500/25 dark:bg-amber-500/15';
-  const valueTone = (score) =>
-    score >= 4.5
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : score >= 3.5
-        ? 'text-primary'
-        : 'text-amber-600 dark:text-amber-400';
-  const labelTone = (score) =>
-    score >= 4.5
-      ? 'text-emerald-700/80 dark:text-emerald-300/80'
-      : score >= 3.5
-        ? 'text-primary/80'
-        : 'text-amber-700/80 dark:text-amber-300/80';
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {items.map((item) => (
-        <div
-          key={item.label}
-          className={cn(
-            'flex items-center justify-between rounded-xl px-4 py-3',
-            tileTone(item.score)
-          )}
-        >
-          <span className={cn('text-sm font-medium', labelTone(item.score))}>{item.label}</span>
-          <span className="text-base font-extrabold tabular-nums">
-            <span className={valueTone(item.score)}>{item.score}</span>
-            <span className={cn('text-xs font-bold', labelTone(item.score))}>/5</span>
-          </span>
-        </div>
-      ))}
+      {items.map((item) => {
+        const band = scoreBand(item.score);
+        return (
+          <div
+            key={item.label}
+            className={cn(
+              'flex items-center justify-between rounded-xl px-4 py-3',
+              TILE_TONE[band]
+            )}
+          >
+            <span className={cn('text-sm font-medium', TILE_LABEL_TONE[band])}>{item.label}</span>
+            <span className="text-base font-extrabold tabular-nums">
+              <span className={TILE_VALUE_TONE[band]}>{item.score}</span>
+              <span className={cn('text-xs font-bold', TILE_LABEL_TONE[band])}>/5</span>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
