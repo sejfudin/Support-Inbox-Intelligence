@@ -8,6 +8,32 @@ const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
+const historyService = require('./historyService');
+
+// The status milestones tracked in the append-only history log — the status
+// lifecycle itself (recommended → interviewing → resulted). The placement
+// outcome (placed / not placed) is a separate field surfaced as "Result", not
+// a timeline step. The recommendations table shows the latest date per status.
+const TRACKED_STATUS_KEYS = ['recommended', 'interviewing', 'resulted'];
+
+const statusKeyLabel = (statusKey) =>
+  ({
+    recommended: 'Recommended',
+    interviewing: 'Interviewing',
+    resulted: 'Resulted',
+  })[statusKey] || statusKey;
+
+// Append a status-change record to the recommendation's history log. Never
+// overwrites — each call is a new row, preserving the full trail even when a
+// status is revisited.
+const logStatusEvent = (recommendationId, userId, statusKey) =>
+  historyService.logEntityEvent({
+    entityType: 'recommendation',
+    entityId: recommendationId,
+    userId,
+    statusKey,
+    action: `Status set to ${statusKeyLabel(statusKey)}`,
+  });
 
 const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP, ROLES.MENTOR];
 
@@ -87,7 +113,7 @@ const formatInternProfile = (profile) => {
   };
 };
 
-const formatRecommendation = (recommendation) => {
+const formatRecommendation = (recommendation, statusDates = {}) => {
   const plain = recommendation.toObject ? recommendation.toObject() : recommendation;
   return {
     ...plain,
@@ -100,6 +126,13 @@ const formatRecommendation = (recommendation) => {
       note: plain.result?.note || '',
       decidedAt: plain.result?.decidedAt || null,
       decidedBy: formatUser(plain.result?.decidedBy),
+    },
+    // Latest date each tracked status was applied, read from the append-only
+    // history log (not from the document, so it survives status changes).
+    statusDates: {
+      recommended: statusDates.recommended || null,
+      interviewing: statusDates.interviewing || null,
+      resulted: statusDates.resulted || null,
     },
   };
 };
@@ -324,8 +357,16 @@ const listRecommendations = async (user, query = {}) => {
     Recommendation.countDocuments(filter),
   ]);
 
+  // One aggregate for all rows on the page (avoids N+1) → { [id]: {status: date} }.
+  const statusDatesById = await historyService.getLatestStatusDatesForEntities(
+    'recommendation',
+    recommendations.map((recommendation) => recommendation._id)
+  );
+
   return {
-    recommendations: recommendations.map(formatRecommendation),
+    recommendations: recommendations.map((recommendation) =>
+      formatRecommendation(recommendation, statusDatesById[recommendation._id.toString()] || {})
+    ),
     pagination: {
       page,
       limit,
@@ -351,7 +392,11 @@ const getRecommendation = async (user, recommendationId) => {
   if (!recommendation) throw createError('Recommendation not found', 404);
   assertRecommendationReadAccess(user, recommendation);
 
-  return formatRecommendation(recommendation);
+  const statusDates = await historyService.getLatestStatusDates(
+    'recommendation',
+    recommendation._id
+  );
+  return formatRecommendation(recommendation, statusDates);
 };
 
 const createRecommendation = async (user, payload = {}) => {
@@ -376,8 +421,15 @@ const createRecommendation = async (user, payload = {}) => {
     interviews,
   });
 
+  // Append the initial status to the history log (append-only trail).
+  await logStatusEvent(recommendation._id, user._id, recommendation.status);
+
   await recommendation.populate(RECOMMENDATION_POPULATE);
-  return formatRecommendation(recommendation);
+  const statusDates = await historyService.getLatestStatusDates(
+    'recommendation',
+    recommendation._id
+  );
+  return formatRecommendation(recommendation, statusDates);
 };
 
 const applyResultPayload = (recommendation, payloadResult, user) => {
@@ -417,6 +469,10 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
 
   assertRecommendationWriteAccess(user, profile);
 
+  // Snapshot the status BEFORE mutating so we append a history record only on an
+  // actual status change (append-only — never overwrite an existing record).
+  const previousStatus = recommendation.status;
+
   if (payload.positionId !== undefined) {
     recommendation.position = await ensurePositionId(payload.positionId);
   }
@@ -447,13 +503,29 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
 
   await recommendation.save();
 
-  if (recommendation.result?.outcome === 'placed') {
+  const isPlaced = recommendation.result?.outcome === 'placed';
+
+  if (isPlaced) {
     profile.status = 'placed';
     await profile.save();
   }
 
+  // Append-only status history: log a new row whenever the tracked status
+  // actually changes (recommended → interviewing → resulted). The row is never
+  // overwritten, so prior status dates are preserved even if status moves back.
+  if (
+    recommendation.status !== previousStatus &&
+    TRACKED_STATUS_KEYS.includes(recommendation.status)
+  ) {
+    await logStatusEvent(recommendation._id, user._id, recommendation.status);
+  }
+
   await recommendation.populate(RECOMMENDATION_POPULATE);
-  return formatRecommendation(recommendation);
+  const statusDates = await historyService.getLatestStatusDates(
+    'recommendation',
+    recommendation._id
+  );
+  return formatRecommendation(recommendation, statusDates);
 };
 
 module.exports = {
