@@ -114,6 +114,7 @@ export default function AppSidebar() {
     ? [
         { label: 'My Interns', to: '/my-interns', icon: GraduationCap },
         { label: 'Recommendations', to: '/recommendations', icon: Send },
+        { label: 'Create Workspace', to: '/create-workspace', icon: Building2 },
       ]
     : [];
 

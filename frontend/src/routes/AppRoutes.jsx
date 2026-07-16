@@ -81,7 +81,7 @@ export default function AppRoutes() {
             user?.role === ROLES.LEADERSHIP ? (
               <Navigate to="/programme" replace />
             ) : user?.role === ROLES.MENTOR ? (
-              <Navigate to="/my-interns" replace />
+              <CreateWorkspacePage />
             ) : user?.workspaceId ? (
               <Navigate to="/dashboard" replace />
             ) : (
