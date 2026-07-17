@@ -33,10 +33,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      # No test suite exists yet. Once one is added (e.g. `npm test` runs Jest/Vitest/etc.),
-      # remove the `if: false` guard below so this step actually runs and can fail the build.
-      - name: Run tests (placeholder — no tests written yet)
-        if: false
+      - name: Run tests
         run: npm test
 
   frontend:
@@ -62,7 +59,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Same placeholder as backend — wire this up once frontend tests exist.
-      - name: Run tests (placeholder — no tests written yet)
-        if: false
+      - name: Run tests
         run: npm test
