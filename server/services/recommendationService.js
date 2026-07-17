@@ -563,21 +563,57 @@ const closeActiveRecommendationsForIntern = async (
   };
   if (excludeRecommendationId) filter._id = { $ne: excludeRecommendationId };
 
-  await Recommendation.updateMany(filter, {
-    $set: {
+  // Per-document (not a blind updateMany) so each auto-close also gets its
+  // append-only history row and complete statusDates — otherwise the table
+  // (history-backed for legacy records) and the cards disagree on the
+  // Resulted date, and the audit trail silently misses the close.
+  const toClose = await Recommendation.find(filter).select('_id status statusDates createdAt');
+  const now = new Date();
+
+  for (const recommendation of toClose) {
+    const set = {
       status: 'resulted',
-      // Stamp the stage date so the auto-close shows on the status timeline
-      // like any other resulted recommendation.
-      'statusDates.resulted': new Date(),
       result: {
         outcome: 'not_placed',
         note: 'Closed automatically because the intern was placed.',
-        decidedAt: new Date(),
+        decidedAt: now,
         decidedBy: user._id,
       },
       updatedBy: user._id,
-    },
-  });
+    };
+
+    if (recommendation.statusDates?.recommended) {
+      // Stamp the stage date so the auto-close shows on the status timeline
+      // like any other resulted recommendation.
+      set['statusDates.resulted'] = now;
+    } else {
+      // Records that predate statusDates: seed the earlier stages from the
+      // history log (same as updateRecommendation) so the document carries a
+      // complete set, not just the resulted date.
+      const historyDates = await historyService.getLatestStatusDates(
+        'recommendation',
+        recommendation._id
+      );
+      const statusDates = {
+        recommended: historyDates.recommended || recommendation.createdAt,
+        resulted: now,
+      };
+      if (historyDates.interviewing) statusDates.interviewing = historyDates.interviewing;
+      set.statusDates = statusDates;
+    }
+
+    // updateOne (not save) so legacy documents missing the now-required
+    // position/project fields aren't blocked by model validation.
+    await Recommendation.updateOne({ _id: recommendation._id }, { $set: set });
+
+    await historyService.logEntityEvent({
+      entityType: 'recommendation',
+      entityId: recommendation._id,
+      userId: user._id,
+      statusKey: 'resulted',
+      action: 'Status set to Resulted (closed automatically because the intern was placed)',
+    });
+  }
 };
 
 const updateRecommendation = async (user, recommendationId, payload = {}) => {

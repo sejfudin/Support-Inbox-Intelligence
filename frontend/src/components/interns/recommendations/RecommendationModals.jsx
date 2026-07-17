@@ -109,15 +109,21 @@ export function TechnologyMultiSelect({ technologies, selectedIds, onChange, var
     };
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
+        // Swallow the event so it only closes the dropdown — the surrounding
+        // Radix Dialog also listens for Escape (capture, on document) and
+        // would otherwise close the whole form, losing everything typed.
+        // window-capture runs before document-capture, so this wins.
+        event.preventDefault();
+        event.stopPropagation();
         setOpen(false);
         setQuery('');
       }
     };
     document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keydown', onKeyDown, true);
     };
   }, [open]);
 
@@ -351,9 +357,9 @@ export function RecommendationViewModal({
 }
 
 /**
- * Create + edit modal. Part 1 renders the full approved design; controls with
- * no backend yet (status dates, skip checkbox) keep their state locally in the
- * form object — persistence lands in part 2.
+ * Create + edit modal. Create is fixed at Recommended (later stages are locked);
+ * edit unlocks forward moves, per-stage dates (persisted as statusDates, with
+ * interviewing skippable) and the placement outcome once the status is Resulted.
  */
 export function RecommendationFormModal({
   open,

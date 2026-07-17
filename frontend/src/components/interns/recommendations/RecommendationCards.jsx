@@ -148,8 +148,8 @@ export function RecommendationCard({
 
 /**
  * Compact recommendation row (view switcher = Compact): status strip, position
- * + project, mini dot timeline, current status, technology count, result chip,
- * author and delete.
+ * + project, mini dot timeline, current status, technology count, result chip
+ * and author.
  */
 export function RecommendationCompactRow({ recommendation, steps, positionName, onOpen }) {
   const technologyCount = (recommendation.technologies || []).length;
