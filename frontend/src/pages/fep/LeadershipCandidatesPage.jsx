@@ -13,7 +13,7 @@ import {
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
-import { IN_PIPELINE_STAGE, INTERN_STATUSES } from '@/helpers/internProfile';
+import { IN_PIPELINE_STAGE, INTERN_STATUSES, READY_STATUS } from '@/helpers/internProfile';
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
@@ -21,7 +21,9 @@ import { useInternshipTypes } from '@/queries/internshipTypes';
 // Placement-stage filter options in funnel order; `in pipeline` sits between
 // ready and placed because pipelined interns are ready interns with an active
 // recommendation.
-const stageOptions = INTERN_STATUSES.flatMap((s) => (s === 'ready' ? [s, IN_PIPELINE_STAGE] : [s]));
+const stageOptions = INTERN_STATUSES.flatMap((s) =>
+  s === READY_STATUS ? [s, IN_PIPELINE_STAGE] : [s]
+);
 
 export default function LeadershipCandidatesPage() {
   const navigate = useNavigate();
@@ -51,7 +53,14 @@ export default function LeadershipCandidatesPage() {
     hubId: hubId || undefined,
     internshipTypeId: internshipTypeId || undefined,
     profileStatus: profileStatus && profileStatus !== IN_PIPELINE_STAGE ? profileStatus : undefined,
-    inPipeline: profileStatus === IN_PIPELINE_STAGE ? 'true' : undefined,
+    // "ready" means the available bench: ready lifecycle status AND not already
+    // in the pipeline, so the table matches the leadership "Ready" KPI count.
+    inPipeline:
+      profileStatus === IN_PIPELINE_STAGE
+        ? 'true'
+        : profileStatus === READY_STATUS
+          ? 'false'
+          : undefined,
   });
 
   const interns = data?.interns ?? [];

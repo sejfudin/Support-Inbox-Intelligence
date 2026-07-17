@@ -343,6 +343,15 @@
   box-shadow: var(--symphony-card-shadow);
 }
 
+/* Same shape as .symphony-card but a shade darker — for cards nested inside an
+   elevated container so they read as a distinct inner layer. */
+[data-surface='symphony'] .symphony-card-muted {
+  border-radius: var(--symphony-radius-lg);
+  border: 1px solid hsl(var(--symphony-border));
+  background: hsl(var(--symphony-surface));
+  box-shadow: var(--symphony-card-shadow);
+}
+
 [data-surface='symphony'] .symphony-brand-card,
 [data-surface='symphony'] .symphony-gradient-card {
   border-radius: var(--symphony-radius-lg);

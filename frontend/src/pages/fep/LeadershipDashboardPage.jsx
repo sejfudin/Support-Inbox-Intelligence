@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
+import { CohortSummaryBar } from '@/components/symphony/dashboard/CohortSummaryBar';
 import { PipelineCard } from '@/components/symphony/dashboard/PipelineCard';
 import { ProgrammeBreakdowns } from '@/components/symphony/dashboard/ProgrammeBreakdowns';
 import { ProgrammeKpiRow } from '@/components/symphony/dashboard/ProgrammeKpiRow';
@@ -26,18 +27,26 @@ export default function LeadershipDashboardPage() {
         </SymphonyCard>
       )}
 
-      <ProgrammeKpiRow
-        isPending={isPending}
-        stats={stats}
-        summary={summary}
-        funnel={stats?.funnel}
-      />
+      <div className="symphony-card space-y-4 p-4 sm:space-y-6 sm:p-7">
+        <CohortSummaryBar isPending={isPending} funnel={stats?.funnel} summary={summary} />
 
-      <PipelineCard
-        isPending={isPending}
-        activePipeline={stats?.activePipeline ?? []}
-        recommendationOutcomes={stats?.recommendationOutcomes}
-      />
+        <ProgrammeKpiRow
+          isPending={isPending}
+          stats={stats}
+          summary={summary}
+          funnel={stats?.funnel}
+        />
+      </div>
+
+      <div id="pipeline-card" className="scroll-mt-20">
+        <PipelineCard
+          isPending={isPending}
+          activePipeline={stats?.activePipeline ?? []}
+          activePipelineTotal={stats?.activePipelineTotal ?? 0}
+          summary={summary}
+          recommendationOutcomes={stats?.recommendationOutcomes}
+        />
+      </div>
 
       <TechnologySupply
         isPending={isPending}
