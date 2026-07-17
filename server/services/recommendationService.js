@@ -7,6 +7,7 @@ const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { isAssignedMentor } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
+const { emitInternDataChanged } = require('../socket/events');
 
 const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP, ROLES.MENTOR];
 
@@ -344,6 +345,7 @@ const createRecommendation = async (user, payload = {}) => {
   });
 
   await recommendation.populate(RECOMMENDATION_POPULATE);
+  emitInternDataChanged();
   return formatRecommendation(recommendation);
 };
 
@@ -446,6 +448,7 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   }
 
   await recommendation.populate(RECOMMENDATION_POPULATE);
+  emitInternDataChanged();
   return formatRecommendation(recommendation);
 };
 

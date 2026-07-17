@@ -33,11 +33,15 @@ export default function LeadershipDashboardPage() {
         funnel={stats?.funnel}
       />
 
-      <PipelineCard
-        isPending={isPending}
-        activePipeline={stats?.activePipeline ?? []}
-        recommendationOutcomes={stats?.recommendationOutcomes}
-      />
+      <div id="pipeline-card" className="scroll-mt-20">
+        <PipelineCard
+          isPending={isPending}
+          activePipeline={stats?.activePipeline ?? []}
+          activePipelineTotal={stats?.activePipelineTotal ?? 0}
+          summary={summary}
+          recommendationOutcomes={stats?.recommendationOutcomes}
+        />
+      </div>
 
       <TechnologySupply
         isPending={isPending}

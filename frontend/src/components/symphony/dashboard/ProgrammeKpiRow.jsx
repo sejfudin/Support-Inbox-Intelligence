@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { HelpCircle } from 'lucide-react';
+import { ChevronDown, HelpCircle } from 'lucide-react';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { IN_PIPELINE_STAGE } from '@/helpers/internProfile';
@@ -62,7 +62,7 @@ function PipelineFlow() {
   );
 }
 
-function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId }) {
+function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId, action }) {
   return (
     <SymphonyCard className="relative overflow-hidden p-0 transition-shadow hover:shadow-md">
       {highlighted && (
@@ -104,6 +104,20 @@ function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId }
           )}
         </div>
         {hint && <p className="mt-2.5 text-xs leading-snug text-muted-foreground">{hint}</p>}
+        {action && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              action.onClick();
+            }}
+            className="relative z-[2] mt-3 inline-flex items-center gap-0.5 text-xs font-semibold text-[hsl(var(--symphony-brand-strong))] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--symphony-brand))]/40 dark:text-[hsl(var(--symphony-brand))]"
+          >
+            {action.label}
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
     </SymphonyCard>
   );
@@ -111,39 +125,34 @@ function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId }
 
 export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = null }) {
   const dash = '—';
-  const ready = stats?.readyForPlacement ?? 0;
+  // Ready pool = interns on the bench NOT yet in the pipeline. Deducting the
+  // active-recommendation interns keeps the three cards mutually exclusive, so
+  // Ready + In pipeline + Placed reads as a clean funnel with no double-count.
+  const ready = summary?.readyWithoutActiveRecommendation ?? stats?.readyForPlacement ?? 0;
   const inPipeline = summary?.activeRecommendations ?? 0;
-  const interviewing = summary?.interviewingCount ?? 0;
-  const notInPipeline = summary?.readyWithoutActiveRecommendation ?? 0;
-  const recommended = Math.max(0, ready - notInPipeline);
-  const awaitingInterview = Math.max(0, inPipeline - interviewing);
   const placed = funnel?.placed ?? summary?.placedInterns ?? 0;
 
-  const pipelineHint = [
-    interviewing > 0 && `${interviewing} in a process of interviewing`,
-    awaitingInterview > 0 && `${awaitingInterview} recommended and awaiting an interview`,
-  ]
-    .filter(Boolean)
-    .join(', ');
+  const scrollToPipeline = () =>
+    document
+      .getElementById('pipeline-card')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const kpis = [
     {
-      label: 'Ready for a project',
+      label: 'Available for a project',
       value: isPending ? dash : ready,
-      sub: !isPending && recommended > 0 ? `${recommended} recommended` : null,
-      hint: 'Interns ready for a project',
+      hint: 'Ready and on the bench — not yet put forward or on a project',
       dot: '#726BFF',
       to: '/interns?status=ready',
       testId: 'programme-kpi-ready-link',
       info: (
         <>
-          A mentor has confirmed these interns have enough knowledge to take on a real project once
-          a position opens, so they can go to interviews.
+          A mentor has confirmed these interns are ready to take on a real project, and they are not
+          yet being pitched — free to be put forward as soon as a position opens.
           <span className="mt-2 block">
-            <span className="font-semibold text-foreground">Recommended</span> is the next step: a
-            mentor thinks the intern fits a specific open position and puts them forward for it.
-            Every recommended intern is still ready for a project; not every ready intern has been
-            recommended yet.
+            Interns in <span className="font-semibold text-foreground">In pipeline</span> are still
+            ready too; they are counted there instead of here so nobody is counted twice. A failed
+            interview brings an intern back to this count.
           </span>
         </>
       ),
@@ -151,15 +160,15 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
     {
       label: 'In pipeline',
       value: isPending ? dash : inPipeline,
-      sub: !isPending && interviewing > 0 ? `${interviewing} interviewing` : null,
-      hint: pipelineHint || 'In a process of interview or waiting interview results',
+      hint: 'Put forward for a role — recommended or interviewing',
       dot: '#5B7CFA',
       to: `/interns?status=${IN_PIPELINE_STAGE}`,
       testId: 'programme-kpi-pipeline-link',
+      action: { label: 'See details', onClick: scrollToPipeline },
       info: (
         <>
-          Interns being pitched to clients, either recommended or actively interviewing. They move
-          through:
+          Interns who are ready and now being pitched to clients — recommended or actively
+          interviewing. They move through:
           <PipelineFlow />
           <span className="mt-2 block">
             If an interview does not work out, the intern goes back to being ready and can be
@@ -171,11 +180,11 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
     {
       label: 'Placed on a project',
       value: isPending ? dash : placed,
-      hint: 'Successfully placed on the project',
+      hint: 'Interviews cleared — now staffed on a client project',
       dot: '#E88AA6',
       to: '/interns?status=placed',
       testId: 'programme-kpi-placed-link',
-      info: 'Candidates who cleared interviews and have been placed on a client project.',
+      info: 'Interns who cleared their interviews and are now staffed on a client project. This is the end of the pipeline.',
     },
   ];
 
