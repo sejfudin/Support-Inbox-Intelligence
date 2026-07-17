@@ -1,14 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { InternPanel } from '@/components/interns/InternPanel';
+import { SortControl } from '@/components/interns/SortControl';
 import { StatusTimeline } from '@/components/interns/StatusTimeline';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   scoreFillClass,
   scoreFillHsl,
@@ -17,10 +11,6 @@ import {
   scoreTrackHsl,
 } from '@/helpers/scoreBand';
 import { cn } from '@/lib/utils';
-
-// Radix Select forbids an empty-string item value, so the "Default" (no sort)
-// option uses this sentinel while the component still tracks sortKey as ''.
-const SORT_DEFAULT = 'default';
 
 const dataTestId = (title) =>
   String(title || 'history')
@@ -390,43 +380,14 @@ export function HistoryPanel({
 
         <div className="flex flex-wrap items-center gap-2">
           {sortOptions.length > 0 && (
-            <div className="flex h-10 items-center rounded-xl border border-input bg-background transition focus-within:border-ring">
-              <ArrowUpDown className="ml-3 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <Select
-                value={sortKey || SORT_DEFAULT}
-                onValueChange={(value) => handleSortKeyChange(value === SORT_DEFAULT ? '' : value)}
-              >
-                <SelectTrigger
-                  className="h-10 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus:ring-0 focus:ring-offset-0"
-                  data-test={`${dataTestId(title)}-sort`}
-                  aria-label="Sort by"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value={SORT_DEFAULT}>Sort: Default</SelectItem>
-                  {sortOptions.map((opt) => (
-                    <SelectItem key={opt.key} value={opt.key}>
-                      Sort: {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <button
-                type="button"
-                disabled={!sortKey}
-                onClick={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                className="grid h-10 w-9 place-items-center border-l border-input text-muted-foreground transition hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground"
-                aria-label={`Sort direction: ${sortDir === 'asc' ? 'ascending' : 'descending'}`}
-                title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
-              >
-                {sortDir === 'asc' ? (
-                  <ArrowUp className="h-4 w-4" />
-                ) : (
-                  <ArrowDown className="h-4 w-4" />
-                )}
-              </button>
-            </div>
+            <SortControl
+              sortKey={sortKey}
+              sortDir={sortDir}
+              options={sortOptions}
+              onSortKeyChange={handleSortKeyChange}
+              onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              dataTest={`${dataTestId(title)}-sort`}
+            />
           )}
           {canWrite && (
             <button

@@ -118,6 +118,15 @@ const recommendationSchema = new mongoose.Schema(
       default: 'recommended',
       index: true,
     },
+    // Authoritative date each stage was reached, editable by the author (the
+    // append-only History log stays as the audit trail and as a fallback for
+    // records created before this field existed). A reached-but-dateless
+    // interviewing stage on a resulted recommendation means it was skipped.
+    statusDates: {
+      recommended: { type: Date },
+      interviewing: { type: Date },
+      resulted: { type: Date },
+    },
     recommendationNote: {
       type: String,
       trim: true,

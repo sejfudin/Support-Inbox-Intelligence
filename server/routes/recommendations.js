@@ -8,6 +8,7 @@ const {
   getRecommendation,
   createRecommendation,
   updateRecommendation,
+  deleteRecommendation,
 } = require('../controllers/recommendations');
 
 router.get('/', protect, listRecommendations);
@@ -17,5 +18,6 @@ router.get('/', protect, listRecommendations);
 router.post('/', protect, requireRole(ROLES.ADMIN, ROLES.MENTOR), createRecommendation);
 router.get('/:id', protect, getRecommendation);
 router.patch('/:id', protect, requireRole(ROLES.ADMIN, ROLES.MENTOR), updateRecommendation);
+router.delete('/:id', protect, requireRole(ROLES.ADMIN, ROLES.MENTOR), deleteRecommendation);
 
 module.exports = router;

@@ -75,9 +75,7 @@ export function InternProfileHeader({
         <MetaField label="Hub" value={hub} />
         <MetaField label="Start date" value={startDate} />
         <MetaField label="Primary mentor" value={primaryMentor} />
-        {secondaryMentor ? (
-          <MetaField label="Secondary mentor" value={secondaryMentor} />
-        ) : null}
+        {secondaryMentor ? <MetaField label="Secondary mentor" value={secondaryMentor} /> : null}
       </dl>
     </header>
   );

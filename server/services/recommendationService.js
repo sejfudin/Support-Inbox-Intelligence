@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Recommendation = require('../models/Recommendation');
 const { RECOMMENDATION_STATUSES, RECOMMENDATION_RESULTS } = require('../models/Recommendation');
 const InternProfile = require('../models/InternProfile');
+const { READY_STATUS } = require('../models/InternProfile');
 const Technology = require('../models/Technology');
 const Position = require('../models/Position');
 const User = require('../models/User');
@@ -127,13 +128,21 @@ const formatRecommendation = (recommendation, statusDates = {}) => {
       decidedAt: plain.result?.decidedAt || null,
       decidedBy: formatUser(plain.result?.decidedBy),
     },
-    // Latest date each tracked status was applied, read from the append-only
-    // history log (not from the document, so it survives status changes).
-    statusDates: {
-      recommended: statusDates.recommended || null,
-      interviewing: statusDates.interviewing || null,
-      resulted: statusDates.resulted || null,
-    },
+    // Date each tracked status was applied. The document's own statusDates are
+    // authoritative (author-editable, support skipping interviewing); records
+    // created before that field existed fall back to the append-only history
+    // log. A document is "date-managed" once it has a recommended date.
+    statusDates: plain.statusDates?.recommended
+      ? {
+          recommended: plain.statusDates.recommended,
+          interviewing: plain.statusDates.interviewing || null,
+          resulted: plain.statusDates.resulted || null,
+        }
+      : {
+          recommended: statusDates.recommended || null,
+          interviewing: statusDates.interviewing || null,
+          resulted: statusDates.resulted || null,
+        },
   };
 };
 
@@ -256,6 +265,75 @@ const assertValidOutcome = (outcome) => {
   if (outcome !== undefined && !RECOMMENDATION_RESULTS.includes(outcome)) {
     throw createError('Invalid recommendation result', 400);
   }
+};
+
+/**
+ * Resolve the per-stage dates after a create/update. Rules:
+ * - Only stages up to the current status hold a date; later stages are cleared.
+ * - A stage the caller dates explicitly keeps that date (author-editable).
+ * - A newly reached stage with no explicit date defaults to now — except
+ *   interviewing when the recommendation is already resulted (jumping straight
+ *   from recommended to resulted skips interviewing).
+ * - An explicit `null` for interviewing on a resulted recommendation marks the
+ *   stage as skipped; recommended and resulted can never be skipped.
+ */
+const applyStatusDates = (recommendation, payloadDates) => {
+  if (payloadDates !== undefined && (typeof payloadDates !== 'object' || payloadDates === null)) {
+    throw createError('Status dates must be an object', 400);
+  }
+
+  const currentIndex = RECOMMENDATION_STATUSES.indexOf(recommendation.status);
+  const next = {};
+
+  RECOMMENDATION_STATUSES.forEach((statusKey, index) => {
+    if (index > currentIndex) return; // unreached stages carry no date
+
+    const provided =
+      payloadDates && Object.prototype.hasOwnProperty.call(payloadDates, statusKey)
+        ? payloadDates[statusKey]
+        : undefined;
+
+    if (provided === null) {
+      if (statusKey !== 'interviewing' || recommendation.status !== 'resulted') {
+        throw createError(
+          'Only the interviewing stage of a resulted recommendation can be skipped',
+          400
+        );
+      }
+      return; // skipped — no date
+    }
+
+    if (provided !== undefined) {
+      next[statusKey] = parseDate(provided, `${statusKey} date`);
+      return;
+    }
+
+    const existing = recommendation.statusDates?.[statusKey];
+    if (existing) {
+      next[statusKey] = existing;
+      return;
+    }
+
+    // Newly reached, no explicit date. Interviewing stays skipped when the
+    // recommendation jumped straight to resulted.
+    if (statusKey === 'interviewing' && recommendation.status === 'resulted') return;
+    next[statusKey] = new Date();
+  });
+
+  // Stage dates must not run backwards (recommended ≤ interviewing ≤ resulted).
+  if (next.interviewing && next.recommended && next.interviewing < next.recommended) {
+    throw createError('Interviewing date cannot be before the recommended date', 400);
+  }
+  if (next.resulted) {
+    if (next.interviewing && next.resulted < next.interviewing) {
+      throw createError('Resulted date cannot be before the interviewing date', 400);
+    }
+    if (next.recommended && next.resulted < next.recommended) {
+      throw createError('Resulted date cannot be before the recommended date', 400);
+    }
+  }
+
+  recommendation.statusDates = next;
 };
 
 const loadInternProfileByUserId = async (internUserId) => {
@@ -404,6 +482,11 @@ const createRecommendation = async (user, payload = {}) => {
   assertRecommendationWriteAccess(user, profile);
 
   assertValidStatus(payload.status);
+  // The timeline only moves forward from Recommended — later stages are set by
+  // updating the recommendation, so each milestone gets a date.
+  if (payload.status !== undefined && payload.status !== 'recommended') {
+    throw createError('A new recommendation must start as Recommended', 400);
+  }
   const position = await ensurePositionId(payload.positionId);
   const project = ensureProject(payload.project);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
@@ -416,9 +499,13 @@ const createRecommendation = async (user, payload = {}) => {
     position,
     project,
     technologies,
-    status: payload.status || 'recommended',
+    status: 'recommended',
     recommendationNote: cleanText(payload.recommendationNote),
     interviews,
+    statusDates: {
+      // Defaults to today; the author may backdate it at creation.
+      recommended: parseDate(payload.statusDates?.recommended, 'recommended date') || new Date(),
+    },
   });
 
   // Append the initial status to the history log (append-only trail).
@@ -487,6 +574,13 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
 
   if (payload.status !== undefined) {
     assertValidStatus(payload.status);
+    // The timeline only moves forward — completed stages can't be re-selected.
+    if (
+      RECOMMENDATION_STATUSES.indexOf(payload.status) <
+      RECOMMENDATION_STATUSES.indexOf(recommendation.status)
+    ) {
+      throw createError('Recommendation status can only move forward', 400);
+    }
     recommendation.status = payload.status;
   }
 
@@ -499,14 +593,35 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   }
 
   applyResultPayload(recommendation, payload.result, user);
+
+  // Records created before statusDates existed on the document: seed from the
+  // history log so editing them doesn't reset their historical dates to today.
+  if (!recommendation.statusDates?.recommended) {
+    const historyDates = await historyService.getLatestStatusDates(
+      'recommendation',
+      recommendation._id
+    );
+    recommendation.statusDates = {
+      recommended: historyDates.recommended || recommendation.createdAt,
+      interviewing: historyDates.interviewing,
+      resulted: historyDates.resulted,
+    };
+  }
+
+  applyStatusDates(recommendation, payload.statusDates);
   recommendation.updatedBy = user._id;
 
   await recommendation.save();
 
-  const isPlaced = recommendation.result?.outcome === 'placed';
-
-  if (isPlaced) {
+  // Keep the intern's placement status in sync with the outcome: "placed"
+  // marks the profile placed; "not placed" puts the intern back on the bench
+  // (ready for a new placement). Terminal statuses are never touched.
+  const outcome = recommendation.result?.outcome;
+  if (outcome === 'placed' && profile.status !== 'placed') {
     profile.status = 'placed';
+    await profile.save();
+  } else if (outcome === 'not_placed' && ['active', 'placed'].includes(profile.status)) {
+    profile.status = READY_STATUS;
     await profile.save();
   }
 
@@ -528,9 +643,46 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   return formatRecommendation(recommendation, statusDates);
 };
 
+const deleteRecommendation = async (user, recommendationId) => {
+  assertValidObjectId(recommendationId, 'Recommendation');
+  const recommendation = await Recommendation.findById(recommendationId);
+  if (!recommendation) throw createError('Recommendation not found', 404);
+
+  const profile = await InternProfile.findById(recommendation.internProfile);
+  if (!profile) throw createError('Intern profile not found', 404);
+
+  // Same rule as writes: admins always, mentors only for their assigned interns.
+  assertRecommendationWriteAccess(user, profile);
+
+  await Recommendation.deleteOne({ _id: recommendation._id });
+  // Remove the recommendation's status trail too — it has no other consumer.
+  await historyService.deleteEntityHistory('recommendation', recommendation._id);
+
+  // The intern's placement state follows the MOST RECENT recommendation, so
+  // recompute it from the newest remaining record: a Placed outcome keeps the
+  // intern placed, anything else (no outcome, not placed, or no recommendation
+  // left at all) returns them to the bench as ready. Manual lifecycle states
+  // (active/completed/discontinued) are never touched here.
+  if (['placed', READY_STATUS].includes(profile.status)) {
+    const latest = await Recommendation.findOne({ internProfile: profile._id })
+      .sort({ updatedAt: -1 })
+      .select('result.outcome')
+      .lean();
+    const nextStatus = latest?.result?.outcome === 'placed' ? 'placed' : READY_STATUS;
+    if (profile.status !== nextStatus) {
+      profile.status = nextStatus;
+      await profile.save();
+    }
+  }
+
+  // Enough shape for the frontend cache invalidation (id + intern user id).
+  return { _id: recommendation._id, internProfile: { user: profile.user } };
+};
+
 module.exports = {
   listRecommendations,
   getRecommendation,
   createRecommendation,
   updateRecommendation,
+  deleteRecommendation,
 };

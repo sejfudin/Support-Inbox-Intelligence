@@ -85,6 +85,13 @@ const getEntityHistory = async (entityType, entityId) =>
   History.find({ entityType, entityId }).sort({ timestamp: -1 }).lean();
 
 /**
+ * Remove an entity's entire log — for when the entity itself is deleted and
+ * its trail has no other consumer (e.g. deleting a recommendation).
+ */
+const deleteEntityHistory = async (entityType, entityId) =>
+  History.deleteMany({ entityType, entityId });
+
+/**
  * Latest timestamp per statusKey for one entity — the source of the "date this
  * status was applied" columns/labels. Returns { [statusKey]: Date }.
  * Because the log is append-only and we take the max timestamp, re-entering a
@@ -131,6 +138,7 @@ module.exports = {
   logSystemEvent,
   logEntityEvent,
   getEntityHistory,
+  deleteEntityHistory,
   getLatestStatusDates,
   getLatestStatusDatesForEntities,
 };
