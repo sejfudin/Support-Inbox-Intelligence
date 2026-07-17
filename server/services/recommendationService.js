@@ -374,6 +374,37 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
   }
 };
 
+const ACTIVE_PIPELINE_STATUSES = ['recommended', 'interviewing'];
+
+// A placed intern is out of the pipeline: any of their still-open
+// recommendations are moot, so resolve them as not_placed with an
+// explanatory note. Idempotent — interns with no open recommendations
+// are untouched.
+const closeActiveRecommendationsForIntern = async (
+  internProfileId,
+  user,
+  { excludeRecommendationId = null } = {}
+) => {
+  const filter = {
+    internProfile: internProfileId,
+    status: { $in: ACTIVE_PIPELINE_STATUSES },
+  };
+  if (excludeRecommendationId) filter._id = { $ne: excludeRecommendationId };
+
+  await Recommendation.updateMany(filter, {
+    $set: {
+      status: 'resulted',
+      result: {
+        outcome: 'not_placed',
+        note: 'Closed automatically because the intern was placed.',
+        decidedAt: new Date(),
+        decidedBy: user._id,
+      },
+      updatedBy: user._id,
+    },
+  });
+};
+
 const updateRecommendation = async (user, recommendationId, payload = {}) => {
   assertValidObjectId(recommendationId, 'Recommendation');
   const recommendation = await Recommendation.findById(recommendationId);
@@ -409,6 +440,9 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   if (recommendation.result?.outcome === 'placed') {
     profile.status = 'placed';
     await profile.save();
+    await closeActiveRecommendationsForIntern(profile._id, user, {
+      excludeRecommendationId: recommendation._id,
+    });
   }
 
   await recommendation.populate(RECOMMENDATION_POPULATE);
@@ -420,4 +454,5 @@ module.exports = {
   getRecommendation,
   createRecommendation,
   updateRecommendation,
+  closeActiveRecommendationsForIntern,
 };

@@ -17,7 +17,8 @@
     "seed:test": "node seeder/seedTestingData.js",
     "seed:positions": "node seeder/seedPositions.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
-    "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js"
+    "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
+    "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",

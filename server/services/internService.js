@@ -19,6 +19,7 @@ const {
 } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
 const { createInternProfile } = require('./internProfileService');
+const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 
 const PROFILE_POPULATE = [
   {
@@ -243,6 +244,13 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   }
 
   await profile.save();
+
+  // Placement ends the intern's pipeline run — close any recommendations left
+  // open so they stop counting toward "In pipeline".
+  if (payload.status === 'placed') {
+    await closeActiveRecommendationsForIntern(profile._id, user);
+  }
+
   return getInternByUserId(user, internUserId);
 };
 
@@ -737,7 +745,14 @@ const getProgrammeStats = async (user) => {
     return acc;
   }, {});
 
-  const readyProfileIdsWithActiveRec = new Set(Object.keys(activeRecByProfile));
+  const profileIdsWithActiveRec = new Set(Object.keys(activeRecByProfile));
+
+  const interviewingProfileIds = new Set(
+    allActiveRecommendations
+      .filter((recommendation) => recommendation.status === 'interviewing')
+      .map((recommendation) => recommendation.internProfile?.toString())
+      .filter(Boolean)
+  );
 
   const readyBench = readyProfiles
     .map((profile) => {
@@ -908,10 +923,12 @@ const getProgrammeStats = async (user) => {
       activeInterns: funnel.active + funnel.ready,
       placedInterns: funnel.placed,
       technologiesWithReadySupply,
-      activeRecommendations: recommendationFunnel.recommended + recommendationFunnel.interviewing,
-      interviewingCount: recommendationFunnel.interviewing,
+      // Distinct interns, not recommendation documents — an intern recommended
+      // to several projects at once still counts as one person in the pipeline.
+      activeRecommendations: profileIdsWithActiveRec.size,
+      interviewingCount: interviewingProfileIds.size,
       readyWithoutActiveRecommendation: readyProfiles.filter(
-        (profile) => !readyProfileIdsWithActiveRec.has(profile._id.toString())
+        (profile) => !profileIdsWithActiveRec.has(profile._id.toString())
       ).length,
     },
   };
