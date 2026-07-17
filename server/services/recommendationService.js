@@ -546,6 +546,40 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
   }
 };
 
+const ACTIVE_PIPELINE_STATUSES = ['recommended', 'interviewing'];
+
+// A placed intern is out of the pipeline: any of their still-open
+// recommendations are moot, so resolve them as not_placed with an
+// explanatory note. Idempotent — interns with no open recommendations
+// are untouched.
+const closeActiveRecommendationsForIntern = async (
+  internProfileId,
+  user,
+  { excludeRecommendationId = null } = {}
+) => {
+  const filter = {
+    internProfile: internProfileId,
+    status: { $in: ACTIVE_PIPELINE_STATUSES },
+  };
+  if (excludeRecommendationId) filter._id = { $ne: excludeRecommendationId };
+
+  await Recommendation.updateMany(filter, {
+    $set: {
+      status: 'resulted',
+      // Stamp the stage date so the auto-close shows on the status timeline
+      // like any other resulted recommendation.
+      'statusDates.resulted': new Date(),
+      result: {
+        outcome: 'not_placed',
+        note: 'Closed automatically because the intern was placed.',
+        decidedAt: new Date(),
+        decidedBy: user._id,
+      },
+      updatedBy: user._id,
+    },
+  });
+};
+
 const updateRecommendation = async (user, recommendationId, payload = {}) => {
   assertValidObjectId(recommendationId, 'Recommendation');
   const recommendation = await Recommendation.findById(recommendationId);
@@ -617,9 +651,16 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   // marks the profile placed; "not placed" puts the intern back on the bench
   // (ready for a new placement). Terminal statuses are never touched.
   const outcome = recommendation.result?.outcome;
-  if (outcome === 'placed' && profile.status !== 'placed') {
-    profile.status = 'placed';
-    await profile.save();
+  if (outcome === 'placed') {
+    if (profile.status !== 'placed') {
+      profile.status = 'placed';
+      await profile.save();
+    }
+    // A placed intern is out of the pipeline — resolve their other still-open
+    // recommendations as not_placed (idempotent).
+    await closeActiveRecommendationsForIntern(profile._id, user, {
+      excludeRecommendationId: recommendation._id,
+    });
   } else if (outcome === 'not_placed' && ['active', 'placed'].includes(profile.status)) {
     profile.status = READY_STATUS;
     await profile.save();
@@ -685,4 +726,5 @@ module.exports = {
   createRecommendation,
   updateRecommendation,
   deleteRecommendation,
+  closeActiveRecommendationsForIntern,
 };

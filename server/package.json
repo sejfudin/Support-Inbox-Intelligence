@@ -7,7 +7,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "dev": "nodemon index.js",
     "start": "node index.js",
     "build": "node -e \"console.log('server: no compile step');\"",
@@ -18,7 +18,8 @@
     "seed:positions": "node seeder/seedPositions.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
-    "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js"
+    "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
+    "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "eslint": "^9.39.1",
+    "jest": "^30.4.2",
     "prettier": "^3.5.0"
   }
 }

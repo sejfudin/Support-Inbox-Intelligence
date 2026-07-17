@@ -1,6 +1,8 @@
 import { cloneElement, isValidElement } from 'react';
 import { Pencil } from 'lucide-react';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { getInitials } from '@/helpers/getInitials';
+import { badgeTone } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
 
 function MetaField({ label, value, className }) {
@@ -19,6 +21,7 @@ export function InternProfileHeader({
   fullname,
   email,
   status,
+  declaredPosition,
   programme,
   hub,
   startDate,
@@ -44,39 +47,59 @@ export function InternProfileHeader({
       : titleAdornment;
 
   return (
-    <header className={cn('app-panel overflow-hidden', className)}>
-      <div className="px-5 py-5 md:px-6 md:py-6">
-        {backButton ? <div className="mb-4">{backButton}</div> : null}
+    <div className="space-y-4">
+      {backButton ? <div className="px-5 md:px-6">{backButton}</div> : null}
 
-        {kicker ? <p className="app-kicker mb-2">{kicker}</p> : null}
+      <header className={cn('app-panel overflow-hidden', className)}>
+        <div className="px-5 py-5 md:px-6 md:py-6">
+          {kicker ? <p className="app-kicker mb-2">{kicker}</p> : null}
 
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="app-title break-words">{fullname || 'Intern'}</h1>
-              {editAction}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-foreground text-lg font-bold text-background"
+                aria-hidden="true"
+              >
+                {getInitials(fullname || '')}
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="app-title break-words">{fullname || 'Intern'}</h1>
+                  {declaredPosition ? (
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+                        badgeTone('indigo')
+                      )}
+                    >
+                      {declaredPosition}
+                    </span>
+                  ) : null}
+                  {editAction}
+                </div>
+                {email ? <p className="app-subtitle mt-1">{email}</p> : null}
+              </div>
             </div>
-            {email ? <p className="app-subtitle mt-1">{email}</p> : null}
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {status ? <SymphonyStatusBadge status={status} /> : null}
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {status ? <SymphonyStatusBadge status={status} /> : null}
+            </div>
           </div>
         </div>
-      </div>
 
-      <dl
-        className={cn(
-          'grid grid-cols-2 gap-4 border-t border-border/60 bg-muted/20 px-5 py-4 md:grid-cols-4 md:px-6',
-          secondaryMentor && 'md:grid-cols-5'
-        )}
-      >
-        <MetaField label="Programme" value={programme} />
-        <MetaField label="Hub" value={hub} />
-        <MetaField label="Start date" value={startDate} />
-        <MetaField label="Primary mentor" value={primaryMentor} />
-        {secondaryMentor ? <MetaField label="Secondary mentor" value={secondaryMentor} /> : null}
-      </dl>
-    </header>
+        <dl
+          className={cn(
+            'grid grid-cols-2 gap-4 border-t border-border/60 bg-muted/20 px-5 py-4 md:grid-cols-4 md:px-6',
+            secondaryMentor && 'md:grid-cols-5'
+          )}
+        >
+          <MetaField label="Programme" value={programme} />
+          <MetaField label="Hub" value={hub} />
+          <MetaField label="Start date" value={startDate} />
+          <MetaField label="Primary mentor" value={primaryMentor} />
+          {secondaryMentor ? <MetaField label="Secondary mentor" value={secondaryMentor} /> : null}
+        </dl>
+      </header>
+    </div>
   );
 }

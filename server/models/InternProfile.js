@@ -72,6 +72,14 @@ const internProfileSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Mentor/admin-added CV link (e.g. Google Drive). Separate from the intern's
+    // own uploaded CV (cvPath) and never exposed to the intern.
+    internalCvUrl: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 2000,
+    },
     documentationLinks: {
       type: [documentationLinkSchema],
       default: [],

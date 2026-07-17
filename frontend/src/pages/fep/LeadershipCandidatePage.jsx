@@ -35,7 +35,7 @@ export default function LeadershipCandidatePage() {
     CANDIDATE_TABS.includes(tabParam) ? tabParam : 'overview'
   );
   const { data: intern, isPending, isError } = useIntern(userId);
-  const canEditDocumentation = canManageInternDocumentationLinks(user?.role);
+  const canEditDocumentation = canManageInternDocumentationLinks(user, intern);
 
   useEffect(() => {
     if (CANDIDATE_TABS.includes(tabParam)) {
@@ -92,6 +92,7 @@ export default function LeadershipCandidatePage() {
             />
             <StatTile label="Primary mentor" value={intern.primaryMentor?.fullname || '—'} />
             <StatTile label="Secondary mentor" value={intern.secondaryMentor?.fullname || '—'} />
+            <StatTile label="Declared position" value={intern.declaredPosition?.name || '—'} />
             <StatTile
               label="Expected end"
               value={
@@ -129,7 +130,7 @@ export default function LeadershipCandidatePage() {
               intern={intern}
               userId={userId}
               canEditDocumentation={canEditDocumentation}
-              programmeMode="none"
+              canEditInternalCv={false}
             />
           </SymphonyCard>
         </TabsContent>

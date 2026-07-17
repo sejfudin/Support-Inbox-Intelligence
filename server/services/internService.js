@@ -19,6 +19,7 @@ const {
 } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
 const { createInternProfile } = require('./internProfileService');
+const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 
 const PROFILE_POPULATE = [
   {
@@ -41,13 +42,17 @@ const PROFILE_POPULATE = [
   { path: 'declaredPosition', select: 'name slug' },
 ];
 
-const formatProfile = (profile) => {
+const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
+  const { internalCvUrl, ...rest } = plain;
+  const canSeeInternalCv =
+    Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
 
   return {
-    ...plain,
+    ...rest,
     id: plain._id,
     cvUrl: buildCvUrl(plain.cvPath),
+    ...(canSeeInternalCv ? { internalCvUrl: internalCvUrl || null } : {}),
   };
 };
 
@@ -102,6 +107,13 @@ const listInterns = async (user, query = {}) => {
 
   const fullFilter = { user: { $in: internUserIds }, ...profileFilter };
 
+  if (query.inPipeline === 'true') {
+    const pipelineProfileIds = await Recommendation.distinct('internProfile', {
+      status: { $in: ACTIVE_PIPELINE_STATUSES },
+    });
+    fullFilter._id = { $in: pipelineProfileIds };
+  }
+
   const [profiles, total] = await Promise.all([
     InternProfile.find(fullFilter)
       .populate(PROFILE_POPULATE)
@@ -112,7 +124,7 @@ const listInterns = async (user, query = {}) => {
   ]);
 
   return {
-    interns: profiles.map((p) => formatProfile(p)),
+    interns: profiles.map((p) => formatProfile(p, user)),
     pagination: {
       page,
       limit,
@@ -143,7 +155,7 @@ const getInternByUserId = async (user, internUserId) => {
     throw err;
   }
 
-  return formatProfile(profile);
+  return formatProfile(profile, user);
 };
 
 const getMyInternProfile = async (user) => {
@@ -232,6 +244,13 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   }
 
   await profile.save();
+
+  // Placement ends the intern's pipeline run — close any recommendations left
+  // open so they stop counting toward "In pipeline".
+  if (payload.status === 'placed') {
+    await closeActiveRecommendationsForIntern(profile._id, user);
+  }
+
   return getInternByUserId(user, internUserId);
 };
 
@@ -277,7 +296,7 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
   const profile = await InternProfile.findOne({ user: internUserId });
   if (!profile) throw new Error('Intern profile not found');
 
-  if (!canManageDocumentationLinks(user)) {
+  if (!canManageDocumentationLinks(user, profile)) {
     const err = new Error('Not authorized to manage documentation links');
     err.statusCode = 403;
     throw err;
@@ -291,7 +310,29 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
 
   profile.documentationLinks = validateDocumentationLinks(links);
   await profile.save();
-  return getInternByUserId(user, internUserId);
+  await profile.populate(PROFILE_POPULATE);
+  return formatProfile(profile, user);
+};
+
+const updateInternalCvLink = async (user, internUserId, url) => {
+  const profile = await InternProfile.findOne({ user: internUserId });
+  if (!profile) throw new Error('Intern profile not found');
+
+  if (!canWriteMentorData(user, profile)) {
+    const err = new Error('Not authorized to modify this intern');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const trimmed = String(url || '').trim();
+  if (trimmed && !isValidDocumentationUrl(trimmed)) {
+    throw new Error('Internal CV must use an http or https URL');
+  }
+
+  profile.internalCvUrl = trimmed || null;
+  await profile.save();
+  await profile.populate(PROFILE_POPULATE);
+  return formatProfile(profile, user);
 };
 
 const URGENCY_WINDOW_DAYS = 60;
@@ -704,7 +745,14 @@ const getProgrammeStats = async (user) => {
     return acc;
   }, {});
 
-  const readyProfileIdsWithActiveRec = new Set(Object.keys(activeRecByProfile));
+  const profileIdsWithActiveRec = new Set(Object.keys(activeRecByProfile));
+
+  const interviewingProfileIds = new Set(
+    allActiveRecommendations
+      .filter((recommendation) => recommendation.status === 'interviewing')
+      .map((recommendation) => recommendation.internProfile?.toString())
+      .filter(Boolean)
+  );
 
   const readyBench = readyProfiles
     .map((profile) => {
@@ -875,10 +923,12 @@ const getProgrammeStats = async (user) => {
       activeInterns: funnel.active + funnel.ready,
       placedInterns: funnel.placed,
       technologiesWithReadySupply,
-      activeRecommendations: recommendationFunnel.recommended + recommendationFunnel.interviewing,
-      interviewingCount: recommendationFunnel.interviewing,
+      // Distinct interns, not recommendation documents — an intern recommended
+      // to several projects at once still counts as one person in the pipeline.
+      activeRecommendations: profileIdsWithActiveRec.size,
+      interviewingCount: interviewingProfileIds.size,
       readyWithoutActiveRecommendation: readyProfiles.filter(
-        (profile) => !readyProfileIdsWithActiveRec.has(profile._id.toString())
+        (profile) => !profileIdsWithActiveRec.has(profile._id.toString())
       ).length,
     },
   };
@@ -892,6 +942,7 @@ module.exports = {
   updateSelfPosition,
   updateInternProgramme,
   updateDocumentationLinks,
+  updateInternalCvLink,
   createInternProfile,
   getProgrammeStats,
 };

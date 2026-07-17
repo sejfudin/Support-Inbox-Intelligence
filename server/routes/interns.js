@@ -11,6 +11,7 @@ const {
   updateMyPosition,
   updateIntern,
   updateDocumentationLinks,
+  updateInternalCv,
   uploadMyCv,
   deleteMyCv,
   listComments,
@@ -37,6 +38,7 @@ router.get('/stats', protect, getProgrammeStats);
 router.get('/:userId', protect, getIntern);
 router.patch('/:userId', protect, updateIntern);
 router.put('/:userId/documentation-links', protect, updateDocumentationLinks);
+router.put('/:userId/internal-cv', protect, updateInternalCv);
 
 router.get('/:userId/comments', protect, listComments);
 router.post('/:userId/comments', protect, createComment);

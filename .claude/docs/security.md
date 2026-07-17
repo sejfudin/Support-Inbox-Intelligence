@@ -21,6 +21,17 @@ caller's workspace.
   404 if absent, then compare `resource.workspace.toString()` to the resolved workspace id and
   reject on mismatch.
 
+## Workspace lifecycle roles
+
+- **Create** (`POST /api/workspaces`): platform `admin` or `mentor`. The creator becomes the
+  workspace owner and an active workspace-`admin` member, and their active workspace switches
+  to the new one.
+- **Delete** (`DELETE /api/workspaces/:id`): platform `admin` (any workspace), or `mentor` who
+  owns / is workspace-admin of that workspace — enforced by `requireRole(ADMIN, MENTOR)` +
+  `requireWorkspaceManager` chained. Other workspace-admin members (e.g. interns) cannot delete.
+- **List all** (`GET /api/workspaces/all`): platform `admin` only. Mentors have no global
+  workspace surface — they only see workspaces they belong to.
+
 ## Intern access
 
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
@@ -35,7 +46,23 @@ they mentor. Delete performs the same write check before removing the record and
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.
-- `requireWorkspaceManager.js` — gate for per-workspace management actions (workspace `admin` role).
+- `requireWorkspaceManager.js` — gate for per-workspace management actions (workspace `admin`
+  role / owner). Exports:
+  - `requireWorkspaceManager` — default guard. Resolves the workspace from
+    `params.workspaceId` / `params.id` / body / query / the caller's active workspace.
+    **Only use it when `:id` in the route IS a workspace id.**
+  - `workspaceManagerGuard(resolveWorkspaceId)` — factory for routes whose `:id` is a
+    resource id (categories, ticket statuses): pass an async resolver that loads the resource
+    and returns its `workspace`; throw an error with `statusCode: 404` if the resource is gone.
+  - On success the guard stashes the authorized id on `req.managedWorkspaceId` (non-admins
+    only). **Controllers on guarded routes must write to `req.managedWorkspaceId`** — never
+    re-resolve from body/user — so the write target can't drift from what was authorized.
+    A non-admin may pass `workspaceId` in body/query only because the guard verifies they
+    manage that exact workspace first.
+- `GET /api/workspaces/:id` is scoped in `workspaceService.getWorkspaceById(id, caller)`:
+  active members only; **only platform admins bypass** (not mentors — `hasWorkspaceAccess`'s
+  mentor bypass is deliberately not used here). The payload includes member emails and pending
+  invitations, so it must not be readable cross-tenant.
 - `role` (file, exports `requireRole(...allowedRoles)`) — platform-role guard; 403s if
   `req.user.role` is not in the allowed list. Import `ROLES` and pass them:
   ```js

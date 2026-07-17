@@ -14,6 +14,7 @@ import {
   fetchMyInternReadiness,
   updateIntern,
   updateInternDocumentationLinks,
+  updateInternalCvLink,
   updateMyTechnologies,
   updateMyPosition,
   uploadMyCv,
@@ -127,6 +128,16 @@ export const useUpdateInternDocumentationLinks = () => {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: internDetailKey(userId) });
       queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateInternalCvLink = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, url }) => updateInternalCvLink(userId, url),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: internDetailKey(userId) });
     },
   });
 };

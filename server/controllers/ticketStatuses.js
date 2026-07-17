@@ -27,6 +27,9 @@ const assertStatusInWorkspace = async (statusId, workspaceId) => {
 };
 
 const resolveWorkspaceId = (req) => {
+  // Guarded routes stash the authorized workspace on req.managedWorkspaceId
+  // (non-admins only) — always prefer it so the write target matches the check.
+  if (req.managedWorkspaceId) return req.managedWorkspaceId;
   const isAdmin = req.user?.role === 'admin';
   return isAdmin && req.query.workspaceId
     ? req.query.workspaceId
