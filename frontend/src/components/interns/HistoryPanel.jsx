@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { InternPanel } from '@/components/interns/InternPanel';
+import { SortControl } from '@/components/interns/SortControl';
 import {
   scoreFillClass,
   scoreFillHsl,
@@ -278,6 +279,17 @@ export function HistoryPanel({
   const [sortKey, setSortKey] = useState('');
   const [sortDir, setSortDir] = useState('desc');
 
+  // A given sort key is numeric (dates/scores) or text (names/labels). Numeric
+  // fields default to descending (newest/highest first); text fields default to
+  // ascending (A→Z). This keeps the direction meaning consistent across
+  // sections instead of "desc" meaning newest-first for dates but Z→A for names.
+  const isNumericKey = (key) => cards.some((card) => typeof card.sortVals?.[key] === 'number');
+
+  const handleSortKeyChange = (key) => {
+    setSortKey(key);
+    if (key) setSortDir(isNumericKey(key) ? 'desc' : 'asc');
+  };
+
   const sortedCards = useMemo(() => {
     if (!sortKey) return cards;
     const factor = sortDir === 'asc' ? 1 : -1;
@@ -299,40 +311,14 @@ export function HistoryPanel({
 
         <div className="flex flex-wrap items-center gap-2">
           {sortOptions.length > 0 && (
-            <div className="flex h-10 items-center rounded-xl border border-input bg-background transition focus-within:border-ring">
-              <ArrowUpDown className="ml-3 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <div className="relative">
-                <select
-                  value={sortKey}
-                  onChange={(event) => setSortKey(event.target.value)}
-                  className="h-10 cursor-pointer appearance-none bg-transparent py-0 pl-2 pr-8 text-sm font-medium text-foreground outline-none"
-                  data-test={`${dataTestId(title)}-sort`}
-                  aria-label="Sort by"
-                >
-                  <option value="">Sort: Default</option>
-                  {sortOptions.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
-                      Sort: {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              </div>
-              <button
-                type="button"
-                disabled={!sortKey}
-                onClick={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                className="grid h-10 w-9 place-items-center border-l border-input text-muted-foreground transition hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground"
-                aria-label={`Sort direction: ${sortDir === 'asc' ? 'ascending' : 'descending'}`}
-                title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
-              >
-                {sortDir === 'asc' ? (
-                  <ArrowUp className="h-4 w-4" />
-                ) : (
-                  <ArrowDown className="h-4 w-4" />
-                )}
-              </button>
-            </div>
+            <SortControl
+              sortKey={sortKey}
+              sortDir={sortDir}
+              options={sortOptions}
+              onSortKeyChange={handleSortKeyChange}
+              onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              dataTest={`${dataTestId(title)}-sort`}
+            />
           )}
           {canWrite && (
             <button

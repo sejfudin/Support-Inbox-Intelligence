@@ -1,119 +1,122 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { AutoTextarea } from '@/components/ui/auto-textarea';
-import { HistoryPanel } from '@/components/interns/HistoryPanel';
-import { Chips, DetailModal, DetailText, TAG_TONE } from '@/components/interns/DetailModal';
+import { SortControl } from '@/components/interns/SortControl';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
-import { ROLES } from '@/helpers/roles';
-import {
-  getRecommendationResultLabel,
-  getRecommendationStatusLabel,
-  RECOMMENDATION_RESULTS,
-  RECOMMENDATION_STATUSES,
-} from '@/helpers/recommendations';
+import { canWriteInternMentorData } from '@/helpers/roles';
+import { getRecommendationStatusLabel, RECOMMENDATION_STATUSES } from '@/helpers/recommendations';
+import { usePositions } from '@/queries/positions';
 import { useTechnologies } from '@/queries/technologies';
 import {
   useCreateRecommendation,
+  useDeleteRecommendation,
   useRecommendations,
   useUpdateRecommendation,
 } from '@/queries/recommendations';
+import {
+  RecommendationCard,
+  RecommendationCompactRow,
+} from '@/components/interns/recommendations/RecommendationCards';
+import {
+  RecommendationDeleteDialog,
+  RecommendationFormModal,
+  RecommendationViewModal,
+} from '@/components/interns/recommendations/RecommendationModals';
+import {
+  buildTimelineSteps,
+  REC_FONT,
+} from '@/components/interns/recommendations/recommendationUi';
+
+// Detailed / Compact list rendering, persisted so it survives reloads.
+const VIEW_MODE_STORAGE_KEY = 'recommendations-view-mode';
+
+const SORT_OPTIONS = [
+  { key: 'updated', label: 'Updated' },
+  { key: 'status', label: 'Status' },
+  { key: 'position', label: 'Position' },
+];
+
+// Keys whose values are numeric (dates) — these default to descending (newest
+// first); text keys default to ascending (A→Z), same as the other sections.
+const NUMERIC_SORT_KEYS = ['updated'];
+
+const todayInputDate = () => format(new Date(), 'yyyy-MM-dd');
+
+const toInputDate = (date) => (date ? format(new Date(date), 'yyyy-MM-dd') : '');
 
 const createEmptyForm = () => ({
+  positionId: '',
+  project: '',
   technologyIds: [],
   recommendationNote: '',
-  status: 'draft',
+  status: 'recommended',
   resultOutcome: 'none',
   resultNote: '',
+  statusDates: { recommended: todayInputDate(), interviewing: '', resulted: '' },
+  interviewingSkipped: false,
 });
 
-const formatDate = (date) => {
-  if (!date) return 'No date';
-  return format(new Date(date), 'MMM d, yyyy');
+const formFromRecommendation = (recommendation) => {
+  const dates = recommendation.statusDates || {};
+  const status = recommendation.status || 'recommended';
+  // Same fallback the card uses: a reached current stage with no recorded date
+  // (records that predate stored status dates) shows the record's updatedAt —
+  // without this the edit form rendered an empty Resulted date while the card
+  // displayed one.
+  const currentFallback = toInputDate(recommendation.updatedAt);
+  return {
+    positionId: recommendation.position?._id || recommendation.position || '',
+    project: recommendation.project || '',
+    technologyIds: (recommendation.technologies || []).map((technology) => technology._id),
+    recommendationNote: recommendation.recommendationNote || '',
+    status,
+    resultOutcome: recommendation.result?.outcome || 'none',
+    resultNote: recommendation.result?.note || '',
+    statusDates: {
+      recommended:
+        toInputDate(dates.recommended) ||
+        (status === 'recommended' ? currentFallback : toInputDate(recommendation.createdAt)) ||
+        todayInputDate(),
+      interviewing:
+        toInputDate(dates.interviewing) || (status === 'interviewing' ? currentFallback : ''),
+      resulted: toInputDate(dates.resulted) || (status === 'resulted' ? currentFallback : ''),
+    },
+    // A resulted recommendation with no interviewing date means the stage was
+    // skipped — a distinct state from "not reached yet".
+    interviewingSkipped: status === 'resulted' && !dates.interviewing,
+  };
 };
 
-const formFromRecommendation = (recommendation) => ({
-  technologyIds: (recommendation.technologies || []).map((technology) => technology._id),
-  recommendationNote: recommendation.recommendationNote || '',
-  status: recommendation.status || 'draft',
-  resultOutcome: recommendation.result?.outcome || 'none',
-  resultNote: recommendation.result?.note || '',
-});
-
-function TechnologyPicker({ technologies, selectedIds, onChange }) {
-  const selectedTechnologies = useMemo(
-    () => technologies.filter((technology) => selectedIds.includes(technology._id)),
-    [selectedIds, technologies]
-  );
-
-  const availableTechnologies = technologies.filter(
-    (technology) => !selectedIds.includes(technology._id)
-  );
-
+function ViewModeSwitcher({ value, onChange }) {
   return (
-    <div className="space-y-2">
-      <Label>Technologies</Label>
-      {/* Selecting a technology adds it immediately; the picker resets to its
-          placeholder via `value=""` so there is no separate "Add" step. */}
-      <Select
-        value=""
-        onValueChange={(technologyId) => {
-          if (technologyId) onChange([...selectedIds, technologyId]);
-        }}
-        disabled={availableTechnologies.length === 0}
-      >
-        <SelectTrigger data-test="recommendation-technology-select">
-          <SelectValue
-            placeholder={
-              availableTechnologies.length === 0 ? 'All technologies added' : 'Add technology'
-            }
-          />
-        </SelectTrigger>
-        <SelectContent>
-          {availableTechnologies.map((technology) => (
-            <SelectItem key={technology._id} value={technology._id}>
-              {technology.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <div className="flex min-h-6 flex-wrap gap-2">
-        {selectedTechnologies.map((technology) => (
-          <Badge key={technology._id} variant="outline" className="gap-2">
-            {technology.name}
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => onChange(selectedIds.filter((id) => id !== technology._id))}
-              aria-label={`Remove ${technology.name}`}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
-        ))}
-        {selectedTechnologies.length === 0 && (
-          <span className="text-sm text-muted-foreground">No technologies selected.</span>
-        )}
-      </div>
+    <div className="flex h-11 items-center gap-1 rounded-xl bg-[#f2f3f8] p-1">
+      {['detailed', 'compact'].map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => onChange(mode)}
+          className={cn(
+            'h-full rounded-[9px] px-[18px] text-[14px] font-semibold capitalize transition',
+            value === mode
+              ? 'bg-[#6d5ce6] text-white shadow-[0_2px_8px_rgba(109,92,230,.35)]'
+              : 'text-[#4a5064] hover:text-[#171b2b]'
+          )}
+          aria-pressed={value === mode}
+          data-test={`recommendation-view-${mode}`}
+        >
+          {mode}
+        </button>
+      ))}
     </div>
   );
 }
 
 export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
-  const canWrite = !readOnly && user?.role === ROLES.MENTOR;
+  const canWrite = !readOnly && canWriteInternMentorData(user?.role);
+  const { data: positions = [] } = usePositions();
   const { data: technologies = [] } = useTechnologies();
   const { data, isPending, isError } = useRecommendations({
     internUserId: userId,
@@ -121,26 +124,37 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   });
   const { mutate: createRecommendation, isPending: isCreating } = useCreateRecommendation();
   const { mutate: updateRecommendation, isPending: isUpdating } = useUpdateRecommendation();
+  const { mutate: deleteRecommendation, isPending: isDeleting } = useDeleteRecommendation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailRecommendation, setDetailRecommendation] = useState(null);
   const [activeRecommendation, setActiveRecommendation] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState(createEmptyForm);
+  const [sortKey, setSortKey] = useState('');
+  const [sortDir, setSortDir] = useState('desc');
+  const [viewMode, setViewMode] = useState(() =>
+    localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'compact' ? 'compact' : 'detailed'
+  );
 
   const recommendations = data?.recommendations ?? [];
   const isSaving = isCreating || isUpdating;
   const isEditing = Boolean(activeRecommendation);
+  // A result already recorded on the server. The backend can change a recorded
+  // outcome but never remove it, so the form keeps the outcome visible even
+  // when the status moves back off "resulted".
+  const hasRecordedOutcome = Boolean(activeRecommendation?.result?.outcome);
 
-  useEffect(() => {
-    if (!activeRecommendation) return;
-    const freshRecommendation = recommendations.find(
-      (recommendation) => recommendation._id === activeRecommendation._id
-    );
-    if (freshRecommendation) {
-      setActiveRecommendation(freshRecommendation);
-      setForm(formFromRecommendation(freshRecommendation));
-    }
-  }, [activeRecommendation, recommendations]);
+  const positionName = (recommendation) => recommendation?.position?.name || 'Position not set';
+
+  const changeViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  };
+
+  // The edit form is seeded once from the record when the dialog opens
+  // (handleEdit). We deliberately do NOT re-sync it from `recommendations` on
+  // every refetch — doing so overwrote the user's in-progress edits mid-typing.
 
   const handleNew = () => {
     setActiveRecommendation(null);
@@ -154,17 +168,66 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     setDialogOpen(true);
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const handleSubmit = () => {
+    if (!form.positionId) {
+      toast.error('Select a position for this recommendation');
+      return;
+    }
+    if (!form.project.trim()) {
+      toast.error('Enter the project for this recommendation');
+      return;
+    }
+
+    // Stage dates must not run backwards ('yyyy-MM-dd' strings compare
+    // lexicographically). The server enforces the same rule.
+    const dates = form.statusDates;
+    const interviewingDate = form.interviewingSkipped ? '' : dates.interviewing;
+    if (interviewingDate && dates.recommended && interviewingDate < dates.recommended) {
+      toast.error("Interviewing date can't be before the Recommended date");
+      return;
+    }
+    if (dates.resulted) {
+      const previousDate = interviewingDate || dates.recommended;
+      if (previousDate && dates.resulted < previousDate) {
+        toast.error("Resulted date can't be before the earlier stage dates");
+        return;
+      }
+    }
 
     const payload = {
       internUserId: userId,
+      positionId: form.positionId,
+      project: form.project.trim(),
       technologyIds: form.technologyIds,
       recommendationNote: form.recommendationNote,
       status: form.status,
     };
 
-    if (activeRecommendation && form.resultOutcome !== 'none') {
+    // Per-stage dates: only stages the status has reached carry one. An
+    // explicit null interviewing date on a resulted recommendation means the
+    // stage was skipped.
+    if (isEditing) {
+      const statusIndex = RECOMMENDATION_STATUSES.findIndex(
+        (status) => status.value === form.status
+      );
+      const statusDates = { recommended: form.statusDates.recommended || undefined };
+      if (statusIndex >= 1) {
+        statusDates.interviewing = form.interviewingSkipped
+          ? null
+          : form.statusDates.interviewing || undefined;
+      }
+      if (statusIndex >= 2) {
+        statusDates.resulted = form.statusDates.resulted || undefined;
+      }
+      payload.statusDates = statusDates;
+    } else {
+      payload.statusDates = { recommended: form.statusDates.recommended || undefined };
+    }
+
+    // Placement outcome only applies to a resulted recommendation; ignore any
+    // stale outcome if the status isn't 'resulted' (the section shows a
+    // read-only notice then instead of editable fields).
+    if (activeRecommendation && form.status === 'resulted' && form.resultOutcome !== 'none') {
       payload.result = {
         outcome: form.resultOutcome,
         note: form.resultNote,
@@ -189,278 +252,168 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     }
   };
 
-  const statusTagColor = (status) => {
-    if (status === 'resulted') return 'green';
-    if (status === 'draft') return 'slate';
-    return 'indigo';
-  };
-  const resultTitle = (recommendation) =>
-    recommendation.result?.outcome
-      ? getRecommendationResultLabel(recommendation.result.outcome)
-      : 'No result yet';
-
-  const ordered = [...recommendations].sort(
-    (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-  );
-
-  const cards = ordered.map((recommendation, index) => ({
-    id: recommendation._id,
-    raw: recommendation,
-    featured: index === 0,
-    tag: {
-      label: getRecommendationStatusLabel(recommendation.status),
-      color: statusTagColor(recommendation.status),
-    },
-    title: resultTitle(recommendation),
-    metaSub: `Updated ${formatDate(recommendation.updatedAt)} · ${
-      recommendation.updatedBy?.fullname || 'Unknown'
-    }`,
-    blocks: [
-      {
-        kind: 'chips',
-        label: 'Technologies',
-        items: (recommendation.technologies || []).map((technology) => technology.name),
+  // Deleting also dismisses any open modal showing the removed record.
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget || isDeleting) return;
+    deleteRecommendation(deleteTarget._id, {
+      onSuccess: () => {
+        toast.success('Recommendation deleted');
+        if (detailRecommendation?._id === deleteTarget._id) setDetailRecommendation(null);
+        if (activeRecommendation?._id === deleteTarget._id) {
+          setDialogOpen(false);
+          setActiveRecommendation(null);
+        }
+        setDeleteTarget(null);
       },
-    ],
-    note: recommendation.recommendationNote,
-    sortVals: {
-      updated: new Date(recommendation.updatedAt).getTime(),
-      status: getRecommendationStatusLabel(recommendation.status),
-    },
-  }));
+      onError: (err) =>
+        toast.error(err?.response?.data?.message || 'Failed to delete recommendation'),
+    });
+  };
 
-  const subtitle = `${cards.length} recommendation${cards.length === 1 ? '' : 's'}`;
+  const handleSortKeyChange = (key) => {
+    setSortKey(key);
+    if (key) setSortDir(NUMERIC_SORT_KEYS.includes(key) ? 'desc' : 'asc');
+  };
+
+  const sorted = useMemo(() => {
+    const byUpdated = [...recommendations].sort(
+      (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+    );
+    if (!sortKey) return byUpdated;
+    const factor = sortDir === 'asc' ? 1 : -1;
+    const valueOf = (recommendation) => {
+      if (sortKey === 'updated') return new Date(recommendation.updatedAt).getTime();
+      if (sortKey === 'status') return getRecommendationStatusLabel(recommendation.status);
+      return positionName(recommendation);
+    };
+    return byUpdated.sort((a, b) => {
+      const av = valueOf(a);
+      const bv = valueOf(b);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * factor;
+      return String(av ?? '').localeCompare(String(bv ?? '')) * factor;
+    });
+  }, [recommendations, sortKey, sortDir]);
+
+  // Count from the server, not from the fetched page — the query is capped at
+  // the API's max page size (50), so an intern with more records would
+  // otherwise be silently undercounted. When truncated, say so.
+  const totalCount = data?.pagination?.total ?? sorted.length;
+  const subtitle =
+    totalCount > sorted.length
+      ? `${totalCount} recommendations · showing the latest ${sorted.length}`
+      : `${sorted.length} recommendation${sorted.length === 1 ? '' : 's'}`;
+
+  const timelineSteps = (recommendation) =>
+    buildTimelineSteps(
+      recommendation,
+      RECOMMENDATION_STATUSES.map(({ value, label }) => ({ key: value, label }))
+    );
 
   return (
-    <div className="space-y-6">
-      <HistoryPanel
-        title="Recommendation history"
-        subtitle={subtitle}
-        buttonLabel="New recommendation"
-        canWrite={canWrite}
-        isLoading={isPending}
-        cards={cards}
-        sortOptions={[
-          { key: 'updated', label: 'Updated' },
-          { key: 'status', label: 'Status' },
-        ]}
-        onNew={handleNew}
-        onReadMore={(id) => setDetailRecommendation(cards.find((c) => c.id === id)?.raw)}
-        // Card click always opens the read-only detail (consistent with the
-        // other sections, and reachable even for a result-with-no-note). The
-        // detail modal's Update button (mentor-only) enters the edit form.
-        onCardClick={(card) => setDetailRecommendation(card.raw)}
-        emptyMessage={
-          isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'
-        }
-      />
+    <div className={cn('space-y-4 text-[#171b2b]', REC_FONT)}>
+      {/* Header card */}
+      <div className="rounded-[18px] border border-[#e7e9ef] bg-white px-6 py-5 shadow-[0_1px_3px_rgba(20,24,40,.06)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-[22px] font-bold text-[#171b2b]">Recommendation history</h2>
+            <p className="text-[13.5px] text-[#8b91a5]">{subtitle}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <SortControl
+              sortKey={sortKey}
+              sortDir={sortDir}
+              options={SORT_OPTIONS}
+              onSortKeyChange={handleSortKeyChange}
+              onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              className="h-11 border-[#dcdfe9] bg-white"
+              triggerClassName="text-[14px] font-semibold text-[#33384c]"
+              dataTest="recommendation-history-sort"
+            />
+            <ViewModeSwitcher value={viewMode} onChange={changeViewMode} />
+            {canWrite && (
+              <button
+                type="button"
+                onClick={handleNew}
+                className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-[#6d5ce6] px-[18px] text-[14px] font-semibold text-white shadow-[0_2px_8px_rgba(109,92,230,.35)] transition hover:bg-[#5a48d6]"
+                data-test="recommendation-history-new-button"
+              >
+                <Plus className="h-4 w-4" />
+                New recommendation
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
-      <DetailModal
+      {/* Cards */}
+      <div className={cn('flex flex-col', viewMode === 'compact' ? 'gap-3' : 'gap-4')}>
+        {isPending && <p className="py-8 text-center text-[13.5px] text-[#8b91a5]">Loading…</p>}
+        {!isPending && sorted.length === 0 && (
+          <p className="py-12 text-center text-[13.5px] text-[#8b91a5]">
+            {isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'}
+          </p>
+        )}
+        {!isPending &&
+          sorted.map((recommendation) => {
+            const shared = {
+              recommendation,
+              steps: timelineSteps(recommendation),
+              positionName: positionName(recommendation),
+              canWrite,
+              onOpen: () => setDetailRecommendation(recommendation),
+            };
+            return viewMode === 'compact' ? (
+              <RecommendationCompactRow key={recommendation._id} {...shared} />
+            ) : (
+              <RecommendationCard
+                key={recommendation._id}
+                {...shared}
+                onReadMore={() => setDetailRecommendation(recommendation)}
+              />
+            );
+          })}
+      </div>
+
+      <RecommendationFormModal
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        isEditing={isEditing}
+        form={form}
+        setForm={setForm}
+        statuses={RECOMMENDATION_STATUSES}
+        positions={positions}
+        technologies={technologies}
+        activeRecommendation={activeRecommendation}
+        hasRecordedOutcome={hasRecordedOutcome}
+        positionName={positionName}
+        todayInputDate={todayInputDate}
+        isSaving={isSaving}
         onSubmit={handleSubmit}
-        title={isEditing ? 'Edit recommendation' : 'New recommendation'}
-        sections={[
-          {
-            label: 'Recommendation',
-            content: (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={form.status}
-                    onValueChange={(status) => setForm((prev) => ({ ...prev, status }))}
-                  >
-                    <SelectTrigger data-test="recommendation-status-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {RECOMMENDATION_STATUSES.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <TechnologyPicker
-                  technologies={technologies}
-                  selectedIds={form.technologyIds}
-                  onChange={(technologyIds) => setForm((prev) => ({ ...prev, technologyIds }))}
-                />
-                <div className="space-y-2">
-                  <Label htmlFor="recommendation-note">Recommendation note</Label>
-                  <AutoTextarea
-                    id="recommendation-note"
-                    value={form.recommendationNote}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, recommendationNote: event.target.value }))
-                    }
-                    rows={4}
-                    placeholder="Recommendation details…"
-                    data-test="recommendation-note-input"
-                  />
-                </div>
-              </div>
-            ),
-          },
-          ...(isEditing
-            ? [
-                {
-                  label: 'Placement outcome',
-                  content: (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Placement result</Label>
-                        <Select
-                          value={form.resultOutcome}
-                          onValueChange={(resultOutcome) =>
-                            setForm((prev) => ({ ...prev, resultOutcome }))
-                          }
-                        >
-                          <SelectTrigger data-test="recommendation-result-select">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">No result</SelectItem>
-                            {RECOMMENDATION_RESULTS.map((result) => (
-                              <SelectItem key={result.value} value={result.value}>
-                                {result.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="recommendation-result-note">Result note</Label>
-                        <AutoTextarea
-                          id="recommendation-result-note"
-                          value={form.resultNote}
-                          onChange={(event) =>
-                            setForm((prev) => ({ ...prev, resultNote: event.target.value }))
-                          }
-                          rows={3}
-                          required={form.resultOutcome !== 'none'}
-                          placeholder="Notes on the result…"
-                          data-test="recommendation-result-note-input"
-                        />
-                      </div>
-                    </div>
-                  ),
-                },
-              ]
-            : []),
-        ]}
-        footer={
-          <>
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSaving} data-test="recommendation-submit-button">
-              {isSaving
-                ? 'Saving...'
-                : isEditing
-                  ? 'Update recommendation'
-                  : 'Create recommendation'}
-            </Button>
-          </>
-        }
+        onDelete={() => setDeleteTarget(activeRecommendation)}
       />
 
-      <DetailModal
-        open={Boolean(detailRecommendation)}
-        onClose={() => setDetailRecommendation(null)}
-        dataTest="intern-recommendation-detail-dialog"
-        title={detailRecommendation ? resultTitle(detailRecommendation) : 'Recommendation'}
-        subtitle={
-          detailRecommendation
-            ? `Updated ${formatDate(detailRecommendation.updatedAt)} by ${
-                detailRecommendation.updatedBy?.fullname || 'Unknown'
-              }`
-            : undefined
-        }
-        sections={
-          detailRecommendation
-            ? [
-                {
-                  label: 'Recommendation',
-                  content: (
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={cn(
-                            'rounded-md px-2 py-1 text-xs font-semibold',
-                            TAG_TONE[statusTagColor(detailRecommendation.status)]
-                          )}
-                        >
-                          {getRecommendationStatusLabel(detailRecommendation.status)}
-                        </span>
-                      </div>
-                      <div className="space-y-1.5">
-                        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                          Technologies
-                        </p>
-                        <Chips
-                          emptyLabel="None selected."
-                          items={(detailRecommendation.technologies || []).map(
-                            (technology) => technology.name
-                          )}
-                        />
-                      </div>
-                      {detailRecommendation.recommendationNote && (
-                        <div className="space-y-1.5">
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                            Note
-                          </p>
-                          <DetailText>{detailRecommendation.recommendationNote}</DetailText>
-                        </div>
-                      )}
-                    </div>
-                  ),
-                },
-                ...(detailRecommendation.result?.outcome
-                  ? [
-                      {
-                        label: 'Placement outcome',
-                        content: (
-                          <div className="space-y-1.5 rounded-xl bg-muted/50 p-4">
-                            <p className="text-sm font-semibold text-foreground">
-                              {getRecommendationResultLabel(detailRecommendation.result.outcome)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(detailRecommendation.result.decidedAt)} by{' '}
-                              {detailRecommendation.result.decidedBy?.fullname || 'Unknown'}
-                            </p>
-                            {detailRecommendation.result.note && (
-                              <DetailText>{detailRecommendation.result.note}</DetailText>
-                            )}
-                          </div>
-                        ),
-                      },
-                    ]
-                  : []),
-              ]
-            : []
-        }
-        footer={
-          <>
-            {canWrite && (
-              <Button
-                type="button"
-                onClick={() => {
-                  const target = detailRecommendation;
-                  setDetailRecommendation(null);
-                  handleEdit(target);
-                }}
-              >
-                Update
-              </Button>
-            )}
-            <Button type="button" variant="outline" onClick={() => setDetailRecommendation(null)}>
-              Close
-            </Button>
-          </>
-        }
+      {detailRecommendation && (
+        <RecommendationViewModal
+          recommendation={detailRecommendation}
+          steps={timelineSteps(detailRecommendation)}
+          positionName={positionName(detailRecommendation)}
+          canWrite={canWrite}
+          onClose={() => setDetailRecommendation(null)}
+          onEdit={() => {
+            const target = detailRecommendation;
+            setDetailRecommendation(null);
+            handleEdit(target);
+          }}
+          onDelete={() => setDeleteTarget(detailRecommendation)}
+        />
+      )}
+
+      <RecommendationDeleteDialog
+        recommendation={deleteTarget}
+        positionName={positionName}
+        isDeleting={isDeleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

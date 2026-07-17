@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createRecommendation,
+  deleteRecommendation,
   fetchRecommendation,
   fetchRecommendations,
   updateRecommendation,
@@ -56,6 +57,18 @@ export const useUpdateRecommendation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, payload }) => updateRecommendation(id, payload),
+    onSuccess: (recommendation) => {
+      invalidateRecommendationContext(queryClient, recommendation);
+    },
+  });
+};
+
+export const useDeleteRecommendation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    // The server responds with { _id, internProfile: { user } } — enough for
+    // the same context invalidation the other mutations use.
+    mutationFn: deleteRecommendation,
     onSuccess: (recommendation) => {
       invalidateRecommendationContext(queryClient, recommendation);
     },

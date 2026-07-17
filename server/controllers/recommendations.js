@@ -54,3 +54,15 @@ exports.updateRecommendation = async (req, res, next) => {
     handleError(res, error, next);
   }
 };
+
+exports.deleteRecommendation = async (req, res, next) => {
+  try {
+    const recommendation = await recommendationService.deleteRecommendation(
+      req.user,
+      req.params.id
+    );
+    res.json({ recommendation });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};

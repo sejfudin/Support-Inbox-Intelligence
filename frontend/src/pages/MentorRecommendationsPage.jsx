@@ -32,6 +32,7 @@ import {
 } from '@/helpers/recommendations';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
+import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { useHubs } from '@/queries/hubs';
 import { useRecommendations } from '@/queries/recommendations';
 import { useTechnologies } from '@/queries/technologies';
@@ -191,13 +192,18 @@ export default function MentorRecommendationsPage() {
           )}
           {!isPending && !isError && (
             <div className="overflow-x-auto">
-              <Table className="min-w-[980px]">
+              <Table className="min-w-[1480px]">
                 <TableHeader>
                   <TableRow className="bg-secondary/60">
                     <TableHead className={tableHeadClass}>Intern</TableHead>
                     <TableHead className={tableHeadClass}>Hub</TableHead>
+                    <TableHead className={tableHeadClass}>Position</TableHead>
+                    <TableHead className={tableHeadClass}>Project</TableHead>
                     <TableHead className={tableHeadClass}>Technologies</TableHead>
                     <TableHead className={tableHeadClass}>Status</TableHead>
+                    <TableHead className={tableHeadClass}>Recommended</TableHead>
+                    <TableHead className={tableHeadClass}>Interviewing</TableHead>
+                    <TableHead className={tableHeadClass}>Resulted</TableHead>
                     <TableHead className={tableHeadClass}>Result</TableHead>
                     <TableHead className={tableHeadClass}>Updated</TableHead>
                   </TableRow>
@@ -205,7 +211,7 @@ export default function MentorRecommendationsPage() {
                 <TableBody>
                   {recommendations.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">
                         No recommendations match your filters.
                       </TableCell>
                     </TableRow>
@@ -233,12 +239,35 @@ export default function MentorRecommendationsPage() {
                           {intern?.user?.hub?.name || '-'}
                         </TableCell>
                         <TableCell className={tableCellClass}>
+                          {recommendation.position?.name ? (
+                            <Badge variant="outline">{recommendation.position.name}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell
+                          className={`${tableCellClass} max-w-[220px] text-foreground [overflow-wrap:anywhere]`}
+                        >
+                          {recommendation.project || (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className={tableCellClass}>
                           <div className="flex flex-wrap gap-1.5">
                             {(recommendation.technologies || []).length === 0 && (
                               <span className="text-muted-foreground">-</span>
                             )}
                             {(recommendation.technologies || []).slice(0, 3).map((technology) => (
-                              <Badge key={technology._id} variant="outline">
+                              <Badge
+                                key={technology._id}
+                                variant="outline"
+                                className="gap-1.5 pl-2"
+                              >
+                                <TechnologyIcon
+                                  technology={technology}
+                                  size={13}
+                                  className="shrink-0"
+                                />
                                 {technology.name}
                               </Badge>
                             ))}
@@ -253,6 +282,21 @@ export default function MentorRecommendationsPage() {
                           <Badge variant={getRecommendationStatusVariant(recommendation.status)}>
                             {getRecommendationStatusLabel(recommendation.status)}
                           </Badge>
+                        </TableCell>
+                        <TableCell
+                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
+                        >
+                          {formatDate(recommendation.statusDates?.recommended)}
+                        </TableCell>
+                        <TableCell
+                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
+                        >
+                          {formatDate(recommendation.statusDates?.interviewing)}
+                        </TableCell>
+                        <TableCell
+                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
+                        >
+                          {formatDate(recommendation.statusDates?.resulted)}
                         </TableCell>
                         <TableCell className={tableCellClass}>
                           {recommendation.result?.outcome ? (
