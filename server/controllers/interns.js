@@ -109,6 +109,25 @@ exports.updateDocumentationLinks = async (req, res, next) => {
   }
 };
 
+exports.updateInternalCv = async (req, res, next) => {
+  try {
+    const intern = await internService.updateInternalCvLink(
+      req.user,
+      req.params.userId,
+      req.body.url
+    );
+    res.json({ intern });
+  } catch (error) {
+    if (
+      error.message === 'Intern profile not found' ||
+      error.message === 'Internal CV must use an http or https URL'
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+    handleError(res, error, next);
+  }
+};
+
 exports.uploadMyCv = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'CV file is required' });

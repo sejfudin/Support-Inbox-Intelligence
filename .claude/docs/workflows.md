@@ -56,6 +56,7 @@ npm run seed:test   # richer dataset (Symphony staff + interns, password: "passw
 npm run seed:positions
 npm run backfill:intern-positions
 npm run cleanup:invitations
+npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
 ```
 
 Demo accounts (after seeding): full table in `README.md` ("Demo accounts").

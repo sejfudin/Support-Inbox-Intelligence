@@ -16,7 +16,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 | Role | Lands on | Capability |
 |---|---|---|
 | Admin | `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
-| Mentor | `/my-interns` | Guides interns (evaluations, comments, readiness, recommendations). Works in workspaces on tickets. |
+| Mentor | `/my-interns` | Guides interns (evaluations, comments, readiness, recommendations). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
 | Leadership | `/programme` | Read-oriented stakeholder view. No ticket/workspace workflow — redirected to `/programme`. |
 | Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. |
 
@@ -86,7 +86,7 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **Readiness flag** | Per-intern assessment of readiness for a specific **technology** or **position**, level `none \| learning \| ready`, recorded by a user (`ReadinessFlag`). Feeds placement decisions. |
 | **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. |
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). |
-| **Recommendation** | A mentor's placement recommendation for an intern (candidate pipeline). |
+| **Recommendation** | A mentor's placement recommendation for an intern (candidate pipeline). Placing an intern (a `placed` outcome, or setting the profile status to `placed` directly) auto-closes their other open recommendations as `not_placed`, so one person never lingers in the pipeline. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
 | **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:`) that drives React Query cache invalidation. |

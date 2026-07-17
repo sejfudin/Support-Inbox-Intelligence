@@ -12,6 +12,8 @@ const {
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
 const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
+const { isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
+const { ROLES } = require('../constants/roles');
 
 const LOGO_MIME_TO_EXT = {
   'image/jpeg': 'jpg',
@@ -82,12 +84,22 @@ const switchWorkspace = async ({ workspaceId, userId, userRole }) => {
   return { message: 'Switched workspace' };
 };
 
-const getWorkspaceById = async (workspaceId) => {
+const getWorkspaceById = async (workspaceId, caller) => {
   const workspace = await Workspace.findById(workspaceId)
     .populate('owner', 'fullname email')
     .populate('members.user', 'fullname email role status');
 
   if (!workspace) throw new Error('Workspace not found');
+
+  // Members list + pending invitations leak emails cross-tenant — restrict to
+  // active members. Deliberately NOT hasWorkspaceAccess: its mentor bypass
+  // would let any mentor read any workspace; only platform admins skip the
+  // membership check here. Mentor owners/managers are always active members.
+  if (caller && caller.role !== ROLES.ADMIN && !isActiveWorkspaceMember(workspace, caller.userId)) {
+    const err = new Error('Forbidden: Not a member of this workspace');
+    err.statusCode = 403;
+    throw err;
+  }
 
   const pendingInvitations = await Invitation.find({
     workspace: workspaceId,
@@ -105,10 +117,29 @@ const getWorkspaceById = async (workspaceId) => {
 
 const getUserWorkspaces = async (userId) => {
   const workspaces = await Workspace.find({
+    isArchived: { $ne: true },
     members: { $elemMatch: { user: userId, status: 'active' } },
-  }).populate('owner', 'fullname email');
+  })
+    .populate('owner', 'fullname email')
+    .lean();
 
-  return workspaces.map(attachLogoUrl);
+  // Same card stats as getAllWorkspaces so the workspaces overview page can
+  // render identically for admins (all) and mentors/members (their own).
+  return Promise.all(
+    workspaces.map(async (ws) => {
+      const activeMembers = ws.members.filter((m) => m.status === 'active').length;
+      const ticketCount = await Ticket.countDocuments({
+        workspace: ws._id,
+        isArchived: { $ne: true },
+      });
+      return {
+        ...ws,
+        logoUrl: buildWorkspaceLogoUrl(ws.logoPath),
+        activeMemberCount: activeMembers,
+        ticketCount,
+      };
+    })
+  );
 };
 
 const updateWorkspace = async (workspaceId, { name, description, owner }, requestingUserId) => {

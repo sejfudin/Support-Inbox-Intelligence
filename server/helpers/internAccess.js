@@ -26,8 +26,10 @@ const canWriteMentorData = (user, profile) => {
   return false;
 };
 
-const canManageDocumentationLinks = (user) =>
-  user.role === ROLES.ADMIN || user.role === ROLES.LEADERSHIP;
+const canManageDocumentationLinks = (user, profile) =>
+  user.role === ROLES.ADMIN ||
+  user.role === ROLES.LEADERSHIP ||
+  (user.role === ROLES.MENTOR && isAssignedMentor(profile, user._id));
 
 const canViewInternProfile = (user, profile) => {
   if (user.role === ROLES.ADMIN || user.role === ROLES.LEADERSHIP) return true;

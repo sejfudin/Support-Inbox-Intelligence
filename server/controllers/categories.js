@@ -26,7 +26,11 @@ const createCategory = async (req, res) => {
     }
 
     const isAdmin = req.user?.role === 'admin';
-    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user?.workspaceId;
+    // Non-admins write to the workspace the guard authorized (req.managedWorkspaceId),
+    // so the target can never drift from what requireWorkspaceManager checked.
+    const workspaceId =
+      req.managedWorkspaceId ||
+      (isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user?.workspaceId);
 
     if (!workspaceId) {
       return res.status(400).json({ success: false, message: 'No workspace associated' });
