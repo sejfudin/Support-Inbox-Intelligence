@@ -64,7 +64,10 @@ function PipelineFlow() {
 
 function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId, action }) {
   return (
-    <SymphonyCard className="relative overflow-hidden p-0 transition-shadow hover:shadow-md">
+    <SymphonyCard
+      variant="muted"
+      className="relative overflow-hidden p-0 transition-shadow hover:shadow-md"
+    >
       {highlighted && (
         <span
           aria-hidden
@@ -93,7 +96,7 @@ function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId, 
           )}
         </div>
         <div className="mt-3.5 flex items-baseline gap-2">
-          <span className="text-[40px] font-bold leading-none tracking-tight text-foreground tabular-nums">
+          <span className="text-[48px] font-bold leading-none tracking-tight text-foreground tabular-nums">
             {value}
           </span>
           {sub && (
