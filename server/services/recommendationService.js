@@ -326,9 +326,18 @@ const getRecommendation = async (user, recommendationId) => {
   return formatRecommendation(recommendation);
 };
 
+// An intern who is placed or has otherwise left the programme is no longer a
+// candidate, so a new recommendation would just linger open (it is never
+// counted in the pipeline KPI, which gates on live profile status).
+const NON_RECOMMENDABLE_PROFILE_STATUSES = ['placed', 'completed', 'discontinued'];
+
 const createRecommendation = async (user, payload = {}) => {
   const profile = await loadInternProfileByUserId(payload.internUserId);
   assertRecommendationWriteAccess(user, profile);
+
+  if (NON_RECOMMENDABLE_PROFILE_STATUSES.includes(profile.status)) {
+    throw createError(`Cannot recommend an intern who is ${profile.status}`, 409);
+  }
 
   assertValidStatus(payload.status);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
