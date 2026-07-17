@@ -9,6 +9,7 @@ const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
+const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
 
 // The status milestones tracked in the append-only history log — the status
@@ -477,9 +478,18 @@ const getRecommendation = async (user, recommendationId) => {
   return formatRecommendation(recommendation, statusDates);
 };
 
+// An intern who is placed or has otherwise left the programme is no longer a
+// candidate, so a new recommendation would just linger open (it is never
+// counted in the pipeline KPI, which gates on live profile status).
+const NON_RECOMMENDABLE_PROFILE_STATUSES = ['placed', 'completed', 'discontinued'];
+
 const createRecommendation = async (user, payload = {}) => {
   const profile = await loadInternProfileByUserId(payload.internUserId);
   assertRecommendationWriteAccess(user, profile);
+
+  if (NON_RECOMMENDABLE_PROFILE_STATUSES.includes(profile.status)) {
+    throw createError(`Cannot recommend an intern who is ${profile.status}`, 409);
+  }
 
   assertValidStatus(payload.status);
   // The timeline only moves forward from Recommended — later stages are set by
@@ -512,6 +522,7 @@ const createRecommendation = async (user, payload = {}) => {
   await logStatusEvent(recommendation._id, user._id, recommendation.status);
 
   await recommendation.populate(RECOMMENDATION_POPULATE);
+  emitInternDataChanged();
   const statusDates = await historyService.getLatestStatusDates(
     'recommendation',
     recommendation._id
@@ -713,6 +724,9 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   }
 
   await recommendation.populate(RECOMMENDATION_POPULATE);
+  // Covers the direct update and any auto-closed sibling recommendations —
+  // the invalidation is a single global "intern data changed" broadcast.
+  emitInternDataChanged();
   const statusDates = await historyService.getLatestStatusDates(
     'recommendation',
     recommendation._id
@@ -751,6 +765,8 @@ const deleteRecommendation = async (user, recommendationId) => {
       await profile.save();
     }
   }
+
+  emitInternDataChanged();
 
   // Enough shape for the frontend cache invalidation (id + intern user id).
   return { _id: recommendation._id, internProfile: { user: profile.user } };

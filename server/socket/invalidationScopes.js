@@ -3,6 +3,10 @@ const invalidationScopes = {
   workspace: (workspaceId) => `workspace:${String(workspaceId)}`,
   workspaceTickets: (workspaceId) => `workspace-tickets:${String(workspaceId)}`,
   ticket: (ticketId) => `ticket:${String(ticketId)}`,
+  // FEP interns/recommendations are a global (non-workspace) module, so this
+  // scope carries a fixed id and every subscribed client invalidates its
+  // ['interns'] queries (directory + leadership stats).
+  intern: () => 'intern:all',
 };
 
 module.exports = {

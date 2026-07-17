@@ -271,6 +271,19 @@ const sendToUser = async (userId, eventName, data) => {
   }
 };
 
+const broadcastToAll = (eventName, data) => {
+  if (!io) {
+    return false;
+  }
+
+  try {
+    io.emit(eventName, data);
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 const broadcastToUserRoom = (userId, eventName, data, { excludeSocketId } = {}) => {
   if (!io) {
     return false;
@@ -394,6 +407,7 @@ module.exports = {
   initSocket,
   sendToUser,
   isUserOnline,
+  broadcastToAll,
   broadcastToUserRoom,
   broadcastToWorkspace,
   broadcastToTicket,

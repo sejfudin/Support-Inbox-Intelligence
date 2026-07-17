@@ -64,9 +64,7 @@ function PersonRow({ person }) {
           </div>
 
           <div className="text-right lg:w-[150px] lg:shrink-0">
-            <p className="text-[13px] font-medium text-foreground">
-              {person.latestCompany || '—'}
-            </p>
+            <p className="text-[13px] font-medium text-foreground">{person.latestCompany || '—'}</p>
             <p className="mt-0.5 text-[11.5px] text-muted-foreground">
               {person.latestRole || 'Awaiting match'}
             </p>
@@ -93,9 +91,7 @@ function PersonCard({ person }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-foreground">{person.fullname}</p>
-            {meta && (
-              <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{meta}</p>
-            )}
+            {meta && <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{meta}</p>}
           </div>
           <StatusPill status={person.status} />
         </div>
@@ -151,12 +147,19 @@ function LegendDot({ color, label, count }) {
 export function PipelineCard({
   isPending,
   activePipeline = [],
+  activePipelineTotal = 0,
+  summary = {},
   recommendationOutcomes = {},
   showSummary = true,
 }) {
-  const recommendedCount = activePipeline.filter((p) => p.status === 'recommended').length;
-  const interviewingCount = activePipeline.filter((p) => p.status === 'interviewing').length;
-  const inFlight = activePipeline.length;
+  // Counts come from the same distinct-intern summary the "In pipeline" KPI uses,
+  // so this card and the KPI card always agree. The rows below are one per intern
+  // (deduped server-side) and may be truncated — see the "showing" note.
+  const inFlight = summary.activeRecommendations ?? 0;
+  const interviewingCount = summary.interviewingCount ?? 0;
+  const recommendedCount = Math.max(0, inFlight - interviewingCount);
+  const shownCount = activePipeline.length;
+  const isTruncated = activePipelineTotal > shownCount;
 
   const placed = recommendationOutcomes.placed || 0;
   const notPlaced = recommendationOutcomes.not_placed || 0;
@@ -169,7 +172,7 @@ export function PipelineCard({
           <div>
             <h2 className="text-[19px] font-semibold text-foreground">Pipeline</h2>
             <p className="mt-1 text-[13.5px] text-muted-foreground">
-              Candidates being recommended or interviewing with clients.
+              Interns put forward for a role — recommended or interviewing. One row per intern.
             </p>
           </div>
           <Link
@@ -232,6 +235,17 @@ export function PipelineCard({
               <PersonRow key={person.userId} person={person} />
             ))}
           </div>
+        )}
+        {!isPending && isTruncated && (
+          <p className="border-t border-[hsl(var(--symphony-border)/0.6)] px-4 py-3 text-[12.5px] text-muted-foreground sm:px-[26px]">
+            Showing {shownCount} of {activePipelineTotal} candidates.{' '}
+            <Link
+              to="/interns?status=active"
+              className="font-semibold text-[hsl(var(--symphony-brand-strong))] hover:underline dark:text-[hsl(var(--symphony-brand))]"
+            >
+              View all →
+            </Link>
+          </p>
         )}
       </div>
       {!isPending && (hasOutcomes || activePipeline.length > 0) && (
