@@ -69,6 +69,47 @@ AI: `AISummary`.
 - **Supabase Storage** (`server/config/supabase.js`) — attachment images, workspace logos, intern CVs.
   Server throws on startup if Supabase env vars missing.
 
+## Recommendations (placement pipeline)
+
+A recommendation is a mentor's placement proposal for an intern: a position + project +
+technologies, moving through a **forward-only status lifecycle** with a separate placement
+outcome. Backend: `server/{models/Recommendation.js, services/recommendationService.js,
+controllers/recommendations.js, routes/recommendations.js}`. Frontend:
+`frontend/src/components/interns/InternRecommendationsPanel.jsx` (data wiring + dialogs state)
+composing `components/interns/recommendations/` (`RecommendationCards`, `RecommendationModals`,
+`recommendationUi` — cards, view/edit/create modals, delete confirm, timeline, design tokens).
+
+**Status lifecycle** — `recommended → interviewing → resulted`. Enforced server-side:
+
+- A new recommendation always starts at `recommended` (create rejects anything else).
+- `PATCH` rejects backward moves ("status can only move forward"); the edit modal shows earlier
+  stages locked with a padlock. Setting a placement outcome forces status to `resulted`.
+- **Interviewing can be skipped**: jumping straight `recommended → resulted` (or sending
+  `statusDates.interviewing: null` on a resulted record) leaves interviewing dateless — rendered
+  as a dashed "Skipped" step, distinct from "Pending" (not reached yet).
+
+**Status dates** — `Recommendation.statusDates.{recommended,interviewing,resulted}` are the
+authoritative, author-editable dates each stage was reached (each defaults to now when a stage
+is first reached; may be backdated). Ordering is validated (`recommended ≤ interviewing ≤
+resulted`) on the server, on submit, and via date-picker `min`. The append-only `History` log
+(`entityType: 'recommendation'`, `statusKey`) remains the audit trail and the **fallback for
+records that predate `statusDates`**; editing such a record seeds its dates from history first.
+
+**Placement outcome** (`result.outcome`: `placed | not_placed`, note required) syncs the intern's
+lifecycle status (`InternProfile.status`):
+
+- `placed` → profile `placed`; `not_placed` → profile `ready` (back on the bench). Terminal
+  states (`completed` / `discontinued`) are never touched.
+- A recorded outcome can be changed but never removed.
+- **Delete recomputes from the most recent remaining recommendation**: newest is `placed` →
+  stays `placed`, anything else (or none left) → `ready`. Deleting also removes the record's
+  history trail. The confirm dialog warns when deleting the placement that marked the intern placed.
+
+**Roles** — writes (create/update/delete): `admin` for any intern, `mentor` only for interns they
+are assigned to (`assertRecommendationWriteAccess` → `canWriteMentorData`); reads additionally
+allow `leadership` (fully read-only UI — no create/edit/delete controls rendered). Everything a
+mentor can do, an admin can do.
+
 ## Glossary
 
 Domain terms used throughout the code. Get these right — especially the two "admin" meanings.

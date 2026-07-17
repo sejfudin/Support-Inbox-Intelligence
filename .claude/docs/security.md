@@ -26,6 +26,12 @@ caller's workspace.
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
+Recommendations follow this exactly: routes guard writes (POST/PATCH/DELETE) with
+`requireRole(ADMIN, MENTOR)`, and the service's `assertRecommendationWriteAccess` →
+`canWriteMentorData` further restricts mentors to their assigned interns (admins may write for
+any intern). Reads also allow `leadership`; mentors can only read recommendations of interns
+they mentor. Delete performs the same write check before removing the record and its history.
+
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.
