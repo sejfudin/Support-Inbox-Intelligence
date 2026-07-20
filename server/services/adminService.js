@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
+const { escapeRegex } = require('../helpers/escapeRegex');
 
 const getUserWorkspaceMemberships = async (userId) => {
   const workspaces = await Workspace.find(
@@ -74,9 +75,10 @@ const getUsers = async ({
     query._id = { $in: memberIds };
   }
   if (search) {
+    const escapedSearch = escapeRegex(search);
     query.$or = [
-      { fullname: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+      { fullname: { $regex: escapedSearch, $options: 'i' } },
+      { email: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 

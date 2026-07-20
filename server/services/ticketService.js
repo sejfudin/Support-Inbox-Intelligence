@@ -7,6 +7,7 @@ const historyService = require('./historyService');
 const statusService = require('./statusService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
 const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
+const { escapeRegex } = require('../helpers/escapeRegex');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -288,9 +289,10 @@ const getAllTickets = async ({
   applyCreatedAtPeriodFilter(query, periodDays);
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     const searchConditions = [
-      { subject: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
+      { subject: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
     ];
 
     const searchAsNumber = Number(search);
@@ -872,9 +874,10 @@ const getMyTickets = async ({
   };
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     query.$or = [
-      { subject: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
+      { subject: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 
