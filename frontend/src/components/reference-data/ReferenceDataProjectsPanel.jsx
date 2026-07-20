@@ -50,28 +50,6 @@ function StatusBadge({ status }) {
   );
 }
 
-/** Read-only segmented status display (project detail view — not selectable there). */
-function StatusPillsReadOnly({ status }) {
-  return (
-    <div className="flex gap-2">
-      {STATUS_OPTIONS.map((option) => (
-        <span
-          key={option.value}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium',
-            option.value === status
-              ? 'border-primary text-primary'
-              : 'border-border text-muted-foreground'
-          )}
-        >
-          <span className={cn('h-1.5 w-1.5 rounded-full', option.dotClass)} aria-hidden="true" />
-          {option.label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 /** Selectable segmented status control (project edit form). */
 function StatusSegmentedSelect({ value, onChange }) {
   return (
@@ -162,7 +140,7 @@ function ProjectDetail({ project, onBack, onEdit }) {
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           Status
         </p>
-        <StatusPillsReadOnly status={project.status} />
+        <StatusBadge status={project.status} />
       </div>
 
       <div className="space-y-2">
