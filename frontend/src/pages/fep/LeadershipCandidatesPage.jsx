@@ -25,6 +25,15 @@ const stageOptions = INTERN_STATUSES.flatMap((s) =>
   s === READY_STATUS ? [s, IN_PIPELINE_STAGE] : [s]
 );
 
+// Display label for a placement-stage option. `ready` is surfaced with the
+// same friendly label as the programme dashboard; every other stage is
+// title-cased so the selected value in the trigger matches the dropdown.
+const stageLabel = (s) => {
+  if (s === READY_STATUS) return 'Available for a project';
+  if (s === IN_PIPELINE_STAGE) return 'In Pipeline';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
 export default function LeadershipCandidatesPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -155,8 +164,8 @@ export default function LeadershipCandidatesPage() {
             <SelectContent>
               <SelectItem value="all">All stages</SelectItem>
               {stageOptions.map((s) => (
-                <SelectItem key={s} value={s} className="capitalize">
-                  {s === IN_PIPELINE_STAGE ? 'in pipeline' : s}
+                <SelectItem key={s} value={s}>
+                  {stageLabel(s)}
                 </SelectItem>
               ))}
             </SelectContent>
