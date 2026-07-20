@@ -32,6 +32,16 @@ caller's workspace.
 - **List all** (`GET /api/workspaces/all`): platform `admin` only. Mentors have no global
   workspace surface — they only see workspaces they belong to.
 
+## Reference data is an intentional exception to the golden rule
+
+`Position`, `Technology`, and `Project` (`server/routes/projects.js`) are **firm-global**, not
+workspace-scoped — the intern/recommendation domain has no `workspace` field anywhere. Don't add
+`requireWorkspaceManager`/workspace guards to these routes; that would be wrong, not extra-safe.
+`Project` writes (`POST`/`PATCH /api/projects`) are `requireRole(ROLES.ADMIN)` only — mentors can
+read/select a project (needed for the recommendation form) but cannot create or edit one. The
+locked "Unspecified" sentinel project (`isSystem: true`) additionally rejects edits at the service
+layer regardless of role.
+
 ## Intern access
 
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit

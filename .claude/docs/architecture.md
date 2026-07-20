@@ -30,7 +30,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
 `Notification`, `RefreshToken`, `Integration`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
-`Position`, `Hub`, `Technology`, `InternshipType`, `Invitation`.
+`Position`, `Project`, `Hub`, `Technology`, `InternshipType`, `Invitation`.
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
@@ -71,9 +71,10 @@ AI: `AISummary`.
 
 ## Recommendations (placement pipeline)
 
-A recommendation is a mentor's placement proposal for an intern: a position + project +
-technologies, moving through a **forward-only status lifecycle** with a separate placement
-outcome. Backend: `server/{models/Recommendation.js, services/recommendationService.js,
+A recommendation is a mentor's placement proposal for an intern: a position + **project** (ref to
+`Project`, an admin-managed reference entity — see below) + technologies, moving through a
+**forward-only status lifecycle** with a separate placement outcome. Backend:
+`server/{models/Recommendation.js, services/recommendationService.js,
 controllers/recommendations.js, routes/recommendations.js}`. Frontend:
 `frontend/src/components/interns/InternRecommendationsPanel.jsx` (data wiring + dialogs state)
 composing `components/interns/recommendations/` (`RecommendationCards`, `RecommendationModals`,
@@ -110,6 +111,27 @@ are assigned to (`assertRecommendationWriteAccess` → `canWriteMentorData`); re
 allow `leadership` (fully read-only UI — no create/edit/delete controls rendered). Everything a
 mentor can do, an admin can do.
 
+### Project (reference entity)
+
+`Project` (`server/models/Project.js`) is the canonical list of client engagements a
+recommendation can point at (title, client, description, tech tags, `status`:
+`active | on_hold | completed`). Firm-global reference data, same pattern as `Technology`/
+`Position` — **not** workspace-scoped despite the general "workspace-scope every resource" rule
+(that rule applies to the ticketing domain, not intern/recommendation reference data).
+
+- **Admin-only** create/edit (`requireRole(ROLES.ADMIN)`) — mentors can only select a project when
+  writing a recommendation, they cannot manage the list. Managed from the "Projects" tab on
+  `/admin/platform-management` (`ReferenceDataProjectsPanel`).
+- Only `status: active` projects are offered in the recommendation form's project picker;
+  `on_hold`/`completed` stay on existing recommendations but drop out of the picker for new ones.
+- A locked sentinel project (`slug: 'unspecified'`, `isSystem: true`) exists because
+  `Recommendation.project` used to be free text — the one-off
+  `server/seeder/migrateRecommendationProjects.js` repoints every pre-existing recommendation at
+  it (old free-text values are discarded, not preserved). The sentinel can't be edited or deleted
+  and never appears in the recommendation picker.
+- "Which interns are on project X" is a **derived read** (query `Recommendation` by `project`),
+  not a stored roster — there is no members/roster field on `Project` by design.
+
 ## Glossary
 
 Domain terms used throughout the code. Get these right — especially the two "admin" meanings.
@@ -127,6 +149,7 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **Readiness flag** | Per-intern assessment of readiness for a specific **technology** or **position**, level `none \| learning \| ready`, recorded by a user (`ReadinessFlag`). Feeds placement decisions. |
 | **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. |
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). |
+| **Project** | A client engagement the firm is running (e.g. "Northwind billing platform" for client "Northwind Traders") — `title/client/description/tech tags/status`. Admin-managed reference data; a recommendation refs one. Not workspace-scoped. |
 | **Recommendation** | A mentor's placement recommendation for an intern (candidate pipeline). Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — mentors resolve each one individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |

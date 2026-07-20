@@ -248,7 +248,7 @@ export default function MentorRecommendationsPage() {
                         <TableCell
                           className={`${tableCellClass} max-w-[220px] text-foreground [overflow-wrap:anywhere]`}
                         >
-                          {recommendation.project || (
+                          {recommendation.project?.name || (
                             <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>

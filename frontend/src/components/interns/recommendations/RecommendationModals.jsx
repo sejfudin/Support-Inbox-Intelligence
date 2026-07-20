@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronsUpDown, Plus, Search, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
@@ -10,7 +10,10 @@ import {
 } from '@/components/ui/select';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { cn } from '@/lib/utils';
-import { TechnologyIcon } from '@/helpers/technologyIcons';
+import {
+  TechnologyMultiSelect,
+  TechnologyViewChips,
+} from '@/components/ui/technology-multi-select';
 import {
   getRecommendationResultLabel,
   getRecommendationStatusLabel,
@@ -37,226 +40,6 @@ import {
 
 const SELECT_TRIGGER_CLASS =
   'h-auto w-full rounded-xl border-[#dcdfe9] bg-white px-[14px] py-[11px] text-[14px] text-[#171b2b] shadow-none focus:ring-0 focus:ring-offset-0 data-[placeholder]:text-[#9aa1b4]';
-
-// How many chips render before collapsing behind a "+N more" toggle.
-const VIEW_CHIP_LIMIT = 8;
-const EDIT_CHIP_LIMIT = 4;
-
-function RemovableChip({ technology, onRemove }) {
-  return (
-    <span className={cn(CHIP_CLASS, 'gap-1.5')}>
-      <TechnologyIcon technology={technology} size={13} className="shrink-0" />
-      {technology.name}
-      <button
-        type="button"
-        onClick={onRemove}
-        className="text-[#9aa1b4] transition hover:text-[#3c4257]"
-        aria-label={`Remove ${technology.name}`}
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </span>
-  );
-}
-
-/**
- * Searchable technology multi-select. Intentionally an INLINE dropdown (not a
- * Radix Popover): this picker lives inside a Radix Dialog, and Radix's dialog
- * scroll-lock swallows wheel/touch scroll inside a portaled popover, so the
- * option list wouldn't scroll. Rendering the list in the dialog's own DOM flow
- * keeps native overflow scrolling working.
- *
- * Variants:
- * - "select" (create modal): input-like trigger with the selected chips
- *   wrapping below it.
- * - "box" (edit modal): bordered container holding the removable chips
- *   (collapsed behind "+N more" past 4) and an accent "+ Add technology".
- */
-export function TechnologyMultiSelect({ technologies, selectedIds, onChange, variant = 'select' }) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState(false);
-  const containerRef = useRef(null);
-
-  const selectedTechnologies = useMemo(
-    () => technologies.filter((technology) => selectedIds.includes(technology._id)),
-    [selectedIds, technologies]
-  );
-
-  // Only show technologies not already picked — selecting one removes it from
-  // the pool; removal returns it to the pool.
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return technologies.filter(
-      (technology) =>
-        !selectedIds.includes(technology._id) && (!q || technology.name.toLowerCase().includes(q))
-    );
-  }, [query, technologies, selectedIds]);
-
-  const add = (technologyId) => {
-    if (!selectedIds.includes(technologyId)) onChange([...selectedIds, technologyId]);
-  };
-  const remove = (technologyId) => onChange(selectedIds.filter((id) => id !== technologyId));
-
-  // Close on outside click / Escape.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setOpen(false);
-        setQuery('');
-      }
-    };
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        // Swallow the event so it only closes the dropdown — the surrounding
-        // Radix Dialog also listens for Escape (capture, on document) and
-        // would otherwise close the whole form, losing everything typed.
-        // window-capture runs before document-capture, so this wins.
-        event.preventDefault();
-        event.stopPropagation();
-        setOpen(false);
-        setQuery('');
-      }
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      window.removeEventListener('keydown', onKeyDown, true);
-    };
-  }, [open]);
-
-  const dropdown = open && (
-    <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-[#dcdfe9] bg-white shadow-[0_12px_32px_rgba(20,24,40,.14)]">
-      <div className="flex items-center gap-2 border-b border-[#eef0f5] px-3">
-        <Search className="h-4 w-4 shrink-0 text-[#9aa1b4]" />
-        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-        <input
-          autoFocus
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search technologies…"
-          className="h-10 w-full bg-transparent text-[14px] text-[#171b2b] outline-none placeholder:text-[#9aa1b4]"
-          data-test="recommendation-technology-search"
-        />
-      </div>
-      <div className="max-h-[240px] overflow-y-auto overscroll-contain p-1">
-        {filtered.length === 0 && (
-          <p className="px-3 py-6 text-center text-[13.5px] text-[#8b91a5]">
-            {selectedIds.length === technologies.length
-              ? 'All technologies added.'
-              : 'No technologies found.'}
-          </p>
-        )}
-        {filtered.map((technology) => (
-          <button
-            key={technology._id}
-            type="button"
-            onClick={() => add(technology._id)}
-            className="flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-[14px] text-[#33384c] transition hover:bg-[#f2f3f8]"
-            data-test={`recommendation-technology-option-${technology.slug}`}
-          >
-            <TechnologyIcon technology={technology} size={16} className="shrink-0" />
-            <span className="flex-1 truncate">{technology.name}</span>
-            <Plus className="h-4 w-4 shrink-0 text-[#9aa1b4]" />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  if (variant === 'box') {
-    const visible = expanded
-      ? selectedTechnologies
-      : selectedTechnologies.slice(0, EDIT_CHIP_LIMIT);
-    const hiddenCount = selectedTechnologies.length - visible.length;
-    return (
-      <div ref={containerRef} className="relative">
-        <div className="rounded-xl border border-[#dcdfe9] px-[14px] py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {visible.map((technology) => (
-              <RemovableChip
-                key={technology._id}
-                technology={technology}
-                onRemove={() => remove(technology._id)}
-              />
-            ))}
-            {hiddenCount > 0 && (
-              <button type="button" onClick={() => setExpanded(true)} className={CHIP_CLASS}>
-                +{hiddenCount} more
-              </button>
-            )}
-            {selectedTechnologies.length === 0 && (
-              <span className="text-[13.5px] text-[#9aa1b4]">No technologies selected.</span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setOpen((prev) => !prev)}
-            className="mt-2.5 inline-flex items-center gap-1 text-[13.5px] font-semibold text-[#6d5ce6] transition hover:text-[#5a48d6]"
-            data-test="recommendation-technology-select"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add technology
-          </button>
-        </div>
-        {dropdown}
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className={cn(INPUT_CLASS, 'flex items-center justify-between text-left text-[#9aa1b4]')}
-        data-test="recommendation-technology-select"
-      >
-        Select technologies…
-        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-60" />
-      </button>
-      {dropdown}
-      {selectedTechnologies.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-2">
-          {selectedTechnologies.map((technology) => (
-            <RemovableChip
-              key={technology._id}
-              technology={technology}
-              onRemove={() => remove(technology._id)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Read-only chips list, collapsed behind "+N more" past 8 (view modal). */
-function ViewChips({ technologies }) {
-  const [expanded, setExpanded] = useState(false);
-  if (!technologies.length) {
-    return <span className="text-[13.5px] text-[#8b91a5]">None selected.</span>;
-  }
-  const visible = expanded ? technologies : technologies.slice(0, VIEW_CHIP_LIMIT);
-  const hiddenCount = technologies.length - visible.length;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {visible.map((technology) => (
-        <span key={technology._id} className={cn(CHIP_CLASS, 'gap-1.5')}>
-          <TechnologyIcon technology={technology} size={13} className="shrink-0" />
-          {technology.name}
-        </span>
-      ))}
-      {hiddenCount > 0 && (
-        <button type="button" onClick={() => setExpanded(true)} className={CHIP_CLASS}>
-          +{hiddenCount} more
-        </button>
-      )}
-    </div>
-  );
-}
 
 /**
  * Read-only view modal: status strip + pill, timeline with CURRENT tag,
@@ -290,8 +73,11 @@ export function RecommendationViewModal({
       }
       subtitle={
         <>
-          Project <span className="font-semibold text-[#33384c]">{recommendation.project}</span> ·
-          Updated {formatRecDate(recommendation.updatedAt)} by{' '}
+          Project{' '}
+          <span className="font-semibold text-[#33384c]">
+            {recommendation.project?.name || '—'}
+          </span>{' '}
+          · Updated {formatRecDate(recommendation.updatedAt)} by{' '}
           {recommendation.updatedBy?.fullname || 'Unknown'}
         </>
       }
@@ -323,7 +109,10 @@ export function RecommendationViewModal({
 
       <div>
         <SectionLabel className="mb-3">Technologies</SectionLabel>
-        <ViewChips technologies={recommendation.technologies || []} />
+        <TechnologyViewChips
+          technologies={recommendation.technologies || []}
+          chipClassName={CHIP_CLASS}
+        />
       </div>
 
       {recommendation.recommendationNote && (
@@ -369,6 +158,7 @@ export function RecommendationFormModal({
   setForm,
   statuses,
   positions,
+  projects,
   technologies,
   activeRecommendation,
   hasRecordedOutcome,
@@ -386,6 +176,16 @@ export function RecommendationFormModal({
   // can only start at Recommended.
   const lockedValues = isEditing ? statusKeys.slice(0, savedIndex) : statusKeys.slice(1);
   const formIndex = Math.max(0, statusKeys.indexOf(form.status));
+
+  // The picker only offers active, non-system projects. If the recommendation
+  // being edited already points at one that's now on-hold/completed (or the
+  // "Unspecified" sentinel), keep it selected and flag it so it isn't
+  // silently swapped out from under the mentor.
+  const currentProject = activeRecommendation?.project;
+  const projectOptions =
+    isEditing && currentProject && !projects.some((project) => project._id === currentProject._id)
+      ? [{ ...currentProject, _inactive: true }, ...projects]
+      : projects;
 
   // Moving the status forward defaults each newly reached stage's date to
   // today; jumping Recommended → Resulted with no Interviewing date marks
@@ -439,7 +239,7 @@ export function RecommendationFormModal({
       title={isEditing ? 'Edit recommendation' : 'New recommendation'}
       subtitle={
         isEditing
-          ? `${positionName(activeRecommendation)} · ${activeRecommendation?.project || '—'}`
+          ? `${positionName(activeRecommendation)} · ${activeRecommendation?.project?.name || '—'}`
           : 'Available to Mentor and Admin roles · visible to Leadership'
       }
       footer={
@@ -495,15 +295,26 @@ export function RecommendationFormModal({
           <FieldLabel htmlFor="recommendation-project" required className="mb-2">
             Project
           </FieldLabel>
-          <input
-            id="recommendation-project"
-            value={form.project}
-            onChange={(event) => setForm((prev) => ({ ...prev, project: event.target.value }))}
-            placeholder="e.g. Mentor E2E"
-            maxLength={200}
-            className={INPUT_CLASS}
-            data-test="recommendation-project-input"
-          />
+          <Select
+            value={form.projectId}
+            onValueChange={(projectId) => setForm((prev) => ({ ...prev, projectId }))}
+          >
+            <SelectTrigger
+              id="recommendation-project"
+              className={SELECT_TRIGGER_CLASS}
+              data-test="recommendation-project-select"
+            >
+              <SelectValue placeholder="Select a project" />
+            </SelectTrigger>
+            <SelectContent>
+              {projectOptions.map((project) => (
+                <SelectItem key={project._id} value={project._id}>
+                  {project.name}
+                  {project._inactive ? ' (inactive)' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -602,6 +413,11 @@ export function RecommendationFormModal({
           selectedIds={form.technologyIds}
           onChange={(technologyIds) => setForm((prev) => ({ ...prev, technologyIds }))}
           variant={isEditing ? 'box' : 'select'}
+          triggerClassName={cn(
+            INPUT_CLASS,
+            'flex items-center justify-between text-left text-[#9aa1b4]'
+          )}
+          chipClassName={CHIP_CLASS}
         />
       </div>
 
@@ -722,7 +538,7 @@ export function RecommendationDeleteDialog({
         <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-[#5b6175]">
           Are you sure you want to delete{' '}
           <span className="font-bold text-[#171b2b]">
-            &quot;{positionName(recommendation)} · {recommendation.project}&quot;
+            &quot;{positionName(recommendation)} · {recommendation.project?.name || '—'}&quot;
           </span>
           ? The full status history and placement outcome will be removed. This can&apos;t be
           undone.

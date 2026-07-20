@@ -81,7 +81,9 @@ const seedPositions = async () => {
 const seedUnspecifiedProject = async () => {
   await Project.updateOne(
     { slug: 'unspecified' },
-    { $setOnInsert: { name: 'Unspecified', slug: 'unspecified', isSystem: true, status: 'active' } },
+    {
+      $setOnInsert: { name: 'Unspecified', slug: 'unspecified', isSystem: true, status: 'active' },
+    },
     { upsert: true }
   );
 };

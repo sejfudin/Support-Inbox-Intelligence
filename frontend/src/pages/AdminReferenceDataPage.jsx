@@ -2,6 +2,7 @@ import PageHeading from '@/components/PageHeading';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { ReferenceDataHubsPanel } from '@/components/reference-data/ReferenceDataHubsPanel';
 import { ReferenceDataInternshipTypesPanel } from '@/components/reference-data/ReferenceDataInternshipTypesPanel';
+import { ReferenceDataProjectsPanel } from '@/components/reference-data/ReferenceDataProjectsPanel';
 import { ReferenceDataTechnologiesPanel } from '@/components/reference-data/ReferenceDataTechnologiesPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -16,12 +17,12 @@ export default function AdminReferenceDataPage() {
           <PageHeading
             kicker="Administration"
             title="Platform Management"
-            subtitle="Manage hubs, internship types, and technologies used across the platform."
+            subtitle="Manage hubs, internship types, technologies, and projects used across the platform."
           />
 
           <PagePanel className="p-6">
             <Tabs defaultValue="hubs">
-              <TabsList className="mb-8 grid h-auto w-full grid-cols-3 rounded-none border-b border-border bg-transparent p-0">
+              <TabsList className="mb-8 grid h-auto w-full grid-cols-4 rounded-none border-b border-border bg-transparent p-0">
                 <TabsTrigger
                   value="hubs"
                   className={platformTabTriggerClass}
@@ -43,6 +44,13 @@ export default function AdminReferenceDataPage() {
                 >
                   Technologies
                 </TabsTrigger>
+                <TabsTrigger
+                  value="projects"
+                  className={platformTabTriggerClass}
+                  data-test="platform-management-projects-tab"
+                >
+                  Projects
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="hubs" className="mt-0">
@@ -53,6 +61,9 @@ export default function AdminReferenceDataPage() {
               </TabsContent>
               <TabsContent value="technologies" className="mt-0">
                 <ReferenceDataTechnologiesPanel />
+              </TabsContent>
+              <TabsContent value="projects" className="mt-0">
+                <ReferenceDataProjectsPanel />
               </TabsContent>
             </Tabs>
           </PagePanel>

@@ -17,7 +17,12 @@
  * Project entity existed.
  */
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+// Matches index.js's env selection (`.env.${NODE_ENV}`, default 'development') so this
+// script hits the same database `npm run dev` does. Older seeder scripts load plain
+// `.env` instead, which can silently point at a different database — see server/CLAUDE.md.
+require('dotenv').config({
+  path: path.join(__dirname, '..', `.env.${process.env.NODE_ENV || 'development'}`),
+});
 
 const connectDB = require('../config/db');
 const Recommendation = require('../models/Recommendation');
@@ -30,13 +35,22 @@ const run = async () => {
 
     const sentinel = await Project.findOneAndUpdate(
       { slug: 'unspecified' },
-      { $setOnInsert: { name: 'Unspecified', slug: 'unspecified', isSystem: true, status: 'active' } },
-      { upsert: true, new: true }
+      {
+        $setOnInsert: {
+          name: 'Unspecified',
+          slug: 'unspecified',
+          isSystem: true,
+          status: 'active',
+        },
+      },
+      { upsert: true, returnDocument: 'after' }
     );
     console.log(`✅ Sentinel "Unspecified" project ready (${sentinel._id}).`);
 
     const result = await Recommendation.updateMany({}, { $set: { project: sentinel._id } });
-    console.log(`✅ Repointed ${result.modifiedCount} recommendation(s) at the Unspecified project.`);
+    console.log(
+      `✅ Repointed ${result.modifiedCount} recommendation(s) at the Unspecified project.`
+    );
 
     process.exit(0);
   } catch (error) {
