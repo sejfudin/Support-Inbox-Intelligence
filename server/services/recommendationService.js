@@ -703,11 +703,8 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
       profile.status = 'placed';
       await profile.save();
     }
-    // A placed intern is out of the pipeline — resolve their other still-open
-    // recommendations as not_placed (idempotent).
-    await closeActiveRecommendationsForIntern(profile._id, user, {
-      excludeRecommendationId: recommendation._id,
-    });
+    // Note: the intern's OTHER open recommendations are intentionally left
+    // untouched — each recommendation is resolved individually by the mentor.
   } else if (outcome === 'not_placed' && ['active', 'placed'].includes(profile.status)) {
     profile.status = READY_STATUS;
     await profile.save();
