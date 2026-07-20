@@ -5,6 +5,7 @@ const Comment = require('../models/Comment');
 const attachmentImageRepo = require('../repository/attachmentImage');
 const { supabase, supabaseBucket } = require('../config/supabase');
 const { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } = require('../middleware/upload');
+const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
 
 const ENTITY_TYPES = {
   TICKET_DESCRIPTION: 'ticket_description',
@@ -98,14 +99,20 @@ const normalizeSupabaseError = (error) => {
   return error;
 };
 
-const verifyEntityExists = async (entityType, entityId, { allowArchivedRead = false } = {}) => {
+const verifyEntityExists = async (
+  entityType,
+  entityId,
+  { allowArchivedRead = false, user } = {}
+) => {
   if (!isValidObjectId(entityId)) {
     throw makeError('Invalid entity id.', 400);
   }
 
   if (entityType === ENTITY_TYPES.TICKET_DESCRIPTION) {
-    const ticket = await Ticket.findById(entityId).select('_id isArchived');
+    const ticket = await Ticket.findById(entityId).select('_id isArchived workspace');
     if (!ticket) throw makeError('Ticket not found.', 404);
+
+    await assertWorkspaceAccess(ticket.workspace, user, 'Ticket not found.');
 
     if (!allowArchivedRead && ticket.isArchived) {
       throw makeError('Cannot manage images for archived ticket.', 403);
@@ -117,8 +124,10 @@ const verifyEntityExists = async (entityType, entityId, { allowArchivedRead = fa
     const comment = await Comment.findById(entityId).select('_id isDeleted ticket');
     if (!comment) throw makeError('Comment not found.', 404);
 
-    const ticket = await Ticket.findById(comment.ticket).select('_id isArchived');
+    const ticket = await Ticket.findById(comment.ticket).select('_id isArchived workspace');
     if (!ticket) throw makeError('Ticket not found for comment.', 404);
+
+    await assertWorkspaceAccess(ticket.workspace, user, 'Comment not found.');
 
     if (!allowArchivedRead) {
       if (comment.isDeleted) throw makeError('Cannot manage images for deleted comment.', 403);
@@ -152,14 +161,14 @@ const validateFiles = (files) => {
   }
 };
 
-const getEntityImages = async ({ entityType, entityId }) => {
-  await verifyEntityExists(entityType, entityId, { allowArchivedRead: true });
+const getEntityImages = async ({ entityType, entityId, user }) => {
+  await verifyEntityExists(entityType, entityId, { allowArchivedRead: true, user });
   const rows = await attachmentImageRepo.findByEntity(entityType, entityId);
   return mapRowsWithImageUrl(rows);
 };
 
-const uploadEntityImages = async ({ entityType, entityId, files, uploadedByUserId }) => {
-  await verifyEntityExists(entityType, entityId, { allowArchivedRead: false });
+const uploadEntityImages = async ({ entityType, entityId, files, uploadedByUserId, user }) => {
+  await verifyEntityExists(entityType, entityId, { allowArchivedRead: false, user });
 
   if (!isValidObjectId(uploadedByUserId)) {
     throw makeError('Invalid authenticated user id.', 400);
@@ -220,8 +229,8 @@ const uploadEntityImages = async ({ entityType, entityId, files, uploadedByUserI
   }
 };
 
-const deleteEntityImage = async ({ entityType, entityId, imageId }) => {
-  await verifyEntityExists(entityType, entityId, { allowArchivedRead: false });
+const deleteEntityImage = async ({ entityType, entityId, imageId, user }) => {
+  await verifyEntityExists(entityType, entityId, { allowArchivedRead: false, user });
 
   const parsedImageId = parseImageId(imageId);
 
@@ -249,8 +258,8 @@ const deleteEntityImage = async ({ entityType, entityId, imageId }) => {
   return { success: true };
 };
 
-const deleteAllEntityImages = async ({ entityType, entityId }) => {
-  await verifyEntityExists(entityType, entityId, { allowArchivedRead: false });
+const deleteAllEntityImages = async ({ entityType, entityId, user }) => {
+  await verifyEntityExists(entityType, entityId, { allowArchivedRead: false, user });
 
   const rows = await attachmentImageRepo.findByEntity(entityType, entityId);
   if (rows.length === 0) return { success: true };
