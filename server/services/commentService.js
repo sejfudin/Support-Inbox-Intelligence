@@ -3,6 +3,7 @@ const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
 const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
+const { sanitizePlainText } = require('../helpers/htmlSanitize');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
@@ -21,7 +22,10 @@ const emitCommentTicketEvent = ({ eventName, ticketId, workspaceId, commentId })
 const createComment = async ({ content, ticket, authorId, role }) => {
   if (!content || !content.trim()) throw new Error('Comment content is required');
 
-  if (content.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
+  const sanitizedContent = sanitizePlainText(content);
+  if (!sanitizedContent) throw new Error('Comment content is required');
+
+  if (sanitizedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
 
   const foundTicket = await Ticket.findById(ticket);
   if (!foundTicket) throw new Error('Ticket not found');
@@ -41,7 +45,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
   }
 
   let comment = await Comment.create({
-    content,
+    content: sanitizedContent,
     ticket,
     author: authorId,
   });
@@ -68,7 +72,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
     if (activeMemberIds.length > 0) {
       const users = await User.find({ _id: { $in: activeMemberIds } }).select('_id fullname email');
       const { byHandle } = buildMentionDirectory(users);
-      const handles = extractMentionHandles(content || '');
+      const handles = extractMentionHandles(sanitizedContent);
 
       mentionRecipientIds = handles
         .map((h) => byHandle.get(h)?.userId)
@@ -84,7 +88,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
     await notificationService.notifyNewTicketComment({
       ticket: foundTicket,
       authorId,
-      commentPreview: content.trim(),
+      commentPreview: sanitizedContent,
       excludeRecipientIds: mentionRecipientIds,
     });
   } catch (err) {
@@ -97,7 +101,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
         ticket: foundTicket,
         authorId,
         recipientIds: mentionRecipientIds,
-        commentPreview: content.trim(),
+        commentPreview: sanitizedContent,
         commentId: comment._id,
       });
     }
@@ -136,7 +140,10 @@ const updateComment = async (commentId, content, userId) => {
 
   if (!content || !content.trim()) throw new Error('Comment content is required');
 
-  if (content.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
+  const sanitizedContent = sanitizePlainText(content);
+  if (!sanitizedContent) throw new Error('Comment content is required');
+
+  if (sanitizedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
 
   if (comment.ticket.isArchived) {
     throw new Error('Unauthorized: Cannot edit comments on an archived ticket');
@@ -146,7 +153,7 @@ const updateComment = async (commentId, content, userId) => {
     throw new Error('Unauthorized: You can only edit your own comments');
   }
 
-  comment.content = content;
+  comment.content = sanitizedContent;
   comment.isEdited = true;
   await comment.save();
 

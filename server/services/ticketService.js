@@ -6,6 +6,7 @@ const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
+const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -499,7 +500,7 @@ const createTicket = async (ticketData) => {
 
   const ticket = new Ticket({
     subject: sanitizedSubject,
-    description: ticketData.description || '',
+    description: sanitizeDescriptionHtml(ticketData.description),
     creator: ticketData.creatorId,
     status: statusId,
     priority: ticketData.priority || 'medium',
@@ -563,6 +564,10 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         throw new Error('Subject details are required');
       }
       updateData.subject = sanitizedSubject;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, 'description')) {
+      updateData.description = sanitizeDescriptionHtml(updateData.description);
     }
 
     const oldTicket = await Ticket.findById(ticketId);
