@@ -53,16 +53,6 @@ const loadInternProfileByUserId = async (userId) => {
   return profile;
 };
 
-const loadInternProfileById = async (profileId) => {
-  const profile = await InternProfile.findById(profileId);
-  if (!profile) {
-    const err = new Error('Intern profile not found');
-    err.statusCode = 404;
-    throw err;
-  }
-  return profile;
-};
-
 const assertInternAccess = async (user, internUserId, { write = false } = {}) => {
   const profile = await loadInternProfileByUserId(internUserId);
 
@@ -95,6 +85,5 @@ module.exports = {
   canViewInternProfile,
   canEditOwnInternProfile,
   loadInternProfileByUserId,
-  loadInternProfileById,
   assertInternAccess,
 };

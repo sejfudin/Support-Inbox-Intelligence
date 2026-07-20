@@ -187,22 +187,6 @@ const resolveStatusForWorkspace = async (workspaceId, statusRef) => {
   return validateStatusForWorkspace(workspaceId, statusRef);
 };
 
-const getStatusFlags = async (workspaceId, slug) => {
-  const status = await validateStatusForWorkspace(workspaceId, slug);
-  return {
-    tracksTime: status.tracksTime,
-    isDone: status.isDone,
-    isBacklog: status.isBacklog,
-  };
-};
-
-const getBacklogSlugs = async (workspaceId) => {
-  const statuses = await TicketStatus.find({ workspace: workspaceId, isBacklog: true })
-    .select('slug')
-    .lean();
-  return statuses.map((s) => s.slug);
-};
-
 const getBacklogStatusIds = async (workspaceId) => {
   const statuses = await TicketStatus.find({ workspace: workspaceId, isBacklog: true })
     .select('_id')
@@ -223,11 +207,6 @@ const getStatusDocFromTicketRef = async (statusRef) => {
   return TicketStatus.findById(statusRef).select('slug label tracksTime isDone isBacklog').lean();
 };
 
-const resolveStatusSlugFromTicketRef = async (statusRef) => {
-  const doc = await getStatusDocFromTicketRef(statusRef);
-  return doc?.slug ? String(doc.slug).toLowerCase() : '';
-};
-
 const statusIdsMatch = (a, b) => {
   if (!a || !b) return false;
   return String(a) === String(b);
@@ -246,22 +225,6 @@ const getStatusIdSets = async (workspaceId) => {
     doneIds: statuses.filter((s) => s.isDone).map((s) => s._id),
     tracksTimeIds: statuses.filter((s) => s.tracksTime).map((s) => s._id),
     activeIds: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s._id),
-  };
-};
-
-const getStatusSlugSets = async (workspaceId) => {
-  const statuses = await getWorkspaceStatuses(workspaceId);
-  if (statuses.length === 0) {
-    console.error(
-      `[statusService] No TicketStatus rows for workspace ${workspaceId}; slug sets empty. Run migrateTicketStatuses.js.`
-    );
-    return { doneSlugs: [], tracksTimeSlugs: [], activeSlugs: [] };
-  }
-
-  return {
-    doneSlugs: statuses.filter((s) => s.isDone).map((s) => s.slug),
-    tracksTimeSlugs: statuses.filter((s) => s.tracksTime).map((s) => s.slug),
-    activeSlugs: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s.slug),
   };
 };
 
@@ -413,11 +376,6 @@ const resolveDefaultStatus = async (workspaceId, { isAdmin = false } = {}) => {
   }
   const main = statuses.find((s) => !s.isBacklog);
   return main || statuses[0];
-};
-
-const getStatusLabelFromRef = async (statusRef) => {
-  const doc = await getStatusDocFromTicketRef(statusRef);
-  return doc?.label || 'Unknown';
 };
 
 const clearIntegrationStatusReferences = async (workspaceId, statusId) => {
@@ -752,16 +710,11 @@ module.exports = {
   getStatusBySlug,
   validateStatusForWorkspace,
   resolveStatusForWorkspace,
-  getStatusLabelFromRef,
   getStatusDocFromTicketRef,
-  getStatusFlags,
-  getBacklogSlugs,
   getBacklogStatusIds,
   getStatusIdForSlug,
-  resolveStatusSlugFromTicketRef,
   statusIdsMatch,
   getStatusIdSets,
-  getStatusSlugSets,
   resolveDefaultStatus,
   resolveIntegrationStatusTargets,
   normalizeIntegrationSettings,
