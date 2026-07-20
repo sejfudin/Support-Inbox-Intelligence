@@ -215,12 +215,16 @@ const getStatusIdForSlug = async (workspaceId, slug) => {
   return status._id;
 };
 
+// Single fetch that replaces separately re-fetching the same status doc for its
+// slug, label, and behavior flags (a ticket's status change needs all three).
+const getStatusDocFromTicketRef = async (statusRef) => {
+  if (!statusRef) return null;
+  if (typeof statusRef === 'object' && statusRef.slug) return statusRef;
+  return TicketStatus.findById(statusRef).select('slug label tracksTime isDone isBacklog').lean();
+};
+
 const resolveStatusSlugFromTicketRef = async (statusRef) => {
-  if (!statusRef) return '';
-  if (typeof statusRef === 'object' && statusRef.slug) {
-    return String(statusRef.slug).toLowerCase();
-  }
-  const doc = await TicketStatus.findById(statusRef).select('slug').lean();
+  const doc = await getStatusDocFromTicketRef(statusRef);
   return doc?.slug ? String(doc.slug).toLowerCase() : '';
 };
 
@@ -412,11 +416,7 @@ const resolveDefaultStatus = async (workspaceId, { isAdmin = false } = {}) => {
 };
 
 const getStatusLabelFromRef = async (statusRef) => {
-  if (!statusRef) return 'Unknown';
-  if (typeof statusRef === 'object' && statusRef.label) {
-    return statusRef.label;
-  }
-  const doc = await TicketStatus.findById(statusRef).select('label').lean();
+  const doc = await getStatusDocFromTicketRef(statusRef);
   return doc?.label || 'Unknown';
 };
 
@@ -444,16 +444,12 @@ const clearIntegrationStatusReferences = async (workspaceId, statusId) => {
 };
 
 const applyStatusLifecycleUpdate = async ({
-  workspaceId,
-  oldStatus,
-  newStatus,
+  oldFlags,
+  newFlags,
   oldTicket,
   updateData,
   now = new Date(),
 }) => {
-  const oldFlags = await getStatusFlags(workspaceId, oldStatus);
-  const newFlags = await getStatusFlags(workspaceId, newStatus);
-
   if (newFlags.tracksTime) {
     updateData.inProgressAt = now;
     if (!newFlags.isDone) {
@@ -757,6 +753,7 @@ module.exports = {
   validateStatusForWorkspace,
   resolveStatusForWorkspace,
   getStatusLabelFromRef,
+  getStatusDocFromTicketRef,
   getStatusFlags,
   getBacklogSlugs,
   getBacklogStatusIds,

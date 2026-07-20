@@ -491,7 +491,12 @@ const createTicket = async (ticketData) => {
   }
   const statusId = statusDoc._id;
 
-  const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, statusDoc.slug);
+  // statusDoc already carries these fields — no need to re-fetch it by slug.
+  const statusFlags = {
+    tracksTime: statusDoc.tracksTime,
+    isDone: statusDoc.isDone,
+    isBacklog: statusDoc.isBacklog,
+  };
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
@@ -608,26 +613,35 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         statusInput
       );
       const newStatusSlug = statusDoc.slug;
-      const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
+      // Single fetch for the old status doc — replaces separate slug/label/flags
+      // lookups that each independently re-fetched the same document.
+      const oldStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
+      const oldStatusSlug = oldStatusDoc?.slug ? String(oldStatusDoc.slug).toLowerCase() : '';
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
         statusChanged = true;
-        const oldFlags = await statusService.getStatusFlags(oldTicket.workspace, oldStatusSlug);
-        if (statusDoc.isBacklog && !oldFlags.isBacklog) {
+        if (statusDoc.isBacklog && !oldStatusDoc?.isBacklog) {
           throw new Error('Tickets cannot be moved back to the backlog.');
         }
 
         const now = new Date();
-        const oldLabel = await statusService.getStatusLabelFromRef(oldTicket.status);
+        const oldLabel = oldStatusDoc?.label || 'Unknown';
         const newLabel = statusDoc.label;
 
         updateData.status = statusDoc._id;
         delete updateData.statusId;
 
         await statusService.applyStatusLifecycleUpdate({
-          workspaceId: oldTicket.workspace,
-          oldStatus: oldStatusSlug,
-          newStatus: newStatusSlug,
+          oldFlags: {
+            tracksTime: oldStatusDoc?.tracksTime,
+            isDone: oldStatusDoc?.isDone,
+            isBacklog: oldStatusDoc?.isBacklog,
+          },
+          newFlags: {
+            tracksTime: statusDoc.tracksTime,
+            isDone: statusDoc.isDone,
+            isBacklog: statusDoc.isBacklog,
+          },
           oldTicket,
           updateData,
           now,
