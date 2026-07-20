@@ -174,7 +174,7 @@ function ProjectDetail({ project, onBack, onEdit }) {
 
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Tech & tags
+          Technologies
         </p>
         <TechnologyViewChips technologies={project.technologies || []} />
       </div>
@@ -252,7 +252,7 @@ function ProjectEditForm({ project, technologies, onCancel, onSave, isSaving }) 
       </div>
 
       <div className="space-y-2">
-        <Label>Tech & tags</Label>
+        <Label>Technologies</Label>
         <TechnologyMultiSelect
           technologies={technologies}
           selectedIds={form.technologyIds}
@@ -409,7 +409,7 @@ export function ReferenceDataProjectsPanel() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Tech & tags</Label>
+              <Label>Technologies</Label>
               <TechnologyMultiSelect
                 technologies={technologies}
                 selectedIds={createForm.technologyIds}

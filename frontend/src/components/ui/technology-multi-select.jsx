@@ -58,6 +58,7 @@ export function TechnologyMultiSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const containerRef = useRef(null);
 
   const selectedTechnologies = useMemo(
@@ -77,8 +78,16 @@ export function TechnologyMultiSelect({
 
   const add = (technologyId) => {
     if (!selectedIds.includes(technologyId)) onChange([...selectedIds, technologyId]);
+    // Picking an item shrinks the filtered pool — re-anchor at the top rather
+    // than risk pointing past the new end of the list.
+    setHighlightedIndex(0);
   };
   const remove = (technologyId) => onChange(selectedIds.filter((id) => id !== technologyId));
+
+  const handleQueryChange = (value) => {
+    setQuery(value);
+    setHighlightedIndex(0);
+  };
 
   // Close on outside click / Escape.
   useEffect(() => {
@@ -110,15 +119,43 @@ export function TechnologyMultiSelect({
     };
   }, [open]);
 
+  // The trigger opens the dropdown below itself, but a trigger sitting near
+  // the bottom of a scrollable dialog can leave it clipped/barely visible.
+  // A callback ref fires as soon as the node mounts, so this scrolls it into
+  // view (within whatever ancestor actually scrolls) without an effect.
+  const scrollDropdownIntoView = (node) => {
+    if (node) node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
+
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightedIndex((prev) => (filtered.length ? (prev + 1) % filtered.length : 0));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightedIndex((prev) =>
+        filtered.length ? (prev - 1 + filtered.length) % filtered.length : 0
+      );
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      const technology = filtered[highlightedIndex];
+      if (technology) add(technology._id);
+    }
+  };
+
   const dropdown = open && (
-    <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
+    <div
+      ref={scrollDropdownIntoView}
+      className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
+    >
       <div className="flex items-center gap-2 border-b border-border px-3">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
         {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         <input
           autoFocus
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => handleQueryChange(event.target.value)}
+          onKeyDown={handleSearchKeyDown}
           placeholder="Search technologies…"
           className="h-10 w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           data-test="technology-multi-select-search"
@@ -132,12 +169,16 @@ export function TechnologyMultiSelect({
               : 'No technologies found.'}
           </p>
         )}
-        {filtered.map((technology) => (
+        {filtered.map((technology, index) => (
           <button
             key={technology._id}
             type="button"
             onClick={() => add(technology._id)}
-            className="flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition hover:bg-secondary"
+            onMouseEnter={() => setHighlightedIndex(index)}
+            className={cn(
+              'flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition',
+              index === highlightedIndex ? 'bg-secondary' : 'hover:bg-secondary'
+            )}
             data-test={`technology-multi-select-option-${technology.slug}`}
           >
             <TechnologyIcon technology={technology} size={16} className="shrink-0" />
