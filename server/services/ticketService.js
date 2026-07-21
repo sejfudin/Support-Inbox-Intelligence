@@ -6,6 +6,8 @@ const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
+const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
+const { escapeRegex } = require('../helpers/escapeRegex');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -287,9 +289,10 @@ const getAllTickets = async ({
   applyCreatedAtPeriodFilter(query, periodDays);
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     const searchConditions = [
-      { subject: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
+      { subject: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
     ];
 
     const searchAsNumber = Number(search);
@@ -488,7 +491,12 @@ const createTicket = async (ticketData) => {
   }
   const statusId = statusDoc._id;
 
-  const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, statusDoc.slug);
+  // statusDoc already carries these fields — no need to re-fetch it by slug.
+  const statusFlags = {
+    tracksTime: statusDoc.tracksTime,
+    isDone: statusDoc.isDone,
+    isBacklog: statusDoc.isBacklog,
+  };
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
@@ -499,7 +507,7 @@ const createTicket = async (ticketData) => {
 
   const ticket = new Ticket({
     subject: sanitizedSubject,
-    description: ticketData.description || '',
+    description: sanitizeDescriptionHtml(ticketData.description),
     creator: ticketData.creatorId,
     status: statusId,
     priority: ticketData.priority || 'medium',
@@ -565,6 +573,10 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       updateData.subject = sanitizedSubject;
     }
 
+    if (Object.prototype.hasOwnProperty.call(updateData, 'description')) {
+      updateData.description = sanitizeDescriptionHtml(updateData.description);
+    }
+
     const oldTicket = await Ticket.findById(ticketId);
     if (!oldTicket) throw new Error('Ticket not found');
 
@@ -601,26 +613,35 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         statusInput
       );
       const newStatusSlug = statusDoc.slug;
-      const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
+      // Single fetch for the old status doc — replaces separate slug/label/flags
+      // lookups that each independently re-fetched the same document.
+      const oldStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
+      const oldStatusSlug = oldStatusDoc?.slug ? String(oldStatusDoc.slug).toLowerCase() : '';
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
         statusChanged = true;
-        const oldFlags = await statusService.getStatusFlags(oldTicket.workspace, oldStatusSlug);
-        if (statusDoc.isBacklog && !oldFlags.isBacklog) {
+        if (statusDoc.isBacklog && !oldStatusDoc?.isBacklog) {
           throw new Error('Tickets cannot be moved back to the backlog.');
         }
 
         const now = new Date();
-        const oldLabel = await statusService.getStatusLabelFromRef(oldTicket.status);
+        const oldLabel = oldStatusDoc?.label || 'Unknown';
         const newLabel = statusDoc.label;
 
         updateData.status = statusDoc._id;
         delete updateData.statusId;
 
         await statusService.applyStatusLifecycleUpdate({
-          workspaceId: oldTicket.workspace,
-          oldStatus: oldStatusSlug,
-          newStatus: newStatusSlug,
+          oldFlags: {
+            tracksTime: oldStatusDoc?.tracksTime,
+            isDone: oldStatusDoc?.isDone,
+            isBacklog: oldStatusDoc?.isBacklog,
+          },
+          newFlags: {
+            tracksTime: statusDoc.tracksTime,
+            isDone: statusDoc.isDone,
+            isBacklog: statusDoc.isBacklog,
+          },
           oldTicket,
           updateData,
           now,
@@ -867,9 +888,10 @@ const getMyTickets = async ({
   };
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     query.$or = [
-      { subject: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
+      { subject: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 

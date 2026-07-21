@@ -115,6 +115,33 @@ const getWorkspaceById = async (workspaceId, caller) => {
   };
 };
 
+// Shared by getUserWorkspaces/getAllWorkspaces so the workspaces overview page
+// renders identically for admins (all) and mentors/members (their own). Fetches
+// every workspace's active (non-archived) ticket count in a single aggregate
+// instead of one countDocuments query per workspace.
+const attachWorkspaceStats = async (workspaces) => {
+  if (workspaces.length === 0) return [];
+
+  const workspaceIds = workspaces.map((ws) => ws._id);
+  const ticketCounts = await Ticket.aggregate([
+    { $match: { workspace: { $in: workspaceIds }, isArchived: { $ne: true } } },
+    { $group: { _id: '$workspace', count: { $sum: 1 } } },
+  ]);
+  const ticketCountByWorkspace = new Map(
+    ticketCounts.map((row) => [row._id.toString(), row.count])
+  );
+
+  return workspaces.map((ws) => {
+    const activeMembers = ws.members.filter((m) => m.status === 'active').length;
+    return {
+      ...ws,
+      logoUrl: buildWorkspaceLogoUrl(ws.logoPath),
+      activeMemberCount: activeMembers,
+      ticketCount: ticketCountByWorkspace.get(ws._id.toString()) || 0,
+    };
+  });
+};
+
 const getUserWorkspaces = async (userId) => {
   const workspaces = await Workspace.find({
     isArchived: { $ne: true },
@@ -123,23 +150,7 @@ const getUserWorkspaces = async (userId) => {
     .populate('owner', 'fullname email')
     .lean();
 
-  // Same card stats as getAllWorkspaces so the workspaces overview page can
-  // render identically for admins (all) and mentors/members (their own).
-  return Promise.all(
-    workspaces.map(async (ws) => {
-      const activeMembers = ws.members.filter((m) => m.status === 'active').length;
-      const ticketCount = await Ticket.countDocuments({
-        workspace: ws._id,
-        isArchived: { $ne: true },
-      });
-      return {
-        ...ws,
-        logoUrl: buildWorkspaceLogoUrl(ws.logoPath),
-        activeMemberCount: activeMembers,
-        ticketCount,
-      };
-    })
-  );
+  return attachWorkspaceStats(workspaces);
 };
 
 const updateWorkspace = async (workspaceId, { name, description, owner }, requestingUserId) => {
@@ -395,23 +406,7 @@ const getAllWorkspaces = async () => {
     .populate('owner', 'fullname email')
     .lean();
 
-  const workspacesWithStats = await Promise.all(
-    workspaces.map(async (ws) => {
-      const activeMembers = ws.members.filter((m) => m.status === 'active').length;
-      const ticketCount = await Ticket.countDocuments({
-        workspace: ws._id,
-        isArchived: { $ne: true },
-      });
-      return {
-        ...ws,
-        logoUrl: buildWorkspaceLogoUrl(ws.logoPath),
-        activeMemberCount: activeMembers,
-        ticketCount,
-      };
-    })
-  );
-
-  return workspacesWithStats;
+  return attachWorkspaceStats(workspaces);
 };
 
 module.exports = {

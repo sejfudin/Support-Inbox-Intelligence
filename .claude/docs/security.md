@@ -32,6 +32,16 @@ caller's workspace.
 - **List all** (`GET /api/workspaces/all`): platform `admin` only. Mentors have no global
   workspace surface — they only see workspaces they belong to.
 
+## Reference data is an intentional exception to the golden rule
+
+`Position`, `Technology`, and `Project` (`server/routes/projects.js`) are **firm-global**, not
+workspace-scoped — the intern/recommendation domain has no `workspace` field anywhere. Don't add
+`requireWorkspaceManager`/workspace guards to these routes; that would be wrong, not extra-safe.
+`Project` writes (`POST`/`PATCH /api/projects`) are `requireRole(ROLES.ADMIN)` only — mentors can
+read/select a project (needed for the recommendation form) but cannot create or edit one. The
+locked "Unspecified" sentinel project (`isSystem: true`) additionally rejects edits at the service
+layer regardless of role.
+
 ## Intern access
 
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
@@ -73,8 +83,12 @@ they mentor. Delete performs the same write check before removing the record and
 
 ## Input handling
 
-- **Sanitize all user-supplied HTML** (comments, rich text / TipTap) with `sanitize-html` before
-  storing. Never trust client HTML.
+- **Sanitize user-supplied rich-text HTML** (TipTap ticket descriptions — anything rendered
+  client-side via `dangerouslySetInnerHTML`) with `sanitize-html` before storing, via
+  `server/helpers/htmlSanitize.js`. Never trust client HTML at an HTML sink.
+- **Plain-text fields (comments) are stored verbatim** — they render through React's text-node
+  escaping, never an HTML sink. Do not HTML-sanitize them: `sanitize-html` entity-encodes
+  `&`/`<`/`>` into the stored value and corrupts text like "A & B". Escape at the sink, not on input.
 - Validate AI-related input via `server/helpers/aiValidationRules.js`.
 
 ## Secrets

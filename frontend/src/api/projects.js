@@ -1,0 +1,19 @@
+import apiClient from '@/api/axios';
+
+export const fetchProjects = async ({ includeAll = false, status } = {}) => {
+  const params = {};
+  if (includeAll) params.includeAll = 'true';
+  if (status) params.status = status;
+  const { data } = await apiClient.get('/projects', { params });
+  return data;
+};
+
+export const createProject = async (payload) => {
+  const { data } = await apiClient.post('/projects', payload);
+  return data;
+};
+
+export const updateProject = async (id, payload) => {
+  const { data } = await apiClient.patch(`/projects/${id}`, payload);
+  return data;
+};

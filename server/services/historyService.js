@@ -80,10 +80,6 @@ const logEntityEvent = async ({ entityType, entityId, userId, action, statusKey,
   }
 };
 
-/** Full append-only log for an entity, newest first. */
-const getEntityHistory = async (entityType, entityId) =>
-  History.find({ entityType, entityId }).sort({ timestamp: -1 }).lean();
-
 /**
  * Remove an entity's entire log — for when the entity itself is deleted and
  * its trail has no other consumer (e.g. deleting a recommendation).
@@ -137,7 +133,6 @@ module.exports = {
   logEvent,
   logSystemEvent,
   logEntityEvent,
-  getEntityHistory,
   deleteEntityHistory,
   getLatestStatusDates,
   getLatestStatusDatesForEntities,

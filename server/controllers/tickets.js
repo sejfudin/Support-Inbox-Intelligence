@@ -1,7 +1,6 @@
 const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
-const Workspace = require('../models/Workspace');
-const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
+const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -81,17 +80,7 @@ const getTicketById = async (req, res) => {
     // Admins and mentors can read tickets in any workspace. Everyone else
     // (interns, leadership) may only read a ticket if they are an active
     // member of that ticket's workspace.
-    if (!canAccessAnyWorkspace(req.user?.role)) {
-      const workspace = await Workspace.findById(ticket.workspace).select('members');
-
-      if (!isActiveWorkspaceMember(workspace, req.user._id)) {
-        // Return 404 (not 403) so a caller can't probe which ticket IDs exist.
-        return res.status(404).json({
-          success: false,
-          message: 'Ticket not found',
-        });
-      }
-    }
+    await assertWorkspaceAccess(ticket.workspace, req.user, 'Ticket not found');
 
     res.status(200).json({
       success: true,
@@ -213,14 +202,7 @@ const updateTicket = async (req, res, next) => {
     // Admins and mentors can edit tickets in any workspace. Everyone else
     // may only edit a ticket if they are an active member of that ticket's
     // workspace.
-    if (!canAccessAnyWorkspace(req.user?.role)) {
-      const workspace = await Workspace.findById(existingTicket.workspace).select('members');
-
-      if (!isActiveWorkspaceMember(workspace, req.user._id)) {
-        // Return 404 (not 403) so a caller can't probe which ticket IDs exist.
-        return res.status(404).json({ success: false, message: 'Ticket not found' });
-      }
-    }
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
 
     const hasStoryPoints = Object.prototype.hasOwnProperty.call(updateData, 'storyPoints');
 

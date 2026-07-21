@@ -19,6 +19,14 @@ and especially ../.claude/docs/security.md (authz is the top risk here).
 - `prompts/` — Groq AI prompt templates. `seeder/` — seed scripts (destructive; see workflows).
 - `repository/` — thin data-access modules (currently sparse; most access is service → model).
 
+## Env files
+
+`index.js` loads `.env.${NODE_ENV}` (defaults to `.env.development`) — that's the database
+`npm run dev` actually uses. Older one-off scripts under `seeder/` instead load plain `.env`,
+which can point at a **different** database (both are dev clusters here, but don't assume that's
+always true). When writing a new seeder/migration script, load env the same way `index.js` does
+so it hits the database you're actually testing against — don't copy the plain-`.env` pattern.
+
 ## Rules specific to server
 
 - **Every route: `protect` first**, then role/workspace guards, then upload, then controller.
@@ -28,7 +36,10 @@ and especially ../.claude/docs/security.md (authz is the top risk here).
 - **Import `ROLES` from `constants/roles.js`** — never hardcode `'admin'` etc.
 - **Response shape** `{ success, message, data? }`. try/catch every controller; custom errors
   carry `statusCode`.
-- **Sanitize user HTML** with `sanitize-html` before persisting comments / rich text.
+- **Sanitize rich-text HTML** (rendered client-side via `dangerouslySetInnerHTML`, e.g. ticket
+  descriptions) with `sanitize-html` before persisting — see `helpers/htmlSanitize.js`. Plain-text
+  fields (comments) are stored verbatim and made safe by React's text-node escaping at render; do
+  **not** run them through an HTML sanitizer (it entity-encodes `&`/`<`/`>` into stored data).
 - **Never** run seeders against non-local DBs. Never commit `.env`.
 - Emit Socket.IO invalidation via `socket/invalidationScopes.js` keys so the frontend cache updates.
 - Run `npm run format` before finishing.

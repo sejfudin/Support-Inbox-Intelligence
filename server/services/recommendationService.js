@@ -5,9 +5,11 @@ const InternProfile = require('../models/InternProfile');
 const { READY_STATUS } = require('../models/InternProfile');
 const Technology = require('../models/Technology');
 const Position = require('../models/Position');
+const Project = require('../models/Project');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
+const { escapeRegex } = require('../helpers/escapeRegex');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
@@ -54,6 +56,7 @@ const RECOMMENDATION_POPULATE = [
     ],
   },
   { path: 'position', select: 'name slug' },
+  { path: 'project', select: 'name slug status isSystem' },
   { path: 'technologies', select: 'name slug' },
   { path: 'createdBy', select: 'fullname email role' },
   { path: 'updatedBy', select: 'fullname email role' },
@@ -177,12 +180,19 @@ const ensurePositionId = async (positionId) => {
   return positionId;
 };
 
-const ensureProject = (project) => {
-  const value = cleanText(project);
-  if (!value) {
+const ensureProjectId = async (projectId) => {
+  if (!projectId) {
     throw createError('Project is required', 400);
   }
-  return value;
+
+  assertValidObjectId(projectId, 'Project');
+
+  const exists = await Project.exists({ _id: projectId });
+  if (!exists) {
+    throw createError('Project is invalid', 400);
+  }
+
+  return projectId;
 };
 
 const parseDate = (value, label) => {
@@ -364,9 +374,10 @@ const buildAccessibleProfileIds = async (user, query = {}) => {
   }
 
   if (query.search) {
+    const escapedSearch = escapeRegex(query.search);
     userFilter.$or = [
-      { fullname: { $regex: query.search, $options: 'i' } },
-      { email: { $regex: query.search, $options: 'i' } },
+      { fullname: { $regex: escapedSearch, $options: 'i' } },
+      { email: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 
@@ -498,7 +509,7 @@ const createRecommendation = async (user, payload = {}) => {
     throw createError('A new recommendation must start as Recommended', 400);
   }
   const position = await ensurePositionId(payload.positionId);
-  const project = ensureProject(payload.project);
+  const project = await ensureProjectId(payload.projectId);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
   const interviews = normalizeInterviews(payload.interviews || []);
 
@@ -645,8 +656,8 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
     recommendation.position = await ensurePositionId(payload.positionId);
   }
 
-  if (payload.project !== undefined) {
-    recommendation.project = ensureProject(payload.project);
+  if (payload.projectId !== undefined) {
+    recommendation.project = await ensureProjectId(payload.projectId);
   }
 
   if (payload.technologyIds !== undefined) {

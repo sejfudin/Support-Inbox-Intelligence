@@ -36,6 +36,7 @@ const getTicketDescriptionImages = async (req, res) => {
     const data = await attachmentImageService.getEntityImages({
       entityType: attachmentImageService.ENTITY_TYPES.TICKET_DESCRIPTION,
       entityId: ticketId,
+      user: req.user,
     });
 
     return res.status(200).json({ success: true, data });
@@ -54,6 +55,7 @@ const uploadTicketDescriptionImages = async (req, res) => {
       entityId: ticketId,
       files: req.files || [],
       uploadedByUserId,
+      user: req.user,
     });
 
     return res.status(201).json({
@@ -74,6 +76,7 @@ const deleteTicketDescriptionImage = async (req, res) => {
       entityType: attachmentImageService.ENTITY_TYPES.TICKET_DESCRIPTION,
       entityId: ticketId,
       imageId,
+      user: req.user,
     });
 
     return res.status(200).json({
@@ -92,6 +95,7 @@ const deleteAllTicketDescriptionImages = async (req, res) => {
     await attachmentImageService.deleteAllEntityImages({
       entityType: attachmentImageService.ENTITY_TYPES.TICKET_DESCRIPTION,
       entityId: ticketId,
+      user: req.user,
     });
 
     return res.status(200).json({
@@ -110,6 +114,7 @@ const getCommentImages = async (req, res) => {
     const data = await attachmentImageService.getEntityImages({
       entityType: attachmentImageService.ENTITY_TYPES.COMMENT,
       entityId: commentId,
+      user: req.user,
     });
 
     return res.status(200).json({ success: true, data });
@@ -128,6 +133,7 @@ const uploadCommentImages = async (req, res) => {
       entityId: commentId,
       files: req.files || [],
       uploadedByUserId,
+      user: req.user,
     });
 
     await emitCommentImageInvalidation(commentId);
@@ -150,6 +156,7 @@ const deleteCommentImage = async (req, res) => {
       entityType: attachmentImageService.ENTITY_TYPES.COMMENT,
       entityId: commentId,
       imageId,
+      user: req.user,
     });
 
     await emitCommentImageInvalidation(commentId);
@@ -170,6 +177,7 @@ const deleteAllCommentImages = async (req, res) => {
     await attachmentImageService.deleteAllEntityImages({
       entityType: attachmentImageService.ENTITY_TYPES.COMMENT,
       entityId: commentId,
+      user: req.user,
     });
 
     await emitCommentImageInvalidation(commentId);

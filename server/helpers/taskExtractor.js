@@ -132,18 +132,8 @@ function extractFromBranch(branchName) {
   return null;
 }
 
-/**
- * Check if text contains a task reference (boolean check)
- * @param {string} text - Text to check
- * @returns {boolean}
- */
-function hasTaskReference(text) {
-  return extractFromText(text) !== null;
-}
-
 module.exports = {
   extractTaskNumber,
   extractFromBranch,
   extractFromText,
-  hasTaskReference,
 };

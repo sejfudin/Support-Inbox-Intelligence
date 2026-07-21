@@ -101,10 +101,10 @@ const recommendationSchema = new mongoose.Schema(
       index: true,
     },
     project: {
-      type: String,
-      trim: true,
-      maxlength: 200,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
       required: true,
+      index: true,
     },
     technologies: [
       {

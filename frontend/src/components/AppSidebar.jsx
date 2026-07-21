@@ -14,6 +14,7 @@ import {
   GraduationCap,
   Send,
   Code2,
+  CalendarCheck,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -113,13 +114,17 @@ export default function AppSidebar() {
   const mentorNav = isMentor(user?.role)
     ? [
         { label: 'My Interns', to: '/my-interns', icon: GraduationCap },
+        { label: 'Attendance', to: '/attendance', icon: CalendarCheck },
         { label: 'Recommendations', to: '/recommendations', icon: Send },
         { label: 'My Workspaces', to: '/workspaces', icon: Building2 },
       ]
     : [];
 
   const internNav = isIntern(user?.role)
-    ? [{ label: 'Position & Technologies', to: '/my-technologies', icon: Code2 }]
+    ? [
+        { label: 'Position & Technologies', to: '/my-technologies', icon: Code2 },
+        { label: 'Attendance', to: '/my-attendance', icon: CalendarCheck },
+      ]
     : [];
 
   const adminNav = [
@@ -132,6 +137,11 @@ export default function AppSidebar() {
       label: 'All Workspaces',
       to: '/admin/workspaces',
       icon: Building2,
+    },
+    {
+      label: 'Attendance',
+      to: '/attendance',
+      icon: CalendarCheck,
     },
     {
       label: 'Platform Management',
