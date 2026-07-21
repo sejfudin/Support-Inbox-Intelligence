@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -111,25 +111,17 @@ function ProjectCard({ project, onOpen }) {
   );
 }
 
-function ProjectDetail({ project, onBack, onEdit }) {
+function ProjectDetail({ project, onBack }) {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Projects
-        </button>
-        {!project.isSystem && (
-          <Button type="button" variant="outline" onClick={onEdit} className="gap-2">
-            <Pencil className="h-4 w-4" />
-            Edit project
-          </Button>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Projects
+      </button>
 
       <div>
         <h2 className="text-2xl font-bold text-foreground">{project.name}</h2>
@@ -248,7 +240,7 @@ export function ReferenceDataProjectsPanel() {
   const createMutation = useCreateProject();
   const updateMutation = useUpdateProject();
 
-  const [view, setView] = useState('list'); // 'list' | 'detail' | 'edit'
+  const [view, setView] = useState('list'); // 'list' | 'project'
   const [selectedId, setSelectedId] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState(emptyForm);
@@ -280,29 +272,21 @@ export function ReferenceDataProjectsPanel() {
       await updateMutation.mutateAsync({ id: selectedProject._id, data: form });
       toast.dismiss(toastId);
       toast.success('Project updated');
-      setView('detail');
+      setView('list');
     } catch (error) {
       toast.dismiss(toastId);
       toast.error(error.response?.data?.message || 'Failed to update project');
     }
   };
 
-  if (view === 'detail' && selectedProject) {
-    return (
-      <ProjectDetail
-        project={selectedProject}
-        onBack={() => setView('list')}
-        onEdit={() => setView('edit')}
-      />
-    );
-  }
-
-  if (view === 'edit' && selectedProject) {
-    return (
+  if (view === 'project' && selectedProject) {
+    return selectedProject.isSystem ? (
+      <ProjectDetail project={selectedProject} onBack={() => setView('list')} />
+    ) : (
       <ProjectEditForm
         project={selectedProject}
         technologies={technologies}
-        onCancel={() => setView('detail')}
+        onCancel={() => setView('list')}
         onSave={handleEditSave}
         isSaving={updateMutation.isPending}
       />
@@ -338,7 +322,7 @@ export function ReferenceDataProjectsPanel() {
               project={project}
               onOpen={() => {
                 setSelectedId(project._id);
-                setView('detail');
+                setView('project');
               }}
             />
           ))}
