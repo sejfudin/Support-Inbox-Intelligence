@@ -3,7 +3,6 @@ const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
 const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
-const { sanitizePlainText } = require('../helpers/htmlSanitize');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
@@ -20,12 +19,14 @@ const emitCommentTicketEvent = ({ eventName, ticketId, workspaceId, commentId })
 };
 
 const createComment = async ({ content, ticket, authorId, role }) => {
-  if (!content || !content.trim()) throw new Error('Comment content is required');
+  // Comments are plain text: stored verbatim (trimmed) and rendered through
+  // React's text-node escaping, never an HTML sink. Do NOT run them through an
+  // HTML sanitizer — that entity-encodes `&`/`<`/`>` into the stored value and
+  // corrupts common input (e.g. "A & B", "x < y") when shown as text.
+  const trimmedContent = content && content.trim();
+  if (!trimmedContent) throw new Error('Comment content is required');
 
-  const sanitizedContent = sanitizePlainText(content);
-  if (!sanitizedContent) throw new Error('Comment content is required');
-
-  if (sanitizedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
+  if (trimmedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
 
   const foundTicket = await Ticket.findById(ticket);
   if (!foundTicket) throw new Error('Ticket not found');
@@ -45,7 +46,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
   }
 
   let comment = await Comment.create({
-    content: sanitizedContent,
+    content: trimmedContent,
     ticket,
     author: authorId,
   });
@@ -72,7 +73,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
     if (activeMemberIds.length > 0) {
       const users = await User.find({ _id: { $in: activeMemberIds } }).select('_id fullname email');
       const { byHandle } = buildMentionDirectory(users);
-      const handles = extractMentionHandles(sanitizedContent);
+      const handles = extractMentionHandles(trimmedContent);
 
       mentionRecipientIds = handles
         .map((h) => byHandle.get(h)?.userId)
@@ -88,7 +89,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
     await notificationService.notifyNewTicketComment({
       ticket: foundTicket,
       authorId,
-      commentPreview: sanitizedContent,
+      commentPreview: trimmedContent,
       excludeRecipientIds: mentionRecipientIds,
     });
   } catch (err) {
@@ -101,7 +102,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
         ticket: foundTicket,
         authorId,
         recipientIds: mentionRecipientIds,
-        commentPreview: sanitizedContent,
+        commentPreview: trimmedContent,
         commentId: comment._id,
       });
     }
@@ -138,12 +139,10 @@ const updateComment = async (commentId, content, userId) => {
   const comment = await Comment.findById(commentId).populate('ticket');
   if (!comment || comment.isDeleted) throw new Error('Comment not found');
 
-  if (!content || !content.trim()) throw new Error('Comment content is required');
+  const trimmedContent = content && content.trim();
+  if (!trimmedContent) throw new Error('Comment content is required');
 
-  const sanitizedContent = sanitizePlainText(content);
-  if (!sanitizedContent) throw new Error('Comment content is required');
-
-  if (sanitizedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
+  if (trimmedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
 
   if (comment.ticket.isArchived) {
     throw new Error('Unauthorized: Cannot edit comments on an archived ticket');
@@ -153,7 +152,7 @@ const updateComment = async (commentId, content, userId) => {
     throw new Error('Unauthorized: You can only edit your own comments');
   }
 
-  comment.content = sanitizedContent;
+  comment.content = trimmedContent;
   comment.isEdited = true;
   await comment.save();
 

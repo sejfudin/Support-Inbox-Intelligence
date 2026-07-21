@@ -28,7 +28,10 @@ and especially ../.claude/docs/security.md (authz is the top risk here).
 - **Import `ROLES` from `constants/roles.js`** — never hardcode `'admin'` etc.
 - **Response shape** `{ success, message, data? }`. try/catch every controller; custom errors
   carry `statusCode`.
-- **Sanitize user HTML** with `sanitize-html` before persisting comments / rich text.
+- **Sanitize rich-text HTML** (rendered client-side via `dangerouslySetInnerHTML`, e.g. ticket
+  descriptions) with `sanitize-html` before persisting — see `helpers/htmlSanitize.js`. Plain-text
+  fields (comments) are stored verbatim and made safe by React's text-node escaping at render; do
+  **not** run them through an HTML sanitizer (it entity-encodes `&`/`<`/`>` into stored data).
 - **Never** run seeders against non-local DBs. Never commit `.env`.
 - Emit Socket.IO invalidation via `socket/invalidationScopes.js` keys so the frontend cache updates.
 - Run `npm run format` before finishing.
