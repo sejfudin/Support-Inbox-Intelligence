@@ -15,6 +15,7 @@ import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
 import { useAuth } from '@/context/AuthContext';
 import { PageSection, PageShell } from '@/components/PageShell';
+import DashboardCheckInReminder from '@/components/attendance/DashboardCheckInReminder';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
@@ -115,6 +116,8 @@ export default function UserDashboard() {
         />
       </div>
 
+      <DashboardCheckInReminder className="app-page-content shrink-0 !pb-0 !pt-4" />
+
       {!isMobile && isBoard ? (
         <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-4">
           <Suspense fallback={<TableSkeleton />}>
@@ -131,7 +134,7 @@ export default function UserDashboard() {
           </Suspense>
         </PageSection>
       ) : (
-        <PageSection className="flex-1 pt-6">
+        <PageSection className="flex-1 pt-4">
           <div className="app-panel overflow-hidden">
             <TicketsState
               isLoading={isLoading}
