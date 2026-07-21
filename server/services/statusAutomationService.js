@@ -63,16 +63,26 @@ async function executeStatusChange(ticketId, targetStatusSlug, metadata = {}) {
       targetStatusSlug
     );
     const newStatusSlug = statusDoc.slug;
-    const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
-    const oldLabel = await statusService.getStatusLabelFromRef(oldTicket.status);
+    // Single fetch for the old status doc — replaces separate slug/label lookups
+    // that each independently re-fetched the same document.
+    const oldStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
+    const oldStatusSlug = oldStatusDoc?.slug ? String(oldStatusDoc.slug).toLowerCase() : '';
+    const oldLabel = oldStatusDoc?.label || 'Unknown';
     const newLabel = statusDoc.label;
 
     const updateData = { status: statusDoc._id };
 
     await statusService.applyStatusLifecycleUpdate({
-      workspaceId: oldTicket.workspace,
-      oldStatus: oldStatusSlug,
-      newStatus: newStatusSlug,
+      oldFlags: {
+        tracksTime: oldStatusDoc?.tracksTime,
+        isDone: oldStatusDoc?.isDone,
+        isBacklog: oldStatusDoc?.isBacklog,
+      },
+      newFlags: {
+        tracksTime: statusDoc.tracksTime,
+        isDone: statusDoc.isDone,
+        isBacklog: statusDoc.isBacklog,
+      },
       oldTicket,
       updateData,
       now,

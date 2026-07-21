@@ -9,6 +9,7 @@ const { RECOMMENDATION_STATUSES } = require('../models/Recommendation');
 const Technology = require('../models/Technology');
 const Position = require('../models/Position');
 const { ROLES } = require('../constants/roles');
+const { escapeRegex } = require('../helpers/escapeRegex');
 const {
   canViewFepDirectory,
   canWriteMentorData,
@@ -65,9 +66,10 @@ const buildListFilter = (user, query) => {
   if (query.status) userFilter.status = query.status;
 
   if (query.search) {
+    const escapedSearch = escapeRegex(query.search);
     userFilter.$or = [
-      { fullname: { $regex: query.search, $options: 'i' } },
-      { email: { $regex: query.search, $options: 'i' } },
+      { fullname: { $regex: escapedSearch, $options: 'i' } },
+      { email: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 

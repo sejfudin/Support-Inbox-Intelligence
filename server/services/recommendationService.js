@@ -9,6 +9,7 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
+const { escapeRegex } = require('../helpers/escapeRegex');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
@@ -373,9 +374,10 @@ const buildAccessibleProfileIds = async (user, query = {}) => {
   }
 
   if (query.search) {
+    const escapedSearch = escapeRegex(query.search);
     userFilter.$or = [
-      { fullname: { $regex: query.search, $options: 'i' } },
-      { email: { $regex: query.search, $options: 'i' } },
+      { fullname: { $regex: escapedSearch, $options: 'i' } },
+      { email: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 
