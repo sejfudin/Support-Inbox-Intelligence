@@ -53,6 +53,14 @@ Recommendations follow this exactly: routes guard writes (POST/PATCH/DELETE) wit
 any intern). Reads also allow `leadership`; mentors can only read recommendations of interns
 they mentor. Delete performs the same write check before removing the record and its history.
 
+Attendance follows the same shape. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)`
+and always resolves the caller's **own** `InternProfile` — an intern can only ever read or write
+their own attendance. The roster `GET /api/attendance` is `requireRole(ADMIN, MENTOR)`; the service
+scopes a mentor to their assigned interns via the same `$or: [{primaryMentor},{secondaryMentor}]`
+filter recommendations use, while admins see everyone. Not workspace-scoped (intern domain). The
+check-in time-window is enforced server-side (`server/helpers/attendanceTime.js`, `Europe/Sarajevo`)
+— never trust the client clock.
+
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.

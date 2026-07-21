@@ -30,7 +30,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
 `Notification`, `RefreshToken`, `Integration`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
-`Position`, `Project`, `Hub`, `Technology`, `InternshipType`, `Invitation`.
+`Attendance`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`, `Invitation`.
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
@@ -132,6 +132,29 @@ recommendation can point at (title, client, description, tech tags, `status`:
 - "Which interns are on project X" is a **derived read** (query `Recommendation` by `project`),
   not a stored roster — there is no members/roster field on `Project` by design.
 
+## Attendance (office check-in)
+
+Interns check in once per office day; mentors/admins get a read-only roster. Backend:
+`server/{models/Attendance.js, services/attendanceService.js, controllers/attendance.js,
+routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
+`frontend/src/pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/attendance/*`,
+`helpers/attendance.js`, `api/attendance.js`, `queries/attendance.js`.
+
+- **Sparse storage — one document per intern per acted-on day** (`Attendance`: `intern` →
+  `InternProfile`, `date` as office-local `'YYYY-MM-DD'` string, `status: present | cancelled`,
+  `checkedInAt`, `hub`, `checkInIp`). Absent days are **not** stored — absence is the lack of a
+  record, derived at read time. A unique `{ intern, date }` index makes double check-ins
+  idempotent and makes a cancelled day a permanent lock (no re-check-in) at the DB level.
+- **Cancel is one-way**: the record is flipped to `cancelled` (not deleted), locking the day.
+- **Stats are never stored** — `presentDays` / `workingDays` (Mon–Fri from `InternProfile.startDate`
+  to today) / `attendanceRate` are recomputed on every read so they can't go stale.
+- **Check-in window** (`attendanceTime.js`): open 07:00–11:00 `Europe/Sarajevo` time on weekdays.
+  The server is authoritative; the client mirrors the rule for UX only.
+- Endpoints: `GET /api/attendance/me`, `POST|DELETE /api/attendance/me/check-in` (intern-self);
+  `GET /api/attendance` (mentor/admin roster, `?search=&hub=`). Envelope `{ attendance }` / `{ roster }`.
+- The office-network **IP allowlist** guard (per-hub CIDR + `trust proxy`) is a deferred, optional
+  step — `Attendance.checkInIp` is already captured for it.
+
 ## Glossary
 
 Domain terms used throughout the code. Get these right — especially the two "admin" meanings.
@@ -150,6 +173,7 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. |
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). |
 | **Project** | A client engagement the firm is running (e.g. "Northwind billing platform" for client "Northwind Traders") — `title/client/description/tech tags/status`. Admin-managed reference data; a recommendation refs one. Not workspace-scoped. |
+| **Attendance / check-in** | An intern's office check-in for one day (`Attendance` — one sparse doc per intern per acted-on day; present days stored, absent days derived). Check-in window: 07:00–11:00 office time, weekdays. Cancel locks the day (one-way). Stats always computed, never stored. |
 | **Recommendation** | A mentor's placement recommendation for an intern (candidate pipeline). Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — mentors resolve each one individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |

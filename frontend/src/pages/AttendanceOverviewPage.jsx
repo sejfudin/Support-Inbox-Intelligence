@@ -20,7 +20,7 @@ import AttendanceStat from '@/components/attendance/AttendanceStat';
 import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
 import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
 import { useAttendanceRoster } from '@/queries/attendance';
-import { MOCK_HUBS } from '@/mocks/attendance';
+import { useHubs } from '@/queries/hubs';
 import {
   isCheckedInToday,
   attendanceRateTextClass,
@@ -52,6 +52,9 @@ export default function AttendanceOverviewPage() {
     search: debouncedSearch || undefined,
     hub: hub || undefined,
   });
+
+  const { data: hubs = [] } = useHubs();
+  const hubNames = hubs.map((h) => h.name);
 
   const roster = data?.roster ?? [];
   const total = roster.length;
@@ -95,7 +98,10 @@ export default function AttendanceOverviewPage() {
         />
 
         {isError && (
-          <div className="app-panel p-6 text-sm text-destructive" data-test="attendance-roster-error">
+          <div
+            className="app-panel p-6 text-sm text-destructive"
+            data-test="attendance-roster-error"
+          >
             Failed to load attendance.
           </div>
         )}
@@ -132,7 +138,7 @@ export default function AttendanceOverviewPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All hubs</SelectItem>
-                    {MOCK_HUBS.map((h) => (
+                    {hubNames.map((h) => (
                       <SelectItem key={h} value={h}>
                         {h}
                       </SelectItem>
@@ -189,7 +195,9 @@ export default function AttendanceOverviewPage() {
                   value={dayCounts.absent}
                   hint={dayIsToday ? 'Window closed, no check-in' : 'Missed this day'}
                   icon={TriangleAlert}
-                  valueClassName={dayCounts.absent > 0 ? 'text-red-600 dark:text-red-400' : undefined}
+                  valueClassName={
+                    dayCounts.absent > 0 ? 'text-red-600 dark:text-red-400' : undefined
+                  }
                 />
                 <AttendanceStat label="Interns" value={total} hint="Total" icon={Users} />
               </div>
@@ -206,7 +214,12 @@ export default function AttendanceOverviewPage() {
                   icon={Percent}
                   valueClassName={attendanceRateTextClass(monthSummary.avg)}
                 />
-                <AttendanceStat label="Interns" value={monthSummary.total} hint="Total" icon={Users} />
+                <AttendanceStat
+                  label="Interns"
+                  value={monthSummary.total}
+                  hint="Total"
+                  icon={Users}
+                />
                 <AttendanceStat
                   label="Perfect"
                   value={monthSummary.perfect}
@@ -251,7 +264,9 @@ export default function AttendanceOverviewPage() {
                   hint="100% all time"
                   icon={Star}
                   valueClassName={
-                    overallSummary.perfect > 0 ? 'text-emerald-600 dark:text-emerald-400' : undefined
+                    overallSummary.perfect > 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : undefined
                   }
                 />
                 <AttendanceStat
