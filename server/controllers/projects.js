@@ -24,7 +24,8 @@ exports.createProject = async (req, res, next) => {
     }
     if (
       error.message === 'Project name is required' ||
-      error.message === 'This project name is reserved'
+      error.message === 'This project name is reserved' ||
+      error.message === 'One or more technologies are invalid'
     ) {
       return res.status(400).json({ message: error.message });
     }
@@ -42,7 +43,9 @@ exports.updateProject = async (req, res, next) => {
     }
     if (
       error.message === 'This project cannot be edited' ||
-      error.message === 'Invalid project status'
+      error.message === 'Invalid project status' ||
+      error.message === 'This project name is reserved' ||
+      error.message === 'One or more technologies are invalid'
     ) {
       return res.status(400).json({ message: error.message });
     }

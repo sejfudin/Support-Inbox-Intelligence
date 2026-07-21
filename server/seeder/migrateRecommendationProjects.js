@@ -18,6 +18,11 @@
  * recommendations anyway — there's nothing to migrate right after a fresh seed).
  * This is for a database that already has recommendation data from before the
  * Project entity existed.
+ *
+ * DEPLOY ORDERING: run this immediately after deploying the schema change.
+ * `Recommendation.project` is now a required ObjectId ref, but legacy rows hold
+ * free-text strings — reading one before it's repointed can throw a cast error.
+ * Keep the window between deploy and migration as short as possible.
  */
 const path = require('path');
 // Matches index.js's env selection (`.env.${NODE_ENV}`, default 'development') so this
