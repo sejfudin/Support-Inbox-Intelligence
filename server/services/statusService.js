@@ -199,11 +199,28 @@ const getStatusIdForSlug = async (workspaceId, slug) => {
   return status._id;
 };
 
+// Fields a status change needs from the status doc (slug/label for logging,
+// the behavior flags for the lifecycle update).
+const STATUS_REF_FIELDS = ['slug', 'label', 'tracksTime', 'isDone', 'isBacklog'];
+
 // Single fetch that replaces separately re-fetching the same status doc for its
 // slug, label, and behavior flags (a ticket's status change needs all three).
+// A populated status ref is trusted ONLY if it carries every field above;
+// a partially-populated ref (e.g. `.populate('status', 'slug')`) is re-fetched
+// by id so behavior flags never come back silently `undefined` — which would be
+// read as `false` and quietly corrupt the lifecycle update.
 const getStatusDocFromTicketRef = async (statusRef) => {
   if (!statusRef) return null;
-  if (typeof statusRef === 'object' && statusRef.slug) return statusRef;
+  // A populated status doc is identified by `.slug`. Trust it only if it carries
+  // every field; a partially-populated doc is re-fetched by its own `_id`.
+  if (typeof statusRef === 'object' && statusRef.slug) {
+    const hasAllFields = STATUS_REF_FIELDS.every((field) => statusRef[field] !== undefined);
+    if (hasAllFields) return statusRef;
+    return TicketStatus.findById(statusRef._id)
+      .select('slug label tracksTime isDone isBacklog')
+      .lean();
+  }
+  // Plain id or ObjectId ref (the common case) — findById handles it directly.
   return TicketStatus.findById(statusRef).select('slug label tracksTime isDone isBacklog').lean();
 };
 
