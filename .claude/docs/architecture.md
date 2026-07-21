@@ -68,6 +68,14 @@ AI: `AISummary`.
   linking. RS256 JWT; installation tokens encrypted at rest (`server/helpers/crypto.js`).
 - **Supabase Storage** (`server/config/supabase.js`) — attachment images, workspace logos, intern CVs.
   Server throws on startup if Supabase env vars missing.
+- **CV technology auto-detection** — when an intern uploads a CV (`POST /interns/me/cv`), the PDF
+  text is extracted (`pdf-parse`, `server/helpers/pdfText.js`) and matched against the canonical
+  `Technology` catalog (deterministic keyword/alias matching, `server/helpers/cvTechnologyMatcher.js`).
+  Recognized technologies are merged into `InternProfile.selfTechnologies` — same effect as a
+  manual add, no `ReadinessFlag` created, so each reads "Not assessed" until a mentor assesses it.
+  Best-effort by design: an unreadable/image-only PDF just adds nothing (never fails the upload),
+  and the manual "Add a technology" flow remains for anything not recognized. See
+  `server/services/internCvService.js` (`autoDeclareTechnologiesFromCv`).
 
 ## Recommendations (placement pipeline)
 
