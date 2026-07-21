@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { canWriteInternMentorData } from '@/helpers/roles';
 import { getRecommendationStatusLabel, RECOMMENDATION_STATUSES } from '@/helpers/recommendations';
 import { usePositions } from '@/queries/positions';
+import { useProjects } from '@/queries/projects';
 import { useTechnologies } from '@/queries/technologies';
 import {
   useCreateRecommendation,
@@ -48,7 +49,7 @@ const toInputDate = (date) => (date ? format(new Date(date), 'yyyy-MM-dd') : '')
 
 const createEmptyForm = () => ({
   positionId: '',
-  project: '',
+  projectId: '',
   technologyIds: [],
   recommendationNote: '',
   status: 'recommended',
@@ -68,7 +69,7 @@ const formFromRecommendation = (recommendation) => {
   const currentFallback = toInputDate(recommendation.updatedAt);
   return {
     positionId: recommendation.position?._id || recommendation.position || '',
-    project: recommendation.project || '',
+    projectId: recommendation.project?._id || recommendation.project || '',
     technologyIds: (recommendation.technologies || []).map((technology) => technology._id),
     recommendationNote: recommendation.recommendationNote || '',
     status,
@@ -117,6 +118,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && canWriteInternMentorData(user?.role);
   const { data: positions = [] } = usePositions();
+  const { data: projects = [] } = useProjects();
   const { data: technologies = [] } = useTechnologies();
   const { data, isPending, isError } = useRecommendations({
     internUserId: userId,
@@ -173,8 +175,8 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
       toast.error('Select a position for this recommendation');
       return;
     }
-    if (!form.project.trim()) {
-      toast.error('Enter the project for this recommendation');
+    if (!form.projectId) {
+      toast.error('Select a project for this recommendation');
       return;
     }
 
@@ -197,7 +199,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     const payload = {
       internUserId: userId,
       positionId: form.positionId,
-      project: form.project.trim(),
+      projectId: form.projectId,
       technologyIds: form.technologyIds,
       recommendationNote: form.recommendationNote,
       status: form.status,
@@ -382,6 +384,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
         setForm={setForm}
         statuses={RECOMMENDATION_STATUSES}
         positions={positions}
+        projects={projects}
         technologies={technologies}
         activeRecommendation={activeRecommendation}
         hasRecordedOutcome={hasRecordedOutcome}

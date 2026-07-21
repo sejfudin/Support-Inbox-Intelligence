@@ -52,3 +52,13 @@ imports the file into every context window and defeats the read-on-demand design
 Rule for Claude: if a task changes any of the above, update the matching doc as part of the work.
 If the correct wording is genuinely unclear, make your best edit and flag it to the developer in
 your summary rather than skipping it. Never let code and docs drift apart silently.
+
+## Agent skills
+
+### Issue tracker
+
+Issues tracked as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.

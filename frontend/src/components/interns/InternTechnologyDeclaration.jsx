@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { X } from 'lucide-react';
 import { SearchableSelect } from '@/components/ui/searchable-select';
+import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
 import {
@@ -64,6 +65,12 @@ export function InternTechnologyDeclaration() {
             items={allTechnologies}
             onSelect={addTechnology}
             filter={(tech, q) => !declaredIds.has(tech._id) && tech.name.toLowerCase().includes(q)}
+            renderItem={(tech) => (
+              <span className="flex items-center gap-2 font-medium">
+                <TechnologyIcon technology={tech} size={16} className="shrink-0" />
+                {tech.name}
+              </span>
+            )}
             getItemDataTest={(tech) => `technology-add-${tech.slug}-button`}
             placeholder="Search technologies..."
             emptyMessage="No technologies found."
@@ -94,7 +101,10 @@ export function InternTechnologyDeclaration() {
                   key={tech._id}
                   className="flex items-center justify-between gap-4 px-5 py-3 md:px-6"
                 >
-                  <span className="font-medium text-sm">{tech.name}</span>
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <TechnologyIcon technology={tech} size={16} className="shrink-0" />
+                    {tech.name}
+                  </span>
                   <div className="flex items-center gap-3">
                     <ReadinessLevelBadge level={level} />
                     <button

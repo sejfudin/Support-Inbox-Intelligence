@@ -64,7 +64,9 @@ export function RecommendationCard({
             <SectionLabel>Project</SectionLabel>
             <p className="mt-2 flex items-center gap-2 text-[15px] font-semibold text-[#33384c]">
               <span className="h-2 w-2 shrink-0 rounded-[2px] bg-[#6d5ce6]" aria-hidden="true" />
-              <span className="[overflow-wrap:anywhere]">{recommendation.project || '—'}</span>
+              <span className="[overflow-wrap:anywhere]">
+                {recommendation.project?.name || '—'}
+              </span>
             </p>
           </div>
           <p className="mt-auto pt-6 text-[12.5px] text-[#8b91a5]">
@@ -168,7 +170,9 @@ export function RecommendationCompactRow({ recommendation, steps, positionName, 
 
       <div className="w-[230px] min-w-0 shrink-0">
         <p className="truncate text-[15px] font-bold text-[#171b2b]">{positionName}</p>
-        <p className="truncate text-[12.5px] text-[#8b91a5]">{recommendation.project || '—'}</p>
+        <p className="truncate text-[12.5px] text-[#8b91a5]">
+          {recommendation.project?.name || '—'}
+        </p>
       </div>
 
       <MiniTimeline steps={steps} />

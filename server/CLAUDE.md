@@ -19,6 +19,14 @@ and especially ../.claude/docs/security.md (authz is the top risk here).
 - `prompts/` — Groq AI prompt templates. `seeder/` — seed scripts (destructive; see workflows).
 - `repository/` — thin data-access modules (currently sparse; most access is service → model).
 
+## Env files
+
+`index.js` loads `.env.${NODE_ENV}` (defaults to `.env.development`) — that's the database
+`npm run dev` actually uses. Older one-off scripts under `seeder/` instead load plain `.env`,
+which can point at a **different** database (both are dev clusters here, but don't assume that's
+always true). When writing a new seeder/migration script, load env the same way `index.js` does
+so it hits the database you're actually testing against — don't copy the plain-`.env` pattern.
+
 ## Rules specific to server
 
 - **Every route: `protect` first**, then role/workspace guards, then upload, then controller.

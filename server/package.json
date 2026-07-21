@@ -18,6 +18,7 @@
     "seed:positions": "node seeder/seedPositions.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
+    "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
     "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js"
   },

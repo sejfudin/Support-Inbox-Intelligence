@@ -24,6 +24,8 @@ const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
 const Technology = require('../models/Technology');
 const Position = require('../models/Position');
+const Project = require('../models/Project');
+const { slugify } = require('../helpers/slugify');
 const InternProfile = require('../models/InternProfile');
 const ReadinessFlag = require('../models/ReadinessFlag');
 const Evaluation = require('../models/Evaluation');
@@ -106,6 +108,15 @@ const seedTestingData = async () => {
     };
 
     const randomPosition = () => positions[Math.floor(Math.random() * positions.length)];
+
+    const projectByTitle = async (name) => {
+      const slug = slugify(name);
+      let project = await Project.findOne({ slug });
+      if (!project) {
+        project = await Project.create({ name, slug, status: 'active' });
+      }
+      return project;
+    };
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(PASSWORD, salt);
@@ -948,12 +959,14 @@ const seedTestingData = async () => {
 
       if (!recSpec) return null;
 
+      const project = await projectByTitle(`${spec.fullname.split(' ')[0]} placement track`);
+
       const base = {
         internProfile: profile._id,
         createdBy: leadershipAuthor,
         updatedBy: leadershipAuthor,
         position: profile.declaredPosition || randomPosition()._id,
-        project: `${spec.fullname.split(' ')[0]} placement track`,
+        project: project._id,
         technologies: techIds,
         recommendationNote: `Recommendation for ${spec.fullname} — ${recSpec} track.`,
       };
@@ -1047,12 +1060,13 @@ const seedTestingData = async () => {
       (e) => e.spec.email === 'intern.completed.gamma@symphony.is'
     );
     if (recentOutcomeIntern) {
+      const earlierAttemptProject = await projectByTitle('Client pipeline — earlier attempt');
       const rec = await Recommendation.create({
         internProfile: recentOutcomeIntern.profile._id,
         createdBy: leadership2._id,
         updatedBy: leadership2._id,
         position: recentOutcomeIntern.profile.declaredPosition || randomPosition()._id,
-        project: 'Client pipeline — earlier attempt',
+        project: earlierAttemptProject._id,
         technologies: [techBySlug('react')._id],
         status: 'resulted',
         recommendationNote: 'Earlier pipeline attempt.',
@@ -1090,12 +1104,13 @@ const seedTestingData = async () => {
       (e) => e.spec.email === 'intern.placed.alpha@symphony.is'
     );
     if (placedIntern) {
+      const dotnetPlacementProject = await projectByTitle('Enterprise Co. — .NET placement');
       const rec = await Recommendation.create({
         internProfile: placedIntern.profile._id,
         createdBy: leadership._id,
         updatedBy: leadership._id,
         position: placedIntern.profile.declaredPosition || randomPosition()._id,
-        project: 'Enterprise Co. — .NET placement',
+        project: dotnetPlacementProject._id,
         technologies: [techBySlug('dotnet')._id],
         status: 'resulted',
         recommendationNote: 'Successful placement at Enterprise Co.',

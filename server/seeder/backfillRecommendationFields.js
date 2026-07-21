@@ -2,10 +2,12 @@
  * One-off migration for the recommendation redesign:
  *   1. Rewrites every recommendation still in the retired 'draft' status to
  *      'recommended' (draft was removed from the status set).
- *   2. Backfills the now-required `position` and `project` fields on any legacy
- *      recommendation that predates them, so those records still satisfy model
- *      validation and remain editable. Position falls back to the intern's
- *      declaredPosition, then to any Position; project gets a neutral marker.
+ *   2. Backfills the now-required `position` field on any legacy recommendation
+ *      that predates it, so those records still satisfy model validation and
+ *      remain editable. Falls back to the intern's declaredPosition, then to
+ *      any Position. (`project` used to be backfilled here too, but it's now
+ *      an ObjectId ref — see `migrateRecommendationProjects.js` instead, which
+ *      repoints every recommendation at the "Unspecified" sentinel project.)
  *   3. Removes any stale 'placed' status-history rows from an earlier version
  *      of this migration (the timeline now tracks 'resulted', not 'placed').
  *   4. Seeds append-only status History rows for recommendations that have none,
@@ -26,8 +28,6 @@ const InternProfile = require('../models/InternProfile');
 const Position = require('../models/Position');
 const History = require('../models/History');
 
-const LEGACY_PROJECT = 'Unspecified project';
-
 const run = async () => {
   try {
     await connectDB();
@@ -40,14 +40,7 @@ const run = async () => {
     );
     console.log(`✅ Migrated ${draftResult.modifiedCount} draft recommendation(s) → recommended.`);
 
-    // 2. Backfill missing project.
-    const projectResult = await Recommendation.updateMany(
-      { $or: [{ project: { $exists: false } }, { project: null }, { project: '' }] },
-      { $set: { project: LEGACY_PROJECT } }
-    );
-    console.log(`✅ Backfilled project on ${projectResult.modifiedCount} recommendation(s).`);
-
-    // 3. Backfill missing position (per-record, using the intern's declared
+    // 2. Backfill missing position (per-record, using the intern's declared
     //    position when available, else the first available Position).
     const fallbackPosition = await Position.findOne().sort({ name: 1 });
     if (!fallbackPosition) {
