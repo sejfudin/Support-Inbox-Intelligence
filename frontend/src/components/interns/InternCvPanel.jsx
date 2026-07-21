@@ -14,7 +14,18 @@ export function InternCvPanel() {
     const file = e.target.files?.[0];
     if (!file) return;
     uploadCv(file, {
-      onSuccess: () => toast.success('CV uploaded'),
+      onSuccess: (data) => {
+        const added = data?.addedTechnologies || [];
+        if (added.length) {
+          toast.success(
+            `CV uploaded — added ${added.length} ${
+              added.length === 1 ? 'technology' : 'technologies'
+            }: ${added.map((t) => t.name).join(', ')}`
+          );
+        } else {
+          toast.success('CV uploaded');
+        }
+      },
       onError: (err) => toast.error(err?.response?.data?.message || 'Failed to upload CV'),
     });
     e.target.value = '';
@@ -23,7 +34,10 @@ export function InternCvPanel() {
   return (
     <PagePanel className="px-5 py-6 md:px-6">
       <h3 className="text-base font-semibold text-foreground">CV</h3>
-      <p className="mt-1 text-sm text-muted-foreground">Upload a PDF resume for mentors.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Upload a PDF resume for mentors. We&apos;ll scan it and add any technologies we recognize to
+        your list below — you can still add more manually.
+      </p>
       <input
         ref={fileRef}
         type="file"
