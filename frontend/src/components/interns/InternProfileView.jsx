@@ -47,8 +47,7 @@ export function InternProfileView({
   const canEditInternalCv = !readOnly && canWriteAssignedInternMentorData(user, intern);
   const showComments = canViewComments(user?.role);
   const showEvaluations = showComments;
-  const showRecommendations =
-    user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR || user?.role === ROLES.LEADERSHIP;
+  const showRecommendations = user?.role === ROLES.ADMIN || user?.role === ROLES.LEADERSHIP;
 
   if (isPending) {
     return (

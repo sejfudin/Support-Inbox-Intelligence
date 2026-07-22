@@ -115,7 +115,6 @@ export default function AppSidebar() {
     ? [
         { label: 'My Interns', to: '/my-interns', icon: GraduationCap },
         { label: 'Attendance', to: '/attendance', icon: CalendarCheck },
-        { label: 'Recommendations', to: '/recommendations', icon: Send },
         { label: 'My Workspaces', to: '/workspaces', icon: Building2 },
       ]
     : [];
