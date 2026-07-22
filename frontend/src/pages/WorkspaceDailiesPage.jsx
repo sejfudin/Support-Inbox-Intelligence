@@ -97,10 +97,7 @@ const WorkspaceDailiesPage = () => {
           />
           {!isLoading && daily && (
             <>
-              <DailyHeader
-                counts={daily.counts}
-                missingNames={availableInterns.map((intern) => intern.fullname)}
-              />
+              <DailyHeader counts={daily.counts} />
               {daily.entries.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   No entries yet — add the first standup entry.

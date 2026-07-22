@@ -20,7 +20,7 @@ const StatTile = ({ label, value, styleKey }) => {
   );
 };
 
-export const DailyHeader = ({ counts, missingNames = [] }) => {
+export const DailyHeader = ({ counts }) => {
   const covered = counts?.covered ?? { present: 0, total: 0 };
 
   return (
@@ -35,11 +35,6 @@ export const DailyHeader = ({ counts, missingNames = [] }) => {
         <StatTile label="In flight" value={counts?.inFlight ?? 0} styleKey="inFlight" />
         <StatTile label="Blockers" value={counts?.blockers ?? 0} styleKey="blockers" />
       </div>
-      {missingNames.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Missing: <span className="font-medium text-foreground">{missingNames.join(', ')}</span>
-        </p>
-      )}
     </div>
   );
 };

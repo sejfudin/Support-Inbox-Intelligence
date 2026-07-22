@@ -113,8 +113,10 @@ const startDaily = async ({ workspaceId, date, user }) => {
 
   const targetDate = parseDateParam(date);
   const today = startOfDay(new Date());
-  if (targetDate.getTime() > today.getTime()) {
-    throw new DailyValidationError('Cannot start a daily for a future date.');
+  if (targetDate.getTime() !== today.getTime()) {
+    // A Daily is created lazily by the first person to open the tab that day.
+    // Only today can be started — no back-filling past gaps, no future dailies.
+    throw new DailyValidationError("A daily can only be started for today's date.");
   }
 
   let daily;
@@ -141,7 +143,7 @@ const startDaily = async ({ workspaceId, date, user }) => {
   return populated;
 };
 
-const loadDailyOrThrow = async (dailyId, workspaceId, user) => {
+const loadDailyOrThrow = async (dailyId, user) => {
   const daily = await Daily.findById(dailyId);
   if (!daily) {
     throw new DailyValidationError('Daily not found', 404);
@@ -190,7 +192,7 @@ const normalizeBlockers = async (blockers, workspaceId) => {
 };
 
 const addEntry = async ({ dailyId, memberId, done, todo, blockers, user }) => {
-  const daily = await loadDailyOrThrow(dailyId, undefined, user);
+  const daily = await loadDailyOrThrow(dailyId, user);
   assertEditable(daily);
 
   if (!memberId) {
@@ -221,7 +223,7 @@ const addEntry = async ({ dailyId, memberId, done, todo, blockers, user }) => {
 };
 
 const updateEntry = async ({ dailyId, entryId, done, todo, blockers, user }) => {
-  const daily = await loadDailyOrThrow(dailyId, undefined, user);
+  const daily = await loadDailyOrThrow(dailyId, user);
   assertEditable(daily);
 
   const entry = daily.entries.id(entryId);
@@ -243,7 +245,7 @@ const updateEntry = async ({ dailyId, entryId, done, todo, blockers, user }) => 
 };
 
 const removeEntry = async ({ dailyId, entryId, user }) => {
-  const daily = await loadDailyOrThrow(dailyId, undefined, user);
+  const daily = await loadDailyOrThrow(dailyId, user);
   assertEditable(daily);
 
   const entry = daily.entries.id(entryId);

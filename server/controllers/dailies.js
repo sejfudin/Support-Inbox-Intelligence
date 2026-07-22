@@ -1,7 +1,8 @@
 const dailyService = require('../services/dailyService');
+const { ROLES } = require('../constants/roles');
 
 const resolveWorkspaceId = (req) => {
-  const isAdmin = req.user?.role === 'admin';
+  const isAdmin = req.user?.role === ROLES.ADMIN;
   const queryWorkspaceId = req.query?.workspace || req.body?.workspace;
   return isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
 };
@@ -26,6 +27,7 @@ const getDaily = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
+      message: 'Daily fetched',
       data: daily ? { ...daily.toObject(), counts, activeInterns, isEditable } : null,
     });
   } catch (error) {
@@ -38,7 +40,7 @@ const getDailyHistory = async (req, res, next) => {
     const workspaceId = resolveWorkspaceId(req);
     const history = await dailyService.getDailyHistory({ workspaceId, user: req.user });
 
-    res.status(200).json({ success: true, data: history });
+    res.status(200).json({ success: true, message: 'Daily history fetched', data: history });
   } catch (error) {
     handleDailyError(error, res, next);
   }

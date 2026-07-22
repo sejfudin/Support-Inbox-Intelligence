@@ -29,9 +29,12 @@ const previousWorkingDay = (date) => {
 
 // A Daily is editable on its date and up to one working day afterward
 // (weekends skipped), so Monday can still edit Friday's. Older dailies and
-// future dates are read-only.
+// future dates are read-only. Weekend-dated dailies are never editable — the
+// window is a working-day notion, so a Sat/Sun date must not be treated as
+// editable just because it falls inside the [prev-working-day, today] span.
 const isDailyEditable = (date, now) => {
   const target = startOfDay(date);
+  if (isWeekend(target)) return false;
   const today = startOfDay(now);
   const earliestEditable = previousWorkingDay(today);
   return target.getTime() >= earliestEditable.getTime() && target.getTime() <= today.getTime();

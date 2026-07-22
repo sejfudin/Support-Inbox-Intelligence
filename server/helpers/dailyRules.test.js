@@ -3,6 +3,8 @@ const { previousWorkingDay, isDailyEditable, deriveCounts } = require('./dailyRu
 // Fixed calendar anchors (local midnight, month is 0-indexed):
 //   Fri 2026-01-02, Mon 2026-01-05, Tue 2026-01-06, Wed 2026-01-07
 const FRIDAY = new Date(2026, 0, 2);
+const SATURDAY = new Date(2026, 0, 3);
+const SUNDAY = new Date(2026, 0, 4);
 const MONDAY = new Date(2026, 0, 5);
 const TUESDAY = new Date(2026, 0, 6);
 const WEDNESDAY = new Date(2026, 0, 7);
@@ -33,6 +35,13 @@ describe('isDailyEditable', () => {
 
   it('a future date is not editable', () => {
     expect(isDailyEditable(TUESDAY, MONDAY)).toBe(false);
+  });
+
+  it('a weekend-dated daily is never editable, even within the working-day span', () => {
+    // now = Monday; Sat/Sun fall inside [prev-working-day=Fri, today=Mon] but
+    // must not be editable — the window is a working-day notion.
+    expect(isDailyEditable(SATURDAY, MONDAY)).toBe(false);
+    expect(isDailyEditable(SUNDAY, MONDAY)).toBe(false);
   });
 
   it('ignores the time-of-day component (start-of-day comparison)', () => {
