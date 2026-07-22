@@ -2,8 +2,10 @@ import { useEffect } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { format } from 'date-fns';
 import { Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -24,6 +27,7 @@ import {
 import { useAddDailyEntry, useUpdateDailyEntry } from '@/queries/dailies';
 import { useTickets } from '@/queries/tickets';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
+import { cn } from '@/lib/utils';
 
 const entrySchema = z.object({
   member: z.string().min(1, 'Select an intern'),
@@ -34,18 +38,40 @@ const entrySchema = z.object({
 
 const defaultValues = { member: '', done: [], todo: [], blockers: [] };
 
-const RepeatableList = ({ label, name, control, register, addLabel }) => {
+const SectionLabel = ({ dotColor, children }) => (
+  <div className="flex items-center gap-2 text-sm font-semibold">
+    <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', dotColor)} />
+    {children}
+  </div>
+);
+
+const AddItemLink = ({ onClick, tone = 'primary', children, ...props }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      'flex items-center gap-1 self-start text-sm font-medium hover:underline',
+      tone === 'destructive' ? 'text-red-600 dark:text-red-400' : 'text-primary'
+    )}
+    {...props}
+  >
+    <Plus className="h-3.5 w-3.5" />
+    {children}
+  </button>
+);
+
+const RepeatableList = ({ label, dotColor, name, control, register, addLabel, placeholder }) => {
   const { fields, append, remove } = useFieldArray({ control, name });
 
   return (
     <div className="flex flex-col gap-2">
-      <Label>{label}</Label>
+      <SectionLabel dotColor={dotColor}>{label}</SectionLabel>
       {fields.map((field, index) => (
         <div key={field.id} className="flex items-center gap-2">
           <Input
             {...register(`${name}.${index}.value`)}
             data-test={`daily-entry-${name}-input-${index}`}
-            placeholder={label}
+            placeholder={placeholder}
           />
           <Button
             type="button"
@@ -58,17 +84,9 @@ const RepeatableList = ({ label, name, control, register, addLabel }) => {
           </Button>
         </div>
       ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="self-start"
-        data-test={`daily-entry-${name}-add`}
-        onClick={() => append({ value: '' })}
-      >
-        <Plus className="h-4 w-4" />
+      <AddItemLink data-test={`daily-entry-${name}-add`} onClick={() => append({ value: '' })}>
         {addLabel}
-      </Button>
+      </AddItemLink>
     </div>
   );
 };
@@ -82,13 +100,13 @@ const BlockersField = ({ control, register, workspaceId }) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <Label>Blockers</Label>
+      <SectionLabel dotColor="bg-red-500">Blockers</SectionLabel>
       {fields.map((field, index) => (
         <div key={field.id} className="flex items-center gap-2">
           <Input
             {...register(`blockers.${index}.text`)}
             data-test={`daily-entry-blockers-input-${index}`}
-            placeholder="Blockers"
+            placeholder="Describe the blocker…"
             className="flex-1"
           />
           <Controller
@@ -131,23 +149,27 @@ const BlockersField = ({ control, register, workspaceId }) => {
           </Button>
         </div>
       ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="self-start"
+      <AddItemLink
+        tone="destructive"
         data-test="daily-entry-blockers-add"
         onClick={() => append({ text: '', linkedTicket: null })}
       >
-        <Plus className="h-4 w-4" />
         Add blocker
-      </Button>
+      </AddItemLink>
     </div>
   );
 };
 
-export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily, entry = null }) => {
+export const AddEntryModal = ({
+  open,
+  onOpenChange,
+  workspaceId,
+  daily,
+  entry = null,
+  date = new Date(),
+}) => {
   const isEditing = Boolean(entry);
+  const { user } = useAuth();
   const addEntryMutation = useAddDailyEntry(workspaceId);
   const updateEntryMutation = useUpdateDailyEntry(workspaceId);
   const mutation = isEditing ? updateEntryMutation : addEntryMutation;
@@ -208,12 +230,19 @@ export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily, entry = 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" data-test="add-entry-modal">
-        <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit standup entry' : 'Add standup entry'}</DialogTitle>
+        <DialogHeader className="gap-1 border-b border-border/60 pb-4">
+          <DialogTitle className="text-xl">
+            {isEditing ? 'Edit standup entry' : 'Add standup entry'}
+          </DialogTitle>
+          <DialogDescription>
+            {format(date, 'EEEE, MMMM d, yyyy')} · logged by {user?.fullname}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="daily-entry-member">Intern</Label>
+            <Label htmlFor="daily-entry-member">
+              Team member <span className="text-red-500">*</span>
+            </Label>
             {isEditing ? (
               <div
                 className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
@@ -250,17 +279,21 @@ export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily, entry = 
 
           <RepeatableList
             label="Done"
+            dotColor="bg-emerald-500"
             name="done"
             control={control}
             register={register}
-            addLabel="Add done item"
+            addLabel="Add item"
+            placeholder="What was completed…"
           />
           <RepeatableList
             label="To do"
+            dotColor="bg-blue-500"
             name="todo"
             control={control}
             register={register}
-            addLabel="Add to do item"
+            addLabel="Add item"
+            placeholder="Planned for today…"
           />
           <BlockersField control={control} register={register} workspaceId={workspaceId} />
 

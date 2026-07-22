@@ -19,52 +19,67 @@ const NavButton = ({ hasRecord, children, ...props }) => (
 
 export const DailyDateNav = ({
   date,
+  scribeName,
   onPrev,
   onNext,
   onToday,
   hasPrevRecord = false,
   hasNextRecord = false,
+  actions,
 }) => {
   const today = isToday(date);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <h2 className="text-xl font-semibold">{format(date, 'EEEE, MMMM d, yyyy')}</h2>
-        <Badge
-          variant={today ? 'success' : 'outline'}
-          className={cn(!today && 'text-muted-foreground')}
-        >
-          {today ? 'Today' : format(date, 'MMM d')}
-        </Badge>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Daily standup</h1>
+          <Badge
+            variant={today ? 'success' : 'outline'}
+            className={cn(!today && 'text-muted-foreground')}
+          >
+            {today ? 'Today' : format(date, 'MMM d')}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {format(date, 'EEEE, MMMM d, yyyy')}
+          {scribeName && (
+            <>
+              {' · '}Scribe: <span className="font-medium text-foreground">{scribeName}</span>
+            </>
+          )}
+        </p>
       </div>
-      <div className="flex items-center gap-1">
-        <NavButton
-          hasRecord={hasPrevRecord}
-          onClick={onPrev}
-          aria-label="Previous day"
-          data-test="daily-nav-prev"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </NavButton>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onToday}
-          disabled={today}
-          data-test="daily-nav-today"
-        >
-          Today
-        </Button>
-        <NavButton
-          hasRecord={hasNextRecord}
-          onClick={onNext}
-          disabled={today}
-          aria-label="Next day"
-          data-test="daily-nav-next"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </NavButton>
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          <NavButton
+            hasRecord={hasPrevRecord}
+            onClick={onPrev}
+            aria-label="Previous day"
+            data-test="daily-nav-prev"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </NavButton>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToday}
+            disabled={today}
+            data-test="daily-nav-today"
+          >
+            Today
+          </Button>
+          <NavButton
+            hasRecord={hasNextRecord}
+            onClick={onNext}
+            disabled={today}
+            aria-label="Next day"
+            data-test="daily-nav-next"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </NavButton>
+        </div>
+        {actions}
       </div>
     </div>
   );

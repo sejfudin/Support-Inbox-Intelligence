@@ -33,6 +33,13 @@ const WorkspaceDailiesPage = () => {
 
   const daily = dailyResponse?.data ?? null;
   const availableInterns = getAvailableInterns(daily);
+  const sortedEntries = useMemo(
+    () =>
+      [...(daily?.entries ?? [])].sort(
+        (a, b) => (b.blockers?.length ?? 0) - (a.blockers?.length ?? 0)
+      ),
+    [daily]
+  );
   const recordedDateKeys = useMemo(
     () => new Set((historyResponse?.data ?? []).map((entry) => toDateKey(new Date(entry.date)))),
     [historyResponse]
@@ -69,34 +76,38 @@ const WorkspaceDailiesPage = () => {
         <PagePanel className="flex flex-col gap-4 p-6">
           <DailyDateNav
             date={selectedDate}
+            scribeName={daily?.scribe?.fullname}
             onPrev={() => setSelectedDate((current) => subDays(current, 1))}
             onNext={() => setSelectedDate((current) => addDays(current, 1))}
             onToday={() => setSelectedDate(new Date())}
             hasPrevRecord={recordedDateKeys.has(toDateKey(subDays(selectedDate, 1)))}
             hasNextRecord={recordedDateKeys.has(toDateKey(addDays(selectedDate, 1)))}
+            actions={
+              daily?.isEditable && (
+                <Button
+                  onClick={() => setIsAddEntryOpen(true)}
+                  disabled={availableInterns.length === 0}
+                  data-test="add-entry-button"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add entry
+                </Button>
+              )
+            }
           />
           {!isLoading && daily && (
             <>
-              <DailyHeader scribeName={daily.scribe?.fullname} counts={daily.counts} />
-              {daily.isEditable && (
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => setIsAddEntryOpen(true)}
-                    disabled={availableInterns.length === 0}
-                    data-test="add-entry-button"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add entry
-                  </Button>
-                </div>
-              )}
+              <DailyHeader
+                counts={daily.counts}
+                missingNames={availableInterns.map((intern) => intern.fullname)}
+              />
               {daily.entries.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   No entries yet — add the first standup entry.
                 </p>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {daily.entries.map((entry) => (
+                <div className="flex flex-col gap-4">
+                  {sortedEntries.map((entry) => (
                     <DailyEntryCard
                       key={entry._id}
                       entry={entry}
@@ -106,6 +117,17 @@ const WorkspaceDailiesPage = () => {
                     />
                   ))}
                 </div>
+              )}
+              {daily.isEditable && availableInterns.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddEntryOpen(true)}
+                  data-test="add-entry-footer-button"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 py-4 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add entry for another member
+                </button>
               )}
               <AddEntryModal
                 open={isAddEntryOpen || Boolean(editingEntry)}
@@ -118,6 +140,7 @@ const WorkspaceDailiesPage = () => {
                 workspaceId={workspaceId}
                 daily={daily}
                 entry={editingEntry}
+                date={selectedDate}
               />
               <DeleteConfirmModal
                 isOpen={Boolean(entryToDelete)}
