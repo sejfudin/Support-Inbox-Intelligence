@@ -14,7 +14,7 @@ import apiClient from '@/api/axios';
  */
 export const fetchMyAttendance = async () => {
   const { data } = await apiClient.get('/attendance/me');
-  return data.attendance;
+  return data.data.attendance;
 };
 
 /**
@@ -24,7 +24,7 @@ export const fetchMyAttendance = async () => {
  */
 export const checkInToday = async () => {
   const { data } = await apiClient.post('/attendance/me/check-in');
-  return data.attendance;
+  return data.data.attendance;
 };
 
 /**
@@ -35,7 +35,7 @@ export const checkInToday = async () => {
  */
 export const cancelTodayCheckIn = async () => {
   const { data } = await apiClient.delete('/attendance/me/check-in');
-  return data.attendance;
+  return data.data.attendance;
 };
 
 /**
@@ -45,7 +45,7 @@ export const cancelTodayCheckIn = async () => {
  */
 export const fetchAttendanceRoster = async (params = {}) => {
   const { data } = await apiClient.get('/attendance', { params });
-  return data;
+  return data.data;
 };
 
 /**
@@ -58,5 +58,5 @@ export const fetchInternAttendance = async (internProfileId, month) => {
   const { data } = await apiClient.get(`/attendance/${internProfileId}`, {
     params: month ? { month } : undefined,
   });
-  return data.attendance;
+  return data.data.attendance;
 };
