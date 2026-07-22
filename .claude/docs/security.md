@@ -73,6 +73,13 @@ branch:
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
 
+Attendance. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)` and always resolves the
+caller's **own** `InternProfile` — an intern can only ever read or write their own attendance. The
+roster `GET /api/attendance` and the per-intern `GET /api/attendance/:internProfileId` (calendar
+modal) are **admin-only** (`requireRole(ADMIN)`) — mentors have no attendance surface. Not
+workspace-scoped (intern domain). The check-in time-window is enforced server-side
+(`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock.
+
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.

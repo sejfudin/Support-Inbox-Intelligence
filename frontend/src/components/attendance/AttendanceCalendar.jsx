@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { addMonths, subMonths, isSameMonth, format } from 'date-fns';
+import { addMonths, subMonths, isSameMonth, format, parseISO } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -36,10 +36,13 @@ function LegendItem({ dotClass, label }) {
 
 /**
  * Read-only month calendar visualizing an intern's attendance.
- * @param {{ records: Array<{date:string}>, cancelledDates?: string[] }} props
+ * @param {{ records: Array<{date:string}>, cancelledDates?: string[], initialMonth?: string }} props
+ *   initialMonth - 'YYYY-MM' to open on; defaults to the current month.
  */
-export default function AttendanceCalendar({ records = [], cancelledDates = [] }) {
-  const [cursor, setCursor] = useState(() => new Date());
+export default function AttendanceCalendar({ records = [], cancelledDates = [], initialMonth }) {
+  const [cursor, setCursor] = useState(() =>
+    initialMonth ? parseISO(`${initialMonth}-01`) : new Date()
+  );
   const { weeks, monthLabel } = useMemo(
     () => buildMonthGrid(cursor, records, cancelledDates),
     [cursor, records, cancelledDates]
