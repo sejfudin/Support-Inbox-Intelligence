@@ -159,16 +159,21 @@ const cancelCheckIn = async (user) => {
   return buildSummary(profile); // already cancelled → idempotent
 };
 
-const buildRosterEntry = (profile, rows, monthKey) => {
-  const { records, cancelledDates, lastCheckIn } = splitRows(rows);
+// Must be a plain string on `hub` — the roster table sorts on it.
+const toInternSummary = (profile) => {
   const user = profile.user || {};
   return {
-    intern: {
-      id: profile._id,
-      fullname: user.fullname || '',
-      email: user.email || '',
-      hub: user.hub?.name || '', // must be a string — the table sorts on it
-    },
+    id: profile._id,
+    fullname: user.fullname || '',
+    email: user.email || '',
+    hub: user.hub?.name || '',
+  };
+};
+
+const buildRosterEntry = (profile, rows, monthKey) => {
+  const { records, cancelledDates, lastCheckIn } = splitRows(rows);
+  return {
+    intern: toInternSummary(profile),
     records,
     cancelledDates,
     ...computeMonthStats(records, monthKey, profile.startDate),
@@ -256,14 +261,8 @@ const getInternAttendance = async (internProfileId, month) => {
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates } = splitRows(rows);
   const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
-  const user = profile.user;
   return {
-    intern: {
-      id: profile._id,
-      fullname: user.fullname || '',
-      email: user.email || '',
-      hub: user.hub?.name || '',
-    },
+    intern: toInternSummary(profile),
     records,
     cancelledDates,
     month: { key: monthKey, ...computeMonthStats(records, monthKey, profile.startDate) },
