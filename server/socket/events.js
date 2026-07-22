@@ -1,6 +1,7 @@
 const {
   broadcastToTicket,
   broadcastToWorkspaceTicketAndUsers,
+  broadcastToWorkspace,
   broadcastToAll,
 } = require('./socketServer');
 const { invalidationScopes } = require('./invalidationScopes');
@@ -141,9 +142,19 @@ const emitInternDataChanged = () =>
     scopes: [invalidationScopes.intern()],
   });
 
+const emitDailyChanged = (workspaceId) => {
+  const resolvedWorkspaceId = toSocketId(workspaceId);
+  if (!resolvedWorkspaceId) return false;
+
+  return broadcastToWorkspace(resolvedWorkspaceId, 'CACHE_INVALIDATED', {
+    scopes: [invalidationScopes.workspaceDailies(resolvedWorkspaceId)],
+  });
+};
+
 module.exports = {
   toSocketId,
   emitTicketEvent,
   emitCommentEvent,
   emitInternDataChanged,
+  emitDailyChanged,
 };
