@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAddDailyEntry, useUpdateDailyEntry } from '@/queries/dailies';
+import { useTickets } from '@/queries/tickets';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
 
 const entrySchema = z.object({
@@ -35,7 +36,6 @@ const defaultValues = { member: '', done: [], todo: [], blockers: [] };
 
 const RepeatableList = ({ label, name, control, register, addLabel }) => {
   const { fields, append, remove } = useFieldArray({ control, name });
-  const fieldKey = name === 'blockers' ? 'text' : 'value';
 
   return (
     <div className="flex flex-col gap-2">
@@ -43,7 +43,7 @@ const RepeatableList = ({ label, name, control, register, addLabel }) => {
       {fields.map((field, index) => (
         <div key={field.id} className="flex items-center gap-2">
           <Input
-            {...register(`${name}.${index}.${fieldKey}`)}
+            {...register(`${name}.${index}.value`)}
             data-test={`daily-entry-${name}-input-${index}`}
             placeholder={label}
           />
@@ -64,12 +64,83 @@ const RepeatableList = ({ label, name, control, register, addLabel }) => {
         size="sm"
         className="self-start"
         data-test={`daily-entry-${name}-add`}
-        onClick={() =>
-          append(name === 'blockers' ? { text: '', linkedTicket: null } : { [fieldKey]: '' })
-        }
+        onClick={() => append({ value: '' })}
       >
         <Plus className="h-4 w-4" />
         {addLabel}
+      </Button>
+    </div>
+  );
+};
+
+const NO_TICKET = 'none';
+
+const BlockersField = ({ control, register, workspaceId }) => {
+  const { fields, append, remove } = useFieldArray({ control, name: 'blockers' });
+  const { data } = useTickets({ workspaceId, limit: 200 }, { enabled: Boolean(workspaceId) });
+  const tickets = data?.data ?? [];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label>Blockers</Label>
+      {fields.map((field, index) => (
+        <div key={field.id} className="flex items-center gap-2">
+          <Input
+            {...register(`blockers.${index}.text`)}
+            data-test={`daily-entry-blockers-input-${index}`}
+            placeholder="Blockers"
+            className="flex-1"
+          />
+          <Controller
+            name={`blockers.${index}.linkedTicket`}
+            control={control}
+            render={({ field: ticketField }) => (
+              <Select
+                value={ticketField.value ?? NO_TICKET}
+                onValueChange={(value) => ticketField.onChange(value === NO_TICKET ? null : value)}
+              >
+                <SelectTrigger
+                  className="w-44 shrink-0"
+                  data-test={`daily-entry-blockers-ticket-${index}`}
+                >
+                  <SelectValue placeholder="Link ticket" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_TICKET}>No ticket</SelectItem>
+                  {tickets.map((ticket) => (
+                    <SelectItem
+                      key={ticket._id}
+                      value={ticket._id}
+                      data-test={`daily-entry-blockers-ticket-option-${ticket._id}`}
+                    >
+                      #{ticket.taskNumber} {ticket.subject}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            data-test={`daily-entry-blockers-remove-${index}`}
+            onClick={() => remove(index)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="self-start"
+        data-test="daily-entry-blockers-add"
+        onClick={() => append({ text: '', linkedTicket: null })}
+      >
+        <Plus className="h-4 w-4" />
+        Add blocker
       </Button>
     </div>
   );
@@ -191,13 +262,7 @@ export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily, entry = 
             register={register}
             addLabel="Add to do item"
           />
-          <RepeatableList
-            label="Blockers"
-            name="blockers"
-            control={control}
-            register={register}
-            addLabel="Add blocker"
-          />
+          <BlockersField control={control} register={register} workspaceId={workspaceId} />
 
           <DialogFooter>
             <Button
