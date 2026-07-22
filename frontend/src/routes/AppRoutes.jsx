@@ -129,11 +129,11 @@ export default function AppRoutes() {
             <Route path="/workspaces" element={<WorkspacesOverviewPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MENTOR]} />}>
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/attendance" element={<AttendanceOverviewPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MENTOR]} />}>
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/recommendations" element={<MentorRecommendationsPage />} />
           </Route>
 

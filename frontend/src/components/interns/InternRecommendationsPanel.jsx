@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { SortControl } from '@/components/interns/SortControl';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
-import { canWriteInternMentorData } from '@/helpers/roles';
+import { ROLES } from '@/helpers/roles';
 import { getRecommendationStatusLabel, RECOMMENDATION_STATUSES } from '@/helpers/recommendations';
 import { usePositions } from '@/queries/positions';
 import { useProjects } from '@/queries/projects';
@@ -116,7 +116,7 @@ function ViewModeSwitcher({ value, onChange }) {
 
 export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
-  const canWrite = !readOnly && canWriteInternMentorData(user?.role);
+  const canWrite = !readOnly && user?.role === ROLES.ADMIN;
   const { data: positions = [] } = usePositions();
   const { data: projects = [] } = useProjects();
   const { data: technologies = [] } = useTechnologies();

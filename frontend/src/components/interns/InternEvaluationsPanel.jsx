@@ -17,7 +17,7 @@ import { DetailModal, DetailText, ScoreBanner, ScoreTiles } from '@/components/i
 import { EVALUATION_CRITERIA } from '@/helpers/internProfile';
 import { getInitials } from '@/helpers/getInitials';
 import { useAuth } from '@/context/AuthContext';
-import { canWriteInternMentorData } from '@/helpers/roles';
+import { ROLES } from '@/helpers/roles';
 import { useCreateInternEvaluation, useInternEvaluations } from '@/queries/interns';
 import { toast } from 'sonner';
 
@@ -37,7 +37,7 @@ const getAverage = (evaluation) => {
 
 export function InternEvaluationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
-  const canWrite = !readOnly && canWriteInternMentorData(user?.role);
+  const canWrite = !readOnly && user?.role === ROLES.ADMIN;
   const { data: evaluations = [], isPending } = useInternEvaluations(userId);
   const { mutate, isPending: isSaving } = useCreateInternEvaluation();
 

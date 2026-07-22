@@ -2,21 +2,12 @@ import { useMemo, useState } from 'react';
 import { ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import {
-  attendanceRateTextClass,
-  formatCheckInDate,
-  isCheckedInToday,
-  currentMonthAttendance,
-} from '@/helpers/attendance';
+import { attendanceRateTextClass, formatCheckInDate, isCheckedInToday } from '@/helpers/attendance';
 
-const columnsFor = (basis) => [
+const columnsFor = (rateLabel) => [
   { key: 'name', label: 'Intern', sortable: true },
   { key: 'hub', label: 'Hub', sortable: true },
-  {
-    key: 'rate',
-    label: basis === 'overall' ? 'Attendance (all time)' : 'Attendance (this month)',
-    sortable: true,
-  },
+  { key: 'rate', label: rateLabel, sortable: true },
   { key: 'present', label: 'Present / working', sortable: true },
   { key: 'last', label: 'Last check-in', sortable: true },
 ];
@@ -47,41 +38,41 @@ function RateBar({ rate }) {
 }
 
 /**
- * Read-only roster table for mentors/admins. No edit affordances by design —
- * only interns can change their own attendance.
- * @param {{ roster: Array<object>, basis?: 'month' | 'overall' }} props
- *   basis 'month'   → current-month attendance (elapsed working days)
- *   basis 'overall' → all-time attendance (stored roster totals)
+ * Read-only roster table (admin) showing one calendar month's
+ * attendance. Rate/present/working come straight from the server (month-scoped,
+ * start-date-prorated). No edit affordances by design — only interns record
+ * their own attendance.
+ * @param {{
+ *   roster: Array<object>,
+ *   rateLabel?: string,
+ *   showToday?: boolean,   // the "Today" column only makes sense for the current month
+ * }} props
  */
-export default function AttendanceRosterTable({ roster = [], basis = 'month' }) {
+export default function AttendanceRosterTable({
+  roster = [],
+  rateLabel = 'Attendance',
+  showToday = true,
+  onSelectIntern,
+}) {
   const [sort, setSort] = useState({ key: 'rate', dir: 'asc' });
-  const columns = columnsFor(basis);
+  const columns = columnsFor(rateLabel);
 
   const toggleSort = (key) =>
     setSort((prev) =>
       prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }
     );
 
-  // Normalize each row to { rate, present, working } for the chosen basis.
-  // 'month' recomputes from records (matches the intern's own page); 'overall'
-  // uses the roster's stored all-time totals.
   const rows = useMemo(
     () =>
-      roster.map((row) => {
-        const stat =
-          basis === 'overall'
-            ? {
-                rate: row.attendanceRate ?? 0,
-                present: row.presentDays ?? 0,
-                working: row.workingDays ?? 0,
-              }
-            : (() => {
-                const m = currentMonthAttendance(row.records);
-                return { rate: m.rate, present: m.present, working: m.workingDaysElapsed };
-              })();
-        return { ...row, stat };
-      }),
-    [roster, basis]
+      roster.map((row) => ({
+        ...row,
+        stat: {
+          rate: row.attendanceRate ?? 0,
+          present: row.presentDays ?? 0,
+          working: row.workingDays ?? 0,
+        },
+      })),
+    [roster]
   );
 
   const sorted = useMemo(() => {
@@ -106,6 +97,8 @@ export default function AttendanceRosterTable({ roster = [], basis = 'month' }) 
     });
     return list;
   }, [rows, sort]);
+
+  const colSpan = columns.length + (showToday ? 1 : 0);
 
   return (
     <div className="app-panel overflow-hidden" data-test="attendance-roster-table">
@@ -135,13 +128,13 @@ export default function AttendanceRosterTable({ roster = [], basis = 'month' }) 
                   )}
                 </th>
               ))}
-              <th className="px-5 py-3 font-semibold text-foreground">Today</th>
+              {showToday && <th className="px-5 py-3 font-semibold text-foreground">Today</th>}
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
+                <td colSpan={colSpan} className="px-5 py-10 text-center text-muted-foreground">
                   No interns match your filters.
                 </td>
               </tr>
@@ -151,7 +144,12 @@ export default function AttendanceRosterTable({ roster = [], basis = 'month' }) 
               return (
                 <tr
                   key={row.intern.id}
-                  className="border-t border-border/60"
+                  onClick={() => onSelectIntern?.(row.intern)}
+                  className={cn(
+                    'border-t border-border/60',
+                    onSelectIntern && 'cursor-pointer transition-colors hover:bg-muted/40'
+                  )}
+                  title={onSelectIntern ? 'View attendance calendar' : undefined}
                   data-test={`attendance-roster-row-${row.intern.id}`}
                 >
                   <td className="px-5 py-4">
@@ -168,13 +166,15 @@ export default function AttendanceRosterTable({ roster = [], basis = 'month' }) 
                   <td className="px-5 py-4 text-muted-foreground">
                     {formatCheckInDate(row.lastCheckIn)}
                   </td>
-                  <td className="px-5 py-4">
-                    {inToday ? (
-                      <Badge variant="success">Checked in</Badge>
-                    ) : (
-                      <Badge variant="outline">Not yet</Badge>
-                    )}
-                  </td>
+                  {showToday && (
+                    <td className="px-5 py-4">
+                      {inToday ? (
+                        <Badge variant="success">Checked in</Badge>
+                      ) : (
+                        <Badge variant="outline">Not yet</Badge>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}

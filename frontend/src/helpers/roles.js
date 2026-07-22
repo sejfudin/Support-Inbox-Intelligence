@@ -51,9 +51,6 @@ export const isAssignedMentor = (user, intern) => {
   return refId(intern.primaryMentor) === userId || refId(intern.secondaryMentor) === userId;
 };
 
-// Lifecycle status can be changed by admins and the intern's assigned mentor.
-export const canChangeInternStatus = (user, intern) =>
-  user?.role === ROLES.ADMIN || (user?.role === ROLES.MENTOR && isAssignedMentor(user, intern));
 // Documentation links can be managed by admins, leadership, and the intern's assigned mentor.
 export const canManageInternDocumentationLinks = (user, intern) =>
   user?.role === ROLES.ADMIN ||
@@ -61,10 +58,6 @@ export const canManageInternDocumentationLinks = (user, intern) =>
   (user?.role === ROLES.MENTOR && isAssignedMentor(user, intern));
 export const canViewFepDirectory = (role) => role === ROLES.LEADERSHIP;
 export const canWriteInternMentorData = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
-// The internal CV link is writable by admins and the intern's assigned mentor,
-// mirroring the server-side canWriteMentorData check.
-export const canWriteAssignedInternMentorData = (user, intern) =>
-  user?.role === ROLES.ADMIN || (user?.role === ROLES.MENTOR && isAssignedMentor(user, intern));
 export const canViewComments = (role) =>
   role === ROLES.ADMIN || role === ROLES.MENTOR || role === ROLES.LEADERSHIP;
 
