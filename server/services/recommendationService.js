@@ -8,7 +8,6 @@ const Position = require('../models/Position');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
-const { isAssignedMentor, canWriteMentorData } = require('../helpers/internAccess');
 const { escapeRegex } = require('../helpers/escapeRegex');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
@@ -39,7 +38,7 @@ const logStatusEvent = (recommendationId, userId, statusKey) =>
     action: `Status set to ${statusKeyLabel(statusKey)}`,
   });
 
-const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP, ROLES.MENTOR];
+const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP];
 
 const RECOMMENDATION_POPULATE = [
   {
@@ -81,12 +80,10 @@ const assertReadAccess = (user) => {
   }
 };
 
-const assertRecommendationWriteAccess = (user, profile) => {
-  // Admins can always write; mentors only for interns they are assigned to.
-  // Mirrors canWriteMentorData used by evaluations/mentor notes so the
-  // frontend's admin+mentor button state matches the backend (the ticket's
-  // FE/BE 403 mismatch).
-  if (!canWriteMentorData(user, profile)) {
+// Recommendations are admin-only to write — mentors (even assigned ones) can't
+// create, update, or delete them.
+const assertRecommendationWriteAccess = (user) => {
+  if (user.role !== ROLES.ADMIN) {
     throw createError('Not authorized to modify recommendations', 403);
   }
 };
@@ -354,12 +351,8 @@ const loadInternProfileByUserId = async (internUserId) => {
   return profile;
 };
 
-const buildAccessibleProfileIds = async (user, query = {}) => {
+const buildAccessibleProfileIds = async (query = {}) => {
   const profileFilter = {};
-
-  if (user.role === ROLES.MENTOR) {
-    profileFilter.$or = [{ primaryMentor: user._id }, { secondaryMentor: user._id }];
-  }
 
   if (query.internUserId) {
     assertValidObjectId(query.internUserId, 'Intern');
@@ -396,10 +389,7 @@ const buildAccessibleProfileIds = async (user, query = {}) => {
   }
 
   const needsProfileFilter =
-    user.role === ROLES.MENTOR ||
-    Boolean(query.internUserId) ||
-    Boolean(query.search) ||
-    Boolean(query.hubId);
+    Boolean(query.internUserId) || Boolean(query.search) || Boolean(query.hubId);
 
   if (!needsProfileFilter) return null;
 
@@ -430,7 +420,7 @@ const listRecommendations = async (user, query = {}) => {
     filter.technologies = query.technologyId;
   }
 
-  const accessibleProfileIds = await buildAccessibleProfileIds(user, query);
+  const accessibleProfileIds = await buildAccessibleProfileIds(query);
   if (accessibleProfileIds) {
     if (accessibleProfileIds.length === 0) {
       return { recommendations: [], pagination: { page, limit, total: 0, pages: 0 } };
@@ -466,21 +456,13 @@ const listRecommendations = async (user, query = {}) => {
   };
 };
 
-const assertRecommendationReadAccess = (user, recommendation) => {
-  assertReadAccess(user);
-
-  if (user.role === ROLES.MENTOR && !isAssignedMentor(recommendation.internProfile, user._id)) {
-    throw createError('Not authorized to access this recommendation', 403);
-  }
-};
-
 const getRecommendation = async (user, recommendationId) => {
   assertValidObjectId(recommendationId, 'Recommendation');
   const recommendation =
     await Recommendation.findById(recommendationId).populate(RECOMMENDATION_POPULATE);
 
   if (!recommendation) throw createError('Recommendation not found', 404);
-  assertRecommendationReadAccess(user, recommendation);
+  assertReadAccess(user);
 
   const statusDates = await historyService.getLatestStatusDates(
     'recommendation',
@@ -496,7 +478,7 @@ const NON_RECOMMENDABLE_PROFILE_STATUSES = ['placed', 'completed', 'discontinued
 
 const createRecommendation = async (user, payload = {}) => {
   const profile = await loadInternProfileByUserId(payload.internUserId);
-  assertRecommendationWriteAccess(user, profile);
+  assertRecommendationWriteAccess(user);
 
   if (NON_RECOMMENDABLE_PROFILE_STATUSES.includes(profile.status)) {
     throw createError(`Cannot recommend an intern who is ${profile.status}`, 409);
@@ -646,7 +628,7 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   const profile = await InternProfile.findById(recommendation.internProfile);
   if (!profile) throw createError('Intern profile not found', 404);
 
-  assertRecommendationWriteAccess(user, profile);
+  assertRecommendationWriteAccess(user);
 
   // Snapshot the status BEFORE mutating so we append a history record only on an
   // actual status change (append-only — never overwrite an existing record).
@@ -750,8 +732,8 @@ const deleteRecommendation = async (user, recommendationId) => {
   const profile = await InternProfile.findById(recommendation.internProfile);
   if (!profile) throw createError('Intern profile not found', 404);
 
-  // Same rule as writes: admins always, mentors only for their assigned interns.
-  assertRecommendationWriteAccess(user, profile);
+  // Same rule as writes: admin-only.
+  assertRecommendationWriteAccess(user);
 
   await Recommendation.deleteOne({ _id: recommendation._id });
   // Remove the recommendation's status trail too — it has no other consumer.
