@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { format } from 'date-fns';
+import { useMemo, useState } from 'react';
+import { format, addDays, subDays, isToday } from 'date-fns';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
-import { useDaily, useStartDaily, useRemoveDailyEntry } from '@/queries/dailies';
+import { useDaily, useDailyHistory, useStartDaily, useRemoveDailyEntry } from '@/queries/dailies';
+import { DailyDateNav } from '@/components/dailies/DailyDateNav';
 import { DailyHeader } from '@/components/dailies/DailyHeader';
 import { DailyEmptyState } from '@/components/dailies/DailyEmptyState';
 import { DailyEntryCard } from '@/components/dailies/DailyEntryCard';
@@ -18,18 +19,24 @@ const toDateKey = (date) => format(date, 'yyyy-MM-dd');
 const WorkspaceDailiesPage = () => {
   const { user } = useAuth();
   const workspaceId = user?.workspaceId;
-  const [selectedDate] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const dateKey = toDateKey(selectedDate);
+  const canStartSelectedDate = isToday(selectedDate);
   const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [entryToDelete, setEntryToDelete] = useState(null);
 
   const { data: dailyResponse, isLoading } = useDaily(workspaceId, dateKey);
+  const { data: historyResponse } = useDailyHistory(workspaceId);
   const startDailyMutation = useStartDaily(workspaceId);
   const removeEntryMutation = useRemoveDailyEntry(workspaceId);
 
   const daily = dailyResponse?.data ?? null;
   const availableInterns = getAvailableInterns(daily);
+  const recordedDateKeys = useMemo(
+    () => new Set((historyResponse?.data ?? []).map((entry) => toDateKey(new Date(entry.date)))),
+    [historyResponse]
+  );
 
   const handleStart = () => {
     startDailyMutation.mutate(dateKey, {
@@ -60,15 +67,17 @@ const WorkspaceDailiesPage = () => {
     <PageShell>
       <PageSection>
         <PagePanel className="flex flex-col gap-4 p-6">
+          <DailyDateNav
+            date={selectedDate}
+            onPrev={() => setSelectedDate((current) => subDays(current, 1))}
+            onNext={() => setSelectedDate((current) => addDays(current, 1))}
+            onToday={() => setSelectedDate(new Date())}
+            hasPrevRecord={recordedDateKeys.has(toDateKey(subDays(selectedDate, 1)))}
+            hasNextRecord={recordedDateKeys.has(toDateKey(addDays(selectedDate, 1)))}
+          />
           {!isLoading && daily && (
             <>
-              <div className="flex items-start justify-between gap-3">
-                <DailyHeader
-                  date={new Date(daily.date)}
-                  scribeName={daily.scribe?.fullname}
-                  counts={daily.counts}
-                />
-              </div>
+              <DailyHeader scribeName={daily.scribe?.fullname} counts={daily.counts} />
               {daily.isEditable && (
                 <div className="flex justify-end">
                   <Button
@@ -124,7 +133,7 @@ const WorkspaceDailiesPage = () => {
           )}
           {!isLoading && !daily && (
             <DailyEmptyState
-              canStart
+              canStart={canStartSelectedDate}
               onStart={handleStart}
               isStarting={startDailyMutation.isPending}
             />
