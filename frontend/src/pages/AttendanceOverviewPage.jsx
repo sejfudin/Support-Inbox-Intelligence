@@ -281,7 +281,11 @@ export default function AttendanceOverviewPage() {
           </Tabs>
         )}
 
-        <InternAttendanceModal intern={selectedIntern} onClose={() => setSelectedIntern(null)} />
+        <InternAttendanceModal
+          intern={selectedIntern}
+          month={month}
+          onClose={() => setSelectedIntern(null)}
+        />
       </PageSection>
     </PageShell>
   );

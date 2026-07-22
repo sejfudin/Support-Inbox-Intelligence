@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Percent, CalendarCheck, Flame } from 'lucide-react';
 import { DetailModal } from '@/components/interns/DetailModal';
 import AttendanceCalendar from '@/components/attendance/AttendanceCalendar';
@@ -9,18 +9,19 @@ import { computeStreak, attendanceRateTextClass } from '@/helpers/attendance';
 /**
  * Admin-only read-only calendar view of one intern's attendance, opened from the
  * roster. Reuses the intern-side calendar + stat tiles (no check-in card — only
- * interns record their own attendance).
+ * interns record their own attendance). Opens on and reports the same `month` the
+ * roster is showing.
  *
- * @param {{ intern: { id, fullname, email, hub } | null, onClose: () => void }} props
+ * @param {{ intern: { id, fullname, email, hub } | null, month: string, onClose: () => void }} props
  */
-export default function InternAttendanceModal({ intern, onClose }) {
+export default function InternAttendanceModal({ intern, month, onClose }) {
   const open = Boolean(intern);
-  const { data, isPending, isError } = useInternAttendance(intern?.id, { enabled: open });
+  const { data, isPending, isError } = useInternAttendance(intern?.id, month);
 
-  const monthLabel = format(new Date(), 'MMMM');
+  const monthLabel = month ? format(parseISO(`${month}-01`), 'MMMM yyyy') : '';
   const records = data?.records ?? [];
   const cancelledDates = data?.cancelledDates ?? [];
-  const month = data?.month ?? {};
+  const stats = data?.month ?? {};
   const streak = computeStreak(records);
 
   let content;
@@ -38,15 +39,15 @@ export default function InternAttendanceModal({ intern, onClose }) {
         <div className="grid gap-4 sm:grid-cols-3">
           <AttendanceStat
             label="Attendance"
-            value={`${month.attendanceRate ?? 0}%`}
-            hint={`${monthLabel} so far`}
+            value={`${stats.attendanceRate ?? 0}%`}
+            hint={monthLabel}
             icon={Percent}
-            valueClassName={attendanceRateTextClass(month.attendanceRate ?? 0)}
+            valueClassName={attendanceRateTextClass(stats.attendanceRate ?? 0)}
           />
           <AttendanceStat
             label="Days present"
-            value={`${month.presentDays ?? 0} / ${month.workingDays ?? 0}`}
-            hint={`${monthLabel} working days`}
+            value={`${stats.presentDays ?? 0} / ${stats.workingDays ?? 0}`}
+            hint="Working days"
             icon={CalendarCheck}
           />
           <AttendanceStat
@@ -56,7 +57,11 @@ export default function InternAttendanceModal({ intern, onClose }) {
             icon={Flame}
           />
         </div>
-        <AttendanceCalendar records={records} cancelledDates={cancelledDates} />
+        <AttendanceCalendar
+          records={records}
+          cancelledDates={cancelledDates}
+          initialMonth={month}
+        />
       </div>
     );
   }

@@ -11,8 +11,8 @@ import {
 } from '@/helpers/attendance';
 
 /**
- * Read-only per-intern attendance status for a single day (mentor "Today" tab,
- * with a day picker so any date can be inspected).
+ * Read-only per-intern attendance status for a single day (admin "By day" tab,
+ * with a day picker so any weekday in the selected month can be inspected).
  * @param {{ roster: Array<object>, date: string }} props - date is 'yyyy-MM-dd'
  */
 export default function DailyAttendanceTable({ roster = [], date, onSelectIntern }) {

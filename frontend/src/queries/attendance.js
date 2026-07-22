@@ -61,10 +61,10 @@ export const useAttendanceRoster = (params = {}, options = {}) =>
     ...options,
   });
 
-export const useInternAttendance = (internProfileId, options = {}) =>
+export const useInternAttendance = (internProfileId, month, options = {}) =>
   useQuery({
-    queryKey: [...INTERN_ATTENDANCE_QUERY_KEY, internProfileId],
-    queryFn: () => fetchInternAttendance(internProfileId),
+    queryKey: [...INTERN_ATTENDANCE_QUERY_KEY, internProfileId, month],
+    queryFn: () => fetchInternAttendance(internProfileId, month),
     enabled: Boolean(internProfileId),
     ...options,
   });

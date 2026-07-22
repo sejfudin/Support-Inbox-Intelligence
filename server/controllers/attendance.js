@@ -53,7 +53,10 @@ exports.getRoster = async (req, res, next) => {
 
 exports.getInternAttendance = async (req, res, next) => {
   try {
-    const attendance = await attendanceService.getInternAttendance(req.params.internProfileId);
+    const attendance = await attendanceService.getInternAttendance(
+      req.params.internProfileId,
+      req.query.month
+    );
     res.json({ attendance });
   } catch (error) {
     handleError(res, error, next);

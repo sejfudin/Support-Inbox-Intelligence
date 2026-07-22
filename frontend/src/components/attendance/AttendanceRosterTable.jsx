@@ -38,7 +38,7 @@ function RateBar({ rate }) {
 }
 
 /**
- * Read-only roster table for mentors/admins, showing one calendar month's
+ * Read-only roster table (admin) showing one calendar month's
  * attendance. Rate/present/working come straight from the server (month-scoped,
  * start-date-prorated). No edit affordances by design — only interns record
  * their own attendance.

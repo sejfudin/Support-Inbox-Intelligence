@@ -9,14 +9,15 @@ const {
   isWithinCheckInWindow,
   checkInWindowState,
   countWorkingDays,
+  CHECK_IN_WINDOW,
   CHECK_IN_WINDOW_LABEL,
 } = require('../helpers/attendanceTime');
 
 const { PRESENT, CANCELLED } = Attendance;
 const { READY_STATUS } = InternProfile;
 
-// Which interns appear on the mentor/admin roster. Attendance is only meaningful
-// for interns currently in the programme, so terminal states (placed/completed/
+// Which interns appear on the admin roster. Attendance is only meaningful for
+// interns currently in the programme, so terminal states (placed/completed/
 // discontinued) are excluded. Widen this if past interns should show up.
 const ROSTER_STATUSES = ['active', READY_STATUS];
 
@@ -87,7 +88,7 @@ const assertCheckInOpen = (now) => {
     throw httpError(422, 'Check-in is only available on weekdays.');
   }
   if (!isWithinCheckInWindow(now)) {
-    const opensAt = CHECK_IN_WINDOW_LABEL.split('–')[0];
+    const opensAt = `${String(CHECK_IN_WINDOW.startHour).padStart(2, '0')}:00`;
     const message =
       checkInWindowState(now) === 'before'
         ? `Check-in opens at ${opensAt}.`
@@ -231,11 +232,12 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
 
 /**
  * One intern's full attendance history (admin-only), for the calendar modal on
- * the roster. Returns the same shape as the intern's own `/me` — full records +
- * cancelledDates (the calendar pages through months client-side) plus a
- * current-month stat block — with the intern's identity attached.
+ * the roster. Returns full records + cancelledDates (the calendar pages through
+ * months client-side) plus a stat block for `month` (defaults to the current
+ * office month — the roster passes the month it is currently showing), with the
+ * intern's identity attached.
  */
-const getInternAttendance = async (internProfileId) => {
+const getInternAttendance = async (internProfileId, month) => {
   let profile;
   try {
     profile = await InternProfile.findById(internProfileId)
@@ -253,7 +255,7 @@ const getInternAttendance = async (internProfileId) => {
 
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates } = splitRows(rows);
-  const monthKey = officeMonthKey();
+  const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
   const user = profile.user;
   return {
     intern: {

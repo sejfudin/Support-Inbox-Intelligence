@@ -49,11 +49,14 @@ export const fetchAttendanceRoster = async (params = {}) => {
 };
 
 /**
- * GET /api/attendance/:internProfileId  (admin)
- * One intern's full attendance history for the calendar modal.
+ * GET /api/attendance/:internProfileId?month=YYYY-MM  (admin)
+ * One intern's full attendance history for the calendar modal; `month` selects
+ * the stat block (defaults server-side to the current month).
  * → { intern: { id, fullname, email, hub }, records, cancelledDates, month }
  */
-export const fetchInternAttendance = async (internProfileId) => {
-  const { data } = await apiClient.get(`/attendance/${internProfileId}`);
+export const fetchInternAttendance = async (internProfileId, month) => {
+  const { data } = await apiClient.get(`/attendance/${internProfileId}`, {
+    params: month ? { month } : undefined,
+  });
   return data.attendance;
 };

@@ -96,26 +96,6 @@ export const computeStreak = (records = []) => {
   return streak;
 };
 
-/**
- * Attendance for the CURRENT month, counted only over working days that have
- * already elapsed (today inclusive). Future days in the month don't count
- * against the rate. Returns { rate, present, workingDaysElapsed }.
- * @param {Array<{date:string}>} records
- * @param {Date} [now]
- */
-export const currentMonthAttendance = (records = [], now = new Date()) => {
-  const presentKeys = new Set(records.map((r) => r.date));
-  const start = startOfMonth(now);
-  const today = startOfDay(now);
-
-  const elapsedWorkingDays = eachDayOfInterval({ start, end: today }).filter((d) => !isWeekend(d));
-  const workingDaysElapsed = elapsedWorkingDays.length;
-  const present = elapsedWorkingDays.filter((d) => presentKeys.has(toKey(d))).length;
-  const rate = workingDaysElapsed === 0 ? 0 : Math.round((present / workingDaysElapsed) * 100);
-
-  return { rate, present, workingDaysElapsed };
-};
-
 /** Badge variant for an attendance rate. */
 export const attendanceRateTone = (rate) => {
   if (rate >= 90) return 'success';
