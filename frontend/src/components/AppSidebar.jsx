@@ -15,6 +15,7 @@ import {
   Send,
   Code2,
   CalendarCheck,
+  CalendarDays,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -82,6 +83,11 @@ export default function AppSidebar() {
       label: 'Analytics',
       to: '/analytics',
       icon: ChartNoAxesCombined,
+    },
+    {
+      label: 'Dailies',
+      to: '/dailies',
+      icon: CalendarDays,
     },
     ...(user?.workspaceId && canManageActiveWorkspace
       ? [

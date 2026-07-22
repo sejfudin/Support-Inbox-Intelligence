@@ -28,7 +28,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 ## Data model (Mongoose, `server/models/`)
 
 Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
-`Notification`, `RefreshToken`, `Integration`.
+`Notification`, `RefreshToken`, `Integration`, `Daily`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
 `Attendance`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`, `Invitation`.
 AI: `AISummary`.
@@ -36,6 +36,10 @@ AI: `AISummary`.
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
 - Statuses are **per-workspace and customizable** (not a global enum). See `statusService` and
   `server/helpers/statusValidation.js` / `statusSlugAliases.js`.
+- `Daily` — one standup record per `(workspace, date)` (unique compound index), with embedded
+  `entries` (one per reporting intern: `done`/`todo` text lists + `blockers`, each blocker an
+  optional `linkedTicket` ref scoped to the same workspace). Pure edit-window/derived-count logic
+  lives in `server/helpers/dailyRules.js`. See ADR-0001.
 
 ## Auth flow
 
@@ -57,7 +61,8 @@ AI: `AISummary`.
   per-event rate limiting, room-level authorization.
 - `events.js` — event names + emit helpers.
 - `invalidationScopes.js` — room key builders that drive React Query cache invalidation:
-  - `user:<id>`, `workspace:<id>`, `workspace-tickets:<id>`, `ticket:<id>`.
+  - `user:<id>`, `workspace:<id>`, `workspace-tickets:<id>`, `ticket:<id>`,
+    `workspace-dailies:<id>`.
 - Frontend consumes via `src/context/SocketContext.jsx`, invalidating query keys on events.
 
 ## Integrations
@@ -198,4 +203,4 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **Recommendation** | An admin's placement recommendation for an intern (candidate pipeline) — mentors have no access. Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — each is resolved individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
-| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:`) that drives React Query cache invalidation. |
+| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:`) that drives React Query cache invalidation. |
