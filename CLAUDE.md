@@ -45,6 +45,10 @@ describe, update the relevant doc **in the same change** — don't leave it for 
 - A coding pattern, naming, layering, or the data-layer flow changes → update `.claude/docs/conventions.md`
 - A command, env var, seeding, or run/build step changes → update `.claude/docs/workflows.md`
 - A rule that only applies to one side changes → update `frontend/CLAUDE.md` or `server/CLAUDE.md`
+- **A platform role gains or loses a capability** (what admin/mentor/leadership/intern can each
+  see or do) → update the "Roles & Permissions" section of `docs/TEAM_HANDBOOK.md`, in the same
+  change. This is a plain-English, team-facing summary — keep entries short bullets, no workflow
+  walkthroughs (see the file's own style).
 
 Reference these docs by plain (backticked) path, never with `@path` syntax — `@` eagerly
 imports the file into every context window and defeats the read-on-demand design.

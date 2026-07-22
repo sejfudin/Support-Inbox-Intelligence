@@ -12,12 +12,10 @@ const {
 } = require('../controllers/recommendations');
 
 router.get('/', protect, listRecommendations);
-// Admins and mentors may write; the service (assertRecommendationWriteAccess →
-// canWriteMentorData) enforces the finer rule that a mentor must be assigned to
-// the intern, while an admin may write for any intern.
-router.post('/', protect, requireRole(ROLES.ADMIN, ROLES.MENTOR), createRecommendation);
+// Recommendations are admin-only: mentors no longer view or manage them.
+router.post('/', protect, requireRole(ROLES.ADMIN), createRecommendation);
 router.get('/:id', protect, getRecommendation);
-router.patch('/:id', protect, requireRole(ROLES.ADMIN, ROLES.MENTOR), updateRecommendation);
-router.delete('/:id', protect, requireRole(ROLES.ADMIN, ROLES.MENTOR), deleteRecommendation);
+router.patch('/:id', protect, requireRole(ROLES.ADMIN), updateRecommendation);
+router.delete('/:id', protect, requireRole(ROLES.ADMIN), deleteRecommendation);
 
 module.exports = router;
