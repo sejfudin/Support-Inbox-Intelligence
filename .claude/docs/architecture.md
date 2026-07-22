@@ -145,7 +145,10 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
   `InternProfile`, `date` as office-local `'YYYY-MM-DD'` string, `status: present | cancelled`,
   `checkedInAt`, `hub`, `checkInIp`). Absent days are **not** stored — absence is the lack of a
   record, derived at read time. A unique `{ intern, date }` index makes double check-ins
-  idempotent and makes a cancelled day a permanent lock (no re-check-in) at the DB level.
+  idempotent (concurrent inserts race safely). It does **not** itself enforce the cancel lock —
+  that's app-level: `checkIn()` rejects with 409 when the existing record's `status` is
+  `cancelled` (`attendanceService.js`). Nothing schema-level stops a future write path from
+  flipping `cancelled` back to `present`.
 - **Cancel is one-way**: the record is flipped to `cancelled` (not deleted), locking the day.
 - **Reporting is per calendar month, never cumulative** (no all-time rate). `presentDays` /
   `workingDays` (Mon–Fri) / `attendanceRate` are computed for one month at a time, clamped to
@@ -157,8 +160,11 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
 - Endpoints: `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat
   block), `POST|DELETE /api/attendance/me/check-in` (intern-self); `GET /api/attendance` (**admin-only**
   roster, `?month=YYYY-MM&search=&hub=`, defaults to the current month, records scoped to that month
-  so the payload stays bounded) and `GET /api/attendance/:internProfileId` (**admin-only**, one intern's
-  full history for the calendar modal). Envelopes `{ attendance }` / `{ month, roster }`.
+  so the payload stays bounded, and only `active`/`ready` interns — `ROSTER_STATUSES` in the
+  service — a `placed`/`completed`/`discontinued` intern drops off the roster entirely) and
+  `GET /api/attendance/:internProfileId` (**admin-only**, one intern's full history for the
+  calendar modal, no status filter). Response envelope is the standard
+  `{ success, message, data }`, with `data` holding `{ attendance }` / `{ month, roster }`.
 - The office-network **IP allowlist** guard (per-hub CIDR + `trust proxy`) is a deferred, optional
   step — `Attendance.checkInIp` is already captured for it.
 
