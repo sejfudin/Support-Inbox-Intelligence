@@ -114,7 +114,6 @@ export default function AppSidebar() {
   const mentorNav = isMentor(user?.role)
     ? [
         { label: 'My Interns', to: '/my-interns', icon: GraduationCap },
-        { label: 'Attendance', to: '/attendance', icon: CalendarCheck },
         { label: 'My Workspaces', to: '/workspaces', icon: Building2 },
       ]
     : [];
