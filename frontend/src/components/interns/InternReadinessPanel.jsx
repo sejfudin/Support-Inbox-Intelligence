@@ -12,7 +12,7 @@ import { useInternReadiness, useUpsertInternReadiness } from '@/queries/interns'
 import { READINESS_LEVELS, getReadinessBadgeClassName } from '@/helpers/internProfile';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
 import { useAuth } from '@/context/AuthContext';
-import { canWriteInternMentorData } from '@/helpers/roles';
+import { ROLES } from '@/helpers/roles';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -37,7 +37,7 @@ const sortTechnologiesByReadiness = (technologyList, flagMap) =>
 
 export function InternReadinessPanel({ userId, declaredTechnologies = [], readOnly = false }) {
   const { user } = useAuth();
-  const canWrite = !readOnly && canWriteInternMentorData(user?.role);
+  const canWrite = !readOnly && user?.role === ROLES.ADMIN;
   const { data: flags = [], isPending } = useInternReadiness(userId);
   const { mutate } = useUpsertInternReadiness();
   const [visibleCount, setVisibleCount] = useState(READINESS_PAGE_SIZE);

@@ -47,6 +47,7 @@ export function InternProfileView({
   const canEditInternalCv = !readOnly && canWriteAssignedInternMentorData(user, intern);
   const showComments = canViewComments(user?.role);
   const showEvaluations = user?.role === ROLES.ADMIN;
+  const showReadiness = user?.role === ROLES.ADMIN;
   const showRecommendations = user?.role === ROLES.ADMIN || user?.role === ROLES.LEADERSHIP;
 
   if (isPending) {
@@ -126,13 +127,15 @@ export function InternProfileView({
             >
               Overview
             </TabsTrigger>
-            <TabsTrigger
-              value="readiness"
-              className={internTabTriggerClassName}
-              data-test="intern-detail-readiness-tab"
-            >
-              Readiness
-            </TabsTrigger>
+            {showReadiness && (
+              <TabsTrigger
+                value="readiness"
+                className={internTabTriggerClassName}
+                data-test="intern-detail-readiness-tab"
+              >
+                Readiness
+              </TabsTrigger>
+            )}
             {showEvaluations && (
               <TabsTrigger
                 value="evaluations"
@@ -197,20 +200,22 @@ export function InternProfileView({
             </TabsContent>
           )}
 
-          <TabsContent value="readiness">
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <InternReadinessPanel
-                userId={userId}
-                declaredTechnologies={intern.selfTechnologies || []}
-                readOnly={readOnly}
-              />
-              <InternRoleReadinessPanel
-                userId={userId}
-                declaredPosition={intern.declaredPosition}
-                readOnly={readOnly}
-              />
-            </div>
-          </TabsContent>
+          {showReadiness && (
+            <TabsContent value="readiness">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <InternReadinessPanel
+                  userId={userId}
+                  declaredTechnologies={intern.selfTechnologies || []}
+                  readOnly={readOnly}
+                />
+                <InternRoleReadinessPanel
+                  userId={userId}
+                  declaredPosition={intern.declaredPosition}
+                  readOnly={readOnly}
+                />
+              </div>
+            </TabsContent>
+          )}
 
           {showEvaluations && (
             <TabsContent value="evaluations">

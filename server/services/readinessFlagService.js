@@ -4,12 +4,13 @@ const ReadinessFlag = require('../models/ReadinessFlag');
 const InternProfile = require('../models/InternProfile');
 const { READINESS_LEVELS } = require('../models/ReadinessFlag');
 const { ROLES } = require('../constants/roles');
-const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
+const { assertInternAccess } = require('../helpers/internAccess');
 
 const listReadinessFlags = async (user, internUserId) => {
   const profile = await assertInternAccess(user, internUserId);
 
-  if (user.role === ROLES.INTERN) {
+  // Readiness is admin-only — mentors and interns can't view it.
+  if (user.role === ROLES.INTERN || user.role === ROLES.MENTOR) {
     const err = new Error('Not authorized');
     err.statusCode = 403;
     throw err;
@@ -30,7 +31,7 @@ const listReadinessFlags = async (user, internUserId) => {
 const upsertReadinessFlag = async (user, internUserId, { technologyId, positionId, level }) => {
   const profile = await assertInternAccess(user, internUserId, { write: true });
 
-  if (!canWriteMentorData(user, profile)) {
+  if (user.role !== ROLES.ADMIN) {
     const err = new Error('Not authorized to set readiness');
     err.statusCode = 403;
     throw err;
