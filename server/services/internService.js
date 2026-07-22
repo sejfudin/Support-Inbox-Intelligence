@@ -240,10 +240,11 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   const allowedStatuses = INTERN_STATUSES;
 
   if (payload.status !== undefined) {
-    // Lifecycle status can be changed by admins and the assigned mentor —
-    // not by unassigned mentors, even though they can write other mentor data.
-    if (user.role !== ROLES.ADMIN && !isAssignedMentor(profile, user._id)) {
-      const err = new Error('Only admins or the assigned mentor can change this intern’s status');
+    // Lifecycle status changes are admin-only — even the assigned mentor can't
+    // change it, though mentors can still write other mentor data below
+    // (e.g. expectedEndDate) via the canWriteMentorData check above.
+    if (user.role !== ROLES.ADMIN) {
+      const err = new Error('Only admins can change this intern’s status');
       err.statusCode = 403;
       throw err;
     }

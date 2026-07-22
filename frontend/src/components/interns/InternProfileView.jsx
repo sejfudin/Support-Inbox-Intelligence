@@ -15,12 +15,7 @@ import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
-import {
-  ROLES,
-  canViewComments,
-  canManageInternDocumentationLinks,
-  canChangeInternStatus,
-} from '@/helpers/roles';
+import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 
 const internTabListClassName =
@@ -93,9 +88,9 @@ export function InternProfileView({
       {backLabel}
     </Button>
   ) : null;
-  // Lifecycle status can be changed by admins and the assigned mentor — not by
-  // unassigned mentors. This mirrors the backend guard in updateInternProgramme.
-  const canChangeStatus = !readOnly && canChangeInternStatus(user, intern);
+  // Lifecycle status changes are admin-only. This mirrors the backend guard
+  // in updateInternProgramme.
+  const canChangeStatus = !readOnly && user?.role === ROLES.ADMIN;
   const hasOverviewSidebar = canChangeStatus;
   const formattedStartDate = intern.startDate
     ? format(new Date(intern.startDate), 'MMM d, yyyy')
