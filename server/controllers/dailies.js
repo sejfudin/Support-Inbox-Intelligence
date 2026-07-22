@@ -18,7 +18,7 @@ const getDaily = async (req, res, next) => {
     const workspaceId = resolveWorkspaceId(req);
     const { date } = req.query;
 
-    const { daily, counts, activeInterns } = await dailyService.getDaily({
+    const { daily, counts, activeInterns, isEditable } = await dailyService.getDaily({
       workspaceId,
       date,
       user: req.user,
@@ -26,7 +26,7 @@ const getDaily = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: daily ? { ...daily.toObject(), counts, activeInterns } : null,
+      data: daily ? { ...daily.toObject(), counts, activeInterns, isEditable } : null,
     });
   } catch (error) {
     handleDailyError(error, res, next);

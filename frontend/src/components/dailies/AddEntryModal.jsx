@@ -21,14 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useAddDailyEntry } from '@/queries/dailies';
+import { useAddDailyEntry, useUpdateDailyEntry } from '@/queries/dailies';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
 
 const entrySchema = z.object({
   member: z.string().min(1, 'Select an intern'),
   done: z.array(z.object({ value: z.string() })),
   todo: z.array(z.object({ value: z.string() })),
-  blockers: z.array(z.object({ text: z.string() })),
+  blockers: z.array(z.object({ text: z.string(), linkedTicket: z.string().nullable() })),
 });
 
 const defaultValues = { member: '', done: [], todo: [], blockers: [] };
@@ -64,7 +64,9 @@ const RepeatableList = ({ label, name, control, register, addLabel }) => {
         size="sm"
         className="self-start"
         data-test={`daily-entry-${name}-add`}
-        onClick={() => append({ [fieldKey]: '' })}
+        onClick={() =>
+          append(name === 'blockers' ? { text: '', linkedTicket: null } : { [fieldKey]: '' })
+        }
       >
         <Plus className="h-4 w-4" />
         {addLabel}
@@ -73,8 +75,11 @@ const RepeatableList = ({ label, name, control, register, addLabel }) => {
   );
 };
 
-export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily }) => {
+export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily, entry = null }) => {
+  const isEditing = Boolean(entry);
   const addEntryMutation = useAddDailyEntry(workspaceId);
+  const updateEntryMutation = useUpdateDailyEntry(workspaceId);
+  const mutation = isEditing ? updateEntryMutation : addEntryMutation;
   const availableInterns = getAvailableInterns(daily);
 
   const {
@@ -89,61 +94,86 @@ export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily }) => {
   });
 
   useEffect(() => {
-    if (open) reset(defaultValues);
-  }, [open, reset]);
+    if (!open) return;
+    reset(
+      isEditing
+        ? {
+            member: entry.member._id,
+            done: (entry.done ?? []).map((value) => ({ value })),
+            todo: (entry.todo ?? []).map((value) => ({ value })),
+            blockers: (entry.blockers ?? []).map((blocker) => ({
+              text: blocker.text,
+              linkedTicket: blocker.linkedTicket?._id ?? null,
+            })),
+          }
+        : defaultValues
+    );
+  }, [open, isEditing, entry, reset]);
 
   const onSubmit = (values) => {
     const done = values.done.map((item) => item.value.trim()).filter(Boolean);
     const todo = values.todo.map((item) => item.value.trim()).filter(Boolean);
     const blockers = values.blockers
-      .map((item) => ({ text: item.text.trim() }))
+      .map((item) => ({ text: item.text.trim(), linkedTicket: item.linkedTicket ?? null }))
       .filter((item) => item.text);
 
-    addEntryMutation.mutate(
-      { dailyId: daily._id, member: values.member, done, todo, blockers },
-      {
-        onSuccess: () => {
-          toast.success('Entry added');
-          onOpenChange(false);
-        },
-        onError: (error) => {
-          toast.error('Could not add entry', { description: error?.response?.data?.message });
-        },
-      }
-    );
+    const payload = isEditing
+      ? { dailyId: daily._id, entryId: entry._id, done, todo, blockers }
+      : { dailyId: daily._id, member: values.member, done, todo, blockers };
+
+    mutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success(isEditing ? 'Entry updated' : 'Entry added');
+        onOpenChange(false);
+      },
+      onError: (error) => {
+        toast.error(isEditing ? 'Could not update entry' : 'Could not add entry', {
+          description: error?.response?.data?.message,
+        });
+      },
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" data-test="add-entry-modal">
         <DialogHeader>
-          <DialogTitle>Add standup entry</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit standup entry' : 'Add standup entry'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="daily-entry-member">Intern</Label>
-            <Controller
-              name="member"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <SelectTrigger id="daily-entry-member" data-test="daily-entry-member-select">
-                    <SelectValue placeholder="Select an intern" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableInterns.map((intern) => (
-                      <SelectItem
-                        key={intern._id}
-                        value={intern._id}
-                        data-test={`daily-entry-member-option-${intern._id}`}
-                      >
-                        {intern.fullname}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
+            {isEditing ? (
+              <div
+                className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
+                data-test="daily-entry-member-locked"
+              >
+                {entry.member?.fullname}
+              </div>
+            ) : (
+              <Controller
+                name="member"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="daily-entry-member" data-test="daily-entry-member-select">
+                      <SelectValue placeholder="Select an intern" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableInterns.map((intern) => (
+                        <SelectItem
+                          key={intern._id}
+                          value={intern._id}
+                          data-test={`daily-entry-member-option-${intern._id}`}
+                        >
+                          {intern.fullname}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            )}
             {errors.member && <p className="text-xs text-destructive">{errors.member.message}</p>}
           </div>
 
@@ -178,12 +208,8 @@ export const AddEntryModal = ({ open, onOpenChange, workspaceId, daily }) => {
             >
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={addEntryMutation.isPending}
-              data-test="daily-entry-save"
-            >
-              {addEntryMutation.isPending ? 'Saving…' : 'Save entry'}
+            <Button type="submit" disabled={mutation.isPending} data-test="daily-entry-save">
+              {mutation.isPending ? 'Saving…' : 'Save entry'}
             </Button>
           </DialogFooter>
         </form>

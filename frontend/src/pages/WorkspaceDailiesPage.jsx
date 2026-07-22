@@ -3,11 +3,12 @@ import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
-import { useDaily, useStartDaily } from '@/queries/dailies';
+import { useDaily, useStartDaily, useRemoveDailyEntry } from '@/queries/dailies';
 import { DailyHeader } from '@/components/dailies/DailyHeader';
 import { DailyEmptyState } from '@/components/dailies/DailyEmptyState';
 import { DailyEntryCard } from '@/components/dailies/DailyEntryCard';
 import { AddEntryModal } from '@/components/dailies/AddEntryModal';
+import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
 import { Button } from '@/components/ui/button';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
@@ -20,9 +21,12 @@ const WorkspaceDailiesPage = () => {
   const [selectedDate] = useState(() => new Date());
   const dateKey = toDateKey(selectedDate);
   const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [entryToDelete, setEntryToDelete] = useState(null);
 
   const { data: dailyResponse, isLoading } = useDaily(workspaceId, dateKey);
   const startDailyMutation = useStartDaily(workspaceId);
+  const removeEntryMutation = useRemoveDailyEntry(workspaceId);
 
   const daily = dailyResponse?.data ?? null;
   const availableInterns = getAvailableInterns(daily);
@@ -35,6 +39,21 @@ const WorkspaceDailiesPage = () => {
         });
       },
     });
+  };
+
+  const handleConfirmRemove = () => {
+    removeEntryMutation.mutate(
+      { dailyId: daily._id, entryId: entryToDelete._id },
+      {
+        onSuccess: () => {
+          toast.success('Entry removed');
+          setEntryToDelete(null);
+        },
+        onError: (error) => {
+          toast.error('Could not remove entry', { description: error?.response?.data?.message });
+        },
+      }
+    );
   };
 
   return (
@@ -50,16 +69,18 @@ const WorkspaceDailiesPage = () => {
                   counts={daily.counts}
                 />
               </div>
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => setIsAddEntryOpen(true)}
-                  disabled={availableInterns.length === 0}
-                  data-test="add-entry-button"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add entry
-                </Button>
-              </div>
+              {daily.isEditable && (
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => setIsAddEntryOpen(true)}
+                    disabled={availableInterns.length === 0}
+                    data-test="add-entry-button"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add entry
+                  </Button>
+                </div>
+              )}
               {daily.entries.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   No entries yet — add the first standup entry.
@@ -67,15 +88,37 @@ const WorkspaceDailiesPage = () => {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2">
                   {daily.entries.map((entry) => (
-                    <DailyEntryCard key={entry._id} entry={entry} />
+                    <DailyEntryCard
+                      key={entry._id}
+                      entry={entry}
+                      isEditable={daily.isEditable}
+                      onEdit={setEditingEntry}
+                      onRemove={setEntryToDelete}
+                    />
                   ))}
                 </div>
               )}
               <AddEntryModal
-                open={isAddEntryOpen}
-                onOpenChange={setIsAddEntryOpen}
+                open={isAddEntryOpen || Boolean(editingEntry)}
+                onOpenChange={(nextOpen) => {
+                  if (!nextOpen) {
+                    setIsAddEntryOpen(false);
+                    setEditingEntry(null);
+                  }
+                }}
                 workspaceId={workspaceId}
                 daily={daily}
+                entry={editingEntry}
+              />
+              <DeleteConfirmModal
+                isOpen={Boolean(entryToDelete)}
+                onClose={() => setEntryToDelete(null)}
+                onConfirm={handleConfirmRemove}
+                isLoading={removeEntryMutation.isPending}
+                title="Remove entry"
+                description={`Remove ${entryToDelete?.member?.fullname ?? 'this'}'s entry for this daily? This can't be undone.`}
+                confirmLabel="Remove"
+                loadingLabel="Removing..."
               />
             </>
           )}

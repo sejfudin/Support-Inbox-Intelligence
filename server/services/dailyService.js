@@ -90,6 +90,7 @@ const getDaily = async ({ workspaceId, date, user }) => {
     daily,
     counts: deriveCounts(daily.entries, activeInterns.length),
     activeInterns,
+    isEditable: isDailyEditable(daily.date, new Date()),
   };
 };
 
