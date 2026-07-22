@@ -331,7 +331,9 @@ const updateInternalCvLink = async (user, internUserId, url) => {
   const profile = await InternProfile.findOne({ user: internUserId });
   if (!profile) throw new Error('Intern profile not found');
 
-  if (!canWriteMentorData(user, profile)) {
+  // Adding/editing the internal CV link is admin-only; mentors keep read
+  // access (see canSeeInternalCv in formatProfile) but can no longer write it.
+  if (user.role !== ROLES.ADMIN) {
     const err = new Error('Not authorized to modify this intern');
     err.statusCode = 403;
     throw err;

@@ -20,7 +20,6 @@ import {
   canViewComments,
   canManageInternDocumentationLinks,
   canChangeInternStatus,
-  canWriteAssignedInternMentorData,
 } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +43,9 @@ export function InternProfileView({
   const { data: intern, isPending, isError } = useIntern(userId);
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
-  const canEditInternalCv = !readOnly && canWriteAssignedInternMentorData(user, intern);
+  // Editing the internal CV link is admin-only; mentors keep read access to
+  // whatever link is already on the profile (see canSeeInternalCv, backend).
+  const canEditInternalCv = !readOnly && user?.role === ROLES.ADMIN;
   const showComments = canViewComments(user?.role);
   const showEvaluations = user?.role === ROLES.ADMIN;
   const showReadiness = user?.role === ROLES.ADMIN;
