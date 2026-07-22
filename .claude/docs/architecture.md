@@ -16,7 +16,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 | Role | Lands on | Capability |
 |---|---|---|
 | Admin | `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
-| Mentor | `/my-interns` | Guides interns (evaluations, comments, readiness, recommendations). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
+| Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
 | Leadership | `/programme` | Read-oriented stakeholder view. No ticket/workspace workflow — redirected to `/programme`. |
 | Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. |
 
@@ -106,10 +106,10 @@ lifecycle status (`InternProfile.status`):
   stays `placed`, anything else (or none left) → `ready`. Deleting also removes the record's
   history trail. The confirm dialog warns when deleting the placement that marked the intern placed.
 
-**Roles** — writes (create/update/delete): `admin` for any intern, `mentor` only for interns they
-are assigned to (`assertRecommendationWriteAccess` → `canWriteMentorData`); reads additionally
-allow `leadership` (fully read-only UI — no create/edit/delete controls rendered). Everything a
-mentor can do, an admin can do.
+**Roles** — admin-only. Reads and writes (create/update/delete) both require `admin`
+(`assertReadAccess` / `assertRecommendationWriteAccess` in `recommendationService.js`); `leadership`
+additionally has read access (fully read-only UI — no create/edit/delete controls rendered).
+Mentors have no access at all, on the per-intern tab or the standalone `/recommendations` page.
 
 ### Project (reference entity)
 
@@ -146,11 +146,11 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **FEP** | **Future Experts Program** — the standard internship track (`slug: 'fep'`). Common in seed data and intern emails (`intern.active.fep@…`). |
 | **Position** | A target job role (`slug` + `name`) an intern is training toward — e.g. QA, Frontend. Reference data. |
 | **Technology** | A tech skill (React, Node, …). Reference data; attached to intern profiles and readiness flags. |
-| **Readiness flag** | Per-intern assessment of readiness for a specific **technology** or **position**, level `none \| learning \| ready`, recorded by a user (`ReadinessFlag`). Feeds placement decisions. |
-| **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. |
+| **Readiness flag** | Per-intern assessment of readiness for a specific **technology** or **position**, level `none \| learning \| ready`, recorded by a user (`ReadinessFlag`). Admin-only (view and set). Feeds placement decisions. |
+| **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. Changing it is admin-only, even for the intern's assigned mentor. |
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). |
 | **Project** | A client engagement the firm is running (e.g. "Northwind billing platform" for client "Northwind Traders") — `title/client/description/tech tags/status`. Admin-managed reference data; a recommendation refs one. Not workspace-scoped. |
-| **Recommendation** | A mentor's placement recommendation for an intern (candidate pipeline). Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — mentors resolve each one individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Pipeline KPIs count distinct interns, not recommendation records. |
+| **Recommendation** | An admin's placement recommendation for an intern (candidate pipeline) — mentors have no access. Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — each is resolved individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
 | **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:`) that drives React Query cache invalidation. |

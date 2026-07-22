@@ -47,11 +47,31 @@ layer regardless of role.
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
-Recommendations follow this exactly: routes guard writes (POST/PATCH/DELETE) with
-`requireRole(ADMIN, MENTOR)`, and the service's `assertRecommendationWriteAccess` →
-`canWriteMentorData` further restricts mentors to their assigned interns (admins may write for
-any intern). Reads also allow `leadership`; mentors can only read recommendations of interns
-they mentor. Delete performs the same write check before removing the record and its history.
+Recommendations are admin-only, full stop: routes guard writes (POST/PATCH/DELETE) with
+`requireRole(ADMIN)`, and the service's `assertReadAccess` / `assertRecommendationWriteAccess`
+reject any non-admin (`leadership` is the one exception, with read-only access). Mentors have
+no read or write access, on the per-intern tab or the standalone `/recommendations` page. Delete
+performs the same write check before removing the record and its history.
+
+**Mentor role is narrower than `canWriteMentorData` alone suggests.** That helper (`admin`, or
+`mentor` assigned to the intern) still gates *some* mentor-writable intern data — mentor notes
+(`mentorCommentService.js`) and the `expectedEndDate` field in `updateInternProgramme`
+(`internService.js`) — but several call sites now layer a stricter, explicit
+`user.role !== ROLES.ADMIN` check on top of it instead of trusting `canWriteMentorData`'s mentor
+branch:
+- **Evaluations** (`evaluationService.js`) — read and write, admin-only (plus `leadership` read).
+- **Readiness** (`readinessFlagService.js`) — read and write, admin-only (plus `leadership` read).
+- **Internal CV link** (`internService.js` `updateInternalCvLink`) — write is admin-only; read is
+  unaffected (`formatProfile`'s `canSeeInternalCv` still allows the assigned mentor to view it).
+- **Lifecycle status** (`internService.js` `updateInternProgramme`, the `payload.status` branch)
+  — admin-only, even for the assigned mentor. `expectedEndDate` in the same endpoint is not
+  restricted this way and still follows plain `canWriteMentorData`.
+- **Attendance roster** — frontend-only guard (`/attendance` route + sidebar nav), admin-only.
+  There's no backend for attendance yet (`frontend/src/api/attendance.js` is an explicitly-labeled
+  mock); this is a route/nav restriction, not a service-layer one.
+
+When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
+for a mentor means the UI should expose it — check the carve-out list above first.
 
 ## Middleware guards (`server/middleware/`)
 
