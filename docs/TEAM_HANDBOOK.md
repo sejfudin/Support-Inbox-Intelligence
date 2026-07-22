@@ -11,14 +11,14 @@
 - Creates, deletes, and views all workspaces
 - Creates user accounts, invites new users (mentors, interns, leadership, other admins), and changes their role
 - Views and edits all intern profiles
-- Sole owner of reference data (hubs, technologies, internship types)
+- Only role that manages reference data (hubs, technologies, internship types)
 - Doesn't see programme-wide statistics
-- Sole role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
-- Sole role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth)
-- Sole role that can set readiness (by technology or by position) for an intern
-- Sole role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
-- Sole role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
-- Sole role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
+- Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
+- Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth)
+- Only role that can set readiness (by technology or by position) for an intern
+- Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
+- Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
+- Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
 - Manages documentation links on intern profiles
 - Works with tickets like everyone else, plus can cross workspace boundaries (view tickets/analytics of any workspace, not just their own)
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
@@ -94,9 +94,7 @@
 ## 3. My Observations — Where Role Logic Feels Inconsistent
 
 This is my personal assessment, not a description of how the system currently works (that's
-above) — these are discussion points, not decisions. Split into three groups.
-
-### A) Permission design that feels backwards or inconsistent
+above) — these are discussion points, not decisions.
 
 - **Only Admin can create workspaces, even though Mentor runs them.** The mentor is the one actually doing operational work in a workspace with their interns, but has to ask an admin to open a new one for every new team/project. It would make more sense for a mentor to create their own workspace (and automatically become its owner), while admin keeps oversight/deletion rights over all of them.
 - **A mentor doesn't even know other workspaces exist.** Right now a mentor only knows about workspaces they're a member of — there's no basic overview of "which teams exist" on the platform. When deciding which team to place a new intern in, a mentor can't judge that themselves and has to ask an admin. At least a name/description list (without ticket access) would make sense.
@@ -104,19 +102,6 @@ above) — these are discussion points, not decisions. Split into three groups.
 - **An intern never sees their own evaluations.** It's understandable that mentor notes might be "internal," but the progress scores themselves (technical skill, communication, etc.) could help the intern know where they stand. Currently this is completely closed off.
 - **An intern can't edit the documentation links on their own profile.** Only Admin, Leadership, and the assigned mentor have that right — not even the profile owner (the intern) can. If these links are meant for the intern (e.g. a link to their portfolio/repo), it would make more sense for the intern to be able to edit them themselves.
 - **Platform role and workspace role are two completely separate systems that are easy to conflate.** Someone can be a "Mentor" on the platform while being a plain "member" in one workspace and an "admin" in another — these are two independent things. Worth keeping in mind whenever the team talks about "permissions," since it's easy to mix up the platform role with the workspace role.
-
-### B) Things that currently work but, in my view, shouldn't
-
-- Any logged-in user (any role) can open any workspace's details — including its member list — if they know or guess its ID, even if they're not a member of that workspace at all.
-- The same applies to an individual ticket and its change history — if a user knows a ticket's ID, they can open/edit/archive it regardless of whether they belong to that workspace.
-- The same applies to an entire workspace's analytics — someone else's workspace analytics can be viewed with just the ID, with no membership check.
-- Any user with the Leadership role (and a mentor who isn't yet in any workspace) can currently pull the list of **all** users on the platform, not just their own team.
-
-These (group B) are technical gaps, not design decisions — worth treating as bugs to fix, not as a "feature" to debate.
-
-### C) The reverse case — something Admin can't do, but by rights should be able to
-
-- An admin with no personal workspace (e.g. a plain admin account never invited into any workspace) **can't even open** an individual workspace's page, its settings, or the admin backlog view — the app automatically redirects them to the "create a workspace" screen before it even checks whether they're an admin. The server would otherwise allow access (admin has the right to manage any workspace), but the frontend route in practice blocks them from getting there. This is a bug in the order of checks on the route, not an intentional restriction.
 
 ---
 
