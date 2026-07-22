@@ -146,12 +146,17 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
   record, derived at read time. A unique `{ intern, date }` index makes double check-ins
   idempotent and makes a cancelled day a permanent lock (no re-check-in) at the DB level.
 - **Cancel is one-way**: the record is flipped to `cancelled` (not deleted), locking the day.
-- **Stats are never stored** — `presentDays` / `workingDays` (Mon–Fri from `InternProfile.startDate`
-  to today) / `attendanceRate` are recomputed on every read so they can't go stale.
+- **Reporting is per calendar month, never cumulative** (no all-time rate). `presentDays` /
+  `workingDays` (Mon–Fri) / `attendanceRate` are computed for one month at a time, clamped to
+  `[max(monthStart, startDate), min(monthEnd, today)]` — so a mid-month joiner isn't penalised and
+  the current month only counts elapsed days. Always computed from raw records, never stored, so
+  they can't go stale (`computeMonthStats` in the service).
 - **Check-in window** (`attendanceTime.js`): open 07:00–11:00 `Europe/Sarajevo` time on weekdays.
   The server is authoritative; the client mirrors the rule for UX only.
-- Endpoints: `GET /api/attendance/me`, `POST|DELETE /api/attendance/me/check-in` (intern-self);
-  `GET /api/attendance` (mentor/admin roster, `?search=&hub=`). Envelope `{ attendance }` / `{ roster }`.
+- Endpoints: `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat
+  block), `POST|DELETE /api/attendance/me/check-in` (intern-self); `GET /api/attendance` (mentor/admin
+  roster, `?month=YYYY-MM&search=&hub=`, defaults to the current month, records scoped to that month
+  so the payload stays bounded). Envelope `{ attendance }` / `{ month, roster }`.
 - The office-network **IP allowlist** guard (per-hub CIDR + `trust proxy`) is a deferred, optional
   step — `Attendance.checkInIp` is already captured for it.
 
@@ -173,7 +178,7 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. |
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). |
 | **Project** | A client engagement the firm is running (e.g. "Northwind billing platform" for client "Northwind Traders") — `title/client/description/tech tags/status`. Admin-managed reference data; a recommendation refs one. Not workspace-scoped. |
-| **Attendance / check-in** | An intern's office check-in for one day (`Attendance` — one sparse doc per intern per acted-on day; present days stored, absent days derived). Check-in window: 07:00–11:00 office time, weekdays. Cancel locks the day (one-way). Stats always computed, never stored. |
+| **Attendance / check-in** | An intern's office check-in for one day (`Attendance` — one sparse doc per intern per acted-on day; present days stored, absent days derived). Check-in window: 07:00–11:00 office time, weekdays. Cancel locks the day (one-way). Reported **per calendar month** (no cumulative all-time rate); stats always computed, never stored. |
 | **Recommendation** | A mentor's placement recommendation for an intern (candidate pipeline). Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — mentors resolve each one individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |

@@ -44,8 +44,8 @@ exports.cancelCheckIn = async (req, res, next) => {
 
 exports.getRoster = async (req, res, next) => {
   try {
-    const { roster } = await attendanceService.getRoster(req.user, req.query);
-    res.json({ roster });
+    const { month, roster } = await attendanceService.getRoster(req.user, req.query);
+    res.json({ month, roster });
   } catch (error) {
     handleError(res, error, next);
   }

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'use-debounce';
-import { format, isToday, isWeekend, parseISO } from 'date-fns';
+import { addDays, format, isWeekend, parseISO, startOfMonth, subMonths } from 'date-fns';
 import { Users, UserCheck, UserX, Percent, TriangleAlert, Star } from 'lucide-react';
 import { PageShell, PageSection } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
@@ -21,16 +21,32 @@ import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable
 import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
 import { useAttendanceRoster } from '@/queries/attendance';
 import { useHubs } from '@/queries/hubs';
-import {
-  isCheckedInToday,
-  attendanceRateTextClass,
-  currentMonthAttendance,
-  internStatusOnDate,
-  DAY_STATUS,
-} from '@/helpers/attendance';
+import { attendanceRateTextClass, internStatusOnDate, DAY_STATUS } from '@/helpers/attendance';
 
 const LOW_ATTENDANCE_THRESHOLD = 75;
 const todayKey = () => format(new Date(), 'yyyy-MM-dd');
+const currentMonthKey = () => format(new Date(), 'yyyy-MM');
+
+// Attendance is tracked per calendar month; the last few months are selectable.
+const buildMonthOptions = () => {
+  const base = startOfMonth(new Date());
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(base, i);
+    return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') };
+  });
+};
+
+// First weekday (Mon–Fri) of a 'yyyy-MM' month, as a 'yyyy-MM-dd' key.
+const firstWeekdayOf = (monthKey) => {
+  let d = parseISO(`${monthKey}-01`);
+  while (isWeekend(d)) d = addDays(d, 1);
+  return format(d, 'yyyy-MM-dd');
+};
+
+// A sensible default day inside a month: today if it's the current month,
+// otherwise the month's first weekday.
+const defaultDayForMonth = (monthKey) =>
+  monthKey === currentMonthKey() ? todayKey() : firstWeekdayOf(monthKey);
 
 // Aggregate a set of attendance rates into headline summary numbers.
 const summarize = (rates, total) => {
@@ -42,13 +58,21 @@ const summarize = (rates, total) => {
 };
 
 export default function AttendanceOverviewPage() {
-  const [tab, setTab] = useState('today');
+  const monthOptions = useMemo(buildMonthOptions, []);
+  const [tab, setTab] = useState('month');
   const [search, setSearch] = useState('');
   const [hub, setHub] = useState('');
+  const [month, setMonth] = useState(() => currentMonthKey());
   const [day, setDay] = useState(() => todayKey());
   const [debouncedSearch] = useDebounce(search, 400);
 
+  // Keep the selected day inside the selected month.
+  useEffect(() => {
+    if (format(parseISO(day), 'yyyy-MM') !== month) setDay(defaultDayForMonth(month));
+  }, [month]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data, isPending, isError } = useAttendanceRoster({
+    month,
     search: debouncedSearch || undefined,
     hub: hub || undefined,
   });
@@ -58,21 +82,16 @@ export default function AttendanceOverviewPage() {
 
   const roster = data?.roster ?? [];
   const total = roster.length;
+  const isCurrentMonth = month === currentMonthKey();
+  const monthLabel = format(parseISO(`${month}-01`), 'MMMM yyyy');
 
-  // Current-month summary (elapsed working days), same basis as intern page.
+  // Month summary from the server's month-scoped rates.
   const monthSummary = useMemo(() => {
-    const rates = roster.map((r) => currentMonthAttendance(r.records).rate);
-    const inToday = roster.filter((r) => isCheckedInToday(r.records)).length;
-    return { ...summarize(rates, total), inToday, absentToday: total - inToday, total };
-  }, [roster, total]);
-
-  // All-time summary from the roster's stored totals.
-  const overallSummary = useMemo(() => {
     const rates = roster.map((r) => r.attendanceRate ?? 0);
     return { ...summarize(rates, total), total };
   }, [roster, total]);
 
-  // Counts for the selected day in the "Today" tab (present / absent / not-yet).
+  // Counts for the selected day (present / absent / not-yet).
   const dayCounts = useMemo(() => {
     const date = parseISO(day);
     const acc = { present: 0, absent: 0, pending: 0 };
@@ -85,7 +104,7 @@ export default function AttendanceOverviewPage() {
     return acc;
   }, [roster, day]);
 
-  const dayIsToday = isToday(parseISO(day));
+  const dayIsToday = day === todayKey();
 
   return (
     <PageShell>
@@ -93,7 +112,7 @@ export default function AttendanceOverviewPage() {
         <PageHeading
           kicker="Future Experts Program"
           title="Attendance"
-          subtitle="Office attendance across interns. This view is read-only — only interns can record their own check-ins."
+          subtitle="Office attendance across interns, by month. This view is read-only — only interns can record their own check-ins."
           titleAdornment={<Badge variant="outline">Read-only</Badge>}
         />
 
@@ -112,14 +131,11 @@ export default function AttendanceOverviewPage() {
         {!isPending && !isError && (
           <Tabs value={tab} onValueChange={setTab} className="space-y-6">
             <TabsList data-test="attendance-tabs">
-              <TabsTrigger value="today" data-test="attendance-tab-today">
-                Today
-              </TabsTrigger>
               <TabsTrigger value="month" data-test="attendance-tab-month">
-                This month
+                Month summary
               </TabsTrigger>
-              <TabsTrigger value="overall" data-test="attendance-tab-overall">
-                Overall
+              <TabsTrigger value="day" data-test="attendance-tab-day">
+                By day
               </TabsTrigger>
             </TabsList>
 
@@ -145,32 +161,87 @@ export default function AttendanceOverviewPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {tab === 'today' && (
-                  <div className="flex items-center gap-2">
-                    <DatePicker
-                      value={day}
-                      onChange={setDay}
-                      className="flex-1"
-                      isDateDisabled={isWeekend}
-                      data-test="attendance-day-picker"
-                    />
-                    {!dayIsToday && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDay(todayKey())}
-                        data-test="attendance-day-today-button"
-                      >
-                        Today
-                      </Button>
-                    )}
-                  </div>
-                )}
+                <Select value={month} onValueChange={setMonth}>
+                  <SelectTrigger data-test="attendance-month-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <TabsContent value="today" className="space-y-6">
+            <TabsContent value="month" className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <AttendanceStat
+                  label="Avg attendance"
+                  value={`${monthSummary.avg}%`}
+                  hint={monthLabel}
+                  icon={Percent}
+                  valueClassName={attendanceRateTextClass(monthSummary.avg)}
+                />
+                <AttendanceStat
+                  label="Interns"
+                  value={monthSummary.total}
+                  hint="Total"
+                  icon={Users}
+                />
+                <AttendanceStat
+                  label="Perfect"
+                  value={monthSummary.perfect}
+                  hint={`100% in ${monthLabel}`}
+                  icon={Star}
+                  valueClassName={
+                    monthSummary.perfect > 0 ? 'text-emerald-600 dark:text-emerald-400' : undefined
+                  }
+                />
+                <AttendanceStat
+                  label={`Below ${LOW_ATTENDANCE_THRESHOLD}%`}
+                  value={monthSummary.low}
+                  hint="Need attention"
+                  icon={TriangleAlert}
+                  valueClassName={
+                    monthSummary.low > 0 ? 'text-amber-600 dark:text-amber-400' : undefined
+                  }
+                />
+              </div>
+
+              <AttendanceRosterTable
+                roster={roster}
+                rateLabel={`Attendance (${monthLabel})`}
+                showToday={isCurrentMonth}
+              />
+            </TabsContent>
+
+            <TabsContent value="day" className="space-y-6">
+              <div className="app-panel flex flex-wrap items-center gap-3 p-4 md:p-5">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Day in {monthLabel}:
+                </span>
+                <DatePicker
+                  value={day}
+                  onChange={setDay}
+                  isDateDisabled={(d) => isWeekend(d) || format(d, 'yyyy-MM') !== month}
+                  data-test="attendance-day-picker"
+                />
+                {isCurrentMonth && !dayIsToday && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDay(todayKey())}
+                    data-test="attendance-day-today-button"
+                  >
+                    Today
+                  </Button>
+                )}
+              </div>
+
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <AttendanceStat
                   label="Present"
@@ -203,84 +274,6 @@ export default function AttendanceOverviewPage() {
               </div>
 
               <DailyAttendanceTable roster={roster} date={day} />
-            </TabsContent>
-
-            <TabsContent value="month" className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <AttendanceStat
-                  label="Avg attendance"
-                  value={`${monthSummary.avg}%`}
-                  hint="This month"
-                  icon={Percent}
-                  valueClassName={attendanceRateTextClass(monthSummary.avg)}
-                />
-                <AttendanceStat
-                  label="Interns"
-                  value={monthSummary.total}
-                  hint="Total"
-                  icon={Users}
-                />
-                <AttendanceStat
-                  label="Perfect"
-                  value={monthSummary.perfect}
-                  hint="100% this month"
-                  icon={Star}
-                  valueClassName={
-                    monthSummary.perfect > 0 ? 'text-emerald-600 dark:text-emerald-400' : undefined
-                  }
-                />
-                <AttendanceStat
-                  label={`Below ${LOW_ATTENDANCE_THRESHOLD}%`}
-                  value={monthSummary.low}
-                  hint="Need attention"
-                  icon={TriangleAlert}
-                  valueClassName={
-                    monthSummary.low > 0 ? 'text-amber-600 dark:text-amber-400' : undefined
-                  }
-                />
-              </div>
-
-              <AttendanceRosterTable roster={roster} basis="month" />
-            </TabsContent>
-
-            <TabsContent value="overall" className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <AttendanceStat
-                  label="Avg attendance"
-                  value={`${overallSummary.avg}%`}
-                  hint="Whole internship"
-                  icon={Percent}
-                  valueClassName={attendanceRateTextClass(overallSummary.avg)}
-                />
-                <AttendanceStat
-                  label="Interns"
-                  value={overallSummary.total}
-                  hint="Total"
-                  icon={Users}
-                />
-                <AttendanceStat
-                  label="Perfect"
-                  value={overallSummary.perfect}
-                  hint="100% all time"
-                  icon={Star}
-                  valueClassName={
-                    overallSummary.perfect > 0
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : undefined
-                  }
-                />
-                <AttendanceStat
-                  label={`Below ${LOW_ATTENDANCE_THRESHOLD}%`}
-                  value={overallSummary.low}
-                  hint="Need attention"
-                  icon={TriangleAlert}
-                  valueClassName={
-                    overallSummary.low > 0 ? 'text-amber-600 dark:text-amber-400' : undefined
-                  }
-                />
-              </div>
-
-              <AttendanceRosterTable roster={roster} basis="overall" />
             </TabsContent>
           </Tabs>
         )}

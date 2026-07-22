@@ -3,6 +3,9 @@ const InternProfile = require('../models/InternProfile');
 const { ROLES } = require('../constants/roles');
 const {
   officeDateKey,
+  officeMonthKey,
+  isValidMonthKey,
+  monthBounds,
   isOfficeWeekend,
   isWithinCheckInWindow,
   checkInWindowState,
@@ -29,17 +32,22 @@ const loadMyProfile = async (user) => {
 };
 
 /**
- * Attendance stats over the whole internship: working days (Mon–Fri) from the
- * intern's start date to today, and how many of those they were present for.
- * Always computed from raw records — never stored — so it can't go stale.
+ * Attendance stats for a single calendar month. Working days (Mon–Fri) are
+ * counted within the month, clamped to `[max(monthStart, startDate), min(monthEnd,
+ * today)]` — so a mid-month joiner isn't penalised for days before they started,
+ * and the current month only counts elapsed days. Always computed from raw
+ * records, never stored, so it can't go stale.
+ * `records` may be the full history or already month-scoped — the date clamp
+ * makes both correct.
  */
-const computeStats = (records, startDate) => {
+const computeMonthStats = (records, monthKey, startDate) => {
+  const { start, end } = monthBounds(monthKey);
   const todayKey = officeDateKey();
   const startKey = startDate ? officeDateKey(startDate) : null;
-  const workingDays = startKey && startKey <= todayKey ? countWorkingDays(startKey, todayKey) : 0;
-  const presentDays = records.filter(
-    (r) => r.date <= todayKey && (!startKey || r.date >= startKey)
-  ).length;
+  const rangeStart = startKey && startKey > start ? startKey : start;
+  const rangeEnd = todayKey < end ? todayKey : end;
+  const workingDays = rangeStart <= rangeEnd ? countWorkingDays(rangeStart, rangeEnd) : 0;
+  const presentDays = records.filter((r) => r.date >= rangeStart && r.date <= rangeEnd).length;
   const attendanceRate = workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 0;
   return { presentDays, workingDays, attendanceRate };
 };
@@ -61,10 +69,18 @@ const splitRows = (rows) => {
   return { records, cancelledDates, lastCheckIn };
 };
 
+// The intern's own summary returns their full history (the calendar pages
+// through months and the streak walks back across them, all client-side) plus a
+// server-computed stat block for the CURRENT month (start-date-prorated).
 const buildSummary = async (profile) => {
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates } = splitRows(rows);
-  return { records, cancelledDates, ...computeStats(records, profile.startDate) };
+  const monthKey = officeMonthKey();
+  return {
+    records,
+    cancelledDates,
+    month: { key: monthKey, ...computeMonthStats(records, monthKey, profile.startDate) },
+  };
 };
 
 const assertCheckInOpen = (now) => {
@@ -143,7 +159,7 @@ const cancelCheckIn = async (user) => {
   return buildSummary(profile); // already cancelled → idempotent
 };
 
-const buildRosterEntry = (profile, rows) => {
+const buildRosterEntry = (profile, rows, monthKey) => {
   const { records, cancelledDates, lastCheckIn } = splitRows(rows);
   const user = profile.user || {};
   return {
@@ -155,18 +171,23 @@ const buildRosterEntry = (profile, rows) => {
     },
     records,
     cancelledDates,
-    ...computeStats(records, profile.startDate),
+    ...computeMonthStats(records, monthKey, profile.startDate),
     lastCheckIn: lastCheckIn || null,
   };
 };
 
 /**
- * Read-only attendance roster for mentors/admins. Mentors are scoped to their
- * assigned interns (primary or secondary); admins see everyone — the same rule
- * the recommendations list uses. `search` (name/email) and `hub` (name) filter
- * the result.
+ * Read-only attendance roster for mentors/admins, scoped to a single calendar
+ * month (`month` = 'YYYY-MM', defaults to the current office month). Only that
+ * month's records are fetched and returned, so the payload stays bounded. Mentors
+ * are scoped to their assigned interns (primary or secondary); admins see
+ * everyone — the same rule the recommendations list uses. `search` (name/email)
+ * and `hub` (name) filter the result.
  */
-const getRoster = async (user, { search, hub } = {}) => {
+const getRoster = async (user, { month, search, hub } = {}) => {
+  const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
+  const { start, end } = monthBounds(monthKey);
+
   const filter = { status: { $in: ROSTER_STATUSES } };
   if (user.role === ROLES.MENTOR) {
     filter.$or = [{ primaryMentor: user._id }, { secondaryMentor: user._id }];
@@ -196,7 +217,7 @@ const getRoster = async (user, { search, hub } = {}) => {
 
   const profileIds = profiles.map((p) => p._id);
   const rows = profileIds.length
-    ? await Attendance.find({ intern: { $in: profileIds } })
+    ? await Attendance.find({ intern: { $in: profileIds }, date: { $gte: start, $lte: end } })
         .sort({ date: 1 })
         .lean()
     : [];
@@ -208,8 +229,10 @@ const getRoster = async (user, { search, hub } = {}) => {
     byIntern.get(key).push(row);
   }
 
-  const roster = profiles.map((p) => buildRosterEntry(p, byIntern.get(p._id.toString()) || []));
-  return { roster };
+  const roster = profiles.map((p) =>
+    buildRosterEntry(p, byIntern.get(p._id.toString()) || [], monthKey)
+  );
+  return { month: monthKey, roster };
 };
 
 module.exports = {

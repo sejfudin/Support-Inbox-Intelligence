@@ -90,6 +90,19 @@ const countWorkingDays = (startKey, endKey) => {
   return count;
 };
 
+/** Office-local month as 'YYYY-MM'. */
+const officeMonthKey = (date = new Date()) => officeDateKey(date).slice(0, 7);
+
+/** Whether a string is a valid 'YYYY-MM' month key. */
+const isValidMonthKey = (key) => typeof key === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(key);
+
+/** First and last day of a 'YYYY-MM' month, as inclusive 'YYYY-MM-DD' keys. */
+const monthBounds = (monthKey) => {
+  const [y, m] = monthKey.split('-').map(Number);
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate(); // day 0 of next month
+  return { start: `${monthKey}-01`, end: `${monthKey}-${String(lastDay).padStart(2, '0')}` };
+};
+
 module.exports = {
   OFFICE_TIMEZONE,
   CHECK_IN_WINDOW,
@@ -101,4 +114,7 @@ module.exports = {
   isWithinCheckInWindow,
   isWeekendKey,
   countWorkingDays,
+  officeMonthKey,
+  isValidMonthKey,
+  monthBounds,
 };

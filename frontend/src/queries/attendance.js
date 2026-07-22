@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   fetchMyAttendance,
   checkInToday,
@@ -8,6 +9,13 @@ import {
 
 export const MY_ATTENDANCE_QUERY_KEY = ['attendance', 'me'];
 export const ATTENDANCE_ROSTER_QUERY_KEY = ['attendance', 'roster'];
+
+// Surface a server rejection (e.g. window closed, day locked) instead of failing
+// silently, and re-sync the cache with the server's real state.
+const onAttendanceError = (queryClient, fallback) => (error) => {
+  toast.error(error?.response?.data?.message || fallback);
+  queryClient.invalidateQueries({ queryKey: MY_ATTENDANCE_QUERY_KEY });
+};
 
 export const useMyAttendance = (options = {}) =>
   useQuery({
@@ -26,6 +34,7 @@ export const useCheckInToday = () => {
       queryClient.invalidateQueries({ queryKey: MY_ATTENDANCE_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ATTENDANCE_ROSTER_QUERY_KEY });
     },
+    onError: onAttendanceError(queryClient, 'Could not check in. Please try again.'),
   });
 };
 
@@ -38,6 +47,7 @@ export const useCancelTodayCheckIn = () => {
       queryClient.invalidateQueries({ queryKey: MY_ATTENDANCE_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ATTENDANCE_ROSTER_QUERY_KEY });
     },
+    onError: onAttendanceError(queryClient, 'Could not cancel your check-in. Please try again.'),
   });
 };
 
