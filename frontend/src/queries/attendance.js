@@ -5,10 +5,12 @@ import {
   checkInToday,
   cancelTodayCheckIn,
   fetchAttendanceRoster,
+  fetchInternAttendance,
 } from '@/api/attendance';
 
 export const MY_ATTENDANCE_QUERY_KEY = ['attendance', 'me'];
 export const ATTENDANCE_ROSTER_QUERY_KEY = ['attendance', 'roster'];
+export const INTERN_ATTENDANCE_QUERY_KEY = ['attendance', 'intern'];
 
 // Surface a server rejection (e.g. window closed, day locked) instead of failing
 // silently, and re-sync the cache with the server's real state.
@@ -56,5 +58,13 @@ export const useAttendanceRoster = (params = {}, options = {}) =>
     queryKey: [...ATTENDANCE_ROSTER_QUERY_KEY, params],
     queryFn: () => fetchAttendanceRoster(params),
     placeholderData: keepPreviousData,
+    ...options,
+  });
+
+export const useInternAttendance = (internProfileId, options = {}) =>
+  useQuery({
+    queryKey: [...INTERN_ATTENDANCE_QUERY_KEY, internProfileId],
+    queryFn: () => fetchInternAttendance(internProfileId),
+    enabled: Boolean(internProfileId),
     ...options,
   });

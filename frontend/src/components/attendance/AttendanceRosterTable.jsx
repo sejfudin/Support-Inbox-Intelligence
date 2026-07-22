@@ -52,6 +52,7 @@ export default function AttendanceRosterTable({
   roster = [],
   rateLabel = 'Attendance',
   showToday = true,
+  onSelectIntern,
 }) {
   const [sort, setSort] = useState({ key: 'rate', dir: 'asc' });
   const columns = columnsFor(rateLabel);
@@ -143,7 +144,12 @@ export default function AttendanceRosterTable({
               return (
                 <tr
                   key={row.intern.id}
-                  className="border-t border-border/60"
+                  onClick={() => onSelectIntern?.(row.intern)}
+                  className={cn(
+                    'border-t border-border/60',
+                    onSelectIntern && 'cursor-pointer transition-colors hover:bg-muted/40'
+                  )}
+                  title={onSelectIntern ? 'View attendance calendar' : undefined}
                   data-test={`attendance-roster-row-${row.intern.id}`}
                 >
                   <td className="px-5 py-4">

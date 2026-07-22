@@ -134,7 +134,8 @@ recommendation can point at (title, client, description, tech tags, `status`:
 
 ## Attendance (office check-in)
 
-Interns check in once per office day; mentors/admins get a read-only roster. Backend:
+Interns check in once per office day; admins get a read-only roster (with a per-intern calendar
+modal). Backend:
 `server/{models/Attendance.js, services/attendanceService.js, controllers/attendance.js,
 routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
 `frontend/src/pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/attendance/*`,
@@ -154,9 +155,10 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
 - **Check-in window** (`attendanceTime.js`): open 07:00–11:00 `Europe/Sarajevo` time on weekdays.
   The server is authoritative; the client mirrors the rule for UX only.
 - Endpoints: `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat
-  block), `POST|DELETE /api/attendance/me/check-in` (intern-self); `GET /api/attendance` (mentor/admin
+  block), `POST|DELETE /api/attendance/me/check-in` (intern-self); `GET /api/attendance` (**admin-only**
   roster, `?month=YYYY-MM&search=&hub=`, defaults to the current month, records scoped to that month
-  so the payload stays bounded). Envelope `{ attendance }` / `{ month, roster }`.
+  so the payload stays bounded) and `GET /api/attendance/:internProfileId` (**admin-only**, one intern's
+  full history for the calendar modal). Envelopes `{ attendance }` / `{ month, roster }`.
 - The office-network **IP allowlist** guard (per-hub CIDR + `trust proxy`) is a deferred, optional
   step — `Attendance.checkInIp` is already captured for it.
 

@@ -1,6 +1,5 @@
 const Attendance = require('../models/Attendance');
 const InternProfile = require('../models/InternProfile');
-const { ROLES } = require('../constants/roles');
 const {
   officeDateKey,
   officeMonthKey,
@@ -177,21 +176,16 @@ const buildRosterEntry = (profile, rows, monthKey) => {
 };
 
 /**
- * Read-only attendance roster for mentors/admins, scoped to a single calendar
- * month (`month` = 'YYYY-MM', defaults to the current office month). Only that
- * month's records are fetched and returned, so the payload stays bounded. Mentors
- * are scoped to their assigned interns (primary or secondary); admins see
- * everyone — the same rule the recommendations list uses. `search` (name/email)
- * and `hub` (name) filter the result.
+ * Read-only attendance roster (admin-only), scoped to a single calendar month
+ * (`month` = 'YYYY-MM', defaults to the current office month). Only that month's
+ * records are fetched and returned, so the payload stays bounded. `search`
+ * (name/email) and `hub` (name) filter the result.
  */
-const getRoster = async (user, { month, search, hub } = {}) => {
+const getRoster = async (_user, { month, search, hub } = {}) => {
   const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
   const { start, end } = monthBounds(monthKey);
 
   const filter = { status: { $in: ROSTER_STATUSES } };
-  if (user.role === ROLES.MENTOR) {
-    filter.$or = [{ primaryMentor: user._id }, { secondaryMentor: user._id }];
-  }
 
   let profiles = await InternProfile.find(filter)
     .populate({
@@ -235,9 +229,49 @@ const getRoster = async (user, { month, search, hub } = {}) => {
   return { month: monthKey, roster };
 };
 
+/**
+ * One intern's full attendance history (admin-only), for the calendar modal on
+ * the roster. Returns the same shape as the intern's own `/me` — full records +
+ * cancelledDates (the calendar pages through months client-side) plus a
+ * current-month stat block — with the intern's identity attached.
+ */
+const getInternAttendance = async (internProfileId) => {
+  let profile;
+  try {
+    profile = await InternProfile.findById(internProfileId)
+      .populate({
+        path: 'user',
+        select: 'fullname email hub',
+        populate: { path: 'hub', select: 'name' },
+      })
+      .lean();
+  } catch (err) {
+    if (err.name === 'CastError') throw httpError(404, 'Intern not found.');
+    throw err;
+  }
+  if (!profile || !profile.user) throw httpError(404, 'Intern not found.');
+
+  const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
+  const { records, cancelledDates } = splitRows(rows);
+  const monthKey = officeMonthKey();
+  const user = profile.user;
+  return {
+    intern: {
+      id: profile._id,
+      fullname: user.fullname || '',
+      email: user.email || '',
+      hub: user.hub?.name || '',
+    },
+    records,
+    cancelledDates,
+    month: { key: monthKey, ...computeMonthStats(records, monthKey, profile.startDate) },
+  };
+};
+
 module.exports = {
   getMyAttendance,
   checkIn,
   cancelCheckIn,
   getRoster,
+  getInternAttendance,
 };

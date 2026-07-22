@@ -39,12 +39,21 @@ export const cancelTodayCheckIn = async () => {
 };
 
 /**
- * GET /api/attendance  (mentor/admin — read-only roster)
- * → { roster: [{ intern, records, cancelledDates, presentDays, workingDays, attendanceRate, lastCheckIn }] }
- * Mentors are scoped to their assigned interns; admins see everyone. Supports
- * optional { search, hub } filtering server-side.
+ * GET /api/attendance  (admin — read-only roster for one month)
+ * → { month, roster: [{ intern, records, cancelledDates, presentDays, workingDays, attendanceRate, lastCheckIn }] }
+ * Admin-only. Supports optional { month, search, hub } filtering server-side.
  */
 export const fetchAttendanceRoster = async (params = {}) => {
   const { data } = await apiClient.get('/attendance', { params });
   return data;
+};
+
+/**
+ * GET /api/attendance/:internProfileId  (admin)
+ * One intern's full attendance history for the calendar modal.
+ * → { intern: { id, fullname, email, hub }, records, cancelledDates, month }
+ */
+export const fetchInternAttendance = async (internProfileId) => {
+  const { data } = await apiClient.get(`/attendance/${internProfileId}`);
+  return data.attendance;
 };

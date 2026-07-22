@@ -50,3 +50,12 @@ exports.getRoster = async (req, res, next) => {
     handleError(res, error, next);
   }
 };
+
+exports.getInternAttendance = async (req, res, next) => {
+  try {
+    const attendance = await attendanceService.getInternAttendance(req.params.internProfileId);
+    res.json({ attendance });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};

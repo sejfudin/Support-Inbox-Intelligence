@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import AttendanceStat from '@/components/attendance/AttendanceStat';
 import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
 import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
+import InternAttendanceModal from '@/components/attendance/InternAttendanceModal';
 import { useAttendanceRoster } from '@/queries/attendance';
 import { useHubs } from '@/queries/hubs';
 import { attendanceRateTextClass, internStatusOnDate, DAY_STATUS } from '@/helpers/attendance';
@@ -64,6 +65,7 @@ export default function AttendanceOverviewPage() {
   const [hub, setHub] = useState('');
   const [month, setMonth] = useState(() => currentMonthKey());
   const [day, setDay] = useState(() => todayKey());
+  const [selectedIntern, setSelectedIntern] = useState(null);
   const [debouncedSearch] = useDebounce(search, 400);
 
   // Keep the selected day inside the selected month.
@@ -215,6 +217,7 @@ export default function AttendanceOverviewPage() {
                 roster={roster}
                 rateLabel={`Attendance (${monthLabel})`}
                 showToday={isCurrentMonth}
+                onSelectIntern={setSelectedIntern}
               />
             </TabsContent>
 
@@ -273,10 +276,12 @@ export default function AttendanceOverviewPage() {
                 <AttendanceStat label="Interns" value={total} hint="Total" icon={Users} />
               </div>
 
-              <DailyAttendanceTable roster={roster} date={day} />
+              <DailyAttendanceTable roster={roster} date={day} onSelectIntern={setSelectedIntern} />
             </TabsContent>
           </Tabs>
         )}
+
+        <InternAttendanceModal intern={selectedIntern} onClose={() => setSelectedIntern(null)} />
       </PageSection>
     </PageShell>
   );
