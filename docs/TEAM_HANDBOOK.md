@@ -91,20 +91,6 @@
 
 ---
 
-## 3. My Observations — Where Role Logic Feels Inconsistent
-
-This is my personal assessment, not a description of how the system currently works (that's
-above) — these are discussion points, not decisions.
-
-- **Only Admin can create workspaces, even though Mentor runs them.** The mentor is the one actually doing operational work in a workspace with their interns, but has to ask an admin to open a new one for every new team/project. It would make more sense for a mentor to create their own workspace (and automatically become its owner), while admin keeps oversight/deletion rights over all of them.
-- **A mentor doesn't even know other workspaces exist.** Right now a mentor only knows about workspaces they're a member of — there's no basic overview of "which teams exist" on the platform. When deciding which team to place a new intern in, a mentor can't judge that themselves and has to ask an admin. At least a name/description list (without ticket access) would make sense.
-- **A mentor can't invite/register an intern themselves.** The mentor later handles everything for "their" intern (mentor notes, documentation links), but the intern has to be added to the system by an admin. Adding an intern to a team feels like a natural mentor action, not an administrative one.
-- **An intern never sees their own evaluations.** It's understandable that mentor notes might be "internal," but the progress scores themselves (technical skill, communication, etc.) could help the intern know where they stand. Currently this is completely closed off.
-- **An intern can't edit the documentation links on their own profile.** Only Admin, Leadership, and the assigned mentor have that right — not even the profile owner (the intern) can. If these links are meant for the intern (e.g. a link to their portfolio/repo), it would make more sense for the intern to be able to edit them themselves.
-- **Platform role and workspace role are two completely separate systems that are easy to conflate.** Someone can be a "Mentor" on the platform while being a plain "member" in one workspace and an "admin" in another — these are two independent things. Worth keeping in mind whenever the team talks about "permissions," since it's easy to mix up the platform role with the workspace role.
-
----
-
 _Created 2026-07-09, updated 2026-07-22 for the mentor-role narrowing (recommendations,
 evaluations, readiness, attendance, internal CV editing, and status changes moved to admin-only).
 This is a snapshot of the code's state — verify against the code before using anything here as the
