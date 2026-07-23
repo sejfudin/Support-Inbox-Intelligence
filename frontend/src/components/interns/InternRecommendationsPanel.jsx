@@ -6,7 +6,15 @@ import { SortControl } from '@/components/interns/SortControl';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
-import { getRecommendationStatusLabel, RECOMMENDATION_STATUSES } from '@/helpers/recommendations';
+import {
+  activeRecommendationsOnOtherProjects,
+  getRecommendationStatusLabel,
+  isRecommendBlockedByProfileStatus,
+  recommendBlockedReason,
+  recommendationProjectName,
+  RECOMMENDATION_STATUSES,
+} from '@/helpers/recommendations';
+import { useIntern } from '@/queries/interns';
 import { usePositions } from '@/queries/positions';
 import { useProjects } from '@/queries/projects';
 import { useTechnologies } from '@/queries/technologies';
@@ -22,11 +30,15 @@ import {
 } from '@/components/interns/recommendations/RecommendationCards';
 import {
   RecommendationDeleteDialog,
+  RecommendationDuplicateWarnDialog,
   RecommendationFormModal,
   RecommendationViewModal,
 } from '@/components/interns/recommendations/RecommendationModals';
 import {
+  BTN_PRIMARY_CLASS,
+  BTN_PRIMARY_DISABLED_CLASS,
   buildTimelineSteps,
+  DarkTooltip,
   REC_FONT,
 } from '@/components/interns/recommendations/recommendationUi';
 
@@ -117,6 +129,7 @@ function ViewModeSwitcher({ value, onChange }) {
 export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && user?.role === ROLES.ADMIN;
+  const { data: intern } = useIntern(userId);
   const { data: positions = [] } = usePositions();
   const { data: projects = [] } = useProjects();
   const { data: technologies = [] } = useTechnologies();
@@ -132,6 +145,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const [detailRecommendation, setDetailRecommendation] = useState(null);
   const [activeRecommendation, setActiveRecommendation] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [duplicateWarn, setDuplicateWarn] = useState(null);
   const [form, setForm] = useState(createEmptyForm);
   const [sortKey, setSortKey] = useState('');
   const [sortDir, setSortDir] = useState('desc');
@@ -146,6 +160,8 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   // outcome but never remove it, so the form keeps the outcome visible even
   // when the status moves back off "resulted".
   const hasRecordedOutcome = Boolean(activeRecommendation?.result?.outcome);
+  const recommendBlocked = isRecommendBlockedByProfileStatus(intern?.status);
+  const internName = intern?.user?.fullname || 'This intern';
 
   const positionName = (recommendation) => recommendation?.position?.name || 'Position not set';
 
@@ -159,6 +175,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   // every refetch — doing so overwrote the user's in-progress edits mid-typing.
 
   const handleNew = () => {
+    if (recommendBlocked) return;
     setActiveRecommendation(null);
     setForm(createEmptyForm());
     setDialogOpen(true);
@@ -170,32 +187,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     setDialogOpen(true);
   };
 
-  const handleSubmit = () => {
-    if (!form.positionId) {
-      toast.error('Select a position for this recommendation');
-      return;
-    }
-    if (!form.projectId) {
-      toast.error('Select a project for this recommendation');
-      return;
-    }
-
-    // Stage dates must not run backwards ('yyyy-MM-dd' strings compare
-    // lexicographically). The server enforces the same rule.
-    const dates = form.statusDates;
-    const interviewingDate = form.interviewingSkipped ? '' : dates.interviewing;
-    if (interviewingDate && dates.recommended && interviewingDate < dates.recommended) {
-      toast.error("Interviewing date can't be before the Recommended date");
-      return;
-    }
-    if (dates.resulted) {
-      const previousDate = interviewingDate || dates.recommended;
-      if (previousDate && dates.resulted < previousDate) {
-        toast.error("Resulted date can't be before the earlier stage dates");
-        return;
-      }
-    }
-
+  const buildPayload = () => {
     const payload = {
       internUserId: userId,
       positionId: form.positionId,
@@ -236,11 +228,16 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
       };
     }
 
+    return payload;
+  };
+
+  const savePayload = (payload) => {
     const options = {
       onSuccess: () => {
         toast.success(activeRecommendation ? 'Recommendation updated' : 'Recommendation created');
         setDialogOpen(false);
         setActiveRecommendation(null);
+        setDuplicateWarn(null);
         setForm(createEmptyForm());
       },
       onError: (err) =>
@@ -252,6 +249,61 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     } else {
       createRecommendation(payload, options);
     }
+  };
+
+  const handleSubmit = () => {
+    if (!isEditing && recommendBlocked) {
+      toast.error(recommendBlockedReason(intern?.status));
+      return;
+    }
+    if (!form.positionId) {
+      toast.error('Select a position for this recommendation');
+      return;
+    }
+    if (!form.projectId) {
+      toast.error('Select a project for this recommendation');
+      return;
+    }
+
+    // Stage dates must not run backwards ('yyyy-MM-dd' strings compare
+    // lexicographically). The server enforces the same rule.
+    const dates = form.statusDates;
+    const interviewingDate = form.interviewingSkipped ? '' : dates.interviewing;
+    if (interviewingDate && dates.recommended && interviewingDate < dates.recommended) {
+      toast.error("Interviewing date can't be before the Recommended date");
+      return;
+    }
+    if (dates.resulted) {
+      const previousDate = interviewingDate || dates.recommended;
+      if (previousDate && dates.resulted < previousDate) {
+        toast.error("Resulted date can't be before the earlier stage dates");
+        return;
+      }
+    }
+
+    const payload = buildPayload();
+
+    // Soft warn when pitching someone who already has an open recommendation
+    // on a different project — create is still allowed after confirm.
+    if (!isEditing) {
+      const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
+      if (conflicts.length > 0) {
+        const targetProject =
+          projects.find((project) => project._id === form.projectId)?.name || 'this project';
+        const existingProjectNames = [
+          ...new Set(conflicts.map((recommendation) => recommendationProjectName(recommendation))),
+        ];
+        setDuplicateWarn({ payload, existingProjectNames, targetProjectName: targetProject });
+        return;
+      }
+    }
+
+    savePayload(payload);
+  };
+
+  const handleDuplicateWarnConfirm = () => {
+    if (!duplicateWarn?.payload || isCreating) return;
+    savePayload(duplicateWarn.payload);
   };
 
   // Deleting also dismisses any open modal showing the removed record.
@@ -332,17 +384,38 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
               dataTest="recommendation-history-sort"
             />
             <ViewModeSwitcher value={viewMode} onChange={changeViewMode} />
-            {canWrite && (
-              <button
-                type="button"
-                onClick={handleNew}
-                className="inline-flex h-11 items-center gap-1.5 rounded-xl bg-[#6d5ce6] px-[18px] text-[14px] font-semibold text-white shadow-[0_2px_8px_rgba(109,92,230,.35)] transition hover:bg-[#5a48d6]"
-                data-test="recommendation-history-new-button"
-              >
-                <Plus className="h-4 w-4" />
-                New recommendation
-              </button>
-            )}
+            {canWrite &&
+              (recommendBlocked ? (
+                <DarkTooltip content={recommendBlockedReason(intern?.status)}>
+                  <span className="inline-flex">
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className={cn(
+                        'inline-flex h-11 items-center gap-1.5 px-[18px] text-[14px] font-semibold',
+                        BTN_PRIMARY_CLASS,
+                        BTN_PRIMARY_DISABLED_CLASS
+                      )}
+                      data-test="recommendation-history-new-button"
+                      title={recommendBlockedReason(intern?.status)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      New recommendation
+                    </button>
+                  </span>
+                </DarkTooltip>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleNew}
+                  className={cn('inline-flex h-11 items-center gap-1.5', BTN_PRIMARY_CLASS)}
+                  data-test="recommendation-history-new-button"
+                >
+                  <Plus className="h-4 w-4" />
+                  New recommendation
+                </button>
+              ))}
           </div>
         </div>
       </div>
@@ -417,6 +490,16 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
         isDeleting={isDeleting}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
+      />
+
+      <RecommendationDuplicateWarnDialog
+        open={Boolean(duplicateWarn)}
+        internName={internName}
+        existingProjectNames={duplicateWarn?.existingProjectNames}
+        targetProjectName={duplicateWarn?.targetProjectName}
+        isSaving={isCreating}
+        onCancel={() => setDuplicateWarn(null)}
+        onConfirm={handleDuplicateWarnConfirm}
       />
     </div>
   );

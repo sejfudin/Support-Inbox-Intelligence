@@ -119,6 +119,13 @@ lifecycle status (`InternProfile.status`):
   stays `placed`, anything else (or none left) → `ready`. Deleting also removes the record's
   history trail. The confirm dialog warns when deleting the placement that marked the intern placed.
 
+**Create guards (UI)** — backend already rejects create with 409 when the intern's profile is
+`placed` / `completed` / `discontinued`. The Recommendations tab mirrors that: **New
+recommendation** is greyed out with a hover explanation when the profile is in one of those
+statuses. Concurrent open recommendations across projects remain allowed, but creating a second
+one while the intern already has a `recommended` / `interviewing` recommendation on a *different*
+project shows a confirm dialog naming both projects before the create proceeds.
+
 **Roles** — admin-only. Reads and writes (create/update/delete) both require `admin`
 (`assertReadAccess` / `assertRecommendationWriteAccess` in `recommendationService.js`); `leadership`
 additionally has read access (fully read-only UI — no create/edit/delete controls rendered).
@@ -200,7 +207,7 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). |
 | **Project** | A client engagement the firm is running (e.g. "Northwind billing platform" for client "Northwind Traders") — `title/client/description/tech tags/status`. Admin-managed reference data; a recommendation refs one. Not workspace-scoped. |
 | **Attendance / check-in** | An intern's office check-in for one day (`Attendance` — one sparse doc per intern per acted-on day; present days stored, absent days derived). Check-in window: 07:00–11:00 office time, weekdays. Cancel locks the day (one-way). Reported **per calendar month** (no cumulative all-time rate); stats always computed, never stored. |
-| **Recommendation** | An admin's placement recommendation for an intern (candidate pipeline) — mentors have no access. Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — each is resolved individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Pipeline KPIs count distinct interns, not recommendation records. |
+| **Recommendation** | An admin's placement recommendation for an intern (candidate pipeline) — mentors have no access. Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — each is resolved individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Concurrent open recommendations across projects are allowed, but the UI greys out create when the profile is already `placed`/`completed`/`discontinued`, and warns before creating another while one is already open on a different project. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
 | **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:`) that drives React Query cache invalidation. |
