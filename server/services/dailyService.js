@@ -283,6 +283,9 @@ const buildMemberSummary = (intern) => ({
  * intern-facing header already uses as its "covered" denominator.
  */
 const getWorkspaceDailyOverview = async ({ workspaceId, month, user }) => {
+  if (!workspaceId) {
+    throw new DailyValidationError('A workspace is required.');
+  }
   await assertWorkspaceAccess(workspaceId, user, 'Workspace not found');
 
   const monthKey = isValidMonthKey(month) ? month : currentMonthKey();
@@ -368,6 +371,9 @@ const getWorkspaceDailyOverview = async ({ workspaceId, month, user }) => {
  * from the overview data it clicked on, so this returns only the entry itself.
  */
 const getMemberDailyEntry = async ({ workspaceId, memberId, date, user }) => {
+  if (!workspaceId) {
+    throw new DailyValidationError('A workspace is required.');
+  }
   if (!memberId) {
     throw new DailyValidationError('A member is required.');
   }

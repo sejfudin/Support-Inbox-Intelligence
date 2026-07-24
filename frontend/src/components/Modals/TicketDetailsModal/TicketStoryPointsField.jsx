@@ -19,10 +19,6 @@ export function TicketStoryPointsField({ isArchived, currentStoryPoints, onStory
   }
 
   return (
-    <StoryPointsField
-      value={currentStoryPoints}
-      onChange={onStoryPointsChange}
-      className="space-y-3"
-    />
+    <StoryPointsField value={currentStoryPoints} onChange={onStoryPointsChange} className="space-y-3" />
   );
 }
