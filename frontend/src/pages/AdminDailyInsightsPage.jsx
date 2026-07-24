@@ -51,6 +51,9 @@ export default function AdminDailyInsightsPage() {
   const { data, isPending, isError } = useWorkspaceDailyOverview(workspaceId, month);
   const overview = data?.data;
   const isCurrentMonth = month === currentMonthKey();
+  // Weekend has no standup expectation — don't surface "reported/not reported today"
+  // (or "open blockers today") KPIs that would mark everyone as missing.
+  const showTodayStats = isCurrentMonth && !overview?.today?.isWeekend;
   const monthLabel = format(parseISO(`${month}-01`), 'MMMM yyyy');
 
   const monthMissed = useMemo(
@@ -63,6 +66,11 @@ export default function AdminDailyInsightsPage() {
   );
 
   const showContent = workspaceId && !isPending && !isError && overview;
+
+  // Drop a stale popup target when the report context changes.
+  useEffect(() => {
+    setSelection(null);
+  }, [workspaceId, month]);
 
   return (
     <PageShell>
@@ -142,7 +150,7 @@ export default function AdminDailyInsightsPage() {
               )}
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {isCurrentMonth && (
+                {showTodayStats && (
                   <>
                     <AttendanceStat
                       label="Reported today"
@@ -170,7 +178,7 @@ export default function AdminDailyInsightsPage() {
                   hint={monthLabel}
                   icon={Percent}
                 />
-                {isCurrentMonth ? (
+                {showTodayStats ? (
                   <AttendanceStat
                     label="Open blockers"
                     value={overview.stats.openBlockers}
