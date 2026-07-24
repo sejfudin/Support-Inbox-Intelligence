@@ -8,7 +8,7 @@ import { getAvatarColor } from '@/helpers/avatarColor';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { cn } from '@/lib/utils';
 
-const ItemColumn = ({
+export const ItemColumn = ({
   title,
   dotColor,
   items,
@@ -53,7 +53,7 @@ const ItemColumn = ({
 
 // A blocker's linkedTicket is populated at fetch time; it comes back null if the
 // ticket was deleted after linking, so a dangling ref just falls back to plain text.
-const BlockerItem = ({ blocker }) => {
+export const BlockerItem = ({ blocker }) => {
   const ticket = blocker.linkedTicket;
   if (!ticket) return blocker.text;
 

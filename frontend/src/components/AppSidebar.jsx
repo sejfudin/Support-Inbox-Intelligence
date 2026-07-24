@@ -16,6 +16,7 @@ import {
   Code2,
   CalendarCheck,
   CalendarDays,
+  CalendarClock,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -146,6 +147,11 @@ export default function AppSidebar() {
       label: 'Attendance',
       to: '/attendance',
       icon: CalendarCheck,
+    },
+    {
+      label: 'Daily Insights',
+      to: '/admin/daily-insights',
+      icon: CalendarClock,
     },
     {
       label: 'Platform Management',

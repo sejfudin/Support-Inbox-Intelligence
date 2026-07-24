@@ -38,3 +38,15 @@ export const removeDailyEntry = async ({ dailyId, entryId }) => {
   const response = await apiClient.delete(`/dailies/${dailyId}/entries/${entryId}`);
   return response.data;
 };
+
+export const getWorkspaceDailyOverview = async ({ workspace, month }) => {
+  const response = await apiClient.get('/dailies/admin/overview', { params: { workspace, month } });
+  return response.data;
+};
+
+export const getMemberDailyEntry = async ({ workspace, member, date }) => {
+  const response = await apiClient.get('/dailies/admin/entry', {
+    params: { workspace, member, date },
+  });
+  return response.data;
+};

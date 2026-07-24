@@ -62,8 +62,30 @@ const deriveCounts = (entries = [], activeInternCount = 0) => {
   };
 };
 
+const MONTH_KEY_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+const isValidMonthKey = (key) => typeof key === 'string' && MONTH_KEY_PATTERN.test(key);
+
+const currentMonthKey = (now = new Date()) => {
+  const d = startOfDay(now);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+// First/last local calendar day of a 'YYYY-MM' month, as start-of-day Dates.
+const monthBounds = (monthKey) => {
+  const [year, month] = monthKey.split('-').map(Number);
+  const start = startOfDay(new Date(year, month - 1, 1));
+  const end = startOfDay(new Date(year, month, 0)); // day 0 of next month = last day of this one
+  return { start, end };
+};
+
 module.exports = {
   previousWorkingDay,
   isDailyEditable,
   deriveCounts,
+  startOfDay,
+  isWeekend,
+  isValidMonthKey,
+  currentMonthKey,
+  monthBounds,
 };
