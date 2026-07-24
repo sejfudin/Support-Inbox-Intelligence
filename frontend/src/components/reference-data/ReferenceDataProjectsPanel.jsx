@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ArrowLeft, Briefcase, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -252,6 +252,15 @@ export function ReferenceDataProjectsPanel() {
 
   const selectedProject = projects.find((project) => project._id === selectedId) || null;
 
+  // The list endpoint sorts alphabetically (best for the recommendation
+  // picker elsewhere), but this grid should surface newest projects first —
+  // at the top, filling left-to-right — so a project you just added doesn't
+  // land wherever its name happens to fall alphabetically.
+  const sortedProjects = useMemo(
+    () => [...projects].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    [projects]
+  );
+
   const openCreate = () => {
     setCreateForm(emptyForm);
     setCreateOpen(true);
@@ -321,7 +330,7 @@ export function ReferenceDataProjectsPanel() {
         <p className="py-8 text-center text-sm text-muted-foreground">No projects yet.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => (
+          {sortedProjects.map((project) => (
             <ProjectCard
               key={project._id}
               project={project}
