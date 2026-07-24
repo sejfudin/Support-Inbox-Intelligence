@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { AlertTriangle, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import {
   Select,
@@ -564,6 +564,76 @@ export function RecommendationDeleteDialog({
             data-test="recommendation-delete-confirm-button"
           >
             {isDeleting ? 'Deleting…' : 'Delete recommendation'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Confirm before pitching an intern who already has an open recommendation on
+ * another project. Soft warning only — create is still allowed after confirm.
+ */
+export function RecommendationDuplicateWarnDialog({
+  open,
+  internName,
+  existingProjectNames = [],
+  targetProjectName,
+  isSaving = false,
+  onCancel,
+  onConfirm,
+}) {
+  if (!open) return null;
+
+  const name = internName || 'This intern';
+  const existingLabel =
+    existingProjectNames.length === 0
+      ? 'another project'
+      : existingProjectNames.length === 1
+        ? existingProjectNames[0]
+        : `${existingProjectNames.slice(0, -1).join(', ')} and ${existingProjectNames.at(-1)}`;
+  const targetLabel = targetProjectName || 'another project';
+
+  return (
+    <Dialog open onOpenChange={(next) => !next && onCancel()}>
+      <DialogContent
+        hideCloseButton
+        className={cn(
+          'block max-w-[460px] gap-0 rounded-[20px] border-0 bg-white p-7 shadow-[0_24px_60px_rgba(20,24,40,.18)] sm:rounded-[20px] sm:p-7',
+          REC_FONT
+        )}
+        data-test="recommendation-duplicate-warn-dialog"
+      >
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-[#fef4e2]">
+          <AlertTriangle className="h-5 w-5 text-[#b06a05]" />
+        </div>
+        <DialogTitle className="mt-4 text-[18px] font-bold text-[#171b2b]">
+          Already recommended elsewhere
+        </DialogTitle>
+        <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-[#5b6175]">
+          <span className="font-bold text-[#171b2b]">{name}</span> is already recommended on{' '}
+          <span className="font-bold text-[#171b2b]">{existingLabel}</span>. Are you sure you want
+          to recommend them on <span className="font-bold text-[#171b2b]">{targetLabel}</span> as
+          well?
+        </DialogDescription>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className={BTN_SECONDARY_CLASS}
+            data-test="recommendation-duplicate-warn-cancel-button"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isSaving}
+            className={cn(BTN_PRIMARY_CLASS, isSaving && BTN_PRIMARY_DISABLED_CLASS)}
+            data-test="recommendation-duplicate-warn-confirm-button"
+          >
+            {isSaving ? 'Saving…' : 'Recommend anyway'}
           </button>
         </div>
       </DialogContent>
