@@ -3,7 +3,15 @@ const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
-const { isDailyEditable, deriveCounts } = require('../helpers/dailyRules');
+const {
+  isDailyEditable,
+  deriveCounts,
+  startOfDay,
+  isWeekend,
+  isValidMonthKey,
+  currentMonthKey,
+  monthBounds,
+} = require('../helpers/dailyRules');
 const { emitDailyChanged } = require('../socket/events');
 const { ROLES } = require('../constants/roles');
 
@@ -28,12 +36,6 @@ const DAILY_POPULATE = [
     populate: { path: 'status', select: LINKED_TICKET_STATUS_POPULATE_SELECT },
   },
 ];
-
-const startOfDay = (value) => {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
 
 const parseDateParam = (dateInput) => {
   if (!dateInput) {
@@ -262,6 +264,132 @@ const removeEntry = async ({ dailyId, entryId, user }) => {
   return populated;
 };
 
+// 'YYYY-MM-DD' using local calendar fields — deliberately not `toISOString()`,
+// which converts to UTC and can shift the date by a day depending on the
+// server's timezone offset relative to the local midnight these dates hold.
+const formatDateKey = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const buildMemberSummary = (intern) => ({
+  id: String(intern._id),
+  fullname: intern.fullname || '',
+  email: intern.email || '',
+});
+
+/**
+ * Admin-only, one workspace + one calendar month: today's reported/not-reported
+ * breakdown plus a per-intern day-by-day coverage grid. Derived from a single
+ * bounded Daily query (no per-day fetch) and the same active-intern roster the
+ * intern-facing header already uses as its "covered" denominator.
+ */
+const getWorkspaceDailyOverview = async ({ workspaceId, month, user }) => {
+  await assertWorkspaceAccess(workspaceId, user, 'Workspace not found');
+
+  const monthKey = isValidMonthKey(month) ? month : currentMonthKey();
+  const { start, end } = monthBounds(monthKey);
+  const today = startOfDay(new Date());
+  const rangeEnd = end.getTime() < today.getTime() ? end : today; // never show future days as missed
+
+  const [dailies, interns] = await Promise.all([
+    Daily.find({ workspace: workspaceId, date: { $gte: start, $lte: end } })
+      .select('date entries')
+      .lean(),
+    getActiveInterns(workspaceId),
+  ]);
+
+  const dailyByTime = new Map(dailies.map((d) => [startOfDay(d.date).getTime(), d]));
+  const todayDaily = dailyByTime.get(today.getTime());
+
+  const reported = [];
+  const missing = [];
+  for (const intern of interns) {
+    const entry = todayDaily?.entries.find((e) => String(e.member) === String(intern._id));
+    entry
+      ? reported.push({ ...buildMemberSummary(intern), reportedAt: entry.createdAt })
+      : missing.push(buildMemberSummary(intern));
+  }
+
+  const days = [];
+  const cursor = new Date(start);
+  while (cursor.getTime() <= rangeEnd.getTime()) {
+    days.push({
+      date: new Date(cursor),
+      weekend: isWeekend(cursor),
+      daily: dailyByTime.get(cursor.getTime()),
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const people = interns.map((intern) => {
+    const cells = {};
+    let reportedCount = 0;
+    let eligibleWorkingDays = 0;
+    for (const day of days) {
+      if (day.weekend) continue;
+      eligibleWorkingDays += 1;
+      const hasEntry = Boolean(
+        day.daily?.entries.some((e) => String(e.member) === String(intern._id))
+      );
+      cells[formatDateKey(day.date)] = hasEntry ? 'reported' : 'missed';
+      if (hasEntry) reportedCount += 1;
+    }
+    return {
+      ...buildMemberSummary(intern),
+      cells,
+      reportedCount,
+      eligibleWorkingDays,
+      rate: eligibleWorkingDays > 0 ? Math.round((reportedCount / eligibleWorkingDays) * 100) : 0,
+    };
+  });
+
+  const monthReported = people.reduce((sum, p) => sum + p.reportedCount, 0);
+  const monthEligible = people.reduce((sum, p) => sum + p.eligibleWorkingDays, 0);
+
+  return {
+    month: monthKey,
+    today: { date: formatDateKey(today), isWeekend: isWeekend(today), reported, missing },
+    stats: {
+      reportedToday: reported.length,
+      notReportedToday: missing.length,
+      totalInterns: interns.length,
+      coverageRate: monthEligible > 0 ? Math.round((monthReported / monthEligible) * 100) : 0,
+      openBlockers: deriveCounts(todayDaily?.entries ?? [], interns.length).blockers,
+    },
+    coverage: {
+      days: days.map((day) => ({ date: formatDateKey(day.date), weekend: day.weekend })),
+      people,
+    },
+  };
+};
+
+/**
+ * One member's standup for one date (admin-only) — powers the coverage-grid /
+ * today-card click-through popup. The caller already has the member's name
+ * from the overview data it clicked on, so this returns only the entry itself.
+ */
+const getMemberDailyEntry = async ({ workspaceId, memberId, date, user }) => {
+  if (!memberId) {
+    throw new DailyValidationError('A member is required.');
+  }
+  await assertWorkspaceAccess(workspaceId, user, 'Workspace not found');
+
+  const targetDate = parseDateParam(date);
+  const daily = await populateDaily(Daily.findOne({ workspace: workspaceId, date: targetDate }));
+  const entry = daily?.entries.find((e) => String(e.member?._id ?? e.member) === String(memberId));
+
+  if (!entry) {
+    return { reported: false };
+  }
+
+  return {
+    reported: true,
+    reportedAt: entry.createdAt,
+    done: entry.done,
+    todo: entry.todo,
+    blockers: entry.blockers,
+  };
+};
+
 module.exports = {
   DailyValidationError,
   getDaily,
@@ -270,5 +398,8 @@ module.exports = {
   addEntry,
   updateEntry,
   removeEntry,
+  getActiveInterns,
   getActiveInternMemberIds,
+  getWorkspaceDailyOverview,
+  getMemberDailyEntry,
 };

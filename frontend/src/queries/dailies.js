@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
   getDaily,
   getDailyHistory,
@@ -6,6 +6,8 @@ import {
   addDailyEntry,
   updateDailyEntry,
   removeDailyEntry,
+  getWorkspaceDailyOverview,
+  getMemberDailyEntry,
 } from '@/api/dailies';
 import { invalidateWorkspaceDailiesScope } from '@/lib/invalidationScopes';
 
@@ -68,5 +70,26 @@ export const useRemoveDailyEntry = (workspaceId) => {
     onSuccess: () => {
       invalidateWorkspaceDailiesScope(queryClient, workspaceId);
     },
+  });
+};
+
+// Admin-only. Key stays under the same ['dailies', workspaceId, ...] prefix so it
+// rides the existing workspace-dailies socket invalidation scope for free.
+export const useWorkspaceDailyOverview = (workspaceId, month, options = {}) => {
+  return useQuery({
+    queryKey: ['dailies', workspaceId, 'overview', month],
+    queryFn: () => getWorkspaceDailyOverview({ workspace: workspaceId, month }),
+    enabled: !!workspaceId && !!month,
+    placeholderData: keepPreviousData,
+    ...options,
+  });
+};
+
+export const useMemberDailyEntry = (workspaceId, memberId, date, options = {}) => {
+  return useQuery({
+    queryKey: ['dailies', workspaceId, 'entry', memberId, date],
+    queryFn: () => getMemberDailyEntry({ workspace: workspaceId, member: memberId, date }),
+    enabled: !!workspaceId && !!memberId && !!date,
+    ...options,
   });
 };

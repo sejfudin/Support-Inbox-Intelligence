@@ -1,4 +1,11 @@
-const { previousWorkingDay, isDailyEditable, deriveCounts } = require('./dailyRules');
+const {
+  previousWorkingDay,
+  isDailyEditable,
+  deriveCounts,
+  isValidMonthKey,
+  currentMonthKey,
+  monthBounds,
+} = require('./dailyRules');
 
 // Fixed calendar anchors (local midnight, month is 0-indexed):
 //   Fri 2026-01-02, Mon 2026-01-05, Tue 2026-01-06, Wed 2026-01-07
@@ -77,5 +84,46 @@ describe('deriveCounts', () => {
 
   it('defaults the active-intern total to zero when omitted', () => {
     expect(deriveCounts([]).covered).toEqual({ present: 0, total: 0 });
+  });
+});
+
+describe('isValidMonthKey', () => {
+  it('accepts a well-formed month key', () => {
+    expect(isValidMonthKey('2026-01')).toBe(true);
+    expect(isValidMonthKey('2026-12')).toBe(true);
+  });
+
+  it('rejects malformed or out-of-range keys', () => {
+    expect(isValidMonthKey('2026-00')).toBe(false);
+    expect(isValidMonthKey('2026-13')).toBe(false);
+    expect(isValidMonthKey('2026-1')).toBe(false);
+    expect(isValidMonthKey(null)).toBe(false);
+    expect(isValidMonthKey(undefined)).toBe(false);
+  });
+});
+
+describe('currentMonthKey', () => {
+  it('formats the given date as YYYY-MM', () => {
+    expect(currentMonthKey(WEDNESDAY)).toBe('2026-01');
+  });
+});
+
+describe('monthBounds', () => {
+  it('returns the first and last day of the month', () => {
+    const { start, end } = monthBounds('2026-01');
+    expect(start.getTime()).toBe(new Date(2026, 0, 1).getTime());
+    expect(end.getTime()).toBe(new Date(2026, 0, 31).getTime());
+  });
+
+  it('handles a December → January rollover correctly', () => {
+    const { start, end } = monthBounds('2025-12');
+    expect(start.getTime()).toBe(new Date(2025, 11, 1).getTime());
+    expect(end.getTime()).toBe(new Date(2025, 11, 31).getTime());
+  });
+
+  it('handles a leap-year February', () => {
+    const { start, end } = monthBounds('2028-02');
+    expect(start.getTime()).toBe(new Date(2028, 1, 1).getTime());
+    expect(end.getTime()).toBe(new Date(2028, 1, 29).getTime());
   });
 });

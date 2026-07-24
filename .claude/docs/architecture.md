@@ -39,7 +39,10 @@ AI: `AISummary`.
 - `Daily` — one standup record per `(workspace, date)` (unique compound index), with embedded
   `entries` (one per reporting intern: `done`/`todo` text lists + `blockers`, each blocker an
   optional `linkedTicket` ref scoped to the same workspace). Pure edit-window/derived-count logic
-  lives in `server/helpers/dailyRules.js`. See ADR-0001.
+  lives in `server/helpers/dailyRules.js`. An admin-only cross-workspace reporting overview
+  (`getWorkspaceDailyOverview`/`getMemberDailyEntry` in `dailyService.js`, routed at
+  `/api/dailies/admin/*`) derives a calendar-month reporting-coverage grid and per-member entry
+  detail from the same documents — no new schema. See ADR-0001.
 
 ## Auth flow
 

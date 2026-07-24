@@ -111,6 +111,39 @@ const removeEntry = async (req, res, next) => {
   }
 };
 
+const getWorkspaceDailyOverview = async (req, res, next) => {
+  try {
+    const { workspace, month } = req.query;
+
+    const overview = await dailyService.getWorkspaceDailyOverview({
+      workspaceId: workspace,
+      month,
+      user: req.user,
+    });
+
+    res.status(200).json({ success: true, message: 'Daily overview fetched', data: overview });
+  } catch (error) {
+    handleDailyError(error, res, next);
+  }
+};
+
+const getMemberDailyEntry = async (req, res, next) => {
+  try {
+    const { workspace, member, date } = req.query;
+
+    const entry = await dailyService.getMemberDailyEntry({
+      workspaceId: workspace,
+      memberId: member,
+      date,
+      user: req.user,
+    });
+
+    res.status(200).json({ success: true, message: 'Member daily entry fetched', data: entry });
+  } catch (error) {
+    handleDailyError(error, res, next);
+  }
+};
+
 module.exports = {
   getDaily,
   getDailyHistory,
@@ -118,4 +151,6 @@ module.exports = {
   addEntry,
   updateEntry,
   removeEntry,
+  getWorkspaceDailyOverview,
+  getMemberDailyEntry,
 };

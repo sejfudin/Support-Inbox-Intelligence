@@ -17,6 +17,7 @@
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth)
 - Only role that can set readiness (by technology or by position) for an intern
 - Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
+- Only role that can view the per-workspace Daily standup reporting dashboard (who reported today, calendar-month coverage grid, open blockers) — a read-only compliance view, not a data-entry surface
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
 - Manages documentation links on intern profiles

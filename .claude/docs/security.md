@@ -80,6 +80,12 @@ modal) are **admin-only** (`requireRole(ADMIN)`) — mentors have no attendance 
 workspace-scoped (intern domain). The check-in time-window is enforced server-side
 (`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock.
 
+Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/admin/entry` are
+`requireRole(ADMIN)`-guarded, cross-workspace reads (the workspace is passed explicitly via
+`?workspace=`, same admin-bypass `assertWorkspaceAccess` grants elsewhere in this file) — no
+mentor or intern surface, unlike the other `/api/dailies` routes which reuse `resolveWorkspaceId`'s
+ambient admin override. Read-only; derives everything live from existing `Daily` documents.
+
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.
