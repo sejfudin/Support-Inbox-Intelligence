@@ -30,15 +30,21 @@ const toKey = (date) => format(date, 'yyyy-MM-dd');
  * Classify a single calendar day.
  * @param {Date} date
  * @param {Set<string>} presentKeys - 'yyyy-MM-dd' the intern checked in
- * @param {Set<string>} [cancelledKeys] - 'yyyy-MM-dd' the intern cancelled (locked absent)
+ * @param {Set<string>} [cancelledKeys] - 'yyyy-MM-dd' the intern cancelled
  * @param {Date} [now]
  */
 export const classifyDay = (date, presentKeys, cancelledKeys = new Set(), now = new Date()) => {
   const key = toKey(date);
   if (presentKeys.has(key)) return DAY_STATUS.PRESENT;
   if (isWeekend(date)) return DAY_STATUS.WEEKEND;
-  // A cancelled day is locked absent even if it's today.
-  if (cancelledKeys.has(key)) return DAY_STATUS.ABSENT;
+  // Cancelled today while the window is still open (or not yet open) can be
+  // re-checked-in — treat as pending, not locked absent.
+  if (cancelledKeys.has(key)) {
+    if (isToday(date) && checkInWindowState(now) !== 'closed') {
+      return DAY_STATUS.TODAY_PENDING;
+    }
+    return DAY_STATUS.ABSENT;
+  }
   if (isToday(date)) {
     // Once the check-in window closes, a no-show today is absent, not pending.
     return checkInWindowState(now) === 'closed' ? DAY_STATUS.ABSENT : DAY_STATUS.TODAY_PENDING;
@@ -119,7 +125,7 @@ export const todayRecord = (records = []) => {
 
 export const isCheckedInToday = (records = []) => Boolean(todayRecord(records));
 
-/** Whether the intern cancelled today's check-in (locked absent, no re-check-in). */
+/** Whether the intern cancelled today's check-in (may still re-check-in while open). */
 export const isCancelledToday = (cancelledDates = []) => cancelledDates.includes(toKey(new Date()));
 
 // Check-in is only open 07:00–11:00 office time (Europe/Sarajevo), regardless of

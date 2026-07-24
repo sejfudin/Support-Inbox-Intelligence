@@ -2,18 +2,14 @@ import { isWeekend } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { isIntern } from '@/helpers/roles';
 import { useMyAttendance } from '@/queries/attendance';
-import {
-  isCheckedInToday,
-  isCancelledToday,
-  checkInWindowState,
-  CHECK_IN_WINDOW_LABEL,
-} from '@/helpers/attendance';
+import { isCheckedInToday, checkInWindowState, CHECK_IN_WINDOW_LABEL } from '@/helpers/attendance';
 
 /**
  * Whether the signed-in intern still needs to check in today, and a message for
  * the reminder banner + bell notification. The reminder is "active" only for
- * interns, while the check-in window is open, and before they've checked in or
- * cancelled. It clears automatically once any of those change.
+ * interns, while the check-in window is open, and before they've checked in
+ * (including after a cancel/uncheck). It clears automatically once they check in
+ * or the window closes.
  *
  * @returns {{ active: boolean, title: string, body: string, windowLabel: string }}
  */
@@ -25,15 +21,10 @@ export function useCheckInReminder() {
   const { data } = useMyAttendance({ enabled: intern });
 
   const records = data?.records ?? [];
-  const cancelledDates = data?.cancelledDates ?? [];
 
   const windowState = checkInWindowState();
   const active =
-    intern &&
-    !isWeekend(new Date()) &&
-    windowState === 'open' &&
-    !isCheckedInToday(records) &&
-    !isCancelledToday(cancelledDates);
+    intern && !isWeekend(new Date()) && windowState === 'open' && !isCheckedInToday(records);
 
   return {
     active,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Briefcase, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -93,16 +93,21 @@ function ProjectCard({ project, onOpen }) {
     <button
       type="button"
       onClick={onOpen}
-      className="flex flex-col items-start gap-3 rounded-2xl border border-border/70 bg-card p-5 text-left transition hover:border-border hover:shadow-sm"
+      className="group flex flex-col items-start gap-3 rounded-[1.5rem] border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 p-5 text-left shadow-elevated transition-all hover:-translate-y-1 hover:shadow-elevated"
       data-test={`platform-management-projects-card-${project._id}`}
     >
-      <StatusBadge status={project.status} />
-      <div>
-        <h3 className="font-semibold text-foreground">{project.name}</h3>
-        {project.client && <p className="text-sm text-muted-foreground">{project.client}</p>}
+      <div className="flex w-full items-start justify-between gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <Briefcase className="h-5 w-5" />
+        </div>
+        <StatusBadge status={project.status} />
+      </div>
+      <div className="min-w-0">
+        <h3 className="truncate font-semibold text-foreground">{project.name}</h3>
+        {project.client && <p className="mt-0.5 text-xs text-muted-foreground">{project.client}</p>}
       </div>
       {project.description && (
-        <p className="line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
+        <p className="line-clamp-2 text-xs text-muted-foreground">{project.description}</p>
       )}
       {project.technologies?.length > 0 && (
         <TechnologyViewChips technologies={project.technologies} />
