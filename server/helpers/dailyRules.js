@@ -109,11 +109,15 @@ const currentMonthKey = (now = new Date()) => {
   return `${year}-${month}`;
 };
 
-// First/last local calendar day of a 'YYYY-MM' month, as start-of-day Dates.
+// First/last business-timezone calendar day of a 'YYYY-MM' month, as
+// start-of-day Dates. Seeds startOfDay() with noon UTC, not a host-local
+// `new Date(year, month, day)` — on a host far enough ahead of Sarajevo
+// (e.g. Asia/Tokyo, UTC+9), host-local midnight can land a calendar day
+// earlier once reinterpreted in Sarajevo, shifting the whole range back a day.
 const monthBounds = (monthKey) => {
   const [year, month] = monthKey.split('-').map(Number);
-  const start = startOfDay(new Date(year, month - 1, 1));
-  const end = startOfDay(new Date(year, month, 0)); // day 0 of next month = last day of this one
+  const start = startOfDay(new Date(Date.UTC(year, month - 1, 1, 12)));
+  const end = startOfDay(new Date(Date.UTC(year, month, 0, 12))); // day 0 of next month = last day of this one
   return { start, end };
 };
 

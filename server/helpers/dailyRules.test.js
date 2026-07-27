@@ -5,16 +5,26 @@ const {
   isValidMonthKey,
   currentMonthKey,
   monthBounds,
+  startOfDay,
 } = require('./dailyRules');
 
-// Fixed calendar anchors (local midnight, month is 0-indexed):
+// Business-timezone (Europe/Sarajevo) midnight for a calendar day, built the
+// same principled way the implementation computes it — not a raw host-local
+// `new Date(y, m, d)`, which passes on a machine in Sarajevo's timezone but
+// silently drifts on any other host (CI/Render run UTC): 6 of these tests
+// failed under TZ=UTC before this fixture switched to startOfDay(). Noon UTC
+// as the seed keeps the day unambiguous going into startOfDay's timezone
+// conversion (Sarajevo's offset is at most ±2h from UTC).
+const businessDay = (year, month, day) => startOfDay(new Date(Date.UTC(year, month, day, 12)));
+
+// Fixed calendar anchors (month is 0-indexed):
 //   Fri 2026-01-02, Mon 2026-01-05, Tue 2026-01-06, Wed 2026-01-07
-const FRIDAY = new Date(2026, 0, 2);
-const SATURDAY = new Date(2026, 0, 3);
-const SUNDAY = new Date(2026, 0, 4);
-const MONDAY = new Date(2026, 0, 5);
-const TUESDAY = new Date(2026, 0, 6);
-const WEDNESDAY = new Date(2026, 0, 7);
+const FRIDAY = businessDay(2026, 0, 2);
+const SATURDAY = businessDay(2026, 0, 3);
+const SUNDAY = businessDay(2026, 0, 4);
+const MONDAY = businessDay(2026, 0, 5);
+const TUESDAY = businessDay(2026, 0, 6);
+const WEDNESDAY = businessDay(2026, 0, 7);
 
 describe('previousWorkingDay', () => {
   it('maps Monday back to the prior Friday (skips the weekend)', () => {
@@ -52,8 +62,10 @@ describe('isDailyEditable', () => {
   });
 
   it('ignores the time-of-day component (start-of-day comparison)', () => {
-    const wednesdayLate = new Date(2026, 0, 7, 23, 59, 59);
-    const wednesdayEarly = new Date(2026, 0, 7, 8, 0, 0);
+    // Offsets from WEDNESDAY's own start-of-day instant, not a fresh
+    // host-local `new Date(2026, 0, 7, h, m, s)` literal.
+    const wednesdayLate = new Date(WEDNESDAY.getTime() + (23 * 60 + 59) * 60 * 1000 + 59 * 1000);
+    const wednesdayEarly = new Date(WEDNESDAY.getTime() + 8 * 60 * 60 * 1000);
     expect(isDailyEditable(wednesdayLate, wednesdayEarly)).toBe(true);
   });
 });
@@ -111,19 +123,19 @@ describe('currentMonthKey', () => {
 describe('monthBounds', () => {
   it('returns the first and last day of the month', () => {
     const { start, end } = monthBounds('2026-01');
-    expect(start.getTime()).toBe(new Date(2026, 0, 1).getTime());
-    expect(end.getTime()).toBe(new Date(2026, 0, 31).getTime());
+    expect(start.getTime()).toBe(businessDay(2026, 0, 1).getTime());
+    expect(end.getTime()).toBe(businessDay(2026, 0, 31).getTime());
   });
 
   it('handles a December → January rollover correctly', () => {
     const { start, end } = monthBounds('2025-12');
-    expect(start.getTime()).toBe(new Date(2025, 11, 1).getTime());
-    expect(end.getTime()).toBe(new Date(2025, 11, 31).getTime());
+    expect(start.getTime()).toBe(businessDay(2025, 11, 1).getTime());
+    expect(end.getTime()).toBe(businessDay(2025, 11, 31).getTime());
   });
 
   it('handles a leap-year February', () => {
     const { start, end } = monthBounds('2028-02');
-    expect(start.getTime()).toBe(new Date(2028, 1, 1).getTime());
-    expect(end.getTime()).toBe(new Date(2028, 1, 29).getTime());
+    expect(start.getTime()).toBe(businessDay(2028, 1, 1).getTime());
+    expect(end.getTime()).toBe(businessDay(2028, 1, 29).getTime());
   });
 });
