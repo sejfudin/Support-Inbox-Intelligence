@@ -46,8 +46,10 @@ npm run format:check # check
 
 ## Seeding — DANGEROUS
 
-All three seeders destroy or overwrite data. Never run one against a non-local database
-without knowing exactly which one you are pointed at.
+The three dataset seeders (`seed`, `seed:test`, `seed:demo`) destroy or overwrite data. Never
+run one against a non-local database without knowing exactly which one you are pointed at. The
+reference-data scripts (`seed:positions`, `seed:technologies`) only upsert missing catalog rows
+and are safe anywhere.
 
 ```bash
 # server/
@@ -55,6 +57,7 @@ npm run seed:demo   # RECOMMENDED — coherent demo dataset (see below)
 npm run seed        # destructive reset + demo workspace + admin@test.com / mentor@test.com
 npm run seed:test   # richer dataset (Symphony staff + interns, password: "password")
 npm run seed:positions
+npm run seed:technologies    # NON-destructive — adds missing technologies only, see below
 npm run backfill:intern-positions
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
@@ -108,9 +111,31 @@ Demo accounts (after seeding): full table in `README.md` ("Demo accounts").
 - `admin@test.com` / `admin123`, `mentor@test.com` / `mentor123` (from `seed`).
 - `*@symphony.is` accounts / `password` (from `seed:test`).
 
+### `npm run seed:technologies` — safe on any environment
+
+The odd one out: **non-destructive**. It upserts `seeder/defaultTechnologies.js` with
+`$setOnInsert`, so it only ever *adds* technologies that are missing — it never renames,
+reactivates or removes an existing one, and touches no other collection. Like `seed:demo` it
+loads `.env.${NODE_ENV|development}`.
+
+Run it after adding entries to `defaultTechnologies.js`; the alternative is the destructive
+`npm run seed`, which you do not want to point at a shared database.
+
+```bash
+npm run seed:technologies -- --dry-run   # list what would be added, change nothing
+npm run seed:technologies                # add the missing technologies
+```
+
+The catalog is what bounds CV scanning — `helpers/cvTechnologyMatcher.js` can only ever
+recognize technologies that already exist as `Technology` documents. Adding a technology means
+three files in one change: the catalog entry, its CV aliases in the matcher, and (optionally) a
+brand logo in `frontend/src/helpers/technologyIcons.jsx`.
+
 ## Verifying a change
 
-No test suite exists. To confirm a change works, drive the real app:
+Jest covers a few pure helpers only (`npm test` in `server/` — `slugify`, `dailyRules`,
+`cvTechnologyMatcher`). There is no integration or UI test suite, so passing tests never means a
+feature works. To confirm a change works, drive the real app:
 
 - Use `/run` to launch, `/verify` to exercise the affected flow end-to-end.
 - Playwright MCP browser tools are permitted for UI verification.
