@@ -215,16 +215,20 @@ const castTicketQueryForAggregate = (query) => {
   return mongooseQuery.getFilter();
 };
 
+// Every branch ends with `_id: -1`. The named keys all tie (`dueDate` is often
+// null, `updatedAt` ties across a bulk write), and Mongo's sort is not stable
+// for tied keys — so without a unique final key, skip/limit paging can show the
+// same ticket on two pages and never show another.
 const buildTicketListSort = (sortBy = 'dueDate', sortOrder = 'desc') => {
   const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : 'dueDate';
   const dir = sortOrder === 'asc' ? 1 : -1;
   if (field === 'dueDate') {
-    return { dueDate: dir, updatedAt: -1 };
+    return { dueDate: dir, updatedAt: -1, _id: -1 };
   }
   if (field === 'taskNumber') {
-    return { taskNumber: dir, updatedAt: -1 };
+    return { taskNumber: dir, updatedAt: -1, _id: -1 };
   }
-  return { updatedAt: dir };
+  return { updatedAt: dir, _id: -1 };
 };
 
 const ensureAssignableUsersBelongToWorkspace = async ({ workspaceId, assignedTo = [] }) => {
@@ -371,6 +375,7 @@ const getAllTickets = async ({
     const mongoSort = {
       priorityRank: normalizedOrder === 'desc' ? -1 : 1,
       updatedAt: -1,
+      _id: -1, // unique tiebreaker — see buildTicketListSort
     };
 
     const aggregateMatch = castTicketQueryForAggregate(query);
@@ -919,6 +924,7 @@ const getMyTickets = async ({
       : {
           priorityRank: normalizedOrder === 'desc' ? -1 : 1,
           updatedAt: -1,
+          _id: -1, // unique tiebreaker — see buildTicketListSort
         };
 
   const sortSpec = buildTicketListSort(sortBy, sortOrder);

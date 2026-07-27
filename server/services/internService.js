@@ -129,7 +129,10 @@ const listInterns = async (user, query = {}) => {
   const [profiles, total] = await Promise.all([
     InternProfile.find(fullFilter)
       .populate(PROFILE_POPULATE)
-      .sort({ startDate: -1 })
+      // `_id` tiebreaker: a whole cohort routinely shares one `startDate`, and
+      // Mongo's sort is not stable for ties — without it, paging can repeat one
+      // intern across pages and drop another entirely.
+      .sort({ startDate: -1, _id: -1 })
       .skip(skip)
       .limit(limit),
     InternProfile.countDocuments(fullFilter),

@@ -26,6 +26,9 @@ and especially ../.claude/docs/security.md (authz is the top risk here).
 which can point at a **different** database (both are dev clusters here, but don't assume that's
 always true). When writing a new seeder/migration script, load env the same way `index.js` does
 so it hits the database you're actually testing against — don't copy the plain-`.env` pattern.
+`seeder/seedDemoData.js` is the reference for getting this right (it also captures the env
+filename _before_ the load, because `.env.development` itself sets `NODE_ENV=staging` — so
+anything reading `NODE_ENV` after the load gets a misleading value; never branch on it).
 
 ## Rules specific to server
 

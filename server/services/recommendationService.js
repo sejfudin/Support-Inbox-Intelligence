@@ -431,7 +431,10 @@ const listRecommendations = async (user, query = {}) => {
   const [recommendations, total] = await Promise.all([
     Recommendation.find(filter)
       .populate(RECOMMENDATION_POPULATE)
-      .sort({ updatedAt: -1 })
+      // `_id` tiebreaker — `updatedAt` ties across anything touched in the same
+      // bulk write, and Mongo's sort is not stable, so paging would repeat and
+      // drop rows.
+      .sort({ updatedAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit),
     Recommendation.countDocuments(filter),
