@@ -121,11 +121,24 @@ const monthBounds = (monthKey) => {
   return { start, end };
 };
 
+// 'YYYY-MM-DD' in BUSINESS_TIMEZONE — not `date.getFullYear()/getMonth()/
+// getDate()`, which read host-local calendar fields and can name the wrong
+// day when `date` is already a startOfDay() instant sitting near a UTC
+// boundary (22:00/23:00Z). This is what backed the day-by-day grid's date
+// labels drifting a day behind their (correctly computed) weekend flag on a
+// host in a different timezone from Sarajevo.
+const formatDateKey = (date) => {
+  const { year, month, day } = businessDateParts(date);
+  return `${year}-${month}-${day}`;
+};
+
 module.exports = {
+  MS_PER_DAY,
   previousWorkingDay,
   isDailyEditable,
   deriveCounts,
   startOfDay,
+  formatDateKey,
   isWeekend,
   isValidMonthKey,
   currentMonthKey,
