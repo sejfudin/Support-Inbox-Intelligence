@@ -30,15 +30,21 @@ const toKey = (date) => format(date, 'yyyy-MM-dd');
  * Classify a single calendar day.
  * @param {Date} date
  * @param {Set<string>} presentKeys - 'yyyy-MM-dd' the intern checked in
- * @param {Set<string>} [cancelledKeys] - 'yyyy-MM-dd' the intern cancelled (locked absent)
+ * @param {Set<string>} [cancelledKeys] - 'yyyy-MM-dd' the intern cancelled
  * @param {Date} [now]
  */
 export const classifyDay = (date, presentKeys, cancelledKeys = new Set(), now = new Date()) => {
   const key = toKey(date);
   if (presentKeys.has(key)) return DAY_STATUS.PRESENT;
   if (isWeekend(date)) return DAY_STATUS.WEEKEND;
-  // A cancelled day is locked absent even if it's today.
-  if (cancelledKeys.has(key)) return DAY_STATUS.ABSENT;
+  // Cancelled today while the window is still open (or not yet open) can be
+  // re-checked-in — treat as pending, not locked absent.
+  if (cancelledKeys.has(key)) {
+    if (isToday(date) && checkInWindowState(now) !== 'closed') {
+      return DAY_STATUS.TODAY_PENDING;
+    }
+    return DAY_STATUS.ABSENT;
+  }
   if (isToday(date)) {
     // Once the check-in window closes, a no-show today is absent, not pending.
     return checkInWindowState(now) === 'closed' ? DAY_STATUS.ABSENT : DAY_STATUS.TODAY_PENDING;
@@ -96,26 +102,6 @@ export const computeStreak = (records = []) => {
   return streak;
 };
 
-/**
- * Attendance for the CURRENT month, counted only over working days that have
- * already elapsed (today inclusive). Future days in the month don't count
- * against the rate. Returns { rate, present, workingDaysElapsed }.
- * @param {Array<{date:string}>} records
- * @param {Date} [now]
- */
-export const currentMonthAttendance = (records = [], now = new Date()) => {
-  const presentKeys = new Set(records.map((r) => r.date));
-  const start = startOfMonth(now);
-  const today = startOfDay(now);
-
-  const elapsedWorkingDays = eachDayOfInterval({ start, end: today }).filter((d) => !isWeekend(d));
-  const workingDaysElapsed = elapsedWorkingDays.length;
-  const present = elapsedWorkingDays.filter((d) => presentKeys.has(toKey(d))).length;
-  const rate = workingDaysElapsed === 0 ? 0 : Math.round((present / workingDaysElapsed) * 100);
-
-  return { rate, present, workingDaysElapsed };
-};
-
 /** Badge variant for an attendance rate. */
 export const attendanceRateTone = (rate) => {
   if (rate >= 90) return 'success';
@@ -139,23 +125,35 @@ export const todayRecord = (records = []) => {
 
 export const isCheckedInToday = (records = []) => Boolean(todayRecord(records));
 
-/** Whether the intern cancelled today's check-in (locked absent, no re-check-in). */
+/** Whether the intern cancelled today's check-in (may still re-check-in while open). */
 export const isCancelledToday = (cancelledDates = []) => cancelledDates.includes(toKey(new Date()));
 
-// Check-in is only open 07:00–11:00 (office timezone). This mirrors the
-// server-enforced rule for UX only — the backend is the source of truth.
+// Check-in is only open 07:00–11:00 office time (Europe/Sarajevo), regardless of
+// where the browser is. This mirrors server/helpers/attendanceTime.js for UX only
+// — the backend is the source of truth and enforces the same window server-side.
+const OFFICE_TIMEZONE = 'Europe/Sarajevo';
 export const CHECK_IN_WINDOW = Object.freeze({ startHour: 7, endHour: 11 });
 export const CHECK_IN_WINDOW_LABEL = '07:00–11:00';
 
-/** Whether `now` falls within the daily check-in window. */
+/** Office-local hour (0–23) for `date`. */
+const officeHour = (date = new Date()) => {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: OFFICE_TIMEZONE,
+    hour: '2-digit',
+    hourCycle: 'h23',
+  });
+  return Number(fmt.format(date));
+};
+
+/** Whether `now` falls within the daily check-in window (office time). */
 export const isWithinCheckInWindow = (now = new Date()) => {
-  const h = now.getHours();
+  const h = officeHour(now);
   return h >= CHECK_IN_WINDOW.startHour && h < CHECK_IN_WINDOW.endHour;
 };
 
-/** Window state relative to `now`: 'before' | 'open' | 'closed'. */
+/** Window state relative to `now`, in office time: 'before' | 'open' | 'closed'. */
 export const checkInWindowState = (now = new Date()) => {
-  const h = now.getHours();
+  const h = officeHour(now);
   if (h < CHECK_IN_WINDOW.startHour) return 'before';
   if (h < CHECK_IN_WINDOW.endHour) return 'open';
   return 'closed';

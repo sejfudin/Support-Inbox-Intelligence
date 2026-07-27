@@ -1,41 +1,21 @@
 /**
- * Attendance API layer.
+ * Attendance API layer. Talks to the real backend (server/routes/attendance.js).
  *
- * ⚠️ FRONTEND-ONLY SHOWCASE: this currently returns mock data (see
- * `@/mocks/attendance`). The functions are shaped exactly like the rest of the
- * `api/*` layer so that switching to the real backend is a drop-in change:
- * uncomment the `apiClient` calls, delete the mock branch, and remove the mock
- * import. Each function's docstring documents its endpoint + response shape.
- *
- * Backend rules to enforce server-side (not the client): check-in is only open
- * 07:00–11:00 office time and only from the office network IP allowlist; a
- * cancelled day is locked as absent and cannot be re-checked-in. After the real
- * endpoints exist, delete `@/mocks/attendance` and this mock branch.
+ * Server enforces the rules the client only hints at: check-in is open 07:00–11:00
+ * office time on weekdays, and that window is the only thing that closes a day —
+ * a cancelled day can be re-checked-in while it is still open. The office-network
+ * IP allowlist is a later, optional server-side guard.
  */
 
-// import apiClient from '@/api/axios';
-import {
-  ATTENDANCE_MOCK_ENABLED,
-  getMyMockAttendance,
-  checkInMock,
-  cancelCheckInMock,
-  getMockRoster,
-} from '@/mocks/attendance';
-
-// Simulate network latency so loading states are visible in the demo.
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+import apiClient from '@/api/axios';
 
 /**
  * GET /api/attendance/me
- * → { records: [{ date, checkedInAt }], presentDays, workingDays, attendanceRate }
+ * → { records: [{ date, checkedInAt }], cancelledDates, presentDays, workingDays, attendanceRate }
  */
 export const fetchMyAttendance = async () => {
-  if (ATTENDANCE_MOCK_ENABLED) {
-    await delay(300);
-    return getMyMockAttendance();
-  }
-  // const { data } = await apiClient.get('/attendance/me');
-  // return data.attendance;
+  const { data } = await apiClient.get('/attendance/me');
+  return data.data.attendance;
 };
 
 /**
@@ -44,50 +24,40 @@ export const fetchMyAttendance = async () => {
  * → updated attendance summary (same shape as fetchMyAttendance)
  */
 export const checkInToday = async () => {
-  if (ATTENDANCE_MOCK_ENABLED) {
-    await delay(400);
-    return checkInMock();
-  }
-  // const { data } = await apiClient.post('/attendance/me/check-in');
-  // return data.attendance;
+  const { data } = await apiClient.post('/attendance/me/check-in');
+  return data.data.attendance;
 };
 
 /**
  * DELETE /api/attendance/me/check-in
- * Cancels today's check-in. This is a one-way action: the day is locked as
- * absent and the intern cannot check in again for the rest of the day.
+ * Cancels today's check-in, unchecking the day. The intern can check in again
+ * while the window is open; after it closes the day reads as absent.
  * → updated attendance summary (same shape as fetchMyAttendance)
  */
 export const cancelTodayCheckIn = async () => {
-  if (ATTENDANCE_MOCK_ENABLED) {
-    await delay(400);
-    return cancelCheckInMock();
-  }
-  // const { data } = await apiClient.delete('/attendance/me/check-in');
-  // return data.attendance;
+  const { data } = await apiClient.delete('/attendance/me/check-in');
+  return data.data.attendance;
 };
 
 /**
- * GET /api/attendance  (mentor/admin — read-only roster)
- * → { roster: [{ intern, records, presentDays, workingDays, attendanceRate, lastCheckIn }] }
- * Supports optional { search, hub } filtering server-side; here we filter client-side.
+ * GET /api/attendance  (admin — read-only roster for one month)
+ * → { month, roster: [{ intern, records, cancelledDates, presentDays, workingDays, attendanceRate, lastCheckIn }] }
+ * Admin-only. Supports optional { month, search, hub } filtering server-side.
  */
 export const fetchAttendanceRoster = async (params = {}) => {
-  if (ATTENDANCE_MOCK_ENABLED) {
-    await delay(350);
-    let roster = getMockRoster();
-    const { search, hub } = params;
-    if (search) {
-      const q = search.toLowerCase();
-      roster = roster.filter(
-        (r) =>
-          r.intern.fullname.toLowerCase().includes(q) ||
-          r.intern.email.toLowerCase().includes(q)
-      );
-    }
-    if (hub) roster = roster.filter((r) => r.intern.hub === hub);
-    return { roster };
-  }
-  // const { data } = await apiClient.get('/attendance', { params });
-  // return data;
+  const { data } = await apiClient.get('/attendance', { params });
+  return data.data;
+};
+
+/**
+ * GET /api/attendance/:internProfileId?month=YYYY-MM  (admin)
+ * One intern's full attendance history for the calendar modal; `month` selects
+ * the stat block (defaults server-side to the current month).
+ * → { intern: { id, fullname, email, hub }, records, cancelledDates, month }
+ */
+export const fetchInternAttendance = async (internProfileId, month) => {
+  const { data } = await apiClient.get(`/attendance/${internProfileId}`, {
+    params: month ? { month } : undefined,
+  });
+  return data.data.attendance;
 };

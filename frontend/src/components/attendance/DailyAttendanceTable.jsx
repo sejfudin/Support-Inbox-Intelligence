@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   internStatusOnDate,
   dayStatusLabel,
@@ -10,11 +11,11 @@ import {
 } from '@/helpers/attendance';
 
 /**
- * Read-only per-intern attendance status for a single day (mentor "Today" tab,
- * with a day picker so any date can be inspected).
+ * Read-only per-intern attendance status for a single day (admin "By day" tab,
+ * with a day picker so any weekday in the selected month can be inspected).
  * @param {{ roster: Array<object>, date: string }} props - date is 'yyyy-MM-dd'
  */
-export default function DailyAttendanceTable({ roster = [], date }) {
+export default function DailyAttendanceTable({ roster = [], date, onSelectIntern }) {
   const day = useMemo(() => (date ? parseISO(date) : new Date()), [date]);
 
   const rows = useMemo(
@@ -60,7 +61,12 @@ export default function DailyAttendanceTable({ roster = [], date }) {
             {rows.map((row) => (
               <tr
                 key={row.intern.id}
-                className="border-t border-border/60"
+                onClick={() => onSelectIntern?.(row.intern)}
+                className={cn(
+                  'border-t border-border/60',
+                  onSelectIntern && 'cursor-pointer transition-colors hover:bg-muted/40'
+                )}
+                title={onSelectIntern ? 'View attendance calendar' : undefined}
                 data-test={`attendance-daily-row-${row.intern.id}`}
               >
                 <td className="px-5 py-4">

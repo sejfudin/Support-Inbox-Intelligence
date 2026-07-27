@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "seed": "node seeder/seed.js",
     "seed:test": "node seeder/seedTestingData.js",
+    "seed:demo": "node seeder/seedDemoData.js",
     "seed:positions": "node seeder/seedPositions.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
@@ -34,6 +35,7 @@
     "mongoose": "^9.1.5",
     "multer": "^2.1.1",
     "nodemon": "^3.1.14",
+    "pdf-parse": "^2.4.5",
     "sanitize-html": "^2.17.3",
     "socket.io": "^4.8.3"
   },

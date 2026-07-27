@@ -129,7 +129,10 @@ const listInterns = async (user, query = {}) => {
   const [profiles, total] = await Promise.all([
     InternProfile.find(fullFilter)
       .populate(PROFILE_POPULATE)
-      .sort({ startDate: -1 })
+      // `_id` tiebreaker: a whole cohort routinely shares one `startDate`, and
+      // Mongo's sort is not stable for ties — without it, paging can repeat one
+      // intern across pages and drop another entirely.
+      .sort({ startDate: -1, _id: -1 })
       .skip(skip)
       .limit(limit),
     InternProfile.countDocuments(fullFilter),
@@ -240,10 +243,11 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   const allowedStatuses = INTERN_STATUSES;
 
   if (payload.status !== undefined) {
-    // Lifecycle status can be changed by admins and the assigned mentor —
-    // not by unassigned mentors, even though they can write other mentor data.
-    if (user.role !== ROLES.ADMIN && !isAssignedMentor(profile, user._id)) {
-      const err = new Error('Only admins or the assigned mentor can change this intern’s status');
+    // Lifecycle status changes are admin-only — even the assigned mentor can't
+    // change it, though mentors can still write other mentor data below
+    // (e.g. expectedEndDate) via the canWriteMentorData check above.
+    if (user.role !== ROLES.ADMIN) {
+      const err = new Error('Only admins can change this intern’s status');
       err.statusCode = 403;
       throw err;
     }
@@ -331,7 +335,9 @@ const updateInternalCvLink = async (user, internUserId, url) => {
   const profile = await InternProfile.findOne({ user: internUserId });
   if (!profile) throw new Error('Intern profile not found');
 
-  if (!canWriteMentorData(user, profile)) {
+  // Adding/editing the internal CV link is admin-only; mentors keep read
+  // access (see canSeeInternalCv in formatProfile) but can no longer write it.
+  if (user.role !== ROLES.ADMIN) {
     const err = new Error('Not authorized to modify this intern');
     err.statusCode = 403;
     throw err;
