@@ -2,8 +2,9 @@
  * Attendance API layer. Talks to the real backend (server/routes/attendance.js).
  *
  * Server enforces the rules the client only hints at: check-in is open 07:00–11:00
- * office time on weekdays, and a cancelled day is locked (no re-check-in). The
- * office-network IP allowlist is a later, optional server-side guard.
+ * office time on weekdays, and that window is the only thing that closes a day —
+ * a cancelled day can be re-checked-in while it is still open. The office-network
+ * IP allowlist is a later, optional server-side guard.
  */
 
 import apiClient from '@/api/axios';
@@ -29,8 +30,8 @@ export const checkInToday = async () => {
 
 /**
  * DELETE /api/attendance/me/check-in
- * Cancels today's check-in. One-way: the day is locked as absent and the intern
- * cannot check in again for the rest of the day.
+ * Cancels today's check-in, unchecking the day. The intern can check in again
+ * while the window is open; after it closes the day reads as absent.
  * → updated attendance summary (same shape as fetchMyAttendance)
  */
 export const cancelTodayCheckIn = async () => {

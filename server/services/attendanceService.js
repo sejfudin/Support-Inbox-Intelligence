@@ -97,16 +97,27 @@ const assertCheckInOpen = (now) => {
   }
 };
 
-const LOCKED_MESSAGE = 'You cancelled today’s check-in earlier — the day is locked.';
-
 const getMyAttendance = async (user) => {
   const profile = await loadMyProfile(user);
   return buildSummary(profile);
 };
 
+// Turn an existing row into today's check-in. Used both for a fresh check-in
+// after a cancel and for the concurrent-insert retry path.
+const markPresent = async (row, { now, user, ip }) => {
+  row.status = PRESENT;
+  row.checkedInAt = now;
+  row.hub = user.hub?._id || null;
+  row.checkInIp = ip || null;
+  await row.save();
+};
+
 /**
  * Record today's check-in for the signed-in intern. Idempotent per day (a second
- * click returns the same summary), and blocked if the day was already cancelled.
+ * click returns the same summary, keeping the original `checkedInAt`). A day the
+ * intern cancelled earlier is re-opened, not blocked: cancelling only unchecks
+ * the day, and re-checking-in is allowed for as long as the window is open —
+ * `assertCheckInOpen` above is what closes the day for good.
  * The office-network (IP) check is a later, optional guard — see attendanceTime.
  */
 const checkIn = async (user, { ip } = {}) => {
@@ -117,8 +128,10 @@ const checkIn = async (user, { ip } = {}) => {
   const date = officeDateKey(now);
   const existing = await Attendance.findOne({ intern: profile._id, date });
   if (existing) {
-    if (existing.status === CANCELLED) throw httpError(409, LOCKED_MESSAGE);
-    return buildSummary(profile); // already checked in → idempotent
+    // Cancelled earlier today → this is a genuine new check-in, so re-stamp the
+    // row. Already present → leave it exactly as it is (idempotent).
+    if (existing.status === CANCELLED) await markPresent(existing, { now, user, ip });
+    return buildSummary(profile);
   }
 
   try {
@@ -132,18 +145,20 @@ const checkIn = async (user, { ip } = {}) => {
     });
   } catch (err) {
     // Concurrent double-click: the unique { intern, date } index rejected the
-    // second insert. Re-read to decide idempotent-success vs locked.
+    // second insert. Re-read — the winning row is already present (nothing to
+    // do) unless a cancel landed in between, in which case check-in wins.
     if (err.code !== 11000) throw err;
     const raced = await Attendance.findOne({ intern: profile._id, date });
-    if (raced && raced.status === CANCELLED) throw httpError(409, LOCKED_MESSAGE);
+    if (raced && raced.status === CANCELLED) await markPresent(raced, { now, user, ip });
   }
 
   return buildSummary(profile);
 };
 
 /**
- * Cancel today's check-in. One-way: the record is marked cancelled (not deleted),
- * which locks the day as absent — no re-check-in — via the unique index.
+ * Cancel today's check-in: the record is marked cancelled (not deleted), which
+ * unchecks the day. The intern may check in again while the window is open; once
+ * it closes, a cancelled day stays cancelled and reads as absent.
  */
 const cancelCheckIn = async (user) => {
   const profile = await loadMyProfile(user);

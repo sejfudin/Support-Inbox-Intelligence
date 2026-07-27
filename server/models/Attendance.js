@@ -2,9 +2,10 @@ const mongoose = require('mongoose');
 
 // One document per intern per day they act on their attendance. Absent days are
 // NOT stored — absence is simply the lack of a record and is derived at read
-// time. A `cancelled` record locks the day: the unique { intern, date } index
-// makes double check-ins idempotent (duplicate key) and makes "a cancelled day
-// can't be re-checked-in" a database guarantee rather than app logic.
+// time. A `cancelled` record unchecks the day: it reads as absent, but the intern
+// can check in again while the window is open, which flips the same row back to
+// `present`. The unique { intern, date } index keeps that one row per day, so
+// repeat check-ins are idempotent (duplicate key) instead of piling up.
 const PRESENT = 'present';
 const CANCELLED = 'cancelled';
 const ATTENDANCE_STATUSES = [PRESENT, CANCELLED];
