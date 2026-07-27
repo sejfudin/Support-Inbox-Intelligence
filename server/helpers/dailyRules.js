@@ -5,16 +5,54 @@
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-// Local start-of-day, matching the Daily model's date normalization.
-const startOfDay = (value) => {
-  const d = new Date(value);
-  d.setHours(0, 0, 0, 0);
-  return d;
+// Anchored to the business timezone (not the host process's own), so "today"
+// and the (workspace, date) index mean the same instant regardless of where
+// this runs — a local machine and a deployed container can disagree on system
+// timezone otherwise. Dependency-free, same technique as
+// helpers/attendanceTime.js and seeder/demo/clock.js's officeOffset().
+const BUSINESS_TIMEZONE = 'Europe/Sarajevo';
+
+const businessDateParts = (date) => {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  });
+  const parts = {};
+  for (const part of fmt.formatToParts(date)) parts[part.type] = part.value;
+  return parts;
 };
 
+// BUSINESS_TIMEZONE's UTC offset ('+02:00' summer, '+01:00' winter) for the
+// instant `date` falls in — derived from Intl, not hardcoded, so DST is
+// handled on both sides of the switch.
+const businessOffset = (date) => {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: BUSINESS_TIMEZONE,
+    timeZoneName: 'longOffset',
+  });
+  const part = fmt.formatToParts(date).find((p) => p.type === 'timeZoneName');
+  const match = /GMT([+-]\d{2}:\d{2})/.exec(part?.value || '');
+  return match ? match[1] : '+00:00';
+};
+
+// Start-of-day in BUSINESS_TIMEZONE, matching the Daily model's date
+// normalization.
+const startOfDay = (value) => {
+  const date = new Date(value);
+  const { year, month, day } = businessDateParts(date);
+  return new Date(`${year}-${month}-${day}T00:00:00${businessOffset(date)}`);
+};
+
+// BUSINESS_TIMEZONE weekday, not `date.getDay()` — `date` here is usually a
+// startOfDay() instant sitting close to a UTC day boundary (22:00/23:00Z), so
+// a host-local weekday getter can name the wrong day on a host in a different
+// timezone.
 const isWeekend = (date) => {
-  const day = date.getDay();
-  return day === 0 || day === 6; // Sunday or Saturday
+  const { weekday } = businessDateParts(date);
+  return weekday === 'Sat' || weekday === 'Sun';
 };
 
 // The working day immediately before `date` (Sat/Sun skipped). Monday's
@@ -67,8 +105,8 @@ const MONTH_KEY_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const isValidMonthKey = (key) => typeof key === 'string' && MONTH_KEY_PATTERN.test(key);
 
 const currentMonthKey = (now = new Date()) => {
-  const d = startOfDay(now);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const { year, month } = businessDateParts(now);
+  return `${year}-${month}`;
 };
 
 // First/last local calendar day of a 'YYYY-MM' month, as start-of-day Dates.
