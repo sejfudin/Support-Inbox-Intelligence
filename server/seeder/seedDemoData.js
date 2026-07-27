@@ -3,9 +3,10 @@
  * Demo seeder — `npm run seed:demo`
  *
  * Wipes the transactional data in the target database and rebuilds one coherent
- * demo dataset: four hero logins, 20 interns with attendance history, a
- * worked-on ticket board, stand-ups, and a placement pipeline. See
- * demo/dataset.js for the content and demo/clock.js for the date strategy.
+ * demo dataset: four hero logins, 26 interns across every profile status (plus
+ * one deactivated account) with attendance history, a worked-on ticket board,
+ * stand-ups in both workspaces, and a placement pipeline. See demo/dataset.js
+ * for the content and demo/clock.js for the date strategy.
  *
  * DESTRUCTIVE. It deletes users, workspaces, tickets, comments, intern
  * profiles, attendance, dailies, recommendations, evaluations and refresh
@@ -94,6 +95,10 @@ const WIPE_PLAN = [
 
 // Preserved entirely — never appear in WIPE_PLAN.
 const PRESERVED = ['Hub', 'InternshipType', 'Technology', 'Position'];
+
+// Profile statuses that put an intern on the attendance roster
+// (ROSTER_STATUSES in services/attendanceService.js).
+const ROSTER_PROFILE_STATUSES = ['active', 'ready'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // argv
@@ -304,9 +309,28 @@ const preflight = (ref) => {
     if (spec.attendance && !dataset.evaluationProfiles[spec.attendance.persona]) {
       problems.push(`intern ${spec.key}: unknown persona ${spec.attendance.persona}`);
     }
+    if (spec.account) {
+      if (!['active', 'invited', 'disabled'].includes(spec.account.status)) {
+        problems.push(`intern ${spec.key}: unknown account.status ${spec.account.status}`);
+      }
+      // getRoster keys off PROFILE status and never checks user.active, so a
+      // deactivated account on an active/ready profile would sit on the
+      // attendance roster forever at 0%.
+      if (spec.account.active === false && ROSTER_PROFILE_STATUSES.includes(spec.status)) {
+        problems.push(
+          `intern ${spec.key}: deactivated account with profile status "${spec.status}" would appear on the attendance roster with no attendance — use a terminal status`
+        );
+      }
+      // An inactive user must not also carry attendance rows.
+      if (spec.account.active === false && spec.attendance) {
+        problems.push(`intern ${spec.key}: deactivated account should not generate attendance`);
+      }
+    }
   }
 
-  const expected = { active: 10, ready: 5, placed: 2, completed: 2, discontinued: 1 };
+  // Pinned so a careless edit can't quietly hollow out the demo — e.g. moving
+  // interns to terminal statuses and shrinking the attendance roster to four.
+  const expected = { active: 10, ready: 6, placed: 5, completed: 3, discontinued: 2 };
   for (const [status, count] of Object.entries(expected)) {
     if (histogram[status] !== count) {
       problems.push(
@@ -387,13 +411,32 @@ const preflight = (ref) => {
     }
   }
 
-  if (!workspaceKeys.has(dataset.dailies.workspaceKey)) {
-    problems.push('dailies: unknown workspaceKey');
+  for (const spec of dataset.dailies) {
+    const label = `dailies[${spec.workspaceKey}]`;
+    if (!workspaceKeys.has(spec.workspaceKey)) problems.push(`${label}: unknown workspaceKey`);
+    if (!userKeys.has(spec.scribeKey)) problems.push(`${label}: unknown scribeKey`);
+    if (!(spec.days > 0)) problems.push(`${label}: days must be > 0`);
+    if (!(spec.skipEvery > 1)) problems.push(`${label}: skipEvery must be > 1 (else nobody files)`);
+    if (!(spec.blockerEvery > 0)) problems.push(`${label}: blockerEvery must be > 0`);
+    ['done', 'todo', 'blockers'].forEach((pool) => {
+      // Empty pools would index to undefined and write null entry text.
+      if (!Array.isArray(spec[pool]) || spec[pool].length === 0) {
+        problems.push(`${label}: ${pool} pool is empty`);
+      }
+    });
+    spec.blockerTicketKeys.forEach((key) => {
+      if (!ticketKeys.has(key)) problems.push(`${label}: unknown blocker ticket ${key}`);
+    });
+    // A blocker can only link a ticket in its OWN workspace.
+    spec.blockerTicketKeys.forEach((key) => {
+      const ticket = dataset.tickets.find((item) => item.key === key);
+      if (ticket && ticket.workspaceKey !== spec.workspaceKey) {
+        problems.push(
+          `${label}: blocker ticket ${key} belongs to workspace ${ticket.workspaceKey}`
+        );
+      }
+    });
   }
-  if (!userKeys.has(dataset.dailies.scribeKey)) problems.push('dailies: unknown scribeKey');
-  dataset.dailies.blockerTicketKeys.forEach((key) => {
-    if (!ticketKeys.has(key)) problems.push(`dailies: unknown blocker ticket ${key}`);
-  });
 
   for (const spec of dataset.recommendations) {
     if (!internKeys.has(spec.internKey)) {

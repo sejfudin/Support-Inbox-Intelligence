@@ -62,10 +62,18 @@ npm run cleanup:stale-recommendations   # close open recommendations of already-
 
 ### `npm run seed:demo` — the one to reach for
 
-Wipes transactional data and rebuilds a single coherent dataset: 4 hero logins, 20 interns
-(10 active / 5 ready / 2 placed / 2 completed / 1 discontinued) with ~8 weeks of attendance,
-two workspaces with a worked-on ticket board, 10 days of stand-ups, and a placement pipeline.
-Entry point `server/seeder/seedDemoData.js`; the content lives in `server/seeder/demo/dataset.js`.
+Wipes transactional data and rebuilds a single coherent dataset: 4 hero logins, 26 interns
+(10 active / 6 ready / 5 placed / 3 completed / 2 discontinued) with ~8 weeks of attendance,
+one of them a **deactivated account** (`goran.stankovic@symphony.is` — login rejected, still
+listed in the admin directory and filterable via `?status=disabled`), two workspaces with a
+worked-on ticket board, stand-ups in both (15 days on the main board, 8 on the QA guild), and a
+12-recommendation placement pipeline. Entry point `server/seeder/seedDemoData.js`; the content
+lives in `server/seeder/demo/dataset.js`.
+
+Two invariants the preflight enforces, because getting them wrong is silent: the profile-status
+histogram is pinned (so an edit can't quietly hollow out the attendance roster), and a
+deactivated account may not carry an `active`/`ready` profile — `getRoster` keys off _profile_
+status and never checks `user.active`, so such an intern would sit on the roster forever at 0%.
 
 **Unlike the other seeders it loads `.env.${NODE_ENV|development}` — the same file `index.js`
 reads — so it targets the database `npm run dev` actually uses.** The others load plain `.env`,

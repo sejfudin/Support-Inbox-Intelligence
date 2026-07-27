@@ -22,6 +22,9 @@ const createUsers = async (ctx) => {
   const docs = [];
 
   const push = (spec) => {
+    // `account` lets a spec opt into a non-active login (e.g. a discontinued
+    // intern whose access was revoked). Defaults to a normal active account.
+    const account = spec.account || { active: true, status: 'active' };
     keys.push(spec.key);
     docs.push({
       _id: stableId(`user:${spec.key}`),
@@ -33,8 +36,8 @@ const createUsers = async (ctx) => {
       // `role` defaults to 'admin' on the schema, so it is always explicit here.
       role: spec.role,
       hub: ref.hubByName(spec.hub)._id,
-      active: true,
-      status: 'active',
+      active: account.active,
+      status: account.status,
       passwordSetAt: ctx.clock.now,
     });
   };
