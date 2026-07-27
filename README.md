@@ -163,6 +163,7 @@ Open the URL printed by Vite (commonly http://localhost:5173). In production, th
 - `npm run seed:demo` — wipe and rebuild a full demo dataset (interactive confirmation required)
 - `npm run seed` — wipe the database and seed demo data (interactive confirmation required)
 - `npm run seed:test` — seed a larger testing dataset
+- `npm run seed:technologies` — upsert the Technology catalog only (non-destructive; `--dry-run` supported)
 - `npm run format` / `npm run format:check` — Prettier write / check
 
 ## Seeding and admin
@@ -172,6 +173,8 @@ The `server/seeder/` directory contains three seeding scripts:
 - `seedDemoData.js` (`npm run seed:demo`) — **the one to reach for.** Wipes transactional data and rebuilds one coherent dataset: four hero logins, 20 interns across every status with ~8 weeks of attendance history, two workspaces with a populated ticket board, 10 days of stand-ups, and a placement pipeline. **Preserves** reference data (hubs, internship types, technologies, positions) and the locked `unspecified` project. It is the only seeder that loads `.env.${NODE_ENV|development}` — the same file the server reads — so it targets the database `npm run dev` actually uses; the other two load plain `.env`, which may be a different cluster. Confirmation asks you to type the **database name**. Supports `--dry-run`, `--yes=<dbname>` for non-interactive runs, and `--checkin-today`. Fully deterministic, so re-running reproduces identical data — re-run it the morning of a demo so "today" is current.
 - `seed.js` (`npm run seed`) — **destructive**: it deletes all collections, reseeds reference data (hubs, internship types, technologies), and creates a demo workspace plus default accounts. It prompts you to type `wipe` before deleting anything.
 - `seedTestingData.js` (`npm run seed:test`) — seeds a richer dataset for testing (additional staff, interns across every status/programme, tickets, integrations, and invitations). Run it after `npm run seed`.
+
+Alongside them, `seedTechnologies.js` (`npm run seed:technologies`) is a **non-destructive** catalog backfill: it upserts the entries in `seeder/defaultTechnologies.js` by slug with `$setOnInsert`, so nothing is renamed, deactivated or deleted. Run it after adding a technology — CV auto-detection can only recognize technologies that exist in the catalog, so a database seeded before the addition will keep missing them. `--dry-run` lists what would be added.
 
 ### Demo accounts
 

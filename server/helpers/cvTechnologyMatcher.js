@@ -45,28 +45,64 @@ const buildAliasRegex = (alias) => {
 };
 
 // Extra terms beyond a tech's own name that should count as a mention. Deliberately
-// conservative: bare, common-word forms ("next", "node", "spring", "ruby") are omitted
-// to avoid false positives — the multi-word/suffixed forms below carry the signal.
+// conservative: bare, common-word forms ("next", "node", "spring") are omitted to avoid
+// false positives — the multi-word/suffixed forms below carry the signal.
+//
+// Note the version-suffixed spellings CVs actually use ("HTML5", "CSS3", "Python3",
+// "Dockerfile"): the right boundary rejects a trailing letter/digit, so the bare alias does
+// NOT cover them and each suffixed form needs its own entry. Every slug in
+// seeder/defaultTechnologies.js should appear here — a slug that falls through to
+// fallbackAliases() only matches its literal name, which misses every real-world spelling.
 const TECHNOLOGY_ALIASES = {
+  // —— Languages ——
+  // 'java' cannot leak from "javascript": the right boundary rejects the trailing 's'.
+  javascript: ['javascript', 'ecmascript', 'es6', 'es2015'],
+  typescript: ['typescript', 'type script'],
+  python: ['python', 'python3'],
+  java: ['java'],
+  csharp: ['c#', 'csharp', 'c sharp'],
+  php: ['php'],
+  ruby: ['ruby'],
+  // 'sql' cannot leak from "mysql"/"postgresql"/"nosql": the left boundary rejects the
+  // preceding letter. "pl/sql" still matches — the slash normalizes to a space.
+  sql: ['sql'],
+
+  // —— Frontend ——
   react: ['react', 'react.js', 'reactjs'],
   angular: ['angular', 'angularjs', 'angular.js'],
   'vue-js': ['vue', 'vue.js', 'vuejs'],
   'next-js': ['next.js', 'nextjs', 'next js'],
   svelte: ['svelte', 'sveltekit', 'svelte kit'],
+  'html-css': ['html', 'html5', 'css', 'css3', 'scss', 'sass'],
+  redux: ['redux'],
+  'tailwind-css': ['tailwind', 'tailwindcss'],
+
+  // —— Backend ——
   'node-js': ['node.js', 'nodejs', 'node js'],
   'spring-boot': ['spring boot', 'springboot', 'spring framework', 'spring mvc'],
   dotnet: ['.net', 'dotnet', 'dot net', 'asp.net', 'asp.net core', '.net core'],
   django: ['django'],
   fastapi: ['fastapi', 'fast api'],
   laravel: ['laravel'],
+  // Bare "ruby" belongs to the `ruby` language above, not to Rails.
   'ruby-on-rails': ['ruby on rails', 'rails', 'ror'],
+
+  // —— Mobile ——
   kotlin: ['kotlin'],
   swift: ['swift', 'swiftui', 'swift ui'],
   'react-native': ['react native', 'reactnative'],
   flutter: ['flutter'],
+
+  // —— Databases ——
+  mongodb: ['mongodb', 'mongo db', 'mongo', 'mongoose'],
+  postgresql: ['postgresql', 'postgres', 'psql'],
+
+  // —— Data, analytics & ML ——
   'data-engineering': ['data engineering', 'data engineer'],
   'data-science': ['data science', 'data scientist'],
   'machine-learning': ['machine learning', 'ml', 'deep learning'],
+
+  // —— QA ——
   'manual-qa': ['manual qa', 'manual testing', 'manual tester'],
   'test-automation': [
     'test automation',
@@ -75,7 +111,22 @@ const TECHNOLOGY_ALIASES = {
     'qa automation',
     'sdet',
   ],
+  jest: ['jest'],
+  cypress: ['cypress'],
+  selenium: ['selenium'],
+
+  // —— DevOps & cloud ——
   devops: ['devops', 'dev ops'],
+  docker: ['docker', 'dockerfile', 'docker compose'],
+  kubernetes: ['kubernetes', 'k8s'],
+  aws: ['aws', 'amazon web services'],
+
+  // —— Tooling ——
+  // 'git' cannot leak from "github"/"gitlab"/"gitignore" (right boundary rejects the
+  // following letter) or from "digit" (left boundary rejects the preceding one).
+  git: ['git'],
+
+  // —— Specialized engineering ——
   cpp: ['c++', 'cpp'],
   rust: ['rust'],
 };

@@ -46,8 +46,10 @@ npm run format:check # check
 
 ## Seeding — DANGEROUS
 
-All three seeders destroy or overwrite data. Never run one against a non-local database
-without knowing exactly which one you are pointed at.
+The three dataset seeders (`seed:demo`, `seed`, `seed:test`) destroy or overwrite data. Never
+run one against a non-local database without knowing exactly which one you are pointed at.
+The reference-data scripts (`seed:positions`, `seed:technologies`) only upsert catalog rows
+with `$setOnInsert` and are safe to run anywhere.
 
 ```bash
 # server/
@@ -55,6 +57,7 @@ npm run seed:demo   # RECOMMENDED — coherent demo dataset (see below)
 npm run seed        # destructive reset + demo workspace + admin@test.com / mentor@test.com
 npm run seed:test   # richer dataset (Symphony staff + interns, password: "password")
 npm run seed:positions
+npm run seed:technologies               # non-destructive: upserts the Technology catalog only
 npm run backfill:intern-positions
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
@@ -110,7 +113,9 @@ Demo accounts (after seeding): full table in `README.md` ("Demo accounts").
 
 ## Verifying a change
 
-No test suite exists. To confirm a change works, drive the real app:
+There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers a handful of pure
+helpers only — `helpers/*.test.js`. Run it when you touch one of those helpers, but it proves
+nothing about a route, a query or a screen. To confirm a change works, drive the real app:
 
 - Use `/run` to launch, `/verify` to exercise the affected flow end-to-end.
 - Playwright MCP browser tools are permitted for UI verification.

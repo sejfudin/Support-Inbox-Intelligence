@@ -25,7 +25,7 @@ Detail lives in the referenced docs below — read them when the task calls for 
 - **Never run the seeders against any non-local DB.** `npm run seed` wipes all collections.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
 - **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
-- **No automated tests exist yet.** Do not claim a change is verified by tests — verify by driving the app (`/verify`, `/run`).
+- **There is no integration or E2E suite.** `npm test` in `server/` covers a few pure helpers (`helpers/*.test.js`) and nothing else. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).
 - Match surrounding code style. Prettier is the formatter; run `npm run format` in the package you changed.
 - Backend is CommonJS (`require`), frontend is ESM (`import`). Don't mix.
 

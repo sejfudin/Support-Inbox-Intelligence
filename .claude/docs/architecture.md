@@ -85,6 +85,15 @@ AI: `AISummary`.
   and the manual "Add a technology" flow remains for anything not recognized. See
   `server/services/internCvService.js` (`autoDeclareTechnologiesFromCv`).
 
+  **The catalog is the ceiling.** Matching is scoped to `Technology` rows, so a skill with no
+  catalog entry is invisible to the scan however it is spelled — a thin catalog reads as a
+  broken scanner. Adding a technology therefore takes three steps in the same change:
+  `seeder/defaultTechnologies.js` (the entry), `helpers/cvTechnologyMatcher.js`
+  (`TECHNOLOGY_ALIASES` — the real-world spellings; version-suffixed forms like `html5`/`python3`
+  need their own alias, the bare one will not match them), and `npm run seed:technologies` to
+  backfill databases that were seeded before the addition. `helpers/cvTechnologyMatcher.test.js`
+  fails if a seeded slug has no alias entry.
+
 ## Recommendations (placement pipeline)
 
 A recommendation is a mentor's placement proposal for an intern: a position + **project** (ref to

@@ -17,6 +17,7 @@
     "seed:test": "node seeder/seedTestingData.js",
     "seed:demo": "node seeder/seedDemoData.js",
     "seed:positions": "node seeder/seedPositions.js",
+    "seed:technologies": "node seeder/seedTechnologies.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
     "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
