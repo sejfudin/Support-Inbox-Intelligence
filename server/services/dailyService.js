@@ -11,6 +11,8 @@ const {
   isValidMonthKey,
   currentMonthKey,
   monthBounds,
+  formatDateKey,
+  MS_PER_DAY,
 } = require('../helpers/dailyRules');
 const { emitDailyChanged } = require('../socket/events');
 const { ROLES } = require('../constants/roles');
@@ -264,12 +266,6 @@ const removeEntry = async ({ dailyId, entryId, user }) => {
   return populated;
 };
 
-// 'YYYY-MM-DD' using local calendar fields — deliberately not `toISOString()`,
-// which converts to UTC and can shift the date by a day depending on the
-// server's timezone offset relative to the local midnight these dates hold.
-const formatDateKey = (date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
 const buildMemberSummary = (intern) => ({
   id: String(intern._id),
   fullname: intern.fullname || '',
@@ -313,14 +309,18 @@ const getWorkspaceDailyOverview = async ({ workspaceId, month, user }) => {
   }
 
   const days = [];
-  const cursor = new Date(start);
+  let cursor = new Date(start);
   while (cursor.getTime() <= rangeEnd.getTime()) {
     days.push({
       date: new Date(cursor),
       weekend: isWeekend(cursor),
       daily: dailyByTime.get(cursor.getTime()),
     });
-    cursor.setDate(cursor.getDate() + 1);
+    // Fixed 24h step from the business-timezone start, not host-local
+    // .setDate()/.getDate() — those walk host-local calendar days, which
+    // drift the whole grid back a day on a host in a different timezone
+    // from Sarajevo (e.g. dev's deployed container vs. local).
+    cursor = new Date(cursor.getTime() + MS_PER_DAY);
   }
 
   const people = interns.map((intern) => {

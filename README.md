@@ -170,7 +170,7 @@ Open the URL printed by Vite (commonly http://localhost:5173). In production, th
 
 The `server/seeder/` directory contains three seeding scripts:
 
-- `seedDemoData.js` (`npm run seed:demo`) — **the one to reach for.** Wipes transactional data and rebuilds one coherent dataset: four hero logins, 20 interns across every status with ~8 weeks of attendance history, two workspaces with a populated ticket board, 10 days of stand-ups, and a placement pipeline. **Preserves** reference data (hubs, internship types, technologies, positions) and the locked `unspecified` project. It is the only seeder that loads `.env.${NODE_ENV|development}` — the same file the server reads — so it targets the database `npm run dev` actually uses; the other two load plain `.env`, which may be a different cluster. Confirmation asks you to type the **database name**. Supports `--dry-run`, `--yes=<dbname>` for non-interactive runs, and `--checkin-today`. Fully deterministic, so re-running reproduces identical data — re-run it the morning of a demo so "today" is current.
+- `seedDemoData.js` (`npm run seed:demo`) — **the one to reach for.** Wipes transactional data and rebuilds one coherent dataset: four hero logins, 26 interns spread across every profile status (10 active / 6 ready / 5 placed / 3 completed / 2 discontinued, one of them a deactivated account) with ~8 weeks of attendance history, two workspaces with a populated ticket board, stand-ups in both, and a 12-recommendation placement pipeline. **Preserves** reference data (hubs, internship types, technologies, positions) and the locked `unspecified` project. It is the only seeder that loads `.env.${NODE_ENV|development}` — the same file the server reads — so it targets the database `npm run dev` actually uses; the other two load plain `.env`, which may be a different cluster. Confirmation asks you to type the **database name**. Supports `--dry-run`, `--yes=<dbname>` for non-interactive runs, and `--checkin-today`. Fully deterministic, so re-running reproduces identical data — re-run it the morning of a demo so "today" is current.
 - `seed.js` (`npm run seed`) — **destructive**: it deletes all collections, reseeds reference data (hubs, internship types, technologies), and creates a demo workspace plus default accounts. It prompts you to type `wipe` before deleting anything.
 - `seedTestingData.js` (`npm run seed:test`) — seeds a richer dataset for testing (additional staff, interns across every status/programme, tickets, integrations, and invitations). Run it after `npm run seed`.
 
@@ -187,7 +187,7 @@ Alongside them, `seedTechnologies.js` (`npm run seed:technologies`) is a **non-d
 | Intern     | `intern@symphony.is`     | Hamza Tuco  |
 | Leadership | `leadership@symphony.is` | Enis Kudo   |
 
-It also creates two background mentors (`boris.petrovic@`, `natasa.ilic@symphony.is`) and 20 interns at `firstname.lastname@symphony.is`, all with the same password.
+It also creates two background mentors (`boris.petrovic@`, `natasa.ilic@symphony.is`) and 26 interns at `firstname.lastname@symphony.is`, all with the same password — except `goran.stankovic@symphony.is`, whose account is deliberately deactivated so the disabled-user state is demo-able (login is rejected; the user still appears in the admin directory).
 
 `npm run seed` creates:
 

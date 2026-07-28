@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { startOfDay } = require('../helpers/dailyRules');
 
 // A blocker is a line of free text with one optional link to a workspace
 // ticket. Text is stored verbatim (plain text, like comments) — never
@@ -76,7 +77,7 @@ const dailySchema = new mongoose.Schema(
 // component that reaches the model.
 dailySchema.pre('validate', function normalizeDate() {
   if (this.date instanceof Date && !Number.isNaN(this.date.getTime())) {
-    this.date.setHours(0, 0, 0, 0);
+    this.date = startOfDay(this.date);
   }
 });
 

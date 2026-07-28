@@ -346,6 +346,23 @@ const interns = [
       { position: 'data-analyst', level: 'ready' },
     ],
   },
+  {
+    key: 'lamija',
+    email: 'lamija.hodzic@symphony.is',
+    fullname: 'Lamija Hodžić',
+    status: 'ready',
+    programme: 'fep',
+    position: 'qa-engineer',
+    mentorKey: 'mentor',
+    hub: HUB.SARAJEVO,
+    startWorkdaysAgo: 105,
+    technologies: ['test-automation', 'manual-qa'],
+    attendance: { persona: 'solid', absentEvery: 8, today: 'present', checkInMinute: 36 },
+    readiness: [
+      { technology: 'test-automation', level: 'ready' },
+      { position: 'qa-engineer', level: 'ready' },
+    ],
+  },
 
   // ── terminal states: off the attendance roster (ROSTER_STATUSES), present in
   //    the pipeline and history screens.
@@ -378,6 +395,51 @@ const interns = [
     readiness: [{ technology: 'react', level: 'ready' }],
   },
   {
+    key: 'kenan',
+    email: 'kenan.begovic@symphony.is',
+    fullname: 'Kenan Begović',
+    status: 'placed',
+    programme: 'fep',
+    position: 'fullstack-engineer',
+    mentorKey: 'mentor',
+    hub: HUB.SARAJEVO,
+    startWorkdaysAgo: 145,
+    technologies: ['react', 'node-js'],
+    attendance: null,
+    readiness: [
+      { technology: 'react', level: 'ready' },
+      { position: 'fullstack-engineer', level: 'ready' },
+    ],
+  },
+  {
+    key: 'milica',
+    email: 'milica.jovanovic@symphony.is',
+    fullname: 'Milica Jovanović',
+    status: 'placed',
+    programme: 'industrial',
+    position: 'data-engineer',
+    mentorKey: 'natasa',
+    hub: HUB.NOVI_SAD,
+    startWorkdaysAgo: 150,
+    technologies: ['data-engineering', 'fastapi'],
+    attendance: null,
+    readiness: [{ technology: 'data-engineering', level: 'ready' }],
+  },
+  {
+    key: 'haris',
+    email: 'haris.mehmedovic@symphony.is',
+    fullname: 'Haris Mehmedović',
+    status: 'placed',
+    programme: 'fep',
+    position: 'devops-engineer',
+    mentorKey: 'boris',
+    hub: HUB.BANJA_LUKA,
+    startWorkdaysAgo: 142,
+    technologies: ['devops', 'go'],
+    attendance: null,
+    readiness: [{ technology: 'devops', level: 'ready' }],
+  },
+  {
     key: 'dino',
     email: 'dino.ramazanovic@symphony.is',
     fullname: 'Dino Ramazanovic',
@@ -406,6 +468,20 @@ const interns = [
     readiness: [{ technology: 'test-automation', level: 'ready' }],
   },
   {
+    key: 'vedrana',
+    email: 'vedrana.simic@symphony.is',
+    fullname: 'Vedrana Šimić',
+    status: 'completed',
+    programme: 'one-on-one',
+    position: 'product-designer',
+    mentorKey: 'boris',
+    hub: HUB.BELGRADE,
+    startWorkdaysAgo: 148,
+    technologies: ['react'],
+    attendance: null,
+    readiness: [{ position: 'product-designer', level: 'ready' }],
+  },
+  {
     key: 'hamzaT',
     email: 'hamza.tucoglu@symphony.is',
     fullname: 'Hamza Tucoglu',
@@ -418,6 +494,29 @@ const interns = [
     technologies: ['flutter'],
     attendance: null,
     readiness: [{ technology: 'flutter', level: 'learning' }],
+  },
+  {
+    key: 'goran',
+    email: 'goran.stankovic@symphony.is',
+    fullname: 'Goran Stanković',
+    status: 'discontinued',
+    programme: 'industrial',
+    position: 'security-engineer',
+    mentorKey: 'natasa',
+    hub: HUB.NIS,
+    startWorkdaysAgo: 75,
+    technologies: ['go'],
+    // Deactivated account: left the programme and the login was disabled.
+    // `account.active: false` means login is rejected, but the user still
+    // appears in the admin directory with a DISABLED badge and is filterable
+    // via `?status=disabled` — which is the point of having one in the demo.
+    //
+    // The profile status stays terminal on purpose. getRoster keys off PROFILE
+    // status and never checks `user.active`, so an `active`/`ready` profile on a
+    // disabled account would sit on the attendance roster forever at 0%.
+    account: { active: false, status: 'disabled' },
+    attendance: null,
+    readiness: [{ technology: 'go', level: 'learning' }],
   },
 ];
 
@@ -454,7 +553,7 @@ const workspaces = [
       { key: 'admin', role: 'admin' },
       { key: 'mentor', role: 'member' },
     ],
-    internMemberKeys: ['tarikSehic', 'stefan'],
+    internMemberKeys: ['tarikSehic', 'stefan', 'lamija'],
   },
 ];
 
@@ -1027,46 +1126,85 @@ const notifications = [
 // Dailies
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Generated rather than hand-written per day: `days` working days back from the
-// anchor, with coverage deliberately partial so the compliance view has
-// something to show. Which intern files on which day is a fixed function of
+// One entry per workspace, so both boards have stand-up history rather than just
+// the main one. Generated rather than hand-written per day: `days` working days
+// back from the anchor, with coverage deliberately partial so the compliance
+// view has something to show. Who files on which day is a fixed function of
 // (internIndex, dayOffset) — no randomness, so re-seeding reproduces it exactly.
+//
+// `skipEvery: N` means an intern files unless (index + dayOffset) % N === N-1,
+// i.e. roughly (N-1)/N coverage. `blockerEvery: N` adds a blocker to every Nth.
 
-const dailies = {
-  workspaceKey: 'inbox',
-  days: 10,
-  scribeKey: 'mentor',
-  // An intern files an entry unless (index + dayOffset) % 4 === 3  (~75% coverage)
-  skipEvery: 4,
-  // Every 5th (index + dayOffset) entry carries a blocker
-  blockerEvery: 5,
-  done: [
-    'Finished the invoice-total fix and opened a PR',
-    'Paired on the CSV importer paging bug',
-    'Wrote unit tests for the refund webhook handler',
-    'Reviewed two PRs and left comments',
-    'Reproduced the Safari SSO loop locally',
-    'Migrated the roster filter to the server side',
-    'Cleaned up the status chip colour tokens',
-    'Walked through the attendance export with QA',
-  ],
-  todo: [
-    'Wire the hub select into the roster query',
-    'Pair with Tarik on the importer batch loop',
-    'Add the missing DKIM regression test',
-    'Pick up the accented-search ticket',
-    'Re-test SSO on Safari 17.4 staging build',
-    'Write up the webhook retry design',
-    'Finish the CV upload size-limit message',
-  ],
-  blockers: [
-    'Waiting on staging database credentials',
-    'Need a review on the open PR before I can continue',
-    'Blocked on a product call about archived tickets',
-    'Waiting for the test GitHub App installation',
-  ],
-  blockerTicketKeys: ['ssoSafari', 'csvImport', 'archiveReassign', 'prAutoMove', 'refundStuck'],
-};
+const dailies = [
+  {
+    workspaceKey: 'inbox',
+    days: 15,
+    scribeKey: 'mentor',
+    skipEvery: 4, // ~75% coverage
+    blockerEvery: 5,
+    done: [
+      'Finished the invoice-total fix and opened a PR',
+      'Paired on the CSV importer paging bug',
+      'Wrote unit tests for the refund webhook handler',
+      'Reviewed two PRs and left comments',
+      'Reproduced the Safari SSO loop locally',
+      'Migrated the roster filter to the server side',
+      'Cleaned up the status chip colour tokens',
+      'Walked through the attendance export with QA',
+      'Split the importer into batched writes',
+      'Added the missing index on the tickets collection',
+      'Fixed the digest double-count query',
+      'Wrote up findings on the webhook retry design',
+    ],
+    todo: [
+      'Wire the hub select into the roster query',
+      'Pair with Tarik on the importer batch loop',
+      'Add the missing DKIM regression test',
+      'Pick up the accented-search ticket',
+      'Re-test SSO on Safari 17.4 staging build',
+      'Write up the webhook retry design',
+      'Finish the CV upload size-limit message',
+      'Start on the SLA Slack notification',
+      'Review Nadia’s PR on the status chips',
+      'Break the keyboard-shortcuts ticket into subtasks',
+    ],
+    blockers: [
+      'Waiting on staging database credentials',
+      'Need a review on the open PR before I can continue',
+      'Blocked on a product call about archived tickets',
+      'Waiting for the test GitHub App installation',
+      'Need the client to confirm the expected invoice totals',
+      'Waiting on design for the empty state',
+    ],
+    blockerTicketKeys: ['ssoSafari', 'csvImport', 'archiveReassign', 'prAutoMove', 'refundStuck'],
+  },
+  {
+    workspaceKey: 'qa',
+    days: 8,
+    scribeKey: 'mentor',
+    skipEvery: 3, // ~66% coverage — a smaller guild, patchier stand-ups
+    blockerEvery: 4,
+    done: [
+      'Triaged the overnight regression run',
+      'Reproduced the July calendar off-by-one',
+      'Stabilised two flaky drag-and-drop specs',
+      'Added boundary cases for the check-in window',
+      'Filed three defects from the cross-browser sweep',
+    ],
+    todo: [
+      'Finish the Playwright check-in coverage',
+      'Re-run the board suite on the new staging build',
+      'Pin down the Firefox date-picker repro',
+      'Write the rate-limit assertion',
+    ],
+    blockers: [
+      'Waiting on a decision about the picker library',
+      'CI runner is queued behind the main build',
+      'Need a seeded account with a cancelled check-in',
+    ],
+    blockerTicketKeys: ['qaFirefoxDatePicker', 'qaFlakyDnd', 'qaCheckInCoverage'],
+  },
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Placement pipeline
@@ -1267,6 +1405,157 @@ const recommendations = [
     result: {
       outcome: 'placed',
       note: 'Offer accepted — joined the patient portal squad as a front-end engineer.',
+      decidedByKey: 'boris',
+    },
+  },
+  {
+    key: 'lamijaNorthwind',
+    internKey: 'lamija',
+    positionSlug: 'qa-engineer',
+    projectKey: 'northwind',
+    technologies: ['test-automation', 'manual-qa'],
+    status: 'recommended',
+    createdByKey: 'mentor',
+    recommendedWorkdaysAgo: 2,
+    recommendationNote:
+      'Built out most of our Playwright coverage during the QA rotation. Northwind asked for a test-automation profile — good first match.',
+    interviews: [],
+  },
+  {
+    key: 'kenanMeridian',
+    internKey: 'kenan',
+    positionSlug: 'fullstack-engineer',
+    projectKey: 'meridian',
+    technologies: ['react', 'node-js'],
+    status: 'resulted',
+    createdByKey: 'mentor',
+    recommendedWorkdaysAgo: 60,
+    interviewingWorkdaysAgo: 52,
+    resultedWorkdaysAgo: 44,
+    recommendationNote: 'Full-stack generalist, comfortable owning a vertical slice end to end.',
+    interviews: [
+      {
+        company: 'Meridian Health',
+        role: 'Fullstack Engineer',
+        stage: 'Final',
+        scheduledWorkdaysAgo: 48,
+        interviewers: ['Lena Fischer', 'Marc Weber'],
+        locationNote: 'Remote',
+        feedback: {
+          summary: 'Handled the system-design round better than expected.',
+          strengths: 'Breadth, pragmatic trade-offs, easy to talk to.',
+          concerns: 'Little exposure to healthcare compliance — will need ramp-up.',
+          rating: 4,
+        },
+      },
+    ],
+    result: {
+      outcome: 'placed',
+      note: 'Offer accepted — joined the patient portal squad alongside Adna.',
+      decidedByKey: 'mentor',
+    },
+  },
+  {
+    key: 'milicaNorthwind',
+    internKey: 'milica',
+    positionSlug: 'data-engineer',
+    projectKey: 'northwind',
+    technologies: ['data-engineering', 'fastapi'],
+    status: 'resulted',
+    createdByKey: 'natasa',
+    recommendedWorkdaysAgo: 68,
+    interviewingWorkdaysAgo: 60,
+    resultedWorkdaysAgo: 50,
+    recommendationNote:
+      'Strongest data profile of her cohort. Owned the reporting pipeline rewrite during the industrial track.',
+    interviews: [
+      {
+        company: 'Northwind Logistics',
+        role: 'Data Engineer',
+        stage: 'Final',
+        scheduledWorkdaysAgo: 55,
+        interviewers: ['Ivan Horvat', 'Sanja Kos'],
+        locationNote: 'Novi Sad office',
+        feedback: {
+          summary: 'Clear thinker, strong on pipeline design.',
+          strengths: 'Airflow experience, good instincts on data quality.',
+          concerns: 'None material.',
+          rating: 5,
+        },
+      },
+    ],
+    result: {
+      outcome: 'placed',
+      note: 'Offer accepted — now on the fleet-tracker data platform team.',
+      decidedByKey: 'natasa',
+    },
+  },
+  {
+    key: 'harisKestrel',
+    internKey: 'haris',
+    positionSlug: 'devops-engineer',
+    projectKey: 'kestrel',
+    technologies: ['devops', 'go'],
+    status: 'resulted',
+    createdByKey: 'boris',
+    recommendedWorkdaysAgo: 58,
+    interviewingWorkdaysAgo: 49,
+    resultedWorkdaysAgo: 40,
+    recommendationNote:
+      'Ran our staging pipeline for two months without incident. Kestrel needed a platform hire.',
+    interviews: [
+      {
+        company: 'Kestrel Fintech',
+        role: 'Platform Engineer',
+        stage: 'Technical screen',
+        scheduledWorkdaysAgo: 45,
+        interviewers: ['Tom Reid'],
+        locationNote: 'Remote',
+        feedback: {
+          summary: 'Solid on Kubernetes and CI, asked sharp questions about their release process.',
+          strengths: 'Automation instincts, calm debugging.',
+          concerns: 'Wants more exposure to production incident response.',
+          rating: 4,
+        },
+      },
+    ],
+    result: {
+      outcome: 'placed',
+      note: 'Offer accepted — joined the Kestrel platform team on a 12-month contract.',
+      decidedByKey: 'boris',
+    },
+  },
+  {
+    key: 'vedranaBlueHarbour',
+    internKey: 'vedrana',
+    positionSlug: 'product-designer',
+    projectKey: 'blueharbour',
+    technologies: ['react'],
+    status: 'resulted',
+    createdByKey: 'boris',
+    recommendedWorkdaysAgo: 90,
+    interviewingWorkdaysAgo: 82,
+    resultedWorkdaysAgo: 74,
+    recommendationNote: 'Put forward for the POS design workstream at the end of her 1-on-1 track.',
+    interviews: [
+      {
+        company: 'Blue Harbour Retail',
+        role: 'Product Designer',
+        stage: 'Portfolio review',
+        scheduledWorkdaysAgo: 79,
+        interviewers: ['Sanja Kos'],
+        locationNote: 'Remote',
+        feedback: {
+          summary: 'Strong portfolio, but thin on in-store/retail context.',
+          strengths: 'Visual craft, clear rationale for each decision.',
+          concerns: 'No POS or kiosk experience, which this role is mostly about.',
+          rating: 3,
+        },
+      },
+    ],
+    result: {
+      outcome: 'not_placed',
+      note: 'Client went with a candidate who had prior retail POS work. Vedrana finished the programme and is on the alumni list for the next design opening.',
       decidedByKey: 'boris',
     },
   },

@@ -153,61 +153,72 @@ const createNotifications = async (ctx) => {
  */
 const createDailies = async (ctx) => {
   const { data, clock } = ctx;
-  const spec = data.dailies;
-  const workspace = ctx.workspaces.get(spec.workspaceKey);
-
-  // Only interns who are active members of THIS workspace are eligible —
-  // dailyService.getActiveInterns is the picker's denominator, so an entry for
-  // anyone else renders but can't be edited in the UI.
-  const eligibleKeys = workspace.members
-    .filter((member) => member.status === 'active')
-    .map((member) => String(member.user))
-    .map((userId) => {
-      for (const [key, user] of ctx.users) {
-        if (String(user._id) === userId && user.role === 'intern') return key;
-      }
-      return null;
-    })
-    .filter(Boolean);
-
   const docs = [];
-  for (let dayOffset = 0; dayOffset < spec.days; dayOffset += 1) {
-    const dayKey = clock.workdaysAgo(dayOffset);
-    const entries = [];
 
-    eligibleKeys.forEach((internKey, index) => {
-      const seed = index + dayOffset;
-      if (seed % spec.skipEvery === spec.skipEvery - 1) return; // deliberate gap
+  for (const spec of data.dailies) {
+    const workspace = ctx.workspaces.get(spec.workspaceKey);
 
-      const blockers =
-        seed % spec.blockerEvery === 0
-          ? [
-              {
-                text: spec.blockers[seed % spec.blockers.length],
-                linkedTicket:
-                  ctx.tickets.get(spec.blockerTicketKeys[seed % spec.blockerTicketKeys.length])
-                    ?._id || null,
-              },
-            ]
-          : [];
+    // Only interns who are ACTIVE members of THIS workspace and whose user
+    // account is itself active are eligible — dailyService.getActiveInterns
+    // filters on both, and it is the picker's denominator. An entry for anyone
+    // else renders but can't be edited in the UI.
+    const eligibleKeys = workspace.members
+      .filter((member) => member.status === 'active')
+      .map((member) => String(member.user))
+      .map((userId) => {
+        for (const [key, user] of ctx.users) {
+          if (String(user._id) === userId && user.role === 'intern' && user.active) return key;
+        }
+        return null;
+      })
+      .filter(Boolean);
 
-      entries.push({
-        member: ctx.users.get(internKey)._id,
-        done: [spec.done[(index * 3 + dayOffset) % spec.done.length]],
-        todo: [spec.todo[(index * 2 + dayOffset) % spec.todo.length]],
-        blockers,
+    for (let dayOffset = 0; dayOffset < spec.days; dayOffset += 1) {
+      const dayKey = clock.workdaysAgo(dayOffset);
+      const entries = [];
+
+      eligibleKeys.forEach((internKey, index) => {
+        const seed = index + dayOffset;
+        if (seed % spec.skipEvery === spec.skipEvery - 1) return; // deliberate gap
+
+        const blockers =
+          seed % spec.blockerEvery === 0
+            ? [
+                {
+                  text: spec.blockers[seed % spec.blockers.length],
+                  linkedTicket:
+                    ctx.tickets.get(spec.blockerTicketKeys[seed % spec.blockerTicketKeys.length])
+                      ?._id || null,
+                },
+              ]
+            : [];
+
+        // The insights page renders `reportedAt` from the entry's own
+        // createdAt. Left to mongoose that is the seed run's wall clock, so
+        // every intern appears to have reported in the same minute — which
+        // reads as fake on screen. Stagger them across the morning instead.
+        const filedAt = clock.at(dayKey, 9 + ((index * 3) % 2), (index * 11) % 60);
+
+        entries.push({
+          member: ctx.users.get(internKey)._id,
+          done: [spec.done[(index * 3 + dayOffset) % spec.done.length]],
+          todo: [spec.todo[(index * 2 + dayOffset) % spec.todo.length]],
+          blockers,
+          createdAt: filedAt,
+          updatedAt: filedAt,
+        });
       });
-    });
 
-    docs.push({
-      _id: stableId(`daily:${spec.workspaceKey}:${dayKey}`),
-      workspace: workspace._id,
-      // Daily has a pre('validate') that normalizes to start-of-day; passing a
-      // local midnight keeps the unique { workspace, date } index to one row/day.
-      date: clock.startOfDay(dayKey),
-      scribe: ctx.users.get(spec.scribeKey)._id,
-      entries,
-    });
+      docs.push({
+        _id: stableId(`daily:${spec.workspaceKey}:${dayKey}`),
+        workspace: workspace._id,
+        // Daily has a pre('validate') that normalizes to start-of-day; passing a
+        // local midnight keeps the unique { workspace, date } index to one row/day.
+        date: clock.startOfDay(dayKey),
+        scribe: ctx.users.get(spec.scribeKey)._id,
+        entries,
+      });
+    }
   }
 
   // create(), not insertMany(), so the pre('validate') date normalization runs.
