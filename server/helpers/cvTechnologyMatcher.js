@@ -62,10 +62,18 @@ const buildAliasRegex = (alias) => {
 // conservative: bare, common-word forms ("next", "node", "spring", "nest", "solid") are
 // omitted to avoid false positives — the multi-word/suffixed forms below carry the signal.
 // Genuinely ambiguous names live in AMBIGUOUS_MATCHERS instead.
+//
+// Note the version-suffixed spellings CVs actually use ("HTML5", "CSS3", "Python3",
+// "Dockerfile"): the right boundary rejects a trailing letter/digit, so the bare alias does
+// NOT cover them and each suffixed form needs its own entry. Every slug in
+// seeder/defaultTechnologies.js should appear here (or in AMBIGUOUS_MATCHERS) — a slug that
+// falls through to fallbackAliases() only matches its literal name, which misses every
+// real-world spelling.
 const TECHNOLOGY_ALIASES = {
   // —— Languages ——
-  javascript: ['javascript', 'ecmascript', 'es6'],
-  typescript: ['typescript'],
+  // 'java' cannot leak from "javascript": the right boundary rejects the trailing 's'.
+  javascript: ['javascript', 'ecmascript', 'es6', 'es2015'],
+  typescript: ['typescript', 'type script'],
   python: ['python', 'python3'],
   java: ['java'],
   csharp: ['c#', 'csharp', 'c sharp'],
@@ -74,6 +82,8 @@ const TECHNOLOGY_ALIASES = {
   scala: ['scala'],
   elixir: ['elixir', 'phoenix framework'],
   dart: ['dart'],
+  // 'sql' cannot leak from "mysql"/"postgresql"/"nosql": the left boundary rejects the
+  // preceding letter. "pl/sql" still matches — the slash normalizes to a space.
   sql: ['sql'],
 
   // —— Frontend ——
@@ -104,6 +114,7 @@ const TECHNOLOGY_ALIASES = {
   flask: ['flask'],
   laravel: ['laravel'],
   symfony: ['symfony'],
+  // Bare "ruby" belongs to the `ruby` language above, not to Rails.
   'ruby-on-rails': ['ruby on rails', 'rails', 'ror'],
   graphql: ['graphql'],
 
@@ -162,7 +173,7 @@ const TECHNOLOGY_ALIASES = {
 
   // —— DevOps & cloud ——
   devops: ['devops', 'dev ops'],
-  docker: ['docker', 'dockerfile'],
+  docker: ['docker', 'dockerfile', 'docker compose'],
   kubernetes: ['kubernetes', 'k8s', 'kubectl'],
   aws: ['aws', 'amazon web services', 'amazon s3', 'ec2'],
   azure: ['azure'],
@@ -174,6 +185,11 @@ const TECHNOLOGY_ALIASES = {
   'gitlab-ci': ['gitlab ci', 'gitlab pipelines', 'gitlab runner'],
   linux: ['linux', 'ubuntu', 'debian'],
   nginx: ['nginx'],
+
+  // —— Tooling ——
+  // 'git' cannot leak from "github"/"gitlab"/"gitignore" (right boundary rejects the
+  // following letter) or from "digit" (left boundary rejects the preceding one).
+  git: ['git'],
 
   // —— Specialized engineering ——
   cpp: ['c++', 'cpp'],

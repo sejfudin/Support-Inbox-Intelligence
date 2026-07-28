@@ -1,16 +1,24 @@
 // The canonical Technology catalog. CV scanning can only ever surface technologies that
 // exist here (see helpers/cvTechnologyMatcher.js), so this list is what decides how much of
 // a real CV gets recognized — keep it broad enough to cover the mainstream stacks interns
-// actually list.
+// actually list. A skill with no entry below is invisible to the CV scan no matter how it is
+// written. Languages and tooling sit alongside frameworks and disciplines on purpose: interns
+// list all of them on a CV, and a mentor can meaningfully assess readiness on any of them.
 //
 // Adding an entry: give it an explicit `slug` whenever slugify(name) would be lossy or
 // collide (`C#` and `C++` both slugify to `c`). Then add the CV aliases for that slug in
 // helpers/cvTechnologyMatcher.js, and optionally a brand logo in
-// frontend/src/helpers/technologyIcons.jsx.
+// frontend/src/helpers/technologyIcons.jsx. Finish with `npm run seed:technologies` to
+// backfill databases that were already seeded — a non-destructive upsert.
 //
 // Slugs are the stable key — ReadinessFlags, CV aliases and icons all reference them, so
-// never rename one in place. Groups below are for human readability only; the API sorts by
-// name. Entries that predate the "Languages"/"Databases" groups keep their original section.
+// never rename one in place. To replace a coarse entry with granular ones, add the new entries
+// here and retire the old row with `npm run cleanup:superseded-technologies` (see
+// retireSupersededTechnologies.js); left active, both match the same CV line and one skill is
+// auto-declared as several technologies.
+//
+// Groups below are for human readability only; the API sorts by name. Entries that predate
+// the "Languages"/"Databases" groups keep their original section.
 
 module.exports = [
   // —— Languages ——
@@ -121,6 +129,9 @@ module.exports = [
   { name: 'GitLab CI', slug: 'gitlab-ci' },
   { name: 'Linux' },
   { name: 'Nginx' },
+
+  // —— Tooling ——
+  { name: 'Git' },
 
   // —— Specialized engineering ——
   { name: 'C++', slug: 'cpp' },

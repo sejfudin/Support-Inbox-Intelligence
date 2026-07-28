@@ -1,20 +1,34 @@
-const { matchTechnologiesInText } = require('./cvTechnologyMatcher');
+const {
+  matchTechnologiesInText,
+  TECHNOLOGY_ALIASES,
+  AMBIGUOUS_MATCHERS,
+} = require('./cvTechnologyMatcher');
 const { slugify } = require('./slugify');
 const DEFAULT_TECHNOLOGIES = require('../seeder/defaultTechnologies');
 
-// The catalog as it reaches the matcher at runtime: resolved slug + name, same rule
-// seeder/referenceData.js uses.
+// The catalog as it reaches the matcher at runtime: resolved slug + name, the same rule
+// seeder/referenceData.js uses. Building it from the real seed list means these tests fail if
+// a technology is added to the catalog without a matching alias entry — the bug that made a
+// clean frontend CV yield only "React".
 const CATALOG = DEFAULT_TECHNOLOGIES.map((entry, index) => ({
   _id: `id-${index}`,
   name: entry.name,
   slug: entry.slug || slugify(entry.name),
+  isActive: true,
 }));
 
 const slugsIn = (text, catalog = CATALOG) =>
   matchTechnologiesInText(text, catalog).map((t) => t.slug);
 
-// A skills list containing every catalog name — commas give the ambiguous one-letter names
-// ("C", "R", "Go") the list context they require.
+const names = (text, catalog = CATALOG) =>
+  matchTechnologiesInText(text, catalog).map((t) => t.name);
+
+// The everyday-word names ("Go", "C", "R", "Express") deliberately do not match on the bare
+// term alone, so they are excluded from the round-trip checks below and covered separately.
+const AMBIGUOUS_SLUGS = Object.keys(AMBIGUOUS_MATCHERS);
+
+// A skills list containing every catalog name — the commas give the ambiguous one-letter
+// names ("C", "R", "Go") the list context they require.
 const FULL_SKILLS_LIST = `Skills: ${CATALOG.map((t) => t.name).join(', ')}.`;
 
 describe('catalog coverage', () => {
@@ -27,6 +41,27 @@ describe('catalog coverage', () => {
   it('has no duplicate slugs', () => {
     const slugs = CATALOG.map((t) => t.slug);
     expect(slugs).toHaveLength(new Set(slugs).size);
+  });
+
+  it('gives every seeded technology a curated alias entry', () => {
+    const missing = CATALOG.filter(
+      (t) => !AMBIGUOUS_SLUGS.includes(t.slug) && !TECHNOLOGY_ALIASES[t.slug]
+    ).map((t) => t.slug);
+    expect(missing).toEqual([]);
+  });
+
+  // The reverse drift: an alias entry left behind for a slug that was renamed or retired out
+  // of the catalog matches nothing at runtime and is dead weight nobody notices.
+  it('has no alias entry for a slug that is not in the catalog', () => {
+    const slugs = new Set(CATALOG.map((t) => t.slug));
+    expect(Object.keys(TECHNOLOGY_ALIASES).filter((slug) => !slugs.has(slug))).toEqual([]);
+  });
+
+  it('recognizes every technology from its own display name in isolation', () => {
+    const unmatched = CATALOG.filter(
+      (t) => !AMBIGUOUS_SLUGS.includes(t.slug) && !names(t.name).includes(t.name)
+    ).map((t) => t.name);
+    expect(unmatched).toEqual([]);
   });
 });
 
@@ -92,6 +127,43 @@ describe('a realistic CV', () => {
   });
 });
 
+describe('skills sections', () => {
+  // Regression: the reported bug returned only "React" from this CV.
+  it('picks up every skill in a bulleted frontend skills list', () => {
+    const cv = [
+      'Alex Morgan — Frontend Developer',
+      'Skills',
+      '• React',
+      '• TypeScript',
+      '• JavaScript (ES6+)',
+      '• HTML5 / CSS3',
+      '• Redux',
+      '• Jest',
+      '• Git',
+    ].join('\n');
+
+    expect(names(cv).sort()).toEqual(
+      ['CSS', 'Git', 'HTML', 'JavaScript', 'Jest', 'React', 'Redux', 'TypeScript'].sort()
+    );
+  });
+
+  it('picks up a comma-separated backend skills line', () => {
+    expect(
+      names('Technologies: Java, Spring Boot, PostgreSQL, Docker, Kubernetes, AWS').sort()
+    ).toEqual(['AWS', 'Docker', 'Java', 'Kubernetes', 'PostgreSQL', 'Spring Boot'].sort());
+  });
+
+  it('reads technologies out of prose, not just skills lists', () => {
+    expect(
+      names('Built REST endpoints in Python with FastAPI, stored data in MongoDB.').sort()
+    ).toEqual(['FastAPI', 'MongoDB', 'Python'].sort());
+  });
+
+  it('returns each technology once even when mentioned repeatedly', () => {
+    expect(names('React, React.js and ReactJS')).toEqual(['React']);
+  });
+});
+
 describe('name collisions', () => {
   it('separates Java from JavaScript', () => {
     expect(slugsIn('Skills: JavaScript, TypeScript')).not.toContain('java');
@@ -113,6 +185,12 @@ describe('name collisions', () => {
     const found = slugsIn('Databases: MySQL, PostgreSQL');
     expect(found).toEqual(expect.arrayContaining(['mysql', 'postgresql']));
     expect(found).not.toContain('sql');
+  });
+
+  it('separates Git from GitHub, GitLab and ordinary words', () => {
+    expect(slugsIn('Tools: Git, Docker')).toContain('git');
+    expect(slugsIn('Contributed on GitHub and GitLab.')).not.toContain('git');
+    expect(slugsIn('Managed digital assets for the team.')).not.toContain('git');
   });
 });
 
@@ -139,6 +217,16 @@ describe('everyday words that are also technology names', () => {
     expect(slugsIn('I write clean code following SOLID principles.')).not.toContain('solidjs');
     expect(slugsIn('Frontend: SolidJS, Astro')).toContain('solidjs');
   });
+
+  it.each([
+    ['obeyed all laws and regulations', 'AWS'],
+    ['a trusted teammate on every project', 'Rust'],
+    ['used MySQL for reporting', 'SQL'],
+    ['built a JavaScript parser', 'Java'],
+    ['sparked my interest in distributed systems', 'Apache Spark'],
+  ])('does not read "%s" as %s', (text, notExpected) => {
+    expect(names(text)).not.toContain(notExpected);
+  });
 });
 
 describe('spelling variants', () => {
@@ -156,6 +244,23 @@ describe('spelling variants', () => {
     expect(slugsIn('Data: scikit-learn, sklearn, PySpark')).toEqual(
       expect.arrayContaining(['scikit-learn', 'apache-spark'])
     );
+  });
+
+  it.each([
+    ['SCSS', 'Sass'],
+    ['ES6', 'JavaScript'],
+    ['ES2015', 'JavaScript'],
+    ['Type Script', 'TypeScript'],
+    ['TailwindCSS', 'Tailwind CSS'],
+    ['Dockerfile', 'Docker'],
+    ['docker-compose', 'Docker'],
+    ['PL/SQL', 'SQL'],
+    ['Postgres', 'PostgreSQL'],
+    ['Mongoose', 'MongoDB'],
+    ['golang', 'Go'],
+    ['Languages: Go, Rust', 'Go'],
+  ])('matches %s as %s', (text, expected) => {
+    expect(names(text)).toContain(expected);
   });
 
   it('matches names split by unicode dashes and spaces', () => {

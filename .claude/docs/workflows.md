@@ -46,10 +46,10 @@ npm run format:check # check
 
 ## Seeding — DANGEROUS
 
-The three dataset seeders (`seed`, `seed:test`, `seed:demo`) destroy or overwrite data. Never
-run one against a non-local database without knowing exactly which one you are pointed at. The
-reference-data scripts (`seed:positions`, `seed:technologies`) only upsert missing catalog rows
-and are safe anywhere.
+The three dataset seeders (`seed:demo`, `seed`, `seed:test`) destroy or overwrite data. Never
+run one against a non-local database without knowing exactly which one you are pointed at.
+The reference-data scripts (`seed:positions`, `seed:technologies`) only upsert missing catalog
+rows with `$setOnInsert` and are safe to run anywhere.
 
 ```bash
 # server/
@@ -57,7 +57,7 @@ npm run seed:demo   # RECOMMENDED — coherent demo dataset (see below)
 npm run seed        # destructive reset + demo workspace + admin@test.com / mentor@test.com
 npm run seed:test   # richer dataset (Symphony staff + interns, password: "password")
 npm run seed:positions
-npm run seed:technologies    # NON-destructive — adds missing technologies only, see below
+npm run seed:technologies               # NON-destructive: adds missing technologies, see below
 npm run backfill:intern-positions
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
@@ -146,9 +146,10 @@ three files in one change: the catalog entry, its CV aliases in the matcher, and
 brand logo in `frontend/src/helpers/technologyIcons.jsx`.
 
 **Check what is already there before seeding.** The catalog drifts per environment (admins can
-create technologies), so the number added is not the same everywhere — `taskmanager_dev` held 45
-rows, not the 25 in `defaultTechnologies.js` at the time. Read the `--dry-run` list, and watch
-for existing rows that overlap an incoming one.
+create technologies, and retired rows stay behind), so the number added is not the same
+everywhere and the database row count can exceed the catalog — `taskmanager_dev` holds 95 rows
+against the 94 in `defaultTechnologies.js`, the extra being the retired `html-css`. Read the
+`--dry-run` list, and watch for existing rows that overlap an incoming one.
 
 ### `npm run cleanup:superseded-technologies`
 
@@ -172,9 +173,10 @@ add a pair there when a new granular entry replaces an older combined one.
 
 ## Verifying a change
 
-Jest covers a few pure helpers only (`npm test` in `server/` — `slugify`, `dailyRules`,
-`cvTechnologyMatcher`). There is no integration or UI test suite, so passing tests never means a
-feature works. To confirm a change works, drive the real app:
+There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers a handful of pure
+helpers only — `slugify`, `dailyRules`, `cvTechnologyMatcher` (`helpers/*.test.js`). Run it when
+you touch one of those helpers, but it proves nothing about a route, a query or a screen. To
+confirm a change works, drive the real app:
 
 - Use `/run` to launch, `/verify` to exercise the affected flow end-to-end.
 - Playwright MCP browser tools are permitted for UI verification.

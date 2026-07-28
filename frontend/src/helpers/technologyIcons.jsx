@@ -25,6 +25,7 @@ import {
   FlaskDark,
   FlaskLight,
   Flutter,
+  Git,
   GitHubDark,
   GitHubLight,
   GitLab,
@@ -186,6 +187,9 @@ const ICON_BY_SLUG = {
   'github-actions': { onLight: GitHubDark, onDark: GitHubLight },
   'gitlab-ci': GitLab,
   linux: Linux,
+
+  // —— Tooling ——
+  git: Git,
 
   // —— Specialized engineering ——
   cpp: CPlusPlus,
