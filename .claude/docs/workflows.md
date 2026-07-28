@@ -61,6 +61,7 @@ npm run seed:technologies    # NON-destructive — adds missing technologies onl
 npm run backfill:intern-positions
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
+npm run cleanup:superseded-technologies # retire legacy combined catalog rows, see below
 ```
 
 ### `npm run seed:demo` — the one to reach for
@@ -118,6 +119,11 @@ The odd one out: **non-destructive**. It upserts `seeder/defaultTechnologies.js`
 reactivates or removes an existing one, and touches no other collection. Like `seed:demo` it
 loads `.env.${NODE_ENV|development}`.
 
+(One caveat on "`$setOnInsert` only": `Technology` has `timestamps: true`, and Mongoose adds
+`$set: { updatedAt }` to every `updateOne` regardless. Existing rows therefore get their
+`updatedAt` bumped on each run. Nothing reads that field today, but don't build
+"recently added" sorting on it.)
+
 Run it after adding entries to `defaultTechnologies.js`; the alternative is the destructive
 `npm run seed`, which you do not want to point at a shared database.
 
@@ -130,6 +136,31 @@ The catalog is what bounds CV scanning — `helpers/cvTechnologyMatcher.js` can 
 recognize technologies that already exist as `Technology` documents. Adding a technology means
 three files in one change: the catalog entry, its CV aliases in the matcher, and (optionally) a
 brand logo in `frontend/src/helpers/technologyIcons.jsx`.
+
+**Check what is already there before seeding.** The catalog drifts per environment (admins can
+create technologies), so the number added is not the same everywhere — `taskmanager_dev` held 45
+rows, not the 25 in `defaultTechnologies.js` at the time. Read the `--dry-run` list, and watch
+for existing rows that overlap an incoming one.
+
+### `npm run cleanup:superseded-technologies`
+
+The companion to the above: `seed:technologies` only ever adds, so a legacy *combined* row
+survives alongside the granular entries that replace it. `HTML & CSS` next to a new `HTML` and
+`CSS` made a CV reading `HTML/CSS` match all three — one skill auto-declared as three
+technologies, and three unassessed readiness items for the mentor.
+
+This script deactivates such rows (`isActive: false`) rather than deleting them: the matcher and
+`getAllTechnologies` both skip inactive, so the row leaves CV scanning and every picker, while an
+intern who already declared it keeps a valid reference. Deleting would strand ObjectIds in
+`selfTechnologies`. It refuses to retire a row whose replacements are not seeded yet.
+
+```bash
+npm run cleanup:superseded-technologies -- --dry-run   # report only, change nothing
+npm run cleanup:superseded-technologies                # deactivate the superseded rows
+```
+
+The mapping lives in `SUPERSEDED_BY` at the top of `seeder/retireSupersededTechnologies.js` —
+add a pair there when a new granular entry replaces an older combined one.
 
 ## Verifying a change
 

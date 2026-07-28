@@ -22,7 +22,8 @@
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
     "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
-    "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js"
+    "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
+    "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
