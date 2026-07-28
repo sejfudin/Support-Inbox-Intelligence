@@ -49,13 +49,15 @@ npm run format:check # check
 The three dataset seeders (`seed:demo`, `seed`, `seed:test`) destroy or overwrite data. Never
 run one against a non-local database without knowing exactly which one you are pointed at.
 The reference-data scripts (`seed:positions`, `seed:technologies`) only upsert missing catalog
-rows with `$setOnInsert` and are safe to run anywhere.
+rows with `$setOnInsert` and are safe to run anywhere. `seed:recommendations` is additive and
+idempotent — it is the one dataset script that is safe to point at a shared dev database.
 
 ```bash
 # server/
 npm run seed:demo   # RECOMMENDED — coherent demo dataset (see below)
 npm run seed        # destructive reset + demo workspace + admin@test.com / mentor@test.com
 npm run seed:test   # richer dataset (Symphony staff + interns, password: "password")
+npm run seed:recommendations            # ADDITIVE: top up the placement pipeline, see below
 npm run seed:positions
 npm run seed:technologies               # NON-destructive: adds missing technologies, see below
 npm run backfill:intern-positions
@@ -71,13 +73,22 @@ Wipes transactional data and rebuilds a single coherent dataset: 4 hero logins, 
 one of them a **deactivated account** (`goran.stankovic@symphony.is` — login rejected, still
 listed in the admin directory and filterable via `?status=disabled`), two workspaces with a
 worked-on ticket board, stand-ups in both (15 days on the main board, 8 on the QA guild), and a
-12-recommendation placement pipeline. Entry point `server/seeder/seedDemoData.js`; the content
-lives in `server/seeder/demo/dataset.js`.
+38-recommendation placement pipeline covering **every** intern. Entry point
+`server/seeder/seedDemoData.js`; the content lives in `server/seeder/demo/dataset.js`.
 
-Two invariants the preflight enforces, because getting them wrong is silent: the profile-status
-histogram is pinned (so an edit can't quietly hollow out the attendance roster), and a
-deactivated account may not carry an `active`/`ready` profile — `getRoster` keys off _profile_
-status and never checks `user.active`, so such an intern would sit on the roster forever at 0%.
+Invariants the preflight enforces, because getting them wrong is silent:
+
+- The profile-status histogram is pinned, so an edit can't quietly hollow out the attendance roster.
+- A deactivated account may not carry an `active`/`ready` profile — `getRoster` keys off _profile_
+  status and never checks `user.active`, so such an intern would sit on the roster forever at 0%.
+- Every intern has at least one recommendation, and the interns in `RECOMMENDATION_MULTI_KEYS`
+  have several (so the demo can show a real placement journey, not one row per person).
+- Recommendation status agrees with the intern's profile status. The rules live in
+  `server/seeder/demo/recommendationRules.js` and mirror `recommendationService`: `active` interns
+  get open stages only (resolving one as `not_placed` moves the profile to `ready`, so the app
+  itself can never leave a resulted recommendation on an `active` intern); `placed`/`completed`/
+  `discontinued` interns get resulted ones only, with exactly one `placed` outcome for a `placed`
+  profile.
 
 **Unlike the other seeders it loads `.env.${NODE_ENV|development}` — the same file `index.js`
 reads — so it targets the database `npm run dev` actually uses.** The others load plain `.env`,
@@ -119,6 +130,44 @@ Demo accounts (after seeding): full table in `README.md` ("Demo accounts").
 - `admin@`, `mentor@`, `intern@`, `leadership@symphony.is` / `password` (from `seed:demo`).
 - `admin@test.com` / `admin123`, `mentor@test.com` / `mentor123` (from `seed`).
 - `*@symphony.is` accounts / `password` (from `seed:test`).
+
+### `npm run seed:recommendations` — additive, safe on a shared dev DB
+
+Inserts the placement pipeline from `demo/dataset.js` for interns who are missing it. **Nothing is
+deleted and no existing recommendation is modified** — the only writes are new `Recommendation`
+documents plus the `History` rows for their status timeline. That is what makes it the one dataset
+script you can point at `taskmanager_dev` without coordinating with the team, unlike `seed:demo`,
+which wipes every user id and breaks everyone's open sessions.
+
+Reach for it when the dev database already has real work in it (tickets people are testing against,
+profiles moved by hand) and the only gap is an empty pipeline. Reach for `seed:demo` when you want
+the whole coherent dataset back.
+
+```bash
+npm run seed:recommendations -- --dry-run       # print the plan, write nothing
+npm run seed:recommendations                    # interactive: type the DATABASE NAME to confirm
+npm run seed:recommendations -- --yes=<dbname>  # non-interactive; the flag must assert the db name
+```
+
+Same env loading and same confirmation rules as `seed:demo` (`.env.${NODE_ENV|development}`,
+database-name assertion, refuses `/prod|production|_live/`). Three things make re-running harmless:
+
+- Recommendations are written with the demo seeder's deterministic `_id`
+  (`stableId('recommendation:<key>')`), so "already present" is an id lookup, not a fuzzy match.
+  A second run inserts zero rows.
+- People and reference data resolve by **email** and **slug**, never by seeded id, so it also works
+  where users were created through the app. Anything unresolvable is skipped with a reason, printed,
+  rather than aborting the run.
+- Each spec is re-checked against the intern's **live** profile status and the recommendations
+  already in the database before being written, using the same
+  `demo/recommendationRules.js` used by the `seed:demo` preflight. A profile someone has since moved
+  to `placed`/`completed`/`discontinued` will not receive an open recommendation that would sit in
+  the pipeline KPI forever. Pre-existing incoherence in the database is reported as a warning and
+  does not block the rest of the pipeline.
+
+The spec→document mapping is shared with the demo seeder (`demo/recommendationDocs.js`), so both
+paths produce identical records. It ends with a per-intern coverage table and an explicit check that
+no intern profile is left without a recommendation.
 
 ### `npm run seed:technologies` — safe on any environment
 

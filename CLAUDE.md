@@ -22,7 +22,9 @@ Detail lives in the referenced docs below — read them when the task calls for 
 
 ## Hard rules
 
-- **Never run the seeders against any non-local DB.** `npm run seed` wipes all collections.
+- **Never run a destructive seeder (`seed`, `seed:demo`, `seed:test`) against any non-local DB.**
+  `npm run seed` wipes all collections. The additive, idempotent scripts (`seed:recommendations`,
+  `seed:technologies`) are fine against the shared dev DB — see `.claude/docs/workflows.md`.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
 - **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
 - **There is no integration or E2E suite.** `npm test` in `server/` covers a few pure helpers (`helpers/*.test.js`) and nothing else. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).

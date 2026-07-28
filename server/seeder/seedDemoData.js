@@ -61,6 +61,7 @@ const Project = require('../models/Project');
 
 const dataset = require('./demo/dataset');
 const { createClock, stableId } = require('./demo/clock');
+const { recommendationProblems } = require('./demo/recommendationRules');
 const phaseIdentity = require('./demo/phaseIdentity');
 const phaseWorkspace = require('./demo/phaseWorkspace');
 const phaseTalent = require('./demo/phaseTalent');
@@ -463,7 +464,27 @@ const preflight = (ref) => {
         problems.push(`recommendation ${spec.key}: result set without resultedWorkdaysAgo`);
       }
     }
+    if (spec.status === 'resulted' && !spec.result) {
+      problems.push(`recommendation ${spec.key}: status "resulted" without a result`);
+    }
+    if (spec.status !== 'resulted' && spec.result) {
+      problems.push(`recommendation ${spec.key}: result set but status is "${spec.status}"`);
+    }
   }
+
+  // Duplicate recommendation keys would collide on stableId and silently drop a
+  // record (Recommendation.create would throw, but only mid-run).
+  const recommendationKeys = dataset.recommendations.map((spec) => spec.key);
+  const duplicateRecommendationKeys = recommendationKeys.filter(
+    (key, index) => recommendationKeys.indexOf(key) !== index
+  );
+  if (duplicateRecommendationKeys.length) {
+    problems.push(`duplicate recommendation keys: ${duplicateRecommendationKeys.join(', ')}`);
+  }
+
+  // Coverage (every intern has one), the multi-recommendation contract, and
+  // recommendation-vs-profile-status coherence.
+  problems.push(...recommendationProblems(dataset));
 
   // Deterministic _ids must not collide.
   const idKeys = [
@@ -471,6 +492,7 @@ const preflight = (ref) => {
     ...[...workspaceKeys].map((key) => `workspace:${key}`),
     ...[...ticketKeys].map((key) => `ticket:${key}`),
     ...[...projectKeys].map((key) => `project:${key}`),
+    ...recommendationKeys.map((key) => `recommendation:${key}`),
   ];
   const ids = idKeys.map((key) => String(stableId(key)));
   const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);

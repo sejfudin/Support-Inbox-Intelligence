@@ -13,6 +13,7 @@ const MentorComment = require('../../models/MentorComment');
 const Recommendation = require('../../models/Recommendation');
 const History = require('../../models/History');
 const { stableId } = require('./clock');
+const { buildRecommendationDoc, buildStatusHistory } = require('./recommendationDocs');
 
 // Which evaluation/note profile an intern gets. Terminal statuses use `alumni`;
 // everyone else is keyed by their attendance persona so the scores and the
@@ -119,80 +120,17 @@ const createRecommendations = async (ctx) => {
       ? ctx.projects.get(spec.projectKey)
       : ctx.ref.unspecifiedProject;
 
-    const statusDates = {
-      recommended: clock.at(clock.workdaysAgo(spec.recommendedWorkdaysAgo), 12, 0),
-    };
-    if (spec.interviewingWorkdaysAgo != null) {
-      statusDates.interviewing = clock.at(clock.workdaysAgo(spec.interviewingWorkdaysAgo), 12, 0);
-    }
-    if (spec.resultedWorkdaysAgo != null) {
-      statusDates.resulted = clock.at(clock.workdaysAgo(spec.resultedWorkdaysAgo), 12, 0);
-    }
-
-    const interviews = (spec.interviews || []).map((interview) => ({
-      company: interview.company,
-      role: interview.role,
-      stage: interview.stage,
-      scheduledAt:
-        interview.scheduledWorkdaysAhead != null
-          ? clock.at(clock.workdaysAhead(interview.scheduledWorkdaysAhead), 10, 0)
-          : clock.at(clock.workdaysAgo(interview.scheduledWorkdaysAgo), 10, 0),
-      interviewers: interview.interviewers || [],
-      locationNote: interview.locationNote || '',
-      feedback: interview.feedback || {},
-    }));
-
-    const doc = {
-      _id: stableId(`recommendation:${spec.key}`),
-      internProfile: ctx.profiles.get(spec.internKey)._id,
-      // Both createdBy and updatedBy are required on the model.
-      createdBy: author._id,
-      updatedBy: author._id,
-      position: ctx.ref.positionBySlug(spec.positionSlug)._id,
-      project: project._id,
-      technologies: (spec.technologies || []).map((slug) => ctx.ref.techBySlug(slug)._id),
-      status: spec.status,
-      statusDates,
-      recommendationNote: spec.recommendationNote || '',
-      interviews,
-    };
-
-    if (spec.result) {
-      // The model validates that result.note is a non-empty string whenever
-      // result.outcome is set.
-      doc.result = {
-        outcome: spec.result.outcome,
-        note: spec.result.note,
-        decidedAt: statusDates.resulted,
-        decidedBy: ctx.users.get(spec.result.decidedByKey)._id,
-      };
-    }
+    const { doc, statusDates } = buildRecommendationDoc(spec, clock, {
+      internProfileId: ctx.profiles.get(spec.internKey)._id,
+      authorId: author._id,
+      positionId: ctx.ref.positionBySlug(spec.positionSlug)._id,
+      projectId: project._id,
+      technologyIds: (spec.technologies || []).map((slug) => ctx.ref.techBySlug(slug)._id),
+      decidedById: spec.result ? ctx.users.get(spec.result.decidedByKey)._id : undefined,
+    });
 
     const recommendation = await Recommendation.create(doc);
-
-    // One history row per stage actually reached, so the pipeline timeline has
-    // something to render.
-    const stages = [
-      ['recommended', 'recommended the intern', statusDates.recommended],
-      ['interviewing', 'moved to interviewing', statusDates.interviewing],
-      [
-        spec.result?.outcome || 'resulted',
-        `marked the recommendation ${spec.result?.outcome || 'resulted'}`,
-        statusDates.resulted,
-      ],
-    ];
-    for (const [statusKey, action, timestamp] of stages) {
-      if (!timestamp) continue;
-      historyDocs.push({
-        entityType: 'recommendation',
-        entityId: recommendation._id,
-        action,
-        statusKey,
-        userId: author._id,
-        userName: author.fullname,
-        timestamp,
-      });
-    }
+    historyDocs.push(...buildStatusHistory(spec, recommendation._id, statusDates, author));
   }
 
   await History.insertMany(historyDocs);

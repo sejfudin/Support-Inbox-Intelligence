@@ -43,6 +43,7 @@ anything reading `NODE_ENV` after the load gets a misleading value; never branch
   descriptions) with `sanitize-html` before persisting — see `helpers/htmlSanitize.js`. Plain-text
   fields (comments) are stored verbatim and made safe by React's text-node escaping at render; do
   **not** run them through an HTML sanitizer (it entity-encodes `&`/`<`/`>` into stored data).
-- **Never** run seeders against non-local DBs. Never commit `.env`.
+- **Never** run a destructive seeder (`seed`, `seed:demo`, `seed:test`) against a non-local DB. The
+  additive ones (`seed:recommendations`, `seed:technologies`) are safe anywhere. Never commit `.env`.
 - Emit Socket.IO invalidation via `socket/invalidationScopes.js` keys so the frontend cache updates.
 - Run `npm run format` before finishing.
