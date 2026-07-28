@@ -17,11 +17,13 @@
     "seed:test": "node seeder/seedTestingData.js",
     "seed:demo": "node seeder/seedDemoData.js",
     "seed:positions": "node seeder/seedPositions.js",
+    "seed:technologies": "node seeder/seedTechnologies.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
     "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
-    "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js"
+    "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
+    "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
