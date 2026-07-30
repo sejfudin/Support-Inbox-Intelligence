@@ -4,6 +4,7 @@ const InternProfile = require('../models/InternProfile');
 const Technology = require('../models/Technology');
 const { extractPdfText } = require('../helpers/pdfText');
 const { matchTechnologiesInText } = require('../helpers/cvTechnologyMatcher');
+const { reconcileCvTechnologies } = require('../helpers/cvTechnologySync');
 
 const buildInternCvPath = (userId) => {
   const ts = Date.now();
@@ -22,31 +23,69 @@ const removeCvFromStorage = async (cvPath) => {
   await supabase.storage.from(supabaseCvBucket).remove([cvPath]);
 };
 
-// Best-effort: read the uploaded CV, recognize technologies from the canonical catalog,
-// and add any not already declared to the intern's list. Mutates `profile.selfTechnologies`
-// (the caller saves) and returns the technologies it added. Recognition is a convenience,
-// never a hard requirement — a corrupt PDF or missing text must not fail the CV upload, so
-// this swallows its own errors and returns [] on any failure.
-const autoDeclareTechnologiesFromCv = async (profile, buffer) => {
+// Fresh arrays per call — callers hand these straight to the response, so a shared constant
+// would let one request's mutation leak into the next.
+const emptySync = () => ({ addedTechnologies: [], removedTechnologies: [] });
+
+const namesForTechnologyIds = async (ids) => {
+  if (!ids.length) return [];
+  return Technology.find({ _id: { $in: ids } })
+    .select('_id name slug')
+    .lean();
+};
+
+// Best-effort: read the uploaded CV, recognize technologies from the canonical catalog, and
+// bring the intern's list in line with it — adding what the CV mentions and removing what the
+// *previous* scan added but this one no longer mentions, so a re-upload replaces rather than
+// accumulates. Manual declarations are never touched (see helpers/cvTechnologySync.js).
+// Mutates `profile.selfTechnologies` / `profile.cvTechnologies` (the caller saves) and returns
+// both deltas.
+//
+// Recognition is a convenience, never a hard requirement — a corrupt PDF or missing text must
+// not fail the CV upload, so this swallows its own errors and changes nothing on failure.
+// Bailing out without touching the list matters on the remove path too: text we could not read
+// is not evidence that the intern dropped a technology, so an unreadable re-upload must leave
+// the previous scan's technologies in place rather than wipe them.
+const syncTechnologiesFromCv = async (profile, buffer) => {
   try {
     const text = await extractPdfText(buffer);
-    if (!text) return [];
+    if (!text) return emptySync();
 
     const technologies = await Technology.find({ isActive: true }).select('_id name slug').lean();
+    // No `if (!matched.length) return` guard: a readable CV that mentions nothing we recognize
+    // is a real result, and it still has to clear what the previous scan left behind.
     const matched = matchTechnologiesInText(text, technologies);
-    if (!matched.length) return [];
 
-    const existing = new Set((profile.selfTechnologies || []).map((id) => String(id)));
-    const added = matched.filter((tech) => !existing.has(String(tech._id)));
-    if (!added.length) return [];
+    const next = reconcileCvTechnologies({
+      selfTechnologies: profile.selfTechnologies || [],
+      cvTechnologies: profile.cvTechnologies || [],
+      matched,
+    });
 
-    // Same effect as a manual "Add a technology": push the ref. No ReadinessFlag is created,
-    // so each new technology reads as "Not assessed" until a mentor assesses it.
-    profile.selfTechnologies = [...(profile.selfTechnologies || []), ...added.map((t) => t._id)];
+    // Resolved before the profile is touched, and deliberately the last await in this function:
+    // everything that can throw has to happen while the list is still untouched, so the catch
+    // below can honestly report "nothing changed". A removed technology is by definition absent
+    // from the new match and may since have been deactivated, so the active-catalog lookup above
+    // cannot name it.
+    const removedTechnologies = await namesForTechnologyIds(next.removedTechnologyIds);
 
-    return added.map((t) => ({ _id: t._id, name: t.name, slug: t.slug }));
+    // Adding has the same effect as a manual "Add a technology": no ReadinessFlag is created,
+    // so each new technology reads as "Not assessed" until a mentor assesses it. Removing
+    // mirrors a manual remove and likewise leaves any existing flag alone — a re-assessment
+    // is the mentor's call, and keeping the flag means re-adding the technology restores it.
+    profile.selfTechnologies = next.selfTechnologies;
+    profile.cvTechnologies = next.cvTechnologies;
+
+    return {
+      addedTechnologies: next.addedTechnologies.map((t) => ({
+        _id: t._id,
+        name: t.name,
+        slug: t.slug,
+      })),
+      removedTechnologies,
+    };
   } catch {
-    return [];
+    return emptySync();
   }
 };
 
@@ -67,10 +106,13 @@ const uploadInternCv = async ({ userId, file }) => {
   }
 
   profile.cvPath = path;
-  const addedTechnologies = await autoDeclareTechnologiesFromCv(profile, file.buffer);
+  const { addedTechnologies, removedTechnologies } = await syncTechnologiesFromCv(
+    profile,
+    file.buffer
+  );
   await profile.save();
 
-  return { cvPath: path, cvUrl: buildCvUrl(path), addedTechnologies };
+  return { cvPath: path, cvUrl: buildCvUrl(path), addedTechnologies, removedTechnologies };
 };
 
 const deleteInternCv = async (userId) => {
