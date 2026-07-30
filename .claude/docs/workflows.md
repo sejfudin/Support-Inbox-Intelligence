@@ -220,6 +220,44 @@ npm run cleanup:superseded-technologies                # deactivate the supersed
 The mapping lives in `SUPERSEDED_BY` at the top of `seeder/retireSupersededTechnologies.js` —
 add a pair there when a new granular entry replaces an older combined one.
 
+### Bringing an existing database up to date with a schema change — `npm run migrate:development-merge`
+
+There is no migration framework — Mongoose schema changes only take effect for documents written
+after the deploy. When a branch adds a required field, narrows an enum, or drops a field a status
+depended on, existing documents on any database that predates the change need a one-off backfill
+or they'll fail validation on their next write (or keep echoing a field the app no longer reads).
+
+`server/seeder/mergeDevelopmentToMaster.js` runs, in order, every backfill/migration needed to
+bring a pre-existing database (e.g. the main-branch DB, before merging `development` into it) up
+to date with the current model set:
+
+1. `seed:positions` — Position catalog must exist before step 3 can fall back to it.
+2. `migrate:recommendation-projects` — creates the locked "Unspecified" sentinel `Project` and
+   repoints any legacy free-text `Recommendation.project` value at it.
+3. `backfill:recommendation-fields` — rewrites the retired `draft` status to `recommended`,
+   backfills the now-required `position`, drops stale `placed` history rows from an earlier
+   migration version, and tops up status `History` rows for old records.
+4. `cleanup:ready-for-placement` — removes the orphaned `readyForPlacement` boolean now that
+   `InternProfile.status` covers the same concept via the `ready` value.
+
+```bash
+npm run migrate:development-merge
+```
+
+Deliberately **not** included: `backfill:intern-positions`. That script assigns a *random*
+`Position` to any intern profile missing `declaredPosition` — fine for demo/test data, wrong for
+real intern records. Leave `declaredPosition` null on a real database; step 3 already falls back
+to a default `Position` per-record when it's missing, and mentors can set the real
+`declaredPosition` by hand. Run `backfill:intern-positions` yourself, deliberately, only against
+a database where random assignment is acceptable (dev/demo).
+
+Each step is its own idempotent, safe-to-re-run script — the wrapper just enforces run order and
+stops at the first failure. Every underlying step is additive/corrective only (no collection is
+wiped), so it's safe to run against a shared or production database, but it still writes real
+data — confirm you're pointed at the intended `MONGODB_URI` (via `NODE_ENV`) before running it.
+Adding a new required field or removed enum value in a future change means adding a new backfill
+script and a new step here, in the same change that alters the model.
+
 ## Verifying a change
 
 There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers a handful of pure

@@ -23,6 +23,8 @@
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
     "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
+    "cleanup:ready-for-placement": "node seeder/unsetReadyForPlacement.js",
+    "migrate:development-merge": "node seeder/mergeDevelopmentToMaster.js",
     "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
     "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js"
   },
