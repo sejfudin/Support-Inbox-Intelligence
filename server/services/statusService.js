@@ -187,22 +187,6 @@ const resolveStatusForWorkspace = async (workspaceId, statusRef) => {
   return validateStatusForWorkspace(workspaceId, statusRef);
 };
 
-const getStatusFlags = async (workspaceId, slug) => {
-  const status = await validateStatusForWorkspace(workspaceId, slug);
-  return {
-    tracksTime: status.tracksTime,
-    isDone: status.isDone,
-    isBacklog: status.isBacklog,
-  };
-};
-
-const getBacklogSlugs = async (workspaceId) => {
-  const statuses = await TicketStatus.find({ workspace: workspaceId, isBacklog: true })
-    .select('slug')
-    .lean();
-  return statuses.map((s) => s.slug);
-};
-
 const getBacklogStatusIds = async (workspaceId) => {
   const statuses = await TicketStatus.find({ workspace: workspaceId, isBacklog: true })
     .select('_id')
@@ -215,13 +199,29 @@ const getStatusIdForSlug = async (workspaceId, slug) => {
   return status._id;
 };
 
-const resolveStatusSlugFromTicketRef = async (statusRef) => {
-  if (!statusRef) return '';
+// Fields a status change needs from the status doc (slug/label for logging,
+// the behavior flags for the lifecycle update).
+const STATUS_REF_FIELDS = ['slug', 'label', 'tracksTime', 'isDone', 'isBacklog'];
+
+// Single fetch that replaces separately re-fetching the same status doc for its
+// slug, label, and behavior flags (a ticket's status change needs all three).
+// A populated status ref is trusted ONLY if it carries every field above;
+// a partially-populated ref (e.g. `.populate('status', 'slug')`) is re-fetched
+// by id so behavior flags never come back silently `undefined` — which would be
+// read as `false` and quietly corrupt the lifecycle update.
+const getStatusDocFromTicketRef = async (statusRef) => {
+  if (!statusRef) return null;
+  // A populated status doc is identified by `.slug`. Trust it only if it carries
+  // every field; a partially-populated doc is re-fetched by its own `_id`.
   if (typeof statusRef === 'object' && statusRef.slug) {
-    return String(statusRef.slug).toLowerCase();
+    const hasAllFields = STATUS_REF_FIELDS.every((field) => statusRef[field] !== undefined);
+    if (hasAllFields) return statusRef;
+    return TicketStatus.findById(statusRef._id)
+      .select('slug label tracksTime isDone isBacklog')
+      .lean();
   }
-  const doc = await TicketStatus.findById(statusRef).select('slug').lean();
-  return doc?.slug ? String(doc.slug).toLowerCase() : '';
+  // Plain id or ObjectId ref (the common case) — findById handles it directly.
+  return TicketStatus.findById(statusRef).select('slug label tracksTime isDone isBacklog').lean();
 };
 
 const statusIdsMatch = (a, b) => {
@@ -242,22 +242,6 @@ const getStatusIdSets = async (workspaceId) => {
     doneIds: statuses.filter((s) => s.isDone).map((s) => s._id),
     tracksTimeIds: statuses.filter((s) => s.tracksTime).map((s) => s._id),
     activeIds: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s._id),
-  };
-};
-
-const getStatusSlugSets = async (workspaceId) => {
-  const statuses = await getWorkspaceStatuses(workspaceId);
-  if (statuses.length === 0) {
-    console.error(
-      `[statusService] No TicketStatus rows for workspace ${workspaceId}; slug sets empty. Run migrateTicketStatuses.js.`
-    );
-    return { doneSlugs: [], tracksTimeSlugs: [], activeSlugs: [] };
-  }
-
-  return {
-    doneSlugs: statuses.filter((s) => s.isDone).map((s) => s.slug),
-    tracksTimeSlugs: statuses.filter((s) => s.tracksTime).map((s) => s.slug),
-    activeSlugs: statuses.filter((s) => !s.isBacklog && !s.isDone).map((s) => s.slug),
   };
 };
 
@@ -411,15 +395,6 @@ const resolveDefaultStatus = async (workspaceId, { isAdmin = false } = {}) => {
   return main || statuses[0];
 };
 
-const getStatusLabelFromRef = async (statusRef) => {
-  if (!statusRef) return 'Unknown';
-  if (typeof statusRef === 'object' && statusRef.label) {
-    return statusRef.label;
-  }
-  const doc = await TicketStatus.findById(statusRef).select('label').lean();
-  return doc?.label || 'Unknown';
-};
-
 const clearIntegrationStatusReferences = async (workspaceId, statusId) => {
   const integration = await Integration.findOne({ workspace: workspaceId });
   if (!integration?.settings) return;
@@ -444,16 +419,12 @@ const clearIntegrationStatusReferences = async (workspaceId, statusId) => {
 };
 
 const applyStatusLifecycleUpdate = async ({
-  workspaceId,
-  oldStatus,
-  newStatus,
+  oldFlags,
+  newFlags,
   oldTicket,
   updateData,
   now = new Date(),
 }) => {
-  const oldFlags = await getStatusFlags(workspaceId, oldStatus);
-  const newFlags = await getStatusFlags(workspaceId, newStatus);
-
   if (newFlags.tracksTime) {
     updateData.inProgressAt = now;
     if (!newFlags.isDone) {
@@ -756,15 +727,11 @@ module.exports = {
   getStatusBySlug,
   validateStatusForWorkspace,
   resolveStatusForWorkspace,
-  getStatusLabelFromRef,
-  getStatusFlags,
-  getBacklogSlugs,
+  getStatusDocFromTicketRef,
   getBacklogStatusIds,
   getStatusIdForSlug,
-  resolveStatusSlugFromTicketRef,
   statusIdsMatch,
   getStatusIdSets,
-  getStatusSlugSets,
   resolveDefaultStatus,
   resolveIntegrationStatusTargets,
   normalizeIntegrationSettings,

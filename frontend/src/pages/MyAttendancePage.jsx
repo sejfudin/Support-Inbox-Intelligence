@@ -6,11 +6,7 @@ import AttendanceStat from '@/components/attendance/AttendanceStat';
 import { CalendarCheck, Flame, Percent, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMyAttendance, useCheckInToday, useCancelTodayCheckIn } from '@/queries/attendance';
-import {
-  computeStreak,
-  attendanceRateTextClass,
-  currentMonthAttendance,
-} from '@/helpers/attendance';
+import { computeStreak, attendanceRateTextClass } from '@/helpers/attendance';
 
 export default function MyAttendancePage() {
   const { data, isPending, isError } = useMyAttendance();
@@ -19,8 +15,13 @@ export default function MyAttendancePage() {
 
   const records = data?.records ?? [];
   const cancelledDates = data?.cancelledDates ?? [];
-  const { rate: attendanceRate, present: presentDays, workingDaysElapsed } =
-    currentMonthAttendance(records);
+  // Current-month stats come from the server (start-date-prorated); the calendar
+  // and streak are derived client-side from the full record history.
+  const {
+    attendanceRate = 0,
+    presentDays = 0,
+    workingDays: workingDaysElapsed = 0,
+  } = data?.month ?? {};
   const streak = computeStreak(records);
   const monthLabel = format(new Date(), 'MMMM');
 
@@ -55,7 +56,9 @@ export default function MyAttendancePage() {
           )}
 
           {isPending && (
-            <div className="app-panel p-6 text-sm text-muted-foreground">Loading your attendance…</div>
+            <div className="app-panel p-6 text-sm text-muted-foreground">
+              Loading your attendance…
+            </div>
           )}
 
           {!isPending && !isError && (

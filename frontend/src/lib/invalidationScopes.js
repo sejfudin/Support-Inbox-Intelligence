@@ -6,6 +6,8 @@ export const invalidationScopes = {
   workspace: (workspaceId) => `workspace:${String(workspaceId)}`,
   workspaceTickets: (workspaceId) => `workspace-tickets:${String(workspaceId)}`,
   ticket: (ticketId) => `ticket:${String(ticketId)}`,
+  intern: () => 'intern:all',
+  workspaceDailies: (workspaceId) => `workspace-dailies:${String(workspaceId)}`,
 };
 
 const parseScope = (scope) => {
@@ -59,9 +61,26 @@ export const invalidateTicketScope = (queryClient, ticketId) => {
   queryClient.invalidateQueries({ queryKey: ['ticket-description-images', ticketId] });
 };
 
+export const invalidateInternScope = (queryClient) => {
+  // Prefix invalidation covers both the directory list (['interns', ...]) and
+  // the leadership stats (['interns', 'stats']).
+  queryClient.invalidateQueries({ queryKey: ['interns'] });
+};
+
+export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {
+  // Prefix invalidation covers every date under ['dailies', workspaceId, date].
+  queryClient.invalidateQueries({ queryKey: ['dailies', workspaceId] });
+  queryClient.invalidateQueries({ queryKey: ['dailies-history', workspaceId] });
+};
+
 export const invalidateScope = (queryClient, scope) => {
   const parsed = parseScope(scope);
   if (!parsed) return false;
+
+  if (parsed.type === 'intern') {
+    invalidateInternScope(queryClient);
+    return true;
+  }
 
   if (parsed.type === 'user') {
     invalidateUserScope(queryClient, parsed.id);
@@ -80,6 +99,11 @@ export const invalidateScope = (queryClient, scope) => {
 
   if (parsed.type === 'ticket') {
     invalidateTicketScope(queryClient, parsed.id);
+    return true;
+  }
+
+  if (parsed.type === 'workspace-dailies') {
+    invalidateWorkspaceDailiesScope(queryClient, parsed.id);
     return true;
   }
 

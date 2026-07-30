@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: `.env.${process.env.NODE_ENV || 'development'}` });
 const express = require('express');
 const http = require('http');
 const connectDB = require('./config/db');
@@ -24,8 +24,11 @@ const hubsRoutes = require('./routes/hubs');
 const internshipTypesRoutes = require('./routes/internshipTypes');
 const technologiesRoutes = require('./routes/technologies');
 const positionsRoutes = require('./routes/positions');
+const projectsRoutes = require('./routes/projects');
 const internsRoutes = require('./routes/interns');
 const recommendationRoutes = require('./routes/recommendations');
+const dailyRoutes = require('./routes/dailies');
+const attendanceRoutes = require('./routes/attendance');
 const { handleWebhook } = require('./controllers/github');
 
 const PORT = process.env.PORT || 4000;
@@ -65,8 +68,11 @@ app.use('/api/hubs', hubsRoutes);
 app.use('/api/internship-types', internshipTypesRoutes);
 app.use('/api/technologies', technologiesRoutes);
 app.use('/api/positions', positionsRoutes);
+app.use('/api/projects', projectsRoutes);
 app.use('/api/interns', internsRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/dailies', dailyRoutes);
+app.use('/api/attendance', attendanceRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {

@@ -7,7 +7,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
     "dev": "nodemon index.js",
     "start": "node index.js",
     "build": "node -e \"console.log('server: no compile step');\"",
@@ -15,9 +15,18 @@
     "format:check": "prettier --check .",
     "seed": "node seeder/seed.js",
     "seed:test": "node seeder/seedTestingData.js",
+    "seed:demo": "node seeder/seedDemoData.js",
+    "seed:recommendations": "node seeder/seedRecommendations.js",
     "seed:positions": "node seeder/seedPositions.js",
+    "seed:technologies": "node seeder/seedTechnologies.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
-    "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js"
+    "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
+    "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
+    "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
+    "cleanup:ready-for-placement": "node seeder/unsetReadyForPlacement.js",
+    "migrate:development-merge": "node seeder/mergeDevelopmentToMaster.js",
+    "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
+    "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
@@ -31,11 +40,13 @@
     "mongoose": "^9.1.5",
     "multer": "^2.1.1",
     "nodemon": "^3.1.14",
+    "pdf-parse": "^2.4.5",
     "sanitize-html": "^2.17.3",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "eslint": "^9.39.1",
+    "jest": "^30.4.2",
     "prettier": "^3.5.0"
   }
 }

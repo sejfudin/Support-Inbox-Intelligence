@@ -22,10 +22,12 @@ Detail lives in the referenced docs below — read them when the task calls for 
 
 ## Hard rules
 
-- **Never run the seeders against any non-local DB.** `npm run seed` wipes all collections.
+- **Never run a destructive seeder (`seed`, `seed:demo`, `seed:test`) against any non-local DB.**
+  `npm run seed` wipes all collections. The additive, idempotent scripts (`seed:recommendations`,
+  `seed:technologies`) are fine against the shared dev DB — see `.claude/docs/workflows.md`.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
 - **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
-- **No automated tests exist yet.** Do not claim a change is verified by tests — verify by driving the app (`/verify`, `/run`).
+- **There is no integration or E2E suite.** `npm test` in `server/` covers a few pure helpers (`helpers/*.test.js`) and nothing else. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).
 - Match surrounding code style. Prettier is the formatter; run `npm run format` in the package you changed.
 - Backend is CommonJS (`require`), frontend is ESM (`import`). Don't mix.
 
@@ -45,6 +47,10 @@ describe, update the relevant doc **in the same change** — don't leave it for 
 - A coding pattern, naming, layering, or the data-layer flow changes → update `.claude/docs/conventions.md`
 - A command, env var, seeding, or run/build step changes → update `.claude/docs/workflows.md`
 - A rule that only applies to one side changes → update `frontend/CLAUDE.md` or `server/CLAUDE.md`
+- **A platform role gains or loses a capability** (what admin/mentor/leadership/intern can each
+  see or do) → update the "Roles & Permissions" section of `docs/TEAM_HANDBOOK.md`, in the same
+  change. This is a plain-English, team-facing summary — keep entries short bullets, no workflow
+  walkthroughs (see the file's own style).
 
 Reference these docs by plain (backticked) path, never with `@path` syntax — `@` eagerly
 imports the file into every context window and defeats the read-on-demand design.
@@ -52,3 +58,13 @@ imports the file into every context window and defeats the read-on-demand design
 Rule for Claude: if a task changes any of the above, update the matching doc as part of the work.
 If the correct wording is genuinely unclear, make your best edit and flag it to the developer in
 your summary rather than skipping it. Never let code and docs drift apart silently.
+
+## Agent skills
+
+### Issue tracker
+
+Issues tracked as local markdown files under `.scratch/`. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.

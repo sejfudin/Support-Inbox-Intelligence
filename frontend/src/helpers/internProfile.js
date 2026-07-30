@@ -1,6 +1,12 @@
 // Lifecycle statuses are shown exactly as stored in the database — no label
 // mapping. `ready` means the intern is ready for placement.
+export const READY_STATUS = 'ready';
 export const INTERN_STATUSES = ['active', 'ready', 'placed', 'completed', 'discontinued'];
+
+// Pseudo-stage for the candidates placement-stage filter: not a lifecycle
+// status — matches interns with an active recommendation (recommended or
+// interviewing) via the `inPipeline` list query param.
+export const IN_PIPELINE_STAGE = 'in-pipeline';
 
 export const READINESS_LEVELS = [
   { value: 'none', label: 'Not assessed' },

@@ -54,6 +54,11 @@ export const updateInternDocumentationLinks = async (userId, links) => {
   return data.intern;
 };
 
+export const updateInternalCvLink = async (userId, url) => {
+  const { data } = await apiClient.put(`/interns/${userId}/internal-cv`, { url });
+  return data.intern;
+};
+
 export const fetchInternComments = async (userId) => {
   const { data } = await apiClient.get(`/interns/${userId}/comments`);
   return data.comments;

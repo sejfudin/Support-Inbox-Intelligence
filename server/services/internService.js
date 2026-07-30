@@ -9,6 +9,7 @@ const { RECOMMENDATION_STATUSES } = require('../models/Recommendation');
 const Technology = require('../models/Technology');
 const Position = require('../models/Position');
 const { ROLES } = require('../constants/roles');
+const { escapeRegex } = require('../helpers/escapeRegex');
 const {
   canViewFepDirectory,
   canWriteMentorData,
@@ -18,7 +19,9 @@ const {
   isAssignedMentor,
 } = require('../helpers/internAccess');
 const { buildCvUrl } = require('./internCvService');
+const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
+const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 
 const PROFILE_POPULATE = [
   {
@@ -41,13 +44,17 @@ const PROFILE_POPULATE = [
   { path: 'declaredPosition', select: 'name slug' },
 ];
 
-const formatProfile = (profile) => {
+const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
+  const { internalCvUrl, ...rest } = plain;
+  const canSeeInternalCv =
+    Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
 
   return {
-    ...plain,
+    ...rest,
     id: plain._id,
     cvUrl: buildCvUrl(plain.cvPath),
+    ...(canSeeInternalCv ? { internalCvUrl: internalCvUrl || null } : {}),
   };
 };
 
@@ -59,9 +66,10 @@ const buildListFilter = (user, query) => {
   if (query.status) userFilter.status = query.status;
 
   if (query.search) {
+    const escapedSearch = escapeRegex(query.search);
     userFilter.$or = [
-      { fullname: { $regex: query.search, $options: 'i' } },
-      { email: { $regex: query.search, $options: 'i' } },
+      { fullname: { $regex: escapedSearch, $options: 'i' } },
+      { email: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 
@@ -102,17 +110,36 @@ const listInterns = async (user, query = {}) => {
 
   const fullFilter = { user: { $in: internUserIds }, ...profileFilter };
 
+  // `inPipeline=true` → only interns with an active recommendation;
+  // `inPipeline=false` → exclude them (e.g. the "ready" bench, matching the
+  // leadership KPI which counts ready interns not yet in the pipeline).
+  if (query.inPipeline === 'true' || query.inPipeline === 'false') {
+    const pipelineProfileIds = await Recommendation.distinct('internProfile', {
+      status: { $in: ACTIVE_PIPELINE_STATUSES },
+    });
+    fullFilter._id =
+      query.inPipeline === 'true' ? { $in: pipelineProfileIds } : { $nin: pipelineProfileIds };
+    // Keep the pipeline view free of placed/finished interns that still carry a
+    // stale active recommendation, matching the leadership KPI.
+    if (query.inPipeline === 'true' && !fullFilter.status) {
+      fullFilter.status = { $nin: PIPELINE_EXCLUDED_PROFILE_STATUSES };
+    }
+  }
+
   const [profiles, total] = await Promise.all([
     InternProfile.find(fullFilter)
       .populate(PROFILE_POPULATE)
-      .sort({ startDate: -1 })
+      // `_id` tiebreaker: a whole cohort routinely shares one `startDate`, and
+      // Mongo's sort is not stable for ties — without it, paging can repeat one
+      // intern across pages and drop another entirely.
+      .sort({ startDate: -1, _id: -1 })
       .skip(skip)
       .limit(limit),
     InternProfile.countDocuments(fullFilter),
   ]);
 
   return {
-    interns: profiles.map((p) => formatProfile(p)),
+    interns: profiles.map((p) => formatProfile(p, user)),
     pagination: {
       page,
       limit,
@@ -143,7 +170,7 @@ const getInternByUserId = async (user, internUserId) => {
     throw err;
   }
 
-  return formatProfile(profile);
+  return formatProfile(profile, user);
 };
 
 const getMyInternProfile = async (user) => {
@@ -216,10 +243,11 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   const allowedStatuses = INTERN_STATUSES;
 
   if (payload.status !== undefined) {
-    // Lifecycle status can be changed by admins and the assigned mentor —
-    // not by unassigned mentors, even though they can write other mentor data.
-    if (user.role !== ROLES.ADMIN && !isAssignedMentor(profile, user._id)) {
-      const err = new Error('Only admins or the assigned mentor can change this intern’s status');
+    // Lifecycle status changes are admin-only — even the assigned mentor can't
+    // change it, though mentors can still write other mentor data below
+    // (e.g. expectedEndDate) via the canWriteMentorData check above.
+    if (user.role !== ROLES.ADMIN) {
+      const err = new Error('Only admins can change this intern’s status');
       err.statusCode = 403;
       throw err;
     }
@@ -232,6 +260,14 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   }
 
   await profile.save();
+
+  // Placement ends the intern's pipeline run — close any recommendations left
+  // open so they stop counting toward "In pipeline".
+  if (payload.status === 'placed') {
+    await closeActiveRecommendationsForIntern(profile._id, user);
+  }
+
+  emitInternDataChanged();
   return getInternByUserId(user, internUserId);
 };
 
@@ -277,7 +313,7 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
   const profile = await InternProfile.findOne({ user: internUserId });
   if (!profile) throw new Error('Intern profile not found');
 
-  if (!canManageDocumentationLinks(user)) {
+  if (!canManageDocumentationLinks(user, profile)) {
     const err = new Error('Not authorized to manage documentation links');
     err.statusCode = 403;
     throw err;
@@ -291,13 +327,41 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
 
   profile.documentationLinks = validateDocumentationLinks(links);
   await profile.save();
-  return getInternByUserId(user, internUserId);
+  await profile.populate(PROFILE_POPULATE);
+  return formatProfile(profile, user);
+};
+
+const updateInternalCvLink = async (user, internUserId, url) => {
+  const profile = await InternProfile.findOne({ user: internUserId });
+  if (!profile) throw new Error('Intern profile not found');
+
+  // Adding/editing the internal CV link is admin-only; mentors keep read
+  // access (see canSeeInternalCv in formatProfile) but can no longer write it.
+  if (user.role !== ROLES.ADMIN) {
+    const err = new Error('Not authorized to modify this intern');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const trimmed = String(url || '').trim();
+  if (trimmed && !isValidDocumentationUrl(trimmed)) {
+    throw new Error('Internal CV must use an http or https URL');
+  }
+
+  profile.internalCvUrl = trimmed || null;
+  await profile.save();
+  await profile.populate(PROFILE_POPULATE);
+  return formatProfile(profile, user);
 };
 
 const URGENCY_WINDOW_DAYS = 60;
 const PIPELINE_STALLED_DAYS = 14;
 const ACTIVE_PIPELINE_STATUSES = ['recommended', 'interviewing'];
 const ACTIVE_PIPELINE_LIMIT = 20;
+// Interns in these lifecycle states are no longer being pitched, so they are
+// excluded from the pipeline even if a stale active recommendation still points
+// at them (e.g. legacy placements made before recommendations were auto-closed).
+const PIPELINE_EXCLUDED_PROFILE_STATUSES = ['placed', 'completed', 'discontinued'];
 
 const buildRecommendationFunnel = (rows) => {
   const funnel = Object.fromEntries(RECOMMENDATION_STATUSES.map((status) => [status, 0]));
@@ -367,6 +431,17 @@ const formatPipelineCandidate = (profile) => {
         }
       : null,
   };
+};
+
+// Higher = more advanced in the pipeline. Used to pick the representative
+// recommendation when an intern has several active at once.
+const PIPELINE_STATUS_RANK = { interviewing: 2, recommended: 1 };
+
+const pipelineRecOutranks = (candidate, current) => {
+  const candidateRank = PIPELINE_STATUS_RANK[candidate.status] || 0;
+  const currentRank = PIPELINE_STATUS_RANK[current.status] || 0;
+  if (candidateRank !== currentRank) return candidateRank > currentRank;
+  return new Date(candidate.updatedAt) > new Date(current.updatedAt);
 };
 
 const formatActivePipelineRow = (recommendation) => {
@@ -704,7 +779,26 @@ const getProgrammeStats = async (user) => {
     return acc;
   }, {});
 
-  const readyProfileIdsWithActiveRec = new Set(Object.keys(activeRecByProfile));
+  // A placed/finished intern is out of the pipeline even when a stale active
+  // recommendation still points at them, so every pipeline count is gated on the
+  // intern's live profile status (read from the populated pipeline recs).
+  const pipelineEligibleProfileIds = new Set(
+    activePipelineRecs
+      .map((recommendation) => recommendation.internProfile)
+      .filter((profile) => profile && !PIPELINE_EXCLUDED_PROFILE_STATUSES.includes(profile.status))
+      .map((profile) => profile._id.toString())
+  );
+
+  const profileIdsWithActiveRec = new Set(
+    Object.keys(activeRecByProfile).filter((id) => pipelineEligibleProfileIds.has(id))
+  );
+
+  const interviewingProfileIds = new Set(
+    allActiveRecommendations
+      .filter((recommendation) => recommendation.status === 'interviewing')
+      .map((recommendation) => recommendation.internProfile?.toString())
+      .filter((id) => id && pipelineEligibleProfileIds.has(id))
+  );
 
   const readyBench = readyProfiles
     .map((profile) => {
@@ -718,7 +812,23 @@ const getProgrammeStats = async (user) => {
     })
     .filter(Boolean);
 
-  const activePipeline = activePipelineRecs
+  // Collapse the pipeline to one row per intern so this list counts the same
+  // distinct people as the "In pipeline" KPI (summary.activeRecommendations).
+  // An intern with several active recommendations keeps their most advanced one
+  // (interviewing outranks recommended; ties broken by most recent activity) so
+  // the interviewing/recommended split here matches the KPI split as well.
+  const bestPipelineRecByProfile = new Map();
+  activePipelineRecs.forEach((recommendation) => {
+    const profileId = recommendation.internProfile?._id?.toString();
+    if (!profileId || !pipelineEligibleProfileIds.has(profileId)) return;
+    const current = bestPipelineRecByProfile.get(profileId);
+    if (!current || pipelineRecOutranks(recommendation, current)) {
+      bestPipelineRecByProfile.set(profileId, recommendation);
+    }
+  });
+
+  const activePipelineTotal = bestPipelineRecByProfile.size;
+  const activePipeline = [...bestPipelineRecByProfile.values()]
     .map(formatActivePipelineRow)
     .filter(Boolean)
     .sort((a, b) => {
@@ -869,16 +979,19 @@ const getProgrammeStats = async (user) => {
     recommendationFunnel,
     recommendationOutcomes,
     activePipeline,
+    activePipelineTotal,
     pipelineAttention,
     recentOutcomes,
     summary: {
       activeInterns: funnel.active + funnel.ready,
       placedInterns: funnel.placed,
       technologiesWithReadySupply,
-      activeRecommendations: recommendationFunnel.recommended + recommendationFunnel.interviewing,
-      interviewingCount: recommendationFunnel.interviewing,
+      // Distinct interns, not recommendation documents — an intern recommended
+      // to several projects at once still counts as one person in the pipeline.
+      activeRecommendations: profileIdsWithActiveRec.size,
+      interviewingCount: interviewingProfileIds.size,
       readyWithoutActiveRecommendation: readyProfiles.filter(
-        (profile) => !readyProfileIdsWithActiveRec.has(profile._id.toString())
+        (profile) => !profileIdsWithActiveRec.has(profile._id.toString())
       ).length,
     },
   };
@@ -892,6 +1005,7 @@ module.exports = {
   updateSelfPosition,
   updateInternProgramme,
   updateDocumentationLinks,
+  updateInternalCvLink,
   createInternProfile,
   getProgrammeStats,
 };

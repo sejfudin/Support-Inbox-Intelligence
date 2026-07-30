@@ -6,12 +6,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   useAllWorkspaces,
   useCreateWorkspace,
+  useMyWorkspaces,
   useSwitchWorkspace,
   useDeleteWorkspace,
 } from '@/queries/workspaces';
 import { invalidateWorkspaceScope } from '@/lib/invalidationScopes';
 import { useAuth } from '@/context/AuthContext';
 import { isAdmin } from '@/helpers/roles';
+import { canDeleteWorkspace, canManageWorkspace } from '@/helpers/workspacePermissions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,12 +39,20 @@ import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
 import { validateStatusDrafts } from '@/helpers/validateStatusDrafts';
 import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 
-export default function AdminWorkspacesPage() {
+// Role-aware workspaces overview: admins see every workspace in the system,
+// mentors/members see the workspaces they belong to. Same cards + create dialog.
+export default function WorkspacesOverviewPage() {
   const { setHeader } = useOutletContext() ?? {};
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, refetchUser } = useAuth();
-  const { data: workspaces = [], isLoading } = useAllWorkspaces();
+  const admin = isAdmin(user?.role);
+  const { data: allWorkspaces = [], isLoading: isLoadingAll } = useAllWorkspaces({
+    enabled: admin,
+  });
+  const { data: myWorkspaces = [], isLoading: isLoadingMine } = useMyWorkspaces();
+  const workspaces = admin ? allWorkspaces : myWorkspaces;
+  const isLoading = admin ? isLoadingAll : isLoadingMine;
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [name, setName] = useState('');
@@ -71,9 +81,11 @@ export default function AdminWorkspacesPage() {
 
   useEffect(() => {
     if (!setHeader) return undefined;
-    setHeader(<span className="font-semibold text-sm">All Workspaces</span>);
+    setHeader(
+      <span className="font-semibold text-sm">{admin ? 'All Workspaces' : 'My Workspaces'}</span>
+    );
     return () => setHeader(null);
-  }, [setHeader]);
+  }, [setHeader, admin]);
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -125,13 +137,32 @@ export default function AdminWorkspacesPage() {
     });
   };
 
+  // Non-admins can only open management for their active workspace (route
+  // guard), so previewing another managed workspace switches to it first.
+  const handlePreview = (ws, isActive) => {
+    if (admin || isActive) {
+      navigate(`/admin/workspaces/${ws._id}`);
+      return;
+    }
+    switchWorkspace.mutate(ws._id, {
+      onSuccess: async () => {
+        await refetchUser();
+        navigate(`/admin/workspaces/${ws._id}`);
+      },
+    });
+  };
+
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Admin overview"
-          title="All Workspaces"
-          subtitle="Overview of every workspace in the system."
+          kicker={admin ? 'Admin overview' : 'Workspace overview'}
+          title={admin ? 'All Workspaces' : 'My Workspaces'}
+          subtitle={
+            admin
+              ? 'Overview of every workspace in the system.'
+              : 'Workspaces you own or belong to.'
+          }
           actions={
             <Button
               onClick={() => setIsCreateOpen(true)}
@@ -153,19 +184,25 @@ export default function AdminWorkspacesPage() {
         ) : workspaces.length === 0 ? (
           <div className="app-panel flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
             <Building2 className="h-10 w-10 opacity-30" />
-            <p className="text-sm">No workspaces found.</p>
+            <p className="text-sm">
+              {admin
+                ? 'No workspaces found.'
+                : 'No workspaces yet. Create one to get your team started.'}
+            </p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {workspaces.map((ws) => {
               const isActive = user?.workspaceId?.toString() === ws._id?.toString();
               const canSwitch =
-                isAdmin(user?.role) ||
+                admin ||
                 ws.members?.some(
                   (member) =>
                     member.status === 'active' &&
                     member.user?.toString() === currentUserId?.toString()
                 );
+              const canManage = admin || canManageWorkspace(user, ws);
+              const canDelete = admin || canDeleteWorkspace(user, ws);
 
               return (
                 <div
@@ -239,30 +276,34 @@ export default function AdminWorkspacesPage() {
                     </div>
 
                     <div className="flex items-center gap-3 self-start sm:self-auto">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/admin/workspaces/${ws._id}`);
-                        }}
-                        className="text-xs font-medium text-foreground hover:underline"
-                        data-test={`admin-workspaces-card-${ws._id}-preview-link`}
-                      >
-                        Preview
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteError('');
-                          setDeleteTargetId(ws._id);
-                        }}
-                        className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1"
-                        data-test={`admin-workspaces-card-${ws._id}-delete-button`}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
-                      </button>
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreview(ws, isActive);
+                          }}
+                          className="text-xs font-medium text-foreground hover:underline"
+                          data-test={`admin-workspaces-card-${ws._id}-preview-link`}
+                        >
+                          Preview
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteError('');
+                            setDeleteTargetId(ws._id);
+                          }}
+                          className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1"
+                          data-test={`admin-workspaces-card-${ws._id}-delete-button`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

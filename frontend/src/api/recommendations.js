@@ -19,3 +19,8 @@ export const updateRecommendation = async (id, payload) => {
   const { data } = await apiClient.patch(`/recommendations/${id}`, payload);
   return data.recommendation;
 };
+
+export const deleteRecommendation = async (id) => {
+  const { data } = await apiClient.delete(`/recommendations/${id}`);
+  return data.recommendation;
+};

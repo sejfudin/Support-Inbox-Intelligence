@@ -15,6 +15,8 @@ import {
   Send,
   Code2,
   CalendarCheck,
+  CalendarDays,
+  CalendarClock,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -83,6 +85,11 @@ export default function AppSidebar() {
       to: '/analytics',
       icon: ChartNoAxesCombined,
     },
+    {
+      label: 'Dailies',
+      to: '/dailies',
+      icon: CalendarDays,
+    },
     ...(user?.workspaceId && canManageActiveWorkspace
       ? [
           {
@@ -114,8 +121,7 @@ export default function AppSidebar() {
   const mentorNav = isMentor(user?.role)
     ? [
         { label: 'My Interns', to: '/my-interns', icon: GraduationCap },
-        { label: 'Attendance', to: '/attendance', icon: CalendarCheck },
-        { label: 'Recommendations', to: '/recommendations', icon: Send },
+        { label: 'My Workspaces', to: '/workspaces', icon: Building2 },
       ]
     : [];
 
@@ -141,6 +147,11 @@ export default function AppSidebar() {
       label: 'Attendance',
       to: '/attendance',
       icon: CalendarCheck,
+    },
+    {
+      label: 'Daily Insights',
+      to: '/admin/daily-insights',
+      icon: CalendarClock,
     },
     {
       label: 'Platform Management',

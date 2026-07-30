@@ -12,6 +12,8 @@ const {
 } = require('./invitationService');
 const { seedDefaultCategories } = require('./categoryService');
 const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
+const { isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
+const { ROLES } = require('../constants/roles');
 
 const LOGO_MIME_TO_EXT = {
   'image/jpeg': 'jpg',
@@ -82,12 +84,22 @@ const switchWorkspace = async ({ workspaceId, userId, userRole }) => {
   return { message: 'Switched workspace' };
 };
 
-const getWorkspaceById = async (workspaceId) => {
+const getWorkspaceById = async (workspaceId, caller) => {
   const workspace = await Workspace.findById(workspaceId)
     .populate('owner', 'fullname email')
     .populate('members.user', 'fullname email role status');
 
   if (!workspace) throw new Error('Workspace not found');
+
+  // Members list + pending invitations leak emails cross-tenant — restrict to
+  // active members. Deliberately NOT hasWorkspaceAccess: its mentor bypass
+  // would let any mentor read any workspace; only platform admins skip the
+  // membership check here. Mentor owners/managers are always active members.
+  if (caller && caller.role !== ROLES.ADMIN && !isActiveWorkspaceMember(workspace, caller.userId)) {
+    const err = new Error('Forbidden: Not a member of this workspace');
+    err.statusCode = 403;
+    throw err;
+  }
 
   const pendingInvitations = await Invitation.find({
     workspace: workspaceId,
@@ -103,12 +115,42 @@ const getWorkspaceById = async (workspaceId) => {
   };
 };
 
+// Shared by getUserWorkspaces/getAllWorkspaces so the workspaces overview page
+// renders identically for admins (all) and mentors/members (their own). Fetches
+// every workspace's active (non-archived) ticket count in a single aggregate
+// instead of one countDocuments query per workspace.
+const attachWorkspaceStats = async (workspaces) => {
+  if (workspaces.length === 0) return [];
+
+  const workspaceIds = workspaces.map((ws) => ws._id);
+  const ticketCounts = await Ticket.aggregate([
+    { $match: { workspace: { $in: workspaceIds }, isArchived: { $ne: true } } },
+    { $group: { _id: '$workspace', count: { $sum: 1 } } },
+  ]);
+  const ticketCountByWorkspace = new Map(
+    ticketCounts.map((row) => [row._id.toString(), row.count])
+  );
+
+  return workspaces.map((ws) => {
+    const activeMembers = ws.members.filter((m) => m.status === 'active').length;
+    return {
+      ...ws,
+      logoUrl: buildWorkspaceLogoUrl(ws.logoPath),
+      activeMemberCount: activeMembers,
+      ticketCount: ticketCountByWorkspace.get(ws._id.toString()) || 0,
+    };
+  });
+};
+
 const getUserWorkspaces = async (userId) => {
   const workspaces = await Workspace.find({
+    isArchived: { $ne: true },
     members: { $elemMatch: { user: userId, status: 'active' } },
-  }).populate('owner', 'fullname email');
+  })
+    .populate('owner', 'fullname email')
+    .lean();
 
-  return workspaces.map(attachLogoUrl);
+  return attachWorkspaceStats(workspaces);
 };
 
 const updateWorkspace = async (workspaceId, { name, description, owner }, requestingUserId) => {
@@ -220,18 +262,50 @@ const deleteWorkspaceLogo = async (workspaceId) => {
   return attachLogoUrl(updated);
 };
 
-const inviteMemberToWorkspace = async ({ workspaceId, userId, role = 'member', inviterId }) => {
-  if (!userId) throw new Error('User is required');
+// Invite one or many existing users in a single call. Each invite is attempted
+// independently — one failure (already a member, pending invite, etc.) does
+// not abort the rest — and a per-user result is returned so the caller can
+// report exactly which succeeded and which failed.
+const inviteMembersToWorkspace = async ({ workspaceId, invites = [], inviterId }) => {
+  if (!Array.isArray(invites) || invites.length === 0) {
+    throw new Error('At least one invite is required');
+  }
 
-  const workspaceRole = role === 'admin' ? 'admin' : 'member';
-  const result = await inviteExistingUserToWorkspace({
-    workspaceId,
-    userId,
-    workspaceRole,
-    inviterId,
-  });
+  // Existence check only — the per-user invite re-fetches the workspace it needs,
+  // so avoid hydrating the full document here.
+  const workspaceExists = await Workspace.exists({ _id: workspaceId });
+  if (!workspaceExists) throw new Error('Workspace not found');
 
-  return { message: result.message };
+  const results = [];
+  for (const invite of invites) {
+    const userId = invite?.userId;
+    const workspaceRole = invite?.role === 'admin' ? 'admin' : 'member';
+
+    if (!userId) {
+      results.push({ userId: userId ?? null, status: 'failed', message: 'User is required' });
+      continue;
+    }
+
+    try {
+      const result = await inviteExistingUserToWorkspace({
+        workspaceId,
+        userId,
+        workspaceRole,
+        inviterId,
+      });
+      results.push({ userId, status: 'invited', message: result.message });
+    } catch (err) {
+      results.push({ userId, status: 'failed', message: err.message });
+    }
+  }
+
+  const invited = results.filter((r) => r.status === 'invited').length;
+  const failed = results.length - invited;
+  const message = failed
+    ? `Invited ${invited} user${invited === 1 ? '' : 's'}, ${failed} failed`
+    : `Invited ${invited} user${invited === 1 ? '' : 's'}`;
+
+  return { message, results };
 };
 
 const removeMember = async ({ workspaceId, userId }) => {
@@ -332,23 +406,7 @@ const getAllWorkspaces = async () => {
     .populate('owner', 'fullname email')
     .lean();
 
-  const workspacesWithStats = await Promise.all(
-    workspaces.map(async (ws) => {
-      const activeMembers = ws.members.filter((m) => m.status === 'active').length;
-      const ticketCount = await Ticket.countDocuments({
-        workspace: ws._id,
-        isArchived: { $ne: true },
-      });
-      return {
-        ...ws,
-        logoUrl: buildWorkspaceLogoUrl(ws.logoPath),
-        activeMemberCount: activeMembers,
-        ticketCount,
-      };
-    })
-  );
-
-  return workspacesWithStats;
+  return attachWorkspaceStats(workspaces);
 };
 
 module.exports = {
@@ -357,7 +415,7 @@ module.exports = {
   getWorkspaceById,
   getUserWorkspaces,
   updateWorkspace,
-  inviteMemberToWorkspace,
+  inviteMembersToWorkspace,
   removeMember,
   cancelInvitation,
   getAllWorkspaces,

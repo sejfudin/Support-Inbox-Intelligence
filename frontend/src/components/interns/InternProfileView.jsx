@@ -15,12 +15,7 @@ import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
-import {
-  ROLES,
-  canViewComments,
-  canManageInternDocumentationLinks,
-  canChangeInternStatus,
-} from '@/helpers/roles';
+import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 
 const internTabListClassName =
@@ -42,11 +37,14 @@ export function InternProfileView({
   const { user } = useAuth();
   const { data: intern, isPending, isError } = useIntern(userId);
 
-  const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user?.role);
+  const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
+  // Editing the internal CV link is admin-only; mentors keep read access to
+  // whatever link is already on the profile (see canSeeInternalCv, backend).
+  const canEditInternalCv = !readOnly && user?.role === ROLES.ADMIN;
   const showComments = canViewComments(user?.role);
-  const showEvaluations = showComments;
-  const showRecommendations =
-    user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR || user?.role === ROLES.LEADERSHIP;
+  const showEvaluations = user?.role === ROLES.ADMIN;
+  const showReadiness = user?.role === ROLES.ADMIN;
+  const showRecommendations = user?.role === ROLES.ADMIN || user?.role === ROLES.LEADERSHIP;
 
   if (isPending) {
     return (
@@ -90,9 +88,9 @@ export function InternProfileView({
       {backLabel}
     </Button>
   ) : null;
-  // Lifecycle status can be changed by admins and the assigned mentor — not by
-  // unassigned mentors. This mirrors the backend guard in updateInternProgramme.
-  const canChangeStatus = !readOnly && canChangeInternStatus(user, intern);
+  // Lifecycle status changes are admin-only. This mirrors the backend guard
+  // in updateInternProgramme.
+  const canChangeStatus = !readOnly && user?.role === ROLES.ADMIN;
   const hasOverviewSidebar = canChangeStatus;
   const formattedStartDate = intern.startDate
     ? format(new Date(intern.startDate), 'MMM d, yyyy')
@@ -106,6 +104,7 @@ export function InternProfileView({
           fullname={intern.user?.fullname}
           email={intern.user?.email}
           status={intern.status}
+          declaredPosition={intern.declaredPosition?.name}
           programme={intern.internshipType?.name}
           hub={intern.user?.hub?.name}
           startDate={formattedStartDate}
@@ -124,13 +123,15 @@ export function InternProfileView({
             >
               Overview
             </TabsTrigger>
-            <TabsTrigger
-              value="readiness"
-              className={internTabTriggerClassName}
-              data-test="intern-detail-readiness-tab"
-            >
-              Readiness
-            </TabsTrigger>
+            {showReadiness && (
+              <TabsTrigger
+                value="readiness"
+                className={internTabTriggerClassName}
+                data-test="intern-detail-readiness-tab"
+              >
+                Readiness
+              </TabsTrigger>
+            )}
             {showEvaluations && (
               <TabsTrigger
                 value="evaluations"
@@ -181,7 +182,7 @@ export function InternProfileView({
                   intern={intern}
                   userId={userId}
                   canEditDocumentation={canEditDocumentation}
-                  programmeMode="minimal"
+                  canEditInternalCv={canEditInternalCv}
                 />
               </InternPanel>
 
@@ -195,20 +196,22 @@ export function InternProfileView({
             </TabsContent>
           )}
 
-          <TabsContent value="readiness">
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <InternReadinessPanel
-                userId={userId}
-                declaredTechnologies={intern.selfTechnologies || []}
-                readOnly={readOnly}
-              />
-              <InternRoleReadinessPanel
-                userId={userId}
-                declaredPosition={intern.declaredPosition}
-                readOnly={readOnly}
-              />
-            </div>
-          </TabsContent>
+          {showReadiness && (
+            <TabsContent value="readiness">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                <InternReadinessPanel
+                  userId={userId}
+                  declaredTechnologies={intern.selfTechnologies || []}
+                  readOnly={readOnly}
+                />
+                <InternRoleReadinessPanel
+                  userId={userId}
+                  declaredPosition={intern.declaredPosition}
+                  readOnly={readOnly}
+                />
+              </div>
+            </TabsContent>
+          )}
 
           {showEvaluations && (
             <TabsContent value="evaluations">

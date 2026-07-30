@@ -26,9 +26,7 @@ export function InternPositionDeclaration() {
     <InternPanel className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between md:px-6">
       <div>
         <h3 className="text-base font-semibold text-foreground">My position</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Your main position in the firm.
-        </p>
+        <p className="mt-0.5 text-sm text-muted-foreground">Your main position in the firm.</p>
       </div>
       {positions.length === 0 ? (
         <p className="text-sm text-muted-foreground">No positions configured yet.</p>
