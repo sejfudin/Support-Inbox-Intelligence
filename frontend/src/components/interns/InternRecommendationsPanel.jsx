@@ -1,297 +1,137 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { InternPanel } from '@/components/interns/InternPanel';
+import { SortControl } from '@/components/interns/SortControl';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import {
-  getRecommendationResultLabel,
-  getRecommendationResultVariant,
+  activeRecommendationsOnOtherProjects,
   getRecommendationStatusLabel,
-  getRecommendationStatusVariant,
-  RECOMMENDATION_RESULTS,
+  isRecommendBlockedByProfileStatus,
+  recommendBlockedReason,
+  recommendationProjectName,
   RECOMMENDATION_STATUSES,
 } from '@/helpers/recommendations';
+import { useIntern } from '@/queries/interns';
+import { usePositions } from '@/queries/positions';
+import { useProjects } from '@/queries/projects';
 import { useTechnologies } from '@/queries/technologies';
 import {
   useCreateRecommendation,
+  useDeleteRecommendation,
   useRecommendations,
   useUpdateRecommendation,
 } from '@/queries/recommendations';
+import {
+  RecommendationCard,
+  RecommendationCompactRow,
+} from '@/components/interns/recommendations/RecommendationCards';
+import {
+  RecommendationDeleteDialog,
+  RecommendationDuplicateWarnDialog,
+  RecommendationFormModal,
+  RecommendationViewModal,
+} from '@/components/interns/recommendations/RecommendationModals';
+import {
+  BTN_PRIMARY_CLASS,
+  BTN_PRIMARY_DISABLED_CLASS,
+  buildTimelineSteps,
+  DarkTooltip,
+  REC_FONT,
+} from '@/components/interns/recommendations/recommendationUi';
+
+// Detailed / Compact list rendering, persisted so it survives reloads.
+const VIEW_MODE_STORAGE_KEY = 'recommendations-view-mode';
+
+const SORT_OPTIONS = [
+  { key: 'updated', label: 'Updated' },
+  { key: 'status', label: 'Status' },
+  { key: 'position', label: 'Position' },
+];
+
+// Keys whose values are numeric (dates) — these default to descending (newest
+// first); text keys default to ascending (A→Z), same as the other sections.
+const NUMERIC_SORT_KEYS = ['updated'];
+
+const todayInputDate = () => format(new Date(), 'yyyy-MM-dd');
+
+const toInputDate = (date) => (date ? format(new Date(date), 'yyyy-MM-dd') : '');
 
 const createEmptyForm = () => ({
+  positionId: '',
+  projectId: '',
   technologyIds: [],
   recommendationNote: '',
-  status: 'draft',
+  status: 'recommended',
   resultOutcome: 'none',
   resultNote: '',
+  statusDates: { recommended: todayInputDate(), interviewing: '', resulted: '' },
+  interviewingSkipped: false,
 });
 
-const formatDate = (date) => {
-  if (!date) return 'No date';
-  return format(new Date(date), 'MMM d, yyyy');
+const formFromRecommendation = (recommendation) => {
+  const dates = recommendation.statusDates || {};
+  const status = recommendation.status || 'recommended';
+  // Same fallback the card uses: a reached current stage with no recorded date
+  // (records that predate stored status dates) shows the record's updatedAt —
+  // without this the edit form rendered an empty Resulted date while the card
+  // displayed one.
+  const currentFallback = toInputDate(recommendation.updatedAt);
+  return {
+    positionId: recommendation.position?._id || recommendation.position || '',
+    projectId: recommendation.project?._id || recommendation.project || '',
+    technologyIds: (recommendation.technologies || []).map((technology) => technology._id),
+    recommendationNote: recommendation.recommendationNote || '',
+    status,
+    resultOutcome: recommendation.result?.outcome || 'none',
+    resultNote: recommendation.result?.note || '',
+    statusDates: {
+      recommended:
+        toInputDate(dates.recommended) ||
+        (status === 'recommended' ? currentFallback : toInputDate(recommendation.createdAt)) ||
+        todayInputDate(),
+      interviewing:
+        toInputDate(dates.interviewing) || (status === 'interviewing' ? currentFallback : ''),
+      resulted: toInputDate(dates.resulted) || (status === 'resulted' ? currentFallback : ''),
+    },
+    // A resulted recommendation with no interviewing date means the stage was
+    // skipped — a distinct state from "not reached yet".
+    interviewingSkipped: status === 'resulted' && !dates.interviewing,
+  };
 };
 
-const formFromRecommendation = (recommendation) => ({
-  technologyIds: (recommendation.technologies || []).map((technology) => technology._id),
-  recommendationNote: recommendation.recommendationNote || '',
-  status: recommendation.status || 'draft',
-  resultOutcome: recommendation.result?.outcome || 'none',
-  resultNote: recommendation.result?.note || '',
-});
-
-function TechnologyPicker({ technologies, selectedIds, onChange }) {
-  const [selectedTechnologyId, setSelectedTechnologyId] = useState('');
-  const selectedTechnologies = useMemo(
-    () => technologies.filter((technology) => selectedIds.includes(technology._id)),
-    [selectedIds, technologies]
-  );
-
-  const availableTechnologies = technologies.filter(
-    (technology) => !selectedIds.includes(technology._id)
-  );
-
+function ViewModeSwitcher({ value, onChange }) {
   return (
-    <div className="space-y-2">
-      <Label>Technologies</Label>
-      <div className="flex gap-2">
-        <Select value={selectedTechnologyId || 'none'} onValueChange={setSelectedTechnologyId}>
-          <SelectTrigger data-test="recommendation-technology-select">
-            <SelectValue placeholder="Add technology" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Select technology</SelectItem>
-            {availableTechnologies.map((technology) => (
-              <SelectItem key={technology._id} value={technology._id}>
-                {technology.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
+    <div className="flex h-11 items-center gap-1 rounded-xl bg-[#f2f3f8] p-1">
+      {['detailed', 'compact'].map((mode) => (
+        <button
+          key={mode}
           type="button"
-          variant="outline"
-          disabled={!selectedTechnologyId || selectedTechnologyId === 'none'}
-          onClick={() => {
-            onChange([...selectedIds, selectedTechnologyId]);
-            setSelectedTechnologyId('');
-          }}
+          onClick={() => onChange(mode)}
+          className={cn(
+            'h-full rounded-[9px] px-[18px] text-[14px] font-semibold capitalize transition',
+            value === mode
+              ? 'bg-[#6d5ce6] text-white shadow-[0_2px_8px_rgba(109,92,230,.35)]'
+              : 'text-[#4a5064] hover:text-[#171b2b]'
+          )}
+          aria-pressed={value === mode}
+          data-test={`recommendation-view-${mode}`}
         >
-          <Plus className="mr-2 h-4 w-4" />
-          Add
-        </Button>
-      </div>
-      <div className="flex min-h-6 flex-wrap gap-2">
-        {selectedTechnologies.map((technology) => (
-          <Badge key={technology._id} variant="outline" className="gap-2">
-            {technology.name}
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => onChange(selectedIds.filter((id) => id !== technology._id))}
-              aria-label={`Remove ${technology.name}`}
-            >
-              x
-            </button>
-          </Badge>
-        ))}
-        {selectedTechnologies.length === 0 && (
-          <span className="text-sm text-muted-foreground">No technologies selected.</span>
-        )}
-      </div>
+          {mode}
+        </button>
+      ))}
     </div>
-  );
-}
-
-function RecommendationForm({
-  activeRecommendation,
-  form,
-  setForm,
-  technologies,
-  onCancel,
-  onSubmit,
-  isSaving,
-}) {
-  const isEditing = Boolean(activeRecommendation);
-
-  return (
-    <InternPanel>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold text-foreground">
-          {isEditing ? 'Edit recommendation' : 'New recommendation'}
-        </h3>
-        {isEditing && (
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel edit
-          </Button>
-        )}
-      </div>
-
-      <form className="mt-5 space-y-5" onSubmit={onSubmit}>
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-          <TechnologyPicker
-            technologies={technologies}
-            selectedIds={form.technologyIds}
-            onChange={(technologyIds) => setForm((prev) => ({ ...prev, technologyIds }))}
-          />
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={form.status}
-              onValueChange={(status) => setForm((prev) => ({ ...prev, status }))}
-            >
-              <SelectTrigger data-test="recommendation-status-select">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {RECOMMENDATION_STATUSES.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="recommendation-note">Recommendation note</Label>
-          <Textarea
-            id="recommendation-note"
-            value={form.recommendationNote}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, recommendationNote: event.target.value }))
-            }
-            rows={4}
-            data-test="recommendation-note-input"
-          />
-        </div>
-
-        {isEditing && (
-          <div className="grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
-            <div className="space-y-2">
-              <Label>Placement result</Label>
-              <Select
-                value={form.resultOutcome}
-                onValueChange={(resultOutcome) => setForm((prev) => ({ ...prev, resultOutcome }))}
-              >
-                <SelectTrigger data-test="recommendation-result-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No result</SelectItem>
-                  {RECOMMENDATION_RESULTS.map((result) => (
-                    <SelectItem key={result.value} value={result.value}>
-                      {result.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="recommendation-result-note">Result note</Label>
-              <Textarea
-                id="recommendation-result-note"
-                value={form.resultNote}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, resultNote: event.target.value }))
-                }
-                rows={3}
-                required={form.resultOutcome !== 'none'}
-                data-test="recommendation-result-note-input"
-              />
-            </div>
-          </div>
-        )}
-
-        <Button type="submit" disabled={isSaving} data-test="recommendation-submit-button">
-          {isSaving ? 'Saving...' : isEditing ? 'Update recommendation' : 'Create recommendation'}
-        </Button>
-      </form>
-    </InternPanel>
-  );
-}
-
-function RecommendationSummary({ recommendation, canWrite, onEdit }) {
-  return (
-    <li
-      className="rounded-xl border border-border/60 p-4"
-      data-test={`intern-recommendation-${recommendation._id}`}
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getRecommendationStatusVariant(recommendation.status)}>
-              {getRecommendationStatusLabel(recommendation.status)}
-            </Badge>
-            {recommendation.result?.outcome && (
-              <Badge variant={getRecommendationResultVariant(recommendation.result.outcome)}>
-                {getRecommendationResultLabel(recommendation.result.outcome)}
-              </Badge>
-            )}
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Updated {formatDate(recommendation.updatedAt)} by{' '}
-            {recommendation.updatedBy?.fullname || 'Unknown'}
-          </p>
-        </div>
-        {canWrite && (
-          <Button type="button" variant="outline" size="sm" onClick={() => onEdit(recommendation)}>
-            Update
-          </Button>
-        )}
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        {(recommendation.technologies || []).length === 0 && (
-          <span className="text-sm text-muted-foreground">No technologies selected.</span>
-        )}
-        {(recommendation.technologies || []).map((technology) => (
-          <Badge key={technology._id} variant="outline">
-            {technology.name}
-          </Badge>
-        ))}
-      </div>
-
-      {recommendation.recommendationNote && (
-        <p className="mt-4 whitespace-pre-line text-sm leading-6 text-foreground">
-          {recommendation.recommendationNote}
-        </p>
-      )}
-
-      {recommendation.result?.outcome && (
-        <div className="mt-5 rounded-lg border border-border/60 p-3">
-          <p className="text-sm font-semibold text-foreground">
-            Result: {getRecommendationResultLabel(recommendation.result.outcome)}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {formatDate(recommendation.result.decidedAt)} by{' '}
-            {recommendation.result.decidedBy?.fullname || 'Unknown'}
-          </p>
-          <p className="mt-2 whitespace-pre-line text-sm text-foreground">
-            {recommendation.result.note}
-          </p>
-        </div>
-      )}
-    </li>
   );
 }
 
 export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && user?.role === ROLES.ADMIN;
+  const { data: intern } = useIntern(userId);
+  const { data: positions = [] } = usePositions();
+  const { data: projects = [] } = useProjects();
   const { data: technologies = [] } = useTechnologies();
   const { data, isPending, isError } = useRecommendations({
     internUserId: userId,
@@ -299,55 +139,106 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   });
   const { mutate: createRecommendation, isPending: isCreating } = useCreateRecommendation();
   const { mutate: updateRecommendation, isPending: isUpdating } = useUpdateRecommendation();
+  const { mutate: deleteRecommendation, isPending: isDeleting } = useDeleteRecommendation();
 
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [detailRecommendation, setDetailRecommendation] = useState(null);
   const [activeRecommendation, setActiveRecommendation] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [duplicateWarn, setDuplicateWarn] = useState(null);
   const [form, setForm] = useState(createEmptyForm);
+  const [sortKey, setSortKey] = useState('');
+  const [sortDir, setSortDir] = useState('desc');
+  const [viewMode, setViewMode] = useState(() =>
+    localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'compact' ? 'compact' : 'detailed'
+  );
 
   const recommendations = data?.recommendations ?? [];
   const isSaving = isCreating || isUpdating;
+  const isEditing = Boolean(activeRecommendation);
+  // A result already recorded on the server. The backend can change a recorded
+  // outcome but never remove it, so the form keeps the outcome visible even
+  // when the status moves back off "resulted".
+  const hasRecordedOutcome = Boolean(activeRecommendation?.result?.outcome);
+  const recommendBlocked = isRecommendBlockedByProfileStatus(intern?.status);
+  const internName = intern?.user?.fullname || 'This intern';
 
-  useEffect(() => {
-    if (!activeRecommendation) return;
-    const freshRecommendation = recommendations.find(
-      (recommendation) => recommendation._id === activeRecommendation._id
-    );
-    if (freshRecommendation) {
-      setActiveRecommendation(freshRecommendation);
-      setForm(formFromRecommendation(freshRecommendation));
-    }
-  }, [activeRecommendation, recommendations]);
+  const positionName = (recommendation) => recommendation?.position?.name || 'Position not set';
 
-  const resetForm = () => {
+  const changeViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  };
+
+  // The edit form is seeded once from the record when the dialog opens
+  // (handleEdit). We deliberately do NOT re-sync it from `recommendations` on
+  // every refetch — doing so overwrote the user's in-progress edits mid-typing.
+
+  const handleNew = () => {
+    if (recommendBlocked) return;
     setActiveRecommendation(null);
     setForm(createEmptyForm());
+    setDialogOpen(true);
   };
 
   const handleEdit = (recommendation) => {
     setActiveRecommendation(recommendation);
     setForm(formFromRecommendation(recommendation));
+    setDialogOpen(true);
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-
+  const buildPayload = () => {
     const payload = {
       internUserId: userId,
+      positionId: form.positionId,
+      projectId: form.projectId,
       technologyIds: form.technologyIds,
       recommendationNote: form.recommendationNote,
       status: form.status,
     };
 
-    if (activeRecommendation && form.resultOutcome !== 'none') {
+    // Per-stage dates: only stages the status has reached carry one. An
+    // explicit null interviewing date on a resulted recommendation means the
+    // stage was skipped.
+    if (isEditing) {
+      const statusIndex = RECOMMENDATION_STATUSES.findIndex(
+        (status) => status.value === form.status
+      );
+      const statusDates = { recommended: form.statusDates.recommended || undefined };
+      if (statusIndex >= 1) {
+        statusDates.interviewing = form.interviewingSkipped
+          ? null
+          : form.statusDates.interviewing || undefined;
+      }
+      if (statusIndex >= 2) {
+        statusDates.resulted = form.statusDates.resulted || undefined;
+      }
+      payload.statusDates = statusDates;
+    } else {
+      payload.statusDates = { recommended: form.statusDates.recommended || undefined };
+    }
+
+    // Placement outcome only applies to a resulted recommendation; ignore any
+    // stale outcome if the status isn't 'resulted' (the section shows a
+    // read-only notice then instead of editable fields).
+    if (activeRecommendation && form.status === 'resulted' && form.resultOutcome !== 'none') {
       payload.result = {
         outcome: form.resultOutcome,
         note: form.resultNote,
       };
     }
 
+    return payload;
+  };
+
+  const savePayload = (payload) => {
     const options = {
       onSuccess: () => {
         toast.success(activeRecommendation ? 'Recommendation updated' : 'Recommendation created');
-        resetForm();
+        setDialogOpen(false);
+        setActiveRecommendation(null);
+        setDuplicateWarn(null);
+        setForm(createEmptyForm());
       },
       onError: (err) =>
         toast.error(err?.response?.data?.message || 'Failed to save recommendation'),
@@ -360,44 +251,256 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     }
   };
 
+  const handleSubmit = () => {
+    if (!isEditing && recommendBlocked) {
+      toast.error(recommendBlockedReason(intern?.status));
+      return;
+    }
+    if (!form.positionId) {
+      toast.error('Select a position for this recommendation');
+      return;
+    }
+    if (!form.projectId) {
+      toast.error('Select a project for this recommendation');
+      return;
+    }
+
+    // Stage dates must not run backwards ('yyyy-MM-dd' strings compare
+    // lexicographically). The server enforces the same rule.
+    const dates = form.statusDates;
+    const interviewingDate = form.interviewingSkipped ? '' : dates.interviewing;
+    if (interviewingDate && dates.recommended && interviewingDate < dates.recommended) {
+      toast.error("Interviewing date can't be before the Recommended date");
+      return;
+    }
+    if (dates.resulted) {
+      const previousDate = interviewingDate || dates.recommended;
+      if (previousDate && dates.resulted < previousDate) {
+        toast.error("Resulted date can't be before the earlier stage dates");
+        return;
+      }
+    }
+
+    const payload = buildPayload();
+
+    // Soft warn when pitching someone who already has an open recommendation
+    // on a different project — create is still allowed after confirm.
+    if (!isEditing) {
+      const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
+      if (conflicts.length > 0) {
+        const targetProject =
+          projects.find((project) => project._id === form.projectId)?.name || 'this project';
+        const existingProjectNames = [
+          ...new Set(conflicts.map((recommendation) => recommendationProjectName(recommendation))),
+        ];
+        setDuplicateWarn({ payload, existingProjectNames, targetProjectName: targetProject });
+        return;
+      }
+    }
+
+    savePayload(payload);
+  };
+
+  const handleDuplicateWarnConfirm = () => {
+    if (!duplicateWarn?.payload || isCreating) return;
+    savePayload(duplicateWarn.payload);
+  };
+
+  // Deleting also dismisses any open modal showing the removed record.
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget || isDeleting) return;
+    deleteRecommendation(deleteTarget._id, {
+      onSuccess: () => {
+        toast.success('Recommendation deleted');
+        if (detailRecommendation?._id === deleteTarget._id) setDetailRecommendation(null);
+        if (activeRecommendation?._id === deleteTarget._id) {
+          setDialogOpen(false);
+          setActiveRecommendation(null);
+        }
+        setDeleteTarget(null);
+      },
+      onError: (err) =>
+        toast.error(err?.response?.data?.message || 'Failed to delete recommendation'),
+    });
+  };
+
+  const handleSortKeyChange = (key) => {
+    setSortKey(key);
+    if (key) setSortDir(NUMERIC_SORT_KEYS.includes(key) ? 'desc' : 'asc');
+  };
+
+  const sorted = useMemo(() => {
+    const byUpdated = [...recommendations].sort(
+      (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+    );
+    if (!sortKey) return byUpdated;
+    const factor = sortDir === 'asc' ? 1 : -1;
+    const valueOf = (recommendation) => {
+      if (sortKey === 'updated') return new Date(recommendation.updatedAt).getTime();
+      if (sortKey === 'status') return getRecommendationStatusLabel(recommendation.status);
+      return positionName(recommendation);
+    };
+    return byUpdated.sort((a, b) => {
+      const av = valueOf(a);
+      const bv = valueOf(b);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * factor;
+      return String(av ?? '').localeCompare(String(bv ?? '')) * factor;
+    });
+  }, [recommendations, sortKey, sortDir]);
+
+  // Count from the server, not from the fetched page — the query is capped at
+  // the API's max page size (50), so an intern with more records would
+  // otherwise be silently undercounted. When truncated, say so.
+  const totalCount = data?.pagination?.total ?? sorted.length;
+  const subtitle =
+    totalCount > sorted.length
+      ? `${totalCount} recommendations · showing the latest ${sorted.length}`
+      : `${sorted.length} recommendation${sorted.length === 1 ? '' : 's'}`;
+
+  const timelineSteps = (recommendation) =>
+    buildTimelineSteps(
+      recommendation,
+      RECOMMENDATION_STATUSES.map(({ value, label }) => ({ key: value, label }))
+    );
+
   return (
-    <div className="space-y-6">
-      {canWrite && (
-        <RecommendationForm
-          activeRecommendation={activeRecommendation}
-          form={form}
-          setForm={setForm}
-          technologies={technologies}
-          onCancel={resetForm}
-          onSubmit={handleSubmit}
-          isSaving={isSaving}
+    <div className={cn('space-y-4 text-[#171b2b]', REC_FONT)}>
+      {/* Header card */}
+      <div className="rounded-[18px] border border-[#e7e9ef] bg-white px-6 py-5 shadow-[0_1px_3px_rgba(20,24,40,.06)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-[22px] font-bold text-[#171b2b]">Recommendation history</h2>
+            <p className="text-[13.5px] text-[#8b91a5]">{subtitle}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <SortControl
+              sortKey={sortKey}
+              sortDir={sortDir}
+              options={SORT_OPTIONS}
+              onSortKeyChange={handleSortKeyChange}
+              onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              className="h-11 border-[#dcdfe9] bg-white"
+              triggerClassName="text-[14px] font-semibold text-[#33384c]"
+              dataTest="recommendation-history-sort"
+            />
+            <ViewModeSwitcher value={viewMode} onChange={changeViewMode} />
+            {canWrite &&
+              (recommendBlocked ? (
+                <DarkTooltip content={recommendBlockedReason(intern?.status)}>
+                  <span className="inline-flex">
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className={cn(
+                        'inline-flex h-11 items-center gap-1.5 px-[18px] text-[14px] font-semibold',
+                        BTN_PRIMARY_CLASS,
+                        BTN_PRIMARY_DISABLED_CLASS
+                      )}
+                      data-test="recommendation-history-new-button"
+                      title={recommendBlockedReason(intern?.status)}
+                    >
+                      <Plus className="h-4 w-4" />
+                      New recommendation
+                    </button>
+                  </span>
+                </DarkTooltip>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleNew}
+                  className={cn('inline-flex h-11 items-center gap-1.5', BTN_PRIMARY_CLASS)}
+                  data-test="recommendation-history-new-button"
+                >
+                  <Plus className="h-4 w-4" />
+                  New recommendation
+                </button>
+              ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Cards */}
+      <div className={cn('flex flex-col', viewMode === 'compact' ? 'gap-3' : 'gap-4')}>
+        {isPending && <p className="py-8 text-center text-[13.5px] text-[#8b91a5]">Loading…</p>}
+        {!isPending && sorted.length === 0 && (
+          <p className="py-12 text-center text-[13.5px] text-[#8b91a5]">
+            {isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'}
+          </p>
+        )}
+        {!isPending &&
+          sorted.map((recommendation) => {
+            const shared = {
+              recommendation,
+              steps: timelineSteps(recommendation),
+              positionName: positionName(recommendation),
+              canWrite,
+              onOpen: () => setDetailRecommendation(recommendation),
+            };
+            return viewMode === 'compact' ? (
+              <RecommendationCompactRow key={recommendation._id} {...shared} />
+            ) : (
+              <RecommendationCard
+                key={recommendation._id}
+                {...shared}
+                onReadMore={() => setDetailRecommendation(recommendation)}
+              />
+            );
+          })}
+      </div>
+
+      <RecommendationFormModal
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        isEditing={isEditing}
+        form={form}
+        setForm={setForm}
+        statuses={RECOMMENDATION_STATUSES}
+        positions={positions}
+        projects={projects}
+        technologies={technologies}
+        activeRecommendation={activeRecommendation}
+        hasRecordedOutcome={hasRecordedOutcome}
+        positionName={positionName}
+        todayInputDate={todayInputDate}
+        isSaving={isSaving}
+        onSubmit={handleSubmit}
+        onDelete={() => setDeleteTarget(activeRecommendation)}
+      />
+
+      {detailRecommendation && (
+        <RecommendationViewModal
+          recommendation={detailRecommendation}
+          steps={timelineSteps(detailRecommendation)}
+          positionName={positionName(detailRecommendation)}
+          canWrite={canWrite}
+          onClose={() => setDetailRecommendation(null)}
+          onEdit={() => {
+            const target = detailRecommendation;
+            setDetailRecommendation(null);
+            handleEdit(target);
+          }}
+          onDelete={() => setDeleteTarget(detailRecommendation)}
         />
       )}
 
-      <InternPanel>
-        <h3 className="text-lg font-semibold text-foreground">Recommendation history</h3>
-        {isPending && (
-          <p className="mt-4 text-sm text-muted-foreground">Loading recommendations...</p>
-        )}
-        {isError && (
-          <p className="mt-4 text-sm text-destructive">Failed to load recommendations.</p>
-        )}
-        {!isPending && !isError && recommendations.length === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">No recommendations recorded yet.</p>
-        )}
-        {!isPending && !isError && recommendations.length > 0 && (
-          <ul className="mt-4 space-y-4">
-            {recommendations.map((recommendation) => (
-              <RecommendationSummary
-                key={recommendation._id}
-                recommendation={recommendation}
-                canWrite={canWrite}
-                onEdit={handleEdit}
-              />
-            ))}
-          </ul>
-        )}
-      </InternPanel>
+      <RecommendationDeleteDialog
+        recommendation={deleteTarget}
+        positionName={positionName}
+        isDeleting={isDeleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+      />
+
+      <RecommendationDuplicateWarnDialog
+        open={Boolean(duplicateWarn)}
+        internName={internName}
+        existingProjectNames={duplicateWarn?.existingProjectNames}
+        targetProjectName={duplicateWarn?.targetProjectName}
+        isSaving={isCreating}
+        onCancel={() => setDuplicateWarn(null)}
+        onConfirm={handleDuplicateWarnConfirm}
+      />
     </div>
   );
 }

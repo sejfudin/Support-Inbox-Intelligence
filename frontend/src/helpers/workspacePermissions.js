@@ -30,3 +30,11 @@ export const canAccessWorkspaceManagementRoute = (user, workspace, workspaceId) 
   if (isPlatformAdmin(user)) return true;
   return getUserId(user) && user?.workspaceId?.toString() === workspaceId?.toString();
 };
+
+// Mirrors DELETE /api/workspaces/:id — platform admins, or mentors who own/admin
+// the workspace. Other workspace-admin members (e.g. interns) cannot delete.
+export const canDeleteWorkspace = (user, workspace) => {
+  if (!user || !workspace) return false;
+  if (isPlatformAdmin(user)) return true;
+  return user.role === ROLES.MENTOR && isWorkspaceAdminMember(user, workspace);
+};

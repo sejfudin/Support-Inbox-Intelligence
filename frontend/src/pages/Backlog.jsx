@@ -12,7 +12,7 @@ import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useAuth } from '@/context/AuthContext';
-import { isAdmin as checkIsAdmin } from '@/helpers/roles';
+import { isAdmin, isMentor, isIntern } from '@/helpers/roles';
 
 export default function BacklogPage() {
   const [activeTab] = useState('all');
@@ -48,7 +48,7 @@ export default function BacklogPage() {
     closeTicketDetails,
   } = useTicketModals();
   const { data: me } = useGetMe();
-  const isAdmin = checkIsAdmin(me?.role);
+  const canCreateTicket = isAdmin(me?.role) || isMentor(me?.role) || isIntern(me?.role);
 
   return (
     <PageShell>
@@ -66,7 +66,7 @@ export default function BacklogPage() {
           setPage(1);
         }}
         hideViewMode={true}
-        hideNewTicket={!isAdmin}
+        hideNewTicket={!canCreateTicket}
         onNewTicket={() => openNewTicket(null)}
         title="Backlog"
         subtitle="Triage upcoming tickets before they enter the active flow."

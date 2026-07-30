@@ -13,24 +13,43 @@ import {
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { IN_PIPELINE_STAGE, INTERN_STATUSES, READY_STATUS } from '@/helpers/internProfile';
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
+
+// Placement-stage filter options in funnel order; `in pipeline` sits between
+// ready and placed because pipelined interns are ready interns with an active
+// recommendation.
+const stageOptions = INTERN_STATUSES.flatMap((s) =>
+  s === READY_STATUS ? [s, IN_PIPELINE_STAGE] : [s]
+);
+
+// Display label for a placement-stage option. `ready` is surfaced with the
+// same friendly label as the programme dashboard; every other stage is
+// title-cased so the selected value in the trigger matches the dropdown.
+const stageLabel = (s) => {
+  if (s === READY_STATUS) return 'Available for a project';
+  if (s === IN_PIPELINE_STAGE) return 'In Pipeline';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 export default function LeadershipCandidatesPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [hubId, setHubId] = useState('');
-  const [internshipTypeId, setInternshipTypeId] = useState('');
+  const [hubId, setHubId] = useState(searchParams.get('hubId') || '');
+  const [internshipTypeId, setInternshipTypeId] = useState(
+    searchParams.get('internshipTypeId') || ''
+  );
   const [profileStatus, setProfileStatus] = useState(searchParams.get('status') || '');
-  const [readyFilter, setReadyFilter] = useState(searchParams.get('ready') || '');
   const [debouncedSearch] = useDebounce(search, 400);
 
   useEffect(() => {
+    setHubId(searchParams.get('hubId') || '');
+    setInternshipTypeId(searchParams.get('internshipTypeId') || '');
     setProfileStatus(searchParams.get('status') || '');
-    setReadyFilter(searchParams.get('ready') || '');
     setPage(1);
   }, [searchParams]);
 
@@ -42,8 +61,15 @@ export default function LeadershipCandidatesPage() {
     search: debouncedSearch || undefined,
     hubId: hubId || undefined,
     internshipTypeId: internshipTypeId || undefined,
-    profileStatus: profileStatus || undefined,
-    readyForPlacement: readyFilter || undefined,
+    profileStatus: profileStatus && profileStatus !== IN_PIPELINE_STAGE ? profileStatus : undefined,
+    // "ready" means the available bench: ready lifecycle status AND not already
+    // in the pipeline, so the table matches the leadership "Ready" KPI count.
+    inPipeline:
+      profileStatus === IN_PIPELINE_STAGE
+        ? 'true'
+        : profileStatus === READY_STATUS
+          ? 'false'
+          : undefined,
   });
 
   const interns = data?.interns ?? [];
@@ -73,7 +99,7 @@ export default function LeadershipCandidatesPage() {
             View programme dashboard
           </Link>
         </div>
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <Input
             className="symphony-input"
             placeholder="Search name or email..."
@@ -133,34 +159,15 @@ export default function LeadershipCandidatesPage() {
               className="symphony-input"
               data-test="leadership-candidates-status-select"
             >
-              <SelectValue placeholder="All statuses" />
+              <SelectValue placeholder="Placement stage" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="ready">Ready</SelectItem>
-              <SelectItem value="placed">Placed</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="discontinued">Discontinued</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={readyFilter || 'all'}
-            onValueChange={(v) => {
-              setReadyFilter(v === 'all' ? '' : v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger
-              className="symphony-input"
-              data-test="leadership-candidates-ready-select"
-            >
-              <SelectValue placeholder="Placement readiness" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All readiness</SelectItem>
-              <SelectItem value="true">Ready for placement</SelectItem>
-              <SelectItem value="false">Not ready</SelectItem>
+              <SelectItem value="all">All stages</SelectItem>
+              {stageOptions.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {stageLabel(s)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -178,14 +185,13 @@ export default function LeadershipCandidatesPage() {
                   <th className="px-5 py-3">Hub</th>
                   <th className="px-5 py-3">Programme</th>
                   <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Ready</th>
                   <th className="px-5 py-3">Mentor</th>
                 </tr>
               </thead>
               <tbody>
                 {interns.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">
                       No candidates match your filters.
                     </td>
                   </tr>
@@ -211,15 +217,6 @@ export default function LeadershipCandidatesPage() {
                       <td className="px-5 py-4">{intern.internshipType?.name || '—'}</td>
                       <td className="px-5 py-4">
                         <SymphonyStatusBadge status={intern.status} />
-                      </td>
-                      <td className="px-5 py-4">
-                        {intern.readyForPlacement ? (
-                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            Yes
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No</span>
-                        )}
                       </td>
                       <td className="px-5 py-4 text-muted-foreground">
                         {intern.primaryMentor?.fullname || '—'}

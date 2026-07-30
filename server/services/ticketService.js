@@ -6,6 +6,8 @@ const { notifyTicketAssigned } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
+const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
+const { escapeRegex } = require('../helpers/escapeRegex');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -109,6 +111,7 @@ const TICKET_SOCKET_EVENTS = {
   created: 'ticket:created',
   updated: 'ticket:updated',
   archived: 'ticket:archived',
+  unarchived: 'ticket:unarchived',
   moved: 'ticket:moved',
   assigned: 'ticket:assigned',
 };
@@ -212,16 +215,20 @@ const castTicketQueryForAggregate = (query) => {
   return mongooseQuery.getFilter();
 };
 
+// Every branch ends with `_id: -1`. The named keys all tie (`dueDate` is often
+// null, `updatedAt` ties across a bulk write), and Mongo's sort is not stable
+// for tied keys — so without a unique final key, skip/limit paging can show the
+// same ticket on two pages and never show another.
 const buildTicketListSort = (sortBy = 'dueDate', sortOrder = 'desc') => {
   const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : 'dueDate';
   const dir = sortOrder === 'asc' ? 1 : -1;
   if (field === 'dueDate') {
-    return { dueDate: dir, updatedAt: -1 };
+    return { dueDate: dir, updatedAt: -1, _id: -1 };
   }
   if (field === 'taskNumber') {
-    return { taskNumber: dir, updatedAt: -1 };
+    return { taskNumber: dir, updatedAt: -1, _id: -1 };
   }
-  return { updatedAt: dir };
+  return { updatedAt: dir, _id: -1 };
 };
 
 const ensureAssignableUsersBelongToWorkspace = async ({ workspaceId, assignedTo = [] }) => {
@@ -286,9 +293,10 @@ const getAllTickets = async ({
   applyCreatedAtPeriodFilter(query, periodDays);
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     const searchConditions = [
-      { subject: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
+      { subject: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
     ];
 
     const searchAsNumber = Number(search);
@@ -367,6 +375,7 @@ const getAllTickets = async ({
     const mongoSort = {
       priorityRank: normalizedOrder === 'desc' ? -1 : 1,
       updatedAt: -1,
+      _id: -1, // unique tiebreaker — see buildTicketListSort
     };
 
     const aggregateMatch = castTicketQueryForAggregate(query);
@@ -487,7 +496,12 @@ const createTicket = async (ticketData) => {
   }
   const statusId = statusDoc._id;
 
-  const statusFlags = await statusService.getStatusFlags(ticketData.workspaceId, statusDoc.slug);
+  // statusDoc already carries these fields — no need to re-fetch it by slug.
+  const statusFlags = {
+    tracksTime: statusDoc.tracksTime,
+    isDone: statusDoc.isDone,
+    isBacklog: statusDoc.isBacklog,
+  };
 
   const dueDate = parseOptionalDueDate(ticketData.dueDate);
 
@@ -498,7 +512,7 @@ const createTicket = async (ticketData) => {
 
   const ticket = new Ticket({
     subject: sanitizedSubject,
-    description: ticketData.description || '',
+    description: sanitizeDescriptionHtml(ticketData.description),
     creator: ticketData.creatorId,
     status: statusId,
     priority: ticketData.priority || 'medium',
@@ -564,6 +578,10 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       updateData.subject = sanitizedSubject;
     }
 
+    if (Object.prototype.hasOwnProperty.call(updateData, 'description')) {
+      updateData.description = sanitizeDescriptionHtml(updateData.description);
+    }
+
     const oldTicket = await Ticket.findById(ticketId);
     if (!oldTicket) throw new Error('Ticket not found');
 
@@ -600,26 +618,35 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         statusInput
       );
       const newStatusSlug = statusDoc.slug;
-      const oldStatusSlug = await statusService.resolveStatusSlugFromTicketRef(oldTicket.status);
+      // Single fetch for the old status doc — replaces separate slug/label/flags
+      // lookups that each independently re-fetched the same document.
+      const oldStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
+      const oldStatusSlug = oldStatusDoc?.slug ? String(oldStatusDoc.slug).toLowerCase() : '';
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
         statusChanged = true;
-        const oldFlags = await statusService.getStatusFlags(oldTicket.workspace, oldStatusSlug);
-        if (statusDoc.isBacklog && !oldFlags.isBacklog) {
+        if (statusDoc.isBacklog && !oldStatusDoc?.isBacklog) {
           throw new Error('Tickets cannot be moved back to the backlog.');
         }
 
         const now = new Date();
-        const oldLabel = await statusService.getStatusLabelFromRef(oldTicket.status);
+        const oldLabel = oldStatusDoc?.label || 'Unknown';
         const newLabel = statusDoc.label;
 
         updateData.status = statusDoc._id;
         delete updateData.statusId;
 
         await statusService.applyStatusLifecycleUpdate({
-          workspaceId: oldTicket.workspace,
-          oldStatus: oldStatusSlug,
-          newStatus: newStatusSlug,
+          oldFlags: {
+            tracksTime: oldStatusDoc?.tracksTime,
+            isDone: oldStatusDoc?.isDone,
+            isBacklog: oldStatusDoc?.isBacklog,
+          },
+          newFlags: {
+            tracksTime: statusDoc.tracksTime,
+            isDone: statusDoc.isDone,
+            isBacklog: statusDoc.isBacklog,
+          },
           oldTicket,
           updateData,
           now,
@@ -798,7 +825,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
 const archiveTicket = async (ticketId, actorUserId) => {
   const ticket = await Ticket.findByIdAndUpdate(
     ticketId,
-    { $set: { isArchived: true } },
+    { $set: { isArchived: true, archivedAt: new Date() } },
     { returnDocument: 'after' }
   );
   if (!ticket) {
@@ -807,6 +834,23 @@ const archiveTicket = async (ticketId, actorUserId) => {
   historyService.logEvent(ticketId, actorUserId, 'Ticket Archived');
   emitTicketWorkspaceEvent({
     eventName: TICKET_SOCKET_EVENTS.archived,
+    ticket,
+  });
+  return ticket;
+};
+
+const unarchiveTicket = async (ticketId, actorUserId) => {
+  const ticket = await Ticket.findByIdAndUpdate(
+    ticketId,
+    { $set: { isArchived: false, archivedAt: null } },
+    { returnDocument: 'after' }
+  );
+  if (!ticket) {
+    throw new Error('Ticket not found');
+  }
+  historyService.logEvent(ticketId, actorUserId, 'Ticket Restored');
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.unarchived,
     ticket,
   });
   return ticket;
@@ -849,9 +893,10 @@ const getMyTickets = async ({
   };
 
   if (search) {
+    const escapedSearch = escapeRegex(search);
     query.$or = [
-      { subject: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
+      { subject: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 
@@ -879,6 +924,7 @@ const getMyTickets = async ({
       : {
           priorityRank: normalizedOrder === 'desc' ? -1 : 1,
           updatedAt: -1,
+          _id: -1, // unique tiebreaker — see buildTicketListSort
         };
 
   const sortSpec = buildTicketListSort(sortBy, sortOrder);
@@ -964,6 +1010,7 @@ module.exports = {
   getTicketById,
   updateTicket,
   archiveTicket,
+  unarchiveTicket,
   getMyTickets,
   INVALID_ASSIGNEE_ERROR,
 };

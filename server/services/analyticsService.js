@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const statusService = require('./statusService');
+const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
 
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -14,22 +15,36 @@ const buildCycleMsExpression = () => ({
   $multiply: [{ $ifNull: ['$totalTimeSpent', 0] }, 1000],
 });
 
-const getWorkspaceAnalytics = async ({ workspaceId, days = 30 }) => {
+const getWorkspaceAnalytics = async ({ workspaceId, days = 30, requesterId, requesterRole }) => {
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
     throw new Error('Invalid workspaceId');
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(requesterId)) {
+    throw new Error('Invalid requesterId');
   }
 
   const parsedDays = Number.parseInt(days, 10);
   const allowedDays = new Set([7, 15, 30]);
   const safeDays = allowedDays.has(parsedDays) ? parsedDays : 30;
 
-  const workspaceExists = await Workspace.exists({
+  const requesterObjectId = new mongoose.Types.ObjectId(requesterId);
+
+  const workspace = await Workspace.findOne({
     _id: workspaceId,
     isArchived: { $ne: true },
-  });
+  }).select('members');
 
-  if (!workspaceExists) {
+  if (!workspace) {
     throw new Error('Workspace not found');
+  }
+
+  // Admins and mentors can view any workspace's analytics. Everyone else must
+  // be an active member of the workspace they are requesting.
+  if (!canAccessAnyWorkspace(requesterRole)) {
+    if (!isActiveWorkspaceMember(workspace, requesterObjectId)) {
+      throw new Error('Not a member of this workspace');
+    }
   }
 
   const now = new Date();
@@ -195,19 +210,11 @@ const getUserAnalytics = async ({ userId, workspaceId, days = 30, requesterId, r
   const isAdminRequester = requesterRole === 'admin';
 
   if (!isAdminRequester) {
-    const isRequesterMember = workspace.members.some(
-      (member) => member.user && member.user.equals(requesterObjectId) && member.status === 'active'
-    );
-
-    if (!isRequesterMember) {
+    if (!isActiveWorkspaceMember(workspace, requesterObjectId)) {
       throw new Error('Not a member of this workspace');
     }
 
-    const isTargetUserMember = workspace.members.some(
-      (member) => member.user && member.user.equals(userObjectId) && member.status === 'active'
-    );
-
-    if (!isTargetUserMember) {
+    if (!isActiveWorkspaceMember(workspace, userObjectId)) {
       throw new Error('User is not an active member of this workspace');
     }
   }

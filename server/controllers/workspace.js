@@ -33,11 +33,17 @@ exports.getMyWorkspaces = async (req, res, next) => {
 
 exports.getWorkspace = async (req, res, next) => {
   try {
-    const workspace = await workspaceService.getWorkspaceById(req.params.id);
+    const workspace = await workspaceService.getWorkspaceById(req.params.id, {
+      userId: req.user._id,
+      role: req.user.role,
+    });
     res.json(workspace);
   } catch (err) {
     if (err.message === 'Workspace not found') {
       return res.status(404).json({ message: err.message });
+    }
+    if (err.statusCode === 403) {
+      return res.status(403).json({ message: err.message });
     }
     next(err);
   }
@@ -96,30 +102,22 @@ exports.deleteWorkspaceLogo = async (req, res, next) => {
   }
 };
 
+// Accepts one or many invites via req.body.invites: [{ userId, role }].
+// Each invite is attempted independently; response carries per-user results.
 exports.inviteMember = async (req, res, next) => {
   try {
-    const result = await workspaceService.inviteMemberToWorkspace({
+    const result = await workspaceService.inviteMembersToWorkspace({
       workspaceId: req.params.id,
-      ...req.body,
+      invites: req.body.invites,
       inviterId: req.user._id,
-      inviterName: req.user.fullname,
     });
     res.status(201).json(result);
   } catch (err) {
+    if (err.message === 'At least one invite is required') {
+      return res.status(400).json({ message: err.message });
+    }
     if (err.message === 'Workspace not found') {
       return res.status(404).json({ message: err.message });
-    }
-    if (err.message === 'User not found') {
-      return res.status(404).json({ message: err.message });
-    }
-    if (
-      err.message === 'User is required' ||
-      err.message === 'User is already a member of this workspace' ||
-      err.message === 'User already has a pending invitation for this workspace'
-    ) {
-      return res
-        .status(err.message === 'User is required' ? 400 : 409)
-        .json({ message: err.message });
     }
     next(err);
   }
@@ -138,6 +136,21 @@ exports.removeMember = async (req, res, next) => {
     }
     if (err.message === 'Cannot remove the workspace owner') {
       return res.status(400).json({ message: err.message });
+    }
+    next(err);
+  }
+};
+
+exports.cancelInvitation = async (req, res, next) => {
+  try {
+    const result = await workspaceService.cancelInvitation({
+      workspaceId: req.params.id,
+      invitationId: req.params.invitationId,
+    });
+    res.json(result);
+  } catch (err) {
+    if (err.message === 'Workspace not found' || err.message === 'Invitation not found') {
+      return res.status(404).json({ message: err.message });
     }
     next(err);
   }

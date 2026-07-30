@@ -5,6 +5,7 @@ import { RegisterForm } from '@/components/register/RegisterForm';
 import { RegisterRoleGuide } from '@/components/register/RegisterRoleGuide';
 import { RegisterSuccess } from '@/components/register/RegisterSuccess';
 import { getRegisterDefaultValues } from '@/helpers/registerForm';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 export default function Register() {
   const [errorString, setErrorString] = useState('');
@@ -38,7 +39,8 @@ export default function Register() {
           </Card>
 
           <Card className="flex flex-col border-border/50 bg-card shadow-elevated">
-            <CardHeader className="space-y-3 border-b border-border/60 pb-6">
+            <CardHeader className="space-y-4 border-b border-border/60 pb-6">
+              <TaskManagerBrand size="md" linkTo={null} />
               <CardTitle className="text-2xl font-bold text-foreground md:text-3xl">
                 Create User Account
               </CardTitle>

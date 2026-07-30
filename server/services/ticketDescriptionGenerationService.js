@@ -1,21 +1,11 @@
-const sanitizeHtml = require('sanitize-html');
 const { buildTicketDescriptionGenerationPrompt } = require('../prompts/ticketPrompts');
-const {
-  MIN_SUBJECT_LENGTH,
-  MIN_TEXT_LENGTH,
-  DESCRIPTION_ALLOWED_TAGS,
-} = require('../helpers/aiValidationRules');
+const { MIN_SUBJECT_LENGTH, MIN_TEXT_LENGTH } = require('../helpers/aiValidationRules');
+const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
 const {
   createAiServiceError,
   extractJsonObject,
   requestGroqOutputText,
 } = require('./groqAiClient');
-
-const SANITIZE_OPTIONS = {
-  allowedTags: DESCRIPTION_ALLOWED_TAGS,
-  allowedAttributes: {},
-  disallowedTagsMode: 'discard',
-};
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -39,10 +29,6 @@ function validateDescriptionGenerationInput({ subject, prompt }) {
 function extractDescriptionHtmlFromPayload(payload) {
   if (!payload || typeof payload !== 'object') return '';
   return normalizeText(payload.descriptionHtml);
-}
-
-function sanitizeDescriptionHtml(html) {
-  return sanitizeHtml(html, SANITIZE_OPTIONS).trim();
 }
 
 async function generateTicketDescription({ subject, prompt }) {

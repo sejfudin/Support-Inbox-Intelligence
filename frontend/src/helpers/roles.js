@@ -36,8 +36,26 @@ export const isIntern = (role) => role === ROLES.INTERN;
 export const isLeadership = (role) => role === ROLES.LEADERSHIP;
 
 export const canManageInterns = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
-export const canManageInternDocumentationLinks = (role) =>
-  role === ROLES.ADMIN || role === ROLES.LEADERSHIP;
+
+const refId = (ref) => {
+  if (!ref) return null;
+  if (typeof ref === 'string') return ref;
+  return ref._id || ref.id || null;
+};
+
+// Whether `user` is the primary/secondary mentor assigned to `intern`.
+export const isAssignedMentor = (user, intern) => {
+  if (!user || !intern) return false;
+  const userId = user._id || user.id;
+  if (!userId) return false;
+  return refId(intern.primaryMentor) === userId || refId(intern.secondaryMentor) === userId;
+};
+
+// Documentation links can be managed by admins, leadership, and the intern's assigned mentor.
+export const canManageInternDocumentationLinks = (user, intern) =>
+  user?.role === ROLES.ADMIN ||
+  user?.role === ROLES.LEADERSHIP ||
+  (user?.role === ROLES.MENTOR && isAssignedMentor(user, intern));
 export const canViewFepDirectory = (role) => role === ROLES.LEADERSHIP;
 export const canWriteInternMentorData = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
 export const canViewComments = (role) =>

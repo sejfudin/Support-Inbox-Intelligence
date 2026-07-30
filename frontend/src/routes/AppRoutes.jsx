@@ -14,7 +14,7 @@ import { ROLES } from '@/helpers/roles';
 import UserDashboard from '@/pages/UserDashboard';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
 import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
-import AdminWorkspacesPage from '@/pages/AdminWorkspacesPage';
+import WorkspacesOverviewPage from '@/pages/WorkspacesOverviewPage';
 import WorkspaceDetailPage from '@/pages/WorkspaceDetailPage';
 import WorkspaceSettingsPage from '@/pages/WorkspaceSettingsPage';
 import UserInvitationsPage from '@/pages/UserInvitationsPage';
@@ -29,6 +29,11 @@ import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
+import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
+import MyAttendancePage from '@/pages/MyAttendancePage';
+import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
+import WorkspaceDailiesPage from '@/pages/WorkspaceDailiesPage';
+import AdminDailyInsightsPage from '@/pages/AdminDailyInsightsPage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -80,7 +85,7 @@ export default function AppRoutes() {
             user?.role === ROLES.LEADERSHIP ? (
               <Navigate to="/programme" replace />
             ) : user?.role === ROLES.MENTOR ? (
-              <Navigate to="/my-interns" replace />
+              <CreateWorkspacePage />
             ) : user?.workspaceId ? (
               <Navigate to="/dashboard" replace />
             ) : (
@@ -114,19 +119,30 @@ export default function AppRoutes() {
 
           <Route path="/invitations" element={<UserInvitationsPage />} />
 
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.INTERN]} />}>
+            <Route path="/my-technologies" element={<MyTechnologiesPage />} />
+            <Route path="/my-attendance" element={<MyAttendancePage />} />
+          </Route>
+
           <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
             <Route path="/my-interns" element={<MentorInternsPage />} />
             <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
+            <Route path="/workspaces" element={<WorkspacesOverviewPage />} />
           </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN, ROLES.MENTOR]} />}>
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
+            <Route path="/attendance" element={<AttendanceOverviewPage />} />
+            <Route path="/admin/daily-insights" element={<AdminDailyInsightsPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/recommendations" element={<MentorRecommendationsPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
-            <Route path="/admin/workspaces" element={<AdminWorkspacesPage />} />
+            <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />
             <Route path="/admin/platform-management" element={<AdminReferenceDataPage />} />
             <Route
               path="/admin/reference-data"
@@ -137,17 +153,15 @@ export default function AppRoutes() {
 
           <Route element={<WorkspaceGuard />}>
             <Route path="/tickets" element={<TicketPage />} />
-            <Route path="/admin/archive" element={<ArchivePage />} />
+            <Route path="/archive" element={<ArchivePage />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
+            <Route path="/backlog" element={<BacklogPage />} />
+            <Route path="/dailies" element={<WorkspaceDailiesPage />} />
 
             <Route element={<WorkspaceManagementRoute />}>
               <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
               <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
-            </Route>
-
-            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
-              <Route path="/admin/backlog" element={<BacklogPage />} />
             </Route>
           </Route>
         </Route>

@@ -8,18 +8,22 @@ import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPa
 import { InternRecommendationsPanel } from '@/components/interns/InternRecommendationsPanel';
 import { InternReadinessPanel } from '@/components/interns/InternReadinessPanel';
 import { InternCandidateOverview } from '@/components/interns/InternCandidateOverview';
+import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
-import { useIntern } from '@/queries/interns';
+import { useIntern, useInternReadiness } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
 import { canManageInternDocumentationLinks } from '@/helpers/roles';
 
-function StatTile({ label, value }) {
+function StatTile({ label, value, badge = null }) {
   return (
     <SymphonyCard className="p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 font-semibold">{value}</p>
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">{value}</p>
+        {badge}
+      </div>
     </SymphonyCard>
   );
 }
@@ -35,7 +39,16 @@ export default function LeadershipCandidatePage() {
     CANDIDATE_TABS.includes(tabParam) ? tabParam : 'overview'
   );
   const { data: intern, isPending, isError } = useIntern(userId);
-  const canEditDocumentation = canManageInternDocumentationLinks(user?.role);
+  const canEditDocumentation = canManageInternDocumentationLinks(user, intern);
+  const declaredPosition = intern?.declaredPosition;
+  const { data: readinessFlags = [] } = useInternReadiness(userId, {
+    enabled: Boolean(userId && declaredPosition),
+  });
+  // Only the flag assessed for the currently declared role counts — a flag
+  // left over from a previous role reads as "Not assessed".
+  const positionFlag = readinessFlags.find(
+    (f) => f.position && (f.position?._id || f.position) === declaredPosition?._id
+  );
 
   useEffect(() => {
     if (CANDIDATE_TABS.includes(tabParam)) {
@@ -79,11 +92,6 @@ export default function LeadershipCandidatePage() {
             actions={
               <div className="flex flex-wrap items-center gap-2">
                 <SymphonyStatusBadge status={intern.status} />
-                {intern.readyForPlacement && (
-                  <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                    Ready for placement
-                  </span>
-                )}
               </div>
             }
           />
@@ -97,6 +105,15 @@ export default function LeadershipCandidatePage() {
             />
             <StatTile label="Primary mentor" value={intern.primaryMentor?.fullname || '—'} />
             <StatTile label="Secondary mentor" value={intern.secondaryMentor?.fullname || '—'} />
+            <StatTile
+              label="Declared position"
+              value={intern.declaredPosition?.name || '—'}
+              badge={
+                declaredPosition ? (
+                  <ReadinessLevelBadge level={positionFlag?.level || 'none'} />
+                ) : null
+              }
+            />
             <StatTile
               label="Expected end"
               value={
@@ -134,7 +151,7 @@ export default function LeadershipCandidatePage() {
               intern={intern}
               userId={userId}
               canEditDocumentation={canEditDocumentation}
-              programmeMode="none"
+              canEditInternalCv={false}
             />
           </SymphonyCard>
         </TabsContent>

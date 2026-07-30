@@ -2,6 +2,7 @@ const Comment = require('../models/Comment');
 const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const User = require('../models/User');
+const { canAccessAnyWorkspace, isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
 const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
@@ -17,10 +18,15 @@ const emitCommentTicketEvent = ({ eventName, ticketId, workspaceId, commentId })
   emitCommentEvent({ eventName, ticketId, workspaceId, commentId });
 };
 
-const createComment = async ({ content, ticket, authorId, userWorkspaceId, role }) => {
-  if (!content || !content.trim()) throw new Error('Comment content is required');
+const createComment = async ({ content, ticket, authorId, role }) => {
+  // Comments are plain text: stored verbatim (trimmed) and rendered through
+  // React's text-node escaping, never an HTML sink. Do NOT run them through an
+  // HTML sanitizer — that entity-encodes `&`/`<`/`>` into the stored value and
+  // corrupts common input (e.g. "A & B", "x < y") when shown as text.
+  const trimmedContent = content && content.trim();
+  if (!trimmedContent) throw new Error('Comment content is required');
 
-  if (content.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
+  if (trimmedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
 
   const foundTicket = await Ticket.findById(ticket);
   if (!foundTicket) throw new Error('Ticket not found');
@@ -29,14 +35,18 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
     throw new Error('Unauthorized: Cannot comment on an archived ticket');
   }
 
-  if (role != 'admin') {
-    if (foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
+  // Admins and mentors can comment on tickets in any workspace. Everyone else
+  // must be an active member of the ticket's workspace.
+  if (!canAccessAnyWorkspace(role)) {
+    const workspace = await Workspace.findById(foundTicket.workspace).select('members');
+
+    if (!isActiveWorkspaceMember(workspace, authorId)) {
       throw new Error('Unauthorized: You do not belong to this workspace');
     }
   }
 
   let comment = await Comment.create({
-    content,
+    content: trimmedContent,
     ticket,
     author: authorId,
   });
@@ -63,7 +73,7 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
     if (activeMemberIds.length > 0) {
       const users = await User.find({ _id: { $in: activeMemberIds } }).select('_id fullname email');
       const { byHandle } = buildMentionDirectory(users);
-      const handles = extractMentionHandles(content || '');
+      const handles = extractMentionHandles(trimmedContent);
 
       mentionRecipientIds = handles
         .map((h) => byHandle.get(h)?.userId)
@@ -79,7 +89,7 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
     await notificationService.notifyNewTicketComment({
       ticket: foundTicket,
       authorId,
-      commentPreview: content.trim(),
+      commentPreview: trimmedContent,
       excludeRecipientIds: mentionRecipientIds,
     });
   } catch (err) {
@@ -92,7 +102,7 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
         ticket: foundTicket,
         authorId,
         recipientIds: mentionRecipientIds,
-        commentPreview: content.trim(),
+        commentPreview: trimmedContent,
         commentId: comment._id,
       });
     }
@@ -103,17 +113,23 @@ const createComment = async ({ content, ticket, authorId, userWorkspaceId, role 
   return populated;
 };
 
-const getCommentsByTicketId = async (ticketId, userWorkspaceId, role) => {
+const getCommentsByTicketId = async (ticketId, userId, role) => {
   const foundTicket = await Ticket.findById(ticketId);
+  if (!foundTicket) throw new Error('Unauthorized to view comments for this ticket');
 
-  if (role != 'admin') {
-    if (!foundTicket || foundTicket.workspace.toString() !== userWorkspaceId.toString()) {
+  // Admins and mentors can view comments on any workspace's tickets. Everyone
+  // else must be an active member of the ticket's workspace.
+  if (!canAccessAnyWorkspace(role)) {
+    const workspace = await Workspace.findById(foundTicket.workspace).select('members');
+
+    if (!isActiveWorkspaceMember(workspace, userId)) {
       throw new Error('Unauthorized to view comments for this ticket');
     }
   }
 
   return await Comment.find({
     ticket: ticketId,
+    isDeleted: { $ne: true },
   })
     .populate('author', 'fullname email')
     .sort({ createdAt: 1 });
@@ -123,9 +139,10 @@ const updateComment = async (commentId, content, userId) => {
   const comment = await Comment.findById(commentId).populate('ticket');
   if (!comment || comment.isDeleted) throw new Error('Comment not found');
 
-  if (!content || !content.trim()) throw new Error('Comment content is required');
+  const trimmedContent = content && content.trim();
+  if (!trimmedContent) throw new Error('Comment content is required');
 
-  if (content.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
+  if (trimmedContent.length > 1000) throw new Error('Comment is too long (max 1000 characters)');
 
   if (comment.ticket.isArchived) {
     throw new Error('Unauthorized: Cannot edit comments on an archived ticket');
@@ -135,7 +152,7 @@ const updateComment = async (commentId, content, userId) => {
     throw new Error('Unauthorized: You can only edit your own comments');
   }
 
-  comment.content = content;
+  comment.content = trimmedContent;
   comment.isEdited = true;
   await comment.save();
 

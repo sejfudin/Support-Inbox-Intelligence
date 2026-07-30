@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
+const { escapeRegex } = require('../helpers/escapeRegex');
 
 const getUserWorkspaceMemberships = async (userId) => {
   const workspaces = await Workspace.find(
@@ -74,9 +75,10 @@ const getUsers = async ({
     query._id = { $in: memberIds };
   }
   if (search) {
+    const escapedSearch = escapeRegex(search);
     query.$or = [
-      { fullname: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
+      { fullname: { $regex: escapedSearch, $options: 'i' } },
+      { email: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 
@@ -104,7 +106,12 @@ const getUsers = async ({
     User.find(query)
       .select('-password')
       .populate('hub', 'name city country')
-      .sort({ createdAt: -1 })
+      // `_id` is the tiebreaker, and it is load-bearing: `createdAt` is not
+      // unique (a bulk insertMany stamps every user the same millisecond), and
+      // Mongo's sort is not stable for tied keys. Without it, skip/limit
+      // re-sorts per request and a user can appear on two pages while another
+      // never appears at all.
+      .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
       .limit(Number(limit)),
     User.countDocuments(query),

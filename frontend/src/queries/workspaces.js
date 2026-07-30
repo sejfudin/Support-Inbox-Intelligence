@@ -7,6 +7,7 @@ import {
   updateWorkspace,
   inviteWorkspaceMember,
   removeWorkspaceMember,
+  cancelWorkspaceInvitation,
   switchWorkspace,
   deleteWorkspace,
   getWorkspaceAnalytics,
@@ -32,11 +33,12 @@ export const workspaceKeys = {
   ],
 };
 
-export const useAllWorkspaces = () => {
+export const useAllWorkspaces = ({ enabled = true } = {}) => {
   return useQuery({
     queryKey: workspaceKeys.allAdmin(),
     queryFn: getAllWorkspaces,
     staleTime: 2 * 60 * 1000,
+    enabled,
   });
 };
 
@@ -122,6 +124,17 @@ export const useRemoveWorkspaceMember = (workspaceId) => {
 
   return useMutation({
     mutationFn: (userId) => removeWorkspaceMember(workspaceId, userId),
+    onSuccess: () => {
+      invalidateWorkspaceScope(queryClient, workspaceId);
+    },
+  });
+};
+
+export const useCancelWorkspaceInvitation = (workspaceId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (invitationId) => cancelWorkspaceInvitation(workspaceId, invitationId),
     onSuccess: () => {
       invalidateWorkspaceScope(queryClient, workspaceId);
     },

@@ -1,4 +1,9 @@
-const { broadcastToTicket, broadcastToWorkspaceTicketAndUsers } = require('./socketServer');
+const {
+  broadcastToTicket,
+  broadcastToWorkspaceTicketAndUsers,
+  broadcastToWorkspace,
+  broadcastToAll,
+} = require('./socketServer');
 const { invalidationScopes } = require('./invalidationScopes');
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
@@ -129,8 +134,27 @@ const emitCommentEvent = ({
   return broadcastToTicket(resolvedTicketId, eventName, payload, options);
 };
 
+// Interns/recommendations are global (not workspace-scoped), so this fans out
+// to every connected client; only leadership/mentor screens hold ['interns']
+// queries, so the rest simply ignore it.
+const emitInternDataChanged = () =>
+  broadcastToAll('CACHE_INVALIDATED', {
+    scopes: [invalidationScopes.intern()],
+  });
+
+const emitDailyChanged = (workspaceId) => {
+  const resolvedWorkspaceId = toSocketId(workspaceId);
+  if (!resolvedWorkspaceId) return false;
+
+  return broadcastToWorkspace(resolvedWorkspaceId, 'CACHE_INVALIDATED', {
+    scopes: [invalidationScopes.workspaceDailies(resolvedWorkspaceId)],
+  });
+};
+
 module.exports = {
   toSocketId,
   emitTicketEvent,
   emitCommentEvent,
+  emitInternDataChanged,
+  emitDailyChanged,
 };

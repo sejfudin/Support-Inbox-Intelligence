@@ -24,12 +24,12 @@ The platform serves two connected domains:
 
 The platform defines four roles (`server/constants/roles.js`). Each role lands on a different home view after login and is restricted by route guards (`frontend/src/routes`).
 
-| Role | Lands on | Description & permissions |
-|---|---|---|
-| **Admin** | `/admin/workspaces` | Full platform access. Manages users, workspaces, and reference data (hubs, technologies, internship types), can register new users, and has visibility over every workspace and intern. Bypasses workspace membership checks for tickets and rooms. |
-| **Mentor** | `/my-interns` (or `/dashboard` if in a workspace) | Guides assigned interns: adds evaluations and mentor comments, sets readiness flags, manages recommendations, and reviews intern profiles. Also works inside workspaces on tickets/projects. |
-| **Leadership** | `/programme` | Stakeholder / TA visibility (read-oriented). Sees the programme dashboard, candidate pipeline and funnels, and individual intern profiles. Has no workspace/ticket workflow — redirected to `/programme` from those routes. |
-| **Intern** | `/dashboard` or `/create-workspace` | Active programme participant. Manages their own profile (technologies, CV, documentation links) and works on assigned tickets/projects within their workspace. |
+| Role           | Lands on                                          | Description & permissions                                                                                                                                                                                                                           |
+| -------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**      | `/admin/workspaces`                               | Full platform access. Manages users, workspaces, and reference data (hubs, technologies, internship types), can register new users, and has visibility over every workspace and intern. Bypasses workspace membership checks for tickets and rooms. |
+| **Mentor**     | `/my-interns` (or `/dashboard` if in a workspace) | Guides assigned interns: adds evaluations and mentor comments, sets readiness flags, manages recommendations, and reviews intern profiles. Also works inside workspaces on tickets/projects.                                                        |
+| **Leadership** | `/programme`                                      | Stakeholder / TA visibility (read-oriented). Sees the programme dashboard, candidate pipeline and funnels, and individual intern profiles. Has no workspace/ticket workflow — redirected to `/programme` from those routes.                         |
+| **Intern**     | `/dashboard` or `/create-workspace`               | Active programme participant. Manages their own profile (technologies, CV, documentation links) and works on assigned tickets/projects within their workspace.                                                                                      |
 
 > Roles are assigned at the user level. Workspaces additionally have their own membership roles (`admin` / `member`) that control per-workspace management actions, independent of the platform role above.
 
@@ -65,7 +65,7 @@ The platform defines four roles (`server/constants/roles.js`). Each role lands o
   socket/                 # Socket.IO server, events, invalidation scopes
   middleware/ helpers/    # auth, role guards, uploads, crypto, validation
   prompts/                # AI prompt templates
-  seeder/                 # seed.js, seedTestingData.js, reference data
+  seeder/                 # seedDemoData.js + demo/, seed.js, seedTestingData.js, reference data
 
 README.md
 ```
@@ -117,6 +117,7 @@ GITHUB_ENCRYPTION_KEY=your_encryption_key   # encrypts stored installation token
 ```
 
 Notes:
+
 - `MONGODB_URI` is used by `server/config/db.js` to connect Mongoose.
 - `CLIENT_URL` configures CORS in `server/index.js` and the Socket.IO server.
 - `JWT_SECRET` / `JWT_REFRESH_SECRET` sign access and refresh tokens.
@@ -149,45 +150,66 @@ Open the URL printed by Vite (commonly http://localhost:5173). In production, th
 ## Available scripts
 
 **Frontend** (`frontend/package.json`):
+
 - `npm run dev` — start the Vite dev server
 - `npm run build` — build production assets to `dist/`
 - `npm run preview` — serve the built assets locally
 - `npm run format` / `npm run format:check` — Prettier write / check
 
 **Server** (`server/package.json`):
+
 - `npm run dev` — start with `nodemon` (auto-reload)
 - `npm run start` — start with `node` (production)
+- `npm run seed:demo` — wipe and rebuild a full demo dataset (interactive confirmation required)
 - `npm run seed` — wipe the database and seed demo data (interactive confirmation required)
 - `npm run seed:test` — seed a larger testing dataset
+- `npm run seed:recommendations` — top up the placement pipeline only (additive and idempotent; `--dry-run` supported)
+- `npm run seed:technologies` — upsert the Technology catalog only (non-destructive; `--dry-run` supported)
 - `npm run format` / `npm run format:check` — Prettier write / check
 
 ## Seeding and admin
 
-The `server/seeder/` directory contains two scripts:
+The `server/seeder/` directory contains three seeding scripts:
 
+- `seedDemoData.js` (`npm run seed:demo`) — **the one to reach for.** Wipes transactional data and rebuilds one coherent dataset: four hero logins, 26 interns spread across every profile status (10 active / 6 ready / 5 placed / 3 completed / 2 discontinued, one of them a deactivated account) with ~8 weeks of attendance history, two workspaces with a populated ticket board, stand-ups in both, and a 38-recommendation placement pipeline covering every intern. **Preserves** reference data (hubs, internship types, technologies, positions) and the locked `unspecified` project. It is the only seeder that loads `.env.${NODE_ENV|development}` — the same file the server reads — so it targets the database `npm run dev` actually uses; the other two load plain `.env`, which may be a different cluster. Confirmation asks you to type the **database name**. Supports `--dry-run`, `--yes=<dbname>` for non-interactive runs, and `--checkin-today`. Fully deterministic, so re-running reproduces identical data — re-run it the morning of a demo so "today" is current.
 - `seed.js` (`npm run seed`) — **destructive**: it deletes all collections, reseeds reference data (hubs, internship types, technologies), and creates a demo workspace plus default accounts. It prompts you to type `wipe` before deleting anything.
 - `seedTestingData.js` (`npm run seed:test`) — seeds a richer dataset for testing (additional staff, interns across every status/programme, tickets, integrations, and invitations). Run it after `npm run seed`.
 
+Alongside them, `seedRecommendations.js` (`npm run seed:recommendations`) is an **additive, idempotent** top-up of the placement pipeline: it inserts the recommendations from `seeder/demo/dataset.js` that are missing, and nothing else — no deletes, no updates to existing records. It resolves interns, authors and reference data by email and slug (so it works on a database whose users were created through the app), skips anything it cannot resolve with a printed reason, and re-checks each record against the intern's live profile status before writing. Because every record carries the demo seeder's deterministic `_id`, re-running inserts nothing. This is the seeding script to reach for on a shared dev database — `seed:demo` would change every user id and break everyone's open sessions. Supports `--dry-run` and `--yes=<dbname>`.
+
+Alongside them, `seedTechnologies.js` (`npm run seed:technologies`) is a **non-destructive** catalog backfill: it upserts the entries in `seeder/defaultTechnologies.js` by slug with `$setOnInsert`, so nothing is renamed, deactivated or deleted. Run it after adding a technology — CV auto-detection can only recognize technologies that exist in the catalog, so a database seeded before the addition will keep missing them. `--dry-run` lists what would be added.
+
 ### Demo accounts
+
+`npm run seed:demo` creates four hero accounts — **all with the password `password`**:
+
+| Role       | Email                    | Name        |
+| ---------- | ------------------------ | ----------- |
+| Admin      | `admin@symphony.is`      | Sejfudin    |
+| Mentor     | `mentor@symphony.is`     | Erik Muller |
+| Intern     | `intern@symphony.is`     | Hamza Tuco  |
+| Leadership | `leadership@symphony.is` | Enis Kudo   |
+
+It also creates two background mentors (`boris.petrovic@`, `natasa.ilic@symphony.is`) and 26 interns at `firstname.lastname@symphony.is`, all with the same password — except `goran.stankovic@symphony.is`, whose account is deliberately deactivated so the disabled-user state is demo-able (login is rejected; the user still appears in the admin directory).
 
 `npm run seed` creates:
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@test.com` | `admin123` |
+| Role   | Email             | Password    |
+| ------ | ----------------- | ----------- |
+| Admin  | `admin@test.com`  | `admin123`  |
 | Mentor | `mentor@test.com` | `mentor123` |
 
 `npm run seed:test` adds Symphony staff and interns — **all of these use the password `password`**:
 
-| Role | Email | Password |
-|---|---|---|
-| Leadership | `leadership@symphony.is` | `password` |
-| Leadership | `leadership2@symphony.is` | `password` |
-| Admin | `admin@symphony.is` | `password` |
-| Mentor | `mentor.sarajevo@symphony.is` | `password` |
-| Mentor | `mentor.belgrade@symphony.is` | `password` |
-| Mentor | `mentor.novisad@symphony.is` | `password` |
-| Intern | `intern.active.fep@symphony.is` (and other `intern.*@symphony.is` accounts) | `password` |
+| Role       | Email                                                                       | Password   |
+| ---------- | --------------------------------------------------------------------------- | ---------- |
+| Leadership | `leadership@symphony.is`                                                    | `password` |
+| Leadership | `leadership2@symphony.is`                                                   | `password` |
+| Admin      | `admin@symphony.is`                                                         | `password` |
+| Mentor     | `mentor.sarajevo@symphony.is`                                               | `password` |
+| Mentor     | `mentor.belgrade@symphony.is`                                               | `password` |
+| Mentor     | `mentor.novisad@symphony.is`                                                | `password` |
+| Intern     | `intern.active.fep@symphony.is` (and other `intern.*@symphony.is` accounts) | `password` |
 
 ⚠️ Never run the seeders against a production database — they clear existing data.
 

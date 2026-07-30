@@ -78,6 +78,10 @@ const ticketSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    archivedAt: {
+      type: Date,
+      default: null,
+    },
     messages: [messageSchema],
     ai: aiAssistantSchema,
     creator: {

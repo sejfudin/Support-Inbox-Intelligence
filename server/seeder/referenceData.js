@@ -1,8 +1,11 @@
 const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
+const Project = require('../models/Project');
 const { slugify } = require('../helpers/slugify');
 const DEFAULT_TECHNOLOGIES = require('./defaultTechnologies');
+const DEFAULT_POSITIONS = require('./defaultPositions');
 
 const DEFAULT_HUBS = [
   { name: 'Belgrade', city: 'Belgrade', country: 'Serbia' },
@@ -67,15 +70,37 @@ const seedTechnologies = async () => {
   }
 };
 
+const seedPositions = async () => {
+  for (const { name, slug } of DEFAULT_POSITIONS) {
+    await Position.updateOne({ slug }, { $setOnInsert: { name, slug } }, { upsert: true });
+  }
+};
+
+// Only the locked sentinel is seeded here — real projects are admin-created,
+// never seeded. Upsert is safe to run repeatedly (never wiped by seed.js).
+const seedUnspecifiedProject = async () => {
+  await Project.updateOne(
+    { slug: 'unspecified' },
+    {
+      $setOnInsert: { name: 'Unspecified', slug: 'unspecified', isSystem: true, status: 'active' },
+    },
+    { upsert: true }
+  );
+};
+
 const seedReferenceData = async () => {
   await seedHubs();
   await seedInternshipTypes();
   await seedTechnologies();
+  await seedPositions();
+  await seedUnspecifiedProject();
 };
 
 module.exports = {
   seedHubs,
   seedInternshipTypes,
   seedTechnologies,
+  seedPositions,
+  seedUnspecifiedProject,
   seedReferenceData,
 };

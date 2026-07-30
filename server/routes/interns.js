@@ -8,8 +8,10 @@ const {
   getIntern,
   getMyProfile,
   updateMyTechnologies,
+  updateMyPosition,
   updateIntern,
   updateDocumentationLinks,
+  updateInternalCv,
   uploadMyCv,
   deleteMyCv,
   listComments,
@@ -19,11 +21,14 @@ const {
   listReadiness,
   upsertReadiness,
   listCommentViewers,
+  getMyReadiness,
 } = require('../controllers/interns');
 
 router.get('/', protect, listInterns);
 router.get('/me', protect, getMyProfile);
 router.patch('/me/technologies', protect, updateMyTechnologies);
+router.patch('/me/position', protect, updateMyPosition);
+router.get('/me/readiness', protect, getMyReadiness);
 router.post('/me/cv', protect, uploadCv, uploadMyCv);
 router.delete('/me/cv', protect, deleteMyCv);
 
@@ -33,6 +38,7 @@ router.get('/stats', protect, getProgrammeStats);
 router.get('/:userId', protect, getIntern);
 router.patch('/:userId', protect, updateIntern);
 router.put('/:userId/documentation-links', protect, updateDocumentationLinks);
+router.put('/:userId/internal-cv', protect, updateInternalCv);
 
 router.get('/:userId/comments', protect, listComments);
 router.post('/:userId/comments', protect, createComment);

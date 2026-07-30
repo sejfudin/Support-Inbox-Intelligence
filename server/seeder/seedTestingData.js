@@ -23,6 +23,9 @@ const TicketStatus = require('../models/TicketStatus');
 const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
 const Technology = require('../models/Technology');
+const Position = require('../models/Position');
+const Project = require('../models/Project');
+const { slugify } = require('../helpers/slugify');
 const InternProfile = require('../models/InternProfile');
 const ReadinessFlag = require('../models/ReadinessFlag');
 const Evaluation = require('../models/Evaluation');
@@ -84,6 +87,7 @@ const seedTestingData = async () => {
     const hubs = await Hub.find().sort({ name: 1 });
     const programmes = await InternshipType.find({ isActive: true }).sort({ slug: 1 });
     const technologies = await Technology.find().sort({ name: 1 });
+    const positions = await Position.find().sort({ name: 1 });
 
     const hubByName = (name) => {
       const hub = hubs.find((h) => h.name === name);
@@ -101,6 +105,17 @@ const seedTestingData = async () => {
       const tech = technologies.find((t) => t.slug === slug);
       if (!tech) throw new Error(`Technology not found: ${slug}`);
       return tech;
+    };
+
+    const randomPosition = () => positions[Math.floor(Math.random() * positions.length)];
+
+    const projectByTitle = async (name) => {
+      const slug = slugify(name);
+      let project = await Project.findOne({ slug });
+      if (!project) {
+        project = await Project.create({ name, slug, status: 'active' });
+      }
+      return project;
     };
 
     const salt = await bcrypt.genSalt(10);
@@ -424,6 +439,8 @@ const seedTestingData = async () => {
     await History.insertMany([
       {
         ticketId: ticketHigh._id,
+        entityType: 'ticket',
+        entityId: ticketHigh._id,
         action: 'Status changed to In progress',
         userId: mentorSarajevo._id,
         userName: mentorSarajevo.fullname,
@@ -431,6 +448,8 @@ const seedTestingData = async () => {
       },
       {
         ticketId: ticketHigh._id,
+        entityType: 'ticket',
+        entityId: ticketHigh._id,
         action: 'Priority set to high',
         userId: baseAdmin._id,
         userName: baseAdmin.fullname,
@@ -438,6 +457,8 @@ const seedTestingData = async () => {
       },
       {
         ticketId: ticketCritical._id,
+        entityType: 'ticket',
+        entityId: ticketCritical._id,
         action: 'Assigned to Mentor Mark',
         userId: adminSymphony._id,
         userName: adminSymphony.fullname,
@@ -445,6 +466,8 @@ const seedTestingData = async () => {
       },
       {
         ticketId: ticketWithPr._id,
+        entityType: 'ticket',
+        entityId: ticketWithPr._id,
         action: 'Linked PR #142',
         userId: mentorBelgrade._id,
         userName: mentorBelgrade.fullname,
@@ -616,7 +639,6 @@ const seedTestingData = async () => {
         mentorIdx: 0,
         secondaryIdx: 1,
         status: 'active',
-        ready: false,
         endDays: 45,
         techs: ['react', 'node-js'],
         readiness: { react: 'learning', 'node-js': 'none' },
@@ -628,7 +650,6 @@ const seedTestingData = async () => {
         programme: 'shadow',
         mentorIdx: 1,
         status: 'active',
-        ready: false,
         endDays: 60,
         techs: ['angular'],
         readiness: { angular: 'learning' },
@@ -640,7 +661,6 @@ const seedTestingData = async () => {
         programme: 'industrial',
         mentorIdx: 2,
         status: 'active',
-        ready: false,
         endDays: 30,
         techs: ['spring-boot', 'kotlin'],
       },
@@ -651,7 +671,6 @@ const seedTestingData = async () => {
         programme: 'one-on-one',
         mentorIdx: 3,
         status: 'active',
-        ready: false,
         endDays: 20,
         techs: ['django'],
       },
@@ -663,7 +682,6 @@ const seedTestingData = async () => {
         mentorIdx: 0,
         secondaryIdx: 2,
         status: 'active',
-        ready: false,
         endDays: 15,
         techs: ['devops', 'go'],
       },
@@ -674,7 +692,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 0,
         status: 'ready',
-        ready: true,
         endDays: 10,
         techs: ['react', 'next-js'],
         readiness: { react: 'ready', 'next-js': 'ready' },
@@ -687,11 +704,10 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 1,
         status: 'ready',
-        ready: true,
         endDays: 25,
         techs: ['vue-js'],
         readiness: { 'vue-js': 'ready' },
-        rec: 'draft',
+        rec: 'recommended',
       },
       {
         email: 'intern.ready.recommended@symphony.is',
@@ -700,7 +716,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 2,
         status: 'ready',
-        ready: true,
         endDays: 18,
         techs: ['react-native', 'kotlin'],
         readiness: { 'react-native': 'ready', kotlin: 'ready' },
@@ -714,7 +729,6 @@ const seedTestingData = async () => {
         programme: 'shadow',
         mentorIdx: 0,
         status: 'ready',
-        ready: true,
         endDays: 12,
         techs: ['flutter'],
         readiness: { flutter: 'ready' },
@@ -728,7 +742,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 1,
         status: 'ready',
-        ready: true,
         endDays: 8,
         techs: ['node-js', 'react'],
         readiness: { 'node-js': 'ready', react: 'learning' },
@@ -742,7 +755,6 @@ const seedTestingData = async () => {
         programme: 'industrial',
         mentorIdx: 2,
         status: 'ready',
-        ready: true,
         endDays: 5,
         techs: ['data-engineering'],
         readiness: { 'data-engineering': 'ready' },
@@ -756,7 +768,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 3,
         status: 'ready',
-        ready: true,
         endDays: 2,
         techs: ['fastapi', 'data-science'],
         readiness: { fastapi: 'ready', 'data-science': 'learning' },
@@ -771,7 +782,6 @@ const seedTestingData = async () => {
         mentorIdx: 0,
         secondaryIdx: 1,
         status: 'ready',
-        ready: true,
         endDays: 14,
         techs: ['react', 'node-js', 'devops'],
         readiness: { react: 'ready', 'node-js': 'ready', devops: 'learning' },
@@ -785,7 +795,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 1,
         status: 'placed',
-        ready: true,
         endDays: -30,
         techs: ['dotnet'],
         rec: 'placed',
@@ -797,7 +806,6 @@ const seedTestingData = async () => {
         programme: 'shadow',
         mentorIdx: 2,
         status: 'placed',
-        ready: true,
         endDays: -10,
         techs: ['ruby-on-rails'],
         rec: 'placed',
@@ -809,7 +817,6 @@ const seedTestingData = async () => {
         programme: 'fep',
         mentorIdx: 0,
         status: 'completed',
-        ready: true,
         endDays: -60,
         techs: ['react'],
         rec: 'not_placed',
@@ -821,7 +828,6 @@ const seedTestingData = async () => {
         programme: 'one-on-one',
         mentorIdx: 3,
         status: 'completed',
-        ready: false,
         endDays: -45,
         techs: ['manual-qa', 'test-automation'],
         rec: 'not_placed',
@@ -833,7 +839,6 @@ const seedTestingData = async () => {
         programme: 'industrial',
         mentorIdx: 2,
         status: 'discontinued',
-        ready: false,
         endDays: 40,
         techs: ['cpp'],
       },
@@ -844,7 +849,6 @@ const seedTestingData = async () => {
         programme: 'core-tool',
         mentorIdx: 1,
         status: 'discontinued',
-        ready: false,
         endDays: 35,
         techs: ['rust'],
       },
@@ -875,9 +879,9 @@ const seedTestingData = async () => {
         secondaryMentor: secondaryMentor?._id,
         startDate: monthsAgo(4),
         status: spec.status,
-        readyForPlacement: spec.ready,
         expectedEndDate: spec.endDays != null ? daysFromNow(spec.endDays) : undefined,
         selfTechnologies: selfTechIds,
+        declaredPosition: positions.length > 0 ? randomPosition()._id : null,
       });
 
       internProfiles.push({ user, profile, spec, primaryMentor, secondaryMentor });
@@ -931,35 +935,52 @@ const seedTestingData = async () => {
 
     console.log('📋 Seeding recommendations…');
 
+    // Append-only status history rows for a seeded recommendation. `events` is
+    // an ordered list of { statusKey, at } so the new table date columns and the
+    // per-status labels have realistic data after seeding.
+    const logRecommendationHistory = async (rec, author, events) => {
+      await History.insertMany(
+        events.map((event) => ({
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: event.statusKey,
+          action: `Status set to ${event.statusKey.charAt(0).toUpperCase() + event.statusKey.slice(1)}`,
+          userId: author,
+          userName: leadership.fullname,
+          timestamp: event.at,
+        }))
+      );
+    };
+
     const createRecommendation = async (profileEntry, recSpec) => {
-      const { profile, spec, primaryMentor } = profileEntry;
+      const { profile, spec } = profileEntry;
       const techIds = (spec.techs || []).map((slug) => techBySlug(slug)._id);
       const leadershipAuthor = leadership._id;
 
       if (!recSpec) return null;
 
+      const project = await projectByTitle(`${spec.fullname.split(' ')[0]} placement track`);
+
       const base = {
         internProfile: profile._id,
         createdBy: leadershipAuthor,
         updatedBy: leadershipAuthor,
+        position: profile.declaredPosition || randomPosition()._id,
+        project: project._id,
         technologies: techIds,
         recommendationNote: `Recommendation for ${spec.fullname} — ${recSpec} track.`,
       };
 
-      if (recSpec === 'draft') {
-        return Recommendation.create({ ...base, status: 'draft' });
-      }
-
       if (recSpec === 'recommended') {
-        const rec = await Recommendation.create({
-          ...base,
-          status: 'recommended',
-        });
         const age = spec.recAgeDays ?? 7;
+        const rec = await Recommendation.create({ ...base, status: 'recommended' });
         await Recommendation.updateOne(
           { _id: rec._id },
           { $set: { createdAt: daysAgo(age), updatedAt: daysAgo(age) } }
         );
+        await logRecommendationHistory(rec, leadershipAuthor, [
+          { statusKey: 'recommended', at: daysAgo(age) },
+        ]);
         return rec;
       }
 
@@ -978,15 +999,21 @@ const seedTestingData = async () => {
             rating: 4,
           },
         };
-        return Recommendation.create({
+        const rec = await Recommendation.create({
           ...base,
           status: 'interviewing',
           interviews: [interview],
         });
+        // Progressed: recommended first, then interviewing.
+        await logRecommendationHistory(rec, leadershipAuthor, [
+          { statusKey: 'recommended', at: daysAgo(14) },
+          { statusKey: 'interviewing', at: daysAgo(5) },
+        ]);
+        return rec;
       }
 
       if (recSpec === 'placed' || recSpec === 'not_placed') {
-        return Recommendation.create({
+        const rec = await Recommendation.create({
           ...base,
           status: 'resulted',
           interviews: [
@@ -1009,6 +1036,14 @@ const seedTestingData = async () => {
             decidedBy: leadershipAuthor,
           },
         });
+        // Full status lifecycle; both placed and not_placed reach 'resulted'
+        // (the placed/not_placed distinction lives in the Result field).
+        await logRecommendationHistory(rec, leadershipAuthor, [
+          { statusKey: 'recommended', at: daysAgo(30) },
+          { statusKey: 'interviewing', at: daysAgo(20) },
+          { statusKey: 'resulted', at: daysAgo(7) },
+        ]);
+        return rec;
       }
 
       return null;
@@ -1025,10 +1060,13 @@ const seedTestingData = async () => {
       (e) => e.spec.email === 'intern.completed.gamma@symphony.is'
     );
     if (recentOutcomeIntern) {
-      await Recommendation.create({
+      const earlierAttemptProject = await projectByTitle('Client pipeline — earlier attempt');
+      const rec = await Recommendation.create({
         internProfile: recentOutcomeIntern.profile._id,
         createdBy: leadership2._id,
         updatedBy: leadership2._id,
+        position: recentOutcomeIntern.profile.declaredPosition || randomPosition()._id,
+        project: earlierAttemptProject._id,
         technologies: [techBySlug('react')._id],
         status: 'resulted',
         recommendationNote: 'Earlier pipeline attempt.',
@@ -1039,16 +1077,40 @@ const seedTestingData = async () => {
           decidedBy: leadership2._id,
         },
       });
+      // not_placed → no 'placed' event, only recommended + interviewing.
+      await History.insertMany([
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'recommended',
+          action: 'Status set to Recommended',
+          userId: leadership2._id,
+          userName: leadership2.fullname,
+          timestamp: daysAgo(18),
+        },
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'interviewing',
+          action: 'Status set to Interviewing',
+          userId: leadership2._id,
+          userName: leadership2.fullname,
+          timestamp: daysAgo(9),
+        },
+      ]);
     }
 
     const placedIntern = internProfiles.find(
       (e) => e.spec.email === 'intern.placed.alpha@symphony.is'
     );
     if (placedIntern) {
-      await Recommendation.create({
+      const dotnetPlacementProject = await projectByTitle('Enterprise Co. — .NET placement');
+      const rec = await Recommendation.create({
         internProfile: placedIntern.profile._id,
         createdBy: leadership._id,
         updatedBy: leadership._id,
+        position: placedIntern.profile.declaredPosition || randomPosition()._id,
+        project: dotnetPlacementProject._id,
         technologies: [techBySlug('dotnet')._id],
         status: 'resulted',
         recommendationNote: 'Successful placement at Enterprise Co.',
@@ -1059,6 +1121,35 @@ const seedTestingData = async () => {
           decidedBy: leadership._id,
         },
       });
+      await History.insertMany([
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'recommended',
+          action: 'Status set to Recommended',
+          userId: leadership._id,
+          userName: leadership.fullname,
+          timestamp: daysAgo(25),
+        },
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'interviewing',
+          action: 'Status set to Interviewing',
+          userId: leadership._id,
+          userName: leadership.fullname,
+          timestamp: daysAgo(12),
+        },
+        {
+          entityType: 'recommendation',
+          entityId: rec._id,
+          statusKey: 'resulted',
+          action: 'Status set to Resulted',
+          userId: leadership._id,
+          userName: leadership.fullname,
+          timestamp: daysAgo(1),
+        },
+      ]);
     }
 
     console.log('\n🚀 TEST SEEDING COMPLETED SUCCESSFULLY!');

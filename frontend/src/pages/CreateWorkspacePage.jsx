@@ -20,6 +20,7 @@ import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
 import { validateStatusDrafts } from '@/helpers/validateStatusDrafts';
 import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 import { useAuth } from '@/context/AuthContext';
+import { isAdmin, isMentor } from '@/helpers/roles';
 import { useAcceptInvitation, useDeclineInvitation, useMyInvitations } from '@/queries/invitations';
 import { createCategory } from '@/api/categories';
 import { normalizeTemplateForSave } from '@/helpers/ticketDescriptionTemplates';
@@ -29,6 +30,7 @@ import {
   getWorkspaceLogoValidationError,
 } from '@/constants/upload';
 import { uploadWorkspaceLogo } from '@/api/workspaces';
+import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 const CATEGORY_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'];
 
@@ -87,7 +89,9 @@ export default function CreateWorkspacePage() {
     return true;
   };
 
-  if (user?.role !== 'admin') {
+  const canCreateWorkspace = isAdmin(user?.role) || isMentor(user?.role);
+
+  if (!canCreateWorkspace) {
     const handleAccept = (invitationId) => {
       setActiveInvitationId(invitationId);
       acceptInvitation.mutate(invitationId, {
@@ -131,10 +135,7 @@ export default function CreateWorkspacePage() {
               <Mail className="h-3.5 w-3.5" />
               Workspace Access
             </div>
-            <div className="mt-5 text-3xl font-semibold tracking-tight md:text-4xl">
-              <span className="text-foreground">Task</span>
-              <span className="text-blue-600">Manager</span>
-            </div>
+            <TaskManagerBrand size="lg" linkTo={null} className="justify-center" />
           </div>
 
           {hasInvitations ? (
@@ -356,7 +357,7 @@ export default function CreateWorkspacePage() {
       }
 
       await refetchUser();
-      navigate('/admin/workspaces');
+      navigate(isAdmin(user?.role) ? '/admin/workspaces' : '/dashboard');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Failed to create workspace.'));
     }
@@ -370,15 +371,12 @@ export default function CreateWorkspacePage() {
             <CardHeader className="space-y-5">
               <div className="inline-flex w-fit items-center gap-2 rounded-full border border-primary-foreground/15 bg-primary-foreground/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-background/80">
                 <Sparkles className="h-3.5 w-3.5" />
-                Admin Setup
+                Workspace Setup
               </div>
+              <TaskManagerBrand size="lg" onDark linkTo={null} />
               <div>
-                <div className="text-3xl font-semibold tracking-tight md:text-4xl">
-                  <span className="text-background">Task</span>
-                  <span className="text-blue-300">Manager</span>
-                </div>
                 <CardTitle className="mt-8 text-3xl leading-tight text-background md:text-4xl">
-                  Create your first workspace
+                  Create a workspace
                 </CardTitle>
                 <CardDescription className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
                   Start with one focused workspace for your team. You can organize tickets, invite
@@ -604,6 +602,17 @@ export default function CreateWorkspacePage() {
                 >
                   {createWorkspace.isPending ? 'Creating workspace...' : 'Create Workspace'}
                 </Button>
+
+                {user?.workspaceId && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/dashboard')}
+                    className="block w-full text-center text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    data-test="create-workspace-back-link"
+                  >
+                    Back to dashboard
+                  </button>
+                )}
               </form>
             </CardContent>
           </Card>

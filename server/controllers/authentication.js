@@ -1,16 +1,5 @@
 const authService = require('../services/authService');
 
-const attachCookie = (res, refreshToken) => {
-  const oneDay = 1000 * 60 * 60 * 24;
-  const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-  res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: isSecureEnv,
-    expires: new Date(Date.now() + oneDay * 7),
-    sameSite: isSecureEnv ? 'none' : 'lax',
-  });
-};
-
 const register = async (req, res, next) => {
   try {
     const result = await authService.register({
@@ -58,9 +47,7 @@ const register = async (req, res, next) => {
 const login = async (req, res, next) => {
   try {
     const result = await authService.login(req.body);
-    attachCookie(res, result.refreshToken);
-    const { refreshToken, ...userData } = result;
-    res.status(200).json(userData);
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -68,25 +55,15 @@ const login = async (req, res, next) => {
 
 const refresh = async (req, res, next) => {
   try {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshToken = req.body.refreshToken;
 
     if (!refreshToken) {
       return res.status(401).json({ message: 'No refresh token provided' });
     }
 
     const result = await authService.refresh(refreshToken);
-    attachCookie(res, result.refreshToken);
-    const { refreshToken: _refreshToken, ...payload } = result;
-    res.status(200).json(payload);
+    res.status(200).json(result);
   } catch (error) {
-    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: isSecureEnv,
-      sameSite: isSecureEnv ? 'none' : 'lax',
-    });
-
     return res.status(403).json({ message: 'Session expired or invalid' });
   }
 };
@@ -101,7 +78,7 @@ const getMe = async (req, res, next) => {
 
 const logout = async (req, res, next) => {
   try {
-    const { refreshToken } = req.cookies;
+    const { refreshToken } = req.body;
 
     if (refreshToken) {
       try {
@@ -110,14 +87,6 @@ const logout = async (req, res, next) => {
         console.error('Logout DB Error:', dbError);
       }
     }
-
-    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: isSecureEnv,
-      sameSite: isSecureEnv ? 'none' : 'lax',
-    });
 
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
@@ -175,47 +144,18 @@ const updateUser = async (req, res) => {
   }
 };
 
-const attachInviteSetupCookie = (res, setupToken) => {
-  const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-
-  res.cookie('invite_setup', setupToken, {
-    httpOnly: true,
-    secure: isSecureEnv,
-    sameSite: isSecureEnv ? 'none' : 'lax',
-    expires: new Date(Date.now() + 15 * 60 * 1000),
-  });
-};
-
-const clearInviteSetupCookie = (res) => {
-  const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-
-  res.clearCookie('invite_setup', {
-    httpOnly: true,
-    secure: isSecureEnv,
-    sameSite: isSecureEnv ? 'none' : 'lax',
-  });
-};
-
 const verifyInvite = async (req, res) => {
   try {
-    const isSecureEnv = process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging';
-
-    res.clearCookie('refreshToken', {
-      httpOnly: true,
-      secure: isSecureEnv,
-      sameSite: isSecureEnv ? 'none' : 'lax',
-    });
-
     const { setupToken, user } = await authService.verifyInvite({
       email: req.body.email,
       token: req.body.token,
     });
-    attachInviteSetupCookie(res, setupToken);
 
     res.json({
       message: 'Invite verified',
       email: user.email,
       fullName: user.fullname,
+      setupToken,
     });
   } catch (error) {
     const statusCode =
@@ -227,15 +167,11 @@ const verifyInvite = async (req, res) => {
 const setPasswordFromInvite = async (req, res) => {
   try {
     const result = await authService.setPasswordFromInvite({
-      setupToken: req.cookies.invite_setup,
+      setupToken: req.body.setupToken,
       password: req.body.password,
     });
 
-    attachCookie(res, result.refreshToken);
-    clearInviteSetupCookie(res);
-
-    const { refreshToken, ...userData } = result;
-    res.json(userData);
+    res.json(result);
   } catch (e) {
     res.status(401).json({ message: e.message || 'Setup session expired' });
   }

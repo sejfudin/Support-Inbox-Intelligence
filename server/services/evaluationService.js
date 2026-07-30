@@ -1,6 +1,6 @@
 const Evaluation = require('../models/Evaluation');
 const { ROLES } = require('../constants/roles');
-const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
+const { assertInternAccess } = require('../helpers/internAccess');
 
 const formatEvaluation = (evaluation) => {
   const plain = evaluation.toObject ? evaluation.toObject() : evaluation;
@@ -18,7 +18,8 @@ const formatEvaluation = (evaluation) => {
 const listEvaluations = async (user, internUserId) => {
   const profile = await assertInternAccess(user, internUserId);
 
-  if (user.role === ROLES.INTERN) {
+  // Evaluations are admin-only — mentors and interns can't view them.
+  if (user.role === ROLES.INTERN || user.role === ROLES.MENTOR) {
     const err = new Error('Not authorized');
     err.statusCode = 403;
     throw err;
@@ -34,7 +35,7 @@ const listEvaluations = async (user, internUserId) => {
 const createEvaluation = async (user, internUserId, payload) => {
   const profile = await assertInternAccess(user, internUserId, { write: true });
 
-  if (!canWriteMentorData(user, profile)) {
+  if (user.role !== ROLES.ADMIN) {
     const err = new Error('Not authorized to create evaluations');
     err.statusCode = 403;
     throw err;

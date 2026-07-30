@@ -30,11 +30,13 @@ export const useAcceptInvitation = () => {
   return useMutation({
     mutationFn: acceptInvitation,
     onSuccess: (data) => {
-      const workspaceId =
-        data?.workspaceId ?? data?.workspace?._id ?? data?.user?.workspaceId ?? null;
-      applyActiveWorkspaceChange(queryClient, workspaceId);
       invalidateInvitationRelatedData(queryClient);
-      invalidateWorkspaceScope(queryClient, workspaceId);
+
+      if (data?.becameActiveWorkspace) {
+        const workspaceId = data?.workspaceId ?? data?.workspace?._id ?? null;
+        applyActiveWorkspaceChange(queryClient, workspaceId);
+        invalidateWorkspaceScope(queryClient, workspaceId);
+      }
     },
   });
 };

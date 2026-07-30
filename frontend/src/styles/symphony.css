@@ -343,6 +343,15 @@
   box-shadow: var(--symphony-card-shadow);
 }
 
+/* Same shape as .symphony-card but a shade darker — for cards nested inside an
+   elevated container so they read as a distinct inner layer. */
+[data-surface='symphony'] .symphony-card-muted {
+  border-radius: var(--symphony-radius-lg);
+  border: 1px solid hsl(var(--symphony-border));
+  background: hsl(var(--symphony-surface));
+  box-shadow: var(--symphony-card-shadow);
+}
+
 [data-surface='symphony'] .symphony-brand-card,
 [data-surface='symphony'] .symphony-gradient-card {
   border-radius: var(--symphony-radius-lg);
@@ -475,40 +484,38 @@
 
 /* ——— Status badges ——— */
 
-[data-surface='symphony'] .symphony-status-active {
-  border-color: hsl(var(--symphony-brand) / 0.35);
-  background: hsl(var(--symphony-brand) / 0.1);
-  color: hsl(var(--symphony-brand-strong));
+.symphony-status-active {
+  border-color: hsl(243 100% 71% / 0.35);
+  background: hsl(243 100% 71% / 0.1);
+  color: hsl(243 55% 48%);
 }
 
-.dark [data-surface='symphony'] .symphony-status-active {
-  color: hsl(var(--symphony-brand));
+.dark .symphony-status-active {
+  color: hsl(243 100% 71%);
 }
 
-[data-surface='symphony'] .symphony-status-ready {
+.symphony-status-ready,
+.symphony-status-placed {
   border-color: hsl(152 60% 40% / 0.35);
   background: hsl(152 60% 40% / 0.1);
   color: hsl(152 55% 32%);
 }
 
-.dark [data-surface='symphony'] .symphony-status-ready {
+.dark .symphony-status-ready,
+.dark .symphony-status-placed {
   color: hsl(152 55% 62%);
 }
 
-[data-surface='symphony'] .symphony-status-placed {
-  border-color: hsl(var(--symphony-brand) / 0.25);
-  background: hsl(var(--symphony-brand) / 0.08);
-  color: hsl(var(--symphony-brand-ink));
+.symphony-status-muted {
+  border-color: hsl(220 13% 90%);
+  background: hsl(0 0% 98%);
+  color: hsl(220 9% 46%);
 }
 
-.dark [data-surface='symphony'] .symphony-status-placed {
-  color: hsl(var(--symphony-brand));
-}
-
-[data-surface='symphony'] .symphony-status-muted {
-  border-color: hsl(var(--symphony-border));
-  background: hsl(var(--symphony-surface));
-  color: hsl(var(--symphony-muted));
+.dark .symphony-status-muted {
+  border-color: hsl(220 10% 18%);
+  background: hsl(220 13% 9%);
+  color: hsl(220 8% 62%);
 }
 
 /* ——— Hero (solid brand panel, no gradient) ——— */

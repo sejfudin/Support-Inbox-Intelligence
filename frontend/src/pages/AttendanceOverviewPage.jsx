@@ -1,0 +1,292 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useDebounce } from 'use-debounce';
+import { addDays, format, isWeekend, parseISO, startOfMonth, subMonths } from 'date-fns';
+import { Users, UserCheck, UserX, Percent, TriangleAlert, Star } from 'lucide-react';
+import { PageShell, PageSection } from '@/components/PageShell';
+import PageHeading from '@/components/PageHeading';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import AttendanceStat from '@/components/attendance/AttendanceStat';
+import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
+import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
+import InternAttendanceModal from '@/components/attendance/InternAttendanceModal';
+import { useAttendanceRoster } from '@/queries/attendance';
+import { useHubs } from '@/queries/hubs';
+import { attendanceRateTextClass, internStatusOnDate, DAY_STATUS } from '@/helpers/attendance';
+
+const LOW_ATTENDANCE_THRESHOLD = 75;
+const todayKey = () => format(new Date(), 'yyyy-MM-dd');
+const currentMonthKey = () => format(new Date(), 'yyyy-MM');
+
+// Attendance is tracked per calendar month; the last few months are selectable.
+const buildMonthOptions = () => {
+  const base = startOfMonth(new Date());
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(base, i);
+    return { value: format(d, 'yyyy-MM'), label: format(d, 'MMMM yyyy') };
+  });
+};
+
+// First weekday (Mon–Fri) of a 'yyyy-MM' month, as a 'yyyy-MM-dd' key.
+const firstWeekdayOf = (monthKey) => {
+  let d = parseISO(`${monthKey}-01`);
+  while (isWeekend(d)) d = addDays(d, 1);
+  return format(d, 'yyyy-MM-dd');
+};
+
+// A sensible default day inside a month: today if it's the current month,
+// otherwise the month's first weekday.
+const defaultDayForMonth = (monthKey) =>
+  monthKey === currentMonthKey() ? todayKey() : firstWeekdayOf(monthKey);
+
+// Aggregate a set of attendance rates into headline summary numbers.
+const summarize = (rates, total) => {
+  if (total === 0) return { avg: 0, low: 0, perfect: 0 };
+  const avg = Math.round(rates.reduce((s, r) => s + r, 0) / total);
+  const low = rates.filter((r) => r < LOW_ATTENDANCE_THRESHOLD).length;
+  const perfect = rates.filter((r) => r === 100).length;
+  return { avg, low, perfect };
+};
+
+export default function AttendanceOverviewPage() {
+  const monthOptions = useMemo(buildMonthOptions, []);
+  const [tab, setTab] = useState('month');
+  const [search, setSearch] = useState('');
+  const [hub, setHub] = useState('');
+  const [month, setMonth] = useState(() => currentMonthKey());
+  const [day, setDay] = useState(() => todayKey());
+  const [selectedIntern, setSelectedIntern] = useState(null);
+  const [debouncedSearch] = useDebounce(search, 400);
+
+  // Keep the selected day inside the selected month.
+  useEffect(() => {
+    if (format(parseISO(day), 'yyyy-MM') !== month) setDay(defaultDayForMonth(month));
+  }, [month]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { data, isPending, isError } = useAttendanceRoster({
+    month,
+    search: debouncedSearch || undefined,
+    hub: hub || undefined,
+  });
+
+  const { data: hubs = [] } = useHubs();
+  const hubNames = hubs.map((h) => h.name);
+
+  const roster = data?.roster ?? [];
+  const total = roster.length;
+  const isCurrentMonth = month === currentMonthKey();
+  const monthLabel = format(parseISO(`${month}-01`), 'MMMM yyyy');
+
+  // Month summary from the server's month-scoped rates.
+  const monthSummary = useMemo(() => {
+    const rates = roster.map((r) => r.attendanceRate ?? 0);
+    return { ...summarize(rates, total), total };
+  }, [roster, total]);
+
+  // Counts for the selected day (present / absent / not-yet).
+  const dayCounts = useMemo(() => {
+    const date = parseISO(day);
+    const acc = { present: 0, absent: 0, pending: 0 };
+    roster.forEach((r) => {
+      const { status } = internStatusOnDate(r, date);
+      if (status === DAY_STATUS.PRESENT) acc.present += 1;
+      else if (status === DAY_STATUS.ABSENT) acc.absent += 1;
+      else if (status === DAY_STATUS.TODAY_PENDING) acc.pending += 1;
+    });
+    return acc;
+  }, [roster, day]);
+
+  const dayIsToday = day === todayKey();
+
+  return (
+    <PageShell>
+      <PageSection className="space-y-6">
+        <PageHeading
+          kicker="Future Experts Program"
+          title="Attendance"
+          subtitle="Office attendance across interns, by month. This view is read-only — only interns can record their own check-ins."
+          titleAdornment={<Badge variant="outline">Read-only</Badge>}
+        />
+
+        {isError && (
+          <div
+            className="app-panel p-6 text-sm text-destructive"
+            data-test="attendance-roster-error"
+          >
+            Failed to load attendance.
+          </div>
+        )}
+        {isPending && (
+          <div className="app-panel p-6 text-sm text-muted-foreground">Loading attendance…</div>
+        )}
+
+        {!isPending && !isError && (
+          <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+            <TabsList data-test="attendance-tabs">
+              <TabsTrigger value="month" data-test="attendance-tab-month">
+                Month summary
+              </TabsTrigger>
+              <TabsTrigger value="day" data-test="attendance-tab-day">
+                By day
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Shared filters */}
+            <div className="app-panel space-y-4 p-5 md:p-6">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Input
+                  placeholder="Search by name or email…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  data-test="attendance-search-input"
+                />
+                <Select value={hub || 'all'} onValueChange={(v) => setHub(v === 'all' ? '' : v)}>
+                  <SelectTrigger data-test="attendance-hub-filter-select">
+                    <SelectValue placeholder="All hubs" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All hubs</SelectItem>
+                    {hubNames.map((h) => (
+                      <SelectItem key={h} value={h}>
+                        {h}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={month} onValueChange={setMonth}>
+                  <SelectTrigger data-test="attendance-month-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <TabsContent value="month" className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <AttendanceStat
+                  label="Avg attendance"
+                  value={`${monthSummary.avg}%`}
+                  hint={monthLabel}
+                  icon={Percent}
+                  valueClassName={attendanceRateTextClass(monthSummary.avg)}
+                />
+                <AttendanceStat
+                  label="Interns"
+                  value={monthSummary.total}
+                  hint="Total"
+                  icon={Users}
+                />
+                <AttendanceStat
+                  label="Perfect"
+                  value={monthSummary.perfect}
+                  hint={`100% in ${monthLabel}`}
+                  icon={Star}
+                  valueClassName={
+                    monthSummary.perfect > 0 ? 'text-emerald-600 dark:text-emerald-400' : undefined
+                  }
+                />
+                <AttendanceStat
+                  label={`Below ${LOW_ATTENDANCE_THRESHOLD}%`}
+                  value={monthSummary.low}
+                  hint="Need attention"
+                  icon={TriangleAlert}
+                  valueClassName={
+                    monthSummary.low > 0 ? 'text-amber-600 dark:text-amber-400' : undefined
+                  }
+                />
+              </div>
+
+              <AttendanceRosterTable
+                roster={roster}
+                rateLabel={`Attendance (${monthLabel})`}
+                showToday={isCurrentMonth}
+                onSelectIntern={setSelectedIntern}
+              />
+            </TabsContent>
+
+            <TabsContent value="day" className="space-y-6">
+              <div className="app-panel flex flex-wrap items-center gap-3 p-4 md:p-5">
+                <span className="text-sm font-medium text-muted-foreground">
+                  Day in {monthLabel}:
+                </span>
+                <DatePicker
+                  value={day}
+                  onChange={setDay}
+                  isDateDisabled={(d) => isWeekend(d) || format(d, 'yyyy-MM') !== month}
+                  data-test="attendance-day-picker"
+                />
+                {isCurrentMonth && !dayIsToday && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDay(todayKey())}
+                    data-test="attendance-day-today-button"
+                  >
+                    Today
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <AttendanceStat
+                  label="Present"
+                  value={`${dayCounts.present} / ${total}`}
+                  hint={format(parseISO(day), 'EEE, MMM d')}
+                  icon={UserCheck}
+                  valueClassName="text-emerald-600 dark:text-emerald-400"
+                />
+                {dayIsToday && (
+                  <AttendanceStat
+                    label="Not yet in"
+                    value={dayCounts.pending}
+                    hint="Window may still be open"
+                    icon={UserX}
+                    valueClassName={
+                      dayCounts.pending > 0 ? 'text-amber-600 dark:text-amber-400' : undefined
+                    }
+                  />
+                )}
+                <AttendanceStat
+                  label="Absent"
+                  value={dayCounts.absent}
+                  hint={dayIsToday ? 'Window closed, no check-in' : 'Missed this day'}
+                  icon={TriangleAlert}
+                  valueClassName={
+                    dayCounts.absent > 0 ? 'text-red-600 dark:text-red-400' : undefined
+                  }
+                />
+                <AttendanceStat label="Interns" value={total} hint="Total" icon={Users} />
+              </div>
+
+              <DailyAttendanceTable roster={roster} date={day} onSelectIntern={setSelectedIntern} />
+            </TabsContent>
+          </Tabs>
+        )}
+
+        <InternAttendanceModal
+          intern={selectedIntern}
+          month={month}
+          onClose={() => setSelectedIntern(null)}
+        />
+      </PageSection>
+    </PageShell>
+  );
+}
