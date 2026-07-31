@@ -25,6 +25,7 @@ export function createTicketColumns({
   statusTracksTime,
   variant = 'default',
   onRestore,
+  hiddenColumns = [],
 } = {}) {
   const columns = [
     {
@@ -32,7 +33,7 @@ export function createTicketColumns({
       header: 'ID',
       meta: {
         headerClassName: 'w-[5%]',
-        cellClassName: 'w-[5%] font-medium text-muted-foreground',
+        cellClassName: 'w-[5%] align-middle font-medium text-muted-foreground',
       },
       cell: ({ row }) => {
         const taskNumber = row.original.taskNumber;
@@ -48,11 +49,21 @@ export function createTicketColumns({
       },
       cell: ({ row }) => {
         const plainDescription = stripHtml(row.original.description);
+        const statusColor = statusBadgeConfig[row.original.status]?.color;
 
         return (
           <div className="flex flex-col w-full min-w-0 max-w-full gap-1">
-            <div className="truncate font-semibold text-foreground" title={row.original.title}>
-              {row.original.title}
+            <div
+              className="flex items-center gap-2 truncate font-semibold text-foreground"
+              title={row.original.title}
+            >
+              {statusColor ? (
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: statusColor }}
+                />
+              ) : null}
+              <span className="truncate">{row.original.title}</span>
             </div>
             <div
               className="line-clamp-1 text-sm text-muted-foreground break-words"
@@ -80,7 +91,7 @@ export function createTicketColumns({
       header: 'PRIORITY',
       meta: {
         headerClassName: 'w-[10%]',
-        cellClassName: 'w-[10%] whitespace-nowrap',
+        cellClassName: 'w-[10%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => <PriorityIndicator priority={row.original.priority} />,
     },
@@ -89,7 +100,7 @@ export function createTicketColumns({
       header: 'DUE DATE',
       meta: {
         headerClassName: 'w-[11%]',
-        cellClassName: 'w-[11%] whitespace-nowrap',
+        cellClassName: 'w-[11%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => {
         const due = row.original.dueDate;
@@ -97,14 +108,14 @@ export function createTicketColumns({
         const overdue = isDueDateOverdue(due, row.original.status, statusIsDone);
 
         if (!label) {
-          return <span className="text-muted-foreground/60">—</span>;
+          return <span className="text-sm text-muted-foreground/60">—</span>;
         }
 
         return (
           <div className="flex flex-col gap-1">
             <span
               className={cn(
-                'text-xs',
+                'text-sm',
                 overdue ? 'font-semibold text-destructive' : 'font-medium text-foreground'
               )}
             >
@@ -127,7 +138,7 @@ export function createTicketColumns({
       header: 'SP',
       meta: {
         headerClassName: 'w-[7%]',
-        cellClassName: 'w-[7%] whitespace-nowrap',
+        cellClassName: 'w-[7%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => <StoryPointsIndicator value={row.original.storyPoints} />,
     },
@@ -157,11 +168,15 @@ export function createTicketColumns({
       header: 'ASSIGNED TO',
       meta: {
         headerClassName: 'w-[12%]',
-        cellClassName: 'w-[12%] whitespace-nowrap',
+        cellClassName: 'w-[12%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
     },
   ];
+
+  const visibleColumns = hiddenColumns.length
+    ? columns.filter((col) => !hiddenColumns.includes(col.accessorKey))
+    : columns;
 
   if (variant === 'archive') {
     // Sparse, scan-to-restore data: render each ticket as one full-width row
@@ -228,7 +243,7 @@ export function createTicketColumns({
     ];
   }
 
-  return columns;
+  return visibleColumns;
 }
 
 export const columns = createTicketColumns();

@@ -12,11 +12,11 @@ export default function PriorityIndicator({ priority }) {
 
   return (
     <div
-      className={`flex items-center gap-1.5 ${config.className}`}
+      className="flex items-center gap-1.5 text-muted-foreground"
       title={`Priority: ${config.label}`}
     >
       <Icon className="h-4 w-4" />
-      <span className="text-xs font-medium">{config.label}</span>
+      <span className={`text-sm font-medium ${config.className}`}>{config.label}</span>
     </div>
   );
 }
