@@ -16,7 +16,7 @@ export default function PriorityIndicator({ priority }) {
       title={`Priority: ${config.label}`}
     >
       <Icon className="h-4 w-4" />
-      <span className={`text-xs font-medium ${config.className}`}>{config.label}</span>
+      <span className={`text-sm font-medium ${config.className}`}>{config.label}</span>
     </div>
   );
 }

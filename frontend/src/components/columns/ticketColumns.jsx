@@ -33,7 +33,7 @@ export function createTicketColumns({
       header: 'ID',
       meta: {
         headerClassName: 'w-[5%]',
-        cellClassName: 'w-[5%] font-medium text-muted-foreground',
+        cellClassName: 'w-[5%] align-middle font-medium text-muted-foreground',
       },
       cell: ({ row }) => {
         const taskNumber = row.original.taskNumber;
@@ -91,7 +91,7 @@ export function createTicketColumns({
       header: 'PRIORITY',
       meta: {
         headerClassName: 'w-[10%]',
-        cellClassName: 'w-[10%] whitespace-nowrap',
+        cellClassName: 'w-[10%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => <PriorityIndicator priority={row.original.priority} />,
     },
@@ -100,7 +100,7 @@ export function createTicketColumns({
       header: 'DUE DATE',
       meta: {
         headerClassName: 'w-[11%]',
-        cellClassName: 'w-[11%] whitespace-nowrap',
+        cellClassName: 'w-[11%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => {
         const due = row.original.dueDate;
@@ -108,14 +108,14 @@ export function createTicketColumns({
         const overdue = isDueDateOverdue(due, row.original.status, statusIsDone);
 
         if (!label) {
-          return <span className="text-muted-foreground/60">—</span>;
+          return <span className="text-sm text-muted-foreground/60">—</span>;
         }
 
         return (
           <div className="flex flex-col gap-1">
             <span
               className={cn(
-                'text-xs',
+                'text-sm',
                 overdue ? 'font-semibold text-destructive' : 'font-medium text-foreground'
               )}
             >
@@ -138,7 +138,7 @@ export function createTicketColumns({
       header: 'SP',
       meta: {
         headerClassName: 'w-[7%]',
-        cellClassName: 'w-[7%] whitespace-nowrap',
+        cellClassName: 'w-[7%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => <StoryPointsIndicator value={row.original.storyPoints} />,
     },
@@ -168,7 +168,7 @@ export function createTicketColumns({
       header: 'ASSIGNED TO',
       meta: {
         headerClassName: 'w-[12%]',
-        cellClassName: 'w-[12%] whitespace-nowrap',
+        cellClassName: 'w-[12%] align-middle whitespace-nowrap',
       },
       cell: ({ row }) => <AssigneesAvatar users={row.original.assignedTo} />,
     },
