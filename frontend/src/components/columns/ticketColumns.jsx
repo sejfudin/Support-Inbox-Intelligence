@@ -25,6 +25,7 @@ export function createTicketColumns({
   statusTracksTime,
   variant = 'default',
   onRestore,
+  hiddenColumns = [],
 } = {}) {
   const columns = [
     {
@@ -48,11 +49,21 @@ export function createTicketColumns({
       },
       cell: ({ row }) => {
         const plainDescription = stripHtml(row.original.description);
+        const statusColor = statusBadgeConfig[row.original.status]?.color;
 
         return (
           <div className="flex flex-col w-full min-w-0 max-w-full gap-1">
-            <div className="truncate font-semibold text-foreground" title={row.original.title}>
-              {row.original.title}
+            <div
+              className="flex items-center gap-2 truncate font-semibold text-foreground"
+              title={row.original.title}
+            >
+              {statusColor ? (
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: statusColor }}
+                />
+              ) : null}
+              <span className="truncate">{row.original.title}</span>
             </div>
             <div
               className="line-clamp-1 text-sm text-muted-foreground break-words"
@@ -163,6 +174,10 @@ export function createTicketColumns({
     },
   ];
 
+  const visibleColumns = hiddenColumns.length
+    ? columns.filter((col) => !hiddenColumns.includes(col.accessorKey))
+    : columns;
+
   if (variant === 'archive') {
     // Sparse, scan-to-restore data: render each ticket as one full-width row
     // (identity + archive date + restore) rather than a column grid.
@@ -228,7 +243,7 @@ export function createTicketColumns({
     ];
   }
 
-  return columns;
+  return visibleColumns;
 }
 
 export const columns = createTicketColumns();

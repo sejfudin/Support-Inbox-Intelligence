@@ -33,7 +33,18 @@ export default function TicketsTabs({
                         : 'border-transparent text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {tab.label}
+                    {tab.color ? (
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: tab.color }}
+                      />
+                    ) : null}
+                    <span>{tab.label}</span>
+                    {typeof tab.count === 'number' ? (
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                        {tab.count}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>
