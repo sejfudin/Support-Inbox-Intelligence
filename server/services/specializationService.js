@@ -1,9 +1,18 @@
 const InternProfile = require('../models/InternProfile');
+const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
+const { escapeRegex } = require('../helpers/escapeRegex');
 const { loadInternProfileByUserId } = require('../helpers/internAccess');
 const { assertMentorUser } = require('./internProfileService');
-const { applySpecialization } = require('../helpers/specializationRules');
+const {
+  applySpecialization,
+  reassignSpecialization: reassignSpecializationRule,
+  changeSpecializationMentor: changeSpecializationMentorRule,
+  clearSpecialization: clearSpecializationRule,
+} = require('../helpers/specializationRules');
 const { emitInternDataChanged } = require('../socket/events');
+
+const STATUSES = ['specialized', 'unspecialized', 'all'];
 
 const PROFILE_POPULATE = [
   {
@@ -57,21 +66,52 @@ const formatSpecialization = (profile) => {
   };
 };
 
-const listSpecializedCandidates = async (user, query = {}) => {
+const statusFilter = (status) => {
+  if (status === 'unspecialized') return { specializationAssignedAt: null };
+  if (status === 'all') return {};
+  return { specializationAssignedAt: { $ne: null } };
+};
+
+// Search matches on the referenced User's name/email — resolve to user ids
+// first since InternProfile itself holds no searchable text.
+const searchUserIds = async (search) => {
+  if (!search) return null;
+  const regex = { $regex: escapeRegex(search), $options: 'i' };
+  const users = await User.find({ $or: [{ fullname: regex }, { email: regex }] })
+    .select('_id')
+    .lean();
+  return users.map((matchedUser) => matchedUser._id);
+};
+
+const listSpecializations = async (user, query = {}) => {
   assertSpecializationAccess(user);
 
+  const status = STATUSES.includes(query.status) ? query.status : 'specialized';
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 20));
   const skip = (page - 1) * limit;
-  const filter = { specializationAssignedAt: { $ne: null } };
 
-  const [profiles, total] = await Promise.all([
+  const filter = statusFilter(status);
+  if (query.mentorId) {
+    filter.secondaryMentor = query.mentorId;
+  }
+
+  const userIds = await searchUserIds(query.search);
+  if (userIds) {
+    if (userIds.length === 0) {
+      return emptyListResult(page, limit, await coverageStats(query.mentorId));
+    }
+    filter.user = { $in: userIds };
+  }
+
+  const [profiles, total, stats] = await Promise.all([
     InternProfile.find(filter)
       .populate(PROFILE_POPULATE)
       .sort({ specializationAssignedAt: -1, _id: -1 })
       .skip(skip)
       .limit(limit),
     InternProfile.countDocuments(filter),
+    coverageStats(query.mentorId),
   ]);
 
   return {
@@ -82,7 +122,32 @@ const listSpecializedCandidates = async (user, query = {}) => {
       total,
       pages: Math.ceil(total / limit) || 0,
     },
+    stats,
   };
+};
+
+const emptyListResult = (page, limit, stats) => ({
+  specializations: [],
+  pagination: { page, limit, total: 0, pages: 0 },
+  stats,
+});
+
+// Coverage stats are computed against the whole cohort, independent of the
+// active status/search filters, so the header numbers stay stable while
+// browsing different views.
+const coverageStats = async (mentorId) => {
+  const [specializedCount, totalCount, mentorLoad] = await Promise.all([
+    InternProfile.countDocuments({ specializationAssignedAt: { $ne: null } }),
+    InternProfile.countDocuments({}),
+    mentorId
+      ? InternProfile.countDocuments({
+          specializationAssignedAt: { $ne: null },
+          secondaryMentor: mentorId,
+        })
+      : Promise.resolve(null),
+  ]);
+
+  return { specializedCount, totalCount, mentorLoad };
 };
 
 // Candidates for the "+ Assign specialization" modal: every unspecialized
@@ -132,8 +197,73 @@ const assignSpecialization = async (user, payload = {}) => {
   return formatSpecialization(profile);
 };
 
+const loadSpecializedProfile = async (internUserId) => {
+  const profile = await loadInternProfileByUserId(internUserId);
+  if (!profile.specializationAssignedAt) {
+    throw createError('Intern has no specialization to manage', 400);
+  }
+  return profile;
+};
+
+const persistAndFormat = async (profile, changes) => {
+  Object.assign(profile, changes);
+  await profile.save();
+  await profile.populate(PROFILE_POPULATE);
+
+  emitInternDataChanged();
+  return formatSpecialization(profile);
+};
+
+const reassignSpecialization = async (user, internUserId) => {
+  assertSpecializationAccess(user);
+
+  const profile = await loadSpecializedProfile(internUserId);
+
+  let changes;
+  try {
+    changes = reassignSpecializationRule(profile);
+  } catch (error) {
+    throw createError(error.message, 400);
+  }
+
+  return persistAndFormat(profile, changes);
+};
+
+const changeSpecializationMentor = async (user, internUserId, mentorId) => {
+  assertSpecializationAccess(user);
+
+  const profile = await loadSpecializedProfile(internUserId);
+
+  try {
+    await assertMentorUser(mentorId, 'specialization mentor');
+  } catch (error) {
+    throw createError(error.message, 400);
+  }
+
+  let changes;
+  try {
+    changes = changeSpecializationMentorRule(profile, { mentorId });
+  } catch (error) {
+    throw createError(error.message, 400);
+  }
+
+  return persistAndFormat(profile, changes);
+};
+
+const clearSpecialization = async (user, internUserId) => {
+  assertSpecializationAccess(user);
+
+  const profile = await loadSpecializedProfile(internUserId);
+  const changes = clearSpecializationRule(profile);
+
+  return persistAndFormat(profile, changes);
+};
+
 module.exports = {
-  listSpecializedCandidates,
+  listSpecializations,
   listUnspecializedCandidates,
   assignSpecialization,
+  reassignSpecialization,
+  changeSpecializationMentor,
+  clearSpecialization,
 };

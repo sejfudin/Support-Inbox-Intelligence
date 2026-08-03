@@ -32,6 +32,31 @@ const applySpecialization = (profile, { slot, mentorId, assignedAt }) => {
   };
 };
 
+// Correcting an already-assigned specialization to the intern's other
+// position. Swaps declaredPosition/secondaryPosition again; mentor and the
+// assigned timestamp are untouched (this isn't a new assignment).
+const reassignSpecialization = (profile) => {
+  if (!profile.secondaryPosition) {
+    throw new Error('Cannot reassign specialization: intern has no secondary position');
+  }
+  return {
+    declaredPosition: profile.secondaryPosition,
+    secondaryPosition: profile.declaredPosition,
+  };
+};
+
+// Re-pairing an already-specialized intern with a different mentor, without
+// touching either position.
+const changeSpecializationMentor = (profile, { mentorId }) => {
+  if (!mentorId) {
+    throw new Error('mentorId is required');
+  }
+  if (String(mentorId) === String(profile.primaryMentor)) {
+    throw new Error('Secondary mentor must differ from primary mentor');
+  }
+  return { secondaryMentor: mentorId };
+};
+
 // Undoing a specialization decision. Positions are NOT moved back — only the
 // mentor assignment and the lock marker are cleared.
 const clearSpecialization = () => ({
@@ -45,6 +70,8 @@ const canInternEditDeclaredPosition = (profile) => !profile.specializationAssign
 
 module.exports = {
   applySpecialization,
+  reassignSpecialization,
+  changeSpecializationMentor,
   clearSpecialization,
   canInternEditDeclaredPosition,
 };

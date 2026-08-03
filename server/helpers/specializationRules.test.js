@@ -1,5 +1,7 @@
 const {
   applySpecialization,
+  reassignSpecialization,
+  changeSpecializationMentor,
   clearSpecialization,
   canInternEditDeclaredPosition,
 } = require('./specializationRules');
@@ -88,6 +90,43 @@ describe('applySpecialization', () => {
         assignedAt: ASSIGNED_AT,
       })
     ).toThrow();
+  });
+});
+
+describe('reassignSpecialization', () => {
+  it('swaps declaredPosition and secondaryPosition, leaving mentor and timestamp untouched', () => {
+    const profile = baseProfile({
+      secondaryMentor: SECONDARY_MENTOR,
+      specializationAssignedAt: ASSIGNED_AT,
+    });
+    expect(reassignSpecialization(profile)).toEqual({
+      declaredPosition: SECONDARY_POSITION,
+      secondaryPosition: MAIN_POSITION,
+    });
+  });
+
+  it('rejects reassignment when the intern has no secondary position', () => {
+    const profile = baseProfile({ secondaryPosition: null, specializationAssignedAt: ASSIGNED_AT });
+    expect(() => reassignSpecialization(profile)).toThrow();
+  });
+});
+
+describe('changeSpecializationMentor', () => {
+  it('returns the new secondaryMentor', () => {
+    const profile = baseProfile({ specializationAssignedAt: ASSIGNED_AT });
+    expect(changeSpecializationMentor(profile, { mentorId: SECONDARY_MENTOR })).toEqual({
+      secondaryMentor: SECONDARY_MENTOR,
+    });
+  });
+
+  it('rejects a missing mentor', () => {
+    const profile = baseProfile({ specializationAssignedAt: ASSIGNED_AT });
+    expect(() => changeSpecializationMentor(profile, { mentorId: null })).toThrow();
+  });
+
+  it('rejects a mentor equal to the primary mentor', () => {
+    const profile = baseProfile({ specializationAssignedAt: ASSIGNED_AT });
+    expect(() => changeSpecializationMentor(profile, { mentorId: PRIMARY_MENTOR })).toThrow();
   });
 });
 

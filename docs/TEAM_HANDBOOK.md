@@ -15,6 +15,7 @@
 - Doesn't see programme-wide statistics
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
 - Only role that can assign a specialization (confirm an intern's main or secondary declared position and pair them with a dedicated mentor) — mentors receive the pairing but never create or manage it, and have no view of the Specialization tab
+- Only role that can reassign a specialization to the intern's other position, change the specialization mentor, or clear a specialization entirely
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth)
 - Only role that can set readiness (by technology or by position) for an intern
 - Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs

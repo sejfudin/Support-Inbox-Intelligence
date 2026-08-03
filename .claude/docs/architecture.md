@@ -171,15 +171,37 @@ controllers/specializations.js, routes/specializations.js}`. Frontend: `pages/Sp
   `declaredPosition` already exists, validates the mentor (`internProfileService#assertMentorUser`
   — active `admin`/`mentor` user), runs `applySpecialization`, persists, emits
   `emitInternDataChanged()`.
-- **List** (`GET /api/specializations`, admin-only): paginated table of already-specialized interns
-  (`specializationAssignedAt` set) — the Specialization tab's default view.
+- **List** (`GET /api/specializations`, admin-only): a single filterable/paginated read backing the
+  whole tab — `status` (`specialized` default | `unspecialized` | `all`), `mentorId`, `search`
+  (matches `User.fullname`/`email`, resolved to `user: { $in: ids }` before the profile query since
+  `InternProfile` itself holds no searchable text), `page`/`limit`. Response includes `stats`
+  (`specializedCount`, `totalCount`, and `mentorLoad` when `mentorId` is set) computed against the
+  *whole* cohort, independent of the active filters, so the header numbers stay stable while
+  browsing different views.
 - **Candidates** (`GET /api/specializations/candidates`, admin-only): every *un*specialized intern,
   including ones with no declared position yet (shown disabled in the assign modal rather than
-  hidden).
+  hidden). Used only by the assign modal's intern picker, not by the tab's table (that goes through
+  the general list above with `status=unspecialized`).
+- **Reassign** (`PATCH /api/specializations/:internUserId/reassign`, admin-only): correcting an
+  already-assigned specialization to the intern's other position —
+  `specializationRules#reassignSpecialization` swaps `declaredPosition`/`secondaryPosition` again;
+  mentor and `specializationAssignedAt` are untouched (it's a correction, not a new assignment).
+  Throws if the intern has no secondary position (row-menu action is disabled/hidden client-side in
+  that case too).
+- **Change mentor** (`PATCH /api/specializations/:internUserId/mentor`, admin-only): re-pairs an
+  already-specialized intern with a different mentor — `specializationRules#changeSpecializationMentor`
+  sets `secondaryMentor` only (still validated via `assertMentorUser` + must differ from
+  `primaryMentor`). Position and `specializationAssignedAt` are untouched.
+- **Clear** (`DELETE /api/specializations/:internUserId`, admin-only):
+  `specializationRules#clearSpecialization` — nulls `secondaryMentor` and
+  `specializationAssignedAt`. **No un-swap**: whichever position `applySpecialization`/
+  `reassignSpecialization` last left in `declaredPosition` stays there; only `assign`/`reassign` can
+  move it again.
+- Reassign/change-mentor/clear all first load the profile and 400 if
+  `specializationAssignedAt` is not already set (`loadSpecializedProfile` in
+  `specializationService.js`) — nothing to manage on an unspecialized intern.
 - Not workspace-scoped — same firm-global intern domain as Recommendations (see
   `.claude/docs/security.md`).
-- Reassign / change-mentor / clear (the `⋯` row menu, stats, filters) are a later ticket
-  (05) — not built yet.
 
 ### Project (reference entity)
 

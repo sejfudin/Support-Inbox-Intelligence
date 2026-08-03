@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ const SLOT_OPTIONS = [
   { value: 'secondary', label: 'Secondary position' },
 ];
 
-export function AssignSpecializationModal({ open, onClose }) {
+export function AssignSpecializationModal({ open, onClose, initialInternUserId = '' }) {
   const [internUserId, setInternUserId] = useState('');
   const [slot, setSlot] = useState('main');
   const [mentorId, setMentorId] = useState('');
@@ -37,6 +37,12 @@ export function AssignSpecializationModal({ open, onClose }) {
   const { data: mentorsData } = useMentorCandidates({ hubScoped: false });
   const mentors = mentorsData?.users ?? [];
   const assignMutation = useAssignSpecialization();
+
+  useEffect(() => {
+    if (open && initialInternUserId) {
+      setInternUserId(initialInternUserId);
+    }
+  }, [open, initialInternUserId]);
 
   const selectedIntern = useMemo(
     () => candidates.find((candidate) => candidate.user?._id === internUserId) || null,
