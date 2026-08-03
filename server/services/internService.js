@@ -18,6 +18,7 @@ const {
   canEditOwnInternProfile,
   isAssignedMentor,
 } = require('../helpers/internAccess');
+const { canInternEditDeclaredPosition } = require('../helpers/specializationRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
@@ -217,6 +218,12 @@ const updateSelfPosition = async (user, positionId = null) => {
   if (!profile) throw new Error('Intern profile not found');
   if (!canEditOwnInternProfile(user, profile)) {
     const err = new Error('Not authorized');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (!canInternEditDeclaredPosition(profile)) {
+    const err = new Error('Your position is locked by your specialization');
     err.statusCode = 403;
     throw err;
   }

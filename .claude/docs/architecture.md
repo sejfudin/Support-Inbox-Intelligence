@@ -143,6 +143,44 @@ project shows a confirm dialog naming both projects before the create proceeds.
 additionally has read access (fully read-only UI — no create/edit/delete controls rendered).
 Mentors have no access at all, on the per-intern tab or the standalone `/recommendations` page.
 
+## Specializations
+
+An admin confirms **one of an intern's two declared positions** (`InternProfile.declaredPosition`
+/ `secondaryPosition`, from ticket 03's self-service picker) as their focus, paired atomically with
+a dedicated 1-on-1 mentor. See `docs/adr/0002-specialization-repurposes-secondary-mentor.md`
+and `CONTEXT.md` for the full domain writeup (mechanics, naming trap). Backend:
+`server/{helpers/specializationRules.js, services/specializationService.js,
+controllers/specializations.js, routes/specializations.js}`. Frontend: `pages/SpecializationPage.jsx`
++ `components/interns/specialization/AssignSpecializationModal.jsx`.
+
+- **Marker**: `InternProfile.specializationAssignedAt` (Date, nullable). Set ⟹ `declaredPosition`
+  IS the specialization; there is no separate "which position" field.
+- **Mentor**: stored in the existing `InternProfile.secondaryMentor` — repurposed by ADR-0002 to
+  mean *only* the specialization mentor (invite-time write path removed in ticket 02). Must differ
+  from `primaryMentor`.
+- **Swap rule** (`server/helpers/specializationRules.js#applySpecialization`, pure, no I/O):
+  confirming the `secondary` slot swaps it into `declaredPosition` and the old main drops to
+  `secondaryPosition`; confirming `main` is a no-op swap. The pre-swap "which was main" is not
+  retained.
+- **Lock**: while `specializationAssignedAt` is set, the intern can't self-edit `declaredPosition`
+  (`canInternEditDeclaredPosition`, enforced in `internService.js#updateSelfPosition`, 403 on
+  violation). The secondary position stays intern-editable and — via the existing "must differ
+  from main" rule in `updateSelfSecondaryPosition` — automatically excludes whichever position the
+  swap just locked into `declaredPosition`.
+- **Assign** (`POST /api/specializations`, admin-only): loads the intern profile, requires a
+  `declaredPosition` already exists, validates the mentor (`internProfileService#assertMentorUser`
+  — active `admin`/`mentor` user), runs `applySpecialization`, persists, emits
+  `emitInternDataChanged()`.
+- **List** (`GET /api/specializations`, admin-only): paginated table of already-specialized interns
+  (`specializationAssignedAt` set) — the Specialization tab's default view.
+- **Candidates** (`GET /api/specializations/candidates`, admin-only): every *un*specialized intern,
+  including ones with no declared position yet (shown disabled in the assign modal rather than
+  hidden).
+- Not workspace-scoped — same firm-global intern domain as Recommendations (see
+  `.claude/docs/security.md`).
+- Reassign / change-mentor / clear (the `⋯` row menu, stats, filters) are a later ticket
+  (05) — not built yet.
+
 ### Project (reference entity)
 
 `Project` (`server/models/Project.js`) is the canonical list of client engagements a

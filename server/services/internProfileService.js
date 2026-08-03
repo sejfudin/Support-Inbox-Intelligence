@@ -41,4 +41,4 @@ const createInternProfile = async ({ userId, internshipTypeId, primaryMentorId, 
   });
 };
 
-module.exports = { createInternProfile };
+module.exports = { createInternProfile, assertMentorUser };

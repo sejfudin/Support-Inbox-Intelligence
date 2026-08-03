@@ -17,6 +17,7 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarClock,
+  Target,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import { Button } from '@/components/ui/button';
@@ -162,6 +163,11 @@ export default function AppSidebar() {
       label: 'Recommendations',
       to: '/recommendations',
       icon: Send,
+    },
+    {
+      label: 'Specialization',
+      to: '/specialization',
+      icon: Target,
     },
   ];
 

@@ -1,4 +1,5 @@
 import { InternPanel } from '@/components/interns/InternPanel';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -24,6 +25,7 @@ export function InternPositionDeclaration() {
     useUpdateMySecondaryPosition();
 
   const mainPositionId = intern?.declaredPosition?._id || '';
+  const isSpecialized = Boolean(intern?.specializationAssignedAt);
 
   const handleChange = (positionId) => {
     savePosition(positionId, {
@@ -46,10 +48,32 @@ export function InternPositionDeclaration() {
     <InternPanel className="flex flex-col gap-5 px-5 py-5 md:px-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold text-foreground">My position</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">Your main position in the firm.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-foreground">My position</h3>
+            {isSpecialized && (
+              <Badge
+                variant="default"
+                className="bg-violet-600/15 text-violet-800 dark:bg-violet-500/20 dark:text-violet-300"
+                data-test="specialization-badge"
+              >
+                SPECIALIZATION
+              </Badge>
+            )}
+          </div>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {isSpecialized
+              ? `Locked by your specialization. Mentor: ${intern?.secondaryMentor?.fullname || 'Unassigned'}.`
+              : 'Your main position in the firm.'}
+          </p>
         </div>
-        {positions.length === 0 ? (
+        {isSpecialized ? (
+          <p
+            className="w-full rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-sm font-medium text-foreground sm:w-56"
+            data-test="position-locked-value"
+          >
+            {intern?.declaredPosition?.name || '-'}
+          </p>
+        ) : positions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No positions configured yet.</p>
         ) : (
           <Select value={mainPositionId} onValueChange={handleChange} disabled={isSavingMain}>
