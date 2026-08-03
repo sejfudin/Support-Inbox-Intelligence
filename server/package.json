@@ -21,6 +21,7 @@
     "seed:technologies": "node seeder/seedTechnologies.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
+    "backfill:legacy-secondary-mentor": "node seeder/backfillLegacySecondaryMentor.js",
     "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
     "cleanup:ready-for-placement": "node seeder/unsetReadyForPlacement.js",
