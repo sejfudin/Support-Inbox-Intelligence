@@ -23,6 +23,7 @@ export function WorkspaceInternsPanel({
   return (
     <section
       className={cn('app-panel flex w-full flex-col p-4 sm:p-5', className)}
+      data-tour="dashboard-interns"
       aria-label="Interns in this workspace"
     >
       <header className="flex flex-wrap items-start justify-between gap-3">

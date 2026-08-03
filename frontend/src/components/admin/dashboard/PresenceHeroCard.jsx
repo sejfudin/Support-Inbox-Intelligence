@@ -39,6 +39,7 @@ export function PresenceHeroCard({ presence }) {
   return (
     <>
       <section
+        data-tour="dashboard-presence"
         className="admin-hero-surface flex min-h-[12.5rem] flex-col justify-between rounded-[1.25rem] p-4 sm:p-5"
         aria-label="Team present today"
       >

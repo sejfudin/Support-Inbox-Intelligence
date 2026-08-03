@@ -14,7 +14,7 @@
  * shows the tour again to everyone exactly once.
  */
 
-export const TOUR_VERSION = '2026-08-shell-redesign';
+export const TOUR_VERSION = '2026-08-shell-redesign-r2';
 export const TOUR_STORAGE_KEY = 'whatsNewTour';
 
 /**
@@ -33,8 +33,8 @@ export const replayWhatsNewTour = () => {
 export const WHATS_NEW_STEPS = [
   {
     id: 'intro',
-    title: 'The app has a new look',
-    body: 'Same features, tidier shell. A few controls moved — here is where they went. This takes about 20 seconds.',
+    title: 'Task Manager has a new look',
+    body: 'Same features, tidier shell — plus a new dashboard if you are an admin. A few controls moved; here is where they went.',
   },
   {
     id: 'collapse',
@@ -67,12 +67,60 @@ export const WHATS_NEW_STEPS = [
     body: 'Screens are no longer boxed into a narrow column, so long ticket tables and boards have room to breathe.',
     placement: 'left',
   },
+  // Switching workspace re-points the board, so it comes before the tour walks
+  // through what is on that board.
+  {
+    id: 'workspace-switcher',
+    target: '[data-tour="workspace-switcher"]',
+    title: 'Switching workspace changes everything below it',
+    body: 'Pick a workspace here and the whole app follows — tickets, dailies and, for admins, every number on the dashboard. One workspace at a time, always the one named here.',
+    placement: 'right',
+  },
+
+  // The new dashboard, card by card. All admin-only, and all targeting elements
+  // that exist only on the dashboard itself — on any other page these steps drop
+  // out on their own, so the tour never points at something that is not there.
   {
     id: 'admin-dashboard',
     roles: ['admin'],
     target: '[data-tour="page-content"]',
     title: 'Your dashboard is new',
-    body: 'Dashboard now opens a workspace overview: who is in today, each intern’s workload and attendance, recent placements and standup coverage.',
+    body: 'It used to be your ticket list. It is now an overview of the workspace you are in — let us walk the four parts.',
     placement: 'left',
+  },
+  {
+    id: 'dashboard-presence',
+    roles: ['admin'],
+    target: '[data-tour="dashboard-presence"]',
+    title: 'Who is in today',
+    body: 'Check-ins against the interns in this workspace, this month’s average attendance, and a list of who has not checked in yet. Absence is derived from a missing check-in, not recorded by hand.',
+  },
+  {
+    id: 'dashboard-interns',
+    roles: ['admin'],
+    target: '[data-tour="dashboard-interns"]',
+    title: 'Workload and attendance per intern',
+    body: 'Open tickets split across To do, In progress, On staging and Blocked, plus each intern’s attendance for the month. Only interns still in the programme appear here.',
+  },
+  {
+    id: 'dashboard-placements',
+    roles: ['admin'],
+    target: '[data-tour="dashboard-placements"]',
+    title: 'Placements — across every workspace',
+    body: 'The one panel that is not scoped to your current workspace: placement is a programme milestone, so this shows the latest across all of them. Specialization on the right is sample data until that feature lands.',
+  },
+  {
+    id: 'dashboard-quick-actions',
+    roles: ['admin'],
+    target: '[data-tour="dashboard-quick-actions"]',
+    title: 'Quick actions',
+    body: 'Assign a ticket, recommend an intern or write an evaluation without leaving this page — each opens right here. Marking an absence is still to come.',
+  },
+  {
+    id: 'dashboard-standup',
+    roles: ['admin'],
+    target: '[data-tour="dashboard-standup"]',
+    title: 'Standup coverage',
+    body: 'How many interns have filed today’s note, and any open blockers. Open the board for the full picture.',
   },
 ];

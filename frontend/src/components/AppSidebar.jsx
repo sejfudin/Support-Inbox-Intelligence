@@ -287,11 +287,13 @@ export default function AppSidebar() {
           </RailTooltip>
         </div>
 
-        <WorkspaceSwitcher
-          className={collapsed ? 'mt-2' : 'mt-2 py-1.5'}
-          compact
-          iconOnly={collapsed}
-        />
+        <div data-tour="workspace-switcher">
+          <WorkspaceSwitcher
+            className={collapsed ? 'mt-2' : 'mt-2 py-1.5'}
+            compact
+            iconOnly={collapsed}
+          />
+        </div>
       </SidebarHeader>
 
       <SidebarContent className="px-3 pb-1 group-data-[collapsible=icon]:px-2 md:overflow-hidden">

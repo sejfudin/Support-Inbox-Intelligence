@@ -15,6 +15,7 @@ export function PlacementsSpecializationCard({ placements }) {
   return (
     <section
       className="app-panel-soft grid min-h-[12.5rem] grid-cols-1 gap-4 p-4 sm:p-5 xl:col-span-2 xl:grid-cols-2 xl:gap-0"
+      data-tour="dashboard-placements"
       aria-label="Recent placements and specialization assignments"
     >
       <div className="flex min-w-0 flex-col xl:pr-5">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/context/AuthContext';
 import {
   TOUR_REPLAY_EVENT,
@@ -14,6 +14,11 @@ const CARD_WIDTH = 340;
 const GAP = 14; // between the highlighted element and the card
 const PAD = 8; // breathing room around the spotlight cut-out
 const EDGE = 12; // minimum distance from the viewport edge
+const MIN_TEXT_WIDTH = 240; // never squeeze the copy below this
+
+// Deliberately heavy. With no panel behind the copy, the dim IS the background the
+// text is read against, so it carries the contrast for the whole overlay.
+const DIM = 'rgba(2, 6, 23, 0.82)';
 
 /** A target counts as present only if it is actually laid out and visible. */
 const visibleRect = (selector) => {
@@ -110,8 +115,19 @@ const placeCard = (rect, card, preferred) => {
     return 0;
   });
 
-  const { left, top } = pool[0].box;
-  return { left, top };
+  const chosen = pool[0];
+  const { left, top } = chosen.box;
+
+  // Without a panel behind it the text is light-on-dark, so it must not spill off
+  // the dimmed area onto the brightly-lit spotlight — white on a light page is
+  // unreadable. On a left/right placement, cap the width at the dim available on
+  // that side. Floored, because a sliver of a column is worse than a slight
+  // overhang; in practice the sidebar gutter is wide enough.
+  let maxWidth;
+  if (chosen.side === 'right') maxWidth = Math.max(MIN_TEXT_WIDTH, vw - rect.right - GAP - EDGE);
+  else if (chosen.side === 'left') maxWidth = Math.max(MIN_TEXT_WIDTH, rect.left - GAP - EDGE);
+
+  return { left, top, maxWidth };
 };
 
 const readSeenVersion = () => {
@@ -159,6 +175,13 @@ export function WhatsNewTour() {
   const [cardBox, setCardBox] = useState({ width: CARD_WIDTH, height: 180 });
   const cardRef = useRef(null);
 
+  // The tour is shown in light theme so everyone sees the redesign in the same
+  // skin the screenshots and the handover notes use. The previous choice is stashed
+  // in a ref (not state — restoring must not depend on a re-render) and put back on
+  // the way out, so this borrows the theme rather than overwriting a preference.
+  const { theme, setTheme } = useTheme();
+  const themeBeforeTour = useRef(null);
+
   const role = user?.role;
 
   // Role filtering happens here; target-presence filtering has to wait until the
@@ -172,7 +195,12 @@ export function WhatsNewTour() {
     writeSeenVersion();
     setDismissed(true);
     setVisibleSteps([]);
-  }, []);
+
+    if (themeBeforeTour.current) {
+      setTheme(themeBeforeTour.current);
+      themeBeforeTour.current = null;
+    }
+  }, [setTheme]);
 
   // Resolve which steps are actually showable ONCE, when the tour opens, and drive
   // everything from that list. Filtering per-navigation instead would make the
@@ -193,6 +221,22 @@ export function WhatsNewTour() {
 
     return () => cancelAnimationFrame(frame);
   }, [dismissed, user, loading, steps, finish]);
+
+  // Force light for the duration, in its own effect keyed only on "is the tour up".
+  // Deliberately NOT folded into the effect above: that one would then depend on
+  // `theme`, which it changes, so it would re-run and reset the tour to step 1.
+  // The live theme is read through a ref for the same reason.
+  const themeRef = useRef(theme);
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
+
+  const tourActive = !dismissed && visibleSteps.length > 0;
+  useEffect(() => {
+    if (!tourActive || themeBeforeTour.current) return;
+    themeBeforeTour.current = themeRef.current || 'system';
+    setTheme('light');
+  }, [tourActive, setTheme]);
 
   // Replay on demand — the user menu item and the hold-H shortcut both fire this.
   useEffect(() => {
@@ -280,70 +324,82 @@ export function WhatsNewTour() {
             top: rect.top - PAD,
             width: rect.width + PAD * 2,
             height: rect.height + PAD * 2,
-            boxShadow: '0 0 0 9999px rgba(2, 6, 23, 0.62)',
+            boxShadow: `0 0 0 9999px ${DIM}`,
           }}
           onClick={(event) => event.stopPropagation()}
         />
       ) : (
-        <div className="absolute inset-0 bg-[rgba(2,6,23,0.62)]" />
+        <div className="absolute inset-0" style={{ backgroundColor: DIM }} />
       )}
 
+      {/* No panel — the copy sits directly on the dim. It is therefore always
+          light-on-dark regardless of the active theme (the overlay is dark in both),
+          and every text layer carries a shadow so it stays legible over whatever
+          happens to be underneath it. */}
       <div
         ref={cardRef}
-        className="app-panel absolute w-[21.25rem] max-w-[calc(100vw-1.5rem)] p-5 shadow-elevated"
-        style={cardStyle}
+        className="absolute w-[23rem] [text-shadow:0_1px_14px_rgba(2,6,23,0.95)]"
+        style={{ ...cardStyle, maxWidth: cardStyle.maxWidth ?? 'calc(100vw - 2rem)' }}
       >
-        <div className="flex items-start justify-between gap-3">
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Sparkles className="h-4 w-4" />
+        <div className="flex items-center gap-2 text-white/70">
+          <Sparkles className="h-4 w-4 shrink-0" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+            What&apos;s new
           </span>
-          <button
-            type="button"
-            onClick={finish}
-            data-test="whats-new-skip"
-            aria-label="Skip the tour"
-            className="-mr-1 -mt-1 shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <span className="text-[11px] font-medium tabular-nums text-white/50">
+            {position} / {visibleSteps.length}
+          </span>
         </div>
 
-        <h2 id="whats-new-title" className="mt-3 text-base font-semibold leading-6 text-foreground">
+        <h2 id="whats-new-title" className="mt-2 text-xl font-semibold leading-7 text-white">
           {step.title}
         </h2>
-        <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground">{step.body}</p>
+        <p className="mt-2 text-[13px] leading-5 text-white/75">{step.body}</p>
 
         {/* Told on the way out, where it is actually useful: the replay shortcut is
             hidden by design, so it has to be said out loud at least once. */}
         {isLast && (
-          <p className="mt-3 rounded-xl bg-muted/60 px-3 py-2 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-3 text-[11px] leading-4 text-white/60">
             Want to see this again? Hold{' '}
-            <kbd className="rounded border border-border bg-card px-1 font-semibold text-foreground">
-              H
-            </kbd>{' '}
+            <kbd className="rounded border border-white/25 px-1 font-semibold text-white/90">H</kbd>{' '}
             and click the Task&nbsp;Manager logo at the top of the sidebar — or pick{' '}
-            <span className="font-medium text-foreground">What&apos;s new</span> from your profile
+            <span className="font-medium text-white/90">What&apos;s new</span> from your profile
             menu.
           </p>
         )}
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-[11px] font-medium tabular-nums text-muted-foreground">
-            {position} / {visibleSteps.length}
-          </span>
+        <div className="mt-4 flex items-center gap-2 [text-shadow:none]">
+          <button
+            type="button"
+            onClick={() => go(1)}
+            data-test="whats-new-next"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          >
+            {isLast ? 'Got it' : 'Next'}
+            {!isLast && <ArrowRight className="h-3.5 w-3.5" />}
+          </button>
 
-          <div className="flex items-center gap-2">
-            {position > 1 && (
-              <Button variant="ghost" size="sm" onClick={() => go(-1)} data-test="whats-new-back">
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Back
-              </Button>
-            )}
-            <Button size="sm" onClick={() => go(1)} data-test="whats-new-next">
-              {isLast ? 'Got it' : 'Next'}
-              {!isLast && <ArrowRight className="h-3.5 w-3.5" />}
-            </Button>
-          </div>
+          {position > 1 && (
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              data-test="whats-new-back"
+              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={finish}
+            data-test="whats-new-skip"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-white/55 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+          >
+            <X className="h-3.5 w-3.5" />
+            Skip
+          </button>
         </div>
       </div>
     </div>,
