@@ -61,6 +61,27 @@ function WorkspaceLabel({ workspace, subtitle, compact }) {
 const workspaceFaceClassName =
   'flex h-auto w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 text-left shadow-none';
 
+const iconFaceClassName =
+  'flex size-8 items-center justify-center rounded-xl border border-border/70 bg-card p-0 shadow-none';
+
+/**
+ * Collapsed-rail workspace marker: the logo inside a static (non-interactive)
+ * face with the name in a side tooltip. Used for the no-active-workspace and
+ * single-workspace states, where there is nothing to switch between.
+ */
+function IconWorkspaceFace({ workspace, label, ariaLabel, className }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={cn(iconFaceClassName, className)} aria-label={ariaLabel}>
+          <WorkspaceLogo workspace={workspace} size="sm" />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function WorkspaceSwitcherFace({ workspace, subtitle, compact, showChevron = false }) {
   return (
     <>
@@ -92,24 +113,19 @@ export default function WorkspaceSwitcher({ className, compact = false, iconOnly
   const activeFromList = workspaces.find((ws) => ws._id?.toString() === currentId);
   const displayWorkspace = activeFromList || activeWorkspace;
 
-  const iconFaceClassName =
-    'flex size-8 items-center justify-center rounded-xl border border-border/70 bg-card p-0 shadow-none';
-
   if (!user?.workspaceId) {
     if (iconOnly) {
       // No active workspace ("Global admin mode") — a static marker, matching the
       // non-interactive expanded state.
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className={cn(iconFaceClassName, className)} aria-label="No active workspace">
-              <WorkspaceLogo workspace={displayWorkspace} size="sm" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {displayWorkspace?.name || (isAdmin(user?.role) ? 'Global admin mode' : 'Workspace')}
-          </TooltipContent>
-        </Tooltip>
+        <IconWorkspaceFace
+          workspace={displayWorkspace}
+          ariaLabel="No active workspace"
+          label={
+            displayWorkspace?.name || (isAdmin(user?.role) ? 'Global admin mode' : 'Workspace')
+          }
+          className={className}
+        />
       );
     }
 
@@ -133,14 +149,11 @@ export default function WorkspaceSwitcher({ className, compact = false, iconOnly
 
     if (iconOnly) {
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className={cn(iconFaceClassName, className)}>
-              <WorkspaceLogo workspace={displayWorkspace} size="sm" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">{displayWorkspace?.name || 'Workspace'}</TooltipContent>
-        </Tooltip>
+        <IconWorkspaceFace
+          workspace={displayWorkspace}
+          label={displayWorkspace?.name || 'Workspace'}
+          className={className}
+        />
       );
     }
 

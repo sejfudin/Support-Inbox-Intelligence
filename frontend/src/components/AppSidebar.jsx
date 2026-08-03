@@ -62,6 +62,19 @@ const navTestSlug = (to) =>
     .replace(/[^a-z0-9-]/gi, '') || 'home';
 
 /**
+ * Collapsed-rail tooltip: wraps a rail control so its label appears to the
+ * right. Centralizes the `side="right"` convention every rail affordance shares.
+ */
+function RailTooltip({ label, children }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+/**
  * One nav row. Collapsed (icon rail) it shrinks to a centred icon and the label
  * moves into a tooltip — the label element is hidden rather than unmounted so the
  * width transition has something to animate against.
@@ -104,13 +117,7 @@ function NavItem({ item, collapsed }) {
   if (!collapsed) return link;
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{link}</TooltipTrigger>
-      <TooltipContent side="right">
-        {item.label}
-        {item.badge ? ` (${item.badge})` : ''}
-      </TooltipContent>
-    </Tooltip>
+    <RailTooltip label={`${item.label}${item.badge ? ` (${item.badge})` : ''}`}>{link}</RailTooltip>
   );
 }
 
@@ -225,22 +232,17 @@ export default function AppSidebar() {
             <TaskManagerBrand size="sm" showWordmark={false} linkTo="/dashboard" />
           </div>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                data-test="sidebar-collapse-button"
-                aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
-              >
-                <ToggleIcon className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            </TooltipContent>
-          </Tooltip>
+          <RailTooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              data-test="sidebar-collapse-button"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
+            >
+              <ToggleIcon className="h-4 w-4" />
+            </button>
+          </RailTooltip>
         </div>
 
         <WorkspaceSwitcher
@@ -352,11 +354,10 @@ export default function AppSidebar() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Pinned to 32px: NavbarNotifications hardcodes h-10 w-10, which
-                  overflows the 3rem rail. The descendant selector outranks its own
-                  size classes, so that component needs no change. */}
-              <div className="shrink-0 [&_button]:size-8">
-                <NavbarNotifications />
+              {/* 32px in the rail: the default 40px trigger overflows the 3rem
+                  rail, so ask NavbarNotifications for its small size directly. */}
+              <div className="shrink-0">
+                <NavbarNotifications size="sm" />
               </div>
             </>
           )}
