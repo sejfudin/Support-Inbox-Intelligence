@@ -1,8 +1,7 @@
 const Daily = require('../models/Daily');
-const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
-const User = require('../models/User');
 const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
+const { getActiveWorkspaceInterns } = require('../helpers/workspaceInterns');
 const {
   isDailyEditable,
   deriveCounts,
@@ -15,7 +14,6 @@ const {
   MS_PER_DAY,
 } = require('../helpers/dailyRules');
 const { emitDailyChanged } = require('../socket/events');
-const { ROLES } = require('../constants/roles');
 
 class DailyValidationError extends Error {
   constructor(message, statusCode = 400) {
@@ -51,26 +49,9 @@ const parseDateParam = (dateInput) => {
 };
 
 // Active interns currently in the workspace — the live denominator for the
-// "Team covered" count and the pool the "add entry" picker offers from.
-const getActiveInterns = async (workspaceId) => {
-  const workspace = await Workspace.findById(workspaceId).select('members').lean();
-  if (!workspace) return [];
-
-  const activeMemberUserIds = workspace.members
-    .filter((member) => member.status === 'active' && member.user)
-    .map((member) => member.user);
-
-  if (activeMemberUserIds.length === 0) return [];
-
-  return User.find({
-    _id: { $in: activeMemberUserIds },
-    role: ROLES.INTERN,
-    active: true,
-    status: 'active',
-  })
-    .select('fullname email')
-    .lean();
-};
+// "Team covered" count and the pool the "add entry" picker offers from. Shared
+// with the admin dashboard, hence the helper.
+const getActiveInterns = (workspaceId) => getActiveWorkspaceInterns(workspaceId);
 
 const getActiveInternMemberIds = async (workspaceId) => {
   const interns = await getActiveInterns(workspaceId);

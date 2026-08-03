@@ -10,8 +10,9 @@ import BacklogPage from '@/pages/Backlog';
 import ProfilePage from '@/pages/ProfilePage';
 import ProtectedRoute from '@/routes/ProtectedRoutes';
 import { useAuth } from '@/context/AuthContext';
-import { ROLES } from '@/helpers/roles';
+import { ROLES, isAdmin } from '@/helpers/roles';
 import UserDashboard from '@/pages/UserDashboard';
+import AdminDashboardPage from '@/pages/AdminDashboardPage';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
 import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
 import WorkspacesOverviewPage from '@/pages/WorkspacesOverviewPage';
@@ -42,6 +43,32 @@ const WorkspaceGuard = () => {
   }
   if (!user?.workspaceId) return <Navigate to="/create-workspace" replace />;
   return <Outlet />;
+};
+
+/**
+ * `/dashboard` is role-split: admins get the workspace-scoped admin board,
+ * everyone else keeps the assigned-tickets dashboard.
+ *
+ * It sits outside `WorkspaceGuard` so an admin with no active workspace ("Global
+ * admin mode") gets the board's own explanation instead of being bounced to
+ * `/create-workspace`, which is not what an admin without a workspace wants. The
+ * guard's checks are therefore repeated here for the non-admin branch only —
+ * widening WorkspaceGuard itself would let admins into /tickets and /dailies
+ * without a workspace, which those pages do not handle.
+ */
+const DashboardRoute = () => {
+  const { user } = useAuth();
+
+  if (user?.role === ROLES.LEADERSHIP) {
+    return <Navigate to="/programme" replace />;
+  }
+  if (isAdmin(user?.role)) {
+    return <AdminDashboardPage />;
+  }
+  if (!user?.workspaceId) {
+    return <Navigate to="/create-workspace" replace />;
+  }
+  return <UserDashboard />;
 };
 
 const HomeRedirect = () => {
@@ -151,10 +178,11 @@ export default function AppRoutes() {
             <Route path="/register" element={<Register />} />
           </Route>
 
+          <Route path="/dashboard" element={<DashboardRoute />} />
+
           <Route element={<WorkspaceGuard />}>
             <Route path="/tickets" element={<TicketPage />} />
             <Route path="/archive" element={<ArchivePage />} />
-            <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
             <Route path="/backlog" element={<BacklogPage />} />
             <Route path="/dailies" element={<WorkspaceDailiesPage />} />

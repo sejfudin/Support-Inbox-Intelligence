@@ -15,7 +15,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 
 | Role | Lands on | Capability |
 |---|---|---|
-| Admin | `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
+| Admin | `/dashboard` (admin dashboard) if they have an active workspace, else `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
 | Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
 | Leadership | `/programme` | Read-oriented stakeholder view. No ticket/workspace workflow — redirected to `/programme`. |
 | Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. |
@@ -211,7 +211,8 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
   `workingDays` (Mon–Fri) / `attendanceRate` are computed for one month at a time, clamped to
   `[max(monthStart, startDate), min(monthEnd, today)]` — so a mid-month joiner isn't penalised and
   the current month only counts elapsed days. Always computed from raw records, never stored, so
-  they can't go stale (`computeMonthStats` in the service).
+  they can't go stale (`computeMonthStats` in `server/helpers/attendanceStats.js` — shared by the
+  roster and the admin dashboard; unit-tested in `attendanceStats.test.js`).
 - **Check-in window** (`attendanceTime.js`): open 07:00–11:00 `Europe/Sarajevo` time on weekdays.
   The server is authoritative; the client mirrors the rule for UX only.
 - Endpoints: `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat
@@ -224,6 +225,63 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
   `{ success, message, data }`, with `data` holding `{ attendance }` / `{ month, roster }`.
 - The office-network **IP allowlist** guard (per-hub CIDR + `trust proxy`) is a deferred, optional
   step — `Attendance.checkInIp` is already captured for it.
+
+## Admin dashboard (workspace-scoped)
+
+The admin landing board: one workspace at a time — the caller's **active** workspace. Backend:
+`server/{services/adminDashboardService.js, controllers/adminDashboard.js}` +
+`GET /dashboard` in `routes/admin.js`. Frontend:
+`frontend/src/pages/AdminDashboardPage.jsx`, `components/admin/dashboard/*`,
+`api/adminDashboard.js`, `queries/adminDashboard.js`.
+
+- **`/dashboard` is role-split**, not a separate route: `DashboardRoute` in
+  `routes/AppRoutes.jsx` renders `AdminDashboardPage` for admins and `UserDashboard`
+  (assigned tickets) for everyone else. It sits **outside `WorkspaceGuard`** so an admin with no
+  active workspace gets the board's own explanation rather than a redirect to `/create-workspace`
+  — the guard's redirects are repeated inside `DashboardRoute` for the non-admin branch only.
+  Don't widen `WorkspaceGuard` instead: `/tickets`, `/dailies` and `/analytics` all assume a
+  resolved `user.workspaceId`.
+- **The page has no workspace picker of its own** — it reads `user.workspaceId`, and switching is
+  the sidebar's `WorkspaceSwitcher` (which already `refetchUser()`s and navigates to `/dashboard`,
+  so the board re-keys and refetches by itself). Note the switcher lists only workspaces the
+  caller is a *member* of and collapses to a static "Global admin mode" label when an admin has no
+  active workspace — which is why the empty state points at `/admin/workspaces` instead of the
+  sidebar.
+- **Scoping goes through `Workspace.members`, never `User.workspaceId`** —
+  `server/helpers/workspaceInterns.js` (`getActiveWorkspaceInterns`, `getActiveMemberUserIds`),
+  also used by `dailyService`. `InternProfile` has **no** `workspace` field, and
+  `User.workspaceId` is only the member's *currently active* workspace, so scoping on it would
+  drop interns who belong here but are switched elsewhere.
+- **Presence + the workload table count only in-programme interns**
+  (`InternProfile.status` ∈ `active`/`ready`, mirroring the attendance roster's `ROSTER_STATUSES`) —
+  a placed or discontinued intern has no live workload or attendance to report.
+- **The two placement cards are the one global thing on the page.** "Last intern placed" and
+  "Recent placements" query `Recommendation` with `result.outcome: 'placed'` across the **whole
+  platform**, unscoped — placement is a programme-level milestone, and per-workspace scoping made
+  the same placement appear and vanish as the admin switched workspaces. Safe because the route is
+  admin-only and admins already read platform-wide. Everything else on the payload (presence,
+  workload, interns table) stays workspace-scoped. `LastPlacementCard` carries a help tooltip
+  saying so, since a global number on an otherwise workspace-scoped board is surprising.
+- **Workload segments are a fixed four** (`to do`, `in progress`, `on staging`, `blocked` —
+  `WORKLOAD_SLUGS`), so every table row has the same shape. Labels/colors come from the
+  workspace's own `TicketStatus` rows and fall back to `statusService.DEFAULT_STATUSES`.
+  `done`/`backlog` are excluded — the table is open work in flight. `Ticket.assignedTo` is an
+  array, so a shared ticket counts once per assignee.
+- **Composed from one new endpoint plus reuse**: `GET /api/admin/dashboard?workspaceId=`
+  (**admin-only**; 400 on a malformed id, 404 on unknown/archived — it verifies the workspace
+  exists because `assertWorkspaceAccess` short-circuits for admins without touching the DB, so a
+  bogus id would otherwise return a convincing all-zeros payload). The standup card reuses
+  `GET /api/dailies/admin/overview` and the picker reuses `GET /api/workspaces/all`.
+- **Known gap — the standup card's denominator differs from the interns table.**
+  `dailies/admin/overview` counts every active intern member, including `placed` ones, so a
+  workspace can read "1 intern" in the table and "0 / 3 notes in" on the standup card. Fixing it
+  means filtering `getWorkspaceDailyOverview`'s roster to in-programme interns, which also changes
+  the existing Daily Insights page — deliberately left alone.
+- **Not implemented, rendered as placeholders**: the *Specialization assigned* card is sample data
+  (no specialization field, assigned-at timestamp, or assigning action exists in the model), and
+  the *Write evaluation* / *Mark absence / excuse* quick actions are marked "Soon" — `Attendance`
+  has no write path for absence at all (absence is the lack of a check-in, and only interns may
+  check in). Both are flagged in-place in the components.
 
 ## Glossary
 

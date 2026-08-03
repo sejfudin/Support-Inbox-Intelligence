@@ -8,6 +8,7 @@
 ## 1. Roles & Permissions
 
 **Admin**
+- Only role with the admin dashboard as their landing page — reports on the workspace they're currently in (switch it from the sidebar): who's present today, each intern's open workload and monthly attendance, and today's standup coverage. The two placement cards are the exception: they show the latest placements across every workspace, not just the current one
 - Creates, deletes, and views all workspaces
 - Creates user accounts, invites new users (mentors, interns, leadership, other admins), and changes their role
 - Views and edits all intern profiles

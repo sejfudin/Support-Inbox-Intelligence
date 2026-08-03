@@ -8,10 +8,10 @@ const {
   isOfficeWeekend,
   isWithinCheckInWindow,
   checkInWindowState,
-  countWorkingDays,
   CHECK_IN_WINDOW,
   CHECK_IN_WINDOW_LABEL,
 } = require('../helpers/attendanceTime');
+const { computeMonthStats } = require('../helpers/attendanceStats');
 
 const { PRESENT, CANCELLED } = Attendance;
 const { READY_STATUS } = InternProfile;
@@ -29,27 +29,6 @@ const loadMyProfile = async (user) => {
     throw httpError(404, 'No intern profile is linked to your account.');
   }
   return profile;
-};
-
-/**
- * Attendance stats for a single calendar month. Working days (Mon–Fri) are
- * counted within the month, clamped to `[max(monthStart, startDate), min(monthEnd,
- * today)]` — so a mid-month joiner isn't penalised for days before they started,
- * and the current month only counts elapsed days. Always computed from raw
- * records, never stored, so it can't go stale.
- * `records` may be the full history or already month-scoped — the date clamp
- * makes both correct.
- */
-const computeMonthStats = (records, monthKey, startDate) => {
-  const { start, end } = monthBounds(monthKey);
-  const todayKey = officeDateKey();
-  const startKey = startDate ? officeDateKey(startDate) : null;
-  const rangeStart = startKey && startKey > start ? startKey : start;
-  const rangeEnd = todayKey < end ? todayKey : end;
-  const workingDays = rangeStart <= rangeEnd ? countWorkingDays(rangeStart, rangeEnd) : 0;
-  const presentDays = records.filter((r) => r.date >= rangeStart && r.date <= rangeEnd).length;
-  const attendanceRate = workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 0;
-  return { presentDays, workingDays, attendanceRate };
 };
 
 // Split a set of raw attendance rows into the { records, cancelledDates } shape
