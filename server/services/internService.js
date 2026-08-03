@@ -42,6 +42,7 @@ const PROFILE_POPULATE = [
   },
   { path: 'selfTechnologies', select: 'name slug' },
   { path: 'declaredPosition', select: 'name slug' },
+  { path: 'secondaryPosition', select: 'name slug' },
 ];
 
 const formatProfile = (profile, viewer = null) => {
@@ -226,6 +227,28 @@ const updateSelfPosition = async (user, positionId = null) => {
   }
 
   profile.declaredPosition = positionId || null;
+  await profile.save();
+  return getMyInternProfile(user);
+};
+
+const updateSelfSecondaryPosition = async (user, positionId = null) => {
+  const profile = await InternProfile.findOne({ user: user._id });
+  if (!profile) throw new Error('Intern profile not found');
+  if (!canEditOwnInternProfile(user, profile)) {
+    const err = new Error('Not authorized');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (positionId) {
+    if (profile.declaredPosition && positionId === profile.declaredPosition.toString()) {
+      throw new Error('Secondary position must differ from your main position');
+    }
+    const position = await Position.findById(positionId);
+    if (!position) throw new Error('Invalid position');
+  }
+
+  profile.secondaryPosition = positionId || null;
   await profile.save();
   return getMyInternProfile(user);
 };
@@ -1003,6 +1026,7 @@ module.exports = {
   getMyInternProfile,
   updateSelfTechnologies,
   updateSelfPosition,
+  updateSelfSecondaryPosition,
   updateInternProgramme,
   updateDocumentationLinks,
   updateInternalCvLink,
