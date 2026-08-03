@@ -3,7 +3,6 @@ import { useState } from 'react';
 import AppSidebar from '@/components/AppSidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import PageHeader from '@/components/PageHeader';
-import AppTopActions from '@/components/AppTopActions';
 import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
 export default function SidebarLayout() {
@@ -40,12 +39,9 @@ export default function SidebarLayout() {
             </>
           )}
 
+          {/* Theme, notifications and logout all live in the sidebar footer now —
+              nothing floats over the page. */}
           <main className="relative flex-1 min-w-0 overflow-hidden bg-transparent">
-            <div className="pointer-events-none fixed right-4 top-4 z-40 sm:right-6 sm:top-6">
-              <div className="pointer-events-auto">
-                <AppTopActions />
-              </div>
-            </div>
             <Outlet context={{ setHeader }} />
           </main>
         </div>

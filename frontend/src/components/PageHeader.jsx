@@ -8,7 +8,9 @@ export default function PageHeader({ children, className }) {
         className
       )}
     >
-      <div className="flex min-h-16 items-center px-4 sm:px-6 lg:px-8">{children}</div>
+      {/* px-6 matches .app-page-content's gutter so the header lines up with the
+          content below it at every breakpoint. */}
+      <div className="flex min-h-16 items-center px-6">{children}</div>
     </header>
   );
 }

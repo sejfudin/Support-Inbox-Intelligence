@@ -62,8 +62,12 @@
     @apply min-h-screen bg-transparent;
   }
 
+  /* Full-bleed: pages span the whole area left by the sidebar, with a 24px gutter
+     so panels don't crowd the sidebar border or the window edge. Deliberately NOT
+     max-width-centred — wide tables and boards are the common case here, and
+     centring wasted the outer thirds on large screens. */
   .app-page-content {
-    @apply mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8;
+    @apply w-full px-6 py-6;
   }
 
   .app-elevated {
