@@ -5,23 +5,22 @@ import { ArrowRight, CalendarX, ClipboardCheck, Send, SquarePen, UserPlus } from
 /**
  * The five quick actions from the mockup.
  *
- * Every action is declared in ONE list so wiring the remaining ones up later is
- * a single-line change per row. An action either navigates (`to`) or is not
- * built yet (`pending`) — there is no third case, and a pending action says so
- * out loud rather than silently doing nothing.
+ * Every action is declared in ONE list so wiring one up is a single-line change.
+ * An action either navigates (`to`), opens something on this page (`opens`, handled
+ * by the parent via `onAction`), or is not built yet (`pending`) — and a pending
+ * action says so out loud rather than silently doing nothing.
  *
- * `Mark absence / excuse` is intentionally pending: the Attendance model has no
- * write path for absence at all (absence is the *lack* of a check-in record, and
- * only interns may check in), so there is no endpoint to call yet.
- * `Write evaluation` is pending because evaluations are created per intern from
- * their profile — it needs an intern picker first.
+ * `Mark absence / excuse` is the only one still pending, and not for want of a UI:
+ * the Attendance model has no write path for absence at all. Absence is the *lack*
+ * of a check-in record and only interns may check in, so there is no endpoint to
+ * call. It needs a backend change first, not a modal.
  */
 const QUICK_ACTIONS = [
-  { key: 'assign-ticket', label: 'Assign a ticket', icon: ClipboardCheck, to: '/tickets' },
-  { key: 'recommend-intern', label: 'Recommend intern', icon: Send, to: '/recommendations' },
-  { key: 'write-evaluation', label: 'Write evaluation', icon: SquarePen, pending: true },
+  { key: 'assign-ticket', label: 'Assign a ticket', icon: ClipboardCheck, opens: true },
+  { key: 'recommend-intern', label: 'Recommend intern', icon: Send, opens: true },
+  { key: 'write-evaluation', label: 'Write evaluation', icon: SquarePen, opens: true },
   { key: 'mark-absence', label: 'Mark absence / excuse', icon: CalendarX, pending: true },
-  { key: 'add-intern', label: 'Add intern', icon: UserPlus, to: '/admin/users' },
+  { key: 'add-intern', label: 'Add intern', icon: UserPlus, to: '/register' },
 ];
 
 const ROW_CLASS =
@@ -35,15 +34,30 @@ function ActionIcon({ icon: Icon }) {
   );
 }
 
-export function QuickActionsCard() {
+export function QuickActionsCard({ onAction }) {
   return (
-    <section className="app-panel-soft shrink-0 p-4 sm:p-5" aria-label="Quick actions">
+    <section
+      data-tour="dashboard-quick-actions"
+      className="app-panel-soft shrink-0 p-4 sm:p-5"
+      aria-label="Quick actions"
+    >
       <h2 className="text-base font-semibold leading-6 text-foreground">Quick actions</h2>
 
       <ul className="mt-3 -mx-1 space-y-0.5">
         {QUICK_ACTIONS.map((action) => (
           <li key={action.key}>
-            {action.pending ? (
+            {action.opens ? (
+              <button
+                type="button"
+                data-test={`admin-dashboard-action-${action.key}`}
+                onClick={() => onAction?.(action.key)}
+                className={`${ROW_CLASS} text-foreground hover:bg-primary/[0.06]`}
+              >
+                <ActionIcon icon={action.icon} />
+                <span className="min-w-0 flex-1 truncate">{action.label}</span>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+              </button>
+            ) : action.pending ? (
               <button
                 type="button"
                 data-test={`admin-dashboard-action-${action.key}`}

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
  * admin standup-compliance endpoint (`GET /api/dailies/admin/overview`) rather
  * than duplicating the numbers into the dashboard aggregate.
  */
-export function TodayStandupCard({ overview, isPending }) {
+export function TodayStandupCard({ overview, isPending, workspaceId }) {
   const stats = overview?.stats;
   const isWeekend = overview?.today?.isWeekend;
   const reported = stats?.reportedToday ?? 0;
@@ -17,6 +17,7 @@ export function TodayStandupCard({ overview, isPending }) {
   return (
     <section
       className="app-panel-soft flex min-h-0 flex-1 flex-col p-4 sm:p-5"
+      data-tour="dashboard-standup"
       aria-label="Today's standup"
     >
       <header className="flex items-start justify-between gap-2">
@@ -61,8 +62,18 @@ export function TodayStandupCard({ overview, isPending }) {
       {/* mt-auto keeps the button on the card's bottom edge when the rail has
           spare height, so it lines up with the interns panel's footer. */}
       <div className="mt-auto pt-4">
+        {/* Carries the workspace across: Daily Insights has its own picker that
+            would otherwise default elsewhere, silently showing a different
+            workspace's standup than the board just being read. */}
         <Button asChild size="sm" className="w-full">
-          <Link to="/admin/daily-insights" data-test="admin-dashboard-standup-link">
+          <Link
+            to={
+              workspaceId
+                ? `/admin/daily-insights?workspace=${workspaceId}`
+                : '/admin/daily-insights'
+            }
+            data-test="admin-dashboard-standup-link"
+          >
             Open standup board
           </Link>
         </Button>

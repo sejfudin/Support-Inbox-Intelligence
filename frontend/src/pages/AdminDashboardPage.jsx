@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowRight } from 'lucide-react';
@@ -17,6 +17,11 @@ import { PlacementsSpecializationCard } from '@/components/admin/dashboard/Place
 import { WorkspaceInternsPanel } from '@/components/admin/dashboard/WorkspaceInternsPanel';
 import { QuickActionsCard } from '@/components/admin/dashboard/QuickActionsCard';
 import { TodayStandupCard } from '@/components/admin/dashboard/TodayStandupCard';
+import { InternPickerModal } from '@/components/admin/dashboard/InternPickerModal';
+import { NewRecommendationDialog } from '@/components/admin/dashboard/NewRecommendationDialog';
+import { NewEvaluationDialog } from '@/components/admin/dashboard/NewEvaluationDialog';
+import LazyNewTickets from '@/components/Tickets/LazyNewTickets';
+import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 
 // The mockup's top row is four equal quarters; the second quarter holds two
 // smaller cards side by side. Below it, the same 4-column grid splits 3 / 1 into
@@ -175,6 +180,12 @@ function InternsPanelSkeleton() {
 export default function AdminDashboardPage() {
   const { user } = useAuth();
 
+  // Which quick action is open. One value rather than a boolean per modal, so two
+  // can never be open at once. Recommend/evaluate are two-stage: the picker, then
+  // the form for whoever was picked.
+  const [openAction, setOpenAction] = useState(null);
+  const [pickedIntern, setPickedIntern] = useState(null);
+
   // Scoped to the caller's active workspace. Switching is the sidebar's
   // WorkspaceSwitcher — it PATCHes the active workspace, refetches the user and
   // navigates back here, so this re-keys and refetches on its own.
@@ -194,6 +205,24 @@ export default function AdminDashboardPage() {
     workspaceId,
     currentMonthKey
   );
+
+  // For "Assign a ticket": the modal creates into the workspace the sidebar has
+  // selected, so it needs that workspace's own statuses, not the caller's default.
+  const { helpers: ticketStatusHelpers } = useTicketStatuses(workspaceId);
+
+  const workspaceName = dashboard?.workspace?.name || '';
+
+  // Picking an intern swaps the picker for the form, in place — the admin stays on
+  // the dashboard rather than being thrown onto the intern's profile.
+  const handleInternPicked = (intern) => {
+    setPickedIntern(intern);
+    setOpenAction(openAction === 'recommend-intern' ? 'recommend-form' : 'evaluate-form');
+  };
+
+  const closeAction = () => {
+    setOpenAction(null);
+    setPickedIntern(null);
+  };
 
   // An admin can sit outside every workspace ("Global admin mode" in the sidebar).
   // The sidebar switcher only lists workspaces they are a member of and collapses
@@ -270,14 +299,59 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-4">
-                  <QuickActionsCard />
-                  <TodayStandupCard overview={standupResponse?.data} isPending={standupPending} />
+                  <QuickActionsCard onAction={setOpenAction} />
+                  <TodayStandupCard
+                    overview={standupResponse?.data}
+                    isPending={standupPending}
+                    workspaceId={workspaceId}
+                  />
                 </div>
               </div>
             </>
           )}
         </PageSection>
       </PageShell>
+
+      {/* Creates into the workspace the sidebar has selected — named in the modal
+          so an admin who manages several does not file a ticket in the wrong one. */}
+      <LazyNewTickets
+        isOpen={openAction === 'assign-ticket'}
+        onClose={() => setOpenAction(null)}
+        workspaceId={workspaceId}
+        statusOptions={ticketStatusHelpers?.statusOptions || []}
+        initialStatus={ticketStatusHelpers?.defaultMainStatusId}
+        contextNote={workspaceName ? `New ticket in ${workspaceName}` : undefined}
+      />
+
+      <InternPickerModal
+        open={openAction === 'recommend-intern'}
+        onClose={closeAction}
+        onSelect={handleInternPicked}
+        actionLabel="Recommend"
+        title="Recommend an intern"
+        description="Pick the intern to recommend — the recommendation form opens next."
+      />
+
+      <InternPickerModal
+        open={openAction === 'write-evaluation'}
+        onClose={closeAction}
+        onSelect={handleInternPicked}
+        actionLabel="Evaluate"
+        title="Write an evaluation"
+        description="Pick the intern to evaluate — the evaluation form opens next."
+      />
+
+      <NewRecommendationDialog
+        internUserId={pickedIntern?.userId}
+        open={openAction === 'recommend-form'}
+        onClose={closeAction}
+      />
+
+      <NewEvaluationDialog
+        internUserId={pickedIntern?.userId}
+        open={openAction === 'evaluate-form'}
+        onClose={closeAction}
+      />
     </TooltipProvider>
   );
 }
