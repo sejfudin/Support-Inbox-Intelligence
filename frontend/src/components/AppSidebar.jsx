@@ -55,6 +55,21 @@ import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { TaskManagerBrand } from '@/components/TaskManagerBrand';
 
+// Shared easing for every rail affordance so the width slide, the label
+// crossfade, and the row reflow all move on the same curve. easeInOutCubic —
+// gentle acceleration and deceleration at both ends so the motion reads as
+// smooth rather than snapping away at the start.
+const RAIL_EASE = 'ease-[cubic-bezier(0.65,0,0.35,1)]';
+
+// A label that lives inside a rail row. Collapsing the sidebar fades it out AND
+// squeezes its width to 0 so the row's icon reflows to center in sync with the
+// panel slide — swapping to `display:none` instead would snap the text away at
+// frame 0 while the box was still animating.
+// `max-w-[12rem]` (not `none`) gives the width transition an explicit start
+// length so it animates to `max-w-0` instead of snapping — a length is required
+// at both ends. 12rem clears the widest rail label with room to spare.
+const collapsibleLabel = `max-w-[12rem] overflow-hidden opacity-100 transition-[max-width,opacity] duration-300 ${RAIL_EASE} group-data-[collapsible=icon]:max-w-0 group-data-[collapsible=icon]:opacity-0`;
+
 const navTestSlug = (to) =>
   to
     .replace(/^\//, '')
@@ -76,8 +91,9 @@ function RailTooltip({ label, children }) {
 
 /**
  * One nav row. Collapsed (icon rail) it shrinks to a centred icon and the label
- * moves into a tooltip — the label element is hidden rather than unmounted so the
- * width transition has something to animate against.
+ * moves into a tooltip — the label crossfades to zero width (see
+ * `collapsibleLabel`) rather than unmounting, so it animates in step with the
+ * panel slide instead of snapping away.
  *
  * Active state comes from `useMatch`, NOT NavLink's `className` callback, because
  * in the rail this link is a `TooltipTrigger asChild`: Radix's Slot merges
@@ -95,7 +111,7 @@ function NavItem({ item, collapsed }) {
       end
       data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
       className={cn(
-        'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all',
+        `flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-300 ${RAIL_EASE}`,
         'group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0',
         isActive
           ? 'bg-primary text-primary-foreground shadow-elevated-sm'
@@ -103,11 +119,16 @@ function NavItem({ item, collapsed }) {
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span className="min-w-0 flex-1 truncate font-medium group-data-[collapsible=icon]:hidden">
+      <span className={cn('min-w-0 flex-1 truncate font-medium', collapsibleLabel)}>
         {item.label}
       </span>
       {item.badge ? (
-        <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground group-data-[collapsible=icon]:hidden">
+        <span
+          className={cn(
+            'ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground group-data-[collapsible=icon]:min-w-0',
+            collapsibleLabel
+          )}
+        >
           {item.badge > 99 ? '99+' : item.badge}
         </span>
       ) : null}
@@ -311,11 +332,14 @@ export default function AppSidebar() {
                   <button
                     type="button"
                     data-test="sidebar-user-menu-trigger"
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
+                    className={cn(
+                      `flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left text-sm text-foreground transition-all duration-300 ${RAIL_EASE} hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`,
+                      'group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0'
+                    )}
                     aria-label={`Account menu for ${user?.fullname || 'your account'}`}
                   >
                     <Avatar users={[user]} />
-                    <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+                    <span className={cn('min-w-0 flex-1', collapsibleLabel)}>
                       <span className="block truncate font-semibold">
                         {user?.fullname || 'Unknown User'}
                       </span>
@@ -323,7 +347,9 @@ export default function AppSidebar() {
                         {capitalizeFirst(user?.role) || 'User'}
                       </span>
                     </span>
-                    <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden" />
+                    <ChevronsUpDown
+                      className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground', collapsibleLabel)}
+                    />
                   </button>
                 </DropdownMenuTrigger>
 
