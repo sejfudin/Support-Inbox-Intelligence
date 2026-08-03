@@ -229,6 +229,9 @@ const updateSelfPosition = async (user, positionId = null) => {
   }
 
   if (positionId) {
+    if (profile.secondaryPosition && positionId === profile.secondaryPosition.toString()) {
+      throw new Error('Main position must differ from your secondary position');
+    }
     const position = await Position.findById(positionId);
     if (!position) throw new Error('Invalid position');
   }

@@ -42,6 +42,8 @@ export function InternPositionDeclaration() {
     });
   };
 
+  const secondaryPositionId = intern?.secondaryPosition?._id || '';
+  const mainOptions = positions.filter((position) => position._id !== secondaryPositionId);
   const secondaryOptions = positions.filter((position) => position._id !== mainPositionId);
 
   return (
@@ -81,7 +83,7 @@ export function InternPositionDeclaration() {
               <SelectValue placeholder="Select your position" />
             </SelectTrigger>
             <SelectContent>
-              {positions.map((position) => (
+              {mainOptions.map((position) => (
                 <SelectItem key={position._id} value={position._id}>
                   {position.name}
                 </SelectItem>
