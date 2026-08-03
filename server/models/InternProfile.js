@@ -68,6 +68,15 @@ const internProfileSchema = new mongoose.Schema(
       ref: 'Position',
       default: null,
     },
+    secondaryPosition: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Position',
+      default: null,
+    },
+    specializationAssignedAt: {
+      type: Date,
+      default: null,
+    },
     cvPath: {
       type: String,
       default: null,

@@ -16,13 +16,7 @@ const assertMentorUser = async (mentorId, label) => {
   return mentor;
 };
 
-const createInternProfile = async ({
-  userId,
-  internshipTypeId,
-  primaryMentorId,
-  secondaryMentorId,
-  startDate,
-}) => {
+const createInternProfile = async ({ userId, internshipTypeId, primaryMentorId, startDate }) => {
   if (!internshipTypeId) throw new Error('Internship type is required');
   if (!primaryMentorId) throw new Error('Primary mentor is required');
   if (!startDate) throw new Error('Internship start date is required');
@@ -34,13 +28,6 @@ const createInternProfile = async ({
 
   await assertMentorUser(primaryMentorId, 'primary mentor');
 
-  if (secondaryMentorId) {
-    if (secondaryMentorId === primaryMentorId) {
-      throw new Error('Secondary mentor must be different from primary mentor');
-    }
-    await assertMentorUser(secondaryMentorId, 'secondary mentor');
-  }
-
   const parsedStart = new Date(startDate);
   if (Number.isNaN(parsedStart.getTime())) {
     throw new Error('Invalid internship start date');
@@ -50,7 +37,6 @@ const createInternProfile = async ({
     user: userId,
     internshipType: internshipTypeId,
     primaryMentor: primaryMentorId,
-    secondaryMentor: secondaryMentorId || undefined,
     startDate: parsedStart,
   });
 };

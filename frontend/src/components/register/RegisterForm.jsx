@@ -52,7 +52,7 @@ const REGISTER_STEPS = {
     id: 'programme',
     label: 'Internship programme',
     icon: GraduationCap,
-    fields: ['internshipTypeId', 'startDate', 'primaryMentorId', 'secondaryMentorId'],
+    fields: ['internshipTypeId', 'startDate', 'primaryMentorId'],
   },
   taskManager: {
     id: 'taskManager',
@@ -243,7 +243,6 @@ export function RegisterForm({ onSuccess, onError }) {
     if (!showInternFields) {
       setValue('internshipTypeId', '');
       setValue('primaryMentorId', '');
-      setValue('secondaryMentorId', 'none');
       setValue('startDate', '');
       return;
     }
@@ -568,43 +567,6 @@ export function RegisterForm({ onSuccess, onError }) {
                           data-test={`register-primary-mentor-option-${mentor._id}`}
                         >
                           {mentor.fullname}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </FormField>
-
-            <FormField
-              label="Secondary mentor (optional)"
-              htmlFor="register-secondary-mentor"
-              hint="Area mentor for DS, ML, QA, or other tracks outside the main hub mentor."
-            >
-              <Controller
-                name="secondaryMentorId"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger
-                      id="register-secondary-mentor"
-                      data-test="register-secondary-mentor-select"
-                      className={inputClass(false)}
-                    >
-                      <SelectValue placeholder="No secondary mentor" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none" data-test="register-secondary-mentor-option-none">
-                        No secondary mentor
-                      </SelectItem>
-                      {allMentors.map((mentor) => (
-                        <SelectItem
-                          key={mentor._id}
-                          value={mentor._id}
-                          data-test={`register-secondary-mentor-option-${mentor._id}`}
-                        >
-                          {mentor.fullname}
-                          {mentor.hub?.name ? ` · ${mentor.hub.name}` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
