@@ -27,7 +27,7 @@ Detail lives in the referenced docs below — read them when the task calls for 
   `seed:technologies`) are fine against the shared dev DB — see `.claude/docs/workflows.md`.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
 - **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
-- **There is no integration or E2E suite.** `npm test` in `server/` covers pure helpers (`helpers/*.test.js`) plus `services/internCvService.test.js` (Mongo/Supabase mocked) — nothing else. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).
+- **There is no integration or E2E suite.** `npm test` in `server/` covers pure helpers (`helpers/*.test.js`) plus two services with Mongo/Supabase mocked (`services/internCvService.test.js`, `services/internService.test.js`) — nothing else. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).
 - Match surrounding code style. Prettier is the formatter; run `npm run format` in the package you changed.
 - Backend is CommonJS (`require`), frontend is ESM (`import`). Don't mix.
 
