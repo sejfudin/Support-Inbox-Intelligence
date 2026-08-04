@@ -36,7 +36,12 @@ import { useEffect, useState } from 'react';
 // redesign's own string rather than extending it: people who already walked the
 // shell tour have still seen neither dashboard nor this button.
 export const TOUR_VERSION = '2026-08-dashboards-r1';
-export const TOUR_STORAGE_KEY = 'whatsNewTour';
+
+// Not exported: every read and write of it lives in this module now, and the two
+// consumers go through `useWhatsNewSeen` / `markWhatsNewSeen` instead. Keep it
+// that way — a second module touching this key directly is how the button and the
+// overlay end up disagreeing about whether the tour has been seen.
+const TOUR_STORAGE_KEY = 'whatsNewTour';
 
 /**
  * Opening the tour. It is **never** shown automatically — the only way in is the
@@ -52,7 +57,7 @@ export const TOUR_STORAGE_KEY = 'whatsNewTour';
 export const TOUR_REPLAY_EVENT = 'whatsnew:replay';
 
 /** Fired once the tour has been completed or skipped, to stop the pulse. */
-export const TOUR_SEEN_EVENT = 'whatsnew:seen';
+const TOUR_SEEN_EVENT = 'whatsnew:seen';
 
 export const replayWhatsNewTour = () => {
   window.dispatchEvent(new Event(TOUR_REPLAY_EVENT));
@@ -70,7 +75,7 @@ const readSeenVersion = () => {
 };
 
 /** Versioned, not boolean, so the next redesign only has to bump TOUR_VERSION. */
-export const hasSeenWhatsNew = () => readSeenVersion() === TOUR_VERSION;
+const hasSeenWhatsNew = () => readSeenVersion() === TOUR_VERSION;
 
 export const markWhatsNewSeen = () => {
   try {
