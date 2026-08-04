@@ -30,8 +30,15 @@ const SHORT_REASONS = {
 export function InternPickerModal({ open, onClose, onSelect, title, description, actionLabel }) {
   const [search, setSearch] = useState('');
 
-  // The whole roster, filtered client-side: it is a few dozen rows, and typing
-  // against a local list beats a request per keystroke.
+  // Every intern on the PLATFORM, not just this workspace's — deliberate, and the
+  // one other place the dashboard leaves its workspace scope (see `loadPlacements()`
+  // in server/services/adminDashboardService.js). Recommendations and evaluations
+  // are programme-level records about a person, not workspace events, so an admin
+  // recommending someone should not first have to switch into the right board.
+  // Safe because the whole page is admin-only, and admins already read every intern.
+  //
+  // Filtered client-side: it is a few dozen rows, and typing against a local list
+  // beats a request per keystroke.
   const { data, isPending, isError } = useInterns({ pagination: false }, { enabled: open });
 
   const rows = useMemo(() => {

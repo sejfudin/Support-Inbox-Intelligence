@@ -16,12 +16,11 @@ const {
   CHECK_IN_WINDOW_LABEL,
 } = require('../helpers/attendanceTime');
 
-const { READY_STATUS } = InternProfile;
-
-// Which interns the presence KPI and the workload table count. Mirrors the
-// attendance roster: only interns still in the programme, since a placed or
-// discontinued intern has no attendance or workload to report.
-const IN_PROGRAMME_STATUSES = ['active', READY_STATUS];
+// Which interns the presence KPI and the workload table count: only interns still
+// in the programme, since a placed or discontinued intern has no attendance or
+// workload to report. Same list the attendance roster filters on — shared via the
+// model so the two can't drift.
+const { IN_PROGRAMME_STATUSES } = InternProfile;
 
 // The workload segments, in render order. Fixed rather than derived from the
 // workspace's status list so every row in the table has the same shape — a
@@ -304,4 +303,4 @@ const getAdminDashboard = async ({ workspaceId }) => {
   };
 };
 
-module.exports = { getAdminDashboard, WORKLOAD_SLUGS };
+module.exports = { getAdminDashboard };

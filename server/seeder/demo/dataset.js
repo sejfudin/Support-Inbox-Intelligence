@@ -364,7 +364,7 @@ const interns = [
     ],
   },
 
-  // ── terminal states: off the attendance roster (ROSTER_STATUSES), present in
+  // ── terminal states: off the attendance roster (IN_PROGRAMME_STATUSES), present in
   //    the pipeline and history screens.
   {
     key: 'filip',

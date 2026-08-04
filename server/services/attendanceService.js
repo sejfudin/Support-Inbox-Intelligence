@@ -14,12 +14,12 @@ const {
 const { computeMonthStats } = require('../helpers/attendanceStats');
 
 const { PRESENT, CANCELLED } = Attendance;
-const { READY_STATUS } = InternProfile;
 
 // Which interns appear on the admin roster. Attendance is only meaningful for
 // interns currently in the programme, so terminal states (placed/completed/
-// discontinued) are excluded. Widen this if past interns should show up.
-const ROSTER_STATUSES = ['active', READY_STATUS];
+// discontinued) are excluded. The list lives on the model because the admin
+// dashboard counts the same set — widen it there, not here.
+const { IN_PROGRAMME_STATUSES } = InternProfile;
 
 const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
@@ -185,7 +185,7 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
   const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
   const { start, end } = monthBounds(monthKey);
 
-  const filter = { status: { $in: ROSTER_STATUSES } };
+  const filter = { status: { $in: IN_PROGRAMME_STATUSES } };
 
   let profiles = await InternProfile.find(filter)
     .populate({

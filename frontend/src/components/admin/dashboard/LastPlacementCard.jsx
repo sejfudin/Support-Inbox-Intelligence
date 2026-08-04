@@ -3,7 +3,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { DashboardCard, DashboardCardEmpty } from './DashboardCard';
 
 export function LastPlacementCard({ lastPlacement }) {
-  const daysAgo = lastPlacement?.daysAgo;
+  // Null when the placement carries no decided-at date at all (nothing to date it
+  // by, not even `updatedAt`) — the number is dropped rather than rendered as a
+  // bare "days ago" with nothing in front of it.
+  const daysAgo = Number.isFinite(lastPlacement?.daysAgo) ? lastPlacement.daysAgo : null;
 
   // First name only: this card is a quarter of the top row, and a full
   // "Firstname Lastname · day N of cycle" truncates mid-word at that width.
@@ -37,9 +40,9 @@ export function LastPlacementCard({ lastPlacement }) {
         <>
           <p className="flex flex-wrap items-baseline gap-x-1.5">
             <span className="text-4xl font-semibold leading-none tabular-nums text-foreground">
-              {daysAgo === 0 ? 'Today' : daysAgo}
+              {daysAgo === null ? '—' : daysAgo === 0 ? 'Today' : daysAgo}
             </span>
-            {daysAgo !== 0 && (
+            {daysAgo !== null && daysAgo !== 0 && (
               <span className="text-sm font-medium text-muted-foreground">
                 {daysAgo === 1 ? 'day ago' : 'days ago'}
               </span>
@@ -51,7 +54,7 @@ export function LastPlacementCard({ lastPlacement }) {
           </p>
         </>
       ) : (
-        <DashboardCardEmpty>No placements recorded for this workspace yet.</DashboardCardEmpty>
+        <DashboardCardEmpty>No interns have been placed on the platform yet.</DashboardCardEmpty>
       )}
     </DashboardCard>
   );

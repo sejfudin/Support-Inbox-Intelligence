@@ -28,9 +28,10 @@ const getActiveWorkspaceInterns = async (workspaceId, { select = 'fullname email
 };
 
 /**
- * Every active member's user id, regardless of role. Used where a placed or
- * completed intern must still resolve — `getActiveWorkspaceInterns` filters on
- * the User being active, which a departed intern no longer is.
+ * Every active member's user id, regardless of role — the membership lookup
+ * `getActiveWorkspaceInterns` narrows by role above. Not exported: nothing outside
+ * this module needs the unfiltered id list yet, and exporting it invites callers to
+ * treat a raw member list as an intern list.
  */
 const getActiveMemberUserIds = async (workspaceId) => {
   const workspace = await Workspace.findById(workspaceId).select('members').lean();
@@ -41,4 +42,4 @@ const getActiveMemberUserIds = async (workspaceId) => {
     .map((member) => member.user);
 };
 
-module.exports = { getActiveWorkspaceInterns, getActiveMemberUserIds };
+module.exports = { getActiveWorkspaceInterns };

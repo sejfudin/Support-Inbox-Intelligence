@@ -5,6 +5,12 @@ const mongoose = require('mongoose');
 const READY_STATUS = 'ready';
 const INTERN_STATUSES = ['active', READY_STATUS, 'placed', 'completed', 'discontinued'];
 
+// The statuses that mean "still in the programme" — an intern who is placed,
+// completed or discontinued has no live attendance or workload to report. Shared
+// so the attendance roster and the admin dashboard can't drift apart on who they
+// count; both used to carry their own copy of this list.
+const IN_PROGRAMME_STATUSES = ['active', READY_STATUS];
+
 const documentationLinkSchema = new mongoose.Schema(
   {
     label: {
@@ -101,3 +107,4 @@ const internProfileSchema = new mongoose.Schema(
 module.exports = mongoose.model('InternProfile', internProfileSchema);
 module.exports.INTERN_STATUSES = INTERN_STATUSES;
 module.exports.READY_STATUS = READY_STATUS;
+module.exports.IN_PROGRAMME_STATUSES = IN_PROGRAMME_STATUSES;

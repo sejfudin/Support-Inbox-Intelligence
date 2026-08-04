@@ -11,8 +11,9 @@
  *  - `intern` is an InternProfile id, not a User id.
  *  - `checkedInAt` should land inside the 07:00–11:00 office window, since that
  *    is the only time a real check-in could have happened.
- *  - Only `active`/`ready` profiles appear on the admin roster (ROSTER_STATUSES
- *    in attendanceService), so terminal-status interns get no rows at all.
+ *  - Only `active`/`ready` profiles appear on the admin roster
+ *    (IN_PROGRAMME_STATUSES in models/InternProfile.js), so terminal-status
+ *    interns get no rows at all.
  */
 
 const Attendance = require('../../models/Attendance');

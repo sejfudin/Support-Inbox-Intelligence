@@ -12,11 +12,11 @@ export function RecentPlacementsSection({ placements = [] }) {
     <>
       <DashboardCardHeader kicker="Recent placements" />
 
+      {/* The empty copy is platform-wide, like the list itself — see
+          `loadPlacements()` in server/services/adminDashboardService.js. */}
       <div className="mt-3 flex min-h-0 flex-1 flex-col">
         {placements.length === 0 ? (
-          <DashboardCardEmpty>
-            No interns from this workspace have been placed yet.
-          </DashboardCardEmpty>
+          <DashboardCardEmpty>No interns have been placed on the platform yet.</DashboardCardEmpty>
         ) : (
           <ul className="-mx-1 space-y-1">
             {placements.map((placement) => (

@@ -14,12 +14,15 @@ import { getInitials } from '@/helpers/getInitials';
 // helpers/attendanceTime.js). Which end of it matters depends on where "now"
 // falls, so the badge reads differently in each state instead of always showing
 // a deadline that may already have passed.
+// Meridiem is derived rather than hardcoded: the window ends at 11:00 today, but
+// `endHour` is server config and a move past noon would otherwise read "1 AM".
+const hour12Label = (hour) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? 'AM' : 'PM'}`;
+
 const windowBadge = (checkInWindow) => {
   if (!checkInWindow) return null;
-  const hour12 = (hour) => (hour % 12 === 0 ? 12 : hour % 12);
   switch (checkInWindow.state) {
     case 'open':
-      return `until ${hour12(checkInWindow.endHour)} AM`;
+      return `until ${hour12Label(checkInWindow.endHour)}`;
     case 'before':
       return `opens ${checkInWindow.label.split('–')[0]}`;
     default:

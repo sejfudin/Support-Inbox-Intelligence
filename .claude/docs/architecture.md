@@ -218,8 +218,9 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
 - Endpoints: `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat
   block), `POST|DELETE /api/attendance/me/check-in` (intern-self); `GET /api/attendance` (**admin-only**
   roster, `?month=YYYY-MM&search=&hub=`, defaults to the current month, records scoped to that month
-  so the payload stays bounded, and only `active`/`ready` interns — `ROSTER_STATUSES` in the
-  service — a `placed`/`completed`/`discontinued` intern drops off the roster entirely) and
+  so the payload stays bounded, and only `active`/`ready` interns — `InternProfile`'s exported
+  `IN_PROGRAMME_STATUSES` — a `placed`/`completed`/`discontinued` intern drops off the roster
+  entirely) and
   `GET /api/attendance/:internProfileId` (**admin-only**, one intern's full history for the
   calendar modal, no status filter). Response envelope is the standard
   `{ success, message, data }`, with `data` holding `{ attendance }` / `{ month, roster }`.
@@ -248,13 +249,12 @@ The admin landing board: one workspace at a time — the caller's **active** wor
   active workspace — which is why the empty state points at `/admin/workspaces` instead of the
   sidebar.
 - **Scoping goes through `Workspace.members`, never `User.workspaceId`** —
-  `server/helpers/workspaceInterns.js` (`getActiveWorkspaceInterns`, `getActiveMemberUserIds`),
-  also used by `dailyService`. `InternProfile` has **no** `workspace` field, and
+  `server/helpers/workspaceInterns.js` (`getActiveWorkspaceInterns`), also used by `dailyService`. `InternProfile` has **no** `workspace` field, and
   `User.workspaceId` is only the member's *currently active* workspace, so scoping on it would
   drop interns who belong here but are switched elsewhere.
 - **Presence + the workload table count only in-programme interns**
-  (`InternProfile.status` ∈ `active`/`ready`, mirroring the attendance roster's `ROSTER_STATUSES`) —
-  a placed or discontinued intern has no live workload or attendance to report.
+  (`InternProfile.IN_PROGRAMME_STATUSES` — `active`/`ready`, the same list the attendance roster
+  filters on) — a placed or discontinued intern has no live workload or attendance to report.
 - **The two placement cards are the one global thing on the page.** "Last intern placed" and
   "Recent placements" query `Recommendation` with `result.outcome: 'placed'` across the **whole
   platform**, unscoped — placement is a programme-level milestone, and per-workspace scoping made
@@ -263,7 +263,7 @@ The admin landing board: one workspace at a time — the caller's **active** wor
   workload, interns table) stays workspace-scoped. `LastPlacementCard` carries a help tooltip
   saying so, since a global number on an otherwise workspace-scoped board is surprising.
 - **Workload segments are a fixed four** (`to do`, `in progress`, `on staging`, `blocked` —
-  `WORKLOAD_SLUGS`), so every table row has the same shape. Labels/colors come from the
+  `WORKLOAD_SLUGS`, module-private to the service), so every table row has the same shape. Labels/colors come from the
   workspace's own `TicketStatus` rows and fall back to `statusService.DEFAULT_STATUSES`.
   `done`/`backlog` are excluded — the table is open work in flight. `Ticket.assignedTo` is an
   array, so a shared ticket counts once per assignee.
