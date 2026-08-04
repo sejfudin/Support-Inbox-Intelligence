@@ -19,7 +19,7 @@ const NONE_VALUE = 'none';
 
 export function InternPositionDeclaration() {
   const { data: intern } = useMyInternProfile();
-  const { data: positions = [] } = usePositions();
+  const { data: positions = [], isPending: isLoadingPositions } = usePositions();
   const { mutate: savePosition, isPending: isSavingMain } = useUpdateMyPosition();
   const { mutate: saveSecondaryPosition, isPending: isSavingSecondary } =
     useUpdateMySecondaryPosition();
@@ -75,6 +75,8 @@ export function InternPositionDeclaration() {
           >
             {intern?.declaredPosition?.name || '-'}
           </p>
+        ) : isLoadingPositions ? (
+          <p className="text-sm text-muted-foreground">Loading positions...</p>
         ) : positions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No positions configured yet.</p>
         ) : (
