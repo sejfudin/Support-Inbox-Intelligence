@@ -8,6 +8,23 @@ export const fetchProjects = async ({ includeAll = false, status } = {}) => {
   return data;
 };
 
+export const fetchProject = async (id) => {
+  const { data } = await apiClient.get(`/projects/${id}`);
+  return data.data;
+};
+
+// Leadership-facing aggregates — the two new endpoints respond
+// { success, message, data }, unlike the plain-array endpoints above.
+export const fetchProjectsOverview = async () => {
+  const { data } = await apiClient.get('/projects/overview');
+  return data.data;
+};
+
+export const fetchProjectOverview = async (id) => {
+  const { data } = await apiClient.get(`/projects/${id}/overview`);
+  return data.data;
+};
+
 export const createProject = async (payload) => {
   const { data } = await apiClient.post('/projects', payload);
   return data;
