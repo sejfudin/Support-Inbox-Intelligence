@@ -104,10 +104,12 @@ const listSpecializations = async (user, query = {}) => {
     filter.user = { $in: userIds };
   }
 
+  const sortDirection = query.sort === 'assignedAt:asc' ? 1 : -1;
+
   const [profiles, total, stats] = await Promise.all([
     InternProfile.find(filter)
       .populate(PROFILE_POPULATE)
-      .sort({ specializationAssignedAt: -1, _id: -1 })
+      .sort({ specializationAssignedAt: sortDirection, _id: sortDirection })
       .skip(skip)
       .limit(limit),
     InternProfile.countDocuments(filter),
