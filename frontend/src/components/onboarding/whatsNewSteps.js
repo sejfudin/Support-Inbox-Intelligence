@@ -19,7 +19,10 @@
 
 import { useEffect, useState } from 'react';
 
-export const TOUR_VERSION = '2026-08-intern-dashboard-r1';
+// Covers both boards and the new way in, which is why it supersedes the shell
+// redesign's own string rather than extending it: people who already walked the
+// shell tour have still seen neither dashboard nor this button.
+export const TOUR_VERSION = '2026-08-dashboards-r1';
 export const TOUR_STORAGE_KEY = 'whatsNewTour';
 
 /**
