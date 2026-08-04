@@ -36,10 +36,27 @@ export function InfoPopover({ title, children }) {
   );
 }
 
-// Clickable KPI tile: the whole card links to `to` (a pre-filtered list URL),
-// with an optional secondary `action` button (e.g. "See details", scrolls
-// instead of navigating) and an optional InfoPopover explaining the metric.
-export function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, testId, action }) {
+// Clickable KPI tile. The whole card is the primary hit target: `to` links
+// to a pre-filtered list URL (a different route); `onClick` instead fires a
+// same-page action (open a modal, apply a filter) — pass exactly one. An
+// optional secondary `action` button (e.g. "See details") can co-exist with
+// either, an optional InfoPopover explains the metric, and `footer` renders
+// arbitrary content (e.g. clickable breakdown rows) below the hint, raised
+// above the whole-card hit target so its own controls stay clickable.
+export function KpiCard({
+  label,
+  value,
+  sub,
+  hint,
+  dot,
+  highlighted,
+  info,
+  to,
+  onClick,
+  testId,
+  action,
+  footer,
+}) {
   return (
     <SymphonyCard
       variant="muted"
@@ -57,6 +74,15 @@ export function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, t
           aria-label={`View details: ${label}`}
           data-test={testId}
           className="absolute inset-0 z-[1] rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--symphony-brand))]/40"
+        />
+      )}
+      {!to && onClick && (
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={`View details: ${label}`}
+          data-test={testId}
+          className="absolute inset-0 z-[1] rounded-[inherit] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--symphony-brand))]/40"
         />
       )}
       <div className="relative px-5 py-[22px]">
@@ -98,6 +124,7 @@ export function KpiCard({ label, value, sub, hint, dot, highlighted, info, to, t
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
         )}
+        {footer && <div className="relative z-[2] mt-3.5">{footer}</div>}
       </div>
     </SymphonyCard>
   );
