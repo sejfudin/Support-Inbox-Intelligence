@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { useAuth } from '@/context/AuthContext';
 import { TOUR_REPLAY_EVENT, WHATS_NEW_STEPS, markWhatsNewSeen } from './whatsNewSteps';
 import { emitTourActive } from './tourPreview';
@@ -164,13 +163,6 @@ export function WhatsNewTour() {
   const [cardBox, setCardBox] = useState({ width: CARD_WIDTH, height: 180 });
   const cardRef = useRef(null);
 
-  // The tour is shown in light theme so everyone sees the redesign in the same
-  // skin the screenshots and the handover notes use. The previous choice is stashed
-  // in a ref (not state — restoring must not depend on a re-render) and put back on
-  // the way out, so this borrows the theme rather than overwriting a preference.
-  const { theme, setTheme } = useTheme();
-  const themeBeforeTour = useRef(null);
-
   const role = user?.role;
 
   // Bumped by every replay. See the resolution effect below for why it exists.
@@ -194,12 +186,7 @@ export function WhatsNewTour() {
     markWhatsNewSeen();
     setDismissed(true);
     setVisibleSteps([]);
-
-    if (themeBeforeTour.current) {
-      setTheme(themeBeforeTour.current);
-      themeBeforeTour.current = null;
-    }
-  }, [setTheme]);
+  }, []);
 
   // Resolve which steps are actually showable ONCE, when the tour opens, and drive
   // everything from that list. Filtering per-navigation instead would make the
@@ -229,15 +216,6 @@ export function WhatsNewTour() {
     // an already-dismissed-but-mounted tour could resolve to nothing at all.
   }, [dismissed, user, loading, steps, runId]);
 
-  // Force light for the duration, in its own effect keyed only on "is the tour up".
-  // Deliberately NOT folded into the effect above: that one would then depend on
-  // `theme`, which it changes, so it would re-run and reset the tour to step 1.
-  // The live theme is read through a ref for the same reason.
-  const themeRef = useRef(theme);
-  useEffect(() => {
-    themeRef.current = theme;
-  }, [theme]);
-
   const tourActive = !dismissed && visibleSteps.length > 0;
 
   // Broadcast so the intern dashboard can fill genuinely empty cards with example
@@ -249,13 +227,7 @@ export function WhatsNewTour() {
     return () => emitTourActive(false);
   }, [tourActive]);
 
-  useEffect(() => {
-    if (!tourActive || themeBeforeTour.current) return;
-    themeBeforeTour.current = themeRef.current || 'system';
-    setTheme('light');
-  }, [tourActive, setTheme]);
-
-  // Replay on demand — the user menu item and the hold-H shortcut both fire this.
+  // Opened on demand — the dashboard's what's-new button fires this.
   useEffect(() => {
     const onReplay = () => {
       setIndex(0);
