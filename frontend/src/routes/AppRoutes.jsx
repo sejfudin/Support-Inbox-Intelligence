@@ -31,6 +31,7 @@ import LeadershipProjectPage from '@/pages/fep/LeadershipProjectPage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
+import SpecializationPage from '@/pages/SpecializationPage';
 import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
 import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
@@ -137,13 +138,8 @@ export default function AppRoutes() {
           <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/attendance" element={<AttendanceOverviewPage />} />
             <Route path="/admin/daily-insights" element={<AdminDailyInsightsPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/recommendations" element={<MentorRecommendationsPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
+            <Route path="/specialization" element={<SpecializationPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />

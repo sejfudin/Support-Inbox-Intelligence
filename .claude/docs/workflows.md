@@ -61,6 +61,7 @@ npm run seed:recommendations            # ADDITIVE: top up the placement pipelin
 npm run seed:positions
 npm run seed:technologies               # NON-destructive: adds missing technologies, see below
 npm run backfill:intern-positions
+npm run backfill:legacy-secondary-mentor # RUN-WHEN-READY: revokes ad-hoc mentor access, see below
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
 npm run cleanup:superseded-technologies # retire legacy combined catalog rows, see below
@@ -220,6 +221,25 @@ npm run cleanup:superseded-technologies                # deactivate the supersed
 The mapping lives in `SUPERSEDED_BY` at the top of `seeder/retireSupersededTechnologies.js` —
 add a pair there when a new granular entry replaces an older combined one.
 
+### `npm run backfill:legacy-secondary-mentor` — run-when-ready, revokes access
+
+`secondaryMentor` used to be set ad-hoc at invite time; it's now repurposed to mean exactly the
+specialization mentor, marked by `InternProfile.specializationAssignedAt` (ADR 0002). This script
+nulls `secondaryMentor` on every profile where `specializationAssignedAt` is still null, and
+leaves specialized profiles untouched. Additive/idempotent — a second run modifies nothing.
+
+**CAUTION:** a legacy `secondaryMentor` currently grants that mentor `isAssignedMentor` access to
+the intern; nulling it removes that access. This is intended, but it's a behavior change on live
+data — run it once the team is prepared to (re)assign specializations for anyone who genuinely
+needs the pairing, on **each** database (dev and main/production both need their own run once
+ready).
+
+```bash
+npm run backfill:legacy-secondary-mentor -- --dry-run          # report the plan, write nothing
+npm run backfill:legacy-secondary-mentor                       # interactive: type the DATABASE NAME
+npm run backfill:legacy-secondary-mentor -- --yes=<dbname>     # non-interactive; must assert the db name
+```
+
 ### Bringing an existing database up to date with a schema change — `npm run migrate:development-merge`
 
 There is no migration framework — Mongoose schema changes only take effect for documents written
@@ -251,6 +271,10 @@ to a default `Position` per-record when it's missing, and mentors can set the re
 `declaredPosition` by hand. Run `backfill:intern-positions` yourself, deliberately, only against
 a database where random assignment is acceptable (dev/demo).
 
+Also deliberately **not** included: `backfill:legacy-secondary-mentor`. It revokes real mentor
+access (see above), so it's run-when-ready rather than automatic — run it yourself once the team
+is prepared, not as a side effect of a merge.
+
 Each step is its own idempotent, safe-to-re-run script — the wrapper just enforces run order and
 stops at the first failure. Every underlying step is additive/corrective only (no collection is
 wiped), so it's safe to run against a shared or production database, but it still writes real
@@ -260,10 +284,13 @@ script and a new step here, in the same change that alters the model.
 
 ## Verifying a change
 
-There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers a handful of pure
-helpers only — `slugify`, `dailyRules`, `cvTechnologyMatcher` (`helpers/*.test.js`). Run it when
-you touch one of those helpers, but it proves nothing about a route, a query or a screen. To
-confirm a change works, drive the real app:
+There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers pure helpers —
+`slugify`, `dailyRules`, `cvTechnologyMatcher`, `cvTechnologySync` (`helpers/*.test.js`) — plus two
+services that mock Mongo and Supabase: `internCvService` (`services/internCvService.test.js`), for
+the CV re-upload → technology replacement wiring, and `internService`
+(`services/internService.test.js`), for the CV-scan provenance prune on a manual technology save.
+Run them when you touch any of those, but they still prove nothing about a route, a query or a
+screen. To confirm a change works, drive the real app:
 
 - Use `/run` to launch, `/verify` to exercise the affected flow end-to-end.
 - Playwright MCP browser tools are permitted for UI verification.

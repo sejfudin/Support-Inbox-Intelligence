@@ -63,9 +63,28 @@ const internProfileSchema = new mongoose.Schema(
         ref: 'Technology',
       },
     ],
+    // Provenance for the CV scan: the subset of `selfTechnologies` that the most recent CV
+    // upload added, so re-uploading a CV can replace those instead of piling on top of them.
+    // Always a subset of `selfTechnologies`; never exposed to clients. Anything the intern
+    // declared by hand stays out of here — see helpers/cvTechnologySync.js.
+    cvTechnologies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Technology',
+      },
+    ],
     declaredPosition: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Position',
+      default: null,
+    },
+    secondaryPosition: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Position',
+      default: null,
+    },
+    specializationAssignedAt: {
+      type: Date,
       default: null,
     },
     cvPath: {

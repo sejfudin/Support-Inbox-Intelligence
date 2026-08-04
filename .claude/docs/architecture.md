@@ -83,7 +83,29 @@ AI: `AISummary`.
   manual add, no `ReadinessFlag` created, so each reads "Not assessed" until a mentor assesses it.
   Best-effort by design: an unreadable/image-only PDF just adds nothing (never fails the upload),
   and the manual "Add a technology" flow remains for anything not recognized. See
-  `server/services/internCvService.js` (`autoDeclareTechnologiesFromCv`).
+  `server/services/internCvService.js` (`syncTechnologiesFromCv`).
+
+  **A re-upload replaces the previous scan, it does not accumulate.** `selfTechnologies` mixes two
+  sources, so the scan needs provenance to know what it may take back: `InternProfile.cvTechnologies`
+  records the subset it added (always a subset of `selfTechnologies`, stripped from API responses in
+  `formatProfile`). On re-upload, technologies that were CV-added but are absent from the new CV are
+  removed, matches are added, and the rest is left alone. Reconciliation is a pure function —
+  `server/helpers/cvTechnologySync.js` (`reconcileCvTechnologies`), covered by
+  `cvTechnologySync.test.js`. The rules that matter:
+
+  - **Manual declarations are never removed.** A technology the intern declared before a scan
+    matched it stays theirs; only what a scan actually added is CV-owned. `updateSelfTechnologies`
+    prunes `cvTechnologies` to what is still declared, so removing a CV-added technology by hand
+    hands it back to the intern.
+  - **A readable CV that matches nothing still clears the previous scan** — that is a real result,
+    not a failure.
+  - **An unreadable CV changes nothing.** Text we could not extract is not evidence the intern
+    dropped a skill, so a corrupt/image-only re-upload leaves the existing list intact rather than
+    wiping it. Removal also leaves any existing `ReadinessFlag` alone (re-assessing is the mentor's
+    call, and re-adding the technology restores its flag).
+  - Profiles that last uploaded a CV before this field existed have an empty `cvTechnologies`, so
+    their first re-upload adds without removing; it self-corrects from the next upload on. No
+    backfill is possible — the old scan's contributions were never recorded.
 
   **The catalog is the ceiling.** Matching is scoped to `Technology` rows, so a skill with no
   catalog entry is invisible to the scan however it is spelled — a thin catalog reads as a
@@ -142,6 +164,66 @@ project shows a confirm dialog naming both projects before the create proceeds.
 (`assertReadAccess` / `assertRecommendationWriteAccess` in `recommendationService.js`); `leadership`
 additionally has read access (fully read-only UI — no create/edit/delete controls rendered).
 Mentors have no access at all, on the per-intern tab or the standalone `/recommendations` page.
+
+## Specializations
+
+An admin confirms **one of an intern's two declared positions** (`InternProfile.declaredPosition`
+/ `secondaryPosition`, from ticket 03's self-service picker) as their focus, paired atomically with
+a dedicated 1-on-1 mentor. See `docs/adr/0002-specialization-repurposes-secondary-mentor.md`
+and `CONTEXT.md` for the full domain writeup (mechanics, naming trap). Backend:
+`server/{helpers/specializationRules.js, services/specializationService.js,
+controllers/specializations.js, routes/specializations.js}`. Frontend: `pages/SpecializationPage.jsx`
++ `components/interns/specialization/AssignSpecializationModal.jsx`.
+
+- **Marker**: `InternProfile.specializationAssignedAt` (Date, nullable). Set ⟹ `declaredPosition`
+  IS the specialization; there is no separate "which position" field.
+- **Mentor**: stored in the existing `InternProfile.secondaryMentor` — repurposed by ADR-0002 to
+  mean *only* the specialization mentor (invite-time write path removed in ticket 02). Must differ
+  from `primaryMentor`.
+- **Swap rule** (`server/helpers/specializationRules.js#applySpecialization`, pure, no I/O):
+  confirming the `secondary` slot swaps it into `declaredPosition` and the old main drops to
+  `secondaryPosition`; confirming `main` is a no-op swap. The pre-swap "which was main" is not
+  retained.
+- **Lock**: while `specializationAssignedAt` is set, the intern can't self-edit `declaredPosition`
+  (`canInternEditDeclaredPosition`, enforced in `internService.js#updateSelfPosition`, 403 on
+  violation). The secondary position stays intern-editable and — via the existing "must differ
+  from main" rule in `updateSelfSecondaryPosition` — automatically excludes whichever position the
+  swap just locked into `declaredPosition`.
+- **Assign** (`POST /api/specializations`, admin-only): loads the intern profile, requires a
+  `declaredPosition` already exists, validates the mentor (`internProfileService#assertMentorUser`
+  — active `admin`/`mentor` user), runs `applySpecialization`, persists, emits
+  `emitInternDataChanged()`.
+- **List** (`GET /api/specializations`, admin-only): a single filterable/paginated read backing the
+  whole tab — `status` (`specialized` default | `unspecialized` | `all`), `mentorId`, `search`
+  (matches `User.fullname`/`email`, resolved to `user: { $in: ids }` before the profile query since
+  `InternProfile` itself holds no searchable text), `page`/`limit`. Response includes `stats`
+  (`specializedCount`, `totalCount`, and `mentorLoad` when `mentorId` is set) computed against the
+  *whole* cohort, independent of the active filters, so the header numbers stay stable while
+  browsing different views.
+- **Candidates** (`GET /api/specializations/candidates`, admin-only): every *un*specialized intern,
+  including ones with no declared position yet (shown disabled in the assign modal rather than
+  hidden). Used only by the assign modal's intern picker, not by the tab's table (that goes through
+  the general list above with `status=unspecialized`).
+- **Reassign** (`PATCH /api/specializations/:internUserId/reassign`, admin-only): correcting an
+  already-assigned specialization to the intern's other position —
+  `specializationRules#reassignSpecialization` swaps `declaredPosition`/`secondaryPosition` again;
+  mentor and `specializationAssignedAt` are untouched (it's a correction, not a new assignment).
+  Throws if the intern has no secondary position (row-menu action is disabled/hidden client-side in
+  that case too).
+- **Change mentor** (`PATCH /api/specializations/:internUserId/mentor`, admin-only): re-pairs an
+  already-specialized intern with a different mentor — `specializationRules#changeSpecializationMentor`
+  sets `secondaryMentor` only (still validated via `assertMentorUser` + must differ from
+  `primaryMentor`). Position and `specializationAssignedAt` are untouched.
+- **Clear** (`DELETE /api/specializations/:internUserId`, admin-only):
+  `specializationRules#clearSpecialization` — nulls `secondaryMentor` and
+  `specializationAssignedAt`. **No un-swap**: whichever position `applySpecialization`/
+  `reassignSpecialization` last left in `declaredPosition` stays there; only `assign`/`reassign` can
+  move it again.
+- Reassign/change-mentor/clear all first load the profile and 400 if
+  `specializationAssignedAt` is not already set (`loadSpecializedProfile` in
+  `specializationService.js`) — nothing to manage on an unspecialized intern.
+- Not workspace-scoped — same firm-global intern domain as Recommendations (see
+  `.claude/docs/security.md`).
 
 ### Project (reference entity)
 

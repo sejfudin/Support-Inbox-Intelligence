@@ -9,6 +9,7 @@ const {
   getMyProfile,
   updateMyTechnologies,
   updateMyPosition,
+  updateMySecondaryPosition,
   updateIntern,
   updateDocumentationLinks,
   updateInternalCv,
@@ -28,6 +29,7 @@ router.get('/', protect, listInterns);
 router.get('/me', protect, getMyProfile);
 router.patch('/me/technologies', protect, updateMyTechnologies);
 router.patch('/me/position', protect, updateMyPosition);
+router.patch('/me/secondary-position', protect, updateMySecondaryPosition);
 router.get('/me/readiness', protect, getMyReadiness);
 router.post('/me/cv', protect, uploadCv, uploadMyCv);
 router.delete('/me/cv', protect, deleteMyCv);

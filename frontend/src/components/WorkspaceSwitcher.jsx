@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 function WorkspaceLogo({ workspace, size = 'md', className }) {
@@ -60,6 +61,27 @@ function WorkspaceLabel({ workspace, subtitle, compact }) {
 const workspaceFaceClassName =
   'flex h-auto w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 text-left shadow-none';
 
+const iconFaceClassName =
+  'flex size-8 items-center justify-center rounded-xl border border-border/70 bg-card p-0 shadow-none';
+
+/**
+ * Collapsed-rail workspace marker: the logo inside a static (non-interactive)
+ * face with the name in a side tooltip. Used for the no-active-workspace and
+ * single-workspace states, where there is nothing to switch between.
+ */
+function IconWorkspaceFace({ workspace, label, ariaLabel, className }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={cn(iconFaceClassName, className)} aria-label={ariaLabel}>
+          <WorkspaceLogo workspace={workspace} size="sm" />
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function WorkspaceSwitcherFace({ workspace, subtitle, compact, showChevron = false }) {
   return (
     <>
@@ -74,7 +96,13 @@ function WorkspaceSwitcherFace({ workspace, subtitle, compact, showChevron = fal
   );
 }
 
-export default function WorkspaceSwitcher({ className, compact = false }) {
+/**
+ * @param iconOnly Collapsed-sidebar rail: render just the workspace logo as the
+ *   trigger. The name and chevron have nowhere to go at 3rem, but hiding the
+ *   control entirely would strand an admin in whichever workspace they were last
+ *   in, so the dropdown stays reachable.
+ */
+export default function WorkspaceSwitcher({ className, compact = false, iconOnly = false }) {
   const navigate = useNavigate();
   const { user, refetchUser } = useAuth();
   const { data: activeWorkspace } = useWorkspace(user?.workspaceId);
@@ -86,6 +114,21 @@ export default function WorkspaceSwitcher({ className, compact = false }) {
   const displayWorkspace = activeFromList || activeWorkspace;
 
   if (!user?.workspaceId) {
+    if (iconOnly) {
+      // No active workspace ("Global admin mode") — a static marker, matching the
+      // non-interactive expanded state.
+      return (
+        <IconWorkspaceFace
+          workspace={displayWorkspace}
+          ariaLabel="No active workspace"
+          label={
+            displayWorkspace?.name || (isAdmin(user?.role) ? 'Global admin mode' : 'Workspace')
+          }
+          className={className}
+        />
+      );
+    }
+
     const label = displayWorkspace?.name || (isAdmin(user?.role) ? 'Global admin mode' : null);
 
     if (!label) return null;
@@ -103,6 +146,16 @@ export default function WorkspaceSwitcher({ className, compact = false }) {
 
   if (workspaces.length <= 1) {
     if (!displayWorkspace?.name && isLoading) return null;
+
+    if (iconOnly) {
+      return (
+        <IconWorkspaceFace
+          workspace={displayWorkspace}
+          label={displayWorkspace?.name || 'Workspace'}
+          className={className}
+        />
+      );
+    }
 
     return (
       <div className={cn(workspaceFaceClassName, className)}>
@@ -126,25 +179,47 @@ export default function WorkspaceSwitcher({ className, compact = false }) {
     });
   };
 
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+  const trigger = iconOnly ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           data-test="workspace-switcher-trigger"
-          className={cn(workspaceFaceClassName, 'font-normal hover:bg-muted/50', className)}
+          className={cn(iconFaceClassName, 'hover:bg-muted/50', className)}
           disabled={isLoading || switchWorkspace.isPending}
+          aria-label={`Switch workspace, current: ${displayWorkspace?.name || 'none'}`}
         >
-          <WorkspaceSwitcherFace
-            workspace={displayWorkspace}
-            subtitle="Switch workspace"
-            compact={compact}
-            showChevron
-          />
+          <WorkspaceLogo workspace={displayWorkspace} size="sm" />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+      </TooltipTrigger>
+      <TooltipContent side="right">{displayWorkspace?.name || 'Switch workspace'}</TooltipContent>
+    </Tooltip>
+  ) : (
+    <Button
+      variant="outline"
+      size="sm"
+      data-test="workspace-switcher-trigger"
+      className={cn(workspaceFaceClassName, 'font-normal hover:bg-muted/50', className)}
+      disabled={isLoading || switchWorkspace.isPending}
+    >
+      <WorkspaceSwitcherFace
+        workspace={displayWorkspace}
+        subtitle="Switch workspace"
+        compact={compact}
+        showChevron
+      />
+    </Button>
+  );
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        side={iconOnly ? 'right' : 'bottom'}
+        className={iconOnly ? 'w-56' : 'w-[var(--radix-dropdown-menu-trigger-width)]'}
+      >
         <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {workspaces.map((ws) => {

@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 
 export function InternTechnologyDeclaration() {
   const { data: intern } = useMyInternProfile();
-  const { data: allTechnologies = [] } = useTechnologies();
+  const { data: allTechnologies = [], isPending: isLoadingTechnologies } = useTechnologies();
   const { data: flags = [] } = useMyInternReadiness();
   const { mutate: saveTechnologies, isPending: isSaving } = useUpdateMyTechnologies();
 
@@ -61,22 +61,29 @@ export function InternTechnologyDeclaration() {
           Search the catalog and add the technologies you are working toward.
         </p>
         <div className="mt-4">
-          <SearchableSelect
-            items={allTechnologies}
-            onSelect={addTechnology}
-            filter={(tech, q) => !declaredIds.has(tech._id) && tech.name.toLowerCase().includes(q)}
-            renderItem={(tech) => (
-              <span className="flex items-center gap-2 font-medium">
-                <TechnologyIcon technology={tech} size={16} className="shrink-0" />
-                {tech.name}
-              </span>
-            )}
-            getItemDataTest={(tech) => `technology-add-${tech.slug}-button`}
-            placeholder="Search technologies..."
-            emptyMessage="No technologies found."
-            busy={isSaving}
-            dataTest="technology-search-input"
-          />
+          {isLoadingTechnologies ? (
+            <p className="text-sm text-muted-foreground">Loading technologies...</p>
+          ) : (
+            <SearchableSelect
+              items={allTechnologies}
+              onSelect={addTechnology}
+              filter={(tech, q) =>
+                !declaredIds.has(tech._id) && tech.name.toLowerCase().includes(q)
+              }
+              renderItem={(tech) => (
+                <span className="flex items-center gap-2 font-medium">
+                  <TechnologyIcon technology={tech} size={16} className="shrink-0" />
+                  {tech.name}
+                </span>
+              )}
+              getItemDataTest={(tech) => `technology-add-${tech.slug}-button`}
+              placeholder={isSaving ? 'Saving...' : 'Search technologies...'}
+              emptyMessage="No technologies found."
+              busy={isSaving}
+              disabled={isSaving}
+              dataTest="technology-search-input"
+            />
+          )}
         </div>
       </InternPanel>
 
@@ -88,7 +95,9 @@ export function InternTechnologyDeclaration() {
             Technologies you have declared. Your mentor will assess your readiness for each.
           </p>
         </div>
-        {declaredTechnologies.length === 0 ? (
+        {isLoadingTechnologies ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">Loading technologies...</p>
+        ) : declaredTechnologies.length === 0 ? (
           <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">
             No technologies declared yet. Use the search above to add some.
           </p>
