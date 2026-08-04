@@ -17,6 +17,7 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarClock,
+  Target,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -233,12 +234,41 @@ export default function AppSidebar() {
 
   const adminNav = isAdmin(user?.role)
     ? [
-        { label: 'All Users', to: '/admin/users', icon: User },
-        { label: 'All Workspaces', to: '/admin/workspaces', icon: Building2 },
-        { label: 'Attendance', to: '/attendance', icon: CalendarCheck },
-        { label: 'Daily Insights', to: '/admin/daily-insights', icon: CalendarClock },
-        { label: 'Platform Management', to: '/admin/platform-management', icon: Database },
-        { label: 'Recommendations', to: '/recommendations', icon: Send },
+        {
+          label: 'All Users',
+          to: '/admin/users',
+          icon: User,
+        },
+        {
+          label: 'All Workspaces',
+          to: '/admin/workspaces',
+          icon: Building2,
+        },
+        {
+          label: 'Attendance',
+          to: '/attendance',
+          icon: CalendarCheck,
+        },
+        {
+          label: 'Daily Insights',
+          to: '/admin/daily-insights',
+          icon: CalendarClock,
+        },
+        {
+          label: 'Platform Management',
+          to: '/admin/platform-management',
+          icon: Database,
+        },
+        {
+          label: 'Recommendations',
+          to: '/recommendations',
+          icon: Send,
+        },
+        {
+          label: 'Specialization',
+          to: '/specialization',
+          icon: Target,
+        },
       ]
     : [];
 
