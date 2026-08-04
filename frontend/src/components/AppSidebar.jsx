@@ -229,43 +229,45 @@ export default function AppSidebar() {
       ]
     : [];
 
-  const adminNav = [
-    {
-      label: 'All Users',
-      to: '/admin/users',
-      icon: User,
-    },
-    {
-      label: 'All Workspaces',
-      to: '/admin/workspaces',
-      icon: Building2,
-    },
-    {
-      label: 'Attendance',
-      to: '/attendance',
-      icon: CalendarCheck,
-    },
-    {
-      label: 'Daily Insights',
-      to: '/admin/daily-insights',
-      icon: CalendarClock,
-    },
-    {
-      label: 'Platform Management',
-      to: '/admin/platform-management',
-      icon: Database,
-    },
-    {
-      label: 'Recommendations',
-      to: '/recommendations',
-      icon: Send,
-    },
-    {
-      label: 'Specialization',
-      to: '/specialization',
-      icon: Target,
-    },
-  ];
+  const adminNav = isAdmin(user?.role)
+    ? [
+        {
+          label: 'All Users',
+          to: '/admin/users',
+          icon: User,
+        },
+        {
+          label: 'All Workspaces',
+          to: '/admin/workspaces',
+          icon: Building2,
+        },
+        {
+          label: 'Attendance',
+          to: '/attendance',
+          icon: CalendarCheck,
+        },
+        {
+          label: 'Daily Insights',
+          to: '/admin/daily-insights',
+          icon: CalendarClock,
+        },
+        {
+          label: 'Platform Management',
+          to: '/admin/platform-management',
+          icon: Database,
+        },
+        {
+          label: 'Recommendations',
+          to: '/recommendations',
+          icon: Send,
+        },
+        {
+          label: 'Specialization',
+          to: '/specialization',
+          icon: Target,
+        },
+      ]
+    : [];
 
   const hasWorkspaceNav = Boolean(user?.workspaceId);
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
