@@ -40,32 +40,47 @@ const getUserWorkspaceMemberships = async (userId) => {
   });
 };
 
+// The empty shape must match what a populated response looks like, minus the
+// rows — callers page off it.
+const emptyUserResult = ({ pagination, page, limit }) =>
+  pagination === 'false' || pagination === false
+    ? { users: [] }
+    : {
+        users: [],
+        pagination: {
+          total: 0,
+          page: Number(page),
+          limit: Number(limit),
+          pages: 0,
+        },
+      };
+
+// `requireWorkspaceScope` makes a missing `workspaceId` mean "no access" instead
+// of "no filter". A bare query matches every user on the platform, which is the
+// right answer for an admin listing everyone and the wrong one for a caller who
+// may only see their own workspace — GET /api/admin/users is open to every
+// authenticated user, so the distinction is load-bearing.
 const getUsers = async ({
   page = 1,
   limit = 10,
   search = '',
   pagination = true,
   workspaceId,
+  requireWorkspaceScope = false,
   roles,
   status,
   hubId,
 }) => {
+  if (requireWorkspaceScope && !workspaceId) {
+    return emptyUserResult({ pagination, page, limit });
+  }
+
   const skip = (page - 1) * limit;
   const query = {};
   if (workspaceId) {
     const workspace = await Workspace.findById(workspaceId).select('members.user members.status');
     if (!workspace) {
-      return pagination === 'false' || pagination === false
-        ? { users: [] }
-        : {
-            users: [],
-            pagination: {
-              total: 0,
-              page: Number(page),
-              limit: Number(limit),
-              pages: 0,
-            },
-          };
+      return emptyUserResult({ pagination, page, limit });
     }
 
     const memberIds = workspace.members

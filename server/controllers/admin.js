@@ -3,14 +3,6 @@ const authService = require('../services/authService');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const { ROLES } = require('../constants/roles');
 
-const emptyUserList = ({ pagination, page, limit }) =>
-  pagination === 'false' || pagination === false
-    ? { users: [] }
-    : {
-        users: [],
-        pagination: { total: 0, page: Number(page) || 1, limit: Number(limit) || 10, pages: 0 },
-      };
-
 exports.getUsers = async (req, res, next) => {
   try {
     const {
@@ -30,13 +22,6 @@ exports.getUsers = async (req, res, next) => {
       ? queryWorkspaceId
       : await resolveActiveWorkspaceId({ user: req.user });
 
-    // This route is open to every authenticated user, and the service treats a
-    // missing workspaceId as "no workspace filter" — i.e. every user on the
-    // platform. Only admins may see that unscoped list.
-    if (!isAdmin && !workspaceId) {
-      return res.json(emptyUserList({ pagination, page, limit }));
-    }
-
     const roles = rolesParam
       ? String(rolesParam)
           .split(',')
@@ -49,6 +34,9 @@ exports.getUsers = async (req, res, next) => {
       search,
       pagination,
       workspaceId,
+      // Only admins may see the unscoped platform-wide list; for everyone else a
+      // missing workspace means an empty result, not an unfiltered one.
+      requireWorkspaceScope: !isAdmin,
       roles,
       status,
       hubId,
