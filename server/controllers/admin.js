@@ -1,6 +1,7 @@
 const userService = require('../services/adminService');
 const authService = require('../services/authService');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
+const { ROLES } = require('../constants/roles');
 
 const emptyUserList = ({ pagination, page, limit }) =>
   pagination === 'false' || pagination === false
@@ -22,7 +23,7 @@ exports.getUsers = async (req, res, next) => {
       status,
       hubId,
     } = req.query;
-    const isAdmin = req.user?.role === 'admin';
+    const isAdmin = req.user?.role === ROLES.ADMIN;
     // Admins may scope to any workspace (or none, for a platform-wide list);
     // everyone else is pinned to a workspace they actively belong to.
     const workspaceId = isAdmin

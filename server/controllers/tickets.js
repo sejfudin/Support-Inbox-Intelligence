@@ -1,6 +1,7 @@
 const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
 const { assertWorkspaceAccess, resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
+const { ROLES } = require('../constants/roles');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -119,7 +120,7 @@ const createTicket = async (req, res) => {
       storyPoints,
       category,
     } = req.body;
-    const isAdmin = req.user && req.user.role === 'admin';
+    const isAdmin = req.user?.role === ROLES.ADMIN;
     const hasStatus = status !== undefined && status !== null && status !== '';
     const hasStatusId = statusId !== undefined && statusId !== null && statusId !== '';
     const workspaceId = await resolveActiveWorkspaceId({

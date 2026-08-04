@@ -62,5 +62,9 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 
 ## Tests
 
-- None yet. The server `test` script is a placeholder. Do not report "tests pass" as verification —
-  verify by driving the app (see workflows.md, `/verify`, `/run`).
+- Narrow. `npm test` in `server/` (Jest) covers pure helpers (`helpers/*.test.js`) plus two
+  services with Mongo/Supabase mocked (`services/internCvService.test.js`,
+  `services/internService.test.js`). There is no integration or E2E suite, and the frontend has
+  no tests at all.
+- So a passing suite says nothing about a route, query or screen. Never report those as verified
+  by tests — verify by driving the app (see workflows.md, `/verify`, `/run`).
