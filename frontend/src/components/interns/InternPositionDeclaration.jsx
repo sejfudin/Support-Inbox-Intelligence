@@ -50,31 +50,37 @@ export function InternPositionDeclaration() {
     <InternPanel className="flex flex-col gap-5 px-5 py-5 md:px-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-foreground">My position</h3>
-            {isSpecialized && (
-              <Badge
-                variant="default"
-                className="bg-violet-600/15 text-violet-800 dark:bg-violet-500/20 dark:text-violet-300"
-                data-test="specialization-badge"
-              >
-                SPECIALIZATION
-              </Badge>
-            )}
-          </div>
+          <h3 className="text-base font-semibold text-foreground">
+            {isSpecialized ? 'Primary position' : 'My position'}
+          </h3>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {isSpecialized
-              ? `Locked by your specialization. Mentor: ${intern?.secondaryMentor?.fullname || 'Unassigned'}.`
+              ? 'Your specialization — assigned by your admin.'
               : 'Your main position in the firm.'}
           </p>
         </div>
         {isSpecialized ? (
-          <p
-            className="w-full rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-sm font-medium text-foreground sm:w-56"
-            data-test="position-locked-value"
-          >
-            {intern?.declaredPosition?.name || '-'}
-          </p>
+          <div className="w-full sm:w-auto sm:text-right" data-test="position-locked-value">
+            <div
+              aria-disabled="true"
+              className="inline-flex select-none items-center gap-2 rounded-lg bg-indigo-600/10 px-4 py-2 dark:bg-indigo-500/15"
+            >
+              <span className="h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+              <span className="text-sm font-semibold text-foreground">
+                {intern?.declaredPosition?.name || '-'}
+              </span>
+              <Badge
+                variant="outline"
+                className="pointer-events-none border-none bg-transparent px-0 text-[10px] font-bold tracking-wide text-indigo-700 shadow-none dark:text-indigo-300"
+                data-test="specialization-badge"
+              >
+                SPECIALIZATION
+              </Badge>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Mentor: {intern?.secondaryMentor?.fullname || 'Unassigned'}
+            </p>
+          </div>
         ) : positions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No positions configured yet.</p>
         ) : (
