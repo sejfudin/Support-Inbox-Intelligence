@@ -21,8 +21,8 @@ export function SpecializationAssignedSection({ specializations = [] }) {
         action={
           <DashboardCardHelp label="specialization assignments">
             The last three interns given a specialization, newest first — the position that was
-            confirmed as their focus, and the mentor they were paired with 1-on-1
-            (&ldquo;2nd&rdquo;). Platform-wide, not just this workspace.
+            confirmed as their focus, and the mentor they were paired with 1-on-1. Platform-wide,
+            not just this workspace.
           </DashboardCardHelp>
         }
       />
@@ -46,7 +46,10 @@ export function SpecializationAssignedSection({ specializations = [] }) {
                     {row.intern?.fullname}
                   </span>
                   <span className="block truncate text-[11px] leading-4 text-muted-foreground">
-                    {[row.specialization, row.secondaryMentor && `2nd ${row.secondaryMentor}`]
+                    {/* "Mentor <name>", never "2nd <name>" — on /specialization `2nd:`
+                        labels the intern's secondary *position*, so reusing it for the
+                        mentor here would mean two different things on two admin screens. */}
+                    {[row.specialization, row.secondaryMentor && `Mentor ${row.secondaryMentor}`]
                       .filter(Boolean)
                       .join(' · ')}
                   </span>
