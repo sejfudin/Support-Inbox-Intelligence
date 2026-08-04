@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const buildArray = (length) => Array.from({ length });
+import { buildArray } from '@/components/Skeletons/buildArray';
 
 const StatTileSkeleton = () => (
   <div className="flex flex-col gap-1.5">
@@ -49,7 +48,7 @@ const EntryCardSkeleton = () => (
  * Mirrors DailyHeader's four stat tiles plus a couple of DailyEntryCards so the
  * panel keeps its height instead of collapsing to just the date nav.
  */
-export default function DailySkeleton({ entries = 2 }) {
+export default function DailySkeleton() {
   return (
     <div className="flex flex-col gap-4" data-test="daily-skeleton">
       <div className="grid grid-cols-2 gap-4 border-b border-border/60 pb-5 sm:grid-cols-4">
@@ -58,7 +57,7 @@ export default function DailySkeleton({ entries = 2 }) {
         ))}
       </div>
       <div className="flex flex-col gap-4">
-        {buildArray(entries).map((_, idx) => (
+        {buildArray(2).map((_, idx) => (
           <EntryCardSkeleton key={idx} />
         ))}
       </div>
