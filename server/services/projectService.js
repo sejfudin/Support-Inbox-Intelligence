@@ -181,10 +181,16 @@ const getProjectsOverview = async (user) => {
   const skillInternMap = new Map();
   const technologyById = new Map();
   const technologyDemandByProject = new Map();
+  // Flat, cross-project rows for the KPI modals (the per-project counts above
+  // aren't enough to render "who" — the modals need names/positions/dates).
+  const placedInterns = [];
+  const recommendedInterns = [];
+  const interviewingInterns = [];
 
   const annotatedProjects = projects.map((project) => {
     const projectRecs = recsByProject.get(project._id.toString()) || [];
-    const placedCount = projectRecs.filter((rec) => rec.result?.outcome === 'placed').length;
+    const placedRecs = projectRecs.filter((rec) => rec.result?.outcome === 'placed');
+    const placedCount = placedRecs.length;
     const selectionRecs = projectRecs.filter((rec) =>
       ['recommended', 'interviewing'].includes(rec.status)
     );
@@ -192,9 +198,30 @@ const getProjectsOverview = async (user) => {
     byStatus[project.status] = (byStatus[project.status] || 0) + 1;
     internsPlaced += placedCount;
 
+    placedRecs.forEach((rec) => {
+      placedInterns.push({
+        ...internSummary(rec),
+        projectId: project._id,
+        projectName: project.name,
+        placedAt: rec.result?.decidedAt || rec.statusDates?.resulted || rec.updatedAt,
+      });
+    });
+
     selectionRecs.forEach((rec) => {
-      if (rec.status === 'recommended') recommendedCount += 1;
-      if (rec.status === 'interviewing') interviewingCount += 1;
+      const entry = {
+        ...internSummary(rec),
+        projectId: project._id,
+        projectName: project.name,
+        projectClient: project.client,
+      };
+      if (rec.status === 'recommended') {
+        recommendedCount += 1;
+        recommendedInterns.push(entry);
+      } else {
+        interviewingCount += 1;
+        interviewingInterns.push(entry);
+      }
+
       const internId = rec.internProfile?._id?.toString();
       if (!internId) return;
       selectionInternIds.add(internId);
@@ -221,6 +248,8 @@ const getProjectsOverview = async (user) => {
     return { ...project, placedCount, inSelectionCount: selectionRecs.length };
   });
 
+  // Full list, sorted by intern count — the KPI card shows only the top 4,
+  // the "see all" modal shows the rest, both slicing the same source list.
   const skillsInSelection = [...skillInternMap.entries()]
     .map(([techId, internIds]) => ({
       technology: technologyById.get(techId),
@@ -228,8 +257,7 @@ const getProjectsOverview = async (user) => {
     }))
     .sort(
       (a, b) => b.internCount - a.internCount || a.technology.name.localeCompare(b.technology.name)
-    )
-    .slice(0, 4);
+    );
 
   const technologyDemand = [...technologyDemandByProject.entries()]
     .map(([techId, counts]) => ({ technology: technologyById.get(techId), ...counts }))
@@ -238,17 +266,22 @@ const getProjectsOverview = async (user) => {
         b.projectCount - a.projectCount || a.technology.name.localeCompare(b.technology.name)
     );
 
+  placedInterns.sort((a, b) => new Date(b.placedAt) - new Date(a.placedAt));
+
   return {
     projects: annotatedProjects,
     kpis: {
       totalProjects: projects.length,
       byStatus,
       internsPlaced,
+      placedInterns,
       inSelection: {
         recommended: recommendedCount,
         interviewing: interviewingCount,
         total: recommendedCount + interviewingCount,
         internsInSelection: selectionInternIds.size,
+        recommendedInterns,
+        interviewingInterns,
       },
       skillsInSelection,
       technologyDemand,
