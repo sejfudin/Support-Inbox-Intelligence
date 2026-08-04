@@ -346,14 +346,16 @@ export function WhatsNewTour() {
         </h2>
         <p className="mt-2 text-[13px] leading-5 text-white/75">{step.body}</p>
 
-        {/* Said on the way out so nobody has to hunt for the way back in, and so
-            that closing this does not feel like a one-shot you might regret. */}
+        {/* Said on the way out so nobody has to hunt for the way back in, so that
+            closing this does not feel like a one-shot you might regret, and so the
+            glow is understood as a standing signal rather than a one-off — people
+            who know what it means are the ones who will click it next time. */}
         {isLast && (
           <p className="mt-3 text-[11px] leading-4 text-white/60">
-            You can come back to this any time — the{' '}
+            This is how we will show you what&apos;s new from now on. The{' '}
             <span className="font-medium text-white/90">Notice some changes?</span> button on your
-            dashboard reopens it whenever you want. It stops pulsing from now on, but it never goes
-            away.
+            dashboard reopens this any time — and whenever we ship something new, it will start
+            glowing again to let you know there is something to read.
           </p>
         )}
 

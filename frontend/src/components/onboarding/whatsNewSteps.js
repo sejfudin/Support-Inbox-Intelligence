@@ -1,5 +1,20 @@
 /**
- * The "what moved" script for the app-shell redesign.
+ * The script for how we announce what's new. This is the mechanism for it — the
+ * tour's closing step tells people so out loud, so releases are expected to keep
+ * arriving through here rather than through a changelog nobody opens.
+ *
+ * **Shipping a release through this is two steps, and both are required:**
+ *
+ * 1. Add or edit the steps below.
+ * 2. Bump `TOUR_VERSION`. This is what makes the dashboard's "Notice some
+ *    changes?" button glow again for everyone, exactly once — the string is the
+ *    localStorage value, so a new one puts every viewer back into "not seen yet".
+ *    Editing steps *without* bumping it ships copy that only people who have
+ *    never opened the tour will ever see. The closing step promises the button
+ *    starts glowing when something new lands; the bump is that promise.
+ *
+ * Nothing here opens itself. The button is the only way in — see the comment on
+ * `TOUR_REPLAY_EVENT` for why.
  *
  * Each step either points at a real element (`target`, a `[data-tour]` selector)
  * or has none, in which case the card is centred and reads as a plain notice.
@@ -10,11 +25,9 @@
  * `roles` narrows a step to specific platform roles when the *copy* only applies
  * to them, which is not the same thing as the element existing.
  *
- * Bump TOUR_VERSION to re-announce: it is the localStorage value, so a new string
- * shows the tour again to everyone exactly once. A release is announced as one
- * story — everybody gets every step that applies to their role, including steps
- * from earlier releases. If the script ever gets too long, delete steps from it
- * rather than hiding them from some viewers.
+ * A release is announced as one story — everybody gets every step that applies to
+ * their role, including steps from earlier releases. If the script ever gets too
+ * long, delete steps from it rather than hiding them from some viewers.
  */
 
 import { useEffect, useState } from 'react';
