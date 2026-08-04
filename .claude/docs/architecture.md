@@ -271,7 +271,8 @@ The admin landing board: one workspace at a time — the caller's **active** wor
   (**admin-only**; 400 on a malformed id, 404 on unknown/archived — it verifies the workspace
   exists because `assertWorkspaceAccess` short-circuits for admins without touching the DB, so a
   bogus id would otherwise return a convincing all-zeros payload). The standup card reuses
-  `GET /api/dailies/admin/overview` and the picker reuses `GET /api/workspaces/all`.
+  `GET /api/dailies/admin/overview`; the intern picker behind the recommend/evaluate quick actions
+  reuses the platform-wide `GET /api/interns`.
 - **Known gap — the standup card's denominator differs from the interns table.**
   `dailies/admin/overview` counts every active intern member, including `placed` ones, so a
   workspace can read "1 intern" in the table and "0 / 3 notes in" on the standup card. Fixing it
@@ -279,9 +280,9 @@ The admin landing board: one workspace at a time — the caller's **active** wor
   the existing Daily Insights page — deliberately left alone.
 - **Not implemented, rendered as placeholders**: the *Specialization assigned* card is sample data
   (no specialization field, assigned-at timestamp, or assigning action exists in the model), and
-  the *Write evaluation* / *Mark absence / excuse* quick actions are marked "Soon" — `Attendance`
-  has no write path for absence at all (absence is the lack of a check-in, and only interns may
-  check in). Both are flagged in-place in the components.
+  the *Mark absence / excuse* quick action is marked "Soon" — `Attendance` has no write path for
+  absence at all (absence is the lack of a check-in, and only interns may check in). Both are
+  flagged in-place in the components.
 
 ## Glossary
 

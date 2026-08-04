@@ -176,10 +176,7 @@ const loadPlacements = async () => {
       const decidedAt = placement.result?.decidedAt || placement.updatedAt || null;
       return {
         id: placement._id,
-        intern: {
-          id: placement.internProfile.user._id,
-          fullname: placement.internProfile.user.fullname || '',
-        },
+        intern: { fullname: placement.internProfile.user.fullname || '' },
         project: placement.project?.name || '',
         position: placement.position?.name || '',
         decidedAt,
@@ -204,7 +201,7 @@ const getAdminDashboard = async ({ workspaceId }) => {
   }
 
   const workspace = await Workspace.findOne({ _id: workspaceId, isArchived: { $ne: true } })
-    .select('name logoPath')
+    .select('name')
     .lean();
   if (!workspace) throw httpError(404, 'Workspace not found.');
 
@@ -228,7 +225,7 @@ const getAdminDashboard = async ({ workspaceId }) => {
         user: { $in: internUserIds },
         status: { $in: IN_PROGRAMME_STATUSES },
       })
-        .select('_id user startDate declaredPosition status')
+        .select('_id user startDate declaredPosition')
         .populate({ path: 'declaredPosition', select: 'name' })
         .lean()
     : [];
@@ -243,7 +240,10 @@ const getAdminDashboard = async ({ workspaceId }) => {
     loadPlacements(),
   ]);
 
-  const interns = inProgrammeUsers
+  // `presentToday` drives the presence KPI and the absent list, and is dropped
+  // again before the rows are returned — the interns table reports the month's
+  // attendance rate, not today's single bit.
+  const rows = inProgrammeUsers
     .map((user) => {
       const profile = profileByUser.get(String(user._id));
       const records = attendanceByProfile.get(String(profile._id)) || [];
@@ -253,53 +253,45 @@ const getAdminDashboard = async ({ workspaceId }) => {
         profile.startDate
       );
       const counts = workloadByUser.get(String(user._id)) || {};
-      const workload = buckets.map((bucket) => ({
-        slug: bucket.slug,
-        label: bucket.label,
-        color: bucket.color,
-        count: counts[bucket.slug] || 0,
-      }));
 
       return {
         id: user._id,
-        internProfileId: profile._id,
         fullname: user.fullname || '',
         email: user.email || '',
         position: profile.declaredPosition?.name || '',
-        status: profile.status,
         presentToday: records.some((r) => r.date === todayKey),
         attendanceRate,
         presentDays,
         workingDays,
-        workload,
-        openTickets: workload.reduce((sum, segment) => sum + segment.count, 0),
+        workload: buckets.map((bucket) => ({
+          slug: bucket.slug,
+          label: bucket.label,
+          color: bucket.color,
+          count: counts[bucket.slug] || 0,
+        })),
       };
     })
     .sort((a, b) => a.fullname.localeCompare(b.fullname));
 
-  const presentToday = interns.filter((intern) => intern.presentToday);
-
   return {
-    workspace: { id: workspace._id, name: workspace.name, logoPath: workspace.logoPath || null },
-    date: todayKey,
+    workspace: { name: workspace.name },
     presence: {
-      presentToday: presentToday.length,
-      totalInterns: interns.length,
-      monthAttendanceRate: averageAttendanceRate(interns.map((i) => i.attendanceRate)),
-      monthKey,
+      presentToday: rows.filter((row) => row.presentToday).length,
+      totalInterns: rows.length,
+      monthAttendanceRate: averageAttendanceRate(rows.map((row) => row.attendanceRate)),
       checkInWindow: {
         label: CHECK_IN_WINDOW_LABEL,
         endHour: CHECK_IN_WINDOW.endHour,
         state: checkInWindowState(now),
       },
-      absentToday: interns
-        .filter((intern) => !intern.presentToday)
+      absentToday: rows
+        .filter((row) => !row.presentToday)
         .map(({ id, fullname, email, position }) => ({ id, fullname, email, position })),
     },
     lastPlacement: recentPlacements[0] || null,
     recentPlacements,
     workloadBuckets: buckets.map(({ slug, label, color }) => ({ slug, label, color })),
-    interns,
+    interns: rows.map(({ presentToday, ...intern }) => intern),
   };
 };
 

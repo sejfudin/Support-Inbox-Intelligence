@@ -48,13 +48,11 @@ const parseDateParam = (dateInput) => {
   return startOfDay(parsed);
 };
 
-// Active interns currently in the workspace — the live denominator for the
-// "Team covered" count and the pool the "add entry" picker offers from. Shared
-// with the admin dashboard, hence the helper.
-const getActiveInterns = (workspaceId) => getActiveWorkspaceInterns(workspaceId);
-
+// `getActiveWorkspaceInterns` (helpers/workspaceInterns.js) is the live denominator
+// for the "Team covered" count and the pool the "add entry" picker offers from —
+// shared with the admin dashboard, hence the helper.
 const getActiveInternMemberIds = async (workspaceId) => {
-  const interns = await getActiveInterns(workspaceId);
+  const interns = await getActiveWorkspaceInterns(workspaceId);
   return interns.map((intern) => String(intern._id));
 };
 
@@ -65,7 +63,7 @@ const getDaily = async ({ workspaceId, date, user }) => {
 
   const targetDate = parseDateParam(date);
   const daily = await populateDaily(Daily.findOne({ workspace: workspaceId, date: targetDate }));
-  const activeInterns = await getActiveInterns(workspaceId);
+  const activeInterns = await getActiveWorkspaceInterns(workspaceId);
 
   if (!daily) {
     return { daily: null, counts: deriveCounts([], activeInterns.length), activeInterns };
@@ -274,7 +272,7 @@ const getWorkspaceDailyOverview = async ({ workspaceId, month, user }) => {
     Daily.find({ workspace: workspaceId, date: { $gte: start, $lte: end } })
       .select('date entries')
       .lean(),
-    getActiveInterns(workspaceId),
+    getActiveWorkspaceInterns(workspaceId),
   ]);
 
   const dailyByTime = new Map(dailies.map((d) => [startOfDay(d.date).getTime(), d]));
@@ -385,8 +383,6 @@ module.exports = {
   addEntry,
   updateEntry,
   removeEntry,
-  getActiveInterns,
-  getActiveInternMemberIds,
   getWorkspaceDailyOverview,
   getMemberDailyEntry,
 };

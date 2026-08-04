@@ -526,7 +526,7 @@ const interns = [
 //
 // `internMemberKeys: 'roster'` = every active/ready intern. Workspace members
 // must be `status: 'active'` to appear in the dailies picker (see
-// dailyService.getActiveInterns).
+// helpers/workspaceInterns.js).
 
 const workspaces = [
   {

@@ -10,10 +10,8 @@ const { ROLES } = require('../constants/roles');
  * it. `User.workspaceId` is only the member's *currently active* workspace and
  * is NOT a membership record: scoping on it would silently drop interns who
  * belong to this workspace but are currently switched into another one.
- *
- * `select` widens the projection when the caller needs more than identity.
  */
-const getActiveWorkspaceInterns = async (workspaceId, { select = 'fullname email' } = {}) => {
+const getActiveWorkspaceInterns = async (workspaceId) => {
   const memberUserIds = await getActiveMemberUserIds(workspaceId);
   if (memberUserIds.length === 0) return [];
 
@@ -23,7 +21,7 @@ const getActiveWorkspaceInterns = async (workspaceId, { select = 'fullname email
     active: true,
     status: 'active',
   })
-    .select(select)
+    .select('fullname email')
     .lean();
 };
 

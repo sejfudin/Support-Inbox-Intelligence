@@ -9,8 +9,8 @@ const { ROLES } = require('../constants/roles');
 const router = express.Router();
 
 // Workspace-scoped admin dashboard. The workspace comes from `?workspaceId=`
-// (the dashboard's own picker) rather than the caller's active workspace, so an
-// admin can read any workspace without switching into it.
+// rather than the session, so the endpoint can report on any workspace; the board
+// currently passes the caller's active one (switched from the sidebar).
 router.get('/dashboard', protect, requireRole(ROLES.ADMIN), getAdminDashboard);
 
 // All authenticated users can fetch users
