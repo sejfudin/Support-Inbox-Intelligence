@@ -1,5 +1,6 @@
 import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
+import { adminDashboardKeys } from '@/queries/adminDashboard';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -42,6 +43,9 @@ export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['categories', workspaceId] });
   queryClient.invalidateQueries({ queryKey: ['integration', workspaceId] });
   queryClient.invalidateQueries({ queryKey: ['repositories', workspaceId] });
+  // Prefix invalidation covers every workspace's board under
+  // ['workspace-admin-dashboard', workspaceId].
+  queryClient.invalidateQueries({ queryKey: adminDashboardKeys.all });
   invalidateAnalyticsQueries(queryClient, workspaceId);
 
   if (workspaceId) {
@@ -52,6 +56,9 @@ export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
 export const invalidateWorkspaceTicketsScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
   queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+  // The admin dashboard's workload segments are open-ticket counts per intern, so
+  // a ticket moving between statuses changes them.
+  queryClient.invalidateQueries({ queryKey: adminDashboardKeys.all });
 };
 
 export const invalidateTicketScope = (queryClient, ticketId) => {

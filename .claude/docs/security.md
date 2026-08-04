@@ -83,9 +83,9 @@ branch:
 - **Lifecycle status** (`internService.js` `updateInternProgramme`, the `payload.status` branch)
   — admin-only, even for the assigned mentor. `expectedEndDate` in the same endpoint is not
   restricted this way and still follows plain `canWriteMentorData`.
-- **Attendance roster** — frontend-only guard (`/attendance` route + sidebar nav), admin-only.
-  There's no backend for attendance yet (`frontend/src/api/attendance.js` is an explicitly-labeled
-  mock); this is a route/nav restriction, not a service-layer one.
+- **Attendance roster** — admin-only, and enforced at the service layer, not just in the UI:
+  `GET /api/attendance` / `GET /api/attendance/:internProfileId` are `requireRole(ADMIN)`. See the
+  Attendance paragraph below for the full surface.
 
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
@@ -112,6 +112,30 @@ Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/
 `?workspace=`, same admin-bypass `assertWorkspaceAccess` grants elsewhere in this file) — no
 mentor or intern surface, unlike the other `/api/dailies` routes which reuse `resolveWorkspaceId`'s
 ambient admin override. Read-only; derives everything live from existing `Daily` documents.
+
+Admin dashboard. `GET /api/admin/dashboard?workspaceId=` is `requireRole(ADMIN)`, read-only, and
+takes its workspace **explicitly from the query string** — the same admin-bypass pattern as the
+standup-insights routes above, and the reason it must not be loosened to another role: any caller
+who reaches it reads an arbitrary workspace's roster and workload, **plus platform-wide placement
+and specialization records that are not workspace-scoped at all** (see below). Admin-only is
+load-bearing here.
+
+Three things to preserve when touching `adminDashboardService.js`:
+- **`loadPlacements()` and `loadSpecializations()` are deliberately unscoped** — the first reads
+  every `placed` `Recommendation` on the platform, the second every `InternProfile` carrying a
+  `specializationAssignedAt`, because placement and specialization are programme milestones on the
+  intern's profile rather than workspace events. These are the only two places on the payload that
+  ignore `workspaceId`, and it is only acceptable because the route is admin-only. If this endpoint
+  is ever opened to mentors or leadership, both halves of the placements / specialization card must
+  be re-scoped first — otherwise it becomes a cross-tenant read.
+- **It verifies the workspace exists itself** (404 on unknown/archived, 400 on a malformed id).
+  `assertWorkspaceAccess` returns early for admins *without touching the DB*, so leaning on it
+  alone would turn a bogus or archived workspace id into a convincing all-zeros payload rather
+  than an error.
+- **Intern scoping goes through `Workspace.members`** via `helpers/workspaceInterns.js`, never
+  `User.workspaceId`. `InternProfile` has no `workspace` field, and `User.workspaceId` is only the
+  member's currently *active* workspace — scoping on it silently omits interns who belong to this
+  workspace but are switched into another one.
 
 ## Middleware guards (`server/middleware/`)
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { format, parseISO, startOfMonth, subMonths } from 'date-fns';
 import { Users, UserCheck, UserX, Percent, TriangleAlert } from 'lucide-react';
 import { PageShell, PageSection } from '@/components/PageShell';
@@ -17,6 +18,7 @@ import DailyCoverageGrid from '@/components/dailies/DailyCoverageGrid';
 import MemberDailyEntryModal from '@/components/dailies/MemberDailyEntryModal';
 import { useAllWorkspaces } from '@/queries/workspaces';
 import { useWorkspaceDailyOverview } from '@/queries/dailies';
+import { useAuth } from '@/context/AuthContext';
 
 const currentMonthKey = () => format(new Date(), 'yyyy-MM');
 
@@ -32,6 +34,8 @@ const buildMonthOptions = () => {
 
 export default function AdminDailyInsightsPage() {
   const monthOptions = useMemo(buildMonthOptions, []);
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [workspaceId, setWorkspaceId] = useState('');
   const [month, setMonth] = useState(() => currentMonthKey());
   const [selection, setSelection] = useState(null);
@@ -39,14 +43,25 @@ export default function AdminDailyInsightsPage() {
 
   const { data: workspaces = [] } = useAllWorkspaces();
 
-  // Default to the first workspace once the list loads; keep the selection if
-  // it's still a valid choice.
+  // Which workspace to land on, in order of preference:
+  //   1. `?workspace=` — arriving from somewhere that already had one in mind, e.g.
+  //      the dashboard's "Open standup board", which must not silently switch the
+  //      admin to a different workspace than the board they were just reading.
+  //   2. the caller's own active workspace (the one named in the sidebar).
+  //   3. the first in the list, as a last resort.
+  // Any existing valid selection wins over all of it, so changing the dropdown
+  // sticks instead of being reset on the next render.
   useEffect(() => {
     if (workspaces.length === 0) return;
-    if (!workspaces.some((w) => w._id === workspaceId)) {
-      setWorkspaceId(workspaces[0]._id);
-    }
-  }, [workspaces, workspaceId]);
+    if (workspaces.some((w) => w._id === workspaceId)) return;
+
+    const exists = (id) => id && workspaces.some((w) => w._id === id);
+    const requested = searchParams.get('workspace');
+
+    if (exists(requested)) setWorkspaceId(requested);
+    else if (exists(user?.workspaceId)) setWorkspaceId(user.workspaceId);
+    else setWorkspaceId(workspaces[0]._id);
+  }, [workspaces, workspaceId, searchParams, user?.workspaceId]);
 
   const { data, isPending, isError } = useWorkspaceDailyOverview(workspaceId, month);
   const overview = data?.data;

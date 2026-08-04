@@ -23,6 +23,7 @@ import {
   PanelLeftOpen,
   ChevronsUpDown,
   UserRound,
+  Sparkles,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import NavbarNotifications from '@/components/NavbarNotifications';
@@ -52,6 +53,8 @@ import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
 import { useCanManageActiveWorkspace } from '@/hooks/useCanManageActiveWorkspace';
+import { useHeldKey } from '@/hooks/useHeldKey';
+import { replayWhatsNewTour } from '@/components/onboarding/whatsNewSteps';
 import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { TaskManagerBrand } from '@/components/TaskManagerBrand';
@@ -272,14 +275,31 @@ export default function AppSidebar() {
   const hasWorkspaceNav = Boolean(user?.workspaceId);
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
+  // Hold H and click the brand to replay the "what's new" tour. Capture phase so
+  // the Link never navigates, and only when H is actually down — a plain click on
+  // the logo still goes to /dashboard.
+  const heldH = useHeldKey('h');
+  const replayOnBrandClick = (event) => {
+    if (!heldH.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    replayWhatsNewTour();
+  };
+
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50 bg-card shadow-elevated-sm">
       <SidebarHeader className="px-4 pb-3 pt-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
-          <div className="min-w-0 flex-1 rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-3 py-2.5 shadow-elevated-sm group-data-[collapsible=icon]:hidden">
+          <div
+            onClickCapture={replayOnBrandClick}
+            className="min-w-0 flex-1 rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-3 py-2.5 shadow-elevated-sm group-data-[collapsible=icon]:hidden"
+          >
             <TaskManagerBrand size="md" linkTo="/dashboard" />
           </div>
-          <div className="hidden group-data-[collapsible=icon]:block">
+          <div
+            onClickCapture={replayOnBrandClick}
+            className="hidden group-data-[collapsible=icon]:block"
+          >
             <TaskManagerBrand size="sm" showWordmark={false} linkTo="/dashboard" />
           </div>
 
@@ -288,6 +308,7 @@ export default function AppSidebar() {
               type="button"
               onClick={toggleSidebar}
               data-test="sidebar-collapse-button"
+              data-tour="sidebar-collapse"
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
             >
@@ -296,11 +317,13 @@ export default function AppSidebar() {
           </RailTooltip>
         </div>
 
-        <WorkspaceSwitcher
-          className={collapsed ? 'mt-2' : 'mt-2 py-1.5'}
-          compact
-          iconOnly={collapsed}
-        />
+        <div data-tour="workspace-switcher">
+          <WorkspaceSwitcher
+            className={collapsed ? 'mt-2' : 'mt-2 py-1.5'}
+            compact
+            iconOnly={collapsed}
+          />
+        </div>
       </SidebarHeader>
 
       <SidebarContent className="px-3 pb-1 group-data-[collapsible=icon]:px-2 md:overflow-hidden">
@@ -340,13 +363,18 @@ export default function AppSidebar() {
         />
       </SidebarContent>
 
-      <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:p-2">
+      <SidebarFooter className="p-2 pt-1.5 group-data-[collapsible=icon]:p-2">
         {/* Three peer icons next to the avatar left ~70px for the name at 16rem,
             which truncated it to "Admi…". So profile, appearance and logout fold
             into one menu on the identity row, and notifications stay the single
             standalone icon — it is the only one whose state (unread) has to be
-            readable without opening anything. */}
-        <div className="flex items-center gap-1 rounded-[1.2rem] app-elevated-sm p-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none">
+            readable without opening anything.
+
+            Padding here is deliberately tight (footer p-2, row p-1.5, trigger
+            px-1.5) and the avatar is `sm`: every pixel spent on chrome comes
+            straight out of the name, and a real full name like
+            "Sejfudin Duranović" needs all of it to survive at 16rem. */}
+        <div className="flex items-center gap-1 rounded-[1.2rem] app-elevated-sm p-1.5 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none">
           {isLoginPending ? (
             <div className="flex w-full animate-pulse items-center gap-3 p-1">
               <div className="h-8 w-8 shrink-0 rounded-full bg-muted" />
@@ -362,15 +390,16 @@ export default function AppSidebar() {
                   <button
                     type="button"
                     data-test="sidebar-user-menu-trigger"
+                    data-tour="user-menu"
                     className={cn(
-                      `flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-1.5 text-left text-sm text-foreground transition-all duration-300 ${RAIL_EASE} hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`,
+                      `flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1.5 py-1.5 text-left text-sm text-foreground transition-all duration-300 ${RAIL_EASE} hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`,
                       'group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0'
                     )}
                     aria-label={`Account menu for ${user?.fullname || 'your account'}`}
                   >
-                    <Avatar users={[user]} />
+                    <Avatar users={[user]} size="sm" />
                     <span className={cn('min-w-0 flex-1', collapsibleLabel)}>
-                      <span className="block truncate font-semibold">
+                      <span className="block truncate font-semibold leading-5">
                         {user?.fullname || 'Unknown User'}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
@@ -398,6 +427,14 @@ export default function AppSidebar() {
                     </NavLink>
                   </DropdownMenuItem>
                   <ThemeAppearanceSubmenu />
+                  <DropdownMenuItem
+                    data-test="sidebar-whats-new-button"
+                    onSelect={() => replayWhatsNewTour()}
+                    className="flex items-center gap-2.5"
+                  >
+                    <Sparkles className="size-4 shrink-0" />
+                    What&apos;s new
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     data-test="sidebar-logout-button"
@@ -412,7 +449,7 @@ export default function AppSidebar() {
 
               {/* 32px in the rail: the default 40px trigger overflows the 3rem
                   rail, so ask NavbarNotifications for its small size directly. */}
-              <div className="shrink-0">
+              <div className="shrink-0" data-tour="notifications">
                 <NavbarNotifications size="sm" />
               </div>
             </>

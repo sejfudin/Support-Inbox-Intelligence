@@ -364,7 +364,7 @@ const interns = [
     ],
   },
 
-  // ── terminal states: off the attendance roster (ROSTER_STATUSES), present in
+  // ── terminal states: off the attendance roster (IN_PROGRAMME_STATUSES), present in
   //    the pipeline and history screens.
   {
     key: 'filip',
@@ -526,7 +526,7 @@ const interns = [
 //
 // `internMemberKeys: 'roster'` = every active/ready intern. Workspace members
 // must be `status: 'active'` to appear in the dailies picker (see
-// dailyService.getActiveInterns).
+// helpers/workspaceInterns.js).
 
 const workspaces = [
   {

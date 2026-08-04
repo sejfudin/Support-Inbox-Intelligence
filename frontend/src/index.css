@@ -102,6 +102,31 @@
     @apply mt-2 max-w-2xl text-sm leading-6 text-muted-foreground;
   }
 
+  /* The admin dashboard's presence hero. Deliberately dark in BOTH themes — it is
+     the one inverted surface on the page, which is what makes the primary KPI read
+     first. Mixed from --primary rather than a hardcoded navy, so it tracks
+     whichever of the six themes is active instead of clashing with it. */
+  .admin-hero-surface {
+    background-image: linear-gradient(
+      140deg,
+      color-mix(in oklab, hsl(var(--primary)) 20%, hsl(230 28% 9%)) 0%,
+      color-mix(in oklab, hsl(var(--primary)) 30%, hsl(230 28% 11%)) 55%,
+      color-mix(in oklab, hsl(var(--primary)) 42%, hsl(230 26% 14%)) 100%
+    );
+    border: 1px solid color-mix(in oklab, hsl(var(--primary)) 35%, transparent);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Text on .admin-hero-surface — the hero is dark in both themes, so these do
+     not follow --foreground. */
+  .admin-hero-text {
+    color: hsl(0 0% 100% / 0.95);
+  }
+
+  .admin-hero-muted {
+    color: hsl(0 0% 100% / 0.62);
+  }
+
   .app-grid-bg {
     background-image:
       linear-gradient(hsl(var(--grid-line) / 0.08) 1px, transparent 1px),
