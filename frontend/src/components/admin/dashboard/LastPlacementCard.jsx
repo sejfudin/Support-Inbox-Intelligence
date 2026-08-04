@@ -8,9 +8,7 @@ export function LastPlacementCard({ lastPlacement }) {
   // bare "days ago" with nothing in front of it.
   const daysAgo = Number.isFinite(lastPlacement?.daysAgo) ? lastPlacement.daysAgo : null;
 
-  // First name only: this card is a quarter of the top row, and a full
-  // "Firstname Lastname · day N of cycle" truncates mid-word at that width.
-  const firstName = lastPlacement?.intern?.fullname?.trim().split(/\s+/)[0] || '';
+  const fullname = lastPlacement?.intern?.fullname?.trim() || '';
 
   return (
     <DashboardCard
@@ -34,10 +32,14 @@ export function LastPlacementCard({ lastPlacement }) {
           </TooltipContent>
         </Tooltip>
       }
+      className="min-h-0 flex-1"
       contentClassName="justify-between"
     >
       {lastPlacement ? (
         <>
+          {/* Number and unit on one line — the two never break apart, so the card
+              reads as "7 days ago" rather than a bare numeral with its unit
+              orphaned on the line below. */}
           <p className="flex flex-wrap items-baseline gap-x-1.5">
             <span className="text-4xl font-semibold leading-none tabular-nums text-foreground">
               {daysAgo === null ? '—' : daysAgo === 0 ? 'Today' : daysAgo}
@@ -48,10 +50,14 @@ export function LastPlacementCard({ lastPlacement }) {
               </span>
             )}
           </p>
-          <p className="mt-3 truncate text-[11px] leading-4 text-muted-foreground">
-            {firstName}
-            {lastPlacement.dayOfCycle ? ` · day ${lastPlacement.dayOfCycle} of cycle` : ''}
-          </p>
+          <div className="mt-3 min-w-0">
+            <p className="truncate text-xs font-semibold leading-4 text-foreground">{fullname}</p>
+            {lastPlacement.dayOfCycle && (
+              <p className="truncate text-[11px] leading-4 text-muted-foreground">
+                day {lastPlacement.dayOfCycle} of cycle
+              </p>
+            )}
+          </div>
         </>
       ) : (
         <DashboardCardEmpty>No interns have been placed on the platform yet.</DashboardCardEmpty>

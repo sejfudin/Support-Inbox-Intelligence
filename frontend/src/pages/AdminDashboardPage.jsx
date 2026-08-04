@@ -95,37 +95,36 @@ function TopRowSkeleton() {
         <Skeleton className="mt-4 h-10 w-full rounded-xl" />
       </SkeletonCard>
 
-      {/* Last placement + View more statistics. */}
-      <div className="grid grid-cols-2 gap-4">
-        <SkeletonCard className="justify-between">
+      {/* Last placement, with the slim analytics link strip under it. */}
+      <div className="flex min-w-0 flex-col gap-4">
+        <SkeletonCard className="min-h-0 flex-1 justify-between">
           <div className="flex items-start justify-between gap-2">
-            <SkeletonKicker width="w-20" />
+            <SkeletonKicker width="w-28" />
             <Skeleton className="h-3.5 w-3.5 shrink-0 rounded" />
           </div>
           <div className="space-y-2">
-            <Skeleton className="h-9 w-12" />
-            <Skeleton className="h-2.5 w-24" />
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-2.5 w-32" />
           </div>
         </SkeletonCard>
 
-        <SkeletonCard className="justify-between">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-2.5 w-full" />
-            <Skeleton className="h-2.5 w-20" />
+        <div className="flex shrink-0 items-center gap-3 rounded-[1.25rem] border border-dashed border-border px-4 py-3 sm:px-5">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-2.5 w-40 max-w-full" />
           </div>
-          <Skeleton className="h-3 w-20" />
-        </SkeletonCard>
+          <Skeleton className="h-3 w-16 shrink-0" />
+        </div>
       </div>
 
       {/* Recent placements | Specialization assigned, split by the same divider. */}
-      <SkeletonCard className="grid grid-cols-1 gap-4 xl:col-span-2 xl:grid-cols-2 xl:gap-0">
-        <div className="flex min-w-0 flex-col gap-3 xl:pr-5">
+      <SkeletonCard className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-0 md:col-span-2">
+        <div className="flex min-w-0 flex-col gap-3 sm:pr-5">
           <SkeletonKicker />
           <SkeletonPersonRow />
           <SkeletonPersonRow />
         </div>
-        <div className="flex min-w-0 flex-col gap-3 border-t border-border/60 pt-4 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
+        <div className="flex min-w-0 flex-col gap-3 border-t border-border/60 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
           <SkeletonKicker width="w-36" />
           <SkeletonPersonRow />
           <SkeletonPersonRow />
@@ -276,7 +275,10 @@ export default function AdminDashboardPage() {
                 <div className={TOP_ROW_CLASS}>
                   <PresenceHeroCard presence={dashboard?.presence} />
 
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Stacked, not side by side: the analytics link is a slim strip
+                      and the placement metric flexes to fill the rest, so the
+                      quarter still ends level with the hero beside it. */}
+                  <div className="flex min-w-0 flex-col gap-4">
                     <LastPlacementCard lastPlacement={dashboard?.lastPlacement} />
                     <MoreStatisticsCard />
                   </div>
