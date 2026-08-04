@@ -7,8 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-
-const buildArray = (length) => Array.from({ length });
+import { buildArray } from '@/components/Skeletons/buildArray';
 
 export default function TableSkeleton({
   columns = 5,

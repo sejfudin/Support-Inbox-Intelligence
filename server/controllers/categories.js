@@ -1,10 +1,12 @@
 const categoryService = require('../services/categoryService');
+const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 
 const getCategories = async (req, res) => {
   try {
-    const isAdmin = req.user?.role === 'admin';
-    const workspaceId =
-      isAdmin && req.query.workspaceId ? req.query.workspaceId : req.user?.workspaceId;
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: req.query.workspaceId,
+    });
 
     if (!workspaceId) {
       return res.status(400).json({ success: false, message: 'No workspace associated' });
@@ -25,12 +27,11 @@ const createCategory = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Category name is required' });
     }
 
-    const isAdmin = req.user?.role === 'admin';
     // Non-admins write to the workspace the guard authorized (req.managedWorkspaceId),
     // so the target can never drift from what requireWorkspaceManager checked.
     const workspaceId =
       req.managedWorkspaceId ||
-      (isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user?.workspaceId);
+      (await resolveActiveWorkspaceId({ user: req.user, override: bodyWorkspaceId }));
 
     if (!workspaceId) {
       return res.status(400).json({ success: false, message: 'No workspace associated' });

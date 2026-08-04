@@ -65,6 +65,7 @@ npm run backfill:legacy-secondary-mentor # RUN-WHEN-READY: revokes ad-hoc mentor
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
 npm run cleanup:superseded-technologies # retire legacy combined catalog rows, see below
+npm run cleanup:stale-workspace-pointers # clear User.workspaceId that no membership backs, see below
 ```
 
 ### `npm run seed:demo` — the one to reach for
@@ -220,6 +221,24 @@ npm run cleanup:superseded-technologies                # deactivate the supersed
 
 The mapping lives in `SUPERSEDED_BY` at the top of `seeder/retireSupersededTechnologies.js` —
 add a pair there when a new granular entry replaces an older combined one.
+
+### `npm run cleanup:stale-workspace-pointers`
+
+`User.workspaceId` is the workspace a user last switched to — a pointer, not proof of membership
+(see `.claude/docs/security.md`). It goes stale when a user is downgraded from admin/mentor to
+intern/leadership (the `canAccessAnyWorkspace` bypass disappears, the pointer stays), or when a
+membership is flipped to `invited`/`disabled`. The API no longer honors a stale pointer, but it
+still drives what the UI offers, so clear it in the data too.
+
+Safe against any environment — it only ever rewrites `workspaceId`, skips admins/mentors (whose
+pointer needs no membership), and repoints a user to another workspace they *are* an active
+member of when one exists, mirroring `workspaceService.removeMember`. Idempotent.
+
+```bash
+npm run cleanup:stale-workspace-pointers -- --dry-run   # report only, change nothing
+npm run cleanup:stale-workspace-pointers                # prompts before writing
+npm run cleanup:stale-workspace-pointers -- --yes       # non-interactive
+```
 
 ### `npm run backfill:legacy-secondary-mentor` — run-when-ready, revokes access
 

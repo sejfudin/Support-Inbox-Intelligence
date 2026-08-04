@@ -1,7 +1,17 @@
 const aiSummaryService = require('../services/aiSummaryService');
+const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 
+// Unlike the other ambient-workspace controllers, an explicit workspaceId is
+// honored here for every role: `aiSummaryService.ensureWorkspaceAccess` requires
+// the requester to be an active member of whatever workspace is asked for
+// (admins excepted), so the override can't reach a workspace they don't belong
+// to — and a user who belongs to two workspaces can legitimately ask about the
+// one that isn't their current pointer. Only the implicit fallback needs
+// verifying, since that is the part that goes stale.
 function getWorkspaceId(req) {
-  return req.query.workspaceId || req.body?.workspaceId || req.user?.workspaceId;
+  const explicit = req.query.workspaceId || req.body?.workspaceId;
+  if (explicit) return explicit;
+  return resolveActiveWorkspaceId({ user: req.user });
 }
 
 function handleSummaryError(error, res, next) {
@@ -43,7 +53,7 @@ const getLatestUserSummary = async (req, res, next) => {
   try {
     const summary = await aiSummaryService.getLatestUserSummary({
       userId: req.params.userId,
-      workspaceId: getWorkspaceId(req),
+      workspaceId: await getWorkspaceId(req),
       requesterId: req.user._id,
       requesterRole: req.user.role,
     });
@@ -61,7 +71,7 @@ const generateUserSummary = async (req, res, next) => {
   try {
     const summary = await aiSummaryService.generateUserSummary({
       userId: req.params.userId,
-      workspaceId: getWorkspaceId(req),
+      workspaceId: await getWorkspaceId(req),
       requesterId: req.user._id,
       requesterRole: req.user.role,
     });

@@ -10,6 +10,7 @@ import { DailyEmptyState } from '@/components/dailies/DailyEmptyState';
 import { DailyEntryCard } from '@/components/dailies/DailyEntryCard';
 import { AddEntryModal } from '@/components/dailies/AddEntryModal';
 import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import DailySkeleton from '@/components/Skeletons/DailySkeleton';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
 import { Button } from '@/components/ui/button';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
@@ -95,6 +96,7 @@ const WorkspaceDailiesPage = () => {
               )
             }
           />
+          {isLoading && <DailySkeleton />}
           {!isLoading && daily && (
             <>
               <DailyHeader counts={daily.counts} />
