@@ -5,10 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-// Same family used throughout the Projects page (KPI card, chart) — ranking
-// each bar in a different shade instead of one flat color.
-const SKILL_BAR_PALETTE = ['#6C63FF', '#2FA98C', '#DA7328', '#4F86E8', '#E0568A', '#3FB1C8'];
+import { SKILL_BAR_PALETTE } from '@/helpers/projects';
 
 // Clicking a technology here does NOT filter the project grid — it closes
 // the modal and scrolls to the technology-demand chart, where a bar click

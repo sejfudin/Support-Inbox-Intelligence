@@ -8,26 +8,11 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { getInitials } from '@/helpers/initials';
+import { getSelectionStageTheme } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 
-const STAGE_THEME = {
-  recommended: {
-    panel: 'border-[hsl(var(--symphony-brand)/0.2)] bg-[hsl(var(--symphony-brand)/0.05)]',
-    dot: 'bg-[hsl(var(--symphony-brand))]',
-    avatar:
-      'bg-[hsl(var(--symphony-brand)/0.15)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]',
-    badge: 'default',
-  },
-  interviewing: {
-    panel: 'border-amber-500/25 bg-amber-500/[0.05]',
-    dot: 'bg-amber-500',
-    avatar: 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
-    badge: 'warning',
-  },
-};
-
 function SelectionColumn({ stage, title, interns }) {
-  const theme = STAGE_THEME[stage];
+  const theme = getSelectionStageTheme(stage);
   return (
     <div className={cn('rounded-xl border p-3', theme.panel)}>
       <div className="mb-3 flex items-center justify-between">

@@ -9,12 +9,12 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useProjectOverview } from '@/queries/projects';
 import { getInitials } from '@/helpers/initials';
-import { getRecommendationStatusVariant } from '@/helpers/recommendations';
 import {
   getOutcomeHistoryTone,
   getOutcomeLabel,
   getProjectStatusLabel,
   getSelectionStageLabel,
+  getSelectionStageTheme,
 } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 
@@ -204,40 +204,31 @@ export default function LeadershipProjectPage() {
                   Nobody is currently in selection for this project.
                 </p>
               )}
-              {selection.map((intern) => (
-                <div
-                  key={intern.recommendationId}
-                  className={cn(
-                    'flex items-center gap-3 rounded-lg border px-3 py-2.5',
-                    intern.stage === 'interviewing'
-                      ? 'border-amber-500/25 bg-amber-500/[0.05]'
-                      : 'border-[hsl(var(--symphony-brand)/0.22)] bg-[hsl(var(--symphony-brand)/0.05)]'
-                  )}
-                >
-                  <PersonAvatar
-                    fullname={intern.fullname}
-                    className={
-                      intern.stage === 'interviewing'
-                        ? 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
-                        : 'bg-[hsl(var(--symphony-brand)/0.15)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]'
-                    }
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {intern.fullname}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {intern.position || 'Unspecified role'}
-                    </p>
-                  </div>
-                  <Badge
-                    variant={getRecommendationStatusVariant(intern.stage)}
-                    className="shrink-0"
+              {selection.map((intern) => {
+                const theme = getSelectionStageTheme(intern.stage);
+                return (
+                  <div
+                    key={intern.recommendationId}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                      theme.panel
+                    )}
                   >
-                    {getSelectionStageLabel(intern.stage)}
-                  </Badge>
-                </div>
-              ))}
+                    <PersonAvatar fullname={intern.fullname} className={theme.avatar} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {intern.fullname}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {intern.position || 'Unspecified role'}
+                      </p>
+                    </div>
+                    <Badge variant={theme.badge} className="shrink-0">
+                      {getSelectionStageLabel(intern.stage)}
+                    </Badge>
+                  </div>
+                );
+              })}
             </div>
           </SymphonyCard>
         </div>

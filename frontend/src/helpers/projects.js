@@ -27,3 +27,29 @@ export const getOutcomeHistoryTone = (outcome) =>
   outcome === 'placed'
     ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
     : 'border-border bg-muted/40 text-muted-foreground';
+
+// Shared with BreakdownDonut/TechnologySupply's palette family — ranking
+// bars in different shades instead of one flat color. Used by both the
+// "Skills in selection" KPI card and its modal so the two never drift.
+export const SKILL_BAR_PALETTE = ['#6C63FF', '#2FA98C', '#DA7328', '#4F86E8', '#E0568A', '#3FB1C8'];
+
+// "Recommended" vs "interviewing" color identity, shared by the In-selection
+// modal and the project detail page so the two always agree.
+export const SELECTION_STAGE_THEME = {
+  recommended: {
+    panel: 'border-[hsl(var(--symphony-brand)/0.2)] bg-[hsl(var(--symphony-brand)/0.05)]',
+    dot: 'bg-[hsl(var(--symphony-brand))]',
+    avatar:
+      'bg-[hsl(var(--symphony-brand)/0.15)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]',
+    badge: 'default',
+  },
+  interviewing: {
+    panel: 'border-amber-500/25 bg-amber-500/[0.05]',
+    dot: 'bg-amber-500',
+    avatar: 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
+    badge: 'warning',
+  },
+};
+
+export const getSelectionStageTheme = (stage) =>
+  SELECTION_STAGE_THEME[stage] ?? SELECTION_STAGE_THEME.recommended;

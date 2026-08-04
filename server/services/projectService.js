@@ -108,6 +108,14 @@ const internSummary = (recommendation) => ({
   position: recommendation.position?.name || null,
 });
 
+// The authoritative "when this outcome happened" date: the recorded decision
+// date, falling back to the resulted-stage date, falling back to the record's
+// last update — same fallback chain wherever a placed/resulted date is shown.
+const resolveResultDate = (recommendation) =>
+  recommendation.result?.decidedAt ||
+  recommendation.statusDates?.resulted ||
+  recommendation.updatedAt;
+
 // Leadership-facing roster/pipeline for one project — "which interns are on
 // project X" stays a derived read (query Recommendation by project), same
 // philosophy as the per-intern recommendations tab; no roster is stored on
@@ -125,7 +133,7 @@ const getProjectOverview = async (id, user) => {
     .filter((rec) => rec.result?.outcome === 'placed')
     .map((rec) => ({
       ...internSummary(rec),
-      placedAt: rec.result?.decidedAt || rec.statusDates?.resulted || rec.updatedAt,
+      placedAt: resolveResultDate(rec),
     }));
 
   const selection = recommendations
@@ -142,7 +150,7 @@ const getProjectOverview = async (id, user) => {
       ...internSummary(rec),
       outcome: rec.result?.outcome || null,
       note: rec.result?.note || '',
-      date: rec.result?.decidedAt || rec.statusDates?.resulted || rec.updatedAt,
+      date: resolveResultDate(rec),
     }))
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -203,7 +211,7 @@ const getProjectsOverview = async (user) => {
         ...internSummary(rec),
         projectId: project._id,
         projectName: project.name,
-        placedAt: rec.result?.decidedAt || rec.statusDates?.resulted || rec.updatedAt,
+        placedAt: resolveResultDate(rec),
       });
     });
 

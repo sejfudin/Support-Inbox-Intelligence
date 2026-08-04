@@ -4,7 +4,7 @@ import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { InternsPlacedModal } from './InternsPlacedModal';
 import { InSelectionModal } from './InSelectionModal';
 import { SkillsInSelectionModal } from './SkillsInSelectionModal';
-import { getProjectStatusLabel } from '@/helpers/projects';
+import { getProjectStatusLabel, SKILL_BAR_PALETTE } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 
 // Same status vocabulary as SymphonyStatusBadge/getProjectStatusLabel, given
@@ -54,10 +54,6 @@ function StatusBreakdownRow({ status, label, count, active, onClick }) {
     </button>
   );
 }
-
-// Same family used by BreakdownDonut/TechnologySupply — ranking each bar in
-// a different shade keeps this card from reading as a flat monochrome list.
-const SKILL_BAR_PALETTE = ['#6C63FF', '#2FA98C', '#DA7328', '#4F86E8'];
 
 function SkillsInSelectionCard({ isPending, skills, internsInSelection, onClick }) {
   const top4 = skills.slice(0, 4);
