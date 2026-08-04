@@ -1,6 +1,6 @@
 const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
-const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
+const { assertWorkspaceAccess, resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -31,8 +31,10 @@ const getAllTickets = async (req, res) => {
       periodDays,
     } = req.query;
 
-    const isAdmin = req.user?.role === 'admin';
-    const workspaceId = isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: queryWorkspaceId,
+    });
 
     const result = await ticketService.getAllTickets({
       page: parseInt(page, 10) || 1,
@@ -120,7 +122,14 @@ const createTicket = async (req, res) => {
     const isAdmin = req.user && req.user.role === 'admin';
     const hasStatus = status !== undefined && status !== null && status !== '';
     const hasStatusId = statusId !== undefined && statusId !== null && statusId !== '';
-    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: bodyWorkspaceId,
+    });
+
+    if (!workspaceId) {
+      return res.status(400).json({ success: false, message: 'No workspace associated' });
+    }
 
     const assignedAgents = assignedTo
       ? Array.isArray(assignedTo)
@@ -329,7 +338,7 @@ const getMyTickets = async (req, res, next) => {
 
     const result = await ticketService.getMyTickets({
       userId: req.user._id,
-      workspaceId: req.user.workspaceId,
+      workspaceId: await resolveActiveWorkspaceId({ user: req.user }),
       page: parseInt(page, 10) || 1,
       limit: parseInt(limit, 10) || 10,
       search: search || '',

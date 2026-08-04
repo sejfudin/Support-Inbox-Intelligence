@@ -14,9 +14,26 @@ caller's workspace.
   - `canAccessAnyWorkspace(role)` — `admin` and `mentor` may reach any workspace.
   - `isActiveWorkspaceMember(workspace, userId)` — membership check.
   - `hasWorkspaceAccess({ role, workspace, userId })` — the combined gate. Use this.
-- Admins **bypass** membership checks by design (`resolveWorkspaceId` in controllers reads
-  `req.query.workspaceId` / `req.body.workspaceId` for admins, otherwise `req.user.workspaceId`).
-  When adding admin paths, preserve this pattern; don't let non-admins pass a `workspaceId` override.
+  - `resolveActiveWorkspaceId({ user, override })` — resolves the **ambient** workspace a
+    request acts on. Use this instead of reading `req.user.workspaceId` directly.
+- **`User.workspaceId` is a pointer, not proof of membership.** It records the workspace the
+  user last switched to and can outlive the membership that made it valid: `switchWorkspace`
+  sets it for admins without creating a member entry, a role downgrade (admin/mentor → intern)
+  removes the `canAccessAnyWorkspace` bypass while leaving the pointer, and a membership can be
+  flipped to `invited`/`disabled` without touching it. Any endpoint that scopes by the pointer
+  alone leaks that workspace's data to a non-member — this is what
+  `resolveActiveWorkspaceId` exists to prevent. It returns `null` when the pointer no longer
+  holds; callers must treat `null` as "no workspace" (empty result / 400), **never** as
+  "unscoped" — a query with an undefined workspace filter matches every workspace.
+  `server/seeder/cleanupStaleWorkspacePointers.js` clears already-stale pointers in the data.
+- `GET /api/auth/me` reports the **verified** workspace in `workspaceId` (resolved through
+  `resolveActiveWorkspaceId`), not the raw pointer, so the frontend's `WorkspaceGuard` and
+  sidebar gating match what the API will actually serve. Don't seed the `['auth','me']` query
+  cache from any other payload — those carry the raw pointer.
+- Admins **bypass** membership checks by design (`resolveActiveWorkspaceId` accepts an
+  `override` — `req.query.workspaceId` / `req.body.workspaceId` — for admins only; mentors keep
+  their ambient pointer but get no override). When adding admin paths, preserve this pattern;
+  don't let non-admins pass a `workspaceId` override.
 - Pattern to copy (see `server/controllers/*` `assertStatusInWorkspace`): fetch the resource,
   404 if absent, then compare `resource.workspace.toString()` to the resolved workspace id and
   reject on mismatch.
