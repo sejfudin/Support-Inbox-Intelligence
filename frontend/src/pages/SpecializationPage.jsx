@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
-import { ArrowRight, MoreHorizontal, Plus } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, MoreHorizontal, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import {
 import PageHeading from '@/components/PageHeading';
 import { PageShell, PageSection } from '@/components/PageShell';
 import { useSpecializations, useClearSpecialization } from '@/queries/specializations';
+import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { useMentorCandidates } from '@/queries/users';
 import { AssignSpecializationModal } from '@/components/interns/specialization/AssignSpecializationModal';
 import { ReassignSpecializationDialog } from '@/components/interns/specialization/ReassignSpecializationDialog';
@@ -53,6 +54,7 @@ export default function SpecializationPage() {
   const [status, setStatus] = useState('specialized');
   const [mentorId, setMentorId] = useState('');
   const [search, setSearch] = useState('');
+  const [assignedSortDirection, setAssignedSortDirection] = useState('desc');
   const [debouncedSearch] = useDebounce(search, 400);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [assignInternUserId, setAssignInternUserId] = useState('');
@@ -67,6 +69,7 @@ export default function SpecializationPage() {
     status,
     mentorId: mentorId || undefined,
     search: debouncedSearch || undefined,
+    sort: `assignedAt:${assignedSortDirection}`,
     page,
     limit: 20,
   });
@@ -107,6 +110,11 @@ export default function SpecializationPage() {
 
   const handleSearchChange = (event) => {
     setSearch(event.target.value);
+    setPage(1);
+  };
+
+  const handleToggleAssignedSort = () => {
+    setAssignedSortDirection((currentDirection) => (currentDirection === 'desc' ? 'asc' : 'desc'));
     setPage(1);
   };
 
@@ -162,7 +170,7 @@ export default function SpecializationPage() {
         />
 
         <div className="app-panel overflow-hidden pb-2">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 md:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-5 md:px-6">
             <div className="flex flex-wrap items-center gap-2">
               <Select value={status} onValueChange={handleStatusChange}>
                 <SelectTrigger className="w-[160px]" data-test="specialization-status-filter">
@@ -223,9 +231,7 @@ export default function SpecializationPage() {
               Failed to load specializations.
             </p>
           )}
-          {isPending && (
-            <p className="p-6 text-sm text-muted-foreground">Loading specializations...</p>
-          )}
+          {isPending && <TableSkeleton columns={5} minWidthClassName="min-w-[1040px]" />}
           {!isPending && !isError && (
             <div className={cn('overflow-x-auto transition-opacity', isFetching && 'opacity-60')}>
               <Table className="min-w-[1040px]">
@@ -234,8 +240,22 @@ export default function SpecializationPage() {
                     <TableHead className={tableHeadClass}>Intern</TableHead>
                     <TableHead className={tableHeadClass}>Position</TableHead>
                     <TableHead className={tableHeadClass}>Mentor</TableHead>
-                    <TableHead className={tableHeadClass}>Assigned</TableHead>
-                    <TableHead className={tableHeadClass}></TableHead>
+                    <TableHead className={tableHeadClass}>
+                      <button
+                        type="button"
+                        onClick={handleToggleAssignedSort}
+                        className="flex items-center gap-1 uppercase tracking-[0.12em] hover:text-foreground"
+                        data-test="specialization-assigned-sort"
+                      >
+                        Assigned
+                        {assignedSortDirection === 'desc' ? (
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        ) : (
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </TableHead>
+                    <TableHead className={tableHeadClass}>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -270,16 +290,12 @@ export default function SpecializationPage() {
                         </TableCell>
                         <TableCell className={tableCellClass}>
                           {specialization.declaredPosition?.name ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="outline">
-                                {specialization.declaredPosition.name}
-                              </Badge>
-                              {status === 'all' && isSpecialized && (
-                                <Badge data-test={`specialization-badge-${specialization._id}`}>
-                                  SPECIALIZATION
-                                </Badge>
-                              )}
-                            </div>
+                            <Badge
+                              variant={isSpecialized ? 'default' : 'outline'}
+                              data-test={`specialization-badge-${specialization._id}`}
+                            >
+                              {specialization.declaredPosition.name}
+                            </Badge>
                           ) : (
                             <span className="text-muted-foreground">no position declared yet</span>
                           )}
