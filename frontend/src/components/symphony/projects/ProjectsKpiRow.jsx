@@ -7,7 +7,33 @@ import { SkillsInSelectionModal } from './SkillsInSelectionModal';
 import { getProjectStatusLabel } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 
-function StatusBreakdownRow({ label, count, active, onClick }) {
+// Same status vocabulary as SymphonyStatusBadge/getProjectStatusLabel, given
+// its own color identity here — each row is a soft colored pill (label and
+// count both tinted) so a row reads as one unit rather than needing an
+// underline to tie the two together.
+const STATUS_ROW_TONE = {
+  active: {
+    dot: 'bg-emerald-500',
+    text: 'text-emerald-700 dark:text-emerald-400',
+    bg: 'bg-emerald-500/[0.07] hover:bg-emerald-500/[0.13] dark:bg-emerald-500/10 dark:hover:bg-emerald-500/[0.16]',
+    activeBg: 'bg-emerald-500/[0.16] dark:bg-emerald-500/[0.22]',
+  },
+  on_hold: {
+    dot: 'bg-amber-500',
+    text: 'text-amber-700 dark:text-amber-400',
+    bg: 'bg-amber-500/[0.07] hover:bg-amber-500/[0.13] dark:bg-amber-500/10 dark:hover:bg-amber-500/[0.16]',
+    activeBg: 'bg-amber-500/[0.16] dark:bg-amber-500/[0.22]',
+  },
+  completed: {
+    dot: 'bg-slate-400',
+    text: 'text-slate-600 dark:text-slate-400',
+    bg: 'bg-slate-400/[0.08] hover:bg-slate-400/[0.14] dark:bg-slate-400/10 dark:hover:bg-slate-400/[0.16]',
+    activeBg: 'bg-slate-400/[0.18] dark:bg-slate-400/[0.24]',
+  },
+};
+
+function StatusBreakdownRow({ status, label, count, active, onClick }) {
+  const tone = STATUS_ROW_TONE[status] ?? STATUS_ROW_TONE.completed;
   return (
     <button
       type="button"
@@ -16,15 +42,22 @@ function StatusBreakdownRow({ label, count, active, onClick }) {
         onClick();
       }}
       className={cn(
-        'flex w-full items-center justify-between rounded-md px-1.5 py-1 text-left text-xs transition-colors hover:bg-muted/50',
-        active ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
+        'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors',
+        active ? tone.activeBg : tone.bg
       )}
     >
-      <span>{label}</span>
-      <span className="font-semibold tabular-nums text-foreground">{count}</span>
+      <span className={cn('inline-flex items-center gap-1.5 font-semibold', tone.text)}>
+        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', tone.dot)} />
+        {label}
+      </span>
+      <span className={cn('font-bold tabular-nums', tone.text)}>{count}</span>
     </button>
   );
 }
+
+// Same family used by BreakdownDonut/TechnologySupply — ranking each bar in
+// a different shade keeps this card from reading as a flat monochrome list.
+const SKILL_BAR_PALETTE = ['#6C63FF', '#2FA98C', '#DA7328', '#4F86E8'];
 
 function SkillsInSelectionCard({ isPending, skills, internsInSelection, onClick }) {
   const top4 = skills.slice(0, 4);
@@ -49,22 +82,31 @@ function SkillsInSelectionCard({ isPending, skills, internsInSelection, onClick 
             <p className="text-xs text-muted-foreground">No data yet.</p>
           )}
           {!isPending &&
-            top4.map((skill) => (
-              <div key={skill.technology._id} className="flex items-center gap-2">
-                <span className="w-16 shrink-0 truncate text-xs font-medium text-foreground">
-                  {skill.technology.name}
-                </span>
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            top4.map((skill, index) => {
+              const color = SKILL_BAR_PALETTE[index % SKILL_BAR_PALETTE.length];
+              return (
+                <div key={skill.technology._id} className="flex items-center gap-2">
+                  <span className="w-16 shrink-0 truncate text-xs font-medium text-foreground">
+                    {skill.technology.name}
+                  </span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{
+                        width: `${Math.max(8, (skill.internCount / max) * 100)}%`,
+                        backgroundColor: color,
+                      }}
+                    />
+                  </span>
                   <span
-                    className="block h-full rounded-full bg-[#6C63FF]"
-                    style={{ width: `${Math.max(8, (skill.internCount / max) * 100)}%` }}
-                  />
-                </span>
-                <span className="w-4 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
-                  {skill.internCount}
-                </span>
-              </div>
-            ))}
+                    className="w-4 shrink-0 text-right text-xs font-bold tabular-nums"
+                    style={{ color }}
+                  >
+                    {skill.internCount}
+                  </span>
+                </div>
+              );
+            })}
         </div>
       </SymphonyCard>
     </button>
@@ -114,6 +156,7 @@ export function ProjectsKpiRow({
                 {['active', 'on_hold', 'completed'].map((status) => (
                   <StatusBreakdownRow
                     key={status}
+                    status={status}
                     label={getProjectStatusLabel(status)}
                     count={byStatus[status] || 0}
                     active={statusFilter === status}

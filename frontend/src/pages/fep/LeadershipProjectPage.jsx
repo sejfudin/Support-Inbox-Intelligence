@@ -1,11 +1,15 @@
 import { useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, History, UserCheck, Users } from 'lucide-react';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { useProjectOverview } from '@/queries/projects';
+import { getInitials } from '@/helpers/initials';
+import { getRecommendationStatusVariant } from '@/helpers/recommendations';
 import {
   getOutcomeHistoryTone,
   getOutcomeLabel,
@@ -15,15 +19,45 @@ import {
 import { cn } from '@/lib/utils';
 
 // Clicking a tile scrolls to its section below — it never filters, unlike
-// the list page's KPI cards (see LeadershipProjectsPage).
-function SectionStatTile({ label, value, onClick, testId }) {
+// the list page's KPI cards (see LeadershipProjectsPage). `dot` gives each
+// tile its own color identity instead of three identical grey cards.
+function SectionStatTile({ label, value, dot, onClick, testId }) {
   return (
     <button type="button" onClick={onClick} className="text-left" data-test={testId}>
       <SymphonyCard variant="muted" className="transition-shadow hover:shadow-md">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </p>
+        </div>
         <p className="mt-1.5 text-3xl font-bold tabular-nums text-foreground">{value}</p>
       </SymphonyCard>
     </button>
+  );
+}
+
+function SectionHeading({ icon: Icon, tint, title, subtitle }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', tint)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <div>
+        <h2 className="font-semibold text-foreground">{title}</h2>
+        <p className="text-sm text-muted-foreground">{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
+function PersonAvatar({ fullname, className }) {
+  return (
+    <Avatar className="h-9 w-9 shrink-0">
+      <AvatarFallback className={cn('text-xs font-semibold', className)}>
+        {getInitials(fullname)}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 
@@ -97,18 +131,21 @@ export default function LeadershipProjectPage() {
         <SectionStatTile
           label="Placed"
           value={placed.length}
+          dot="#2FA98C"
           onClick={() => scrollTo(placedRef)}
           testId="project-stat-placed"
         />
         <SectionStatTile
           label="In selection"
           value={selection.length}
+          dot="#6C63FF"
           onClick={() => scrollTo(selectionRef)}
           testId="project-stat-selection"
         />
         <SectionStatTile
           label="Not placed"
           value={notPlacedCount}
+          dot="#94A3B8"
           onClick={() => scrollTo(historyRef)}
           testId="project-stat-not-placed"
         />
@@ -117,11 +154,13 @@ export default function LeadershipProjectPage() {
       <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
         <div ref={placedRef} className="scroll-mt-20">
           <SymphonyCard className="flex h-full flex-col">
-            <h2 className="font-semibold text-foreground">Currently placed</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Interns staffed on this project right now.
-            </p>
-            <div className="mt-4 flex-1 space-y-3">
+            <SectionHeading
+              icon={UserCheck}
+              tint="bg-emerald-500/12 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
+              title="Currently placed"
+              subtitle="Interns staffed on this project right now."
+            />
+            <div className="mt-4 flex-1 space-y-2.5">
               {placed.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
                   Nobody is placed on this project yet.
@@ -130,13 +169,21 @@ export default function LeadershipProjectPage() {
               {placed.map((intern) => (
                 <div
                   key={intern.recommendationId}
-                  className="border-t border-border/60 pt-3 first:border-t-0 first:pt-0"
+                  className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2.5 dark:border-emerald-500/15"
                 >
-                  <p className="text-sm font-medium text-foreground">{intern.fullname}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {intern.position || 'Unspecified role'} · since{' '}
-                    {intern.placedAt ? format(new Date(intern.placedAt), 'MMM d, yyyy') : '—'}
-                  </p>
+                  <PersonAvatar
+                    fullname={intern.fullname}
+                    className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {intern.fullname}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {intern.position || 'Unspecified role'} · since{' '}
+                      {intern.placedAt ? format(new Date(intern.placedAt), 'MMM d, yyyy') : '—'}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -145,11 +192,13 @@ export default function LeadershipProjectPage() {
 
         <div ref={selectionRef} className="scroll-mt-20">
           <SymphonyCard className="flex h-full flex-col">
-            <h2 className="font-semibold text-foreground">In selection</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Recommended or interviewing for this project.
-            </p>
-            <div className="mt-4 flex-1 space-y-3">
+            <SectionHeading
+              icon={Users}
+              tint="bg-[hsl(var(--symphony-brand)/0.14)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]"
+              title="In selection"
+              subtitle="Recommended or interviewing for this project."
+            />
+            <div className="mt-4 flex-1 space-y-2.5">
               {selection.length === 0 && (
                 <p className="py-6 text-center text-sm text-muted-foreground">
                   Nobody is currently in selection for this project.
@@ -158,9 +207,22 @@ export default function LeadershipProjectPage() {
               {selection.map((intern) => (
                 <div
                   key={intern.recommendationId}
-                  className="flex items-center justify-between gap-3 border-t border-border/60 pt-3 first:border-t-0 first:pt-0"
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                    intern.stage === 'interviewing'
+                      ? 'border-amber-500/25 bg-amber-500/[0.05]'
+                      : 'border-[hsl(var(--symphony-brand)/0.22)] bg-[hsl(var(--symphony-brand)/0.05)]'
+                  )}
                 >
-                  <div className="min-w-0">
+                  <PersonAvatar
+                    fullname={intern.fullname}
+                    className={
+                      intern.stage === 'interviewing'
+                        ? 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                        : 'bg-[hsl(var(--symphony-brand)/0.15)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]'
+                    }
+                  />
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">
                       {intern.fullname}
                     </p>
@@ -168,9 +230,12 @@ export default function LeadershipProjectPage() {
                       {intern.position || 'Unspecified role'}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-xs font-medium text-foreground">
+                  <Badge
+                    variant={getRecommendationStatusVariant(intern.stage)}
+                    className="shrink-0"
+                  >
                     {getSelectionStageLabel(intern.stage)}
-                  </span>
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -180,11 +245,13 @@ export default function LeadershipProjectPage() {
 
       <div ref={historyRef} className="scroll-mt-20">
         <SymphonyCard>
-          <h2 className="font-semibold text-foreground">Outcome history</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Everyone who went through this project, including those not placed.
-          </p>
-          <div className="mt-4 space-y-3">
+          <SectionHeading
+            icon={History}
+            tint="bg-slate-500/10 text-slate-600 dark:bg-slate-400/15 dark:text-slate-300"
+            title="Outcome history"
+            subtitle="Everyone who went through this project, including those not placed."
+          />
+          <div className="mt-4 space-y-2.5">
             {history.length === 0 && (
               <p className="py-6 text-center text-sm text-muted-foreground">
                 No outcomes recorded yet.
@@ -193,7 +260,12 @@ export default function LeadershipProjectPage() {
             {history.map((entry) => (
               <div
                 key={entry.recommendationId}
-                className="flex flex-wrap items-start justify-between gap-3 border-t border-border/60 pt-3 first:border-t-0 first:pt-0"
+                className={cn(
+                  'flex flex-wrap items-start justify-between gap-3 rounded-lg border-l-2 bg-muted/20 px-3 py-3',
+                  entry.outcome === 'placed'
+                    ? 'border-l-emerald-500'
+                    : 'border-l-slate-300 dark:border-l-slate-600'
+                )}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">

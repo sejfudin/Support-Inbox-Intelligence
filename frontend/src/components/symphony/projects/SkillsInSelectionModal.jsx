@@ -6,6 +6,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+// Same family used throughout the Projects page (KPI card, chart) — ranking
+// each bar in a different shade instead of one flat color.
+const SKILL_BAR_PALETTE = ['#6C63FF', '#2FA98C', '#DA7328', '#4F86E8', '#E0568A', '#3FB1C8'];
+
 // Clicking a technology here does NOT filter the project grid — it closes
 // the modal and scrolls to the technology-demand chart, where a bar click
 // is the actual filter affordance.
@@ -25,27 +29,36 @@ export function SkillsInSelectionModal({ open, onOpenChange, skills = [], onView
           {skills.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">No data yet.</p>
           )}
-          {skills.map((skill) => (
-            <button
-              key={skill.technology._id}
-              type="button"
-              onClick={onViewInChart}
-              className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted/40"
-            >
-              <span className="w-24 shrink-0 truncate text-sm font-medium text-foreground">
-                {skill.technology.name}
-              </span>
-              <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+          {skills.map((skill, index) => {
+            const color = SKILL_BAR_PALETTE[index % SKILL_BAR_PALETTE.length];
+            return (
+              <button
+                key={skill.technology._id}
+                type="button"
+                onClick={onViewInChart}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted/40"
+              >
+                <span className="w-24 shrink-0 truncate text-sm font-medium text-foreground">
+                  {skill.technology.name}
+                </span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                  <span
+                    className="block h-full rounded-full"
+                    style={{
+                      width: `${Math.max(6, (skill.internCount / max) * 100)}%`,
+                      backgroundColor: color,
+                    }}
+                  />
+                </span>
                 <span
-                  className="block h-full rounded-full bg-[#6C63FF]"
-                  style={{ width: `${Math.max(6, (skill.internCount / max) * 100)}%` }}
-                />
-              </span>
-              <span className="w-6 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
-                {skill.internCount}
-              </span>
-            </button>
-          ))}
+                  className="w-6 shrink-0 text-right text-xs font-bold tabular-nums"
+                  style={{ color }}
+                >
+                  {skill.internCount}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </DialogContent>
     </Dialog>

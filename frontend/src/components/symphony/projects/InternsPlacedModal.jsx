@@ -26,10 +26,10 @@ export function InternsPlacedModal({ open, onOpenChange, interns = [] }) {
           {interns.map((intern) => (
             <div
               key={intern.recommendationId}
-              className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2.5"
+              className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2.5 dark:border-emerald-500/15"
             >
-              <Avatar className="h-9 w-9">
-                <AvatarFallback className="text-xs font-semibold">
+              <Avatar className="h-9 w-9 shrink-0">
+                <AvatarFallback className="bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
                   {getInitials(intern.fullname)}
                 </AvatarFallback>
               </Avatar>
