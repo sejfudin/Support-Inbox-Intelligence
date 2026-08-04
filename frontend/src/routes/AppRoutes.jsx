@@ -26,6 +26,8 @@ import SymphonyLayout from '@/layouts/SymphonyLayout';
 import LeadershipDashboardPage from '@/pages/fep/LeadershipDashboardPage';
 import LeadershipCandidatesPage from '@/pages/fep/LeadershipCandidatesPage';
 import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
+import LeadershipProjectsPage from '@/pages/fep/LeadershipProjectsPage';
+import LeadershipProjectPage from '@/pages/fep/LeadershipProjectPage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
@@ -101,6 +103,8 @@ export default function AppRoutes() {
             <Route path="/programme" element={<LeadershipDashboardPage />} />
             <Route path="/interns" element={<LeadershipCandidatesPage />} />
             <Route path="/interns/:userId" element={<LeadershipCandidatePage />} />
+            <Route path="/projects" element={<LeadershipProjectsPage />} />
+            <Route path="/projects/:id" element={<LeadershipProjectPage />} />
           </Route>
         </Route>
 

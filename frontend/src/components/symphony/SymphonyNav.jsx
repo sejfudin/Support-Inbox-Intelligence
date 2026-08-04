@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { GraduationCap, LayoutDashboard, LogOut } from 'lucide-react';
+import { Briefcase, GraduationCap, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SymphonyWordmark } from './SymphonyWordmark';
 import { SymphonyThemeToggle } from './SymphonyThemeToggle';
 import { useAuth } from '@/context/AuthContext';
 import { useLogoutUser } from '@/queries/auth';
+import { getInitials } from '@/helpers/initials';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -20,19 +21,18 @@ const NAV_ITEMS = [
     icon: GraduationCap,
     testId: 'symphony-nav-interns-link',
   },
+  {
+    to: '/projects',
+    label: 'Projects',
+    icon: Briefcase,
+    testId: 'symphony-nav-projects-link',
+  },
 ];
-
-function userInitials(fullname) {
-  if (!fullname) return 'L';
-  const parts = fullname.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-}
 
 export function SymphonyNav() {
   const { user } = useAuth();
   const { mutate: logout } = useLogoutUser();
-  const initials = userInitials(user?.fullname);
+  const initials = getInitials(user?.fullname, 'L');
 
   return (
     <header className="symphony-navbar sticky top-0 z-40">
