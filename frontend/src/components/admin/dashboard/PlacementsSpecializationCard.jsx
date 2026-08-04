@@ -14,7 +14,7 @@ import { SpecializationAssignedSection } from './SpecializationAssignedSection';
  * four-quarter layout breaks. Only below `sm`, where a half would be ~150px, do
  * they stack and the divider turn horizontal.
  */
-export function PlacementsSpecializationCard({ placements }) {
+export function PlacementsSpecializationCard({ placements, specializations }) {
   return (
     <section
       className="app-panel-soft grid min-h-[12.5rem] grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:gap-0 sm:p-5 md:col-span-2"
@@ -26,7 +26,7 @@ export function PlacementsSpecializationCard({ placements }) {
       </div>
 
       <div className="flex min-w-0 flex-col border-t border-border/60 pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-        <SpecializationAssignedSection />
+        <SpecializationAssignedSection specializations={specializations} />
       </div>
     </section>
   );

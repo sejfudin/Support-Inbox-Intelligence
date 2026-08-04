@@ -1,7 +1,7 @@
 import { format } from 'date-fns';
 import { getAvatarColor } from '@/helpers/avatarColor';
 import { getInitials } from '@/helpers/getInitials';
-import { DashboardCardEmpty, DashboardCardHeader } from './DashboardCard';
+import { DashboardCardEmpty, DashboardCardHeader, DashboardCardHelp } from './DashboardCard';
 
 /**
  * One half of `PlacementsSpecializationCard` — no panel of its own, the parent
@@ -10,7 +10,16 @@ import { DashboardCardEmpty, DashboardCardHeader } from './DashboardCard';
 export function RecentPlacementsSection({ placements = [] }) {
   return (
     <>
-      <DashboardCardHeader kicker="Recent placements" />
+      <DashboardCardHeader
+        kicker="Recent placements"
+        action={
+          <DashboardCardHelp label="recent placements">
+            The last three interns placed on a project, newest first — with the project, the
+            position they were placed into, and how far into their internship it happened.
+            Platform-wide, not just this workspace: placement is a programme milestone.
+          </DashboardCardHelp>
+        }
+      />
 
       {/* The empty copy is platform-wide, like the list itself — see
           `loadPlacements()` in server/services/adminDashboardService.js. */}

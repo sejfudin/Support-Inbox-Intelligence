@@ -1,107 +1,80 @@
-import { HelpCircle } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { format } from 'date-fns';
+import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getAvatarColor } from '@/helpers/avatarColor';
 import { getInitials } from '@/helpers/getInitials';
-import { DashboardCardHeader } from './DashboardCard';
+import { DashboardCardEmpty, DashboardCardHeader, DashboardCardHelp } from './DashboardCard';
 
 /**
- * ⚠️ PLACEHOLDER — NOT REAL DATA.
+ * One half of `PlacementsSpecializationCard` — no panel of its own, the parent
+ * card owns the surface and the divider between the halves.
  *
- * "Specialization assigned" does not exist in the data model: there is no
- * specialization field, no assigned-at timestamp, and no assigning action
- * anywhere in the platform. The closest existing shapes are
- * `InternProfile.declaredPosition` (the intern's own declared position) and
- * `InternProfile.secondaryMentor` — neither of which carries the "assigned on
- * <date>" semantics this card shows.
- *
- * The card is rendered from the fixtures below so the layout is settled and
- * reviewable while the feature is specced. Replace `MOCK_ASSIGNMENTS` with a
- * real field on the dashboard payload once the model gains one — the row markup
- * below already matches the intended shape:
- *   { id, intern, specialization, secondaryMentor, assignedAt }
- *
- * One half of `PlacementsSpecializationCard` — the parent card owns the surface.
+ * The three most recently assigned specializations, platform-wide like the
+ * placements half beside it — see `loadSpecializations()` in
+ * server/services/adminDashboardService.js.
  */
-const MOCK_ASSIGNMENTS = [
-  {
-    id: 'mock-1',
-    intern: 'Maya Chen',
-    specialization: 'Frontend',
-    secondaryMentor: 'Ana Kovač',
-    assignedAt: 'Jul 14',
-  },
-  {
-    id: 'mock-2',
-    intern: 'Priya Rao',
-    specialization: 'Full-stack',
-    secondaryMentor: 'Marko Ilić',
-    assignedAt: 'Jul 6',
-  },
-  {
-    id: 'mock-3',
-    intern: 'Tom Weber',
-    specialization: 'QA',
-    secondaryMentor: 'Lejla Hodžić',
-    assignedAt: 'Jun 28',
-  },
-];
-
-export function SpecializationAssignedSection() {
+export function SpecializationAssignedSection({ specializations = [] }) {
   return (
     <>
       <DashboardCardHeader
         kicker="Specialization assigned"
         action={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="About this card"
-                className="shrink-0 rounded-full text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <HelpCircle className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-56">
-              <p className="text-xs">
-                Placeholder content. Specialization assignment is not implemented in the data model
-                yet, so these rows are sample data.
-              </p>
-            </TooltipContent>
-          </Tooltip>
+          <DashboardCardHelp label="specialization assignments">
+            The last three interns given a specialization, newest first — the position that was
+            confirmed as their focus, and the mentor they were paired with 1-on-1
+            (&ldquo;2nd&rdquo;). Platform-wide, not just this workspace.
+          </DashboardCardHelp>
         }
       />
 
       <div className="mt-3 flex min-h-0 flex-1 flex-col">
-        <ul className="-mx-1 space-y-1" aria-describedby="specialization-mock-note">
-          {MOCK_ASSIGNMENTS.map((row) => (
-            <li key={row.id} className="flex items-center gap-2.5 rounded-xl px-1 py-1.5">
-              <span
-                className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${getAvatarColor(row.intern)}`}
-                aria-hidden="true"
-              >
-                {getInitials(row.intern)}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold leading-4 text-foreground">
-                  {row.intern}
+        {specializations.length === 0 ? (
+          <DashboardCardEmpty>No specializations have been assigned yet.</DashboardCardEmpty>
+        ) : (
+          <ul className="-mx-1 space-y-1">
+            {specializations.map((row) => (
+              <li key={row.id} className="flex items-center gap-2.5 rounded-xl px-1 py-1.5">
+                <span
+                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${getAvatarColor(row.intern?.fullname || '?')}`}
+                  aria-hidden="true"
+                >
+                  {getInitials(row.intern?.fullname || '?')}
                 </span>
-                <span className="block truncate text-[11px] leading-4 text-muted-foreground">
-                  {row.specialization} · 2nd {row.secondaryMentor}
+
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold leading-4 text-foreground">
+                    {row.intern?.fullname}
+                  </span>
+                  <span className="block truncate text-[11px] leading-4 text-muted-foreground">
+                    {[row.specialization, row.secondaryMentor && `2nd ${row.secondaryMentor}`]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
                 </span>
-              </span>
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                {row.assignedAt}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p
-          id="specialization-mock-note"
-          className="mt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-amber-600 dark:text-amber-500"
+
+                {row.assignedAt && (
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                    {format(new Date(row.assignedAt), 'MMM d')}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Kept outside the empty/list branch on purpose: with nothing assigned yet
+            this is the way *to* assign one, so it is the more useful of the two
+            states to offer it in. `/specialization` is admin-only, and so is this
+            whole dashboard, so the link can never point somewhere the reader is
+            bounced from. */}
+        <Link
+          to="/specialization"
+          data-test="admin-dashboard-specializations-link"
+          className="group mt-auto inline-flex shrink-0 items-center gap-1.5 self-start pt-3 text-xs font-semibold text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          Sample data — to be implemented
-        </p>
+          View all specializations
+          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+        </Link>
       </div>
     </>
   );

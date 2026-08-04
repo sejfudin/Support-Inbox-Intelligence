@@ -283,7 +283,10 @@ export default function AdminDashboardPage() {
                     <MoreStatisticsCard />
                   </div>
 
-                  <PlacementsSpecializationCard placements={dashboard?.recentPlacements} />
+                  <PlacementsSpecializationCard
+                    placements={dashboard?.recentPlacements}
+                    specializations={dashboard?.recentSpecializations}
+                  />
                 </div>
               )}
 

@@ -1,3 +1,5 @@
+import { HelpCircle } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 /**
@@ -32,6 +34,34 @@ export function DashboardCardHeader({ kicker, action }) {
       )}
       {action}
     </header>
+  );
+}
+
+/**
+ * The "?" affordance for a card's `action` slot — explains what a card counts
+ * when the kicker alone can't, which on this board usually means "why is this
+ * number not scoped to the workspace I picked".
+ *
+ * `label` names the card in the accessible name because a split panel renders
+ * two of these; a screen reader hitting two buttons both called "About this
+ * card" cannot tell which half it is on.
+ */
+export function DashboardCardHelp({ label, children }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label ? `About ${label}` : 'About this card'}
+          className="shrink-0 rounded-full text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-56">
+        <p className="text-xs">{children}</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

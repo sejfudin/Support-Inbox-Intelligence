@@ -106,8 +106,8 @@ export const WHATS_NEW_STEPS = [
     id: 'dashboard-placements',
     roles: ['admin'],
     target: '[data-tour="dashboard-placements"]',
-    title: 'Placements — across every workspace',
-    body: 'The one panel that is not scoped to your current workspace: placement is a programme milestone, so this shows the latest across all of them. Specialization on the right is sample data until that feature lands.',
+    title: 'Placements & specializations — across every workspace',
+    body: 'The one panel that is not scoped to your current workspace: placement and specialization are both programme milestones, so this shows the latest across all of them — recent placements on the left, the newest specialization assignments on the right.',
   },
   {
     id: 'dashboard-quick-actions',

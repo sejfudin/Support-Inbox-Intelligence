@@ -338,11 +338,15 @@ The admin landing board: one workspace at a time — the caller's **active** wor
   workspace can read "1 intern" in the table and "0 / 3 notes in" on the standup card. Fixing it
   means filtering `getWorkspaceDailyOverview`'s roster to in-programme interns, which also changes
   the existing Daily Insights page — deliberately left alone.
-- **Not implemented, rendered as placeholders**: the *Specialization assigned* card is sample data
-  (no specialization field, assigned-at timestamp, or assigning action exists in the model), and
-  the *Mark absence / excuse* quick action is marked "Soon" — `Attendance` has no write path for
-  absence at all (absence is the lack of a check-in, and only interns may check in). Both are
-  flagged in-place in the components.
+- **Platform-wide, not workspace-scoped**: both halves of the *Recent placements / Specialization
+  assigned* card. Placement and specialization are programme-level milestones on the intern's
+  profile rather than workspace events, and the endpoint is admin-only, so scoping them made the
+  same row appear and disappear as the admin switched workspaces. The specialization half reads
+  `specializationAssignedAt` as the marker (never `secondaryMentor` alone — see ADR 0002) and
+  `declaredPosition` as the confirmed position. Everything else on the payload stays scoped.
+- **Not implemented, rendered as a placeholder**: the *Mark absence / excuse* quick action is
+  marked "Soon" — `Attendance` has no write path for absence at all (absence is the lack of a
+  check-in, and only interns may check in). Flagged in-place in the component.
 
 ## Glossary
 

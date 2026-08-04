@@ -31,6 +31,7 @@ const { IN_PROGRAMME_STATUSES } = InternProfile;
 const WORKLOAD_SLUGS = ['to do', 'in progress', 'on staging', 'blocked'];
 
 const RECENT_PLACEMENT_LIMIT = 3;
+const RECENT_SPECIALIZATION_LIMIT = 3;
 
 const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
@@ -187,6 +188,41 @@ const loadPlacements = async () => {
 };
 
 /**
+ * The most recently assigned specializations across the WHOLE PLATFORM, newest
+ * first — unscoped for the same reason as `loadPlacements()` above: it is the
+ * other half of the same card, a specialization is a programme-level decision
+ * on the intern's profile (not a workspace event), and the endpoint is
+ * admin-only. Scoping one half and not the other would make the pair
+ * inconsistent as the admin switches workspaces.
+ *
+ * `specializationAssignedAt` is the marker of a specialization, not
+ * `secondaryMentor` — a mentor value without the timestamp is a legacy
+ * invite-time leftover and must not read as specialized (ADR 0002). The
+ * confirmed position is `declaredPosition`: `applySpecialization` swaps the
+ * confirmed one into that field, so it is always the specialization itself.
+ */
+const loadSpecializations = async () => {
+  const profiles = await InternProfile.find({ specializationAssignedAt: { $ne: null } })
+    .sort({ specializationAssignedAt: -1, _id: -1 })
+    .limit(RECENT_SPECIALIZATION_LIMIT)
+    .select('user declaredPosition secondaryMentor specializationAssignedAt')
+    .populate({ path: 'user', select: 'fullname' })
+    .populate({ path: 'declaredPosition', select: 'name' })
+    .populate({ path: 'secondaryMentor', select: 'fullname' })
+    .lean();
+
+  return profiles
+    .filter((profile) => profile.user)
+    .map((profile) => ({
+      id: profile._id,
+      intern: { fullname: profile.user.fullname || '' },
+      specialization: profile.declaredPosition?.name || '',
+      secondaryMentor: profile.secondaryMentor?.fullname || '',
+      assignedAt: profile.specializationAssignedAt,
+    }));
+};
+
+/**
  * Everything the admin dashboard renders for one workspace, except the standup
  * card (which reuses `GET /api/dailies/admin/overview`) and the workspace picker
  * (`GET /api/workspaces/all`).
@@ -234,11 +270,13 @@ const getAdminDashboard = async ({ workspaceId }) => {
   const inProgrammeUsers = internUsers.filter((u) => profileByUser.has(String(u._id)));
   const inProgrammeUserIds = inProgrammeUsers.map((u) => u._id);
 
-  const [workloadByUser, attendanceByProfile, recentPlacements] = await Promise.all([
-    loadWorkloads({ workspaceId, internUserIds: inProgrammeUserIds, statusIdToSlug }),
-    loadAttendance({ profiles, monthKey }),
-    loadPlacements(),
-  ]);
+  const [workloadByUser, attendanceByProfile, recentPlacements, recentSpecializations] =
+    await Promise.all([
+      loadWorkloads({ workspaceId, internUserIds: inProgrammeUserIds, statusIdToSlug }),
+      loadAttendance({ profiles, monthKey }),
+      loadPlacements(),
+      loadSpecializations(),
+    ]);
 
   // `presentToday` drives the presence KPI and the absent list, and is dropped
   // again before the rows are returned — the interns table reports the month's
@@ -290,6 +328,7 @@ const getAdminDashboard = async ({ workspaceId }) => {
     },
     lastPlacement: recentPlacements[0] || null,
     recentPlacements,
+    recentSpecializations,
     workloadBuckets: buckets.map(({ slug, label, color }) => ({ slug, label, color })),
     interns: rows.map(({ presentToday, ...intern }) => intern),
   };

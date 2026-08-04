@@ -1,6 +1,4 @@
-import { HelpCircle } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { DashboardCard, DashboardCardEmpty } from './DashboardCard';
+import { DashboardCard, DashboardCardEmpty, DashboardCardHelp } from './DashboardCard';
 
 export function LastPlacementCard({ lastPlacement }) {
   // Null when the placement carries no decided-at date at all (nothing to date it
@@ -14,23 +12,10 @@ export function LastPlacementCard({ lastPlacement }) {
     <DashboardCard
       kicker="Last intern placed"
       action={
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="About this card"
-              className="shrink-0 rounded-full text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <HelpCircle className="h-3.5 w-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent className="max-w-56">
-            <p className="text-xs">
-              Platform-wide, not just this workspace: placement is a programme milestone, so this
-              counts the most recent placement across every workspace.
-            </p>
-          </TooltipContent>
-        </Tooltip>
+        <DashboardCardHelp label="last intern placed">
+          Platform-wide, not just this workspace: placement is a programme milestone, so this counts
+          the most recent placement across every workspace.
+        </DashboardCardHelp>
       }
       className="min-h-0 flex-1"
       contentClassName="justify-between"

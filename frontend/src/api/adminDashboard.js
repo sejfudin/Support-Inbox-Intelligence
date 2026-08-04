@@ -13,6 +13,9 @@ import apiClient from './axios';
  *                 checkInWindow: { label, endHour, state }, absentToday: [...] },
  *     lastPlacement: { intern, project, position, decidedAt, daysAgo, dayOfCycle } | null,
  *     recentPlacements: [ ...same shape ],
+ *     recentSpecializations: [{ id, intern: { fullname }, specialization,
+ *                              secondaryMentor, assignedAt }],   // newest first, max 3
+
  *     workloadBuckets: [{ slug, label, color }],   // always four, canonical order
  *     interns: [{ id, fullname, email, position, attendanceRate, presentDays,
  *                 workingDays, workload: [{ slug, label, color, count }] }],
