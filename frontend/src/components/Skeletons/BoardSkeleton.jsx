@@ -1,7 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-
-const buildArray = (length) => Array.from({ length });
+import { buildArray } from '@/components/Skeletons/buildArray';
 
 export default function BoardSkeleton({ columns = 4, cards = 3 }) {
   const colItems = buildArray(columns);

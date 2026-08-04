@@ -27,7 +27,8 @@
     "cleanup:ready-for-placement": "node seeder/unsetReadyForPlacement.js",
     "migrate:development-merge": "node seeder/mergeDevelopmentToMaster.js",
     "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
-    "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js"
+    "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js",
+    "cleanup:stale-workspace-pointers": "node seeder/cleanupStaleWorkspacePointers.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",

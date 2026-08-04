@@ -90,8 +90,12 @@ export const useUpdateUser = () => {
       const currentMe = queryClient.getQueryData(authKeys.me());
       const currentId = currentMe?.id || currentMe?._id;
 
+      // Refetch rather than seeding the cache from the PATCH response: /auth/me
+      // reports the *verified* workspace (a stale User.workspaceId pointer reads
+      // as null there), while this payload carries the raw pointer and would
+      // re-grant workspace nav that the gate is supposed to withhold.
       if (currentId === variables.id) {
-        queryClient.setQueryData(authKeys.me(), updatedUser);
+        queryClient.invalidateQueries({ queryKey: authKeys.me() });
       }
     },
     onError: (error) => {

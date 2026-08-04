@@ -62,6 +62,13 @@
 - No access to other interns', mentors', or admin/leadership data or functions
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 
+> **Note:** workspace access follows workspace *membership*, not a leftover setting. Mentors and
+> interns only see a workspace's tickets, board, statuses, categories, dailies and member list
+> while they are an active member of it. Someone who was removed from a workspace, or whose role
+> changed away from mentor/admin, loses that workspace immediately and lands on the "no workspace"
+> state until they accept an invitation to another one. Admins and mentors can still reach any
+> workspace, as above.
+
 > **Note:** being the owner or "admin" member of a specific workspace is a separate, workspace-level
 > role — entirely independent from the platform role (admin/mentor/leadership/intern). Any user
 > invited to a workspace (mentor or intern) can gain that status and thereby the right to manage

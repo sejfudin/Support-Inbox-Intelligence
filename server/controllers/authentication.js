@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 
 const register = async (req, res, next) => {
   try {
@@ -68,9 +69,18 @@ const refresh = async (req, res, next) => {
   }
 };
 
+// `req.user.workspaceId` is a last-switched-to pointer, not proof of membership
+// (see resolveActiveWorkspaceId). Report the verified workspace instead, so the
+// client's workspace gating matches what the API will actually serve — a stale
+// pointer must read as "no workspace", not as access.
 const getMe = async (req, res, next) => {
   try {
-    res.status(200).json(req.user);
+    const activeWorkspaceId = await resolveActiveWorkspaceId({ user: req.user });
+
+    res.status(200).json({
+      ...req.user.toObject(),
+      workspaceId: activeWorkspaceId,
+    });
   } catch (error) {
     next(error);
   }
