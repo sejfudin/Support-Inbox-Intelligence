@@ -163,6 +163,20 @@ recommendation can point at (title, client, description, tech tags, `status`:
   and never appears in the recommendation picker.
 - "Which interns are on project X" is a **derived read** (query `Recommendation` by `project`),
   not a stored roster — there is no members/roster field on `Project` by design.
+- **Leadership-facing Projects page** (`/projects`, `/projects/:id` — `frontend/src/pages/fep/
+  LeadershipProjectsPage.jsx` / `LeadershipProjectPage.jsx`) reads two additive, leadership+admin
+  aggregate endpoints built the same derived-read way: `GET /api/projects/overview`
+  (`projectService.getProjectsOverview`) returns every non-system project annotated with
+  `placedCount`/`inSelectionCount` plus page-level KPIs (status breakdown, technology demand,
+  skills in selection), and `GET /api/projects/:id/overview` (`getProjectOverview`) returns one
+  project's `placed`/`selection`/`history`, each computed by grouping that project's
+  `Recommendation` rows — no new schema, same pattern as the per-intern recommendations tab.
+  `GET /api/projects/:id` (any authenticated role, mirrors the existing `GET /api/projects`) fills
+  the one gap the existing list route had: no single-project fetch. All three new routes respond
+  `{ success, message, data }` (the documented convention); the original three project routes
+  (list/create/update) keep their pre-existing raw-JSON shape untouched. The page is read-only for
+  leadership — no recommend/edit affordances — same as its existing read access to
+  `Recommendation` data.
 
 ## Attendance (office check-in)
 

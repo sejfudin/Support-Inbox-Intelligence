@@ -30,6 +30,9 @@
 - Sees all interns and all their profiles (not just assigned ones, unlike a mentor)
 - Sees all recommendations (created exclusively by admin), but can't create/edit them
 - Sees programme-wide statistics, the funnel/pipeline dashboard
+- Sees a read-only "Projects" view (`/projects`): every client project with who's placed on it,
+  who's currently in selection (recommended/interviewing), technology demand across projects, and
+  each project's full outcome history — no recommend/edit actions anywhere
 - No access to the workspace/ticket side of the platform (project work)
 - No access to admin panels (users, workspaces, reference data)
 
