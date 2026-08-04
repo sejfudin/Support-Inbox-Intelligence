@@ -1,4 +1,6 @@
+import { HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /**
  * Shared shell for a dashboard's top-row cards, on both the admin and intern
@@ -63,6 +65,33 @@ export function DashboardCardHeader({ kicker, title, action }) {
       )}
       {action}
     </header>
+  );
+}
+
+/**
+ * The "?" affordance for a card's `action` slot, for cards whose content needs a
+ * sentence of explanation the card itself has no room for.
+ *
+ * Goes in `action` alongside whatever else that slot holds — the callers wrap the
+ * two in a flex row. Needs a `TooltipProvider` above it in the tree; both
+ * dashboards already wrap their page in one.
+ */
+export function DashboardCardHelp({ label = 'About this card', children }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="shrink-0 rounded-full text-muted-foreground/70 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64">
+        <div className="space-y-1.5 text-xs leading-5">{children}</div>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

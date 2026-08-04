@@ -1,7 +1,11 @@
 import { format } from 'date-fns';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DashboardCard, DashboardCardEmpty } from '@/components/dashboard/DashboardCard';
+import {
+  DashboardCard,
+  DashboardCardEmpty,
+  DashboardCardHelp,
+} from '@/components/dashboard/DashboardCard';
 import { ExampleChip } from './ExampleChip';
 
 // The recommendation lifecycle, in order. Mirrors RECOMMENDATION_STATUSES on the
@@ -70,18 +74,53 @@ const stepDetail = (step, recommendation) => {
 
 function StepMarker({ step, index }) {
   const active = step.state === 'done' || step.state === 'current';
+  const isCurrent = step.state === 'current';
 
   return (
-    <span
-      className={cn(
-        'grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold',
-        step.state === 'done' && 'bg-emerald-500 text-white',
-        step.state === 'current' && 'bg-primary text-primary-foreground ring-4 ring-primary/15',
-        !active && 'border border-dashed border-border bg-muted/40 text-muted-foreground'
+    <span className="relative grid h-6 w-6 shrink-0 place-items-center">
+      {/* The pulse marks where the intern is right now — it replaces the "Next
+          step" chip that used to say the same thing in words. Absolutely
+          positioned so the expanding ring never shifts the timeline, and behind
+          the marker so the digit stays at full contrast. `motion-safe` keeps it
+          out of the way of a reduced-motion preference; the static ring below is
+          the resting state either way. */}
+      {isCurrent && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full bg-primary/40 motion-safe:animate-ping"
+        />
       )}
-    >
-      {step.state === 'done' ? <Check className="h-3 w-3" strokeWidth={3} /> : index + 1}
+      <span
+        className={cn(
+          'relative grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold',
+          step.state === 'done' && 'bg-emerald-500 text-white',
+          isCurrent && 'bg-primary text-primary-foreground ring-4 ring-primary/15',
+          !active && 'border border-dashed border-border bg-muted/40 text-muted-foreground'
+        )}
+      >
+        {step.state === 'done' ? <Check className="h-3 w-3" strokeWidth={3} /> : index + 1}
+      </span>
+      {/* The pulse is the only "you are here" cue left now that the chip is gone,
+          and a pulse says nothing to a screen reader. */}
+      {isCurrent && <span className="sr-only">Current stage</span>}
     </span>
+  );
+}
+
+/** Shared between the empty and populated card, so the "?" never disappears. */
+function PipelineHelp() {
+  return (
+    <DashboardCardHelp label="About my pipeline">
+      <p>
+        Your pipeline is the recommendation your mentor put you forward with, and the stages it
+        moves through: recommended → interview → result. The <strong>pulsing</strong> stage is where
+        you are now.
+      </p>
+      <p>
+        Only your mentor and the admins can move it along. The recommendation note and any interview
+        feedback are not shown here.
+      </p>
+    </DashboardCardHelp>
   );
 }
 
@@ -102,6 +141,7 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
       <DashboardCard
         className={className}
         title="My pipeline"
+        action={<PipelineHelp />}
         data-tour="intern-dashboard-pipeline"
       >
         <DashboardCardEmpty>
@@ -126,6 +166,7 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
               {recommendation.project}
             </span>
           )}
+          <PipelineHelp />
         </div>
       }
       data-tour="intern-dashboard-pipeline"
@@ -157,11 +198,6 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
               <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
                 {stepDetail(step, recommendation)}
               </p>
-              {step.state === 'current' && step.key !== 'resulted' && (
-                <span className="mt-1.5 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  Next step
-                </span>
-              )}
             </div>
           </li>
         ))}

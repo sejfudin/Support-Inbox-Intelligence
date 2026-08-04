@@ -28,9 +28,12 @@ const TOP_ROW_CLASS = 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3';
 // bottom of the evaluations card instead of floating short of it.
 const BOTTOM_ROW_CLASS = 'grid grid-cols-1 gap-4 xl:grid-cols-3';
 
-// The two rail cards split their column 50/50. See the comment at the call site
-// for why `basis-0` and `min-h-0` are both needed.
-const RAIL_CARD_CLASS = 'min-h-0 flex-1 basis-0';
+// The two rail cards each start at their content height and split whatever height
+// is left over. `grow` and not `flex-1`: `flex-1` is `flex: 1 1 0%`, which zeroes
+// the basis and forces a 50/50 split regardless of content — an evaluations card
+// with two or more past periods needs more than half and would spill out of its
+// own panel. Content is the floor here, so it can't.
+const RAIL_CARD_CLASS = 'grow';
 
 /** Card-shaped skeleton shell, so a loading card still looks like a card. */
 function SkeletonCard({ className }) {
@@ -188,12 +191,12 @@ export default function InternDashboardPage() {
                   )}
                 </div>
 
-                {/* The rail splits the column exactly in half. `basis-0` is what
-                    makes it a true 50/50 rather than "share the surplus" —
-                    without it the two cards start from their content heights and
-                    only the leftover is divided, so the taller one stays taller.
-                    `min-h-0` clears DashboardCard's own 12.5rem floor, which
-                    would otherwise win over the split whenever the row is short. */}
+                {/* The rail's two cards share the surplus rather than splitting
+                    the column in half — the taller one stays taller. That is
+                    deliberate: the evaluations card lists up to three past
+                    periods, and an exact 50/50 gives it less height than those
+                    rows need. Whichever column ends up taller sets the grid row,
+                    so the rail and the tickets panel still end level. */}
                 <div className="flex min-w-0 flex-col gap-4">
                   {isPending ? (
                     <>

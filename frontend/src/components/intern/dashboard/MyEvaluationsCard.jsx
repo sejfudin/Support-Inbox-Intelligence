@@ -1,7 +1,11 @@
 import { format } from 'date-fns';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DashboardCard, DashboardCardEmpty } from '@/components/dashboard/DashboardCard';
+import {
+  DashboardCard,
+  DashboardCardEmpty,
+  DashboardCardHelp,
+} from '@/components/dashboard/DashboardCard';
 import { ExampleChip } from './ExampleChip';
 
 // How many past periods the card lists before it stops. The rail is the shorter
@@ -21,6 +25,22 @@ const formatPeriod = (evaluation) =>
  * scores, periods and who wrote them, but never the evaluation `notes`, which
  * are written for an internal audience rather than addressed to the intern.
  */
+/** Shared between the empty and populated card, so the "?" never disappears. */
+function EvaluationsHelp() {
+  return (
+    <DashboardCardHelp label="About my evaluations">
+      <p>
+        Your mentor scores you out of 5 at the end of each review period. The big number is your
+        latest; the rows below it are earlier periods, newest first.
+      </p>
+      <p>
+        The chip next to the title is the change since the previous period. The written notes behind
+        a score are not shown here — ask your mentor for those.
+      </p>
+    </DashboardCardHelp>
+  );
+}
+
 export function MyEvaluationsCard({ evaluations, className, isPreview = false }) {
   const latest = evaluations?.latest;
   const delta = evaluations?.delta;
@@ -31,6 +51,7 @@ export function MyEvaluationsCard({ evaluations, className, isPreview = false })
       <DashboardCard
         className={className}
         title="My evaluations"
+        action={<EvaluationsHelp />}
         data-tour="intern-dashboard-evaluations"
       >
         <DashboardCardEmpty>
@@ -67,6 +88,7 @@ export function MyEvaluationsCard({ evaluations, className, isPreview = false })
               {delta}
             </span>
           )}
+          <EvaluationsHelp />
         </div>
       }
       data-tour="intern-dashboard-evaluations"
