@@ -14,6 +14,42 @@ exports.getProjects = async (req, res, next) => {
   }
 };
 
+exports.getProjectById = async (req, res, next) => {
+  try {
+    const project = await projectService.getProjectById(req.params.id);
+    res.json({ success: true, message: 'Project fetched', data: project });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+exports.getProjectsOverview = async (req, res, next) => {
+  try {
+    const overview = await projectService.getProjectsOverview(req.user);
+    res.json({ success: true, message: 'Projects overview fetched', data: overview });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+exports.getProjectOverview = async (req, res, next) => {
+  try {
+    const overview = await projectService.getProjectOverview(req.params.id, req.user);
+    res.json({ success: true, message: 'Project overview fetched', data: overview });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
 exports.createProject = async (req, res, next) => {
   try {
     const project = await projectService.createProject(req.body);

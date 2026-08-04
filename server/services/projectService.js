@@ -2,7 +2,24 @@ const mongoose = require('mongoose');
 const Project = require('../models/Project');
 const { PROJECT_STATUSES } = require('../models/Project');
 const Technology = require('../models/Technology');
+const Recommendation = require('../models/Recommendation');
+const { ROLES } = require('../constants/roles');
 const { slugify } = require('../helpers/slugify');
+
+const createError = (message, statusCode = 400) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+// Same two-role read gate as recommendations (recommendationService.js
+// READ_ROLES) — leadership is stakeholder-facing read access, everyone else
+// (including mentors) has no reason to see the cross-project roster/pipeline.
+const assertLeadershipReadAccess = (user) => {
+  if (user?.role !== ROLES.ADMIN && user?.role !== ROLES.LEADERSHIP) {
+    throw createError('Not authorized', 403);
+  }
+};
 
 // Validate a project's technology tags the same way recommendations do: every
 // id must be a real, active Technology. Returns the deduped id list.
@@ -71,8 +88,179 @@ const updateProject = async (id, { name, client, description, status, technology
   return project.populate('technologies', 'name slug');
 };
 
+const getProjectById = async (id) => {
+  if (!mongoose.Types.ObjectId.isValid(id)) throw createError('Project not found', 404);
+  const project = await Project.findById(id).populate('technologies', 'name slug').lean();
+  if (!project) throw createError('Project not found', 404);
+  return project;
+};
+
+const RECOMMENDATION_INTERN_POPULATE = [
+  { path: 'internProfile', populate: { path: 'user', select: 'fullname email' } },
+  { path: 'position', select: 'name slug' },
+  { path: 'technologies', select: 'name slug' },
+];
+
+const internSummary = (recommendation) => ({
+  recommendationId: recommendation._id,
+  userId: recommendation.internProfile?.user?._id || null,
+  fullname: recommendation.internProfile?.user?.fullname || 'Unknown',
+  position: recommendation.position?.name || null,
+});
+
+// Leadership-facing roster/pipeline for one project — "which interns are on
+// project X" stays a derived read (query Recommendation by project), same
+// philosophy as the per-intern recommendations tab; no roster is stored on
+// Project itself.
+const getProjectOverview = async (id, user) => {
+  assertLeadershipReadAccess(user);
+  const project = await getProjectById(id);
+
+  const recommendations = await Recommendation.find({ project: id })
+    .populate(RECOMMENDATION_INTERN_POPULATE)
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  const placed = recommendations
+    .filter((rec) => rec.result?.outcome === 'placed')
+    .map((rec) => ({
+      ...internSummary(rec),
+      placedAt: rec.result?.decidedAt || rec.statusDates?.resulted || rec.updatedAt,
+    }));
+
+  const selection = recommendations
+    .filter((rec) => ['recommended', 'interviewing'].includes(rec.status))
+    .map((rec) => ({
+      ...internSummary(rec),
+      stage: rec.status,
+      technologies: (rec.technologies || []).map((t) => ({ _id: t._id, name: t.name })),
+    }));
+
+  const history = recommendations
+    .filter((rec) => rec.status === 'resulted')
+    .map((rec) => ({
+      ...internSummary(rec),
+      outcome: rec.result?.outcome || null,
+      note: rec.result?.note || '',
+      date: rec.result?.decidedAt || rec.statusDates?.resulted || rec.updatedAt,
+    }))
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return { project, placed, selection, history };
+};
+
+// Leadership-facing list + KPI/chart aggregate for every (non-system) project
+// in one call — the list page filters/sorts/paginates this single payload
+// client-side rather than round-tripping per filter change.
+const getProjectsOverview = async (user) => {
+  assertLeadershipReadAccess(user);
+
+  const projects = await Project.find({ isSystem: { $ne: true } })
+    .populate('technologies', 'name slug')
+    .sort({ name: 1 })
+    .lean();
+  const projectIds = projects.map((project) => project._id);
+
+  const recommendations = await Recommendation.find({ project: { $in: projectIds } })
+    .populate(RECOMMENDATION_INTERN_POPULATE)
+    .lean();
+
+  const recsByProject = new Map();
+  recommendations.forEach((rec) => {
+    const key = rec.project.toString();
+    if (!recsByProject.has(key)) recsByProject.set(key, []);
+    recsByProject.get(key).push(rec);
+  });
+
+  const byStatus = { active: 0, on_hold: 0, completed: 0 };
+  let internsPlaced = 0;
+  let recommendedCount = 0;
+  let interviewingCount = 0;
+  const selectionInternIds = new Set();
+  // technologyId -> Set(internProfileId), across every in-selection recommendation.
+  const skillInternMap = new Map();
+  const technologyById = new Map();
+  const technologyDemandByProject = new Map();
+
+  const annotatedProjects = projects.map((project) => {
+    const projectRecs = recsByProject.get(project._id.toString()) || [];
+    const placedCount = projectRecs.filter((rec) => rec.result?.outcome === 'placed').length;
+    const selectionRecs = projectRecs.filter((rec) =>
+      ['recommended', 'interviewing'].includes(rec.status)
+    );
+
+    byStatus[project.status] = (byStatus[project.status] || 0) + 1;
+    internsPlaced += placedCount;
+
+    selectionRecs.forEach((rec) => {
+      if (rec.status === 'recommended') recommendedCount += 1;
+      if (rec.status === 'interviewing') interviewingCount += 1;
+      const internId = rec.internProfile?._id?.toString();
+      if (!internId) return;
+      selectionInternIds.add(internId);
+      (rec.technologies || []).forEach((tech) => {
+        technologyById.set(tech._id.toString(), tech);
+        if (!skillInternMap.has(tech._id.toString())) {
+          skillInternMap.set(tech._id.toString(), new Set());
+        }
+        skillInternMap.get(tech._id.toString()).add(internId);
+      });
+    });
+
+    (project.technologies || []).forEach((tech) => {
+      technologyById.set(tech._id.toString(), tech);
+      const key = tech._id.toString();
+      if (!technologyDemandByProject.has(key)) {
+        technologyDemandByProject.set(key, { projectCount: 0, internsPlacedCount: 0 });
+      }
+      const entry = technologyDemandByProject.get(key);
+      entry.projectCount += 1;
+      entry.internsPlacedCount += placedCount;
+    });
+
+    return { ...project, placedCount, inSelectionCount: selectionRecs.length };
+  });
+
+  const skillsInSelection = [...skillInternMap.entries()]
+    .map(([techId, internIds]) => ({
+      technology: technologyById.get(techId),
+      internCount: internIds.size,
+    }))
+    .sort(
+      (a, b) => b.internCount - a.internCount || a.technology.name.localeCompare(b.technology.name)
+    )
+    .slice(0, 4);
+
+  const technologyDemand = [...technologyDemandByProject.entries()]
+    .map(([techId, counts]) => ({ technology: technologyById.get(techId), ...counts }))
+    .sort(
+      (a, b) =>
+        b.projectCount - a.projectCount || a.technology.name.localeCompare(b.technology.name)
+    );
+
+  return {
+    projects: annotatedProjects,
+    kpis: {
+      totalProjects: projects.length,
+      byStatus,
+      internsPlaced,
+      inSelection: {
+        recommended: recommendedCount,
+        interviewing: interviewingCount,
+        total: recommendedCount + interviewingCount,
+        internsInSelection: selectionInternIds.size,
+      },
+      skillsInSelection,
+      technologyDemand,
+    },
+  };
+};
+
 module.exports = {
   getAllProjects,
   createProject,
   updateProject,
+  getProjectById,
+  getProjectOverview,
+  getProjectsOverview,
 };
