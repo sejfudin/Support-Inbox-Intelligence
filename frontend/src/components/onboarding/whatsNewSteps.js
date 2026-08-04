@@ -11,10 +11,13 @@
  * to them, which is not the same thing as the element existing.
  *
  * Bump TOUR_VERSION to re-announce: it is the localStorage value, so a new string
- * shows the tour again to everyone exactly once.
+ * shows the tour again to everyone exactly once. A release is announced as one
+ * story — everybody gets every step that applies to their role, including steps
+ * from earlier releases. If the script ever gets too long, delete steps from it
+ * rather than hiding them from some viewers.
  */
 
-export const TOUR_VERSION = '2026-08-shell-redesign-r2';
+export const TOUR_VERSION = '2026-08-intern-dashboard-r1';
 export const TOUR_STORAGE_KEY = 'whatsNewTour';
 
 /**
@@ -34,7 +37,7 @@ export const WHATS_NEW_STEPS = [
   {
     id: 'intro',
     title: 'Task Manager has a new look',
-    body: 'Same features, tidier shell — plus a new dashboard if you are an admin. A few controls moved; here is where they went.',
+    body: 'Same features, tidier shell — and a dashboard built for your role. A few controls moved; here is where they went.',
   },
   {
     id: 'collapse',
@@ -69,11 +72,27 @@ export const WHATS_NEW_STEPS = [
   },
   // Switching workspace re-points the board, so it comes before the tour walks
   // through what is on that board.
+  //
+  // Two variants of the SAME control, split by role rather than one shared step
+  // plus a role-specific one — a control must only be spotlighted once per tour,
+  // and an intern was getting the switcher twice with overlapping copy.
+  // Whenever a step's copy needs to differ by role, split it like this and give
+  // every variant a `roles`; never leave one un-scoped as the "default", or the
+  // un-scoped one shows up for the role that already has its own.
   {
     id: 'workspace-switcher',
+    roles: ['admin', 'mentor', 'leadership'],
     target: '[data-tour="workspace-switcher"]',
     title: 'Switching workspace changes everything below it',
-    body: 'Pick a workspace here and the whole app follows — tickets, dailies and, for admins, every number on the dashboard. One workspace at a time, always the one named here.',
+    body: 'Pick a workspace here and the app follows — tickets, dailies, and every number on the dashboard. One workspace at a time, always the one named here.',
+    placement: 'right',
+  },
+  {
+    id: 'workspace-switcher-intern',
+    roles: ['intern'],
+    target: '[data-tour="workspace-switcher"]',
+    title: 'Half your dashboard follows this',
+    body: 'Tickets, workload and standup belong to the workspace named here and change when you switch. Attendance, your placement and your evaluations are programme-wide — they stay the same in every workspace.',
     placement: 'right',
   },
 
@@ -122,5 +141,58 @@ export const WHATS_NEW_STEPS = [
     target: '[data-tour="dashboard-standup"]',
     title: 'Standup coverage',
     body: 'How many interns have filed today’s note, and any open blockers. Open the board for the full picture.',
+  },
+
+  // The intern dashboard, card by card. Same shape as the admin block above: all
+  // intern-only, all anchored to elements that exist only on /dashboard, so on any
+  // other page these drop out on their own.
+  //
+  // This is a bigger change for interns than the shell was — /dashboard used to BE
+  // their ticket list — so the first step says that outright before walking the
+  // cards.
+  // No target on purpose: it reads as a section title before the card-by-card
+  // walk, and the page area it would otherwise point at is already spotlighted by
+  // `full-bleed` above — the same control twice in one tour is repetition, not
+  // emphasis.
+  {
+    id: 'intern-dashboard',
+    roles: ['intern'],
+    title: 'Your dashboard is new',
+    body: 'It used to be your ticket list. It is now your day at a glance — attendance, workload, standup, what to work on next, and where your placement stands. Here is each part.',
+  },
+  {
+    id: 'intern-dashboard-attendance',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-attendance"]',
+    title: 'Check in without leaving this page',
+    body: 'The 07:00–11:00 check-in, your current streak and how this week is going. Attendance in the sidebar still has the full calendar and the cancel option.',
+  },
+  {
+    id: 'intern-dashboard-workload',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-workload"]',
+    title: 'Your open work, two ways',
+    body: 'Switch between the bar and the breakdown with the toggle — your choice is remembered. Clicking the card opens your tickets.',
+  },
+  {
+    id: 'intern-dashboard-standup',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-standup"]',
+    title: 'Today’s note, shortened if it is long',
+    body: 'A long note is trimmed here with an AI summary a click away, and you can edit today’s entry without opening the standup board.',
+  },
+  {
+    id: 'intern-dashboard-tickets',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-tickets"]',
+    title: 'Start here tells you what to pick up',
+    body: 'Overdue, blocked and critical work sorts to the top. My Tickets has left the sidebar — “View all” opens the ticket list already filtered to you.',
+  },
+  {
+    id: 'intern-dashboard-pipeline',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-pipeline"]',
+    title: 'You can now see your own progress',
+    body: 'Where your recommendation stands, and your evaluation scores below it. Both are new to you — the written notes behind them stay with your mentor.',
   },
 ];

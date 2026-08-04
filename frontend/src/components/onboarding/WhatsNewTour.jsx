@@ -9,6 +9,7 @@ import {
   TOUR_VERSION,
   WHATS_NEW_STEPS,
 } from './whatsNewSteps';
+import { emitTourActive } from './tourPreview';
 
 const CARD_WIDTH = 340;
 const GAP = 14; // between the highlighted element and the card
@@ -191,8 +192,18 @@ export function WhatsNewTour() {
 
   const role = user?.role;
 
+  // Bumped by every replay. See the resolution effect below for why it exists.
+  const [runId, setRunId] = useState(0);
+
   // Role filtering happens here; target-presence filtering has to wait until the
   // shell has painted, so it is resolved per-step during navigation below.
+  //
+  // Every role gets every step that applies to them, every time the version is
+  // bumped. An earlier version of this filtered out steps from previous releases
+  // for returning users — that was wrong: a release is announced as one story, and
+  // dropping the shell steps left interns walked through new cards inside a shell
+  // nobody had walked them through. If a tour ever gets long enough to need
+  // trimming, cut steps from the script rather than hiding them per-viewer.
   const steps = useMemo(
     () => WHATS_NEW_STEPS.filter((step) => !step.roles || step.roles.includes(role)),
     [role]
@@ -219,7 +230,15 @@ export function WhatsNewTour() {
     const frame = requestAnimationFrame(() => {
       const usable = steps.filter((step) => !step.target || visibleRect(step.target));
       if (usable.length === 0) {
-        finish();
+        // Only give up on the *automatic* announce. On an explicit replay this
+        // would look like a dead menu item, so fall back to the step that never
+        // has a target — the intro always qualifies.
+        if (runId === 0) {
+          finish();
+          return;
+        }
+        setVisibleSteps(steps.slice(0, 1));
+        setIndex(0);
         return;
       }
       setVisibleSteps(usable);
@@ -227,7 +246,12 @@ export function WhatsNewTour() {
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [dismissed, user, loading, steps, finish]);
+    // `runId` is what makes replay reliable: it changes on every replay, so this
+    // re-resolves even when nothing else did. Without it the effect depended on
+    // `dismissed` flipping *and* on `steps`/`finish` keeping their identity — and
+    // a replay while the tour was already dismissed-but-mounted could resolve to
+    // nothing at all.
+  }, [dismissed, user, loading, steps, finish, runId]);
 
   // Force light for the duration, in its own effect keyed only on "is the tour up".
   // Deliberately NOT folded into the effect above: that one would then depend on
@@ -239,6 +263,16 @@ export function WhatsNewTour() {
   }, [theme]);
 
   const tourActive = !dismissed && visibleSteps.length > 0;
+
+  // Broadcast so the intern dashboard can fill genuinely empty cards with example
+  // data for the duration — the tour explains cards by pointing at them, and
+  // pointing at "No recommendation yet" while describing a placement timeline
+  // teaches nobody anything. See `tourPreview.js` for the rules that keeps safe.
+  useEffect(() => {
+    emitTourActive(tourActive);
+    return () => emitTourActive(false);
+  }, [tourActive]);
+
   useEffect(() => {
     if (!tourActive || themeBeforeTour.current) return;
     themeBeforeTour.current = themeRef.current || 'system';
@@ -250,6 +284,7 @@ export function WhatsNewTour() {
     const onReplay = () => {
       setIndex(0);
       setDismissed(false);
+      setRunId((n) => n + 1);
     };
     window.addEventListener(TOUR_REPLAY_EVENT, onReplay);
     return () => window.removeEventListener(TOUR_REPLAY_EVENT, onReplay);

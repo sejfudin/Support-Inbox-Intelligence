@@ -765,6 +765,94 @@ const deleteRecommendation = async (user, recommendationId) => {
   return { _id: recommendation._id, internProfile: { user: profile.user } };
 };
 
+/**
+ * The redacted shape an intern sees of their *own* recommendation.
+ *
+ * Shown: which project and position, which stage the record is at and when it
+ * got there, the scheduled interviews, and the final outcome. That is the
+ * lifecycle the intern is living through and the whole content of the dashboard's
+ * "My pipeline" card.
+ *
+ * Withheld, deliberately: `recommendationNote` (the admin's internal pitch for
+ * this intern), `interviews[].feedback` (the interviewer's write-up, including a
+ * `concerns` field), and `result.note` (the reasoning behind a placement
+ * decision). All three are written *about* the intern for an internal audience.
+ * Fields are picked rather than deleted so a field added to the model later
+ * cannot leak in by default.
+ */
+const formatOwnRecommendation = (recommendation, historyDates = {}) => {
+  const dates = recommendation.statusDates?.recommended ? recommendation.statusDates : historyDates;
+
+  return {
+    id: recommendation._id,
+    status: recommendation.status,
+    statusDates: {
+      recommended: dates.recommended || null,
+      interviewing: dates.interviewing || null,
+      resulted: dates.resulted || null,
+    },
+    position: recommendation.position?.name || '',
+    project: recommendation.project?.name || '',
+    technologies: (recommendation.technologies || []).map((tech) => ({
+      id: tech._id,
+      name: tech.name,
+    })),
+    interviews: (recommendation.interviews || []).map((interview) => ({
+      company: interview.company,
+      role: interview.role,
+      stage: interview.stage || '',
+      scheduledAt: interview.scheduledAt || null,
+    })),
+    result: {
+      outcome: recommendation.result?.outcome || null,
+      decidedAt: recommendation.result?.decidedAt || null,
+    },
+    updatedAt: recommendation.updatedAt,
+  };
+};
+
+/**
+ * The signed-in intern's own recommendations, most recently updated first.
+ *
+ * A deliberate, narrow exception to the admin/leadership-only rule that
+ * `assertReadAccess` enforces everywhere else in this service: an intern may
+ * read their own pipeline, and only through `formatOwnRecommendation`'s redacted
+ * shape. The intern is resolved from the authenticated user, never from a
+ * parameter, so there is nothing to tamper with — see `.claude/docs/security.md`.
+ */
+const listOwnRecommendations = async (user) => {
+  if (user.role !== ROLES.INTERN) {
+    throw createError('Not authorized', 403);
+  }
+
+  const profile = await InternProfile.findOne({ user: user._id }).select('_id').lean();
+  if (!profile) return [];
+
+  const recommendations = await Recommendation.find({ internProfile: profile._id })
+    .sort({ updatedAt: -1 })
+    .populate([
+      { path: 'position', select: 'name' },
+      { path: 'project', select: 'name' },
+      { path: 'technologies', select: 'name' },
+    ])
+    .lean();
+
+  if (recommendations.length === 0) return [];
+
+  // Records written before `statusDates` existed fall back to the append-only
+  // history log — batched for all of them at once rather than per record.
+  const legacyIds = recommendations
+    .filter((rec) => !rec.statusDates?.recommended)
+    .map((rec) => rec._id);
+  const historyByRec = legacyIds.length
+    ? await historyService.getLatestStatusDatesForEntities('recommendation', legacyIds)
+    : {};
+
+  return recommendations.map((rec) =>
+    formatOwnRecommendation(rec, historyByRec[rec._id.toString()] || {})
+  );
+};
+
 module.exports = {
   listRecommendations,
   getRecommendation,
@@ -772,4 +860,5 @@ module.exports = {
   updateRecommendation,
   deleteRecommendation,
   closeActiveRecommendationsForIntern,
+  listOwnRecommendations,
 };

@@ -10,9 +10,10 @@ import BacklogPage from '@/pages/Backlog';
 import ProfilePage from '@/pages/ProfilePage';
 import ProtectedRoute from '@/routes/ProtectedRoutes';
 import { useAuth } from '@/context/AuthContext';
-import { ROLES, isAdmin } from '@/helpers/roles';
+import { ROLES, isAdmin, isIntern } from '@/helpers/roles';
 import UserDashboard from '@/pages/UserDashboard';
 import AdminDashboardPage from '@/pages/AdminDashboardPage';
+import InternDashboardPage from '@/pages/InternDashboardPage';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
 import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
 import WorkspacesOverviewPage from '@/pages/WorkspacesOverviewPage';
@@ -47,15 +48,19 @@ const WorkspaceGuard = () => {
 };
 
 /**
- * `/dashboard` is role-split: admins get the workspace-scoped admin board,
- * everyone else keeps the assigned-tickets dashboard.
+ * `/dashboard` is role-split three ways: admins get the workspace-scoped admin
+ * board, interns get their own board, and mentors keep the assigned-tickets
+ * table that used to serve everyone.
  *
  * It sits outside `WorkspaceGuard` so an admin with no active workspace ("Global
  * admin mode") gets the board's own explanation instead of being bounced to
  * `/create-workspace`, which is not what an admin without a workspace wants. The
- * guard's checks are therefore repeated here for the non-admin branch only —
- * widening WorkspaceGuard itself would let admins into /tickets and /dailies
- * without a workspace, which those pages do not handle.
+ * intern board is outside it for the same reason: attendance, pipeline and
+ * evaluations are programme-level and do not need a workspace, so an intern
+ * between workspaces gets an explanation on the board rather than a redirect
+ * into workspace creation, which is not theirs to do. Widening WorkspaceGuard
+ * itself would let both into /tickets and /dailies without a workspace, which
+ * those pages do not handle — hence the repeated check on the mentor branch only.
  */
 const DashboardRoute = () => {
   const { user } = useAuth();
@@ -65,6 +70,9 @@ const DashboardRoute = () => {
   }
   if (isAdmin(user?.role)) {
     return <AdminDashboardPage />;
+  }
+  if (isIntern(user?.role)) {
+    return <InternDashboardPage />;
   }
   if (!user?.workspaceId) {
     return <Navigate to="/create-workspace" replace />;
@@ -177,6 +185,10 @@ export default function AppRoutes() {
           <Route path="/dashboard" element={<DashboardRoute />} />
 
           <Route element={<WorkspaceGuard />}>
+            {/* The intern board's "View all" and its workload card link here as
+                `/tickets?assignee=me` — the same table everyone else uses with the
+                assignee filter pre-applied, rather than a second list page to keep
+                in sync. */}
             <Route path="/tickets" element={<TicketPage />} />
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />

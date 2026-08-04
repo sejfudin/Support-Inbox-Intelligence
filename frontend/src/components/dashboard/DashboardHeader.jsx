@@ -9,12 +9,14 @@ const greetingFor = (hour) => {
 const firstName = (fullname = '') => fullname.trim().split(' ')[0] || 'there';
 
 /**
- * Date + greeting. Deliberately has no workspace picker of its own: the board is
- * scoped to the caller's active workspace, which is switched from the sidebar's
+ * Date + greeting, shared by the admin and intern boards.
+ *
+ * Deliberately has no workspace picker of its own: both boards are scoped to the
+ * caller's active workspace, which is switched from the sidebar's
  * `WorkspaceSwitcher` (that already navigates back to /dashboard after a switch).
- * The workspace currently in view is named on the interns panel below.
+ * The workspace in view is named further down each board instead.
  */
-export function AdminDashboardHeader({ user }) {
+export function DashboardHeader({ user }) {
   const now = new Date();
 
   return (

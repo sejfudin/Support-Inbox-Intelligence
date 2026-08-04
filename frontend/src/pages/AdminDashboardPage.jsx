@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/context/AuthContext';
 import { useAdminDashboard } from '@/queries/adminDashboard';
 import { useWorkspaceDailyOverview } from '@/queries/dailies';
-import { AdminDashboardHeader } from '@/components/admin/dashboard/AdminDashboardHeader';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PresenceHeroCard } from '@/components/admin/dashboard/PresenceHeroCard';
 import { LastPlacementCard } from '@/components/admin/dashboard/LastPlacementCard';
 import { MoreStatisticsCard } from '@/components/admin/dashboard/MoreStatisticsCard';
@@ -230,7 +230,7 @@ export default function AdminDashboardPage() {
     return (
       <PageShell>
         <PageSection className="space-y-5">
-          <AdminDashboardHeader user={user} />
+          <DashboardHeader user={user} />
           <div className="app-panel px-6 py-12 text-center">
             <p className="text-sm font-medium text-foreground">No active workspace</p>
             <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">
@@ -254,7 +254,7 @@ export default function AdminDashboardPage() {
     <TooltipProvider delayDuration={200}>
       <PageShell>
         <PageSection className="space-y-5">
-          <AdminDashboardHeader user={user} />
+          <DashboardHeader user={user} />
 
           {isError && (
             <div className="app-panel px-6 py-8 text-center">
