@@ -48,7 +48,9 @@ const PROFILE_POPULATE = [
 
 const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  const { internalCvUrl, ...rest } = plain;
+  // `cvTechnologies` is internal CV-scan provenance, not part of the API surface — it only
+  // tells the server which of `selfTechnologies` a re-upload may replace.
+  const { internalCvUrl, cvTechnologies, ...rest } = plain;
   const canSeeInternalCv =
     Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
 
@@ -209,6 +211,12 @@ const updateSelfTechnologies = async (user, technologyIds = []) => {
   }
 
   profile.selfTechnologies = ids;
+  // Keep the CV-scan provenance a subset of what is actually declared: a technology the intern
+  // just removed by hand stops being the scan's to manage, so re-adding it later counts as
+  // their own declaration and a future CV can no longer take it away. See
+  // helpers/cvTechnologySync.js.
+  const declared = new Set(ids.map((id) => String(id)));
+  profile.cvTechnologies = (profile.cvTechnologies || []).filter((id) => declared.has(String(id)));
   await profile.save();
   return getMyInternProfile(user);
 };

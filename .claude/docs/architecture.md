@@ -83,7 +83,29 @@ AI: `AISummary`.
   manual add, no `ReadinessFlag` created, so each reads "Not assessed" until a mentor assesses it.
   Best-effort by design: an unreadable/image-only PDF just adds nothing (never fails the upload),
   and the manual "Add a technology" flow remains for anything not recognized. See
-  `server/services/internCvService.js` (`autoDeclareTechnologiesFromCv`).
+  `server/services/internCvService.js` (`syncTechnologiesFromCv`).
+
+  **A re-upload replaces the previous scan, it does not accumulate.** `selfTechnologies` mixes two
+  sources, so the scan needs provenance to know what it may take back: `InternProfile.cvTechnologies`
+  records the subset it added (always a subset of `selfTechnologies`, stripped from API responses in
+  `formatProfile`). On re-upload, technologies that were CV-added but are absent from the new CV are
+  removed, matches are added, and the rest is left alone. Reconciliation is a pure function —
+  `server/helpers/cvTechnologySync.js` (`reconcileCvTechnologies`), covered by
+  `cvTechnologySync.test.js`. The rules that matter:
+
+  - **Manual declarations are never removed.** A technology the intern declared before a scan
+    matched it stays theirs; only what a scan actually added is CV-owned. `updateSelfTechnologies`
+    prunes `cvTechnologies` to what is still declared, so removing a CV-added technology by hand
+    hands it back to the intern.
+  - **A readable CV that matches nothing still clears the previous scan** — that is a real result,
+    not a failure.
+  - **An unreadable CV changes nothing.** Text we could not extract is not evidence the intern
+    dropped a skill, so a corrupt/image-only re-upload leaves the existing list intact rather than
+    wiping it. Removal also leaves any existing `ReadinessFlag` alone (re-assessing is the mentor's
+    call, and re-adding the technology restores its flag).
+  - Profiles that last uploaded a CV before this field existed have an empty `cvTechnologies`, so
+    their first re-upload adds without removing; it self-corrects from the next upload on. No
+    backfill is possible — the old scan's contributions were never recorded.
 
   **The catalog is the ceiling.** Matching is scoped to `Technology` rows, so a skill with no
   catalog entry is invisible to the scan however it is spelled — a thin catalog reads as a

@@ -284,10 +284,13 @@ script and a new step here, in the same change that alters the model.
 
 ## Verifying a change
 
-There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers a handful of pure
-helpers only — `slugify`, `dailyRules`, `cvTechnologyMatcher` (`helpers/*.test.js`). Run it when
-you touch one of those helpers, but it proves nothing about a route, a query or a screen. To
-confirm a change works, drive the real app:
+There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers pure helpers —
+`slugify`, `dailyRules`, `cvTechnologyMatcher`, `cvTechnologySync` (`helpers/*.test.js`) — plus two
+services that mock Mongo and Supabase: `internCvService` (`services/internCvService.test.js`), for
+the CV re-upload → technology replacement wiring, and `internService`
+(`services/internService.test.js`), for the CV-scan provenance prune on a manual technology save.
+Run them when you touch any of those, but they still prove nothing about a route, a query or a
+screen. To confirm a change works, drive the real app:
 
 - Use `/run` to launch, `/verify` to exercise the affected flow end-to-end.
 - Playwright MCP browser tools are permitted for UI verification.

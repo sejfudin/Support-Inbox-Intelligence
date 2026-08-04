@@ -14,6 +14,9 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -122,14 +125,24 @@ function PaletteGrid({ className }) {
   );
 }
 
-function ThemeAppearanceMenu({ align = 'end' }) {
+/**
+ * The mode + palette radio groups on their own, so they can be dropped either
+ * into a top-level DropdownMenuContent or into a submenu without duplicating the
+ * option lists. `showHeading` is off in a submenu, where the trigger already
+ * names the section.
+ */
+function ThemeAppearanceItems({ showHeading = true }) {
   const { colorTheme, setColorTheme, themes } = useThemeConfig();
   const { theme, setTheme } = useTheme();
 
   return (
-    <DropdownMenuContent align={align} className="w-56">
-      <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-      <DropdownMenuSeparator />
+    <>
+      {showHeading && (
+        <>
+          <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+        </>
+      )}
       <DropdownMenuRadioGroup
         value={theme || 'system'}
         onValueChange={(value) => {
@@ -163,7 +176,36 @@ function ThemeAppearanceMenu({ align = 'end' }) {
           </DropdownMenuRadioItem>
         ))}
       </DropdownMenuRadioGroup>
+    </>
+  );
+}
+
+function ThemeAppearanceMenu({ align = 'end' }) {
+  return (
+    <DropdownMenuContent align={align} className="w-56">
+      <ThemeAppearanceItems />
     </DropdownMenuContent>
+  );
+}
+
+/**
+ * Appearance as a nested submenu — used by the sidebar's user menu, which folds
+ * theme, profile and logout into one control so the footer isn't a row of
+ * competing icons.
+ */
+export function ThemeAppearanceSubmenu() {
+  return (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger data-test="theme-appearance-submenu-trigger">
+        <span className="flex items-center gap-2.5">
+          <Palette className="size-4 shrink-0" />
+          Appearance
+        </span>
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent className="w-52">
+        <ThemeAppearanceItems showHeading={false} />
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
   );
 }
 

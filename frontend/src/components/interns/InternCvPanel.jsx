@@ -4,6 +4,9 @@ import { PagePanel } from '@/components/PageShell';
 import { useDeleteMyCv, useMyInternProfile, useUploadMyCv } from '@/queries/interns';
 import { toast } from 'sonner';
 
+const countLabel = (count) => `${count} ${count === 1 ? 'technology' : 'technologies'}`;
+const nameList = (technologies) => technologies.map((t) => t.name).join(', ');
+
 export function InternCvPanel() {
   const fileRef = useRef(null);
   const { data: intern } = useMyInternProfile();
@@ -16,15 +19,16 @@ export function InternCvPanel() {
     uploadCv(file, {
       onSuccess: (data) => {
         const added = data?.addedTechnologies || [];
-        if (added.length) {
-          toast.success(
-            `CV uploaded — added ${added.length} ${
-              added.length === 1 ? 'technology' : 'technologies'
-            }: ${added.map((t) => t.name).join(', ')}`
-          );
-        } else {
-          toast.success('CV uploaded');
+        // Replacing a CV drops what the previous scan added and the new one no longer mentions,
+        // so say what went away too — otherwise technologies vanish from the list below with
+        // no explanation.
+        const removed = data?.removedTechnologies || [];
+        const changes = [];
+        if (added.length) changes.push(`added ${countLabel(added.length)}: ${nameList(added)}`);
+        if (removed.length) {
+          changes.push(`removed ${countLabel(removed.length)}: ${nameList(removed)}`);
         }
+        toast.success(changes.length ? `CV uploaded — ${changes.join('; ')}` : 'CV uploaded');
       },
       onError: (err) => toast.error(err?.response?.data?.message || 'Failed to upload CV'),
     });
@@ -36,7 +40,8 @@ export function InternCvPanel() {
       <h3 className="text-base font-semibold text-foreground">CV</h3>
       <p className="mt-1 text-sm text-muted-foreground">
         Upload a PDF resume for mentors. We&apos;ll scan it and add any technologies we recognize to
-        your list below — you can still add more manually.
+        your list below — you can still add more manually. Replacing your CV re-scans it, so
+        technologies the new CV no longer mentions are removed; anything you added yourself stays.
       </p>
       <input
         ref={fileRef}
