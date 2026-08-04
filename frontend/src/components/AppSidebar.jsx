@@ -23,7 +23,6 @@ import {
   PanelLeftOpen,
   ChevronsUpDown,
   UserRound,
-  Sparkles,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import NavbarNotifications from '@/components/NavbarNotifications';
@@ -53,8 +52,6 @@ import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
 import { useCanManageActiveWorkspace } from '@/hooks/useCanManageActiveWorkspace';
-import { useHeldKey } from '@/hooks/useHeldKey';
-import { replayWhatsNewTour } from '@/components/onboarding/whatsNewSteps';
 import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { TaskManagerBrand } from '@/components/TaskManagerBrand';
@@ -275,31 +272,14 @@ export default function AppSidebar() {
   const hasWorkspaceNav = Boolean(user?.workspaceId);
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
-  // Hold H and click the brand to replay the "what's new" tour. Capture phase so
-  // the Link never navigates, and only when H is actually down — a plain click on
-  // the logo still goes to /dashboard.
-  const heldH = useHeldKey('h');
-  const replayOnBrandClick = (event) => {
-    if (!heldH.current) return;
-    event.preventDefault();
-    event.stopPropagation();
-    replayWhatsNewTour();
-  };
-
   return (
     <Sidebar collapsible="icon" className="border-r border-border/50 bg-card shadow-elevated-sm">
       <SidebarHeader className="px-4 pb-3 pt-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
-          <div
-            onClickCapture={replayOnBrandClick}
-            className="min-w-0 flex-1 rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-3 py-2.5 shadow-elevated-sm group-data-[collapsible=icon]:hidden"
-          >
+          <div className="min-w-0 flex-1 rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-3 py-2.5 shadow-elevated-sm group-data-[collapsible=icon]:hidden">
             <TaskManagerBrand size="md" linkTo="/dashboard" />
           </div>
-          <div
-            onClickCapture={replayOnBrandClick}
-            className="hidden group-data-[collapsible=icon]:block"
-          >
+          <div className="hidden group-data-[collapsible=icon]:block">
             <TaskManagerBrand size="sm" showWordmark={false} linkTo="/dashboard" />
           </div>
 
@@ -427,14 +407,6 @@ export default function AppSidebar() {
                     </NavLink>
                   </DropdownMenuItem>
                   <ThemeAppearanceSubmenu />
-                  <DropdownMenuItem
-                    data-test="sidebar-whats-new-button"
-                    onSelect={() => replayWhatsNewTour()}
-                    className="flex items-center gap-2.5"
-                  >
-                    <Sparkles className="size-4 shrink-0" />
-                    What&apos;s new
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     data-test="sidebar-logout-button"

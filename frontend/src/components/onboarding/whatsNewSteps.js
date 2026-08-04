@@ -17,20 +17,70 @@
  * rather than hiding them from some viewers.
  */
 
+import { useEffect, useState } from 'react';
+
 export const TOUR_VERSION = '2026-08-intern-dashboard-r1';
 export const TOUR_STORAGE_KEY = 'whatsNewTour';
 
 /**
- * Replaying the tour on demand (the "What's new" item in the user menu).
+ * Opening the tour. It is **never** shown automatically — the only way in is the
+ * "Notice some changes?" button on the dashboard header, which pulses until it
+ * has been used. Landing straight in a modal overlay on login is the thing
+ * everybody clicks past without reading; a button that asks for attention lets
+ * someone open it at the moment they actually wonder what moved.
  *
- * A window event rather than a context: the only publisher is one menu item and
- * the only subscriber is one component, so a provider wrapping the whole app
- * would be plumbing for its own sake.
+ * Window events rather than a context: the publishers and subscribers are one
+ * button and one overlay, so a provider wrapping the whole app would be plumbing
+ * for its own sake.
  */
 export const TOUR_REPLAY_EVENT = 'whatsnew:replay';
 
+/** Fired once the tour has been completed or skipped, to stop the pulse. */
+export const TOUR_SEEN_EVENT = 'whatsnew:seen';
+
 export const replayWhatsNewTour = () => {
   window.dispatchEvent(new Event(TOUR_REPLAY_EVENT));
+};
+
+const readSeenVersion = () => {
+  try {
+    return window.localStorage.getItem(TOUR_STORAGE_KEY);
+  } catch {
+    // Private mode / storage disabled. Counted as seen: a dismissal can't be
+    // remembered here, and the alternative is a button that pulses for attention
+    // on every page load forever.
+    return TOUR_VERSION;
+  }
+};
+
+/** Versioned, not boolean, so the next redesign only has to bump TOUR_VERSION. */
+export const hasSeenWhatsNew = () => readSeenVersion() === TOUR_VERSION;
+
+export const markWhatsNewSeen = () => {
+  try {
+    window.localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+  } catch {
+    /* nothing we can do, and not worth surfacing to the user */
+  }
+  window.dispatchEvent(new Event(TOUR_SEEN_EVENT));
+};
+
+/**
+ * Whether this viewer has already been through the current tour — what decides
+ * whether the dashboard button pulses. Subscribed to the event rather than just
+ * reading storage once, so finishing the tour stops the pulse immediately instead
+ * of on the next page load.
+ */
+export const useWhatsNewSeen = () => {
+  const [seen, setSeen] = useState(hasSeenWhatsNew);
+
+  useEffect(() => {
+    const onSeen = () => setSeen(true);
+    window.addEventListener(TOUR_SEEN_EVENT, onSeen);
+    return () => window.removeEventListener(TOUR_SEEN_EVENT, onSeen);
+  }, []);
+
+  return seen;
 };
 
 export const WHATS_NEW_STEPS = [

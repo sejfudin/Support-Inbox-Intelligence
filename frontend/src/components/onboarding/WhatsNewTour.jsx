@@ -3,12 +3,7 @@ import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/context/AuthContext';
-import {
-  TOUR_REPLAY_EVENT,
-  TOUR_STORAGE_KEY,
-  TOUR_VERSION,
-  WHATS_NEW_STEPS,
-} from './whatsNewSteps';
+import { TOUR_REPLAY_EVENT, WHATS_NEW_STEPS, markWhatsNewSeen } from './whatsNewSteps';
 import { emitTourActive } from './tourPreview';
 
 const CARD_WIDTH = 340;
@@ -131,39 +126,21 @@ const placeCard = (rect, card, preferred) => {
   return { left, top, maxWidth };
 };
 
-const readSeenVersion = () => {
-  try {
-    return window.localStorage.getItem(TOUR_STORAGE_KEY);
-  } catch {
-    // Private mode / storage disabled: treat as "already seen" rather than
-    // showing the tour on every single page load.
-    return TOUR_VERSION;
-  }
-};
-
-const writeSeenVersion = () => {
-  try {
-    window.localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
-  } catch {
-    /* nothing we can do, and not worth surfacing to the user */
-  }
-};
-
 /**
- * One-time "we moved things around" walkthrough, shown after the shell redesign.
+ * The "we moved things around" walkthrough from the shell redesign.
  *
  * Spotlights the controls that actually changed position by cutting a hole in a
  * dimmed overlay (a huge `box-shadow` spread on a transparent box — no SVG mask,
  * no extra dependency) and parking an explanatory card beside it.
  *
  * Deliberate choices:
+ * - **Opened on request only.** It never launches itself on login; the pulsing
+ *   button in the dashboard header is the way in. See `whatsNewSteps.js`.
  * - **Steps with a missing target are skipped**, so the same script serves every
  *   role and every breakpoint. The collapse button is `md:`-only, so on a phone
  *   that step simply does not appear.
  * - **Nothing is highlighted until the element is measured**, and the measurement
  *   re-runs on resize/scroll, so a spotlight can never drift off its control.
- * - **Seen-state is versioned** rather than boolean, so the next redesign only has
- *   to bump `TOUR_VERSION`.
  * - **The active theme is left alone.** The overlay does not need one: the dim is a
  *   fixed dark wash in both themes and the copy is white-on-dim with a text shadow,
  *   so it reads the same either way. An earlier version forced light mode "so
@@ -176,7 +153,11 @@ export function WhatsNewTour() {
   // `loading` (the /me fetch), not `isLoginPending` (the login mutation): the tour
   // must not measure anything until the shell has a user and has painted.
   const { user, loading } = useAuth();
-  const [dismissed, setDismissed] = useState(() => readSeenVersion() === TOUR_VERSION);
+  // Starts closed, always — the tour is opened by the header button and nothing
+  // else. Seen-state lives in localStorage and is read by the *button* (to decide
+  // whether to pulse), not here; this component only ever writes it, on the way
+  // out, so re-opening an already-seen tour works without any extra state.
+  const [dismissed, setDismissed] = useState(true);
   const [visibleSteps, setVisibleSteps] = useState([]);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
@@ -210,7 +191,7 @@ export function WhatsNewTour() {
   );
 
   const finish = useCallback(() => {
-    writeSeenVersion();
+    markWhatsNewSeen();
     setDismissed(true);
     setVisibleSteps([]);
 
@@ -230,13 +211,9 @@ export function WhatsNewTour() {
     const frame = requestAnimationFrame(() => {
       const usable = steps.filter((step) => !step.target || visibleRect(step.target));
       if (usable.length === 0) {
-        // Only give up on the *automatic* announce. On an explicit replay this
-        // would look like a dead menu item, so fall back to the step that never
-        // has a target — the intro always qualifies.
-        if (runId === 0) {
-          finish();
-          return;
-        }
+        // Every open is now an explicit click, so silently closing again would
+        // read as a dead button. Fall back to the step that never has a target —
+        // the intro always qualifies.
         setVisibleSteps(steps.slice(0, 1));
         setIndex(0);
         return;
@@ -246,12 +223,11 @@ export function WhatsNewTour() {
     });
 
     return () => cancelAnimationFrame(frame);
-    // `runId` is what makes replay reliable: it changes on every replay, so this
+    // `runId` is what makes replay reliable: it changes on every open, so this
     // re-resolves even when nothing else did. Without it the effect depended on
-    // `dismissed` flipping *and* on `steps`/`finish` keeping their identity — and
-    // a replay while the tour was already dismissed-but-mounted could resolve to
-    // nothing at all.
-  }, [dismissed, user, loading, steps, finish, runId]);
+    // `dismissed` flipping *and* on `steps` keeping its identity — and re-opening
+    // an already-dismissed-but-mounted tour could resolve to nothing at all.
+  }, [dismissed, user, loading, steps, runId]);
 
   // Force light for the duration, in its own effect keyed only on "is the tour up".
   // Deliberately NOT folded into the effect above: that one would then depend on
@@ -398,15 +374,14 @@ export function WhatsNewTour() {
         </h2>
         <p className="mt-2 text-[13px] leading-5 text-white/75">{step.body}</p>
 
-        {/* Told on the way out, where it is actually useful: the replay shortcut is
-            hidden by design, so it has to be said out loud at least once. */}
+        {/* Said on the way out so nobody has to hunt for the way back in, and so
+            that closing this does not feel like a one-shot you might regret. */}
         {isLast && (
           <p className="mt-3 text-[11px] leading-4 text-white/60">
-            Want to see this again? Hold{' '}
-            <kbd className="rounded border border-white/25 px-1 font-semibold text-white/90">H</kbd>{' '}
-            and click the Task&nbsp;Manager logo at the top of the sidebar — or pick{' '}
-            <span className="font-medium text-white/90">What&apos;s new</span> from your profile
-            menu.
+            You can come back to this any time — the{' '}
+            <span className="font-medium text-white/90">Notice some changes?</span> button on your
+            dashboard reopens it whenever you want. It stops pulsing from now on, but it never goes
+            away.
           </p>
         )}
 
