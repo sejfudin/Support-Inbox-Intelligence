@@ -30,6 +30,11 @@ export const updateMyPosition = async (positionId) => {
   return data.intern;
 };
 
+export const updateMySecondaryPosition = async (positionId) => {
+  const { data } = await apiClient.patch('/interns/me/secondary-position', { positionId });
+  return data.intern;
+};
+
 export const uploadMyCv = async (file) => {
   const formData = new FormData();
   formData.append('cv', file);

@@ -58,10 +58,6 @@ export const buildRegisterPayload = (data) => {
   if (isInternRole(data.role)) {
     payload.internshipTypeId = data.internshipTypeId;
     payload.primaryMentorId = data.primaryMentorId;
-    payload.secondaryMentorId =
-      data.secondaryMentorId && data.secondaryMentorId !== 'none'
-        ? data.secondaryMentorId
-        : undefined;
     payload.startDate = data.startDate;
   }
 
@@ -77,7 +73,6 @@ export const getRegisterDefaultValues = () => ({
   workspaceRole: 'member',
   internshipTypeId: '',
   primaryMentorId: '',
-  secondaryMentorId: 'none',
   startDate: getTodayIsoDate(),
 });
 

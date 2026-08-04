@@ -14,6 +14,8 @@
 - Only role that manages reference data (hubs, technologies, internship types)
 - Doesn't see programme-wide statistics
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
+- Only role that can assign a specialization (confirm an intern's main or secondary declared position and pair them with a dedicated mentor) — mentors receive the pairing but never create or manage it, and have no view of the Specialization tab
+- Only role that can reassign a specialization to the intern's other position, change the specialization mentor, or clear a specialization entirely
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth)
 - Only role that can set readiness (by technology or by position) for an intern
 - Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
@@ -39,6 +41,7 @@
 - Can't see or add evaluations (periodic progress assessment) — admin-only now
 - Can't see or set readiness (by technology or position) — admin-only now
 - Can't see or create recommendations, neither per-intern nor on the standalone "Recommendations" page — admin-only now
+- Can't see or manage the Specialization tab, but does get assigned-mentor access to an intern once paired as their specialization mentor
 - Can't see the attendance roster (intern attendance overview) — an intern's own check-in is untouched
 - Can see the CV link on an intern's profile, but can't edit it — admin-only now
 - Can't change an intern's lifecycle status (active/ready/placed/completed/discontinued), even for their own assigned intern — admin-only now
@@ -53,6 +56,7 @@
 - Uploads their own CV
 - Sees only their own readiness status, not their evaluations or mentor notes
 - Doesn't see recommendations at all (not even their own)
+- Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics
 - No access to other interns', mentors', or admin/leadership data or functions
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)

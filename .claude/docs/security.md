@@ -73,6 +73,16 @@ branch:
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
 
+Specializations. `/api/specializations` (list/candidates/assign/reassign/change-mentor/clear, all
+`requireRole(ADMIN)` at the route) plus `specializationService#assertSpecializationAccess` at the
+service layer — mentors have no read or write surface, even for their own assigned interns. Not
+workspace-scoped (intern domain, same exception as Recommendations/Project above). The intern's own
+`PATCH /api/interns/me/position` now additionally rejects the write with 403
+(`canInternEditDeclaredPosition`) once `specializationAssignedAt` is set — the secondary-position
+endpoint is unaffected (stays intern-writable). Reassign/change-mentor/clear additionally 400 via
+`loadSpecializedProfile` if the target intern has no specialization to manage — there's no way to
+reach these mutations for an unspecialized intern even with a crafted request.
+
 Attendance. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)` and always resolves the
 caller's **own** `InternProfile` — an intern can only ever read or write their own attendance. The
 roster `GET /api/attendance` and the per-intern `GET /api/attendance/:internProfileId` (calendar

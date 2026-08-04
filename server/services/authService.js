@@ -57,7 +57,6 @@ const register = async (userData) => {
     workspaceRole = 'member',
     internshipTypeId,
     primaryMentorId,
-    secondaryMentorId,
     startDate,
     inviterId,
     inviterName,
@@ -136,7 +135,6 @@ const register = async (userData) => {
       userId: user._id,
       internshipTypeId,
       primaryMentorId,
-      secondaryMentorId: secondaryMentorId || undefined,
       startDate,
     });
   }

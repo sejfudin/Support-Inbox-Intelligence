@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
 import { useDebounce } from 'use-debounce';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,11 +35,7 @@ import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { useHubs } from '@/queries/hubs';
 import { useRecommendations } from '@/queries/recommendations';
 import { useTechnologies } from '@/queries/technologies';
-
-const formatDate = (date) => {
-  if (!date) return '-';
-  return format(new Date(date), 'MMM d, yyyy');
-};
+import { formatDate } from '@/helpers/date';
 
 const tableHeadClass =
   'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
