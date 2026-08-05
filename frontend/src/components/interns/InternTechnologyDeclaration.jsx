@@ -88,7 +88,7 @@ export function InternTechnologyDeclaration() {
       </InternPanel>
 
       {/* Declared technologies list */}
-      <InternPanel className="overflow-hidden p-0">
+      <InternPanel className="overflow-hidden p-0 md:p-0">
         <div className="border-b border-border/60 px-5 py-4 md:px-6">
           <h3 className="text-lg font-semibold">My technologies</h3>
           <p className="mt-1 text-sm text-muted-foreground">
