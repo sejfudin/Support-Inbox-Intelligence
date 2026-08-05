@@ -27,9 +27,6 @@ const BoardPage = lazy(() => import('@/components/BoardPage'));
  * `/tickets?assignee=me` instead, so there is no second mount of this page.
  */
 export default function UserDashboard() {
-  const title = 'Dashboard';
-  const subtitle = 'Track your assigned tickets';
-
   const [requestedPage, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('list');
   const [search, setSearch] = useState('');
@@ -111,8 +108,8 @@ export default function UserDashboard() {
     <PageShell>
       <div className="shrink-0">
         <TicketsHeader
-          title={title}
-          subtitle={subtitle}
+          title="Dashboard"
+          subtitle="Track your assigned tickets"
           hideNewTicket={true}
           dataTestPrefix="dashboard"
           viewMode={viewMode}

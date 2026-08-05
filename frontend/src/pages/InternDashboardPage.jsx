@@ -94,8 +94,8 @@ function TicketsPanelSkeleton() {
 
 /**
  * The intern's home screen. Replaces the assigned-tickets table that used to
- * live at `/dashboard` — that table is still reachable in full at `/my-tickets`,
- * which this page's "View all" links to.
+ * live at `/dashboard` — the same tickets are still reachable in full at
+ * `/tickets?assignee=me`, which this page's "View all" links to.
  *
  * Two queries, deliberately:
  * - `useInternDashboard` — one aggregate for workload, tickets, standup,
