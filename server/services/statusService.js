@@ -576,13 +576,22 @@ const updateStatus = async (statusId, updates) => {
   if (updates.label !== undefined) {
     const trimmedLabel = validateStatusLabel(updates.label);
     await assertUniqueLabelInWorkspace(status.workspace, trimmedLabel, status._id);
-    const labelChanged = trimmedLabel !== status.label;
+    // Renaming changes the label ONLY. The slug is this status's identity, not a
+    // derived display string: everything that refers to a status across time refers
+    // to it by slug — the dashboards' `WORKLOAD_SLUGS` segments, `statusSlugAliases`,
+    // `DEFAULT_STATUSES`, the integration targets `applyStatusSlugChange` has to
+    // sync, and any saved link or filter carrying a slug.
+    //
+    // Regenerating it here used to break all of those silently. Renaming "To do" to
+    // "Selected" produced slug `selected`, which matched no `WORKLOAD_SLUGS` entry,
+    // so both dashboards fell back to the *default* label and a null `statusId` —
+    // rendering a phantom "To do" column at 0 while real tickets sat in "Selected",
+    // uncounted. A renamed status now keeps its key and its counts, and the column
+    // simply shows the workspace's new label.
+    //
+    // A caller that genuinely wants a new key still has `updates.slug` below, which
+    // goes through the same duplicate check and integration sync.
     status.label = trimmedLabel;
-
-    if (labelChanged) {
-      const nextSlug = await generateUniqueSlug(status.workspace, trimmedLabel, status._id);
-      await applyStatusSlugChange(status, nextSlug);
-    }
   }
 
   if (updates.slug !== undefined) {

@@ -77,12 +77,18 @@
     @apply min-h-screen bg-transparent;
   }
 
-  /* Full-bleed: pages span the whole area left by the sidebar, with a 48px side
-     gutter so panels don't crowd the sidebar border or the window edge, and 24px
-     top/bottom. Deliberately NOT max-width-centred — wide tables and boards are
-     the common case here, and centring wasted the outer thirds on large screens. */
+  /* Pages span the area left by the sidebar, with a 48px side gutter so panels
+     don't crowd the sidebar border or the window edge, and 24px top/bottom.
+     Capped and centred above 112rem (1792px): the dashboards are card grids, and
+     past roughly that width the cards just stretch — a KPI number sitting alone in
+     a 600px-wide panel, a three-column grid with acres between the columns, and
+     line lengths in the card copy well past comfortable reading. Applies to every
+     role's pages, not just the boards.
+     The cap is deliberately generous rather than a typical 1280px content column,
+     because wide ticket tables and the board view are still the common case and
+     they should keep using the room they have. */
   .app-page-content {
-    @apply w-full px-12 py-6;
+    @apply mx-auto w-full max-w-[112rem] px-12 py-6;
   }
 
   .app-elevated {

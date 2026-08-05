@@ -60,7 +60,7 @@
 - Uploads their own CV
 - Sees only their own readiness status, and not mentor notes
 - Sees their own evaluation scores and periods on their dashboard — but not the written notes on them
-- Sees their own recommendation on their dashboard: which project, which stage, interview dates, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision
+- Sees their own recommendations on their dashboard: which project, which stage, interview dates, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? Arrows on the card switch between them
 - Sees no one else's recommendations or evaluations
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics

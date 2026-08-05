@@ -10,6 +10,7 @@ import { useMyAttendance, useCheckInToday } from '@/queries/attendance';
 import { useTicketModals } from '@/hooks/useTicketModals';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
+import { AttendanceSwitchNotice } from '@/components/intern/dashboard/AttendanceSwitchNotice';
 import { useTourActive, withTourSamples } from '@/components/onboarding/tourPreview';
 import { AttendanceHeroCard } from '@/components/intern/dashboard/AttendanceHeroCard';
 import { MyWorkloadCard } from '@/components/intern/dashboard/MyWorkloadCard';
@@ -126,7 +127,10 @@ export default function InternDashboardPage() {
     <TooltipProvider delayDuration={200}>
       <PageShell>
         <PageSection className="space-y-5">
-          <DashboardHeader user={user} />
+          {/* The notice sits inline on the greeting row. Time-boxed: it removes
+              itself after 15 August 2026 — delete the component and this prop once
+              that date has passed. See AttendanceSwitchNotice. */}
+          <DashboardHeader user={user} action={<AttendanceSwitchNotice />} />
 
           {isError && (
             <div className="app-panel px-6 py-8 text-center">

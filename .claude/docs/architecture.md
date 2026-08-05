@@ -36,6 +36,14 @@ AI: `AISummary`.
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
 - Statuses are **per-workspace and customizable** (not a global enum). See `statusService` and
   `server/helpers/statusValidation.js` / `statusSlugAliases.js`.
+- **A status's `slug` is its identity, and a rename must never change it.** `updateStatus` writes the
+  label only. Everything that refers to a status across time refers to it by slug: the dashboards'
+  `WORKLOAD_SLUGS` segments, `statusSlugAliases`, `DEFAULT_STATUSES`, the integration targets, and any
+  saved link carrying a `tab=`. Regenerating the slug on rename broke all of them silently — renaming
+  "To do" matched no `WORKLOAD_SLUGS` entry, so both dashboards fell back to the *default* label with
+  a null `statusId` and rendered a phantom "To do" column at 0 while the real tickets sat under the
+  new name, uncounted. A caller that genuinely wants a new key passes `updates.slug`, which goes
+  through the same duplicate check and integration sync (`applyStatusSlugChange`).
 - `Daily` — one standup record per `(workspace, date)` (unique compound index), with embedded
   `entries` (one per reporting intern: `done`/`todo` text lists + `blockers`, each blocker an
   optional `linkedTicket` ref scoped to the same workspace). Pure edit-window/derived-count logic
@@ -383,6 +391,15 @@ The intern's landing board. Backend:
   self-only reads, separate from the admin list functions, returning **redacted** shapes that pick
   fields explicitly rather than deleting them. Withheld: `recommendationNote`,
   `interviews[].feedback`, `result.note`, and evaluation `notes`. See `security.md`.
+- **The pipeline card shows one recommendation at a time, out of all of them.** `loadPipeline`
+  returns `current` (newest by `updatedAt`), `items` (the whole redacted list — same
+  `formatOwnRecommendation` shapes, so nothing extra rides along) and `total`. The card renders a
+  `‹ n/N ›` switcher when `items.length > 1` and clamps its index, because a recommendation resolving
+  reorders the list underneath it. It used to return `current` only, so an intern put forward for more
+  than one project could not reach the others at all.
+  The interview line shows the **soonest upcoming** interview, falling back to the most recent past
+  one labelled as past — stored order is not chronological, so taking the first dated record
+  presented last week's interview as what comes next.
 - **Ticket ordering lives in `server/helpers/ticketUrgency.js`**, extracted and unit-tested
   (`ticketUrgency.test.js`) because the board's "start here" card is chosen entirely by it. Weights
   are additive, not a first-match ladder, so a blocked *critical* ticket outranks a blocked *low*
@@ -397,15 +414,25 @@ The intern's landing board. Backend:
   WorkloadSegments, AttendanceMeter}` and the `.dashboard-hero-surface` gradient. That surface
   clamps the theme accent's lightness in OKLCH (with a `color-mix` fallback) so every theme's
   `--primary` — including Mono's near-white dark step — stays dark enough for the white hero text.
-- **The full ticket list is `/tickets?assignee=me`**, not a second page. Both the board's "View all"
-  and its whole workload card link there; `TicketPage` seeds its assignee filter from that param
+- **The full ticket list is `/tickets?assignee=me`**, not a second page, and one status of it is
+  `/tickets?assignee=me&tab=<status-slug>`. `TicketPage` seeds its assignee filter from that param
   (`me` resolves against the signed-in user, so the link carries no id) and writes it back, so the
   filter survives a refresh and the URL stays shareable. The seed runs **once**, guarded by a ref —
   re-applying it would make clearing the "Assigned: …" chip snap straight back, because the
   write-back rewrites the param the seed reads.
-  The workload card is a `<section>` with a stretched `absolute inset-0` link rather than an
-  anchor wrapping the card, so its view toggle isn't interactive content nested in an `<a>`; the
-  toggle is lifted over the link with `relative z-10`.
+  The board's "View all" uses the unfiltered form; **every workload segment links to the filtered
+  one** — donut slices, bar segments and both views' legend rows all go through
+  `components/intern/dashboard/workloadLink.js`, which encodes the slug the way `TicketPage`'s
+  `decodeTabParam` expects (spaces become underscores, since slugs are space-separated). An unknown
+  `tab` falls back to `all` via `allowedTabKeys`, so a segment for a status the workspace has since
+  removed still lands somewhere sensible. Note the destination's tab counts are workspace-wide while
+  the card's are the caller's own, so the two numbers legitimately differ.
+- **The workload card has no card-wide stretched link.** It used to be a `<section>` with a stretched
+  `absolute inset-0` anchor opening "all my tickets", which covered the whole panel and swallowed
+  every click meant for a single status. The per-status links are the click targets now: legend rows
+  are real `<a>`s (keyboard-reachable, openable in a new tab), and the bar segments duplicate them
+  for the mouse only — `tabIndex={-1}` plus `aria-hidden`, so they add no second set of tab stops
+  and no duplicate announcements. The view toggle and the donut keep `relative z-10`.
 - **Standup notes over `SUMMARY_MIN_CHARS` are shown AI-summarised**, expandable to the full text.
   `POST /api/dashboard/me/standup-summary` (intern-only, parameterless) →
   `services/standupSummaryService.js` → Groq, via its own prompt in `prompts/standupPrompts.js`.

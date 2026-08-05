@@ -7,6 +7,7 @@ import { useStoredPreference } from '@/hooks/useStoredPreference';
 import { ExampleChip } from './ExampleChip';
 import { WorkloadBar } from './WorkloadBar';
 import { WorkloadDonut } from './WorkloadDonut';
+import { ticketsPathForStatus } from './workloadLink';
 
 // Which view the card opens on, remembered per browser profile the same way the
 // colour theme is (see `hooks/useStoredPreference.js`). The two answer different
@@ -69,7 +70,10 @@ export function MyWorkloadCard({ workload, isPreview = false }) {
   return (
     <DashboardCard
       title="My workload"
-      className="group relative transition-colors hover:bg-muted/25"
+      // No card-wide hover tint any more: the card is not a single click target, so
+      // lighting the whole panel would promise something it no longer does. The
+      // legend rows carry their own hover.
+      className="group relative"
       action={
         <div className="flex shrink-0 items-center gap-2.5">
           {isPreview && <ExampleChip />}
@@ -82,17 +86,10 @@ export function MyWorkloadCard({ workload, isPreview = false }) {
       }
       data-tour="intern-dashboard-workload"
     >
-      {/* Stretched link: the whole card opens the filtered ticket list, but the
-          card stays a <section> so the view toggle isn't an interactive element
-          nested inside an anchor. Everything that needs its own click target is
-          lifted above this with `relative z-10`; the chart and legend sit under
-          it deliberately, since their only interaction is hover. */}
-      <Link
-        to="/tickets?assignee=me"
-        aria-label="Open my tickets"
-        data-test="intern-dashboard-workload-link"
-        className="absolute inset-0 rounded-[1.25rem] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/50"
-      />
+      {/* No stretched card-wide link. It used to cover the whole panel and open
+          "all my tickets", which meant every click anywhere landed on it — including
+          clicks meant for a single status. The legend rows are the click targets
+          now, one per status, so the card itself is inert. */}
 
       {open === 0 ? (
         <DashboardCardEmpty>
@@ -106,35 +103,49 @@ export function MyWorkloadCard({ workload, isPreview = false }) {
               flush under the title. The card's height is set by the attendance
               hero beside it, and top-packing the content collected all of that
               spare height into one dead block at the bottom. */}
-          <div className="flex flex-1 items-center">
+          {/* `relative z-10`, like the donut view: the bar's segments are their own
+              links now, so they have to sit above the stretched card link. */}
+          <div className="relative z-10 flex flex-1 items-center">
             <WorkloadBar buckets={buckets} />
           </div>
 
           {/* mt-auto, matching the donut view — the status list sits on the
               card's bottom edge in both, so toggling doesn't move the rows. */}
-          <ul className="mt-auto space-y-2 pt-4">
+          <ul className="mt-auto space-y-1 pt-4">
             {buckets.map((bucket) => (
-              <li key={bucket.slug} className="flex items-center gap-2 text-[13px]">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: bucket.color }}
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                  {bucket.label}
-                </span>
-                <span
+              <li key={bucket.slug}>
+                {/* Same destination as the bar segment above and as the donut
+                    view's legend — one status, my tickets. */}
+                <Link
+                  to={ticketsPathForStatus(bucket.slug)}
+                  aria-label={`${bucket.count} ${bucket.label} — open in my tickets`}
                   className={cn(
-                    'shrink-0 font-semibold tabular-nums',
-                    // Blocked is the one count that is bad news rather than just
-                    // a number, so it carries its status colour into the total.
-                    bucket.slug === 'blocked' && bucket.count > 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-foreground'
+                    'flex items-center gap-2 rounded-md px-1.5 py-0.5 text-[13px] transition-colors',
+                    'hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
+                    bucket.count === 0 && 'opacity-45'
                   )}
                 >
-                  {bucket.count}
-                </span>
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: bucket.color }}
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                    {bucket.label}
+                  </span>
+                  <span
+                    className={cn(
+                      'shrink-0 font-semibold tabular-nums',
+                      // Blocked is the one count that is bad news rather than just
+                      // a number, so it carries its status colour into the total.
+                      bucket.slug === 'blocked' && bucket.count > 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-foreground'
+                    )}
+                  >
+                    {bucket.count}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

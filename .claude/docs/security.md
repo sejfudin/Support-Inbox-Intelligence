@@ -79,6 +79,10 @@ and both resolve the `InternProfile` **from the authenticated user** — there i
 tamper with. They are only reachable through `GET /api/dashboard/me`, which takes no query
 parameters at all.
 
+`listOwnRecommendations` returns **every** recommendation belonging to the caller, not just the
+newest — the pipeline card switches between them. That widens the payload but not its scope: the
+records are still only ever the caller's own, and each is the same redacted shape described below.
+
 Their return shapes are **redacted, by picking fields rather than deleting them**, so a field added
 to either model later is absent by default instead of leaking. Withheld from the intern:
 `recommendationNote` (the admin's internal pitch), `interviews[].feedback` (the interviewer's

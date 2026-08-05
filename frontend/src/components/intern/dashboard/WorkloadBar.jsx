@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ticketsPathForStatus } from './workloadLink';
 
 /**
  * One person's open tickets as a single proportional bar.
@@ -34,11 +36,18 @@ export function WorkloadBar({ buckets = [] }) {
         .map((bucket) => (
           <Tooltip key={bucket.slug}>
             <TooltipTrigger asChild>
-              <span
+              {/* Each segment opens that status in my tickets, same destination as
+                  the legend row beneath it. `tabIndex={-1}` on purpose: the legend
+                  already gives every status a keyboard-reachable link, and the bar
+                  is the same set of targets a second time. */}
+              <Link
+                to={ticketsPathForStatus(bucket.slug)}
+                tabIndex={-1}
+                aria-hidden="true"
                 // A single-ticket segment of a large total would round to a
                 // hairline, so every present segment keeps a visible minimum and
                 // the rest of the width is shared out proportionally.
-                className="h-full min-w-[0.5rem] rounded-sm transition-all"
+                className="h-full min-w-[0.5rem] cursor-pointer rounded-sm transition-all hover:brightness-110"
                 style={{
                   backgroundColor: bucket.color,
                   flexGrow: bucket.count,

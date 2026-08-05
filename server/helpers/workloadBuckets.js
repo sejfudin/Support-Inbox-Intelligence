@@ -12,8 +12,18 @@ const statusService = require('../services/statusService');
 // workspace's status list so every board has the same shape — a workspace that
 // renamed or removed one still renders four segments. Labels and colors come
 // from the workspace's own TicketStatus rows when they exist and fall back to
-// the platform defaults, so a renamed status still reads correctly. `done` and
-// `backlog` are deliberately excluded: this is open work in flight.
+// the platform defaults. `done` and `backlog` are deliberately excluded: this is
+// open work in flight.
+//
+// **Matching is by slug, and that is load-bearing.** A slug is a status's stable
+// identity, which is why `statusService.updateStatus` changes the label only and
+// leaves the slug alone. It used to regenerate the slug on every rename, and this
+// resolver then silently under-reported: renaming "To do" matched no entry below,
+// the segment fell back to the *default* label with a `null` statusId, dropped out
+// of the id→slug map, and its tickets were never counted — a phantom "To do"
+// column reading 0 while the real work sat under the new name. The fallback covers
+// a *removed* status; it never made a *renamed* one read correctly. If slug
+// regeneration is ever reintroduced, both dashboards under-report again.
 const WORKLOAD_SLUGS = ['to do', 'in progress', 'on staging', 'blocked'];
 
 // Segment colour when a workspace has neither its own row for a slug nor a

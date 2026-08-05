@@ -195,10 +195,20 @@ const SAMPLE_EVALUATIONS = {
 export const withTourSamples = (dashboard, active) => {
   if (!active || !dashboard) return { dashboard, preview: {} };
 
+  // Workload, tickets and standup only exist inside a workspace, and an intern
+  // between workspaces gets exactly the empty shapes that would otherwise trigger
+  // substitution (`{ open: 0 }`, `{ total: 0 }`, `standup: null`). Filling them
+  // would put a populated donut and a written standup note directly above the
+  // page's own "No active workspace — your tickets and standup live in a workspace"
+  // panel: an example is meant to show what a card will look like, not to contradict
+  // the reason it is empty. Pipeline and evaluations are programme-level, so they
+  // stay eligible either way.
+  const inWorkspace = Boolean(dashboard.workspace);
+
   const preview = {
-    workload: (dashboard.workload?.open ?? 0) === 0,
-    tickets: (dashboard.tickets?.total ?? 0) === 0,
-    standup: !dashboard.standup?.written,
+    workload: inWorkspace && (dashboard.workload?.open ?? 0) === 0,
+    tickets: inWorkspace && (dashboard.tickets?.total ?? 0) === 0,
+    standup: inWorkspace && !dashboard.standup?.written,
     pipeline: !dashboard.pipeline?.current,
     evaluations: !dashboard.evaluations?.latest,
   };
