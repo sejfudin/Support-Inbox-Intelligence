@@ -104,7 +104,7 @@ const formFromRecommendation = (recommendation) => {
 
 function ViewModeSwitcher({ value, onChange }) {
   return (
-    <div className="flex h-11 items-center gap-1 rounded-xl bg-[#f2f3f8] p-1">
+    <div className="flex h-11 items-center gap-1 rounded-xl bg-muted p-1">
       {['detailed', 'compact'].map((mode) => (
         <button
           key={mode}
@@ -113,8 +113,8 @@ function ViewModeSwitcher({ value, onChange }) {
           className={cn(
             'h-full rounded-[9px] px-[18px] text-[14px] font-semibold capitalize transition',
             value === mode
-              ? 'bg-[#6d5ce6] text-white shadow-[0_2px_8px_rgba(109,92,230,.35)]'
-              : 'text-[#4a5064] hover:text-[#171b2b]'
+              ? 'bg-primary text-white shadow-[0_2px_8px_hsl(var(--primary)/.35)]'
+              : 'text-foreground/80 hover:text-foreground'
           )}
           aria-pressed={value === mode}
           data-test={`recommendation-view-${mode}`}
@@ -364,13 +364,13 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     );
 
   return (
-    <div className={cn('space-y-4 text-[#171b2b]', REC_FONT)}>
+    <div className={cn('space-y-4 text-foreground', REC_FONT)}>
       {/* Header card */}
-      <div className="rounded-[18px] border border-[#e7e9ef] bg-white px-6 py-5 shadow-[0_1px_3px_rgba(20,24,40,.06)]">
+      <div className="rounded-[18px] border border-border bg-card px-6 py-5 shadow-elevated-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-[22px] font-bold text-[#171b2b]">Recommendation history</h2>
-            <p className="text-[13.5px] text-[#8b91a5]">{subtitle}</p>
+            <h2 className="text-[22px] font-bold text-foreground">Recommendation history</h2>
+            <p className="text-[13.5px] text-muted-foreground">{subtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <SortControl
@@ -379,8 +379,8 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
               options={SORT_OPTIONS}
               onSortKeyChange={handleSortKeyChange}
               onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-              className="h-11 border-[#dcdfe9] bg-white"
-              triggerClassName="text-[14px] font-semibold text-[#33384c]"
+              className="h-11 border-input bg-card"
+              triggerClassName="text-[14px] font-semibold text-foreground/90"
               dataTest="recommendation-history-sort"
             />
             <ViewModeSwitcher value={viewMode} onChange={changeViewMode} />
@@ -422,9 +422,11 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
 
       {/* Cards */}
       <div className={cn('flex flex-col', viewMode === 'compact' ? 'gap-3' : 'gap-4')}>
-        {isPending && <p className="py-8 text-center text-[13.5px] text-[#8b91a5]">Loading…</p>}
+        {isPending && (
+          <p className="py-8 text-center text-[13.5px] text-muted-foreground">Loading…</p>
+        )}
         {!isPending && sorted.length === 0 && (
-          <p className="py-12 text-center text-[13.5px] text-[#8b91a5]">
+          <p className="py-12 text-center text-[13.5px] text-muted-foreground">
             {isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'}
           </p>
         )}

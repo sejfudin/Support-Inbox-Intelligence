@@ -64,6 +64,20 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 - **Routing**: `src/routes/` — `AppRoutes.jsx`, `ProtectedRoutes.jsx`, `WorkspaceManagementRoute.jsx`.
   Add new guarded routes through these, not ad-hoc.
 - **Styling**: TailwindCSS 3 + `tailwind-merge` + `clsx`. Theming via `next-themes` (light/dark).
+  **Colour must come from the semantic tokens** — `bg-card`, `bg-background`, `text-foreground`,
+  `text-muted-foreground`, `border-border`, `border-input`, `bg-primary`, `bg-destructive`,
+  `bg-muted`, `bg-accent`, `ring-ring`, `shadow-elevated{,-sm}` (defined in `src/styles/themes.css`,
+  mapped in `tailwind.config.js`). Never write a literal colour — no `bg-white`, no `text-gray-500`,
+  no `text-[#171b2b]`. A literal only renders correctly in one of the two themes, and it also
+  opts the component out of the `data-theme` palette picker. This is not stylistic: the
+  recommendations feature shipped as hardcoded hexes and rendered a white card on a dark page.
+  - Two exceptions. Semantic status tints (amber / emerald / red for interviewing / placed /
+    failed) have no tokens, so use the Tailwind palette **with an explicit `dark:` variant** —
+    `bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300`. Alpha overlays on a
+    coloured gradient (hero cards) may use `bg-white/10`, `text-white/80` — they sit on a fill
+    that is dark in both themes.
+  - Need a high-contrast surface that flips with the theme (tooltips)? Use `bg-foreground` +
+    `text-background` rather than a fixed near-black.
 - **Forms**: React Hook Form + Zod.
 
 ## Formatting

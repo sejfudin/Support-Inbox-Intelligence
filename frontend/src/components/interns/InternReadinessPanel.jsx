@@ -125,9 +125,9 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
                         <ReadinessLevelBadge level={level} />
                       )}
                     </div>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground/70">
                       Assessed by:{' '}
-                      <span className="font-medium text-gray-500">
+                      <span className="font-medium text-muted-foreground">
                         {flag?.setBy?.fullname || '—'}
                       </span>
                     </p>
