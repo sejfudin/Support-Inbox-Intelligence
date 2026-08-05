@@ -4,8 +4,8 @@ const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const evaluationService = require('./evaluationService');
 const recommendationService = require('./recommendationService');
-const statusService = require('./statusService');
 const { startOfDay, isDailyEditable, isWeekend } = require('../helpers/dailyRules');
+const { resolveWorkloadBuckets } = require('../helpers/workloadBuckets');
 const { officeDateKey } = require('../helpers/attendanceTime');
 const { scoreTicketUrgency, compareByUrgency } = require('../helpers/ticketUrgency');
 const { shouldSummarize, isSummaryFresh } = require('../helpers/standupNote');
@@ -13,54 +13,10 @@ const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 
 const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
-// The workload segments, in render order — the same four the admin board uses,
-// for the same reason: a fixed set keeps the bar's shape stable across
-// workspaces that renamed or removed a status. `done` and `backlog` are excluded
-// because this is open work in flight. Kept in sync with
-// adminDashboardService.WORKLOAD_SLUGS.
-const WORKLOAD_SLUGS = ['to do', 'in progress', 'on staging', 'blocked'];
-
 // How many tickets the board carries. The mockup renders one "start here" card
 // plus four rows and a "+N more" link, so eight leaves headroom without paging
 // the intern's whole backlog into the dashboard payload.
 const TICKET_LIMIT = 8;
-
-/**
- * Resolves the four workload segments for a workspace, plus a status lookup the
- * ticket list reads back by id. Mirrors `adminDashboardService.resolveWorkloadBuckets`
- * — same fallback to `statusService.DEFAULT_STATUSES` so a renamed status still
- * reads correctly — but also keeps the *full* status list, because the ticket
- * rows render a badge for whichever status they are actually in (including ones
- * outside the four segments).
- */
-const resolveStatuses = async (workspaceId) => {
-  const statuses = await statusService.getWorkspaceStatuses(workspaceId);
-  const bySlug = new Map(statuses.map((status) => [status.slug, status]));
-  const defaultsBySlug = new Map(statusService.DEFAULT_STATUSES.map((s) => [s.slug, s]));
-
-  const buckets = WORKLOAD_SLUGS.map((slug) => {
-    const status = bySlug.get(slug);
-    const fallback = defaultsBySlug.get(slug);
-    return {
-      slug,
-      label: status?.label || fallback?.label || slug,
-      color: status?.color || fallback?.color || '#64748b',
-      statusId: status?._id || null,
-    };
-  });
-
-  const byId = new Map(statuses.map((status) => [String(status._id), status]));
-
-  // Open work: everything that is neither done nor parked in the backlog. Derived
-  // from the workspace's own flags rather than from WORKLOAD_SLUGS, so a ticket
-  // sitting in a custom status the workspace added still counts as open and is
-  // never silently dropped from "my tickets".
-  const openStatusIds = statuses
-    .filter((status) => !status.isDone && !status.isBacklog)
-    .map((status) => status._id);
-
-  return { buckets, byId, openStatusIds };
-};
 
 /**
  * The intern's own open tickets: the workload counts and the urgency-ordered
@@ -268,7 +224,7 @@ const getInternDashboard = async (user) => {
     throw httpError(404, 'Your active workspace no longer exists.');
   }
 
-  const statuses = workspace ? await resolveStatuses(workspaceId) : null;
+  const statuses = workspace ? await resolveWorkloadBuckets(workspaceId) : null;
 
   const [ticketData, standup, pipeline, evaluations] = await Promise.all([
     statuses
@@ -290,4 +246,4 @@ const getInternDashboard = async (user) => {
   };
 };
 
-module.exports = { getInternDashboard, WORKLOAD_SLUGS };
+module.exports = { getInternDashboard };

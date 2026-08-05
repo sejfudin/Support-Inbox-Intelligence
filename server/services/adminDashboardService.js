@@ -4,7 +4,7 @@ const InternProfile = require('../models/InternProfile');
 const Recommendation = require('../models/Recommendation');
 const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
-const statusService = require('./statusService');
+const { resolveWorkloadBuckets } = require('../helpers/workloadBuckets');
 const { getActiveWorkspaceInterns } = require('../helpers/workspaceInterns');
 const { computeMonthStats, averageAttendanceRate } = require('../helpers/attendanceStats');
 const {
@@ -21,14 +21,6 @@ const {
 // workload to report. Same list the attendance roster filters on — shared via the
 // model so the two can't drift.
 const { IN_PROGRAMME_STATUSES } = InternProfile;
-
-// The workload segments, in render order. Fixed rather than derived from the
-// workspace's status list so every row in the table has the same shape — a
-// workspace that renamed or removed one still renders four segments. Labels and
-// colors come from the workspace's own TicketStatus rows when they exist and
-// fall back to the platform defaults, so a renamed status still reads correctly.
-// `done` and `backlog` are deliberately excluded: this is open work in flight.
-const WORKLOAD_SLUGS = ['to do', 'in progress', 'on staging', 'blocked'];
 
 const RECENT_PLACEMENT_LIMIT = 3;
 const RECENT_SPECIALIZATION_LIMIT = 3;
@@ -54,34 +46,6 @@ const wholeDaysAgo = (date) => {
   const today = new Date().setHours(0, 0, 0, 0);
   if (Number.isNaN(then)) return null;
   return Math.max(0, Math.floor((today - then) / MS_PER_DAY));
-};
-
-/**
- * Resolves the four workload segments for a workspace. Returns both the display
- * list (slug/label/color, canonical order) and a slug-keyed map of status ids so
- * the ticket aggregation can group by status and be read back by slug.
- */
-const resolveWorkloadBuckets = async (workspaceId) => {
-  const statuses = await statusService.getWorkspaceStatuses(workspaceId);
-  const bySlug = new Map(statuses.map((status) => [status.slug, status]));
-  const defaultsBySlug = new Map(statusService.DEFAULT_STATUSES.map((s) => [s.slug, s]));
-
-  const buckets = WORKLOAD_SLUGS.map((slug) => {
-    const status = bySlug.get(slug);
-    const fallback = defaultsBySlug.get(slug);
-    return {
-      slug,
-      label: status?.label || fallback?.label || slug,
-      color: status?.color || fallback?.color || '#64748b',
-      statusId: status?._id || null,
-    };
-  });
-
-  const statusIdToSlug = new Map(
-    buckets.filter((b) => b.statusId).map((b) => [String(b.statusId), b.slug])
-  );
-
-  return { buckets, statusIdToSlug };
 };
 
 /**
