@@ -10,8 +10,7 @@ const { officeDateKey } = require('../helpers/attendanceTime');
 const { scoreTicketUrgency, compareByUrgency } = require('../helpers/ticketUrgency');
 const { shouldSummarize, isSummaryFresh } = require('../helpers/standupNote');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
-
-const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
+const { httpError } = require('../helpers/httpError');
 
 // How many tickets the board carries. The mockup renders one "start here" card
 // plus four rows and a "+N more" link, so eight leaves headroom without paging
@@ -221,7 +220,7 @@ const getInternDashboard = async (user) => {
   // which would otherwise return empty ticket and standup blocks that read as
   // "you have no work" instead of "this workspace is gone".
   if (hasWorkspace && !workspace) {
-    throw httpError(404, 'Your active workspace no longer exists.');
+    throw httpError('Your active workspace no longer exists.', 404);
   }
 
   const statuses = workspace ? await resolveWorkloadBuckets(workspaceId) : null;

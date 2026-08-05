@@ -12,6 +12,7 @@ const {
   CHECK_IN_WINDOW_LABEL,
 } = require('../helpers/attendanceTime');
 const { computeMonthStats } = require('../helpers/attendanceStats');
+const { httpError } = require('../helpers/httpError');
 
 const { PRESENT, CANCELLED } = Attendance;
 
@@ -21,12 +22,10 @@ const { PRESENT, CANCELLED } = Attendance;
 // dashboard counts the same set — widen it there, not here.
 const { IN_PROGRAMME_STATUSES } = InternProfile;
 
-const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
-
 const loadMyProfile = async (user) => {
   const profile = await InternProfile.findOne({ user: user._id });
   if (!profile) {
-    throw httpError(404, 'No intern profile is linked to your account.');
+    throw httpError('No intern profile is linked to your account.', 404);
   }
   return profile;
 };
@@ -64,7 +63,7 @@ const buildSummary = async (profile) => {
 
 const assertCheckInOpen = (now) => {
   if (isOfficeWeekend(now)) {
-    throw httpError(422, 'Check-in is only available on weekdays.');
+    throw httpError('Check-in is only available on weekdays.', 422);
   }
   if (!isWithinCheckInWindow(now)) {
     const opensAt = `${String(CHECK_IN_WINDOW.startHour).padStart(2, '0')}:00`;
@@ -72,7 +71,7 @@ const assertCheckInOpen = (now) => {
       checkInWindowState(now) === 'before'
         ? `Check-in opens at ${opensAt}.`
         : `Check-in is closed for today. The window is ${CHECK_IN_WINDOW_LABEL} office time.`;
-    throw httpError(422, message);
+    throw httpError(message, 422);
   }
 };
 
@@ -144,7 +143,7 @@ const cancelCheckIn = async (user) => {
   const date = officeDateKey();
   const existing = await Attendance.findOne({ intern: profile._id, date });
   if (!existing) {
-    throw httpError(409, 'You have not checked in today, so there is nothing to cancel.');
+    throw httpError('You have not checked in today, so there is nothing to cancel.', 409);
   }
   if (existing.status === PRESENT) {
     existing.status = CANCELLED;
@@ -247,10 +246,10 @@ const getInternAttendance = async (internProfileId, month) => {
       })
       .lean();
   } catch (err) {
-    if (err.name === 'CastError') throw httpError(404, 'Intern not found.');
+    if (err.name === 'CastError') throw httpError('Intern not found.', 404);
     throw err;
   }
-  if (!profile || !profile.user) throw httpError(404, 'Intern not found.');
+  if (!profile || !profile.user) throw httpError('Intern not found.', 404);
 
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates } = splitRows(rows);

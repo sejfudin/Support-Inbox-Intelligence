@@ -7,6 +7,7 @@ const Workspace = require('../models/Workspace');
 const { resolveWorkloadBuckets } = require('../helpers/workloadBuckets');
 const { getActiveWorkspaceInterns } = require('../helpers/workspaceInterns');
 const { computeMonthStats, averageAttendanceRate } = require('../helpers/attendanceStats');
+const { httpError } = require('../helpers/httpError');
 const {
   officeDateKey,
   officeMonthKey,
@@ -24,8 +25,6 @@ const { IN_PROGRAMME_STATUSES } = InternProfile;
 
 const RECENT_PLACEMENT_LIMIT = 3;
 const RECENT_SPECIALIZATION_LIMIT = 3;
-
-const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -197,13 +196,13 @@ const loadSpecializations = async () => {
  */
 const getAdminDashboard = async ({ workspaceId }) => {
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-    throw httpError(400, 'A valid workspaceId is required.');
+    throw httpError('A valid workspaceId is required.', 400);
   }
 
   const workspace = await Workspace.findOne({ _id: workspaceId, isArchived: { $ne: true } })
     .select('name')
     .lean();
-  if (!workspace) throw httpError(404, 'Workspace not found.');
+  if (!workspace) throw httpError('Workspace not found.', 404);
 
   const monthKey = officeMonthKey();
   const todayKey = officeDateKey();

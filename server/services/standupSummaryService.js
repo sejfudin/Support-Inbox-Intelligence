@@ -5,8 +5,7 @@ const { noteSourceHash, shouldSummarize, isSummaryFresh } = require('../helpers/
 const { buildStandupSummaryPrompt } = require('../prompts/standupPrompts');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
-
-const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
+const { httpError } = require('../helpers/httpError');
 
 /** Strip fences and collapse whitespace — same shaping `aiSummaryService` applies. */
 const sanitizeSummaryText = (value) =>
@@ -32,7 +31,7 @@ const sanitizeSummaryText = (value) =>
  */
 const summarizeOwnStandup = async (user) => {
   if (user.role !== ROLES.INTERN) {
-    throw httpError(403, 'Not authorized');
+    throw httpError('Not authorized', 403);
   }
   // Verified, not trusted: `user.workspaceId` is a pointer that outlives the
   // membership behind it, and this path *writes* (and spends a Groq call). A
@@ -40,18 +39,18 @@ const summarizeOwnStandup = async (user) => {
   // the caller has left. See `helpers/workspaceAuthz.js`.
   const workspaceId = await resolveActiveWorkspaceId({ user });
   if (!workspaceId) {
-    throw httpError(400, 'You have no active workspace.');
+    throw httpError('You have no active workspace.', 400);
   }
 
   const today = startOfDay(new Date());
   const daily = await Daily.findOne({ workspace: workspaceId, date: today });
   if (!daily) {
-    throw httpError(404, 'There is no standup for today yet.');
+    throw httpError('There is no standup for today yet.', 404);
   }
 
   const entry = daily.entries.find((item) => String(item.member) === String(user._id));
   if (!entry) {
-    throw httpError(404, 'You have not written a standup note today.');
+    throw httpError('You have not written a standup note today.', 404);
   }
 
   // Guard the threshold on the server too. The client only asks when it believes
@@ -59,7 +58,7 @@ const summarizeOwnStandup = async (user) => {
   // in one place — otherwise a client-side change quietly starts billing AI calls
   // for two-line notes.
   if (!shouldSummarize(entry)) {
-    throw httpError(422, 'This note is short enough to read in full.');
+    throw httpError('This note is short enough to read in full.', 422);
   }
 
   if (isSummaryFresh(entry)) {
