@@ -136,12 +136,16 @@ parameters** — the subject is always `req.user`. That is deliberate and load-b
 includes the caller's own (redacted) recommendations and evaluations, so the absence of any
 workspace or intern override is what keeps it self-scoped. Do not add one, and do not open the
 route to another role — the admin board is the cross-workspace surface. The workspace half of the
-payload (workload, tickets, standup) resolves from `user.workspaceId` and verifies that workspace
+payload (workload, tickets, standup) resolves through `resolveActiveWorkspaceId`, never the raw
+`user.workspaceId` pointer, so an intern whose membership lapsed reads as "between workspaces"
+(programme cards only) instead of keeping the workspace they left; it then verifies that workspace
 still exists, so an archived one 404s instead of returning empty blocks that read as "no work".
 
 `POST /api/dashboard/me/standup-summary` follows the same rule — `requireRole(INTERN)`, no
 parameters, and it locates the entry by matching `entry.member` against `req.user`, so an intern
-can only ever summarise a note they wrote themselves. It also re-checks the length threshold
+can only ever summarise a note they wrote themselves. It resolves its workspace through
+`resolveActiveWorkspaceId` too, and 400s on `null`: this path **writes** (`daily.save()`) and
+spends a Groq call, so a stale pointer must not reach either. It also re-checks the length threshold
 server-side: the client only asks when it believes a note is long, but letting the client decide
 would mean a frontend change could quietly start spending AI calls on two-line notes.
 

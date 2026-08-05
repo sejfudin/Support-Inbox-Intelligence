@@ -9,6 +9,7 @@ const { startOfDay, isDailyEditable, isWeekend } = require('../helpers/dailyRule
 const { officeDateKey } = require('../helpers/attendanceTime');
 const { scoreTicketUrgency, compareByUrgency } = require('../helpers/ticketUrgency');
 const { shouldSummarize, isSummaryFresh } = require('../helpers/standupNote');
+const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 
 const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
@@ -243,7 +244,11 @@ const loadEvaluations = async (user) => {
  * that the caller can only ever be the subject. See `.claude/docs/security.md`.
  */
 const getInternDashboard = async (user) => {
-  const workspaceId = user.workspaceId;
+  // `user.workspaceId` is only a pointer to the workspace last switched to — it
+  // outlives the membership that made it valid, so it is verified against the
+  // workspace's `members` list here and resolves to `null` once it no longer
+  // holds. See `helpers/workspaceAuthz.js`.
+  const workspaceId = await resolveActiveWorkspaceId({ user });
 
   // An intern between workspaces still gets their programme-level cards; only
   // the workspace-scoped half goes quiet. The page renders an explanation.

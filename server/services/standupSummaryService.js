@@ -3,7 +3,8 @@ const { ROLES } = require('../constants/roles');
 const { startOfDay } = require('../helpers/dailyRules');
 const { noteSourceHash, shouldSummarize, isSummaryFresh } = require('../helpers/standupNote');
 const { buildStandupSummaryPrompt } = require('../prompts/standupPrompts');
-const { createAiServiceError, requestGroqOutputText } = require('../services/groqAiClient');
+const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
+const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
 
 const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
@@ -33,12 +34,17 @@ const summarizeOwnStandup = async (user) => {
   if (user.role !== ROLES.INTERN) {
     throw httpError(403, 'Not authorized');
   }
-  if (!user.workspaceId) {
+  // Verified, not trusted: `user.workspaceId` is a pointer that outlives the
+  // membership behind it, and this path *writes* (and spends a Groq call). A
+  // stale pointer resolves to `null` here rather than saving into a workspace
+  // the caller has left. See `helpers/workspaceAuthz.js`.
+  const workspaceId = await resolveActiveWorkspaceId({ user });
+  if (!workspaceId) {
     throw httpError(400, 'You have no active workspace.');
   }
 
   const today = startOfDay(new Date());
-  const daily = await Daily.findOne({ workspace: user.workspaceId, date: today });
+  const daily = await Daily.findOne({ workspace: workspaceId, date: today });
   if (!daily) {
     throw httpError(404, 'There is no standup for today yet.');
   }
