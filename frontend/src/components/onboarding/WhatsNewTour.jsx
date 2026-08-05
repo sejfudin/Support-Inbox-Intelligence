@@ -2,7 +2,12 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { TOUR_REPLAY_EVENT, WHATS_NEW_STEPS, markWhatsNewSeen } from './whatsNewSteps';
+import {
+  TOUR_REPLAY_EVENT,
+  WHATS_NEW_STEPS,
+  markWhatsNewSeen,
+  useWhatsNewSeen,
+} from './whatsNewSteps';
 import { emitTourActive } from './tourPreview';
 
 const CARD_WIDTH = 340;
@@ -10,6 +15,11 @@ const GAP = 14; // between the highlighted element and the card
 const PAD = 8; // breathing room around the spotlight cut-out
 const EDGE = 12; // minimum distance from the viewport edge
 const MIN_TEXT_WIDTH = 240; // never squeeze the copy below this
+
+// How long a step waits for its target to appear before settling for a centred
+// card. Longer than a dashboard round-trip so a cold open still lights every
+// card up, short enough that a target which will never exist does not stall.
+const TARGET_WAIT_MS = 4000;
 
 // Deliberately heavy. With no panel behind the copy, the dim IS the background the
 // text is read against, so it carries the contrast for the whole overlay.
@@ -23,6 +33,13 @@ const visibleRect = (selector) => {
   if (rect.width === 0 || rect.height === 0) return null;
   return rect;
 };
+
+/** Whether a measured rect sits entirely within the viewport, with EDGE slack. */
+const isFullyInViewport = (rect) =>
+  rect.top >= EDGE &&
+  rect.left >= EDGE &&
+  rect.bottom <= window.innerHeight - EDGE &&
+  rect.right <= window.innerWidth - EDGE;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
@@ -133,13 +150,20 @@ const placeCard = (rect, card, preferred) => {
  * no extra dependency) and parking an explanatory card beside it.
  *
  * Deliberate choices:
- * - **Opened on request only.** It never launches itself on login; the pulsing
- *   button in the dashboard header is the way in. See `whatsNewSteps.js`.
- * - **Steps with a missing target are skipped**, so the same script serves every
- *   role and every breakpoint. The collapse button is `md:`-only, so on a phone
- *   that step simply does not appear.
- * - **Nothing is highlighted until the element is measured**, and the measurement
- *   re-runs on resize/scroll, so a spotlight can never drift off its control.
+ * - **Two ways in**: it opens itself once on the first load after a `TOUR_VERSION`
+ *   bump, and the pulsing button in the sidebar footer reopens it any time. See
+ *   `whatsNewSteps.js`.
+ * - **No step is ever skipped.** The step count is exactly the number of entries in
+ *   the script that apply to the viewer's role — so admin and intern legitimately
+ *   see different totals, but neither ever loses a step they were entitled to. A
+ *   target that has not rendered yet is waited for (see the measuring effect) and
+ *   the card is centred meanwhile. An earlier version filtered the whole script by
+ *   target presence in one frame at open time, which silently dropped every step
+ *   whose card was still loading.
+ * - **Nothing is highlighted until the element is measured**, the measurement
+ *   re-runs on resize/scroll so a spotlight can never drift off its control, and a
+ *   target below the fold is scrolled into view first rather than dimming the whole
+ *   screen with nothing lit.
  * - **The active theme is left alone.** The overlay does not need one: the dim is a
  *   fixed dark wash in both themes and the copy is white-on-dim with a text shadow,
  *   so it reads the same either way. An earlier version forced light mode "so
@@ -152,31 +176,43 @@ export function WhatsNewTour() {
   // `loading` (the /me fetch), not `isLoginPending` (the login mutation): the tour
   // must not measure anything until the shell has a user and has painted.
   const { user, loading } = useAuth();
-  // Starts closed, always — the tour is opened by the header button and nothing
-  // else. Seen-state lives in localStorage and is read by the *button* (to decide
-  // whether to pulse), not here; this component only ever writes it, on the way
-  // out, so re-opening an already-seen tour works without any extra state.
+  const seen = useWhatsNewSeen();
+
+  // Starts closed and is opened by one of two things: the sidebar's what's-new
+  // button, or the first-login effect below. It is never open before there is a
+  // user, so nothing measures against a half-built shell.
   const [dismissed, setDismissed] = useState(true);
-  const [visibleSteps, setVisibleSteps] = useState([]);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
   const [cardBox, setCardBox] = useState({ width: CARD_WIDTH, height: 180 });
   const cardRef = useRef(null);
+  // One auto-open per mount. Without this, finishing the tour and then having
+  // `seen` briefly disagree (or a refetch re-running the effect) would reopen it.
+  const autoOpenedRef = useRef(false);
 
   const role = user?.role;
 
-  // Bumped by every replay. See the resolution effect below for why it exists.
-  const [runId, setRunId] = useState(0);
-
-  // Role filtering happens here; target-presence filtering has to wait until the
-  // shell has painted, so it is resolved per-step during navigation below.
-  //
-  // Every role gets every step that applies to them, every time the version is
-  // bumped. An earlier version of this filtered out steps from previous releases
-  // for returning users — that was wrong: a release is announced as one story, and
-  // dropping the shell steps left interns walked through new cards inside a shell
-  // nobody had walked them through. If a tour ever gets long enough to need
-  // trimming, cut steps from the script rather than hiding them per-viewer.
+  /**
+   * The steps this viewer gets — filtered by role and by nothing else.
+   *
+   * Every role gets every step that applies to them, every time the version is
+   * bumped. An earlier version of this filtered out steps from previous releases
+   * for returning users — that was wrong: a release is announced as one story, and
+   * dropping the shell steps left interns walked through new cards inside a shell
+   * nobody had walked them through. If a tour ever gets long enough to need
+   * trimming, cut steps from the script rather than hiding them per-viewer.
+   *
+   * **This list is also the step count, and it is never narrowed at runtime.** An
+   * earlier version additionally filtered by whether each step's `[data-tour]`
+   * target was in the DOM, resolved once in a single `requestAnimationFrame`. Every
+   * dashboard card target lives inside a `isPending ? <Skeleton/> : <Card/>`
+   * branch, so on a cold load those targets did not exist yet and the steps
+   * announcing them were dropped permanently — an admin saw 8 of 12, an intern 7 of
+   * 12, silently, with the counter reporting the reduced total so nothing looked
+   * wrong. A step the role is entitled to is now always shown; a target that has
+   * not arrived yet is waited for per-step in the measuring effect below, and until
+   * it does the card is simply centred.
+   */
   const steps = useMemo(
     () => WHATS_NEW_STEPS.filter((step) => !step.roles || step.roles.includes(role)),
     [role]
@@ -185,38 +221,23 @@ export function WhatsNewTour() {
   const finish = useCallback(() => {
     markWhatsNewSeen();
     setDismissed(true);
-    setVisibleSteps([]);
   }, []);
 
-  // Resolve which steps are actually showable ONCE, when the tour opens, and drive
-  // everything from that list. Filtering per-navigation instead would make the
-  // "3 / 6" counter count steps that get skipped and mislabel the final button.
-  // Measured in a rAF so the shell has painted and the targets have real boxes.
+  // First login on a new design: show the tour unprompted, once. Gated on the
+  // *versioned* seen-state, so bumping TOUR_VERSION re-announces to everyone
+  // exactly once and a returning viewer is never re-interrupted.
+  //
+  // Opening while dashboard data is still in flight is safe now: no step is
+  // dropped for a missing target, so the only effect of an early open is that the
+  // first card or two are centred until their element lands.
   useEffect(() => {
-    if (dismissed || !user || loading || steps.length === 0) return undefined;
+    if (autoOpenedRef.current || seen || !user || loading || steps.length === 0) return;
+    autoOpenedRef.current = true;
+    setIndex(0);
+    setDismissed(false);
+  }, [seen, user, loading, steps.length]);
 
-    const frame = requestAnimationFrame(() => {
-      const usable = steps.filter((step) => !step.target || visibleRect(step.target));
-      if (usable.length === 0) {
-        // Every open is now an explicit click, so silently closing again would
-        // read as a dead button. Fall back to the step that never has a target —
-        // the intro always qualifies.
-        setVisibleSteps(steps.slice(0, 1));
-        setIndex(0);
-        return;
-      }
-      setVisibleSteps(usable);
-      setIndex(0);
-    });
-
-    return () => cancelAnimationFrame(frame);
-    // `runId` is what makes replay reliable: it changes on every open, so this
-    // re-resolves even when nothing else did. Without it the effect depended on
-    // `dismissed` flipping *and* on `steps` keeping its identity — and re-opening
-    // an already-dismissed-but-mounted tour could resolve to nothing at all.
-  }, [dismissed, user, loading, steps, runId]);
-
-  const tourActive = !dismissed && visibleSteps.length > 0;
+  const tourActive = !dismissed && steps.length > 0;
 
   // Broadcast so the intern dashboard can fill genuinely empty cards with example
   // data for the duration — the tour explains cards by pointing at them, and
@@ -227,34 +248,47 @@ export function WhatsNewTour() {
     return () => emitTourActive(false);
   }, [tourActive]);
 
-  // Opened on demand — the dashboard's what's-new button fires this.
+  // Opened on demand — the sidebar's what's-new button fires this.
   useEffect(() => {
     const onReplay = () => {
       setIndex(0);
       setDismissed(false);
-      setRunId((n) => n + 1);
     };
     window.addEventListener(TOUR_REPLAY_EVENT, onReplay);
     return () => window.removeEventListener(TOUR_REPLAY_EVENT, onReplay);
   }, []);
 
-  const step = !dismissed && visibleSteps.length > 0 ? visibleSteps[index] : null;
-  const isLast = index === visibleSteps.length - 1;
+  const step = !dismissed && steps.length > 0 ? steps[index] : null;
+  const isLast = index === steps.length - 1;
 
   const go = useCallback(
     (direction) => {
       const next = index + direction;
       if (next < 0) return;
-      if (next >= visibleSteps.length) {
+      if (next >= steps.length) {
         finish();
         return;
       }
       setIndex(next);
     },
-    [finish, index, visibleSteps.length]
+    [finish, index, steps.length]
   );
 
   // Keep the spotlight glued to its element.
+  //
+  // Two things beyond a plain measure, both because a step is never skipped for a
+  // missing target:
+  //
+  // 1. WAIT. Every dashboard card's `[data-tour]` anchor lives inside a
+  //    `isPending ? <Skeleton/> : <Card/>` branch, so reaching its step before that
+  //    query resolves finds nothing. Measuring once would leave the card centred
+  //    for the rest of the step; instead poll until the element appears, up to
+  //    TARGET_WAIT_MS — comfortably longer than a dashboard fetch, short enough
+  //    that a genuinely absent target (a control this role does not have) settles
+  //    quickly as a centred notice rather than hanging the step.
+  // 2. SCROLL. The spotlight is positioned in viewport coordinates, so a target
+  //    below the fold used to dim the whole screen with nothing lit. Bring it into
+  //    view first, then measure on the next frame once the scroll has applied.
   useLayoutEffect(() => {
     if (!step) return undefined;
     if (!step.target) {
@@ -262,12 +296,40 @@ export function WhatsNewTour() {
       return undefined;
     }
 
-    const measure = () => setRect(visibleRect(step.target));
-    measure();
+    let cancelled = false;
+    let frame = 0;
+    const deadline = performance.now() + TARGET_WAIT_MS;
 
+    const settle = () => {
+      if (cancelled) return;
+
+      const found = visibleRect(step.target);
+      if (found) {
+        const node = document.querySelector(step.target);
+        if (node && !isFullyInViewport(found)) {
+          node.scrollIntoView({ block: 'center', inline: 'nearest' });
+          frame = requestAnimationFrame(() => {
+            if (!cancelled) setRect(visibleRect(step.target));
+          });
+          return;
+        }
+        setRect(found);
+        return;
+      }
+
+      // Not there yet — render centred meanwhile, and keep looking.
+      setRect(null);
+      if (performance.now() < deadline) frame = requestAnimationFrame(settle);
+    };
+
+    settle();
+
+    const measure = () => setRect(visibleRect(step.target));
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
     };
@@ -337,7 +399,7 @@ export function WhatsNewTour() {
             What&apos;s new
           </span>
           <span className="text-[11px] font-medium tabular-nums text-white/50">
-            {position} / {visibleSteps.length}
+            {position} / {steps.length}
           </span>
         </div>
 
@@ -353,9 +415,10 @@ export function WhatsNewTour() {
         {isLast && (
           <p className="mt-3 text-[11px] leading-4 text-white/60">
             This is how we will show you what&apos;s new from now on. The{' '}
-            <span className="font-medium text-white/90">Notice some changes?</span> button on your
-            dashboard reopens this any time — and whenever we ship something new, it will start
-            glowing again to let you know there is something to read.
+            <span className="font-medium text-white/90">Notice some changes?</span> button just
+            above your name, at the bottom of the sidebar, reopens this any time — and whenever we
+            ship something new it will start glowing again to let you know there is something to
+            read.
           </p>
         )}
 

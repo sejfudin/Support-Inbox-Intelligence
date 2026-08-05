@@ -18,9 +18,14 @@
  *
  * Each step either points at a real element (`target`, a `[data-tour]` selector)
  * or has none, in which case the card is centred and reads as a plain notice.
- * Steps whose target is absent or not rendered — a role without that control, or
- * a viewport where it is hidden — are dropped at runtime, so this list does not
- * need a branch per role.
+ *
+ * **`roles` is the only thing that decides who sees a step.** Steps are never
+ * dropped for a missing target: the count a viewer sees is exactly the number of
+ * entries below that apply to their role, and a target that has not rendered yet
+ * (every dashboard card is behind a query) is waited for, then falls back to a
+ * centred card. So if you add a step for a role, that role *will* walk through it —
+ * which also means a step whose element genuinely never exists for that role is a
+ * scripting bug here, not something the runtime will quietly paper over.
  *
  * `roles` narrows a step to specific platform roles when the *copy* only applies
  * to them, which is not the same thing as the element existing.
@@ -35,7 +40,13 @@ import { useEffect, useState } from 'react';
 // Covers both boards and the new way in, which is why it supersedes the shell
 // redesign's own string rather than extending it: people who already walked the
 // shell tour have still seen neither dashboard nor this button.
-export const TOUR_VERSION = '2026-08-dashboards-r1';
+//
+// Bumped to r2 because the tour now opens itself on first load after a bump again,
+// and the way back in moved from the dashboard header to the sidebar footer. A
+// viewer who "saw" r1 saw a truncated walkthrough (steps whose card had not loaded
+// were silently dropped) and a button that is no longer where they left it, so this
+// is a genuine re-announcement rather than a nag.
+export const TOUR_VERSION = '2026-08-dashboards-r2';
 
 // Not exported: every read and write of it lives in this module now, and the two
 // consumers go through `useWhatsNewSeen` / `markWhatsNewSeen` instead. Keep it
@@ -44,11 +55,18 @@ export const TOUR_VERSION = '2026-08-dashboards-r1';
 const TOUR_STORAGE_KEY = 'whatsNewTour';
 
 /**
- * Opening the tour. It is **never** shown automatically — the only way in is the
- * "Notice some changes?" button on the dashboard header, which pulses until it
- * has been used. Landing straight in a modal overlay on login is the thing
- * everybody clicks past without reading; a button that asks for attention lets
- * someone open it at the moment they actually wonder what moved.
+ * Opening the tour. Two ways in, and they answer different needs:
+ *
+ * 1. **Automatically, once, on the first load after a `TOUR_VERSION` bump.** A
+ *    redesign that nobody is told about generates support questions instead of
+ *    discovery, and the people most likely to be confused are the least likely to
+ *    go hunting for a button. Gated on the versioned seen-state, so it interrupts
+ *    a given viewer exactly once per release and never again.
+ * 2. **The "Notice some changes?" button** in the sidebar footer, just above the
+ *    account row, which pulses until the tour has been used. This is the way back
+ *    in for anyone who dismissed the automatic showing without reading it, or who
+ *    only wonders what moved a week later. It sits in the sidebar rather than on a
+ *    dashboard because the tour covers the shell as much as the boards.
  *
  * Window events rather than a context: the publishers and subscribers are one
  * button and one overlay, so a provider wrapping the whole app would be plumbing
@@ -264,6 +282,35 @@ export const WHATS_NEW_STEPS = [
     roles: ['intern'],
     target: '[data-tour="intern-dashboard-pipeline"]',
     title: 'You can now see your own progress',
-    body: 'Where your recommendation stands, and your evaluation scores below it. Both are new to you — the written notes behind them stay with your mentor.',
+    body: 'Where your recommendation stands, and your evaluation scores below it. Both are new to you — the written notes behind them stay with your mentor. Put forward for more than one project? Use the arrows to switch between them.',
+  },
+
+  // The features that arrived alongside the boards, pointed at their sidebar row
+  // rather than their page — the tour runs on the dashboard, and sending someone
+  // away mid-walkthrough loses them. `nav-<slug>` anchors come from `NavItem`, so
+  // any nav row can be targeted this way.
+  {
+    id: 'nav-attendance-intern',
+    roles: ['intern'],
+    target: '[data-tour="nav-my-attendance"]',
+    title: 'Attendance lives in the app now',
+    body: 'Check in here on every office day, between 07:00 and 11:00 — the old sheet is being retired, and everything you had in it has already been imported. Your streak, this month’s rate and the full calendar are on this page.',
+    placement: 'right',
+  },
+  {
+    id: 'nav-attendance-admin',
+    roles: ['admin'],
+    target: '[data-tour="nav-attendance"]',
+    title: 'Attendance roster',
+    body: 'Who checked in, by month, with a calendar per intern. Absence is derived from a missing check-in rather than recorded by hand, so there is nothing to mark — and only interns still in the programme appear.',
+    placement: 'right',
+  },
+  {
+    id: 'nav-specialization',
+    roles: ['admin'],
+    target: '[data-tour="nav-specialization"]',
+    title: 'Specializations',
+    body: 'Confirm one of an intern’s two declared positions as their focus and pair them with a 1-on-1 mentor — both in one action. While a specialization is set the intern can’t change that position themselves, and their secondary stays theirs to edit.',
+    placement: 'right',
   },
 ];

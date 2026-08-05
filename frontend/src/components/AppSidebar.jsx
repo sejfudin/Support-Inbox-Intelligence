@@ -27,6 +27,7 @@ import {
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
 import NavbarNotifications from '@/components/NavbarNotifications';
 import { ThemeAppearanceSubmenu } from '@/components/ThemeSwitcher';
+import { WhatsNewButton } from '@/components/onboarding/WhatsNewButton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -111,6 +112,11 @@ function NavItem({ item, collapsed }) {
       to={item.to}
       end
       data-test={`sidebar-nav-${navTestSlug(item.to)}-link`}
+      // Every nav row is tour-targetable by route, so announcing a feature in
+      // `whatsNewSteps.js` needs no change here — point a step at
+      // `[data-tour="nav-<slug>"]`. Derived from `to` rather than configured per
+      // item so the two can never drift apart.
+      data-tour={`nav-${navTestSlug(item.to)}`}
       className={cn(
         `flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-300 ${RAIL_EASE}`,
         'group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0',
@@ -306,7 +312,13 @@ export default function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-3 pb-1 group-data-[collapsible=icon]:px-2 md:overflow-hidden">
+      {/* Scrolls on desktop rather than clipping. This used to be `md:overflow-hidden`
+          on the assumption that the nav always fits — it does for most roles, but an
+          admin has the longest list, and anything that eats vertical slack (a shorter
+          viewport, the what's-new button in the footer, one more admin link) pushed the
+          last item out of view with no way to reach it. `overflow-y-auto` keeps the
+          scrollbar invisible until it is actually needed. */}
+      <SidebarContent className="px-3 pb-1 group-data-[collapsible=icon]:px-2 md:overflow-y-auto">
         <NavGroup title="Access" items={invitationNav} collapsed={collapsed} className="mb-3" />
 
         {hasWorkspaceNav && (
@@ -354,6 +366,15 @@ export default function AppSidebar() {
             px-1.5) and the avatar is `sm`: every pixel spent on chrome comes
             straight out of the name, and a real full name like
             "Sejfudin Duranović" needs all of it to survive at 16rem. */}
+
+        {/* Directly above the account row: the tour explains the shell, so it has
+            to be reachable from every page, not just a dashboard. Wrapped with a
+            hairline gap rather than a margin on the button itself, so the collapsed
+            icon rail does not inherit it. */}
+        <div className="mb-1.5 group-data-[collapsible=icon]:mb-1">
+          <WhatsNewButton collapsed={collapsed} />
+        </div>
+
         <div className="flex items-center gap-1 rounded-[1.2rem] app-elevated-sm p-1.5 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none">
           {isLoginPending ? (
             <div className="flex w-full animate-pulse items-center gap-3 p-1">
