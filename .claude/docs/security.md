@@ -59,6 +59,12 @@ read/select a project (needed for the recommendation form) but cannot create or 
 locked "Unspecified" sentinel project (`isSystem: true`) additionally rejects edits at the service
 layer regardless of role.
 
+`GET /api/projects/:id` has no role gate beyond `protect`, same as the existing `GET /api/projects`
+list. `GET /api/projects/overview` and `GET /api/projects/:id/overview` (the leadership Projects
+page) are gated in the service layer, not route middleware — `assertLeadershipReadAccess` in
+`projectService.js` 403s anyone who isn't `admin` or `leadership`, mirroring `READ_ROLES` /
+`assertReadAccess` in `recommendationService.js`. Mentors and interns have no access to either.
+
 ## Intern access
 
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
