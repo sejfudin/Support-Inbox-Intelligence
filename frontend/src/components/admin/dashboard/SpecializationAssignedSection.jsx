@@ -3,7 +3,11 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getAvatarColor } from '@/helpers/avatarColor';
 import { getInitials } from '@/helpers/getInitials';
-import { DashboardCardEmpty, DashboardCardHeader, DashboardCardHelp } from './DashboardCard';
+import {
+  DashboardCardEmpty,
+  DashboardCardHeader,
+  DashboardCardHelp,
+} from '@/components/dashboard/DashboardCard';
 
 /**
  * One half of `PlacementsSpecializationCard` — no panel of its own, the parent
@@ -19,7 +23,7 @@ export function SpecializationAssignedSection({ specializations = [] }) {
       <DashboardCardHeader
         kicker="Specialization assigned"
         action={
-          <DashboardCardHelp label="specialization assignments">
+          <DashboardCardHelp label="About specialization assignments">
             The last three interns given a specialization, newest first — the position that was
             confirmed as their focus, and the mentor they were paired with 1-on-1. Platform-wide,
             not just this workspace.

@@ -1,9 +1,19 @@
-import { Link } from 'react-router-dom';
-import { ArrowRight, UserPlus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
 import { AttendanceMeter } from '@/components/dashboard/AttendanceMeter';
 import { WorkloadSegments, WorkloadLegend } from '@/components/dashboard/WorkloadSegments';
+
+/**
+ * Where a row goes when clicked.
+ *
+ * `/user/:userId`, not `/my-interns/:userId` — the latter is guarded to MENTOR, so
+ * an admin following it lands on a redirect. This mirrors the convention already in
+ * `MentorRecommendationsPage`, `AdminUsersPage`, `SpecializationPage` and
+ * `AdminStaffUserDetail`: admins reach a person through `/user/:userId`. This board
+ * is admin-only, so there is no role branch to make here.
+ */
+const internProfilePath = (userId) => `/user/${userId}`;
 
 /**
  * The workspace's interns with their open workload and this month's attendance.
@@ -18,6 +28,7 @@ export function WorkspaceInternsPanel({
   workloadBuckets = [],
   className,
 }) {
+  const navigate = useNavigate();
   const hasInterns = interns.length > 0;
 
   return (
@@ -41,14 +52,10 @@ export function WorkspaceInternsPanel({
           </p>
         </div>
 
-        <Link
-          to="/admin/users"
-          data-test="admin-dashboard-manage-team-link"
-          className="group inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-        >
-          Manage team
-          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-        </Link>
+        {/* No "Manage team" link here, and no "Add intern" in the footer below.
+            Both pointed at /admin/users, which the sidebar already reaches under
+            Workspace Management — a board is for reading, and a second route into
+            the same admin screen from a card header is duplicated navigation. */}
       </header>
 
       {hasInterns ? (
@@ -74,14 +81,26 @@ export function WorkspaceInternsPanel({
               </thead>
               <tbody>
                 {interns.map((intern) => (
-                  <tr key={intern.id} className="border-t border-border/50">
+                  <tr
+                    key={intern.id}
+                    // The whole row is a click target for convenience, but the name
+                    // below is a real `<Link>` so the row is reachable by keyboard and
+                    // announced as a link — a bare `onClick` on `<tr>` is neither.
+                    onClick={() => navigate(internProfilePath(intern.id))}
+                    data-test={`admin-dashboard-intern-row-${intern.id}`}
+                    className="cursor-pointer border-t border-border/50 transition-colors hover:bg-muted/40"
+                  >
                     <td className="px-1 py-2.5 align-middle">
                       <div className="flex items-center gap-2.5">
                         <Avatar users={[{ ...intern, _id: intern.id, role: 'intern' }]} size="sm" />
                         <div className="min-w-0">
-                          <div className="truncate text-[13px] font-semibold leading-4 text-foreground">
+                          <Link
+                            to={internProfilePath(intern.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            className="block truncate text-[13px] font-semibold leading-4 text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                          >
                             {intern.fullname}
-                          </div>
+                          </Link>
                           <div className="truncate text-[11px] leading-4 text-muted-foreground">
                             {intern.position || '—'}
                           </div>
@@ -104,20 +123,11 @@ export function WorkspaceInternsPanel({
             </table>
           </div>
 
-          <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/50 pt-3">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              <span className="text-[11px] text-muted-foreground">
-                {interns.length} {interns.length === 1 ? 'intern' : 'interns'} in this workspace
-              </span>
-              <WorkloadLegend buckets={workloadBuckets} />
-            </div>
-            <Link
-              to="/admin/users"
-              className="group inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              Add intern
-            </Link>
+          <footer className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border/50 pt-3">
+            <span className="text-[11px] text-muted-foreground">
+              {interns.length} {interns.length === 1 ? 'intern' : 'interns'} in this workspace
+            </span>
+            <WorkloadLegend buckets={workloadBuckets} />
           </footer>
         </>
       ) : (

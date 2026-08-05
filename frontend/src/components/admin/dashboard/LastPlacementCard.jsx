@@ -1,4 +1,8 @@
-import { DashboardCard, DashboardCardEmpty, DashboardCardHelp } from './DashboardCard';
+import {
+  DashboardCard,
+  DashboardCardEmpty,
+  DashboardCardHelp,
+} from '@/components/dashboard/DashboardCard';
 
 export function LastPlacementCard({ lastPlacement }) {
   // Null when the placement carries no decided-at date at all (nothing to date it
@@ -12,7 +16,7 @@ export function LastPlacementCard({ lastPlacement }) {
     <DashboardCard
       kicker="Last intern placed"
       action={
-        <DashboardCardHelp label="last intern placed">
+        <DashboardCardHelp label="About last intern placed">
           Platform-wide, not just this workspace: placement is a programme milestone, so this counts
           the most recent placement across every workspace.
         </DashboardCardHelp>

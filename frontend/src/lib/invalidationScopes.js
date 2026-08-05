@@ -1,6 +1,7 @@
 import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 import { adminDashboardKeys } from '@/queries/adminDashboard';
+import { internDashboardKeys } from '@/queries/internDashboard';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -43,8 +44,12 @@ export const invalidateUserScope = (queryClient, userId) => {
  * move one of those refreshes them.
  */
 const invalidateDashboards = (queryClient) => {
-  queryClient.invalidateQueries({ queryKey: ['workspace-admin-dashboard'] });
-  queryClient.invalidateQueries({ queryKey: ['intern-dashboard'] });
+  // Imported, never re-typed: a renamed key would otherwise silently stop matching
+  // here and kill socket-driven refresh on that board, with no error and nothing in
+  // the test suite to catch it. Prefix invalidation, so every workspace's board
+  // under [...all, workspaceId] is covered.
+  queryClient.invalidateQueries({ queryKey: adminDashboardKeys.all });
+  queryClient.invalidateQueries({ queryKey: internDashboardKeys.all });
 };
 
 export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
@@ -56,9 +61,6 @@ export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['categories', workspaceId] });
   queryClient.invalidateQueries({ queryKey: ['integration', workspaceId] });
   queryClient.invalidateQueries({ queryKey: ['repositories', workspaceId] });
-  // Prefix invalidation covers every workspace's board under
-  // ['workspace-admin-dashboard', workspaceId].
-  queryClient.invalidateQueries({ queryKey: adminDashboardKeys.all });
   invalidateAnalyticsQueries(queryClient, workspaceId);
 
   if (workspaceId) {
@@ -86,6 +88,12 @@ export const invalidateInternScope = (queryClient) => {
   // Prefix invalidation covers both the directory list (['interns', ...]) and
   // the leadership stats (['interns', 'stats']).
   queryClient.invalidateQueries({ queryKey: ['interns'] });
+  // The intern board's pipeline and evaluations halves are programme data, not
+  // workspace data, so no workspace scope reaches them. `emitInternDataChanged` on a
+  // recommendation write is the only signal they get — without this, an intern
+  // watching their own board keeps seeing the previous stage after an admin advances
+  // it, until staleTime expires or the window refocuses.
+  invalidateDashboards(queryClient);
 };
 
 export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {
