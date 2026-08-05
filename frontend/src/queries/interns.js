@@ -17,6 +17,7 @@ import {
   updateInternalCvLink,
   updateMyTechnologies,
   updateMyPosition,
+  updateMySecondaryPosition,
   uploadMyCv,
   upsertInternReadiness,
 } from '@/api/interns';
@@ -83,6 +84,16 @@ export const useUpdateMyPosition = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updateMyPosition,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
+    },
+  });
+};
+
+export const useUpdateMySecondaryPosition = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMySecondaryPosition,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: MY_INTERN_PROFILE_QUERY_KEY });
     },

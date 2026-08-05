@@ -159,7 +159,7 @@ const createDailies = async (ctx) => {
     const workspace = ctx.workspaces.get(spec.workspaceKey);
 
     // Only interns who are ACTIVE members of THIS workspace and whose user
-    // account is itself active are eligible — dailyService.getActiveInterns
+    // account is itself active are eligible — helpers/workspaceInterns.js
     // filters on both, and it is the picker's denominator. An entry for anyone
     // else renders but can't be edited in the UI.
     const eligibleKeys = workspace.members

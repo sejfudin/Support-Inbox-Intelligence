@@ -14,9 +14,26 @@ caller's workspace.
   - `canAccessAnyWorkspace(role)` — `admin` and `mentor` may reach any workspace.
   - `isActiveWorkspaceMember(workspace, userId)` — membership check.
   - `hasWorkspaceAccess({ role, workspace, userId })` — the combined gate. Use this.
-- Admins **bypass** membership checks by design (`resolveWorkspaceId` in controllers reads
-  `req.query.workspaceId` / `req.body.workspaceId` for admins, otherwise `req.user.workspaceId`).
-  When adding admin paths, preserve this pattern; don't let non-admins pass a `workspaceId` override.
+  - `resolveActiveWorkspaceId({ user, override })` — resolves the **ambient** workspace a
+    request acts on. Use this instead of reading `req.user.workspaceId` directly.
+- **`User.workspaceId` is a pointer, not proof of membership.** It records the workspace the
+  user last switched to and can outlive the membership that made it valid: `switchWorkspace`
+  sets it for admins without creating a member entry, a role downgrade (admin/mentor → intern)
+  removes the `canAccessAnyWorkspace` bypass while leaving the pointer, and a membership can be
+  flipped to `invited`/`disabled` without touching it. Any endpoint that scopes by the pointer
+  alone leaks that workspace's data to a non-member — this is what
+  `resolveActiveWorkspaceId` exists to prevent. It returns `null` when the pointer no longer
+  holds; callers must treat `null` as "no workspace" (empty result / 400), **never** as
+  "unscoped" — a query with an undefined workspace filter matches every workspace.
+  `server/seeder/cleanupStaleWorkspacePointers.js` clears already-stale pointers in the data.
+- `GET /api/auth/me` reports the **verified** workspace in `workspaceId` (resolved through
+  `resolveActiveWorkspaceId`), not the raw pointer, so the frontend's `WorkspaceGuard` and
+  sidebar gating match what the API will actually serve. Don't seed the `['auth','me']` query
+  cache from any other payload — those carry the raw pointer.
+- Admins **bypass** membership checks by design (`resolveActiveWorkspaceId` accepts an
+  `override` — `req.query.workspaceId` / `req.body.workspaceId` — for admins only; mentors keep
+  their ambient pointer but get no override). When adding admin paths, preserve this pattern;
+  don't let non-admins pass a `workspaceId` override.
 - Pattern to copy (see `server/controllers/*` `assertStatusInWorkspace`): fetch the resource,
   404 if absent, then compare `resource.workspace.toString()` to the resolved workspace id and
   reject on mismatch.
@@ -42,12 +59,39 @@ read/select a project (needed for the recommendation form) but cannot create or 
 locked "Unspecified" sentinel project (`isSystem: true`) additionally rejects edits at the service
 layer regardless of role.
 
+`GET /api/projects/:id` has no role gate beyond `protect`, same as the existing `GET /api/projects`
+list. `GET /api/projects/overview` and `GET /api/projects/:id/overview` (the leadership Projects
+page) are gated in the service layer, not route middleware — `assertLeadershipReadAccess` in
+`projectService.js` 403s anyone who isn't `admin` or `leadership`, mirroring `READ_ROLES` /
+`assertReadAccess` in `recommendationService.js`. Mentors and interns have no access to either.
+
 ## Intern access
 
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
-Recommendations are admin-only, full stop: routes guard writes (POST/PATCH/DELETE) with
+**Interns may read their own recommendation and evaluations — and nothing else of either.** Two
+narrow self-only reads back the intern dashboard's "My pipeline" and "My evaluations" cards:
+`recommendationService.listOwnRecommendations(user)` and
+`evaluationService.listOwnEvaluations(user)`. Both are separate functions from the admin list
+paths (which still 403 an intern outright), both re-check `role === INTERN` at the service layer,
+and both resolve the `InternProfile` **from the authenticated user** — there is no id parameter to
+tamper with. They are only reachable through `GET /api/dashboard/me`, which takes no query
+parameters at all.
+
+`listOwnRecommendations` returns **every** recommendation belonging to the caller, not just the
+newest — the pipeline card switches between them. That widens the payload but not its scope: the
+records are still only ever the caller's own, and each is the same redacted shape described below.
+
+Their return shapes are **redacted, by picking fields rather than deleting them**, so a field added
+to either model later is absent by default instead of leaking. Withheld from the intern:
+`recommendationNote` (the admin's internal pitch), `interviews[].feedback` (the interviewer's
+write-up, which has its own `concerns` field), `result.note` (the reasoning behind a placement
+decision), and evaluation `notes`. Shown: stage, stage dates, project, position, scheduled
+interviews, the placement outcome, and evaluation scores/periods/author. **If you add a field to
+either formatter, check first whether it is written *about* the intern rather than *to* them.**
+
+Recommendations are otherwise admin-only: routes guard writes (POST/PATCH/DELETE) with
 `requireRole(ADMIN)`, and the service's `assertReadAccess` / `assertRecommendationWriteAccess`
 reject any non-admin (`leadership` is the one exception, with read-only access). Mentors have
 no read or write access, on the per-intern tab or the standalone `/recommendations` page. Delete
@@ -59,19 +103,30 @@ performs the same write check before removing the record and its history.
 (`internService.js`) — but several call sites now layer a stricter, explicit
 `user.role !== ROLES.ADMIN` check on top of it instead of trusting `canWriteMentorData`'s mentor
 branch:
-- **Evaluations** (`evaluationService.js`) — read and write, admin-only (plus `leadership` read).
+- **Evaluations** (`evaluationService.js`) — `listEvaluations` / `createEvaluation` are admin-only
+  (plus `leadership` read). The intern's own redacted read is a separate function — see above.
 - **Readiness** (`readinessFlagService.js`) — read and write, admin-only (plus `leadership` read).
 - **Internal CV link** (`internService.js` `updateInternalCvLink`) — write is admin-only; read is
   unaffected (`formatProfile`'s `canSeeInternalCv` still allows the assigned mentor to view it).
 - **Lifecycle status** (`internService.js` `updateInternProgramme`, the `payload.status` branch)
   — admin-only, even for the assigned mentor. `expectedEndDate` in the same endpoint is not
   restricted this way and still follows plain `canWriteMentorData`.
-- **Attendance roster** — frontend-only guard (`/attendance` route + sidebar nav), admin-only.
-  There's no backend for attendance yet (`frontend/src/api/attendance.js` is an explicitly-labeled
-  mock); this is a route/nav restriction, not a service-layer one.
+- **Attendance roster** — admin-only, and enforced at the service layer, not just in the UI:
+  `GET /api/attendance` / `GET /api/attendance/:internProfileId` are `requireRole(ADMIN)`. See the
+  Attendance paragraph below for the full surface.
 
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
+
+Specializations. `/api/specializations` (list/candidates/assign/reassign/change-mentor/clear, all
+`requireRole(ADMIN)` at the route) plus `specializationService#assertSpecializationAccess` at the
+service layer — mentors have no read or write surface, even for their own assigned interns. Not
+workspace-scoped (intern domain, same exception as Recommendations/Project above). The intern's own
+`PATCH /api/interns/me/position` now additionally rejects the write with 403
+(`canInternEditDeclaredPosition`) once `specializationAssignedAt` is set — the secondary-position
+endpoint is unaffected (stays intern-writable). Reassign/change-mentor/clear additionally 400 via
+`loadSpecializedProfile` if the target intern has no specialization to manage — there's no way to
+reach these mutations for an unspecialized intern even with a crafted request.
 
 Attendance. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)` and always resolves the
 caller's **own** `InternProfile` — an intern can only ever read or write their own attendance. The
@@ -85,6 +140,48 @@ Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/
 `?workspace=`, same admin-bypass `assertWorkspaceAccess` grants elsewhere in this file) — no
 mentor or intern surface, unlike the other `/api/dailies` routes which reuse `resolveWorkspaceId`'s
 ambient admin override. Read-only; derives everything live from existing `Daily` documents.
+
+Intern dashboard. `GET /api/dashboard/me` is `requireRole(INTERN)`, read-only, and takes **no
+parameters** — the subject is always `req.user`. That is deliberate and load-bearing: the payload
+includes the caller's own (redacted) recommendations and evaluations, so the absence of any
+workspace or intern override is what keeps it self-scoped. Do not add one, and do not open the
+route to another role — the admin board is the cross-workspace surface. The workspace half of the
+payload (workload, tickets, standup) resolves through `resolveActiveWorkspaceId`, never the raw
+`user.workspaceId` pointer, so an intern whose membership lapsed reads as "between workspaces"
+(programme cards only) instead of keeping the workspace they left; it then verifies that workspace
+still exists, so an archived one 404s instead of returning empty blocks that read as "no work".
+
+`POST /api/dashboard/me/standup-summary` follows the same rule — `requireRole(INTERN)`, no
+parameters, and it locates the entry by matching `entry.member` against `req.user`, so an intern
+can only ever summarise a note they wrote themselves. It resolves its workspace through
+`resolveActiveWorkspaceId` too, and 400s on `null`: this path **writes** (`daily.save()`) and
+spends a Groq call, so a stale pointer must not reach either. It also re-checks the length threshold
+server-side: the client only asks when it believes a note is long, but letting the client decide
+would mean a frontend change could quietly start spending AI calls on two-line notes.
+
+Admin dashboard. `GET /api/admin/dashboard?workspaceId=` is `requireRole(ADMIN)`, read-only, and
+takes its workspace **explicitly from the query string** — the same admin-bypass pattern as the
+standup-insights routes above, and the reason it must not be loosened to another role: any caller
+who reaches it reads an arbitrary workspace's roster and workload, **plus platform-wide placement
+and specialization records that are not workspace-scoped at all** (see below). Admin-only is
+load-bearing here.
+
+Three things to preserve when touching `adminDashboardService.js`:
+- **`loadPlacements()` and `loadSpecializations()` are deliberately unscoped** — the first reads
+  every `placed` `Recommendation` on the platform, the second every `InternProfile` carrying a
+  `specializationAssignedAt`, because placement and specialization are programme milestones on the
+  intern's profile rather than workspace events. These are the only two places on the payload that
+  ignore `workspaceId`, and it is only acceptable because the route is admin-only. If this endpoint
+  is ever opened to mentors or leadership, both halves of the placements / specialization card must
+  be re-scoped first — otherwise it becomes a cross-tenant read.
+- **It verifies the workspace exists itself** (404 on unknown/archived, 400 on a malformed id).
+  `assertWorkspaceAccess` returns early for admins *without touching the DB*, so leaning on it
+  alone would turn a bogus or archived workspace id into a convincing all-zeros payload rather
+  than an error.
+- **Intern scoping goes through `Workspace.members`** via `helpers/workspaceInterns.js`, never
+  `User.workspaceId`. `InternProfile` has no `workspace` field, and `User.workspaceId` is only the
+  member's currently *active* workspace — scoping on it silently omits interns who belong to this
+  workspace but are switched into another one.
 
 ## Middleware guards (`server/middleware/`)
 

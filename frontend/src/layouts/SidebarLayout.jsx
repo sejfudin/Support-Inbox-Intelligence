@@ -3,8 +3,8 @@ import { useState } from 'react';
 import AppSidebar from '@/components/AppSidebar';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import PageHeader from '@/components/PageHeader';
-import AppTopActions from '@/components/AppTopActions';
 import { TaskManagerBrand } from '@/components/TaskManagerBrand';
+import { WhatsNewTour } from '@/components/onboarding/WhatsNewTour';
 
 export default function SidebarLayout() {
   const [header, setHeader] = useState(null);
@@ -40,16 +40,20 @@ export default function SidebarLayout() {
             </>
           )}
 
-          <main className="relative flex-1 min-w-0 overflow-hidden bg-transparent">
-            <div className="pointer-events-none fixed right-4 top-4 z-40 sm:right-6 sm:top-6">
-              <div className="pointer-events-auto">
-                <AppTopActions />
-              </div>
-            </div>
+          {/* Theme, notifications and logout all live in the sidebar footer now —
+              nothing floats over the page. */}
+          <main
+            data-tour="page-content"
+            className="relative flex-1 min-w-0 overflow-hidden bg-transparent"
+          >
             <Outlet context={{ setHeader }} />
           </main>
         </div>
       </SidebarInset>
+
+      {/* Mounted inside the authenticated shell on purpose: it needs the sidebar
+          rendered to anchor onto, and it must never appear over login/register. */}
+      <WhatsNewTour />
     </SidebarProvider>
   );
 }

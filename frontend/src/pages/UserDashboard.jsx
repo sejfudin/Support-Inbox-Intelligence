@@ -19,6 +19,13 @@ import DashboardCheckInReminder from '@/components/attendance/DashboardCheckInRe
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
+/**
+ * The assigned-tickets table — the mentor's `/dashboard`.
+ *
+ * Admins get `AdminDashboardPage` and interns get `InternDashboardPage`; this is
+ * what is left. The intern board reaches the same data through
+ * `/tickets?assignee=me` instead, so there is no second mount of this page.
+ */
 export default function UserDashboard() {
   const [requestedPage, setPage] = useState(1);
   const [viewMode, setViewMode] = useState('list');

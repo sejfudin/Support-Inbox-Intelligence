@@ -10,8 +10,10 @@ import BacklogPage from '@/pages/Backlog';
 import ProfilePage from '@/pages/ProfilePage';
 import ProtectedRoute from '@/routes/ProtectedRoutes';
 import { useAuth } from '@/context/AuthContext';
-import { ROLES } from '@/helpers/roles';
+import { ROLES, isAdmin, isIntern } from '@/helpers/roles';
 import UserDashboard from '@/pages/UserDashboard';
+import AdminDashboardPage from '@/pages/AdminDashboardPage';
+import InternDashboardPage from '@/pages/InternDashboardPage';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
 import CreateWorkspacePage from '@/pages/CreateWorkspacePage';
 import WorkspacesOverviewPage from '@/pages/WorkspacesOverviewPage';
@@ -26,9 +28,12 @@ import SymphonyLayout from '@/layouts/SymphonyLayout';
 import LeadershipDashboardPage from '@/pages/fep/LeadershipDashboardPage';
 import LeadershipCandidatesPage from '@/pages/fep/LeadershipCandidatesPage';
 import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
+import LeadershipProjectsPage from '@/pages/fep/LeadershipProjectsPage';
+import LeadershipProjectPage from '@/pages/fep/LeadershipProjectPage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
+import SpecializationPage from '@/pages/SpecializationPage';
 import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
 import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
@@ -42,6 +47,39 @@ const WorkspaceGuard = () => {
   }
   if (!user?.workspaceId) return <Navigate to="/create-workspace" replace />;
   return <Outlet />;
+};
+
+/**
+ * `/dashboard` is role-split three ways: admins get the workspace-scoped admin
+ * board, interns get their own board, and mentors keep the assigned-tickets
+ * table that used to serve everyone.
+ *
+ * It sits outside `WorkspaceGuard` so an admin with no active workspace ("Global
+ * admin mode") gets the board's own explanation instead of being bounced to
+ * `/create-workspace`, which is not what an admin without a workspace wants. The
+ * intern board is outside it for the same reason: attendance, pipeline and
+ * evaluations are programme-level and do not need a workspace, so an intern
+ * between workspaces gets an explanation on the board rather than a redirect
+ * into workspace creation, which is not theirs to do. Widening WorkspaceGuard
+ * itself would let both into /tickets and /dailies without a workspace, which
+ * those pages do not handle — hence the repeated check on the mentor branch only.
+ */
+const DashboardRoute = () => {
+  const { user } = useAuth();
+
+  if (user?.role === ROLES.LEADERSHIP) {
+    return <Navigate to="/programme" replace />;
+  }
+  if (isAdmin(user?.role)) {
+    return <AdminDashboardPage />;
+  }
+  if (isIntern(user?.role)) {
+    return <InternDashboardPage />;
+  }
+  if (!user?.workspaceId) {
+    return <Navigate to="/create-workspace" replace />;
+  }
+  return <UserDashboard />;
 };
 
 const HomeRedirect = () => {
@@ -101,6 +139,8 @@ export default function AppRoutes() {
             <Route path="/programme" element={<LeadershipDashboardPage />} />
             <Route path="/interns" element={<LeadershipCandidatesPage />} />
             <Route path="/interns/:userId" element={<LeadershipCandidatePage />} />
+            <Route path="/projects" element={<LeadershipProjectsPage />} />
+            <Route path="/projects/:id" element={<LeadershipProjectPage />} />
           </Route>
         </Route>
 
@@ -133,13 +173,8 @@ export default function AppRoutes() {
           <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/attendance" element={<AttendanceOverviewPage />} />
             <Route path="/admin/daily-insights" element={<AdminDailyInsightsPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
             <Route path="/recommendations" element={<MentorRecommendationsPage />} />
-          </Route>
-
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
+            <Route path="/specialization" element={<SpecializationPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />
@@ -151,10 +186,15 @@ export default function AppRoutes() {
             <Route path="/register" element={<Register />} />
           </Route>
 
+          <Route path="/dashboard" element={<DashboardRoute />} />
+
           <Route element={<WorkspaceGuard />}>
+            {/* The intern board's "View all" and its workload card link here as
+                `/tickets?assignee=me` — the same table everyone else uses with the
+                assignee filter pre-applied, rather than a second list page to keep
+                in sync. */}
             <Route path="/tickets" element={<TicketPage />} />
             <Route path="/archive" element={<ArchivePage />} />
-            <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/analytics" element={<AnalyticsDashboard />} />
             <Route path="/backlog" element={<BacklogPage />} />
             <Route path="/dailies" element={<WorkspaceDailiesPage />} />

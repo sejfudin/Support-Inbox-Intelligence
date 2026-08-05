@@ -1,5 +1,7 @@
 import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
+import { adminDashboardKeys } from '@/queries/adminDashboard';
+import { internDashboardKeys } from '@/queries/internDashboard';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -34,8 +36,25 @@ export const invalidateUserScope = (queryClient, userId) => {
   }
 };
 
+/**
+ * The two dashboard aggregates. Neither is keyed under a prefix any other scope
+ * already invalidates, so they have to be named explicitly — an omission that
+ * previously left the admin board's workload numbers frozen until a manual
+ * refetch. Both roll up tickets, statuses and standups, so every scope that can
+ * move one of those refreshes them.
+ */
+const invalidateDashboards = (queryClient) => {
+  // Imported, never re-typed: a renamed key would otherwise silently stop matching
+  // here and kill socket-driven refresh on that board, with no error and nothing in
+  // the test suite to catch it. Prefix invalidation, so every workspace's board
+  // under [...all, workspaceId] is covered.
+  queryClient.invalidateQueries({ queryKey: adminDashboardKeys.all });
+  queryClient.invalidateQueries({ queryKey: internDashboardKeys.all });
+};
+
 export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
+  invalidateDashboards(queryClient);
   queryClient.invalidateQueries({ queryKey: ['workspaces', 'mine'] });
   queryClient.invalidateQueries({ queryKey: ['workspaces', 'admin-all'] });
   queryClient.invalidateQueries({ queryKey: ['ticket-statuses', workspaceId] });
@@ -52,6 +71,10 @@ export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
 export const invalidateWorkspaceTicketsScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
   queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+  // Both boards' workload numbers are open-ticket counts — per intern on the admin
+  // board, for yourself on the intern one — so a ticket moving between statuses
+  // changes them.
+  invalidateDashboards(queryClient);
 };
 
 export const invalidateTicketScope = (queryClient, ticketId) => {
@@ -65,12 +88,19 @@ export const invalidateInternScope = (queryClient) => {
   // Prefix invalidation covers both the directory list (['interns', ...]) and
   // the leadership stats (['interns', 'stats']).
   queryClient.invalidateQueries({ queryKey: ['interns'] });
+  // The intern board's pipeline and evaluations halves are programme data, not
+  // workspace data, so no workspace scope reaches them. `emitInternDataChanged` on a
+  // recommendation write is the only signal they get — without this, an intern
+  // watching their own board keeps seeing the previous stage after an admin advances
+  // it, until staleTime expires or the window refocuses.
+  invalidateDashboards(queryClient);
 };
 
 export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {
   // Prefix invalidation covers every date under ['dailies', workspaceId, date].
   queryClient.invalidateQueries({ queryKey: ['dailies', workspaceId] });
   queryClient.invalidateQueries({ queryKey: ['dailies-history', workspaceId] });
+  invalidateDashboards(queryClient);
 };
 
 export const invalidateScope = (queryClient, scope) => {

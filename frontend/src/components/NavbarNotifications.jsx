@@ -17,8 +17,9 @@ import { NotificationRow } from '@/components/NotificationRow';
 import { isMongoId } from '@/helpers/notificationUtils';
 import { useAuth } from '@/context/AuthContext';
 import { useCheckInReminder } from '@/hooks/useCheckInReminder';
+import { cn } from '@/lib/utils';
 
-export default function NavbarNotifications() {
+export default function NavbarNotifications({ size = 'default' }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -66,7 +67,10 @@ export default function NavbarNotifications() {
           variant="ghost"
           size="icon"
           data-test="navbar-notifications-trigger"
-          className="relative h-10 w-10 shrink-0 rounded-full text-foreground hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          className={cn(
+            'relative shrink-0 rounded-full text-foreground hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50',
+            size === 'sm' ? 'size-8' : 'h-10 w-10'
+          )}
           aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
         >
           <Bell className="h-5 w-5" />

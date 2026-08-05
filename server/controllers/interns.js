@@ -69,7 +69,28 @@ exports.updateMyPosition = async (req, res, next) => {
     if (error.message === 'Intern profile not found') {
       return res.status(404).json({ message: error.message });
     }
-    if (error.message === 'Invalid position') {
+    if (
+      error.message === 'Invalid position' ||
+      error.message === 'Main position must differ from your secondary position'
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+    handleError(res, error, next);
+  }
+};
+
+exports.updateMySecondaryPosition = async (req, res, next) => {
+  try {
+    const intern = await internService.updateSelfSecondaryPosition(req.user, req.body.positionId);
+    res.json({ intern });
+  } catch (error) {
+    if (error.message === 'Intern profile not found') {
+      return res.status(404).json({ message: error.message });
+    }
+    if (
+      error.message === 'Invalid position' ||
+      error.message === 'Secondary position must differ from your main position'
+    ) {
       return res.status(400).json({ message: error.message });
     }
     handleError(res, error, next);

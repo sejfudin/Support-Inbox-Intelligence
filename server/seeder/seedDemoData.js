@@ -98,7 +98,7 @@ const WIPE_PLAN = [
 const PRESERVED = ['Hub', 'InternshipType', 'Technology', 'Position'];
 
 // Profile statuses that put an intern on the attendance roster
-// (ROSTER_STATUSES in services/attendanceService.js).
+// (IN_PROGRAMME_STATUSES in models/InternProfile.js).
 const ROSTER_PROFILE_STATUSES = ['active', 'ready'];
 
 // ─────────────────────────────────────────────────────────────────────────────

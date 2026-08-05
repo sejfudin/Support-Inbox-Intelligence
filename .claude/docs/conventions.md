@@ -14,8 +14,12 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   (`protect, requireRole(ROLES.ADMIN), handler`).
 - **A frontend resource** (HTTP + data hooks): mirror `src/api/tickets.js` (axios helper) +
   `src/queries/tickets.js` (React Query hooks). Components consume the hook, never axios.
-- **A custom error type**: follow `StatusValidationError` in `server/helpers/statusValidation.js`
-  (carries `statusCode`, mapped to an HTTP status in the controller's catch).
+- **An error a service throws for the controller to map**: `httpError(message, statusCode)` from
+  `server/helpers/httpError.js`. Don't write a local factory — that is how the codebase ended up
+  with seven of them under three names and two argument orders.
+- **A custom error type** (one carrying more than a status, e.g. field-level detail): follow
+  `StatusValidationError` in `server/helpers/statusValidation.js` (carries `statusCode`, mapped to
+  an HTTP status in the controller's catch).
 
 ## Module systems
 
@@ -35,8 +39,15 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   rather than assuming a rule.
 - **Response shape**: JSON `{ success: boolean, message: string, data?: any }`.
 - **Error handling**: wrap controller bodies in try/catch. Map known errors to status codes
-  (400 validation, 401 auth, 403 authz, 404 not found), default 500. Custom error classes carry
-  `statusCode` (see `StatusValidationError` in `helpers/statusValidation.js`) — follow that pattern.
+  (400 validation, 401 auth, 403 authz, 404 not found), default 500. The status travels on the
+  error, so a service never touches `res`:
+  - **Plain HTTP errors** — `throw httpError('Message', 404)` from `helpers/httpError.js`. Argument
+    order is `(message, statusCode)`, defaulting to 400. Never redefine it locally.
+  - **Domain errors carrying more than a status** — a class, following `StatusValidationError` in
+    `helpers/statusValidation.js`.
+  - An error with **no** `statusCode` is by definition unexpected (a `CastError`, a driver timeout)
+    and must fall through to Express as a 500 — that fall-through is what keeps internal detail out
+    of responses, so don't give every error a status just to be tidy.
 - **Constants** in `server/constants/` (e.g. `roles.js`). Don't hardcode role strings — import `ROLES`.
 
 ## Frontend
@@ -53,6 +64,20 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 - **Routing**: `src/routes/` — `AppRoutes.jsx`, `ProtectedRoutes.jsx`, `WorkspaceManagementRoute.jsx`.
   Add new guarded routes through these, not ad-hoc.
 - **Styling**: TailwindCSS 3 + `tailwind-merge` + `clsx`. Theming via `next-themes` (light/dark).
+  **Colour must come from the semantic tokens** — `bg-card`, `bg-background`, `text-foreground`,
+  `text-muted-foreground`, `border-border`, `border-input`, `bg-primary`, `bg-destructive`,
+  `bg-muted`, `bg-accent`, `ring-ring`, `shadow-elevated{,-sm}` (defined in `src/styles/themes.css`,
+  mapped in `tailwind.config.js`). Never write a literal colour — no `bg-white`, no `text-gray-500`,
+  no `text-[#171b2b]`. A literal only renders correctly in one of the two themes, and it also
+  opts the component out of the `data-theme` palette picker. This is not stylistic: the
+  recommendations feature shipped as hardcoded hexes and rendered a white card on a dark page.
+  - Two exceptions. Semantic status tints (amber / emerald / red for interviewing / placed /
+    failed) have no tokens, so use the Tailwind palette **with an explicit `dark:` variant** —
+    `bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300`. Alpha overlays on a
+    coloured gradient (hero cards) may use `bg-white/10`, `text-white/80` — they sit on a fill
+    that is dark in both themes.
+  - Need a high-contrast surface that flips with the theme (tooltips)? Use `bg-foreground` +
+    `text-background` rather than a fixed near-black.
 - **Forms**: React Hook Form + Zod.
 
 ## Formatting
@@ -62,5 +87,9 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 
 ## Tests
 
-- None yet. The server `test` script is a placeholder. Do not report "tests pass" as verification —
-  verify by driving the app (see workflows.md, `/verify`, `/run`).
+- Narrow. `npm test` in `server/` (Jest) covers pure helpers (`helpers/*.test.js`) plus two
+  services with Mongo/Supabase mocked (`services/internCvService.test.js`,
+  `services/internService.test.js`). There is no integration or E2E suite, and the frontend has
+  no tests at all.
+- So a passing suite says nothing about a route, query or screen. Never report those as verified
+  by tests — verify by driving the app (see workflows.md, `/verify`, `/run`).

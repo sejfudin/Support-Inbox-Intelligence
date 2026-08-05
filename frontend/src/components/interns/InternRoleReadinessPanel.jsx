@@ -42,7 +42,7 @@ export function InternRoleReadinessPanel({ userId, declaredPosition = null, read
   };
 
   return (
-    <InternPanel className="h-full overflow-hidden p-0">
+    <InternPanel className="h-full overflow-hidden p-0 md:p-0">
       <div className="border-b border-border/60 px-5 py-4 md:px-6">
         <h3 className="text-lg font-semibold">Placement readiness by role</h3>
         <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -87,9 +87,9 @@ export function InternRoleReadinessPanel({ userId, declaredPosition = null, read
                 <ReadinessLevelBadge level={level} />
               )}
             </div>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground/70">
               Assessed by:{' '}
-              <span className="font-medium text-gray-500">
+              <span className="font-medium text-muted-foreground">
                 {positionFlag?.setBy?.fullname || '—'}
               </span>
             </p>

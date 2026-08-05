@@ -1,11 +1,14 @@
 const dailyService = require('../services/dailyService');
-const { ROLES } = require('../constants/roles');
+const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 
-const resolveWorkspaceId = (req) => {
-  const isAdmin = req.user?.role === ROLES.ADMIN;
-  const queryWorkspaceId = req.query?.workspace || req.body?.workspace;
-  return isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
-};
+// `dailyService` asserts workspace access on every entry point, so a stale
+// pointer never leaked here — this keeps the resolution consistent with the
+// other ambient-workspace controllers rather than fixing a live hole.
+const resolveWorkspaceId = (req) =>
+  resolveActiveWorkspaceId({
+    user: req.user,
+    override: req.query?.workspace || req.body?.workspace,
+  });
 
 const handleDailyError = (error, res, next) => {
   if (error.name === 'DailyValidationError' || Number.isInteger(error.statusCode)) {
@@ -16,7 +19,7 @@ const handleDailyError = (error, res, next) => {
 
 const getDaily = async (req, res, next) => {
   try {
-    const workspaceId = resolveWorkspaceId(req);
+    const workspaceId = await resolveWorkspaceId(req);
     const { date } = req.query;
 
     const { daily, counts, activeInterns, isEditable } = await dailyService.getDaily({
@@ -37,7 +40,7 @@ const getDaily = async (req, res, next) => {
 
 const getDailyHistory = async (req, res, next) => {
   try {
-    const workspaceId = resolveWorkspaceId(req);
+    const workspaceId = await resolveWorkspaceId(req);
     const history = await dailyService.getDailyHistory({ workspaceId, user: req.user });
 
     res.status(200).json({ success: true, message: 'Daily history fetched', data: history });
@@ -48,7 +51,7 @@ const getDailyHistory = async (req, res, next) => {
 
 const startDaily = async (req, res, next) => {
   try {
-    const workspaceId = resolveWorkspaceId(req);
+    const workspaceId = await resolveWorkspaceId(req);
     const { date } = req.body;
 
     const daily = await dailyService.startDaily({ workspaceId, date, user: req.user });

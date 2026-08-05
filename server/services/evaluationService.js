@@ -1,19 +1,40 @@
 const Evaluation = require('../models/Evaluation');
+const InternProfile = require('../models/InternProfile');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess } = require('../helpers/internAccess');
 
+const averageOf = (scores = {}) => {
+  const values = Object.values(scores);
+  if (values.length === 0) return null;
+  return Math.round((values.reduce((sum, n) => sum + n, 0) / values.length) * 10) / 10;
+};
+
 const formatEvaluation = (evaluation) => {
   const plain = evaluation.toObject ? evaluation.toObject() : evaluation;
-  const scores = plain.scores || {};
-  const values = Object.values(scores);
-  const average = values.length > 0 ? values.reduce((sum, n) => sum + n, 0) / values.length : null;
 
   return {
     ...plain,
     id: plain._id,
-    averageScore: average ? Math.round(average * 10) / 10 : null,
+    averageScore: averageOf(plain.scores),
   };
 };
+
+/**
+ * The redacted shape an intern sees of their *own* evaluation — scores, period,
+ * and who wrote it. `notes` is deliberately dropped: it is written by an admin
+ * for an internal audience, not addressed to the intern, and nothing in the
+ * intern dashboard renders it. Built by picking fields rather than deleting
+ * them, so a field added to the model later isn't exposed by accident.
+ */
+const formatOwnEvaluation = (evaluation) => ({
+  id: evaluation._id,
+  periodStart: evaluation.periodStart,
+  periodEnd: evaluation.periodEnd,
+  scores: evaluation.scores,
+  averageScore: averageOf(evaluation.scores),
+  evaluator: evaluation.evaluator?.fullname || '',
+  createdAt: evaluation.createdAt,
+});
 
 const listEvaluations = async (user, internUserId) => {
   const profile = await assertInternAccess(user, internUserId);
@@ -65,4 +86,31 @@ const createEvaluation = async (user, internUserId, payload) => {
   return formatEvaluation(evaluation);
 };
 
-module.exports = { listEvaluations, createEvaluation };
+/**
+ * The signed-in intern's own evaluations, newest period first, redacted by
+ * `formatOwnEvaluation`.
+ *
+ * Separate from `listEvaluations` on purpose. That one is the admin surface and
+ * 403s an intern outright; this is a narrower, self-only read added for the
+ * intern dashboard's "My evaluations" card. The intern id is never a parameter —
+ * it is resolved from the authenticated user — so there is no id to tamper with.
+ */
+const listOwnEvaluations = async (user) => {
+  if (user.role !== ROLES.INTERN) {
+    const err = new Error('Not authorized');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const profile = await InternProfile.findOne({ user: user._id }).select('_id').lean();
+  if (!profile) return [];
+
+  const evaluations = await Evaluation.find({ internProfile: profile._id })
+    .populate('evaluator', 'fullname')
+    .sort({ periodEnd: -1 })
+    .lean();
+
+  return evaluations.map(formatOwnEvaluation);
+};
+
+module.exports = { listEvaluations, createEvaluation, listOwnEvaluations };
