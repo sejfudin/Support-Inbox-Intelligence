@@ -416,7 +416,8 @@ The intern's landing board. Backend:
 - **`/dailies` accepts `?date=YYYY-MM-DD`**, seeding and syncing `selectedDate` (today carries no
   param). Parsed at noon so the day cannot slide in a timezone behind UTC.
 - **Not implemented**: weekly hours on the hero (`Attendance` records a check-in and no check-out,
-  so hours are not derivable — the card shows the average check-in time instead), and the "next
+  so hours are not derivable — the average check-in time stood in for them briefly and was not
+  worth the space, so the line shows the month's attendance rate and present days), and the "next
   review in N days" line on evaluations (no scheduled-review concept exists in the model).
 
 ## Glossary

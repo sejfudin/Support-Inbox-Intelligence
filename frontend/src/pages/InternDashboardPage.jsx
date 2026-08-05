@@ -23,6 +23,13 @@ import { MyEvaluationsCard } from '@/components/intern/dashboard/MyEvaluationsCa
 // in the third, matching the mockup.
 const TOP_ROW_CLASS = 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3';
 
+// Three cards into two columns leaves one orphaned on its own row, with dead
+// space beside it and the empty workload card stretched to the hero's height. So
+// at `md` the hero takes the full width and workload/standup pair up underneath —
+// they are the two compact cards, so they sit level. Back to one-per-column at
+// `xl`, where all three fit.
+const HERO_SPAN_CLASS = 'md:col-span-2 xl:col-span-1';
+
 // No fixed heights: whichever column is taller sets the row height and the other
 // stretches to it. That is what keeps the tickets panel's footer level with the
 // bottom of the evaluations card instead of floating short of it.
@@ -134,9 +141,10 @@ export default function InternDashboardPage() {
             <>
               <div className={TOP_ROW_CLASS}>
                 {attendancePending ? (
-                  <SkeletonCard />
+                  <SkeletonCard className={HERO_SPAN_CLASS} />
                 ) : (
                   <AttendanceHeroCard
+                    className={HERO_SPAN_CLASS}
                     records={attendance?.records}
                     cancelledDates={attendance?.cancelledDates}
                     month={attendance?.month}

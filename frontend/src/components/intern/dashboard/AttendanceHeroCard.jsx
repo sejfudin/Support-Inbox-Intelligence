@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -31,6 +32,11 @@ const CELL_CLASS = {
   [DAY_STATUS.WEEKEND]: 'bg-black/10',
 };
 
+// How long today's cell keeps its just-claimed emphasis. Long enough to be seen
+// if you were looking at the button you pressed, short enough that it is over
+// before you read the rest of the card.
+const CLAIMED_MS = 900;
+
 /** Ticks once a minute — the clock only renders to the minute. */
 const useOfficeClock = () => {
   const [now, setNow] = useState(() => new Date());
@@ -57,6 +63,43 @@ const useOfficeClock = () => {
 };
 
 /**
+ * True for `CLAIMED_MS` after check-in flips false → true *during this mount*.
+ *
+ * The distinction matters: someone loading the page at 3pm is already checked in
+ * and must not watch their day get claimed again on every navigation. Only the
+ * transition animates, never the state.
+ *
+ * `checkedIn` is derived from the records the mutation writes into the cache
+ * `onSuccess`, and there is no optimistic update on that mutation — so this can
+ * only fire once the server has actually recorded the check-in. A failed one
+ * animates nothing.
+ */
+const useJustCheckedIn = (checkedIn) => {
+  const [justCheckedIn, setJustCheckedIn] = useState(false);
+  const wasCheckedIn = useRef(checkedIn);
+
+  useEffect(() => {
+    const flipped = checkedIn && !wasCheckedIn.current;
+    wasCheckedIn.current = checkedIn;
+    if (!flipped) return undefined;
+
+    setJustCheckedIn(true);
+    const timeout = setTimeout(() => setJustCheckedIn(false), CLAIMED_MS);
+    return () => clearTimeout(timeout);
+  }, [checkedIn]);
+
+  return justCheckedIn;
+};
+
+// Both hero actions — "Check in for today" and, once that is done, the link
+// through to the attendance page — fill the same slot, so they must be the same
+// size. Sharing the box here rather than repeating it: the two used to differ by
+// one text step, which made the pill visibly shrink the instant you checked in.
+// Callers add only colour and emphasis on top.
+const HERO_ACTION_CLASS =
+  'inline-flex w-full items-center justify-center rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
+
+/**
  * The intern board's one inverted surface: today's check-in, the streak it
  * protects, and how the week is going.
  *
@@ -71,11 +114,14 @@ export function AttendanceHeroCard({
   month,
   onCheckIn,
   isCheckingIn,
+  className,
 }) {
   const now = useOfficeClock();
+  const reduceMotion = useReducedMotion();
 
   const today = todayRecord(records);
   const checkedIn = Boolean(today);
+  const justCheckedIn = useJustCheckedIn(checkedIn);
   const cancelled = isCancelledToday(cancelledDates);
   const windowState = checkInWindowState(now);
   const streak = computeStreak(records);
@@ -85,6 +131,32 @@ export function AttendanceHeroCard({
 
   const weekend = week.find((day) => day.isToday)?.status === DAY_STATUS.WEEKEND;
   const missed = !checkedIn && !weekend && windowState === 'closed';
+
+  // One switch for the whole card: with reduced motion every preset collapses to
+  // an empty object, so the elements render as plain swaps. The check-in pill is
+  // this card's primary control — it has to stay usable for someone who has asked
+  // the OS for no animation, not merely be animated more politely.
+  const pillMotion = reduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, scale: 0.97 },
+        animate: { opacity: 1, scale: 1 },
+        exit: { opacity: 0, scale: 0.97 },
+        transition: { duration: 0.14, ease: 'easeOut' },
+      };
+
+  // The streak rolls like an odometer rather than tweening through the numbers —
+  // it only ever moves by one, so a count-up would be a single frame of nothing.
+  // `popLayout` pulls the outgoing digit out of flow so the label beside it does
+  // not shuffle sideways mid-roll.
+  const streakMotion = reduceMotion
+    ? {}
+    : {
+        initial: { y: '0.7em', opacity: 0 },
+        animate: { y: 0, opacity: 1 },
+        exit: { y: '-0.7em', opacity: 0 },
+        transition: { duration: 0.22, ease: 'easeOut' },
+      };
 
   const statusLine = checkedIn
     ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
@@ -101,7 +173,10 @@ export function AttendanceHeroCard({
   return (
     <section
       data-tour="intern-dashboard-attendance"
-      className="dashboard-hero-surface flex min-h-[12.5rem] flex-col rounded-[1.25rem] p-4 sm:p-5"
+      className={cn(
+        'dashboard-hero-surface flex min-h-[12.5rem] flex-col rounded-[1.25rem] p-4 sm:p-5',
+        className
+      )}
       aria-label="Daily attendance"
     >
       <header className="flex items-start justify-between gap-2">
@@ -134,8 +209,14 @@ export function AttendanceHeroCard({
         </p>
         {streak > 0 && (
           <p className="flex shrink-0 items-baseline gap-1.5">
-            <span className="dashboard-hero-text text-lg font-bold leading-none tabular-nums">
-              {streak}
+            {/* `initial={false}` so arriving at a 12-day streak shows 12, rather
+                than rolling it in on every page load. Only a change animates. */}
+            <span className="dashboard-hero-text inline-flex overflow-hidden text-lg font-bold leading-none tabular-nums">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span key={streak} {...streakMotion}>
+                  {streak}
+                </motion.span>
+              </AnimatePresence>
             </span>
             <span className="dashboard-hero-muted text-[10px] font-semibold uppercase tracking-[0.12em]">
               day{streak === 1 ? '' : 's'} streak
@@ -149,35 +230,51 @@ export function AttendanceHeroCard({
           status line. The hero's height is set by the row, so that gap varies —
           `flex-1` on this wrapper means the button stays optically centred at any
           row height rather than drifting toward the top. */}
+      {/* `mode="wait"` so the two never overlap — they occupy the same slot and a
+          crossfade would briefly stack two pills. `initial={false}` keeps the
+          first paint static; only the swap animates. */}
       <div className="flex flex-1 items-center py-4">
-        {checkedIn || weekend || missed ? (
-          <Link
-            to="/my-attendance"
-            className="inline-flex w-full items-center justify-center rounded-xl bg-white/10 px-3 py-2.5 text-xs font-semibold text-white/90 transition-colors hover:bg-white/[0.18] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
-            data-test="intern-dashboard-attendance-link"
-          >
-            {checkedIn ? 'View my attendance' : 'Open my attendance'}
-          </Link>
-        ) : (
-          <button
-            type="button"
-            onClick={onCheckIn}
-            disabled={isCheckingIn || windowState !== 'open'}
-            title={
-              windowState === 'before'
-                ? `Check-in opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
-                : undefined
-            }
-            data-test="intern-dashboard-check-in-button"
-            className="inline-flex w-full items-center justify-center rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/50 disabled:shadow-none"
-          >
-            {isCheckingIn
-              ? 'Checking in…'
-              : windowState === 'before'
-                ? 'Check-in not open yet'
-                : 'Check in for today'}
-          </button>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {checkedIn || weekend || missed ? (
+            <motion.div key="attendance-link" className="w-full" {...pillMotion}>
+              <Link
+                to="/my-attendance"
+                className={cn(
+                  HERO_ACTION_CLASS,
+                  'bg-white/10 text-white/90 hover:bg-white/[0.18] focus-visible:outline-white/40'
+                )}
+                data-test="intern-dashboard-attendance-link"
+              >
+                {checkedIn ? 'View my attendance' : 'Open my attendance'}
+              </Link>
+            </motion.div>
+          ) : (
+            <motion.div key="check-in-button" className="w-full" {...pillMotion}>
+              <button
+                type="button"
+                onClick={onCheckIn}
+                disabled={isCheckingIn || windowState !== 'open'}
+                title={
+                  windowState === 'before'
+                    ? `Check-in opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
+                    : undefined
+                }
+                data-test="intern-dashboard-check-in-button"
+                className={cn(
+                  HERO_ACTION_CLASS,
+                  'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline-white/40',
+                  'disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/50 disabled:shadow-none'
+                )}
+              >
+                {isCheckingIn
+                  ? 'Checking in…'
+                  : windowState === 'before'
+                    ? 'Check-in not open yet'
+                    : 'Check in for today'}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* The wrapper above already absorbs the free space, so the strip lands on
@@ -194,15 +291,31 @@ export function AttendanceHeroCard({
 
         {/* Chunky cells, as in the mockup. At strip height the week is meant to
             be read as a glance-able block of colour, not as a sparkline — a thin
-            bar makes a missed day easy to miss. */}
-        <div className="mt-2 grid grid-cols-7 gap-1.5">
+            bar makes a missed day easy to miss.
+
+            Full-bleed to the card's edges, so the width comes from the cells
+            rather than from padding the strip out. They are kept short for that
+            reason: at 2.5rem the stretched cells read as seven progress bars, and
+            flattening them to 1.75rem is what keeps the row reading as a week. */}
+        <div className="mt-2 grid grid-cols-7 gap-2.5">
           {week.map((day) => (
             <Tooltip key={day.key}>
               <TooltipTrigger asChild>
                 <div className="flex flex-col items-center gap-1.5">
-                  <span
+                  {/* The cell going from dashed outline to solid green is the
+                      real state change, so it is the one thing worth pointing
+                      at. `transition-colors` carries the fill; the pop is only
+                      on the day just claimed, and only on the transition —
+                      `justCheckedIn` is false for a page loaded already in. */}
+                  <motion.span
+                    animate={
+                      justCheckedIn && day.isToday && !reduceMotion
+                        ? { scale: [0.82, 1.06, 1] }
+                        : { scale: 1 }
+                    }
+                    transition={{ duration: 0.42, ease: 'easeOut', times: [0, 0.6, 1] }}
                     className={cn(
-                      'h-10 w-full rounded-lg',
+                      'h-7 w-full rounded-lg transition-colors duration-300',
                       CELL_CLASS[day.status] || CELL_CLASS[DAY_STATUS.FUTURE],
                       day.isToday && 'ring-1 ring-white/40 ring-offset-0'
                     )}
