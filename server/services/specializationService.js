@@ -11,6 +11,7 @@ const {
   clearSpecialization: clearSpecializationRule,
 } = require('../helpers/specializationRules');
 const { emitInternDataChanged } = require('../socket/events');
+const { httpError } = require('../helpers/httpError');
 
 const STATUSES = ['specialized', 'unspecialized', 'all'];
 
@@ -26,17 +27,11 @@ const PROFILE_POPULATE = [
   { path: 'secondaryMentor', select: 'fullname email role' },
 ];
 
-const createError = (message, statusCode = 400) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-};
-
 // Only a platform admin may view or manage specializations — mentors receive
 // the pairing but never create/see the management surface.
 const assertSpecializationAccess = (user) => {
   if (user.role !== ROLES.ADMIN) {
-    throw createError('Not authorized to manage specializations', 403);
+    throw httpError('Not authorized to manage specializations', 403);
   }
 };
 
@@ -171,13 +166,13 @@ const assignSpecialization = async (user, payload = {}) => {
   const profile = await loadInternProfileByUserId(payload.internUserId);
 
   if (!profile.declaredPosition) {
-    throw createError('Intern has not declared a position yet', 400);
+    throw httpError('Intern has not declared a position yet', 400);
   }
 
   try {
     await assertMentorUser(payload.mentorId, 'specialization mentor');
   } catch (error) {
-    throw createError(error.message, 400);
+    throw httpError(error.message, 400);
   }
 
   let changes;
@@ -188,7 +183,7 @@ const assignSpecialization = async (user, payload = {}) => {
       assignedAt: new Date(),
     });
   } catch (error) {
-    throw createError(error.message, 400);
+    throw httpError(error.message, 400);
   }
 
   Object.assign(profile, changes);
@@ -202,7 +197,7 @@ const assignSpecialization = async (user, payload = {}) => {
 const loadSpecializedProfile = async (internUserId) => {
   const profile = await loadInternProfileByUserId(internUserId);
   if (!profile.specializationAssignedAt) {
-    throw createError('Intern has no specialization to manage', 400);
+    throw httpError('Intern has no specialization to manage', 400);
   }
   return profile;
 };
@@ -225,7 +220,7 @@ const reassignSpecialization = async (user, internUserId) => {
   try {
     changes = reassignSpecializationRule(profile);
   } catch (error) {
-    throw createError(error.message, 400);
+    throw httpError(error.message, 400);
   }
 
   return persistAndFormat(profile, changes);
@@ -239,14 +234,14 @@ const changeSpecializationMentor = async (user, internUserId, mentorId) => {
   try {
     await assertMentorUser(mentorId, 'specialization mentor');
   } catch (error) {
-    throw createError(error.message, 400);
+    throw httpError(error.message, 400);
   }
 
   let changes;
   try {
     changes = changeSpecializationMentorRule(profile, { mentorId });
   } catch (error) {
-    throw createError(error.message, 400);
+    throw httpError(error.message, 400);
   }
 
   return persistAndFormat(profile, changes);

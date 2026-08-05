@@ -6,6 +6,7 @@ const attachmentImageRepo = require('../repository/attachmentImage');
 const { supabase, supabaseBucket } = require('../config/supabase');
 const { ALLOWED_MIME_TYPES, MAX_FILE_SIZE_BYTES } = require('../middleware/upload');
 const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
+const { httpError } = require('../helpers/httpError');
 
 const ENTITY_TYPES = {
   TICKET_DESCRIPTION: 'ticket_description',
@@ -20,17 +21,11 @@ const MIME_TO_EXT = {
 
 const SIGNED_URL_EXPIRES_IN_SECONDS = 60 * 60; // 1h
 
-const makeError = (message, statusCode = 400) => {
-  const err = new Error(message);
-  err.statusCode = statusCode;
-  return err;
-};
-
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const parseImageId = (imageId) => {
   const n = Number(imageId);
-  if (!Number.isInteger(n) || n <= 0) throw makeError('Invalid image id.', 400);
+  if (!Number.isInteger(n) || n <= 0) throw httpError('Invalid image id.', 400);
   return n;
 };
 
@@ -39,7 +34,7 @@ const isBucketPublic = () =>
 
 const buildUniqueFileName = (mimeType) => {
   const ext = MIME_TO_EXT[mimeType];
-  if (!ext) throw makeError('Unsupported image type.', 400);
+  if (!ext) throw httpError('Unsupported image type.', 400);
 
   const ts = Date.now();
   const rand = crypto.randomBytes(6).toString('hex');
@@ -55,7 +50,7 @@ const buildImagePath = (entityType, entityId, fileName) => {
     return `attachments/comments/${entityId}/${fileName}`;
   }
 
-  throw makeError('Invalid attachment entity type.', 400);
+  throw httpError('Invalid attachment entity type.', 400);
 };
 
 const buildImageUrl = async (imagePath) => {
@@ -85,15 +80,15 @@ const normalizeSupabaseError = (error) => {
   const msg = String(error?.message || '').toLowerCase();
 
   if (error?.code === '23514') {
-    return makeError('Invalid image metadata (mime type or file size).', 400);
+    return httpError('Invalid image metadata (mime type or file size).', 400);
   }
 
   if (error?.code === '23505') {
-    return makeError('Duplicate image path. Please retry upload.', 409);
+    return httpError('Duplicate image path. Please retry upload.', 409);
   }
 
   if (msg.includes('maximum 3 images are allowed')) {
-    return makeError('Maximum 3 images are allowed per user per item.', 400);
+    return httpError('Maximum 3 images are allowed per user per item.', 400);
   }
 
   return error;
@@ -105,38 +100,38 @@ const verifyEntityExists = async (
   { allowArchivedRead = false, user } = {}
 ) => {
   if (!isValidObjectId(entityId)) {
-    throw makeError('Invalid entity id.', 400);
+    throw httpError('Invalid entity id.', 400);
   }
 
   if (entityType === ENTITY_TYPES.TICKET_DESCRIPTION) {
     const ticket = await Ticket.findById(entityId).select('_id isArchived workspace');
-    if (!ticket) throw makeError('Ticket not found.', 404);
+    if (!ticket) throw httpError('Ticket not found.', 404);
 
     await assertWorkspaceAccess(ticket.workspace, user, 'Ticket not found.');
 
     if (!allowArchivedRead && ticket.isArchived) {
-      throw makeError('Cannot manage images for archived ticket.', 403);
+      throw httpError('Cannot manage images for archived ticket.', 403);
     }
     return;
   }
 
   if (entityType === ENTITY_TYPES.COMMENT) {
     const comment = await Comment.findById(entityId).select('_id isDeleted ticket');
-    if (!comment) throw makeError('Comment not found.', 404);
+    if (!comment) throw httpError('Comment not found.', 404);
 
     const ticket = await Ticket.findById(comment.ticket).select('_id isArchived workspace');
-    if (!ticket) throw makeError('Ticket not found for comment.', 404);
+    if (!ticket) throw httpError('Ticket not found for comment.', 404);
 
     await assertWorkspaceAccess(ticket.workspace, user, 'Comment not found.');
 
     if (!allowArchivedRead) {
-      if (comment.isDeleted) throw makeError('Cannot manage images for deleted comment.', 403);
-      if (ticket.isArchived) throw makeError('Cannot manage images on archived ticket.', 403);
+      if (comment.isDeleted) throw httpError('Cannot manage images for deleted comment.', 403);
+      if (ticket.isArchived) throw httpError('Cannot manage images on archived ticket.', 403);
     }
     return;
   }
 
-  throw makeError('Invalid attachment entity type.', 400);
+  throw httpError('Invalid attachment entity type.', 400);
 };
 
 const removeStoragePaths = async (paths) => {
@@ -148,15 +143,15 @@ const removeStoragePaths = async (paths) => {
 
 const validateFiles = (files) => {
   if (!files || files.length === 0) {
-    throw makeError('At least one image is required.', 400);
+    throw httpError('At least one image is required.', 400);
   }
 
   for (const file of files) {
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
-      throw makeError('Only JPG, PNG, and WEBP images are allowed.', 400);
+      throw httpError('Only JPG, PNG, and WEBP images are allowed.', 400);
     }
     if (!file.size || file.size > MAX_FILE_SIZE_BYTES) {
-      throw makeError('Each image must be 5MB or smaller.', 400);
+      throw httpError('Each image must be 5MB or smaller.', 400);
     }
   }
 };
@@ -171,7 +166,7 @@ const uploadEntityImages = async ({ entityType, entityId, files, uploadedByUserI
   await verifyEntityExists(entityType, entityId, { allowArchivedRead: false, user });
 
   if (!isValidObjectId(uploadedByUserId)) {
-    throw makeError('Invalid authenticated user id.', 400);
+    throw httpError('Invalid authenticated user id.', 400);
   }
 
   validateFiles(files);
@@ -183,7 +178,7 @@ const uploadEntityImages = async ({ entityType, entityId, files, uploadedByUserI
   );
 
   if (currentCount + files.length > 3) {
-    throw makeError('Maximum 3 images are allowed per user per item.', 400);
+    throw httpError('Maximum 3 images are allowed per user per item.', 400);
   }
 
   const uploadedPaths = [];
@@ -235,7 +230,7 @@ const deleteEntityImage = async ({ entityType, entityId, imageId, user }) => {
   const parsedImageId = parseImageId(imageId);
 
   const row = await attachmentImageRepo.findByIdForEntity(parsedImageId, entityType, entityId);
-  if (!row) throw makeError('Image not found.', 404);
+  if (!row) throw httpError('Image not found.', 404);
 
   const imagePath = row.image_path;
 
@@ -252,7 +247,7 @@ const deleteEntityImage = async ({ entityType, entityId, imageId, user }) => {
       entityId,
       message: dbError.message,
     });
-    throw makeError('Image file was deleted, but metadata delete failed.', 500);
+    throw httpError('Image file was deleted, but metadata delete failed.', 500);
   }
 
   return { success: true };
@@ -278,7 +273,7 @@ const deleteAllEntityImages = async ({ entityType, entityId, user }) => {
       paths,
       message: dbError.message,
     });
-    throw makeError('Files were deleted, but metadata delete failed.', 500);
+    throw httpError('Files were deleted, but metadata delete failed.', 500);
   }
 
   return { success: true };
