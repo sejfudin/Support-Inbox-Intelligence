@@ -1,5 +1,6 @@
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Check } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   DashboardCard,
@@ -46,6 +47,29 @@ const buildSteps = (recommendation) => {
 };
 
 /**
+ * The interview to put in front of the intern: the soonest one still ahead of them,
+ * or failing that the latest one behind them.
+ *
+ * `upcoming` is returned rather than recomputed by the caller so the copy and the
+ * choice can never disagree about which side of now a date falls on.
+ */
+const nextInterview = (interviews = []) => {
+  const dated = (interviews || [])
+    .filter((interview) => interview?.scheduledAt)
+    .map((interview) => ({ ...interview, at: new Date(interview.scheduledAt).getTime() }))
+    .filter((interview) => !Number.isNaN(interview.at));
+
+  if (dated.length === 0) return null;
+
+  const now = Date.now();
+  const ahead = dated.filter((interview) => interview.at >= now);
+  if (ahead.length > 0) {
+    return { ...ahead.reduce((a, b) => (a.at <= b.at ? a : b)), upcoming: true };
+  }
+  return { ...dated.reduce((a, b) => (a.at >= b.at ? a : b)), upcoming: false };
+};
+
+/**
  * What the card says under each stage. The interview line names the company and
  * time when one is scheduled, because that is the single most actionable thing
  * on this card for the intern.
@@ -56,9 +80,17 @@ const stepDetail = (step, recommendation) => {
   }
 
   if (step.key === 'interviewing') {
-    const next = (recommendation.interviews || []).find((interview) => interview.scheduledAt);
+    // The *soonest upcoming* one, not merely the first that carries a date. Stored
+    // order is not chronological, so `find` would happily present last week's
+    // interview as what is coming next — the opposite of actionable. With none
+    // upcoming, fall back to the most recent past one and label it as past, so an
+    // intern mid-process still sees where they got to.
+    const next = nextInterview(recommendation.interviews);
     if (next) {
-      return `${format(new Date(next.scheduledAt), 'EEE MMM d · HH:mm')} with ${next.company}`;
+      const when = format(new Date(next.scheduledAt), 'EEE MMM d · HH:mm');
+      return next.upcoming
+        ? `${when} with ${next.company}`
+        : `Interviewed ${when} · ${next.company}`;
     }
     if (step.state === 'skipped') return 'Skipped';
     return step.date ? `Reached ${step.date}` : 'Not scheduled yet';
@@ -134,7 +166,19 @@ function PipelineHelp() {
  * sends — it picks fields explicitly, so anything new is absent, not undefined.
  */
 export function MyPipelineCard({ pipeline, className, isPreview = false }) {
-  const recommendation = pipeline?.current;
+  // The whole list, so an intern put forward for more than one project can move
+  // between them. Falls back to `[current]` for a payload that predates `items`.
+  const items = useMemo(() => {
+    if (pipeline?.items?.length) return pipeline.items;
+    return pipeline?.current ? [pipeline.current] : [];
+  }, [pipeline]);
+
+  const [index, setIndex] = useState(0);
+  // A recommendation resolving reorders the list (sorted by `updatedAt`), which can
+  // leave the index past the end — clamp rather than render undefined.
+  const safeIndex = Math.min(index, Math.max(0, items.length - 1));
+  const recommendation = items[safeIndex] || null;
+  const many = items.length > 1;
 
   if (!recommendation) {
     return (
@@ -164,6 +208,35 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
           {recommendation.project && (
             <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
               {recommendation.project}
+            </span>
+          )}
+          {/* Only when there is somewhere to go. The project chip beside it is what
+              names the record being shown, so the control itself stays a bare
+              position indicator rather than repeating the project. */}
+          {many && (
+            <span className="flex items-center gap-0.5" data-test="pipeline-switcher">
+              <button
+                type="button"
+                onClick={() => setIndex(safeIndex === 0 ? items.length - 1 : safeIndex - 1)}
+                aria-label="Previous recommendation"
+                className="grid size-5 place-items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              >
+                <ChevronLeft className="size-3.5" />
+              </button>
+              <span
+                className="min-w-[2.25rem] text-center text-[10px] font-semibold tabular-nums text-muted-foreground"
+                aria-live="polite"
+              >
+                {safeIndex + 1} / {items.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIndex(safeIndex === items.length - 1 ? 0 : safeIndex + 1)}
+                aria-label="Next recommendation"
+                className="grid size-5 place-items-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              >
+                <ChevronRight className="size-3.5" />
+              </button>
             </span>
           )}
           <PipelineHelp />
