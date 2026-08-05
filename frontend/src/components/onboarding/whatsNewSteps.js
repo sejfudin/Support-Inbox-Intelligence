@@ -1,5 +1,20 @@
 /**
- * The "what moved" script for the app-shell redesign.
+ * The script for how we announce what's new. This is the mechanism for it — the
+ * tour's closing step tells people so out loud, so releases are expected to keep
+ * arriving through here rather than through a changelog nobody opens.
+ *
+ * **Shipping a release through this is two steps, and both are required:**
+ *
+ * 1. Add or edit the steps below.
+ * 2. Bump `TOUR_VERSION`. This is what makes the dashboard's "Notice some
+ *    changes?" button glow again for everyone, exactly once — the string is the
+ *    localStorage value, so a new one puts every viewer back into "not seen yet".
+ *    Editing steps *without* bumping it ships copy that only people who have
+ *    never opened the tour will ever see. The closing step promises the button
+ *    starts glowing when something new lands; the bump is that promise.
+ *
+ * Nothing here opens itself. The button is the only way in — see the comment on
+ * `TOUR_REPLAY_EVENT` for why.
  *
  * Each step either points at a real element (`target`, a `[data-tour]` selector)
  * or has none, in which case the card is centred and reads as a plain notice.
@@ -10,31 +25,90 @@
  * `roles` narrows a step to specific platform roles when the *copy* only applies
  * to them, which is not the same thing as the element existing.
  *
- * Bump TOUR_VERSION to re-announce: it is the localStorage value, so a new string
- * shows the tour again to everyone exactly once.
+ * A release is announced as one story — everybody gets every step that applies to
+ * their role, including steps from earlier releases. If the script ever gets too
+ * long, delete steps from it rather than hiding them from some viewers.
  */
 
-export const TOUR_VERSION = '2026-08-shell-redesign-r2';
-export const TOUR_STORAGE_KEY = 'whatsNewTour';
+import { useEffect, useState } from 'react';
+
+// Covers both boards and the new way in, which is why it supersedes the shell
+// redesign's own string rather than extending it: people who already walked the
+// shell tour have still seen neither dashboard nor this button.
+export const TOUR_VERSION = '2026-08-dashboards-r1';
+
+// Not exported: every read and write of it lives in this module now, and the two
+// consumers go through `useWhatsNewSeen` / `markWhatsNewSeen` instead. Keep it
+// that way — a second module touching this key directly is how the button and the
+// overlay end up disagreeing about whether the tour has been seen.
+const TOUR_STORAGE_KEY = 'whatsNewTour';
 
 /**
- * Replaying the tour on demand (the "What's new" item in the user menu).
+ * Opening the tour. It is **never** shown automatically — the only way in is the
+ * "Notice some changes?" button on the dashboard header, which pulses until it
+ * has been used. Landing straight in a modal overlay on login is the thing
+ * everybody clicks past without reading; a button that asks for attention lets
+ * someone open it at the moment they actually wonder what moved.
  *
- * A window event rather than a context: the only publisher is one menu item and
- * the only subscriber is one component, so a provider wrapping the whole app
- * would be plumbing for its own sake.
+ * Window events rather than a context: the publishers and subscribers are one
+ * button and one overlay, so a provider wrapping the whole app would be plumbing
+ * for its own sake.
  */
 export const TOUR_REPLAY_EVENT = 'whatsnew:replay';
 
+/** Fired once the tour has been completed or skipped, to stop the pulse. */
+const TOUR_SEEN_EVENT = 'whatsnew:seen';
+
 export const replayWhatsNewTour = () => {
   window.dispatchEvent(new Event(TOUR_REPLAY_EVENT));
+};
+
+const readSeenVersion = () => {
+  try {
+    return window.localStorage.getItem(TOUR_STORAGE_KEY);
+  } catch {
+    // Private mode / storage disabled. Counted as seen: a dismissal can't be
+    // remembered here, and the alternative is a button that pulses for attention
+    // on every page load forever.
+    return TOUR_VERSION;
+  }
+};
+
+/** Versioned, not boolean, so the next redesign only has to bump TOUR_VERSION. */
+const hasSeenWhatsNew = () => readSeenVersion() === TOUR_VERSION;
+
+export const markWhatsNewSeen = () => {
+  try {
+    window.localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+  } catch {
+    /* nothing we can do, and not worth surfacing to the user */
+  }
+  window.dispatchEvent(new Event(TOUR_SEEN_EVENT));
+};
+
+/**
+ * Whether this viewer has already been through the current tour — what decides
+ * whether the dashboard button pulses. Subscribed to the event rather than just
+ * reading storage once, so finishing the tour stops the pulse immediately instead
+ * of on the next page load.
+ */
+export const useWhatsNewSeen = () => {
+  const [seen, setSeen] = useState(hasSeenWhatsNew);
+
+  useEffect(() => {
+    const onSeen = () => setSeen(true);
+    window.addEventListener(TOUR_SEEN_EVENT, onSeen);
+    return () => window.removeEventListener(TOUR_SEEN_EVENT, onSeen);
+  }, []);
+
+  return seen;
 };
 
 export const WHATS_NEW_STEPS = [
   {
     id: 'intro',
     title: 'Task Manager has a new look',
-    body: 'Same features, tidier shell — plus a new dashboard if you are an admin. A few controls moved; here is where they went.',
+    body: 'Same features, tidier shell — and a dashboard built for your role. A few controls moved; here is where they went.',
   },
   {
     id: 'collapse',
@@ -69,11 +143,27 @@ export const WHATS_NEW_STEPS = [
   },
   // Switching workspace re-points the board, so it comes before the tour walks
   // through what is on that board.
+  //
+  // Two variants of the SAME control, split by role rather than one shared step
+  // plus a role-specific one — a control must only be spotlighted once per tour,
+  // and an intern was getting the switcher twice with overlapping copy.
+  // Whenever a step's copy needs to differ by role, split it like this and give
+  // every variant a `roles`; never leave one un-scoped as the "default", or the
+  // un-scoped one shows up for the role that already has its own.
   {
     id: 'workspace-switcher',
+    roles: ['admin', 'mentor', 'leadership'],
     target: '[data-tour="workspace-switcher"]',
     title: 'Switching workspace changes everything below it',
-    body: 'Pick a workspace here and the whole app follows — tickets, dailies and, for admins, every number on the dashboard. One workspace at a time, always the one named here.',
+    body: 'Pick a workspace here and the app follows — tickets, dailies, and every number on the dashboard. One workspace at a time, always the one named here.',
+    placement: 'right',
+  },
+  {
+    id: 'workspace-switcher-intern',
+    roles: ['intern'],
+    target: '[data-tour="workspace-switcher"]',
+    title: 'Half your dashboard follows this',
+    body: 'Tickets, workload and standup belong to the workspace named here and change when you switch. Attendance, your placement and your evaluations are programme-wide — they stay the same in every workspace.',
     placement: 'right',
   },
 
@@ -122,5 +212,58 @@ export const WHATS_NEW_STEPS = [
     target: '[data-tour="dashboard-standup"]',
     title: 'Standup coverage',
     body: 'How many interns have filed today’s note, and any open blockers. Open the board for the full picture.',
+  },
+
+  // The intern dashboard, card by card. Same shape as the admin block above: all
+  // intern-only, all anchored to elements that exist only on /dashboard, so on any
+  // other page these drop out on their own.
+  //
+  // This is a bigger change for interns than the shell was — /dashboard used to BE
+  // their ticket list — so the first step says that outright before walking the
+  // cards.
+  // No target on purpose: it reads as a section title before the card-by-card
+  // walk, and the page area it would otherwise point at is already spotlighted by
+  // `full-bleed` above — the same control twice in one tour is repetition, not
+  // emphasis.
+  {
+    id: 'intern-dashboard',
+    roles: ['intern'],
+    title: 'Your dashboard is new',
+    body: 'It used to be your ticket list. It is now your day at a glance — attendance, workload, standup, what to work on next, and where your placement stands. Here is each part.',
+  },
+  {
+    id: 'intern-dashboard-attendance',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-attendance"]',
+    title: 'Check in without leaving this page',
+    body: 'The 07:00–11:00 check-in, your current streak and how this week is going. Attendance in the sidebar still has the full calendar and the cancel option.',
+  },
+  {
+    id: 'intern-dashboard-workload',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-workload"]',
+    title: 'Your open work, two ways',
+    body: 'Switch between the bar and the breakdown with the toggle — your choice is remembered. Clicking the card opens your tickets.',
+  },
+  {
+    id: 'intern-dashboard-standup',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-standup"]',
+    title: 'Today’s note, shortened if it is long',
+    body: 'A long note is trimmed here with an AI summary a click away, and you can edit today’s entry without opening the standup board.',
+  },
+  {
+    id: 'intern-dashboard-tickets',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-tickets"]',
+    title: 'Start here tells you what to pick up',
+    body: 'Overdue, blocked and critical work sorts to the top. My Tickets has left the sidebar — “View all” opens the ticket list already filtered to you.',
+  },
+  {
+    id: 'intern-dashboard-pipeline',
+    roles: ['intern'],
+    target: '[data-tour="intern-dashboard-pipeline"]',
+    title: 'You can now see your own progress',
+    body: 'Where your recommendation stands, and your evaluation scores below it. Both are new to you — the written notes behind them stay with your mentor.',
   },
 ];

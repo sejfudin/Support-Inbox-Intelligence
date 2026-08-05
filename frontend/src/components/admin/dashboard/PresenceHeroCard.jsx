@@ -43,12 +43,12 @@ export function PresenceHeroCard({ presence }) {
     <>
       <section
         data-tour="dashboard-presence"
-        className="admin-hero-surface flex min-h-[12.5rem] flex-col justify-between rounded-[1.25rem] p-4 sm:p-5"
+        className="dashboard-hero-surface flex min-h-[12.5rem] flex-col justify-between rounded-[1.25rem] p-4 sm:p-5"
         aria-label="Team present today"
       >
         <div>
           <header className="flex items-start justify-between gap-2">
-            <h2 className="admin-hero-muted text-[11px] font-semibold uppercase leading-4 tracking-[0.16em]">
+            <h2 className="dashboard-hero-muted text-[11px] font-semibold uppercase leading-4 tracking-[0.16em]">
               Team present today
             </h2>
             {badge && (
@@ -59,10 +59,10 @@ export function PresenceHeroCard({ presence }) {
           </header>
 
           <p className="mt-3 flex flex-wrap items-baseline gap-x-2">
-            <span className="admin-hero-text text-5xl font-semibold leading-none tabular-nums">
+            <span className="dashboard-hero-text text-5xl font-semibold leading-none tabular-nums">
               {presentToday}
             </span>
-            <span className="admin-hero-muted text-sm font-medium">
+            <span className="dashboard-hero-muted text-sm font-medium">
               / {totalInterns} {totalInterns === 1 ? 'intern' : 'interns'} in
             </span>
           </p>
@@ -77,7 +77,7 @@ export function PresenceHeroCard({ presence }) {
               style={{ width: `${pct}%` }}
             />
           </div>
-          <p className="admin-hero-muted mt-2 text-[11px]">
+          <p className="dashboard-hero-muted mt-2 text-[11px]">
             {presence?.monthAttendanceRate ?? 0}% avg attendance this month
           </p>
         </div>

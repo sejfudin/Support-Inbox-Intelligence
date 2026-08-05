@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const TicketStatus = require('../models/TicketStatus');
 const Ticket = require('../models/Ticket');
 const Integration = require('../models/Integration');
-const { pickFallbackSlug } = require('../helpers/statusSlugAliases');
+const { pickFallbackSlug, slugifyLabel } = require('../helpers/statusSlugAliases');
 const {
   StatusValidationError,
   validateStatusesPayload,
@@ -63,12 +63,6 @@ const DEFAULT_STATUSES = [
     isDone: true,
   },
 ];
-
-const slugifyLabel = (label) =>
-  String(label || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
 
 const isStatusObjectId = (value) => {
   if (value == null || value === '') return false;

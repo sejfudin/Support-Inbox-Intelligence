@@ -102,6 +102,46 @@ export const computeStreak = (records = []) => {
   return streak;
 };
 
+/**
+ * This week's days Mon–Sun, classified, for the dashboard hero's strip.
+ *
+ * Always seven cells so the strip's columns line up with its M T W T F S S
+ * labels — the weekend cells render as inert rather than being dropped, which
+ * would shift Friday under the "S" heading.
+ */
+export const buildWeekStrip = (records = [], cancelledDates = [], now = new Date()) => {
+  const presentKeys = new Set(records.map((r) => r.date));
+  const cancelledKeys = new Set(cancelledDates);
+  const monday = startOfDay(now);
+  // date-fns getDay: 0=Sun..6=Sat → walk back to Monday.
+  monday.setDate(monday.getDate() - ((getDay(monday) + 6) % 7));
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + index);
+    return {
+      key: toKey(date),
+      label: format(date, 'EEEEE'), // single letter: M T W T F S S
+      isToday: isToday(date),
+      status: classifyDay(date, presentKeys, cancelledKeys, now),
+    };
+  });
+};
+
+/**
+ * Present vs elapsed working days within the current week — the hero's
+ * "4 of 5 days in" line. Future days are excluded from the denominator so a
+ * Monday morning doesn't read as "1 of 5" and look like a bad week.
+ */
+export const weekAttendance = (weekStrip = []) => {
+  const working = weekStrip.filter((day) => day.status !== DAY_STATUS.WEEKEND);
+  return {
+    present: working.filter((day) => day.status === DAY_STATUS.PRESENT).length,
+    elapsed: working.filter((day) => day.status !== DAY_STATUS.FUTURE).length,
+    workingDays: working.length,
+  };
+};
+
 /** Badge variant for an attendance rate. */
 export const attendanceRateTone = (rate) => {
   if (rate >= 90) return 'success';

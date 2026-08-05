@@ -1,12 +1,7 @@
 const TicketStatus = require('../models/TicketStatus');
+const { slugifyLabel } = require('./statusSlugAliases');
 
 const MAX_STATUS_LABEL_LENGTH = 50;
-
-const slugifyLabel = (label) =>
-  String(label || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ');
 
 class StatusValidationError extends Error {
   constructor(message) {

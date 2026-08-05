@@ -14,8 +14,12 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   (`protect, requireRole(ROLES.ADMIN), handler`).
 - **A frontend resource** (HTTP + data hooks): mirror `src/api/tickets.js` (axios helper) +
   `src/queries/tickets.js` (React Query hooks). Components consume the hook, never axios.
-- **A custom error type**: follow `StatusValidationError` in `server/helpers/statusValidation.js`
-  (carries `statusCode`, mapped to an HTTP status in the controller's catch).
+- **An error a service throws for the controller to map**: `httpError(message, statusCode)` from
+  `server/helpers/httpError.js`. Don't write a local factory — that is how the codebase ended up
+  with seven of them under three names and two argument orders.
+- **A custom error type** (one carrying more than a status, e.g. field-level detail): follow
+  `StatusValidationError` in `server/helpers/statusValidation.js` (carries `statusCode`, mapped to
+  an HTTP status in the controller's catch).
 
 ## Module systems
 
@@ -35,8 +39,15 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   rather than assuming a rule.
 - **Response shape**: JSON `{ success: boolean, message: string, data?: any }`.
 - **Error handling**: wrap controller bodies in try/catch. Map known errors to status codes
-  (400 validation, 401 auth, 403 authz, 404 not found), default 500. Custom error classes carry
-  `statusCode` (see `StatusValidationError` in `helpers/statusValidation.js`) — follow that pattern.
+  (400 validation, 401 auth, 403 authz, 404 not found), default 500. The status travels on the
+  error, so a service never touches `res`:
+  - **Plain HTTP errors** — `throw httpError('Message', 404)` from `helpers/httpError.js`. Argument
+    order is `(message, statusCode)`, defaulting to 400. Never redefine it locally.
+  - **Domain errors carrying more than a status** — a class, following `StatusValidationError` in
+    `helpers/statusValidation.js`.
+  - An error with **no** `statusCode` is by definition unexpected (a `CastError`, a driver timeout)
+    and must fall through to Express as a 500 — that fall-through is what keeps internal detail out
+    of responses, so don't give every error a status just to be tidy.
 - **Constants** in `server/constants/` (e.g. `roles.js`). Don't hardcode role strings — import `ROLES`.
 
 ## Frontend

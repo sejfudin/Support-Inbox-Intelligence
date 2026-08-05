@@ -2,8 +2,8 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/Avatar';
-import { AttendanceMeter } from './AttendanceMeter';
-import { WorkloadSegments, WorkloadLegend } from './WorkloadSegments';
+import { AttendanceMeter } from '@/components/dashboard/AttendanceMeter';
+import { WorkloadSegments, WorkloadLegend } from '@/components/dashboard/WorkloadSegments';
 
 /**
  * The workspace's interns with their open workload and this month's attendance.

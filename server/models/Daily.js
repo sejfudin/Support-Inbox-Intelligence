@@ -19,6 +19,24 @@ const blockerSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// A cached AI summary of one entry, for the intern dashboard's standup card
+// (long notes are shown summarised, expandable to the full text).
+//
+// Lives on the entry rather than in its own collection: it is derived from
+// exactly this text, it is only ever read alongside it, and it is deleted with
+// it. `sourceHash` is a digest of the done/todo/blocker lines the summary was
+// generated from — the moment the intern edits any of them the hash stops
+// matching and the summary is treated as absent rather than shown stale. Never
+// display this without checking the hash.
+const entryAiSummarySchema = new mongoose.Schema(
+  {
+    text: { type: String, default: '' },
+    sourceHash: { type: String, default: '' },
+    generatedAt: { type: Date },
+  },
+  { _id: false }
+);
+
 // One intern's slot within a Daily. Having an entry means the intern was
 // present — there is deliberately no `present` field.
 const dailyEntrySchema = new mongoose.Schema(
@@ -39,6 +57,10 @@ const dailyEntrySchema = new mongoose.Schema(
     blockers: {
       type: [blockerSchema],
       default: [],
+    },
+    aiSummary: {
+      type: entryAiSummarySchema,
+      default: null,
     },
   },
   { timestamps: true }

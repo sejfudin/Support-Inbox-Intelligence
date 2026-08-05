@@ -70,7 +70,24 @@ page) are gated in the service layer, not route middleware — `assertLeadership
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
-Recommendations are admin-only, full stop: routes guard writes (POST/PATCH/DELETE) with
+**Interns may read their own recommendation and evaluations — and nothing else of either.** Two
+narrow self-only reads back the intern dashboard's "My pipeline" and "My evaluations" cards:
+`recommendationService.listOwnRecommendations(user)` and
+`evaluationService.listOwnEvaluations(user)`. Both are separate functions from the admin list
+paths (which still 403 an intern outright), both re-check `role === INTERN` at the service layer,
+and both resolve the `InternProfile` **from the authenticated user** — there is no id parameter to
+tamper with. They are only reachable through `GET /api/dashboard/me`, which takes no query
+parameters at all.
+
+Their return shapes are **redacted, by picking fields rather than deleting them**, so a field added
+to either model later is absent by default instead of leaking. Withheld from the intern:
+`recommendationNote` (the admin's internal pitch), `interviews[].feedback` (the interviewer's
+write-up, which has its own `concerns` field), `result.note` (the reasoning behind a placement
+decision), and evaluation `notes`. Shown: stage, stage dates, project, position, scheduled
+interviews, the placement outcome, and evaluation scores/periods/author. **If you add a field to
+either formatter, check first whether it is written *about* the intern rather than *to* them.**
+
+Recommendations are otherwise admin-only: routes guard writes (POST/PATCH/DELETE) with
 `requireRole(ADMIN)`, and the service's `assertReadAccess` / `assertRecommendationWriteAccess`
 reject any non-admin (`leadership` is the one exception, with read-only access). Mentors have
 no read or write access, on the per-intern tab or the standalone `/recommendations` page. Delete
@@ -82,7 +99,8 @@ performs the same write check before removing the record and its history.
 (`internService.js`) — but several call sites now layer a stricter, explicit
 `user.role !== ROLES.ADMIN` check on top of it instead of trusting `canWriteMentorData`'s mentor
 branch:
-- **Evaluations** (`evaluationService.js`) — read and write, admin-only (plus `leadership` read).
+- **Evaluations** (`evaluationService.js`) — `listEvaluations` / `createEvaluation` are admin-only
+  (plus `leadership` read). The intern's own redacted read is a separate function — see above.
 - **Readiness** (`readinessFlagService.js`) — read and write, admin-only (plus `leadership` read).
 - **Internal CV link** (`internService.js` `updateInternalCvLink`) — write is admin-only; read is
   unaffected (`formatProfile`'s `canSeeInternalCv` still allows the assigned mentor to view it).
@@ -118,6 +136,24 @@ Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/
 `?workspace=`, same admin-bypass `assertWorkspaceAccess` grants elsewhere in this file) — no
 mentor or intern surface, unlike the other `/api/dailies` routes which reuse `resolveWorkspaceId`'s
 ambient admin override. Read-only; derives everything live from existing `Daily` documents.
+
+Intern dashboard. `GET /api/dashboard/me` is `requireRole(INTERN)`, read-only, and takes **no
+parameters** — the subject is always `req.user`. That is deliberate and load-bearing: the payload
+includes the caller's own (redacted) recommendations and evaluations, so the absence of any
+workspace or intern override is what keeps it self-scoped. Do not add one, and do not open the
+route to another role — the admin board is the cross-workspace surface. The workspace half of the
+payload (workload, tickets, standup) resolves through `resolveActiveWorkspaceId`, never the raw
+`user.workspaceId` pointer, so an intern whose membership lapsed reads as "between workspaces"
+(programme cards only) instead of keeping the workspace they left; it then verifies that workspace
+still exists, so an archived one 404s instead of returning empty blocks that read as "no work".
+
+`POST /api/dashboard/me/standup-summary` follows the same rule — `requireRole(INTERN)`, no
+parameters, and it locates the entry by matching `entry.member` against `req.user`, so an intern
+can only ever summarise a note they wrote themselves. It resolves its workspace through
+`resolveActiveWorkspaceId` too, and 400s on `null`: this path **writes** (`daily.save()`) and
+spends a Groq call, so a stale pointer must not reach either. It also re-checks the length threshold
+server-side: the client only asks when it believes a note is long, but letting the client decide
+would mean a frontend change could quietly start spending AI calls on two-line notes.
 
 Admin dashboard. `GET /api/admin/dashboard?workspaceId=` is `requireRole(ADMIN)`, read-only, and
 takes its workspace **explicitly from the query string** — the same admin-bypass pattern as the

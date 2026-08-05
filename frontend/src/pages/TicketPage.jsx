@@ -92,6 +92,10 @@ const decodeTabParam = (value) => (value ? value.toLowerCase().replace(/_/g, ' '
 
 const encodeTabParam = (value) => value.replace(/\s+/g, '_');
 const URL_TICKET_ID_SORT_PARAM = 'ticketIdSort';
+const URL_ASSIGNEE_PARAM = 'assignee';
+// The alias the intern dashboard links with. Resolved against the signed-in user
+// on both read and write, so the URL never carries a raw id for "my tickets".
+const ASSIGNEE_SELF = 'me';
 
 export default function TicketPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,6 +111,10 @@ export default function TicketPage() {
     initialTicketIdSortRaw === TICKET_ID_ORDER_VALUES.DESC
       ? initialTicketIdSortRaw
       : TICKET_ID_ORDER_VALUES.NONE;
+  // `?assignee=` seeds the assignee filter, comma-separated. `me` is an alias for
+  // the caller's own id so the intern dashboard can link here without embedding a
+  // user id in the URL, and so the link means the same thing for whoever opens it.
+  const initialAssigneeRaw = searchParams.get(URL_ASSIGNEE_PARAM) || '';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState(initialView);
   const [exportPeriod, setExportPeriod] = useState(DEFAULT_EXPORT_PERIOD);
@@ -301,6 +309,29 @@ export default function TicketPage() {
     );
   }, [initialTicketIdSort, setControls]);
 
+  // Seed the assignee filter from the URL exactly once, unlike the sort above.
+  // The sort re-applies whenever its param changes; this must not, or clearing
+  // the "Assigned: …" chip would immediately snap back — the sync effect below
+  // rewrites the param from the controls, which would re-trigger this.
+  const hasSeededAssigneeRef = useRef(false);
+  useEffect(() => {
+    if (hasSeededAssigneeRef.current) return;
+    // Wait for the user before resolving `me`; resolving it to nothing would
+    // seed an empty filter and mark the seed done.
+    if (initialAssigneeRaw === ASSIGNEE_SELF && !user?._id) return;
+    hasSeededAssigneeRef.current = true;
+
+    const ids = initialAssigneeRaw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => (value === ASSIGNEE_SELF ? user?._id : value))
+      .filter(Boolean);
+
+    if (ids.length === 0) return;
+    setControls((prev) => ({ ...prev, assigneeIds: ids }));
+  }, [initialAssigneeRaw, user?._id, setControls]);
+
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
@@ -428,6 +459,18 @@ export default function TicketPage() {
       next.delete(URL_TICKET_ID_SORT_PARAM);
     }
 
+    // Written back so the filter survives a refresh and the URL stays shareable.
+    // The caller's own id collapses back to `me`, which keeps the dashboard's
+    // link stable and readable rather than growing an id the moment it is used.
+    if (controls.assigneeIds.length > 0) {
+      next.set(
+        URL_ASSIGNEE_PARAM,
+        controls.assigneeIds.map((id) => (id === user?._id ? ASSIGNEE_SELF : id)).join(',')
+      );
+    } else {
+      next.delete(URL_ASSIGNEE_PARAM);
+    }
+
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
@@ -437,6 +480,8 @@ export default function TicketPage() {
     listData.page,
     effectiveViewMode,
     controls.ticketIdOrder,
+    controls.assigneeIds,
+    user?._id,
     searchParams,
     setSearchParams,
   ]);

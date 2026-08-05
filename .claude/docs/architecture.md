@@ -309,13 +309,14 @@ The admin landing board: one workspace at a time — the caller's **active** wor
 `frontend/src/pages/AdminDashboardPage.jsx`, `components/admin/dashboard/*`,
 `api/adminDashboard.js`, `queries/adminDashboard.js`.
 
-- **`/dashboard` is role-split**, not a separate route: `DashboardRoute` in
-  `routes/AppRoutes.jsx` renders `AdminDashboardPage` for admins and `UserDashboard`
-  (assigned tickets) for everyone else. It sits **outside `WorkspaceGuard`** so an admin with no
-  active workspace gets the board's own explanation rather than a redirect to `/create-workspace`
-  — the guard's redirects are repeated inside `DashboardRoute` for the non-admin branch only.
-  Don't widen `WorkspaceGuard` instead: `/tickets`, `/dailies` and `/analytics` all assume a
-  resolved `user.workspaceId`.
+- **`/dashboard` is role-split three ways**, not separate routes: `DashboardRoute` in
+  `routes/AppRoutes.jsx` renders `AdminDashboardPage` for admins, `InternDashboardPage` for
+  interns (see below), and `UserDashboard` (assigned tickets) for mentors — `UserDashboard` is now
+  the mentor branch only. It sits **outside
+  `WorkspaceGuard`** so neither an admin nor an intern without an active workspace is redirected to
+  `/create-workspace` — each board explains the state instead. The guard's redirects are repeated
+  inside `DashboardRoute` for the mentor branch only. Don't widen `WorkspaceGuard` instead:
+  `/tickets`, `/dailies` and `/analytics` all assume a resolved `user.workspaceId`.
 - **The page has no workspace picker of its own** — it reads `user.workspaceId`, and switching is
   the sidebar's `WorkspaceSwitcher` (which already `refetchUser()`s and navigates to `/dashboard`,
   so the board re-keys and refetches by itself). Note the switcher lists only workspaces the
@@ -361,6 +362,77 @@ The admin landing board: one workspace at a time — the caller's **active** wor
 - **Not implemented, rendered as a placeholder**: the *Mark absence / excuse* quick action is
   marked "Soon" — `Attendance` has no write path for absence at all (absence is the lack of a
   check-in, and only interns may check in). Flagged in-place in the component.
+
+## Intern dashboard (self-scoped)
+
+The intern's landing board. Backend:
+`server/{services/internDashboardService.js, controllers/internDashboard.js}` +
+`GET /me` in `routes/dashboard.js`. Frontend: `frontend/src/pages/InternDashboardPage.jsx`,
+`components/intern/dashboard/*`, `api/internDashboard.js`, `queries/internDashboard.js`.
+
+- **`GET /api/dashboard/me` takes no parameters, ever.** Intern-only, read-only, and the subject is
+  always `req.user` — there is deliberately no `?workspaceId=` / `?internId=` override like the
+  admin board has, because this payload carries the caller's own recommendations and evaluations.
+  That is the whole security model; see `security.md`.
+- **Attendance is NOT on the aggregate.** The hero reads `GET /api/attendance/me`, which already
+  returns the full record history its streak and week strip are derived from and is the cache the
+  check-in mutation seeds and invalidates. Folding it in would give the hero two sources that
+  disagree for a frame after checking in.
+- **Interns read their own recommendation and evaluations**, through
+  `recommendationService.listOwnRecommendations` / `evaluationService.listOwnEvaluations` — narrow
+  self-only reads, separate from the admin list functions, returning **redacted** shapes that pick
+  fields explicitly rather than deleting them. Withheld: `recommendationNote`,
+  `interviews[].feedback`, `result.note`, and evaluation `notes`. See `security.md`.
+- **Ticket ordering lives in `server/helpers/ticketUrgency.js`**, extracted and unit-tested
+  (`ticketUrgency.test.js`) because the board's "start here" card is chosen entirely by it. Weights
+  are additive, not a first-match ladder, so a blocked *critical* ticket outranks a blocked *low*
+  one; `OVERDUE` has to clear the sum of every other weight, and the suite pins that.
+- **Workload reuses the admin board's four segments** (`WORKLOAD_SLUGS`, kept in sync between the
+  two services) with the workspace's own `TicketStatus` colours. The card toggles between a
+  proportional bar and a donut, remembered in `localStorage` via `hooks/useStoredPreference.js`
+  (per browser profile, like the colour theme — not per account). The donut seats "In progress"
+  and "On staging" across the ring from each other: the platform defaults put blue next to violet,
+  which as *adjacent* arcs fail the CVD separation check.
+- **Shared with the admin board**: `components/dashboard/{DashboardCard, DashboardHeader,
+  WorkloadSegments, AttendanceMeter}` and the `.dashboard-hero-surface` gradient. That surface
+  clamps the theme accent's lightness in OKLCH (with a `color-mix` fallback) so every theme's
+  `--primary` — including Mono's near-white dark step — stays dark enough for the white hero text.
+- **The full ticket list is `/tickets?assignee=me`**, not a second page. Both the board's "View all"
+  and its whole workload card link there; `TicketPage` seeds its assignee filter from that param
+  (`me` resolves against the signed-in user, so the link carries no id) and writes it back, so the
+  filter survives a refresh and the URL stays shareable. The seed runs **once**, guarded by a ref —
+  re-applying it would make clearing the "Assigned: …" chip snap straight back, because the
+  write-back rewrites the param the seed reads.
+  The workload card is a `<section>` with a stretched `absolute inset-0` link rather than an
+  anchor wrapping the card, so its view toggle isn't interactive content nested in an `<a>`; the
+  toggle is lifted over the link with `relative z-10`.
+- **Standup notes over `SUMMARY_MIN_CHARS` are shown AI-summarised**, expandable to the full text.
+  `POST /api/dashboard/me/standup-summary` (intern-only, parameterless) →
+  `services/standupSummaryService.js` → Groq, via its own prompt in `prompts/standupPrompts.js`.
+  That prompt only *condenses*; do not merge it with `ticketPrompts.buildUserSummaryPrompt`, which
+  deliberately writes an appraisal.
+  - **The summary is cached on the `Daily` entry itself** (`entries[].aiSummary` — text,
+    `sourceHash`, `generatedAt`), not in its own collection: it is derived from exactly that text,
+    read only alongside it, and deleted with it.
+  - **`sourceHash` is the freshness rule.** It digests the done/todo/blocker lines the summary came
+    from, so editing the note stops the hash matching and the summary is treated as absent rather
+    than shown stale. Both the read path (`needsSummary` / `aiSummary` on the aggregate) and the
+    generate endpoint go through `helpers/standupNote.js`, so they cannot disagree about which
+    notes qualify or whether a cached summary still applies. Unit-tested in `standupNote.test.js`.
+  - The card fires the mutation itself when the server sets `needsSummary`, guarded by a ref so a
+    failed generation retries at most once per note per mount rather than hammering the provider.
+  - **The note is the default view; the summary is a toggle, not a replacement.** Both are cut to
+    hard character caps (`SECTION_CHAR_CAP` / `SUMMARY_CHAR_CAP`) and **nothing expands in place** —
+    this card is one of three across a row, so its height *is* the row's height, and letting it
+    grow pushed the attendance hero and workload card down. The cap is per section rather than one
+    budget for the note, so a long "Done" can never crowd out "Blocked". "View full note" navigates
+    to `/dailies?date=YYYY-MM-DD` instead of expanding.
+- **`/dailies` accepts `?date=YYYY-MM-DD`**, seeding and syncing `selectedDate` (today carries no
+  param). Parsed at noon so the day cannot slide in a timezone behind UTC.
+- **Not implemented**: weekly hours on the hero (`Attendance` records a check-in and no check-out,
+  so hours are not derivable — the average check-in time stood in for them briefly and was not
+  worth the space, so the line shows the month's attendance rate and present days), and the "next
+  review in N days" line on evaluations (no scheduled-review concept exists in the model).
 
 ## Glossary
 

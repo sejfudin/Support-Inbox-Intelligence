@@ -14,6 +14,17 @@
     --shadow-elevated: 0 1px 2px hsl(220 20% 10% / 0.04), 0 14px 36px -12px hsl(220 20% 10% / 0.1);
     --shadow-elevated-sm:
       0 1px 2px hsl(220 20% 10% / 0.03), 0 6px 16px -6px hsl(220 20% 10% / 0.07);
+
+    /* The what's-new button's pulse (`attention-glow` in tailwind.config.js).
+       Deliberately stronger in light than in dark, and not a matter of taste: the
+       button is filled with `--primary` and sits on a near-white page, so a
+       primary-coloured halo around it has very little to contrast against. The
+       same values that read clearly on a dark background are almost invisible
+       here. Set per light/dark rather than per palette — every theme's `--primary`
+       faces the same problem against its own background. */
+    --attention-glow-alpha: 0.95;
+    --attention-glow-blur: 20px;
+    --attention-glow-spread: 6px;
   }
 
   .dark,
@@ -21,6 +32,10 @@
     --separator: 240 4% 13%;
     --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.05), 0 10px 28px -10px hsl(0 0% 0% / 0.35);
     --shadow-elevated-sm: 0 1px 0 hsl(0 0% 100% / 0.04), 0 4px 14px -6px hsl(0 0% 0% / 0.28);
+
+    --attention-glow-alpha: 0.75;
+    --attention-glow-blur: 16px;
+    --attention-glow-spread: 4px;
   }
 }
 
@@ -102,29 +117,59 @@
     @apply mt-2 max-w-2xl text-sm leading-6 text-muted-foreground;
   }
 
-  /* The admin dashboard's presence hero. Deliberately dark in BOTH themes — it is
-     the one inverted surface on the page, which is what makes the primary KPI read
-     first. Mixed from --primary rather than a hardcoded navy, so it tracks
-     whichever of the six themes is active instead of clashing with it. */
-  .admin-hero-surface {
+  /* The one inverted surface on a dashboard — the admin board's presence hero and
+     the intern board's attendance hero. Dark in BOTH themes deliberately: that is
+     what makes the primary KPI read first. Mixed from --primary rather than a
+     hardcoded navy, so it tracks whichever of the six themes is active instead of
+     clashing with it. */
+  /* Conservative fallback. The ratio is capped at 42% deliberately: the Mono
+     theme's dark `--primary` is `0 0% 92%`, so a higher share of it would mix to
+     a near-white surface and the white hero text would vanish. Browsers that
+     support relative colour get the stronger treatment below instead. */
+  .dashboard-hero-surface {
     background-image: linear-gradient(
       140deg,
-      color-mix(in oklab, hsl(var(--primary)) 20%, hsl(230 28% 9%)) 0%,
-      color-mix(in oklab, hsl(var(--primary)) 30%, hsl(230 28% 11%)) 55%,
+      color-mix(in oklab, hsl(var(--primary)) 22%, hsl(230 28% 9%)) 0%,
+      color-mix(in oklab, hsl(var(--primary)) 32%, hsl(230 28% 11%)) 55%,
       color-mix(in oklab, hsl(var(--primary)) 42%, hsl(230 26% 14%)) 100%
     );
-    border: 1px solid color-mix(in oklab, hsl(var(--primary)) 35%, transparent);
+    border: 1px solid color-mix(in oklab, hsl(var(--primary)) 45%, transparent);
     box-shadow: var(--shadow-elevated);
   }
 
-  /* Text on .admin-hero-surface — the hero is dark in both themes, so these do
-     not follow --foreground. */
-  .admin-hero-text {
-    color: hsl(0 0% 100% / 0.95);
+  /* The accent-forward version. Clamping lightness in OKLCH keeps the theme's own
+     hue and chroma but pins the surface into a dark band, which is what lets the
+     accent dominate without any theme's `--primary` — light or dark — pushing it
+     past the point where white text stops working. The 0.5 ceiling holds white at
+     roughly 4.4:1.
+
+     Chroma is passed through untouched rather than floored: the Mono theme is
+     deliberately greyscale, and forcing colour into it would break the one theme
+     whose whole point is not having any. */
+  @supports (color: oklch(from white l c h)) {
+    .dashboard-hero-surface {
+      --hero-accent: oklch(from hsl(var(--primary)) clamp(0.34, l, 0.5) c h);
+
+      background-image: linear-gradient(
+        140deg,
+        color-mix(in oklab, var(--hero-accent) 70%, #05060f) 0%,
+        var(--hero-accent) 58%,
+        color-mix(in oklab, var(--hero-accent) 86%, #05060f) 100%
+      );
+      border: 1px solid color-mix(in oklab, var(--hero-accent) 70%, transparent);
+    }
   }
 
-  .admin-hero-muted {
-    color: hsl(0 0% 100% / 0.62);
+  /* Text on .dashboard-hero-surface — the hero is dark in both themes, so these do
+     not follow --foreground. The muted step sits at 0.75 rather than the 0.62 the
+     old, darker gradient allowed: on the accent surface anything fainter drops
+     under 3:1. */
+  .dashboard-hero-text {
+    color: hsl(0 0% 100% / 0.96);
+  }
+
+  .dashboard-hero-muted {
+    color: hsl(0 0% 100% / 0.75);
   }
 
   .app-grid-bg {

@@ -35,8 +35,21 @@ export const invalidateUserScope = (queryClient, userId) => {
   }
 };
 
+/**
+ * The two dashboard aggregates. Neither is keyed under a prefix any other scope
+ * already invalidates, so they have to be named explicitly — an omission that
+ * previously left the admin board's workload numbers frozen until a manual
+ * refetch. Both roll up tickets, statuses and standups, so every scope that can
+ * move one of those refreshes them.
+ */
+const invalidateDashboards = (queryClient) => {
+  queryClient.invalidateQueries({ queryKey: ['workspace-admin-dashboard'] });
+  queryClient.invalidateQueries({ queryKey: ['intern-dashboard'] });
+};
+
 export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
+  invalidateDashboards(queryClient);
   queryClient.invalidateQueries({ queryKey: ['workspaces', 'mine'] });
   queryClient.invalidateQueries({ queryKey: ['workspaces', 'admin-all'] });
   queryClient.invalidateQueries({ queryKey: ['ticket-statuses', workspaceId] });
@@ -56,9 +69,10 @@ export const invalidateWorkspaceScope = (queryClient, workspaceId) => {
 export const invalidateWorkspaceTicketsScope = (queryClient, workspaceId) => {
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
   queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
-  // The admin dashboard's workload segments are open-ticket counts per intern, so
-  // a ticket moving between statuses changes them.
-  queryClient.invalidateQueries({ queryKey: adminDashboardKeys.all });
+  // Both boards' workload numbers are open-ticket counts — per intern on the admin
+  // board, for yourself on the intern one — so a ticket moving between statuses
+  // changes them.
+  invalidateDashboards(queryClient);
 };
 
 export const invalidateTicketScope = (queryClient, ticketId) => {
@@ -78,6 +92,7 @@ export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {
   // Prefix invalidation covers every date under ['dailies', workspaceId, date].
   queryClient.invalidateQueries({ queryKey: ['dailies', workspaceId] });
   queryClient.invalidateQueries({ queryKey: ['dailies-history', workspaceId] });
+  invalidateDashboards(queryClient);
 };
 
 export const invalidateScope = (queryClient, scope) => {
