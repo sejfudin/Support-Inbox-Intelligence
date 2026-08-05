@@ -167,7 +167,17 @@ const loadStandup = async ({ workspaceId, userId }) => {
  */
 const loadPipeline = async (user) => {
   const recommendations = await recommendationService.listOwnRecommendations(user);
-  return { current: recommendations[0] || null, total: recommendations.length };
+  return {
+    current: recommendations[0] || null,
+    // The whole list, so the card can switch between them. An intern put forward
+    // for more than one project could otherwise only ever see the most recently
+    // touched record, with the others invisible — and this already fetched them all
+    // and threw the rest away. Already redacted: these are
+    // `formatOwnRecommendation` shapes, so no note, interview feedback or decision
+    // reasoning rides along.
+    items: recommendations,
+    total: recommendations.length,
+  };
 };
 
 /**
