@@ -1,12 +1,8 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  DashboardCard,
-  DashboardCardEmpty,
-  DashboardCardHelp,
-} from '@/components/dashboard/DashboardCard';
+import { DashboardCard, DashboardCardHelp } from '@/components/dashboard/DashboardCard';
 import { ExampleChip } from './ExampleChip';
 
 // The recommendation lifecycle, in order. Mirrors RECOMMENDATION_STATUSES on the
@@ -16,6 +12,9 @@ const STAGES = [
   { key: 'interviewing', label: 'Interview' },
   { key: 'resulted', label: 'Result' },
 ];
+
+/** Chips past this fold into a "+N", so a long stack can't crowd out the timeline. */
+const TECH_LIMIT = 4;
 
 const RESULT_LABEL = {
   placed: 'Placed 🎉',
@@ -47,6 +46,13 @@ const buildSteps = (recommendation) => {
 };
 
 /**
+ * The same three stages with nothing behind them, for an intern who has not been
+ * put forward yet. Showing the row greyed out rather than hiding it is the point
+ * of the empty state: it says what *will* happen, which the sentence alone can't.
+ */
+const EMPTY_STEPS = STAGES.map((stage) => ({ ...stage, state: 'pending', date: null }));
+
+/**
  * The interview to put in front of the intern: the soonest one still ahead of them,
  * or failing that the latest one behind them.
  *
@@ -70,13 +76,15 @@ const nextInterview = (interviews = []) => {
 };
 
 /**
- * What the card says under each stage. The interview line names the company and
- * time when one is scheduled, because that is the single most actionable thing
- * on this card for the intern.
+ * What the card says under each stage. Every line has to survive in a
+ * third-of-a-card column, so each one carries the single most actionable fact for
+ * its stage and nothing else — the interview's date and time, the outcome.
  */
 const stepDetail = (step, recommendation) => {
   if (step.key === 'recommended') {
-    return step.date ? `Recommended ${step.date}` : null;
+    // Bare date: the card header already names the project this was sent to, so
+    // repeating it under the first stage says nothing new.
+    return step.date || '—';
   }
 
   if (step.key === 'interviewing') {
@@ -87,10 +95,12 @@ const stepDetail = (step, recommendation) => {
     // intern mid-process still sees where they got to.
     const next = nextInterview(recommendation.interviews);
     if (next) {
-      const when = format(new Date(next.scheduledAt), 'EEE MMM d · HH:mm');
-      return next.upcoming
-        ? `${when} with ${next.company}`
-        : `Interviewed ${when} · ${next.company}`;
+      // Date and time only. This sits in a third-of-a-card column now, and both
+      // the weekday and the company name push it onto a third line — the company
+      // being the more expendable of the two, since the header already names the
+      // project this recommendation is for.
+      const when = format(new Date(next.scheduledAt), 'MMM d · HH:mm');
+      return next.upcoming ? when : `Interviewed ${when}`;
     }
     if (step.state === 'skipped') return 'Skipped';
     return step.date ? `Reached ${step.date}` : 'Not scheduled yet';
@@ -136,6 +146,63 @@ function StepMarker({ step, index }) {
           and a pulse says nothing to a screen reader. */}
       {isCurrent && <span className="sr-only">Current stage</span>}
     </span>
+  );
+}
+
+/**
+ * The three stages as one horizontal band.
+ *
+ * Horizontal because they are a short fixed sequence, and laid out this way they
+ * cost one band instead of the whole card. The wrapper centres the band in
+ * whatever height the grid row hands the card, so slack reads as breathing room
+ * above and below rather than pooling into a dead block under the last stage.
+ *
+ * Shared with the empty state, which passes no `recommendation` — the stages then
+ * render greyed out with no detail beneath them, showing what will happen rather
+ * than leaving the card blank.
+ */
+function StageRow({ steps, recommendation = null }) {
+  return (
+    <div className="flex flex-1 flex-col justify-center">
+      <ol className="grid grid-cols-3 py-5">
+        {steps.map((step, index) => (
+          <li key={step.key} className="relative flex flex-col items-center px-1 text-center">
+            {/* Connectors stop 1rem either side of the 1.5rem marker rather than
+                running behind it, so a translucent pending marker doesn't show the
+                line through its middle. `top-3` is the marker's centreline. */}
+            {index > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute left-0 right-[calc(50%+1rem)] top-3 h-px bg-border"
+              />
+            )}
+            {index < steps.length - 1 && (
+              <span
+                aria-hidden="true"
+                className="absolute left-[calc(50%+1rem)] right-0 top-3 h-px bg-border"
+              />
+            )}
+            <StepMarker step={step} index={index} />
+            <p
+              className={cn(
+                'mt-2 text-xs font-semibold leading-4',
+                step.state === 'pending' ? 'text-muted-foreground' : 'text-foreground'
+              )}
+            >
+              {step.label}
+            </p>
+            {/* Each stage carries its own detail rather than a shared line below the
+                stepper — the interview time and the placement outcome are the two
+                things worth reading, and both belong under their own stage. */}
+            {recommendation && (
+              <p className="mt-0.5 text-balance text-[10px] leading-4 text-muted-foreground">
+                {stepDetail(step, recommendation)}
+              </p>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -188,10 +255,14 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
         action={<PipelineHelp />}
         data-tour="intern-dashboard-pipeline"
       >
-        <DashboardCardEmpty>
+        {/* Same band as the populated card, greyed out — an intern who has never
+            been recommended learns the three stages here rather than meeting them
+            for the first time on the day something moves. */}
+        <StageRow steps={EMPTY_STEPS} />
+        <p className="mt-3 border-t border-border pt-3 text-[11px] leading-4 text-muted-foreground">
           No recommendation yet. When your mentor puts you forward for a project, its progress shows
           up here.
-        </DashboardCardEmpty>
+        </p>
       </DashboardCard>
     );
   }
@@ -205,14 +276,9 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
       action={
         <div className="flex shrink-0 items-center gap-1.5">
           {isPreview && <ExampleChip />}
-          {recommendation.project && (
-            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary">
-              {recommendation.project}
-            </span>
-          )}
-          {/* Only when there is somewhere to go. The project chip beside it is what
-              names the record being shown, so the control itself stays a bare
-              position indicator rather than repeating the project. */}
+          {/* Only when there is somewhere to go. The position/project line under the
+              title is what names the record being shown, so the control itself stays
+              a bare position indicator rather than repeating them. */}
           {many && (
             <span className="flex items-center gap-0.5" data-test="pipeline-switcher">
               <button
@@ -244,37 +310,41 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
       }
       data-tour="intern-dashboard-pipeline"
     >
-      {/* The timeline fills the card instead of bunching into the first third.
-          Every step but the last grows, so the connectors stretch with the card
-          and stay continuous — hence no gap on the list itself; the spacing comes
-          from each step's own bottom padding. */}
-      <ol className="flex flex-1 flex-col">
-        {steps.map((step, index) => (
-          <li
-            key={step.key}
-            className={cn('flex gap-3', index < steps.length - 1 && 'min-h-[3.25rem] flex-1')}
-          >
-            <div className="flex flex-col items-center">
-              <StepMarker step={step} index={index} />
-              {/* Connector, drawn on every step but the last. */}
-              {index < steps.length - 1 && <span className="my-1 w-px flex-1 bg-border" />}
-            </div>
-            <div className="min-w-0 flex-1 pb-4">
-              <p
-                className={cn(
-                  'text-sm font-semibold leading-5',
-                  step.state === 'pending' ? 'text-muted-foreground' : 'text-foreground'
-                )}
-              >
-                {step.label}
-              </p>
-              <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
-                {stepDetail(step, recommendation)}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ol>
+      {/* Names the record the switcher above is paging through, so the timeline
+          below never has to repeat it. Position and project are independent
+          fields on the recommendation — either can be absent on its own. */}
+      {(recommendation.position || recommendation.project) && (
+        <p className="-mt-1 truncate text-xs leading-4 text-muted-foreground">
+          {[recommendation.position, recommendation.project].filter(Boolean).join(' · ')}
+        </p>
+      )}
+      {/* What the intern was put forward *for*, in their own terms — the one piece
+          of the payload that is about the match rather than its progress. Capped
+          so a long stack can't push the timeline out of the card. */}
+      {recommendation.technologies?.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-1">
+          {recommendation.technologies.slice(0, TECH_LIMIT).map((tech) => (
+            <li
+              key={tech.id || tech.name}
+              className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium leading-4 text-muted-foreground"
+            >
+              {tech.name}
+            </li>
+          ))}
+          {recommendation.technologies.length > TECH_LIMIT && (
+            <li className="px-1 py-0.5 text-[10px] leading-4 text-muted-foreground">
+              +{recommendation.technologies.length - TECH_LIMIT}
+            </li>
+          )}
+        </ul>
+      )}
+      <StageRow steps={steps} recommendation={recommendation} />
+      {/* Sets expectation once instead of per-stage: the intern has nothing to do
+          here, so the card should say so rather than imply they need to check back. */}
+      <p className="mt-3 flex items-start gap-2 border-t border-border pt-3 text-[11px] leading-4 text-muted-foreground">
+        <Bell className="mt-px h-3.5 w-3.5 shrink-0" />
+        We&apos;ll notify you when this moves — nothing needed from you.
+      </p>
     </DashboardCard>
   );
 }
