@@ -267,6 +267,11 @@ recommendation can point at (title, client, description, tech tags, `status`:
   skills in selection), and `GET /api/projects/:id/overview` (`getProjectOverview`) returns one
   project's `placed`/`selection`/`history`, each computed by grouping that project's
   `Recommendation` rows — no new schema, same pattern as the per-intern recommendations tab.
+  The list page defaults to showing only projects with someone placed or in selection, but that's
+  a **client-side view filter** over the same payload (like its status/technology filters) — the
+  endpoint and every KPI still cover every non-system project, so `kpis.totalProjects` keeps
+  agreeing with `GET /api/projects`. The KPI cards clear that filter when clicked, since the
+  numbers on them count unstaffed projects too.
   `GET /api/projects/:id` (any authenticated role, mirrors the existing `GET /api/projects`) fills
   the one gap the existing list route had: no single-project fetch. All three new routes respond
   `{ success, message, data }` (the documented convention); the original three project routes

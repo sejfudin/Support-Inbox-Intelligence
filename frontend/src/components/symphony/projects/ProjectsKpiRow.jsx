@@ -119,6 +119,7 @@ export function ProjectsKpiRow({
   kpis,
   statusFilter,
   onFilterStatus,
+  onShowAllProjects,
   scrollToGrid,
   scrollToChart,
 }) {
@@ -130,7 +131,9 @@ export function ProjectsKpiRow({
   const skillsInSelection = kpis?.skillsInSelection ?? [];
 
   const handleStatusRow = (status) => {
+    // Same reason as the total above: the breakdown counts unstaffed projects.
     onFilterStatus(status);
+    onShowAllProjects();
     scrollToGrid();
   };
 
@@ -142,7 +145,11 @@ export function ProjectsKpiRow({
           value={isPending ? dash : (kpis?.totalProjects ?? 0)}
           dot="#6C63FF"
           onClick={() => {
+            // This count covers every project, staffed or not — so the card has
+            // to drop the "with interns" view filter, or the grid it scrolls to
+            // shows fewer rows than the number just clicked.
             onFilterStatus('');
+            onShowAllProjects();
             scrollToGrid();
           }}
           testId="projects-kpi-total"

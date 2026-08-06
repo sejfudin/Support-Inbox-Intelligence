@@ -37,6 +37,8 @@
 - Sees a read-only "Projects" view (`/projects`): every client project with who's placed on it,
   who's currently in selection (recommended/interviewing), technology demand across projects, and
   each project's full outcome history — no recommend/edit actions anywhere
+- The Projects list opens on "With interns" (projects with someone placed or in selection);
+  switching to "All projects" shows the empty ones too
 - No access to the workspace/ticket side of the platform (project work)
 - No access to admin panels (users, workspaces, reference data)
 
