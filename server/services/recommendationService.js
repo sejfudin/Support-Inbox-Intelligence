@@ -789,11 +789,19 @@ const deleteRecommendation = async (user, recommendationId) => {
   if (['placed', READY_STATUS].includes(profile.status)) {
     const latest = await Recommendation.findOne({ internProfile: profile._id })
       .sort({ updatedAt: -1 })
-      .select('result.outcome')
+      .select('result.outcome result.startDate')
       .lean();
     const nextStatus = latest?.result?.outcome === 'placed' ? 'placed' : READY_STATUS;
-    if (profile.status !== nextStatus) {
+    // `placedAt` is a cache of the placing recommendation's start date, so it has
+    // to be recomputed from the same record the status is — not left behind.
+    // Otherwise deleting the recommendation that placed someone leaves them
+    // exempt from attendance forever with nothing left to explain why, while the
+    // delete dialog promises the opposite ("will set them back to Ready for a new
+    // placement"). A stale exemption inflates their attendance rate silently.
+    const nextPlacedAt = placementExemptionDate(latest?.result);
+    if (profile.status !== nextStatus || !sameInstant(profile.placedAt, nextPlacedAt)) {
       profile.status = nextStatus;
+      profile.placedAt = nextPlacedAt;
       await profile.save();
     }
   }
