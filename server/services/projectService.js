@@ -116,6 +116,20 @@ const resolveResultDate = (recommendation) =>
   recommendation.statusDates?.resulted ||
   recommendation.updatedAt;
 
+// The day an intern went ONTO the project, for the placed rosters ("on this
+// project since X"). Prefers the placement's own start date — the same date that
+// ends their attendance obligation — so this and the attendance cut-off can never
+// give two different answers for the same intern. Falls back to the decision date
+// for placements recorded before start dates existed, so a legacy row still
+// renders and still sorts.
+//
+// Note the deliberate difference from `placementExemptionDate` in
+// helpers/attendanceStats.js: there, a missing start date must mean NO exemption,
+// because inventing one forgives real absence. Here it only means "show the best
+// date on hand". Same input, different obligations — do not unify them.
+const resolvePlacementStart = (recommendation) =>
+  recommendation.result?.startDate || resolveResultDate(recommendation);
+
 // Leadership-facing roster/pipeline for one project — "which interns are on
 // project X" stays a derived read (query Recommendation by project), same
 // philosophy as the per-intern recommendations tab; no roster is stored on
@@ -133,7 +147,7 @@ const getProjectOverview = async (id, user) => {
     .filter((rec) => rec.result?.outcome === 'placed')
     .map((rec) => ({
       ...internSummary(rec),
-      placedAt: resolveResultDate(rec),
+      placedAt: resolvePlacementStart(rec),
     }));
 
   const selection = recommendations
@@ -211,7 +225,7 @@ const getProjectsOverview = async (user) => {
         ...internSummary(rec),
         projectId: project._id,
         projectName: project.name,
-        placedAt: resolveResultDate(rec),
+        placedAt: resolvePlacementStart(rec),
       });
     });
 

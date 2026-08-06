@@ -22,7 +22,12 @@ import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
 import InternAttendanceModal from '@/components/attendance/InternAttendanceModal';
 import { useAttendanceRoster } from '@/queries/attendance';
 import { useHubs } from '@/queries/hubs';
-import { attendanceRateTextClass, internStatusOnDate, DAY_STATUS } from '@/helpers/attendance';
+import {
+  attendanceRateTextClass,
+  internStatusOnDate,
+  nonWorkingKeySet,
+  DAY_STATUS,
+} from '@/helpers/attendance';
 
 const LOW_ATTENDANCE_THRESHOLD = 75;
 const todayKey = () => format(new Date(), 'yyyy-MM-dd');
@@ -83,14 +88,17 @@ export default function AttendanceOverviewPage() {
   const hubNames = hubs.map((h) => h.name);
 
   const roster = data?.roster ?? [];
+  const nonWorkingKeys = useMemo(() => nonWorkingKeySet(data?.nonWorkingDays), [data]);
   const total = roster.length;
   const isCurrentMonth = month === currentMonthKey();
   const monthLabel = format(parseISO(`${month}-01`), 'MMMM yyyy');
 
-  // Month summary from the server's month-scoped rates.
+  // Month summary from the server's month-scoped rates. Interns who owed nothing
+  // that month (on a project) report a null rate and are left out entirely — folding
+  // them in as 0% would drag the cohort average down for days nobody was expected in.
   const monthSummary = useMemo(() => {
-    const rates = roster.map((r) => r.attendanceRate ?? 0);
-    return { ...summarize(rates, total), total };
+    const rates = roster.map((r) => r.attendanceRate).filter((rate) => typeof rate === 'number');
+    return { ...summarize(rates, rates.length), total };
   }, [roster, total]);
 
   // Counts for the selected day (present / absent / not-yet).
@@ -98,13 +106,13 @@ export default function AttendanceOverviewPage() {
     const date = parseISO(day);
     const acc = { present: 0, absent: 0, pending: 0 };
     roster.forEach((r) => {
-      const { status } = internStatusOnDate(r, date);
+      const { status } = internStatusOnDate(r, date, nonWorkingKeys);
       if (status === DAY_STATUS.PRESENT) acc.present += 1;
       else if (status === DAY_STATUS.ABSENT) acc.absent += 1;
       else if (status === DAY_STATUS.TODAY_PENDING) acc.pending += 1;
     });
     return acc;
-  }, [roster, day]);
+  }, [roster, day, nonWorkingKeys]);
 
   const dayIsToday = day === todayKey();
 

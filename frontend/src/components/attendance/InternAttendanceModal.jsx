@@ -4,7 +4,12 @@ import { DetailModal } from '@/components/interns/DetailModal';
 import AttendanceCalendar from '@/components/attendance/AttendanceCalendar';
 import AttendanceStat from '@/components/attendance/AttendanceStat';
 import { useInternAttendance } from '@/queries/attendance';
-import { computeStreak, attendanceRateTextClass } from '@/helpers/attendance';
+import {
+  computeStreak,
+  attendanceRateTextClass,
+  formatAttendanceRate,
+  isExemptToday,
+} from '@/helpers/attendance';
 
 /**
  * Admin-only read-only calendar view of one intern's attendance, opened from the
@@ -22,7 +27,10 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
   const records = data?.records ?? [];
   const cancelledDates = data?.cancelledDates ?? [];
   const stats = data?.month ?? {};
-  const streak = computeStreak(records);
+  const placedAt = data?.placedAt ?? null;
+  const nonWorkingDays = data?.nonWorkingDays ?? [];
+  const startDate = data?.startDate ?? null;
+  const streak = computeStreak(records, placedAt);
 
   let content;
   if (isPending) {
@@ -39,10 +47,10 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
         <div className="grid gap-4 sm:grid-cols-3">
           <AttendanceStat
             label="Attendance"
-            value={`${stats.attendanceRate ?? 0}%`}
-            hint={monthLabel}
+            value={formatAttendanceRate(stats.attendanceRate)}
+            hint={isExemptToday(placedAt) ? 'On project — not required' : monthLabel}
             icon={Percent}
-            valueClassName={attendanceRateTextClass(stats.attendanceRate ?? 0)}
+            valueClassName={attendanceRateTextClass(stats.attendanceRate)}
           />
           <AttendanceStat
             label="Days present"
@@ -61,6 +69,9 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
           records={records}
           cancelledDates={cancelledDates}
           initialMonth={month}
+          placedAt={placedAt}
+          nonWorkingDays={nonWorkingDays}
+          startDate={startDate}
         />
       </div>
     );

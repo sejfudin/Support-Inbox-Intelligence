@@ -23,6 +23,7 @@
 - Only role that can view the per-workspace Daily standup reporting dashboard (who reported today, calendar-month coverage grid, open blockers) — a read-only compliance view, not a data-entry surface
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
+- Sets the start date on a placement — the day the intern actually begins on the project, which is often not the day the placement was decided. It is optional: leave it empty when nobody knows yet, and set it later once they do. From that day the intern no longer has to record attendance: those days show in their own colour instead of absent, and the month reads "—" instead of 0%. Until a start date is set the intern keeps recording attendance as normal, and moving the date moves the cut-off with it
 - Manages documentation links on intern profiles
 - Works with tickets like everyone else, plus can cross workspace boundaries (view tickets/analytics of any workspace, not just their own)
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
@@ -64,6 +65,7 @@
 - Sees no one else's recommendations or evaluations
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics
+- Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then
 - No access to other interns', mentors', or admin/leadership data or functions
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 

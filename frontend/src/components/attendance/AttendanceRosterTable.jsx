@@ -2,7 +2,14 @@ import { useMemo, useState } from 'react';
 import { ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { attendanceRateTextClass, formatCheckInDate, isCheckedInToday } from '@/helpers/attendance';
+import {
+  attendanceRateTextClass,
+  formatAttendanceRate,
+  hasAttendanceRate,
+  formatCheckInDate,
+  isCheckedInToday,
+  isExemptToday,
+} from '@/helpers/attendance';
 
 const columnsFor = (rateLabel) => [
   { key: 'name', label: 'Intern', sortable: true },
@@ -12,7 +19,19 @@ const columnsFor = (rateLabel) => [
   { key: 'last', label: 'Last check-in', sortable: true },
 ];
 
-function RateBar({ rate }) {
+function RateBar({ rate, exempt = false }) {
+  // Nothing was owed (the intern is on a project): render an empty track and a dash
+  // rather than a 0% bar, which would read as a month of absences.
+  if (!hasAttendanceRate(rate)) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted/50" />
+        <span className="text-sm font-semibold tabular-nums text-muted-foreground">—</span>
+        {exempt && <span className="text-xs text-muted-foreground">on project</span>}
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
@@ -31,7 +50,7 @@ function RateBar({ rate }) {
         />
       </div>
       <span className={cn('text-sm font-semibold tabular-nums', attendanceRateTextClass(rate))}>
-        {rate}%
+        {formatAttendanceRate(rate)}
       </span>
     </div>
   );
@@ -67,9 +86,15 @@ export default function AttendanceRosterTable({
       roster.map((row) => ({
         ...row,
         stat: {
-          rate: row.attendanceRate ?? 0,
+          // Kept as null when nothing was owed — `RateBar` renders a dash, and the
+          // sort below pushes these to the end instead of treating them as 0%.
+          rate: row.attendanceRate ?? null,
           present: row.presentDays ?? 0,
           working: row.workingDays ?? 0,
+          // Only once they have actually started — an intern whose placement
+          // start date is still ahead of them keeps owing attendance, and the
+          // rate beside this flag is computed on exactly that basis.
+          exempt: isExemptToday(row.placedAt),
         },
       })),
     [roster]
@@ -91,8 +116,17 @@ export default function AttendanceRosterTable({
             (new Date(a.lastCheckIn || 0).getTime() - new Date(b.lastCheckIn || 0).getTime()) * dir
           );
         case 'rate':
-        default:
+        default: {
+          // Interns who owed nothing have no rate to rank. `null - number` coerces to
+          // 0 in JS, which would sort them alongside the worst attenders — so they
+          // are pinned to the end in both directions instead.
+          const aHas = hasAttendanceRate(a.stat.rate);
+          const bHas = hasAttendanceRate(b.stat.rate);
+          if (!aHas && !bHas) return 0;
+          if (!aHas) return 1;
+          if (!bHas) return -1;
           return (a.stat.rate - b.stat.rate) * dir;
+        }
       }
     });
     return list;
@@ -158,7 +192,7 @@ export default function AttendanceRosterTable({
                   </td>
                   <td className="px-5 py-4 text-muted-foreground">{row.intern.hub}</td>
                   <td className="px-5 py-4">
-                    <RateBar rate={row.stat.rate} />
+                    <RateBar rate={row.stat.rate} exempt={row.stat.exempt} />
                   </td>
                   <td className="px-5 py-4 tabular-nums text-muted-foreground">
                     {row.stat.present} / {row.stat.working}

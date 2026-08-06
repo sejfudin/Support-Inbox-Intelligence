@@ -152,6 +152,23 @@ const recommendationSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
       },
+      // The intern's FIRST DAY ON THE PROJECT — when the placement actually
+      // begins, which is routinely not the day it was decided. Deliberately
+      // optional: a placement is often recorded before anyone knows the start
+      // date, and an empty field is how "we don't know yet" stays visible
+      // instead of being papered over with a guess. Editable afterwards,
+      // forwards or backwards, as many times as the date slips.
+      //
+      // Drives the intern's attendance exemption through
+      // `InternProfile.placedAt` — while this is empty they are still on the
+      // programme and still owe attendance. See `placementExemptionDate` in
+      // helpers/attendanceStats.js and the sync in recommendationService.
+      //
+      // Only meaningful alongside `outcome: 'placed'`; reversing an outcome
+      // clears it.
+      startDate: {
+        type: Date,
+      },
     },
   },
   { timestamps: true }

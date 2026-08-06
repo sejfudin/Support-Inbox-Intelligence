@@ -152,6 +152,8 @@ export default function InternDashboardPage() {
                     records={attendance?.records}
                     cancelledDates={attendance?.cancelledDates}
                     month={attendance?.month}
+                    placedAt={attendance?.placedAt}
+                    nonWorkingDays={attendance?.nonWorkingDays}
                     onCheckIn={() => checkIn()}
                     isCheckingIn={isCheckingIn}
                   />

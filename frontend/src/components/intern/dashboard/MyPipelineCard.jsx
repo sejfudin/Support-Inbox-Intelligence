@@ -98,6 +98,15 @@ const stepDetail = (step, recommendation) => {
 
   const outcome = recommendation.result?.outcome;
   if (outcome) {
+    // Once they are placed, when they start is the only part of this the intern
+    // can act on — it outranks the day the decision was recorded. Still unknown
+    // is worth saying out loud rather than falling back to a date that isn't it.
+    if (outcome === 'placed') {
+      const starts = formatDay(recommendation.result.startDate);
+      return starts
+        ? `${RESULT_LABEL.placed} · starts ${starts}`
+        : `${RESULT_LABEL.placed} · start date to be confirmed`;
+    }
     const decided = formatDay(recommendation.result.decidedAt);
     return decided ? `${RESULT_LABEL[outcome]} · ${decided}` : RESULT_LABEL[outcome];
   }

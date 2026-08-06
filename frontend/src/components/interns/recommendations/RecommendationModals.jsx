@@ -134,6 +134,18 @@ export function RecommendationViewModal({
             · {formatRecDate(recommendation.result.decidedAt)} by{' '}
             {recommendation.result.decidedBy?.fullname || 'Unknown'}
           </p>
+          {recommendation.result.outcome === 'placed' && (
+            <p
+              className="mt-1 text-[13.5px] text-muted-foreground"
+              data-test="placement-start-date"
+            >
+              {recommendation.result.startDate ? (
+                <>Starts {formatRecDate(recommendation.result.startDate)}</>
+              ) : (
+                <>Start date not set — still counted in attendance</>
+              )}
+            </p>
+          )}
           {recommendation.result.note && (
             <p className="mt-1 text-[13.5px] text-muted-foreground [overflow-wrap:anywhere]">
               {recommendation.result.note}
@@ -220,6 +232,9 @@ export function RecommendationFormModal({
   };
 
   const showOutcomeSection = isEditing && (form.status === 'resulted' || hasRecordedOutcome);
+  // A start date belongs to a placement and nothing else, so the field is shown
+  // but inert until the outcome says Placed.
+  const placementStartDisabled = form.resultOutcome !== 'placed';
   // Saving a Resulted recommendation requires a concrete placement result;
   // while "--" is selected the primary action stays disabled.
   const outcomeMissing = isEditing && form.status === 'resulted' && form.resultOutcome === 'none';
@@ -451,7 +466,19 @@ export function RecommendationFormModal({
                   <Select
                     value={form.resultOutcome}
                     onValueChange={(resultOutcome) =>
-                      setForm((prev) => ({ ...prev, resultOutcome }))
+                      setForm((prev) => ({
+                        ...prev,
+                        resultOutcome,
+                        // Choosing "Placed" offers the Resulted date as the start
+                        // date, since starting straight away is the common case.
+                        // Only fills a blank field — a date already typed, or one
+                        // cleared on purpose while the picker stays on Placed, is
+                        // left alone.
+                        startDate:
+                          resultOutcome === 'placed' && !prev.startDate
+                            ? prev.statusDates.resulted || todayInputDate()
+                            : prev.startDate,
+                      }))
                     }
                   >
                     <SelectTrigger
@@ -485,6 +512,49 @@ export function RecommendationFormModal({
                     data-test="recommendation-result-note-input"
                   />
                 </div>
+              </div>
+              {/* Always on show once the status is Resulted, disabled until the
+                  outcome is Placed — the same idiom as the unreached status-date
+                  inputs above. Rendering it only for a placement made the field
+                  impossible to find: you had to already know it would appear. */}
+              <div className="mt-4">
+                <FieldLabel htmlFor="recommendation-start-date" className="mb-2">
+                  Start date
+                </FieldLabel>
+                <div className="grid items-center gap-4 sm:grid-cols-2">
+                  <input
+                    id="recommendation-start-date"
+                    type="date"
+                    value={placementStartDisabled ? '' : form.startDate || ''}
+                    disabled={placementStartDisabled}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, startDate: event.target.value }))
+                    }
+                    className={cn(
+                      INPUT_CLASS,
+                      placementStartDisabled &&
+                        'cursor-not-allowed bg-muted/40 text-muted-foreground/70'
+                    )}
+                    data-test="recommendation-start-date"
+                  />
+                  {!placementStartDisabled && form.startDate && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, startDate: '' }))}
+                      className="justify-self-start text-[12.5px] font-semibold text-primary transition hover:text-primary/80"
+                      data-test="recommendation-start-date-clear"
+                    >
+                      Not known yet
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                  {placementStartDisabled
+                    ? 'Only a placement has a start date — choose “Placed” to set one.'
+                    : form.startDate
+                      ? 'The intern’s first day on the project — attendance stops counting from this day. Defaults to the Resulted date; edit it whenever the date moves.'
+                      : 'Not set. The intern stays on the programme and keeps owing attendance until a start date is entered — come back and set it once it’s known.'}
+                </p>
               </div>
               <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
                 Select &quot;Placed&quot; or &quot;Not placed&quot; to enable saving. &quot;Not

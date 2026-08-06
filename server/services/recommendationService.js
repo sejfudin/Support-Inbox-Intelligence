@@ -9,6 +9,7 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { escapeRegex } = require('../helpers/escapeRegex');
+const { placementExemptionDate } = require('../helpers/attendanceStats');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
@@ -123,6 +124,8 @@ const formatRecommendation = (recommendation, statusDates = {}) => {
       note: plain.result?.note || '',
       decidedAt: plain.result?.decidedAt || null,
       decidedBy: formatUser(plain.result?.decidedBy),
+      // The intern's first day on the project; null while it is still unknown.
+      startDate: plain.result?.startDate || null,
     },
     // Date each tracked status was applied. The document's own statusDates are
     // authoritative (author-editable, support skipping interviewing); records
@@ -195,6 +198,10 @@ const parseDate = (value, label) => {
   }
   return date;
 };
+
+// Dates compare by value, and either side may be null — "no date" is a real
+// state here, not a missing one.
+const sameInstant = (a, b) => (a && b ? new Date(a).getTime() === new Date(b).getTime() : !a && !b);
 
 const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -536,11 +543,25 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
     throw httpError('Result note is required', 400);
   }
 
+  // The start date is a straight passthrough: omit it to leave the recorded one
+  // alone, send a date to set or move it, send null to clear it back to
+  // "unknown". No default is invented here — the form prefills the field with the
+  // Resulted date, so an empty one arriving at this point was emptied on purpose,
+  // and refilling it would overrule the admin. Not constrained relative to the
+  // stage dates either: an intern can have started before anyone recorded the
+  // placement, so a start date earlier than the Resulted date is legitimate.
+  const startDate =
+    payloadResult.startDate === undefined
+      ? recommendation.result?.startDate
+      : parseDate(payloadResult.startDate, 'Start date');
+
   recommendation.result = {
     outcome,
     note,
     decidedAt: outcome ? new Date() : undefined,
     decidedBy: outcome ? user._id : undefined,
+    // Only a placement has a start date — reversing the outcome drops it.
+    startDate: outcome === 'placed' ? startDate : undefined,
   };
 
   if (outcome) {
@@ -690,14 +711,37 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   // (ready for a new placement). Terminal statuses are never touched.
   const outcome = recommendation.result?.outcome;
   if (outcome === 'placed') {
+    let dirty = false;
     if (profile.status !== 'placed') {
       profile.status = 'placed';
-      await profile.save();
+      dirty = true;
     }
+    // Going onto a project ends the attendance obligation, so stamp `placedAt` —
+    // otherwise the intern silently accrues absence for every working day after
+    // they leave.
+    //
+    // The day that happens is the placement's START DATE, and only that: see
+    // `placementExemptionDate` for why neither the Resulted date nor
+    // `result.decidedAt` will do. A placement whose start date is still unknown
+    // exempts nothing, which is the point — the intern is placed on paper but
+    // has not left the programme yet.
+    //
+    // Re-derived on every result update rather than only when empty, so moving
+    // the start date moves the exemption with it, in both directions and however
+    // many times the date slips. (An intern with no recommendation at all is
+    // still exempted by setting `placedAt` directly via internService.)
+    const exemptFrom = placementExemptionDate(recommendation.result);
+    if (!sameInstant(profile.placedAt, exemptFrom)) {
+      profile.placedAt = exemptFrom;
+      dirty = true;
+    }
+    if (dirty) await profile.save();
     // Note: the intern's OTHER open recommendations are intentionally left
     // untouched — each recommendation is resolved individually by the mentor.
   } else if (outcome === 'not_placed' && ['active', 'placed'].includes(profile.status)) {
     profile.status = READY_STATUS;
+    // Back on the bench: they owe attendance again, so the exemption is lifted.
+    profile.placedAt = null;
     await profile.save();
   }
 
@@ -764,9 +808,11 @@ const deleteRecommendation = async (user, recommendationId) => {
  * The redacted shape an intern sees of their *own* recommendation.
  *
  * Shown: which project and position, which stage the record is at and when it
- * got there, the scheduled interviews, and the final outcome. That is the
- * lifecycle the intern is living through and the whole content of the dashboard's
- * "My pipeline" card.
+ * got there, the scheduled interviews, the final outcome, and — once they are
+ * placed — the day they start. That is the lifecycle the intern is living
+ * through and the whole content of the dashboard's "My pipeline" card. The start
+ * date is a fact about the intern's own schedule, unlike the notes below, which
+ * are written *about* them.
  *
  * Withheld, deliberately: `recommendationNote` (the admin's internal pitch for
  * this intern), `interviews[].feedback` (the interviewer's write-up, including a
@@ -801,6 +847,7 @@ const formatOwnRecommendation = (recommendation, historyDates = {}) => {
     result: {
       outcome: recommendation.result?.outcome || null,
       decidedAt: recommendation.result?.decidedAt || null,
+      startDate: recommendation.result?.startDate || null,
     },
     updatedAt: recommendation.updatedAt,
   };

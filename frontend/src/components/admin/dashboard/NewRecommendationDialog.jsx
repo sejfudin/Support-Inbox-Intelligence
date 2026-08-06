@@ -28,6 +28,11 @@ const createEmptyForm = () => ({
   status: 'recommended',
   resultOutcome: 'none',
   resultNote: '',
+  // Never editable here — a new recommendation starts at Recommended, so the
+  // placement-outcome section (and with it the start date) stays hidden. Present
+  // only to keep the form shape identical to the panel's, which the shared modal
+  // reads from.
+  startDate: '',
   statusDates: { recommended: todayInputDate(), interviewing: '', resulted: '' },
   interviewingSkipped: false,
 });

@@ -2,7 +2,13 @@ import { isWeekend } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { isIntern } from '@/helpers/roles';
 import { useMyAttendance } from '@/queries/attendance';
-import { isCheckedInToday, checkInWindowState, CHECK_IN_WINDOW_LABEL } from '@/helpers/attendance';
+import {
+  isCheckedInToday,
+  checkInWindowState,
+  exemptFromKey,
+  officeDateKey,
+  CHECK_IN_WINDOW_LABEL,
+} from '@/helpers/attendance';
 
 /**
  * Whether the signed-in intern still needs to check in today, and a message for
@@ -10,6 +16,10 @@ import { isCheckedInToday, checkInWindowState, CHECK_IN_WINDOW_LABEL } from '@/h
  * interns, while the check-in window is open, and before they've checked in
  * (including after a cancel/uncheck). It clears automatically once they check in
  * or the window closes.
+ *
+ * An intern already on a real project (`placedAt`) is never reminded — they owe no
+ * attendance, and the server would refuse the check-in anyway. Back-dating
+ * `placedAt` silences the banner and the bell from the next render.
  *
  * @returns {{ active: boolean, title: string, body: string, windowLabel: string }}
  */
@@ -21,10 +31,16 @@ export function useCheckInReminder() {
   const { data } = useMyAttendance({ enabled: intern });
 
   const records = data?.records ?? [];
+  const exemptFrom = exemptFromKey(data?.placedAt);
+  const onProject = Boolean(exemptFrom) && officeDateKey() >= exemptFrom;
 
   const windowState = checkInWindowState();
   const active =
-    intern && !isWeekend(new Date()) && windowState === 'open' && !isCheckedInToday(records);
+    intern &&
+    !onProject &&
+    !isWeekend(new Date()) &&
+    windowState === 'open' &&
+    !isCheckedInToday(records);
 
   return {
     active,
