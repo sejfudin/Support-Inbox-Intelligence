@@ -6,7 +6,11 @@ const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const { resolveWorkloadBuckets } = require('../helpers/workloadBuckets');
 const { getActiveWorkspaceInterns } = require('../helpers/workspaceInterns');
-const { computeMonthStats, averageAttendanceRate } = require('../helpers/attendanceStats');
+const {
+  computeMonthStats,
+  averageAttendanceRate,
+  loadNonWorkingDays,
+} = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
 const {
   officeDateKey,
@@ -233,12 +237,13 @@ const getAdminDashboard = async ({ workspaceId }) => {
   const inProgrammeUsers = internUsers.filter((u) => profileByUser.has(String(u._id)));
   const inProgrammeUserIds = inProgrammeUsers.map((u) => u._id);
 
-  const [workloadByUser, attendanceByProfile, recentPlacements, recentSpecializations] =
+  const [workloadByUser, attendanceByProfile, recentPlacements, recentSpecializations, nonWorking] =
     await Promise.all([
       loadWorkloads({ workspaceId, internUserIds: inProgrammeUserIds, statusIdToSlug }),
       loadAttendance({ profiles, monthKey }),
       loadPlacements(),
       loadSpecializations(),
+      loadNonWorkingDays(),
     ]);
 
   // `presentToday` drives the presence KPI and the absent list, and is dropped
@@ -251,7 +256,9 @@ const getAdminDashboard = async ({ workspaceId }) => {
       const { attendanceRate, presentDays, workingDays } = computeMonthStats(
         records,
         monthKey,
-        profile.startDate
+        profile.startDate,
+        profile.placedAt,
+        nonWorking.keys
       );
       const counts = workloadByUser.get(String(user._id)) || {};
 

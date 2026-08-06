@@ -76,16 +76,36 @@ const isWeekendKey = (key) => {
 };
 
 /**
+ * The 'YYYY-MM-DD' key for the day before `key`.
+ *
+ * Used to turn an exclusive boundary into an inclusive one: an intern's attendance
+ * obligation ends the day *before* `placedAt`, so the last owed day is
+ * `previousDayKey(placedAt)`. Walks from UTC noon so the subtraction can't slip a
+ * day across a DST boundary.
+ */
+const previousDayKey = (key) => new Date(keyToUtcNoon(key) - DAY_MS).toISOString().slice(0, 10);
+
+const NO_EXCLUSIONS = new Set();
+
+/**
  * Count working days (Mon–Fri) between two 'YYYY-MM-DD' keys, inclusive.
  * Returns 0 if the range is empty or inverted.
+ *
+ * `excluded` is a Set of 'YYYY-MM-DD' keys nobody was expected to attend — public
+ * holidays, programme breaks, remote weeks (see `models/NonWorkingDay.js`). They
+ * drop out of the denominator exactly like a weekend; a day nobody owed is not an
+ * absence. Weekends are derived here and never need listing.
  */
-const countWorkingDays = (startKey, endKey) => {
+const countWorkingDays = (startKey, endKey, excluded = NO_EXCLUSIONS) => {
   if (!startKey || !endKey || startKey > endKey) return 0;
   const end = keyToUtcNoon(endKey);
   let count = 0;
   for (let t = keyToUtcNoon(startKey); t <= end; t += DAY_MS) {
-    const day = new Date(t).getUTCDay();
-    if (day !== 0 && day !== 6) count += 1;
+    const date = new Date(t);
+    const day = date.getUTCDay();
+    if (day === 0 || day === 6) continue;
+    if (excluded.has(date.toISOString().slice(0, 10))) continue;
+    count += 1;
   }
   return count;
 };
@@ -113,6 +133,7 @@ module.exports = {
   checkInWindowState,
   isWithinCheckInWindow,
   isWeekendKey,
+  previousDayKey,
   countWorkingDays,
   officeMonthKey,
   isValidMonthKey,

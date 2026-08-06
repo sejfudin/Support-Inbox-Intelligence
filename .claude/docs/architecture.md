@@ -157,6 +157,12 @@ lifecycle status (`InternProfile.status`):
 - `placed` → profile `placed`; `not_placed` → profile `ready` (back on the bench). Terminal
   states (`completed` / `discontinued`) are never touched.
 - A recorded outcome can be changed but never removed.
+- **`result.startDate`** (Date, optional) is the intern's **first day on the project** — often not
+  the day the placement was decided. The form prefills it with the Resulted date and it can be
+  edited afterwards, forwards or backwards, as often as the date slips; clearing it records "we
+  don't know yet" rather than a guess. Deliberately **not** ordered against the stage dates: an
+  intern may have started before anyone recorded the placement. It drives the attendance
+  exemption — see `InternProfile.placedAt` under Attendance. Reversing the outcome clears it.
 - **Delete recomputes from the most recent remaining recommendation**: newest is `placed` →
   stays `placed`, anything else (or none left) → `ready`. Deleting also removes the record's
   history trail. The confirm dialog warns when deleting the placement that marked the intern placed.
@@ -296,10 +302,47 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
   nothing schema-level constrains the `present`↔`cancelled` transitions.
 - **Reporting is per calendar month, never cumulative** (no all-time rate). `presentDays` /
   `workingDays` (Mon–Fri) / `attendanceRate` are computed for one month at a time, clamped to
-  `[max(monthStart, startDate), min(monthEnd, today)]` — so a mid-month joiner isn't penalised and
-  the current month only counts elapsed days. Always computed from raw records, never stored, so
-  they can't go stale (`computeMonthStats` in `server/helpers/attendanceStats.js` — shared by the
-  roster and the admin dashboard; unit-tested in `attendanceStats.test.js`).
+  `[max(monthStart, startDate), min(monthEnd, today, lastOwedDay)]` — so a mid-month joiner isn't
+  penalised, the current month only counts elapsed days, and a placed intern stops accruing. Always
+  computed from raw records, never stored, so they can't go stale (`computeMonthStats` in
+  `server/helpers/attendanceStats.js` — shared by the roster and the admin dashboard; unit-tested in
+  `attendanceStats.test.js`).
+- **The attendance obligation ends when an intern goes onto a real project** — `InternProfile.placedAt`
+  (Date, nullable) is their **first day on the project** and is **inclusive-from**: that day is
+  already exempt, so the last owed day is `previousDayKey(placedAt)`. From `placedAt` on, days leave
+  the denominator and render in their own amber (`DAY_STATUS.EXEMPT`) rather than as absences —
+  a colour rather than grey because grey made them indistinguishable from a weekend or a holiday;
+  amber rather than blue because blue is the remote-day colour (see `NonWorkingDay.kind`), and
+  `checkIn()` is refused (422) so the exemption isn't merely cosmetic. Mirrors the placement's
+  **`result.startDate`** and nothing else (`placementExemptionDate` in `attendanceStats.js`) —
+  **not** `statusDates.resulted` (when the decision was recorded) and **not** `result.decidedAt`
+  (when someone got around to clicking it). An intern placed today who starts in ten days is on
+  the programme for those ten days and owes attendance for every one of them. Re-derived on every
+  result update, so moving the start date moves the exemption with it, in either direction.
+  **A placement with no start date yet exempts nothing** (`placedAt` stays null): placed on paper,
+  still owes attendance. An intern with no recommendation at all is exempted by setting `placedAt`
+  directly via `internService.updateInternProfile` — but for anyone who *has* a placement record
+  that value is overwritten on the next update, so edit the start date instead. Cleared when an
+  outcome flips back to `not_placed`.
+  **Distinct from `expectedEndDate`**, which is when the internship is *expected* to finish and
+  drives placement-bench urgency — do not conflate them.
+- **`placedAt` is routinely in the future** now that a start date can be recorded ahead of time.
+  Every "is this intern exempt?" check must therefore compare against today rather than testing
+  the field for truthiness — `isExemptToday(placedAt)` on the frontend (`helpers/attendance.js`),
+  `isExemptOn(placedAt, dateKey)` on the server. `Boolean(placedAt)` is the easy mistake and it
+  makes the UI disagree with the denominator.
+- **`NonWorkingDay`** is the cohort-wide calendar of weekdays nobody owed — `{ date, label, kind }`
+  where `kind` is `holiday | break | remote` (default `holiday`). `kind` is **presentation only**:
+  every kind leaves the denominator identically, and nothing in the maths branches on it. It exists
+  so the calendar can colour a remote week blue against a holiday's grey, which the free-text
+  `label` can't be relied on to do. **Cohort-wide only** — per-intern days off (an intern requesting
+  remote, calling in sick, taking leave) need their own per-intern model with a requester and an
+  approval state; widening `kind` for them would exempt the whole cohort for one person's day.
+- **`attendanceRate` is `null`, never `0`, when nothing was owed** (`workingDays === 0`: a placed
+  intern, or a month before the start date). "No obligation" and "attended nothing" are different
+  facts, and a fabricated `0%` reads exactly like a real one. Every consumer must handle null —
+  render `—` (`formatAttendanceRate` / `hasAttendanceRate` in `frontend/src/helpers/attendance.js`),
+  exclude it from averages (`averageAttendanceRate` skips nulls), and sort it last, not as zero.
 - **Check-in window** (`attendanceTime.js`): open 07:00–11:00 `Europe/Sarajevo` time on weekdays.
   The server is authoritative; the client mirrors the rule for UX only.
 - Endpoints: `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat

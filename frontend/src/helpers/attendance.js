@@ -22,6 +22,18 @@ export const DAY_STATUS = Object.freeze({
   WEEKEND: 'weekend',
   FUTURE: 'future',
   TODAY_PENDING: 'today-pending', // a working today with no check-in yet
+  // On or after the intern's first day on a real project: they are no longer
+  // obliged to record attendance, so the day is inert and greyed out like a
+  // weekend — never an absence.
+  EXEMPT: 'exempt',
+  // A weekday nobody was expected to attend: public holiday, programme break,
+  // remote week. Greyed out like a weekend, and never an absence. Comes from the
+  // server's NonWorkingDay collection, not derived here.
+  NON_WORKING: 'non-working',
+  // Before the intern joined the programme. The calendar pages back through the
+  // whole year, so without this every month before `startDate` renders as a wall of
+  // absences for days the intern could not possibly have attended.
+  BEFORE_START: 'before-start',
 });
 
 // Check-in is an office-time concept: the server keys every Attendance record with
@@ -65,15 +77,89 @@ const officeToday = (now = new Date()) => {
 const isOfficeToday = (date, now = new Date()) => toKey(date) === officeDateKey(now);
 
 /**
+ * 'yyyy-MM-dd' from which the intern is exempt from recording attendance, or null.
+ *
+ * Mirrors `InternProfile.placedAt` and is **inclusive-from** — the day itself is
+ * already exempt, matching the server's `isExemptOn`. Read in office time so the
+ * boundary flips on Sarajevo's calendar day, not the viewer's.
+ */
+export const exemptFromKey = (placedAt) => (placedAt ? officeDateKey(new Date(placedAt)) : null);
+
+/**
+ * Whether the intern owes no attendance *as of today* — actually on the project,
+ * not merely booked onto one.
+ *
+ * A `placedAt` in the future is deliberately NOT exempt. Placements are routinely
+ * recorded days or weeks before the start date, and until that day arrives the
+ * intern is still on the programme: the server keeps counting them in the
+ * denominator, so any surface that says "not required" has to wait for the same
+ * day the maths does. Reading `Boolean(placedAt)` instead is the easy mistake.
+ */
+export const isExemptToday = (placedAt, now = new Date()) => {
+  const exemptFrom = exemptFromKey(placedAt);
+  return Boolean(exemptFrom) && officeDateKey(now) >= exemptFrom;
+};
+
+const EMPTY_KEYS = new Set();
+
+/** `[{date,label}]` from the API → a Set of keys for the classifiers. */
+export const nonWorkingKeySet = (nonWorkingDays = []) =>
+  new Set(nonWorkingDays.map((d) => (typeof d === 'string' ? d : d.date)));
+
+/** Why a day is non-working ("Labour Day"), for the tooltip. */
+export const nonWorkingLabel = (nonWorkingDays = [], key) =>
+  nonWorkingDays.find((d) => (typeof d === 'string' ? d : d.date) === key)?.label || '';
+
+/**
+ * Which sort of non-working day this is — 'holiday' | 'break' | 'remote'.
+ *
+ * Presentation only: every kind is already out of the denominator by the time
+ * anything asks. It exists so a remote week can be coloured apart from a public
+ * holiday. Anything unrecognised (a plain string key, a row written before `kind`)
+ * reads as 'holiday', which is the conservative default — a day is only special-
+ * cased when it says so.
+ */
+export const nonWorkingKind = (nonWorkingDays = [], key) => {
+  const day = nonWorkingDays.find((d) => (typeof d === 'string' ? d : d.date) === key);
+  return (typeof day === 'string' ? null : day?.kind) || 'holiday';
+};
+
+/**
  * Classify a single calendar day.
  * @param {Date} date
  * @param {Set<string>} presentKeys - 'yyyy-MM-dd' the intern checked in
  * @param {Set<string>} [cancelledKeys] - 'yyyy-MM-dd' the intern cancelled
  * @param {Date} [now]
+ * @param {string|Date|null} [placedAt] - first day on a real project; from here the
+ *   intern owes nothing, so every day reads EXEMPT
+ * @param {Set<string>} [nonWorkingKeys] - 'yyyy-MM-dd' nobody was expected to attend
+ * @param {string|Date|null} [startDate] - the intern's first day in the programme;
+ *   anything before it was never owed
  */
-export const classifyDay = (date, presentKeys, cancelledKeys = new Set(), now = new Date()) => {
+export const classifyDay = (
+  date,
+  presentKeys,
+  cancelledKeys = new Set(),
+  now = new Date(),
+  placedAt = null,
+  nonWorkingKeys = EMPTY_KEYS,
+  startDate = null
+) => {
   const key = toKey(date);
+  // Checked ahead of everything else, including PRESENT: once an intern is on a
+  // project the whole rest of the calendar is greyed out, so a stray check-in after
+  // that date cannot make the day read as counted attendance.
+  const exemptFrom = exemptFromKey(placedAt);
+  if (exemptFrom && key >= exemptFrom) return DAY_STATUS.EXEMPT;
+  // Also ahead of PRESENT: the day was not owed, so a check-in on it is not
+  // attendance that counts — the server drops it from the rate for the same reason.
+  if (nonWorkingKeys.has(key)) return DAY_STATUS.NON_WORKING;
+  // After PRESENT would hide a genuine record; before ABSENT is the whole point.
+  // A record cannot legitimately predate `startDate` (the importer pulls the start
+  // back to the first attended day), so this ordering loses nothing.
   if (presentKeys.has(key)) return DAY_STATUS.PRESENT;
+  const startKey = startDate ? officeDateKey(new Date(startDate)) : null;
+  if (startKey && key < startKey) return DAY_STATUS.BEFORE_START;
   if (isWeekend(date)) return DAY_STATUS.WEEKEND;
   // Cancelled today while the window is still open (or not yet open) can be
   // re-checked-in — treat as pending, not locked absent.
@@ -100,7 +186,14 @@ export const classifyDay = (date, presentKeys, cancelledKeys = new Set(), now = 
  * @param {Array<{date: string}>} records - check-in records
  * @returns {{ weeks: Array<Array<{date: Date|null, status: string}|null>>, monthLabel: string }}
  */
-export const buildMonthGrid = (monthDate, records = [], cancelledDates = []) => {
+export const buildMonthGrid = (
+  monthDate,
+  records = [],
+  cancelledDates = [],
+  placedAt = null,
+  nonWorkingKeys = EMPTY_KEYS,
+  startDate = null
+) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
   const start = startOfMonth(monthDate);
@@ -113,7 +206,18 @@ export const buildMonthGrid = (monthDate, records = [], cancelledDates = []) => 
   const cells = [];
   for (let i = 0; i < leadingBlanks; i += 1) cells.push(null);
   days.forEach((date) =>
-    cells.push({ date, status: classifyDay(date, presentKeys, cancelledKeys) })
+    cells.push({
+      date,
+      status: classifyDay(
+        date,
+        presentKeys,
+        cancelledKeys,
+        new Date(),
+        placedAt,
+        nonWorkingKeys,
+        startDate
+      ),
+    })
   );
   while (cells.length % 7 !== 0) cells.push(null);
 
@@ -127,10 +231,18 @@ export const buildMonthGrid = (monthDate, records = [], cancelledDates = []) => 
  * Current consecutive-present-working-day streak ending at the most recent
  * working day (skips weekends). Counts back from today.
  */
-export const computeStreak = (records = []) => {
+export const computeStreak = (records = [], placedAt = null) => {
   const presentKeys = new Set(records.map((r) => r.date));
   let streak = 0;
+  // A placed intern's streak is historical: count back from their last owed day,
+  // not from today, or the exempt stretch since placement reads as a broken streak.
+  const exemptFrom = exemptFromKey(placedAt);
   const cursor = officeToday();
+  if (exemptFrom && toKey(cursor) >= exemptFrom) {
+    const [y, m, d] = exemptFrom.split('-').map(Number);
+    cursor.setFullYear(y, m - 1, d);
+    cursor.setDate(cursor.getDate() - 1); // last owed day
+  }
   for (let i = 0; i < 400; i += 1) {
     const day = new Date(cursor);
     day.setDate(day.getDate() - i);
@@ -149,7 +261,14 @@ export const computeStreak = (records = []) => {
  * labels — the weekend cells render as inert rather than being dropped, which
  * would shift Friday under the "S" heading.
  */
-export const buildWeekStrip = (records = [], cancelledDates = [], now = new Date()) => {
+export const buildWeekStrip = (
+  records = [],
+  cancelledDates = [],
+  now = new Date(),
+  placedAt = null,
+  nonWorkingKeys = EMPTY_KEYS,
+  startDate = null
+) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
   // Anchored on the office calendar's today, not the browser's, so the strip shows
@@ -165,7 +284,15 @@ export const buildWeekStrip = (records = [], cancelledDates = [], now = new Date
       key: toKey(date),
       label: format(date, 'EEEEE'), // single letter: M T W T F S S
       isToday: isOfficeToday(date, now),
-      status: classifyDay(date, presentKeys, cancelledKeys, now),
+      status: classifyDay(
+        date,
+        presentKeys,
+        cancelledKeys,
+        now,
+        placedAt,
+        nonWorkingKeys,
+        startDate
+      ),
     };
   });
 };
@@ -176,7 +303,15 @@ export const buildWeekStrip = (records = [], cancelledDates = [], now = new Date
  * Monday morning doesn't read as "1 of 5" and look like a bad week.
  */
 export const weekAttendance = (weekStrip = []) => {
-  const working = weekStrip.filter((day) => day.status !== DAY_STATUS.WEEKEND);
+  // Exempt days are as inert as weekends — they were never owed, so they must not
+  // enter the denominator.
+  const INERT = [
+    DAY_STATUS.WEEKEND,
+    DAY_STATUS.EXEMPT,
+    DAY_STATUS.NON_WORKING,
+    DAY_STATUS.BEFORE_START,
+  ];
+  const working = weekStrip.filter((day) => !INERT.includes(day.status));
   return {
     present: working.filter((day) => day.status === DAY_STATUS.PRESENT).length,
     elapsed: working.filter((day) => day.status !== DAY_STATUS.FUTURE).length,
@@ -184,8 +319,19 @@ export const weekAttendance = (weekStrip = []) => {
   };
 };
 
+/**
+ * A null rate means nothing was owed that month — a placed intern, or a month
+ * before the intern started. It is NOT 0%: rendering it as a number would invent a
+ * measurement, so every display path goes through these three helpers.
+ */
+export const hasAttendanceRate = (rate) => typeof rate === 'number';
+
+/** '92%', or '—' when nothing was owed. */
+export const formatAttendanceRate = (rate) => (hasAttendanceRate(rate) ? `${rate}%` : '—');
+
 /** Badge variant for an attendance rate. */
 export const attendanceRateTone = (rate) => {
+  if (!hasAttendanceRate(rate)) return 'outline';
   if (rate >= 90) return 'success';
   if (rate >= 75) return 'default';
   if (rate >= 60) return 'warning';
@@ -194,6 +340,7 @@ export const attendanceRateTone = (rate) => {
 
 /** Tailwind text color class for an attendance rate (for non-badge contexts). */
 export const attendanceRateTextClass = (rate) => {
+  if (!hasAttendanceRate(rate)) return 'text-muted-foreground';
   if (rate >= 90) return 'text-emerald-600 dark:text-emerald-400';
   if (rate >= 75) return 'text-foreground';
   if (rate >= 60) return 'text-amber-600 dark:text-amber-400';
@@ -251,10 +398,18 @@ export const formatCheckInDate = (iso) => (iso ? format(new Date(iso), 'MMM d, H
  * @param {{ records: Array<{date:string, checkedInAt?:string}>, cancelledDates?: string[] }} entry
  * @param {Date} date
  */
-export const internStatusOnDate = (entry, date) => {
+export const internStatusOnDate = (entry, date, nonWorkingKeys = EMPTY_KEYS) => {
   const presentKeys = new Set((entry.records || []).map((r) => r.date));
   const cancelledKeys = new Set(entry.cancelledDates || []);
-  const status = classifyDay(date, presentKeys, cancelledKeys);
+  const status = classifyDay(
+    date,
+    presentKeys,
+    cancelledKeys,
+    new Date(),
+    entry.placedAt || null,
+    nonWorkingKeys,
+    entry.startDate || null
+  );
   const rec = (entry.records || []).find((r) => r.date === toKey(date));
   return { status, checkInTime: rec?.checkedInAt || null };
 };
@@ -266,6 +421,9 @@ export const dayStatusLabel = (status) =>
     [DAY_STATUS.WEEKEND]: 'Weekend',
     [DAY_STATUS.FUTURE]: 'Upcoming',
     [DAY_STATUS.TODAY_PENDING]: 'Not yet',
+    [DAY_STATUS.EXEMPT]: 'On project',
+    [DAY_STATUS.NON_WORKING]: 'Non-working',
+    [DAY_STATUS.BEFORE_START]: 'Before joining',
   })[status] || status;
 
 export const dayStatusBadgeVariant = (status) =>
@@ -275,4 +433,7 @@ export const dayStatusBadgeVariant = (status) =>
     [DAY_STATUS.WEEKEND]: 'outline',
     [DAY_STATUS.FUTURE]: 'outline',
     [DAY_STATUS.TODAY_PENDING]: 'warning',
+    [DAY_STATUS.EXEMPT]: 'outline',
+    [DAY_STATUS.NON_WORKING]: 'outline',
+    [DAY_STATUS.BEFORE_START]: 'outline',
   })[status] || 'secondary';

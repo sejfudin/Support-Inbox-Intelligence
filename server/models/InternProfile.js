@@ -63,6 +63,28 @@ const internProfileSchema = new mongoose.Schema(
     expectedEndDate: {
       type: Date,
     },
+    // The intern's FIRST DAY ON A REAL PROJECT. From this day on they are no longer
+    // obliged to record FEP attendance: those days leave the attendance denominator
+    // and render in their own colour in the calendar — not as absences, and not as
+    // a weekend's grey either. Null while the intern is still on the programme.
+    //
+    // Inclusive-from: `placedAt` itself is already exempt, so the last day the
+    // intern owed attendance is the day before it.
+    //
+    // Mirrors the start date on the placement that put them there — the day they
+    // actually begin, not the day the placement was decided — and is re-derived
+    // from it whenever that recommendation is updated, so editing the start date
+    // moves this with it. A placement recorded before anyone knows the start date
+    // leaves this null: still placed on paper, still owes attendance. Interns
+    // with no recommendation record at all are exempted by setting it by hand
+    // (internService). See recommendationService and helpers/attendanceStats.js.
+    //
+    // Distinct from `expectedEndDate`, which is when the internship is *expected*
+    // to finish and drives placement-bench urgency. Do not conflate them.
+    placedAt: {
+      type: Date,
+      default: null,
+    },
     selfTechnologies: [
       {
         type: mongoose.Schema.Types.ObjectId,

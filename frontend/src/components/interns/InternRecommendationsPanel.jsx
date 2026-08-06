@@ -67,6 +67,7 @@ const createEmptyForm = () => ({
   status: 'recommended',
   resultOutcome: 'none',
   resultNote: '',
+  startDate: '',
   statusDates: { recommended: todayInputDate(), interviewing: '', resulted: '' },
   interviewingSkipped: false,
 });
@@ -79,6 +80,12 @@ const formFromRecommendation = (recommendation) => {
   // without this the edit form rendered an empty Resulted date while the card
   // displayed one.
   const currentFallback = toInputDate(recommendation.updatedAt);
+  // The Resulted date *as the form will render it*, fallback included. The start
+  // date backfill below has to agree with what the user sees in that field — read
+  // the raw stored value instead and a legacy record shows a Resulted date beside
+  // an empty Start date, so saving it silently drops the intern's exemption.
+  const resultedDate =
+    toInputDate(dates.resulted) || (status === 'resulted' ? currentFallback : '');
   return {
     positionId: recommendation.position?._id || recommendation.position || '',
     projectId: recommendation.project?._id || recommendation.project || '',
@@ -87,6 +94,13 @@ const formFromRecommendation = (recommendation) => {
     status,
     resultOutcome: recommendation.result?.outcome || 'none',
     resultNote: recommendation.result?.note || '',
+    // The intern's first day on the project. Placements recorded before this
+    // field existed fall back to their Resulted date, which is what was already
+    // driving their attendance exemption — so opening an old record and saving
+    // it keeps the exemption it had instead of silently lifting it.
+    startDate:
+      toInputDate(recommendation.result?.startDate) ||
+      (recommendation.result?.outcome === 'placed' ? resultedDate : ''),
     statusDates: {
       recommended:
         toInputDate(dates.recommended) ||
@@ -94,7 +108,7 @@ const formFromRecommendation = (recommendation) => {
         todayInputDate(),
       interviewing:
         toInputDate(dates.interviewing) || (status === 'interviewing' ? currentFallback : ''),
-      resulted: toInputDate(dates.resulted) || (status === 'resulted' ? currentFallback : ''),
+      resulted: resultedDate,
     },
     // A resulted recommendation with no interviewing date means the stage was
     // skipped — a distinct state from "not reached yet".
@@ -225,6 +239,10 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
       payload.result = {
         outcome: form.resultOutcome,
         note: form.resultNote,
+        // Explicit null, not undefined: an emptied field means "we don't know
+        // when they start yet", which the server must record as such rather than
+        // leave the previous date standing. Only a placement carries one.
+        startDate: form.resultOutcome === 'placed' ? form.startDate || null : null,
       };
     }
 
@@ -280,6 +298,10 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
         return;
       }
     }
+    // The placement start date is deliberately NOT checked against the stage
+    // dates. It isn't a stage — an intern can have started on the project before
+    // anyone got round to recording the placement, so a start date earlier than
+    // the Resulted date is legitimate, not a mistake to block.
 
     const payload = buildPayload();
 

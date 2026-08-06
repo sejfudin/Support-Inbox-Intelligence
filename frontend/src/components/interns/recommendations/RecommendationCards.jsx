@@ -119,6 +119,15 @@ export function RecommendationCard({
             <div>
               <SectionLabel className="mb-3">Result</SectionLabel>
               <ResultChip result={recommendation.result} />
+              {/* Only on the detailed card — the compact row is a single line and
+                  already carries the chip, timeline and author. */}
+              {recommendation.result?.outcome === 'placed' && (
+                <p className="mt-2 text-[12.5px] text-muted-foreground">
+                  {recommendation.result.startDate
+                    ? `Starts ${formatRecDate(recommendation.result.startDate)}`
+                    : 'Start date not set'}
+                </p>
+              )}
             </div>
           </div>
 

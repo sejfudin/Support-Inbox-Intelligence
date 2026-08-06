@@ -11,7 +11,7 @@ const {
   CHECK_IN_WINDOW,
   CHECK_IN_WINDOW_LABEL,
 } = require('../helpers/attendanceTime');
-const { computeMonthStats } = require('../helpers/attendanceStats');
+const { computeMonthStats, isExemptOn, loadNonWorkingDays } = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
 
 const { PRESENT, CANCELLED } = Attendance;
@@ -50,15 +50,40 @@ const splitRows = (rows) => {
 // The intern's own summary returns their full history (the calendar pages
 // through months and the streak walks back across them, all client-side) plus a
 // server-computed stat block for the CURRENT month (start-date-prorated).
+//
+// `placedAt` is sent so the client can grey out every day from it onward instead
+// of drawing them as absences — the calendar pages through months client-side, so
+// it needs the boundary, not just this month's totals.
 const buildSummary = async (profile) => {
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates } = splitRows(rows);
   const monthKey = officeMonthKey();
+  const nonWorking = await loadNonWorkingDays();
   return {
     records,
     cancelledDates,
-    month: { key: monthKey, ...computeMonthStats(records, monthKey, profile.startDate) },
+    placedAt: profile.placedAt || null,
+    // The calendar pages back through the intern's whole history client-side, so it
+    // needs the start date too — without it every month before they joined renders
+    // as a wall of absences for days they could not have attended.
+    startDate: profile.startDate || null,
+    nonWorkingDays: nonWorking.list,
+    month: {
+      key: monthKey,
+      ...computeMonthStats(records, monthKey, profile.startDate, profile.placedAt, nonWorking.keys),
+    },
   };
+};
+
+/**
+ * An intern who has started on a real project is no longer obliged to record
+ * attendance, so check-in is refused rather than merely uncounted. Without this the
+ * exemption would be cosmetic: they could still create rows that the rate ignores.
+ */
+const assertNotPlaced = (profile, now) => {
+  if (isExemptOn(profile.placedAt, officeDateKey(now))) {
+    throw httpError('You are on a project, so you no longer need to record attendance.', 422);
+  }
 };
 
 const assertCheckInOpen = (now) => {
@@ -101,6 +126,7 @@ const markPresent = async (row, { now, user, ip }) => {
 const checkIn = async (user, { ip } = {}) => {
   const profile = await loadMyProfile(user);
   const now = new Date();
+  assertNotPlaced(profile, now);
   assertCheckInOpen(now);
 
   const date = officeDateKey(now);
@@ -163,13 +189,15 @@ const toInternSummary = (profile) => {
   };
 };
 
-const buildRosterEntry = (profile, rows, monthKey) => {
+const buildRosterEntry = (profile, rows, monthKey, nonWorkingKeys) => {
   const { records, cancelledDates, lastCheckIn } = splitRows(rows);
   return {
     intern: toInternSummary(profile),
     records,
     cancelledDates,
-    ...computeMonthStats(records, monthKey, profile.startDate),
+    placedAt: profile.placedAt || null,
+    startDate: profile.startDate || null,
+    ...computeMonthStats(records, monthKey, profile.startDate, profile.placedAt, nonWorkingKeys),
     lastCheckIn: lastCheckIn || null,
   };
 };
@@ -222,10 +250,11 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
     byIntern.get(key).push(row);
   }
 
+  const nonWorking = await loadNonWorkingDays();
   const roster = profiles.map((p) =>
-    buildRosterEntry(p, byIntern.get(p._id.toString()) || [], monthKey)
+    buildRosterEntry(p, byIntern.get(p._id.toString()) || [], monthKey, nonWorking.keys)
   );
-  return { month: monthKey, roster };
+  return { month: monthKey, roster, nonWorkingDays: nonWorking.list };
 };
 
 /**
@@ -254,11 +283,18 @@ const getInternAttendance = async (internProfileId, month) => {
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates } = splitRows(rows);
   const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
+  const nonWorking = await loadNonWorkingDays();
   return {
     intern: toInternSummary(profile),
     records,
     cancelledDates,
-    month: { key: monthKey, ...computeMonthStats(records, monthKey, profile.startDate) },
+    placedAt: profile.placedAt || null,
+    startDate: profile.startDate || null,
+    nonWorkingDays: nonWorking.list,
+    month: {
+      key: monthKey,
+      ...computeMonthStats(records, monthKey, profile.startDate, profile.placedAt, nonWorking.keys),
+    },
   };
 };
 

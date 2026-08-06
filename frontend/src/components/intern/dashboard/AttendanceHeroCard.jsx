@@ -10,6 +10,8 @@ import {
   buildWeekStrip,
   weekAttendance,
   computeStreak,
+  nonWorkingKeySet,
+  nonWorkingKind,
   todayRecord,
   isCancelledToday,
   formatCheckInTime,
@@ -30,7 +32,17 @@ const CELL_CLASS = {
   [DAY_STATUS.TODAY_PENDING]: 'border-2 border-dashed border-white/65 bg-white/[0.08]',
   [DAY_STATUS.FUTURE]: 'bg-black/20',
   [DAY_STATUS.WEEKEND]: 'bg-black/10',
+  // On a project: inert, but given its own amber rather than a weekend's grey —
+  // the calendar marks these days the same way, and an intern reading both should
+  // not have to work out that the blank cells and the amber ones are the same
+  // thing. Softer than present/absent because it carries no verdict.
+  [DAY_STATUS.EXEMPT]: 'bg-amber-400/60',
+  // Holiday or programme break — same reasoning. A remote week is non-working too
+  // but gets REMOTE_CELL, matching the calendar's blue.
+  [DAY_STATUS.NON_WORKING]: 'bg-black/10',
 };
+
+const REMOTE_CELL = 'bg-sky-400/60';
 
 // How long today's cell keeps its just-claimed emphasis. Long enough to be seen
 // if you were looking at the button you pressed, short enough that it is over
@@ -112,6 +124,11 @@ export function AttendanceHeroCard({
   records = [],
   cancelledDates = [],
   month,
+  // First day on a real project. From here the intern owes no attendance, so the
+  // week strip greys out and the check-in affordance is withdrawn rather than
+  // nagging them for days they are not expected in.
+  placedAt = null,
+  nonWorkingDays = [],
   onCheckIn,
   isCheckingIn,
   className,
@@ -124,13 +141,22 @@ export function AttendanceHeroCard({
   const justCheckedIn = useJustCheckedIn(checkedIn);
   const cancelled = isCancelledToday(cancelledDates);
   const windowState = checkInWindowState(now);
-  const streak = computeStreak(records);
+  const streak = computeStreak(records, placedAt);
 
-  const week = buildWeekStrip(records, cancelledDates, now);
+  const week = buildWeekStrip(
+    records,
+    cancelledDates,
+    now,
+    placedAt,
+    nonWorkingKeySet(nonWorkingDays)
+  );
   const { present: weekPresent, elapsed: weekElapsed } = weekAttendance(week);
 
-  const weekend = week.find((day) => day.isToday)?.status === DAY_STATUS.WEEKEND;
-  const missed = !checkedIn && !weekend && windowState === 'closed';
+  const todayStatus = week.find((day) => day.isToday)?.status;
+  const weekend = todayStatus === DAY_STATUS.WEEKEND;
+  // On a project: today is inert, so nothing is "missed" and check-in is not offered.
+  const exempt = todayStatus === DAY_STATUS.EXEMPT;
+  const missed = !checkedIn && !weekend && !exempt && windowState === 'closed';
 
   // One switch for the whole card: with reduced motion every preset collapses to
   // an empty object, so the elements render as plain swaps. The check-in pill is
@@ -158,17 +184,19 @@ export function AttendanceHeroCard({
         transition: { duration: 0.22, ease: 'easeOut' },
       };
 
-  const statusLine = checkedIn
-    ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
-    : weekend
-      ? 'Weekend — no check-in needed'
-      : missed
-        ? cancelled
-          ? 'Check-in cancelled — today counts as absent'
-          : 'Window closed — today counts as absent'
-        : windowState === 'before'
-          ? `Opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
-          : 'Not checked in yet';
+  const statusLine = exempt
+    ? 'On a project'
+    : checkedIn
+      ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
+      : weekend
+        ? 'Weekend — no check-in needed'
+        : missed
+          ? cancelled
+            ? 'Check-in cancelled — today counts as absent'
+            : 'Window closed — today counts as absent'
+          : windowState === 'before'
+            ? `Opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
+            : 'Not checked in yet';
 
   return (
     <section
@@ -184,7 +212,14 @@ export function AttendanceHeroCard({
           <span
             className={cn(
               'h-1.5 w-1.5 shrink-0 rounded-full',
-              checkedIn ? 'bg-emerald-400' : missed ? 'bg-red-400' : 'bg-amber-400'
+              // Exempt is neutral, not amber: amber reads as "still owed today".
+              exempt
+                ? 'bg-white/40'
+                : checkedIn
+                  ? 'bg-emerald-400'
+                  : missed
+                    ? 'bg-red-400'
+                    : 'bg-amber-400'
             )}
             aria-hidden="true"
           />
@@ -235,7 +270,10 @@ export function AttendanceHeroCard({
           first paint static; only the swap animates. */}
       <div className="flex flex-1 items-center py-4">
         <AnimatePresence mode="wait" initial={false}>
-          {checkedIn || weekend || missed ? (
+          {/* `exempt` belongs in this branch, not the button one: an intern on a
+              project owes nothing, and the server refuses their check-in with a 422,
+              so offering the control would only produce an error on click. */}
+          {checkedIn || weekend || missed || exempt ? (
             <motion.div key="attendance-link" className="w-full" {...pillMotion}>
               <Link
                 to="/my-attendance"
@@ -245,7 +283,11 @@ export function AttendanceHeroCard({
                 )}
                 data-test="intern-dashboard-attendance-link"
               >
-                {checkedIn ? 'View my attendance' : 'Open my attendance'}
+                {exempt
+                  ? 'On a project — attendance not required'
+                  : checkedIn
+                    ? 'View my attendance'
+                    : 'Open my attendance'}
               </Link>
             </motion.div>
           ) : (
@@ -316,7 +358,10 @@ export function AttendanceHeroCard({
                     transition={{ duration: 0.42, ease: 'easeOut', times: [0, 0.6, 1] }}
                     className={cn(
                       'h-7 w-full rounded-lg transition-colors duration-300',
-                      CELL_CLASS[day.status] || CELL_CLASS[DAY_STATUS.FUTURE],
+                      day.status === DAY_STATUS.NON_WORKING &&
+                        nonWorkingKind(nonWorkingDays, day.key) === 'remote'
+                        ? REMOTE_CELL
+                        : CELL_CLASS[day.status] || CELL_CLASS[DAY_STATUS.FUTURE],
                       day.isToday && 'ring-1 ring-white/40 ring-offset-0'
                     )}
                   />
@@ -338,9 +383,14 @@ export function AttendanceHeroCard({
         {/* The mockup had weekly hours on the right of this line. There is no
             check-out in the Attendance model, so hours are not derivable, and the
             average check-in time that stood in for them was not worth the space. */}
-        <div className="dashboard-hero-muted mt-2.5 text-[11px] tabular-nums">
-          {month?.attendanceRate ?? 0}% attendance this month · {month?.presentDays ?? 0} days
-        </div>
+        {/* Only rendered when a rate exists. While exempt there is nothing to
+            report, and the action pill already says why — repeating it here would
+            just be the same sentence twice. */}
+        {typeof month?.attendanceRate === 'number' && (
+          <div className="dashboard-hero-muted mt-2.5 text-[11px] tabular-nums">
+            {month.attendanceRate}% attendance this month · {month?.presentDays ?? 0} days
+          </div>
+        )}
       </div>
     </section>
   );

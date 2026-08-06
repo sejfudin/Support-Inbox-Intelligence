@@ -300,6 +300,16 @@ const updateInternProgramme = async (user, internUserId, payload) => {
     profile.expectedEndDate = payload.expectedEndDate ? new Date(payload.expectedEndDate) : null;
   }
 
+  // The intern's first day on a real project. For anyone with a placement record
+  // this is derived from that placement's start date and re-derived on every
+  // update (see recommendationService), so edit the start date there rather than
+  // here — a value written here is overwritten the next time the recommendation
+  // is touched. This path is for the intern who left without a placement record
+  // at all. Clearing it puts them back on the hook for attendance.
+  if (payload.placedAt !== undefined) {
+    profile.placedAt = payload.placedAt ? new Date(payload.placedAt) : null;
+  }
+
   await profile.save();
 
   // Placement ends the intern's pipeline run — close any recommendations left
@@ -556,6 +566,8 @@ const formatReadyCandidate = (
       : null,
     status: profile.status,
     expectedEndDate: profile.expectedEndDate || null,
+    // First day on a real project; from here the intern owes no attendance.
+    placedAt: profile.placedAt || null,
     cvUrl: buildCvUrl(profile.cvPath),
     readyTechnologies,
     latestEvaluationAverage,
