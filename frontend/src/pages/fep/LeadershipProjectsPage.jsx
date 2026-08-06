@@ -20,12 +20,23 @@ import { useProjectsOverview } from '@/queries/projects';
 import { cn } from '@/lib/utils';
 
 const STATUS_FILTER_OPTIONS = [{ value: '', label: 'All' }, ...PROJECT_STATUSES];
+// A project nobody is placed on or in selection for isn't interesting to
+// leadership yet, so the page opens on "With interns". It's a view filter, not
+// a data one — the payload (and every KPI) still covers every project, and
+// "All projects" brings the empty ones straight back.
+const STAFFING_FILTER_OPTIONS = [
+  { value: 'withInterns', label: 'With interns' },
+  { value: 'all', label: 'All projects' },
+];
+const DEFAULT_STAFFING_FILTER = 'withInterns';
+const hasInterns = (project) => project.placedCount + project.inSelectionCount > 0;
 const PAGE_SIZE = 9;
 
 export default function LeadershipProjectsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch] = useDebounce(search, 400);
   const [statusFilter, setStatusFilter] = useState('');
+  const [staffingFilter, setStaffingFilter] = useState(DEFAULT_STAFFING_FILTER);
   const [technologyFilter, setTechnologyFilter] = useState(null); // { id, name } | null
   const [sortBy, setSortBy] = useState('mostPlaced'); // 'mostPlaced' | 'fewestPlaced'
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -40,10 +51,11 @@ export default function LeadershipProjectsPage() {
   // A new filter/search always starts back at the first page of results.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [statusFilter, technologyFilter, debouncedSearch]);
+  }, [statusFilter, staffingFilter, technologyFilter, debouncedSearch]);
 
   const filteredProjects = useMemo(() => {
     let list = projects;
+    if (staffingFilter === 'withInterns') list = list.filter(hasInterns);
     if (statusFilter) list = list.filter((project) => project.status === statusFilter);
     if (technologyFilter) {
       list = list.filter((project) =>
@@ -62,7 +74,7 @@ export default function LeadershipProjectsPage() {
     return [...list].sort((a, b) =>
       sortBy === 'fewestPlaced' ? a.placedCount - b.placedCount : b.placedCount - a.placedCount
     );
-  }, [projects, statusFilter, technologyFilter, debouncedSearch, sortBy]);
+  }, [projects, statusFilter, staffingFilter, technologyFilter, debouncedSearch, sortBy]);
 
   const visibleProjects = filteredProjects.slice(0, visibleCount);
   const hasMore = filteredProjects.length > visibleProjects.length;
@@ -79,7 +91,17 @@ export default function LeadershipProjectsPage() {
     scrollToGrid();
   };
 
+  // Only worth surfacing as a chip when it's actually holding something back —
+  // on a programme where every project is staffed the default hides nothing.
+  const staffingFilterHidesProjects =
+    staffingFilter === 'withInterns' && projects.some((project) => !hasInterns(project));
+
   const activeFilters = [
+    staffingFilterHidesProjects && {
+      key: 'staffing',
+      label: 'With interns only',
+      onClear: () => setStaffingFilter('all'),
+    },
     statusFilter && {
       key: 'status',
       label: getProjectStatusLabel(statusFilter),
@@ -98,6 +120,7 @@ export default function LeadershipProjectsPage() {
   ].filter(Boolean);
 
   const clearAllFilters = () => {
+    setStaffingFilter('all');
     setStatusFilter('');
     setTechnologyFilter(null);
     setSearch('');
@@ -122,6 +145,7 @@ export default function LeadershipProjectsPage() {
         kpis={kpis}
         statusFilter={statusFilter}
         onFilterStatus={setStatusFilter}
+        onShowAllProjects={() => setStaffingFilter('all')}
         scrollToGrid={scrollToGrid}
         scrollToChart={scrollToChart}
       />
@@ -148,6 +172,24 @@ export default function LeadershipProjectsPage() {
                 variant={statusFilter === option.value ? 'default' : 'ghost'}
                 onClick={() => setStatusFilter(option.value)}
                 data-test={`projects-status-filter-${option.value || 'all'}`}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+          <div
+            className="flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-1"
+            role="group"
+            aria-label="Filter by interns on the project"
+          >
+            {STAFFING_FILTER_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                type="button"
+                size="sm"
+                variant={staffingFilter === option.value ? 'default' : 'ghost'}
+                onClick={() => setStaffingFilter(option.value)}
+                data-test={`projects-staffing-filter-${option.value}`}
               >
                 {option.label}
               </Button>
@@ -198,7 +240,22 @@ export default function LeadershipProjectsPage() {
         {isPending && <p className="text-sm text-muted-foreground">Loading projects…</p>}
         {!isPending && filteredProjects.length === 0 && (
           <SymphonyCard className="py-12 text-center text-sm text-muted-foreground">
-            No projects match your filters.
+            {staffingFilterHidesProjects ? (
+              <div className="flex flex-col items-center gap-3">
+                <p>No projects with interns match your filters.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStaffingFilter('all')}
+                  data-test="projects-show-all-empty-state"
+                >
+                  Show all projects
+                </Button>
+              </div>
+            ) : (
+              'No projects match your filters.'
+            )}
           </SymphonyCard>
         )}
         {!isPending && filteredProjects.length > 0 && (

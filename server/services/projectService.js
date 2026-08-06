@@ -163,13 +163,13 @@ const getProjectOverview = async (id, user) => {
 const getProjectsOverview = async (user) => {
   assertLeadershipReadAccess(user);
 
-  const allProjects = await Project.find({ isSystem: { $ne: true } })
+  const projects = await Project.find({ isSystem: { $ne: true } })
     .populate('technologies', 'name slug')
     .sort({ name: 1 })
     .lean();
-  const allProjectIds = allProjects.map((project) => project._id);
+  const projectIds = projects.map((project) => project._id);
 
-  const recommendations = await Recommendation.find({ project: { $in: allProjectIds } })
+  const recommendations = await Recommendation.find({ project: { $in: projectIds } })
     .populate(RECOMMENDATION_INTERN_POPULATE)
     .lean();
 
@@ -179,15 +179,6 @@ const getProjectsOverview = async (user) => {
     if (!recsByProject.has(key)) recsByProject.set(key, []);
     recsByProject.get(key).push(rec);
   });
-
-  // A project nobody has ever been recommended to, interviewed for, or
-  // placed on isn't real yet from leadership's point of view — hide it until
-  // it has at least one. This is a data-level filter, not a UI one: an empty
-  // project is dropped before any KPI is computed below, so byStatus,
-  // technologyDemand, etc. all agree with what the list actually renders.
-  const projects = allProjects.filter(
-    (project) => (recsByProject.get(project._id.toString()) || []).length > 0
-  );
 
   const byStatus = { active: 0, on_hold: 0, completed: 0 };
   let internsPlaced = 0;
