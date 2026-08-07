@@ -1,5 +1,7 @@
+const mongoose = require('mongoose');
 const Daily = require('../models/Daily');
 const Ticket = require('../models/Ticket');
+const Workspace = require('../models/Workspace');
 const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
 const { getActiveWorkspaceInterns } = require('../helpers/workspaceInterns');
 const {
@@ -252,16 +254,40 @@ const buildMemberSummary = (intern) => ({
 });
 
 /**
+ * Shared prologue for the two admin standup-insight reads, both of which take
+ * their workspace explicitly from the query string.
+ *
+ * `assertWorkspaceAccess` short-circuits for admins without touching the DB, so
+ * on its own a malformed id would reach the `Daily` query as an unmapped
+ * CastError (500) and a valid-but-unknown or archived id would return a
+ * fully-rendered all-zeros payload that reads as "nobody reported". Validate the
+ * id and confirm the workspace exists, the same way `adminDashboardService`
+ * does.
+ */
+const assertAdminWorkspaceTarget = async ({ workspaceId, user }) => {
+  if (!workspaceId || !mongoose.Types.ObjectId.isValid(workspaceId)) {
+    throw new DailyValidationError('A valid workspace is required.');
+  }
+
+  await assertWorkspaceAccess(workspaceId, user, 'Workspace not found');
+
+  const workspace = await Workspace.findOne({ _id: workspaceId, isArchived: { $ne: true } })
+    .select('_id')
+    .lean();
+
+  if (!workspace) {
+    throw new DailyValidationError('Workspace not found', 404);
+  }
+};
+
+/**
  * Admin-only, one workspace + one calendar month: today's reported/not-reported
  * breakdown plus a per-intern day-by-day coverage grid. Derived from a single
  * bounded Daily query (no per-day fetch) and the same active-intern roster the
  * intern-facing header already uses as its "covered" denominator.
  */
 const getWorkspaceDailyOverview = async ({ workspaceId, month, user }) => {
-  if (!workspaceId) {
-    throw new DailyValidationError('A workspace is required.');
-  }
-  await assertWorkspaceAccess(workspaceId, user, 'Workspace not found');
+  await assertAdminWorkspaceTarget({ workspaceId, user });
 
   const monthKey = isValidMonthKey(month) ? month : currentMonthKey();
   const { start, end } = monthBounds(monthKey);
@@ -350,13 +376,10 @@ const getWorkspaceDailyOverview = async ({ workspaceId, month, user }) => {
  * from the overview data it clicked on, so this returns only the entry itself.
  */
 const getMemberDailyEntry = async ({ workspaceId, memberId, date, user }) => {
-  if (!workspaceId) {
-    throw new DailyValidationError('A workspace is required.');
-  }
   if (!memberId) {
     throw new DailyValidationError('A member is required.');
   }
-  await assertWorkspaceAccess(workspaceId, user, 'Workspace not found');
+  await assertAdminWorkspaceTarget({ workspaceId, user });
 
   const targetDate = parseDateParam(date);
   const daily = await populateDaily(Daily.findOne({ workspace: workspaceId, date: targetDate }));

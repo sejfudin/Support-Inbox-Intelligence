@@ -4,11 +4,23 @@ const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 // `dailyService` asserts workspace access on every entry point, so a stale
 // pointer never leaked here — this keeps the resolution consistent with the
 // other ambient-workspace controllers rather than fixing a live hole.
-const resolveWorkspaceId = (req) =>
-  resolveActiveWorkspaceId({
+//
+// `resolveActiveWorkspaceId` returns `null` when the caller has no usable
+// active workspace, which must be treated as "no workspace" rather than passed
+// on — an unscoped workspace filter would match every workspace. The other
+// ambient controllers 400 here (see `controllers/tickets.js`), so do the same.
+const resolveWorkspaceId = async (req) => {
+  const workspaceId = await resolveActiveWorkspaceId({
     user: req.user,
     override: req.query?.workspace || req.body?.workspace,
   });
+
+  if (!workspaceId) {
+    throw new dailyService.DailyValidationError('No workspace associated with this account.');
+  }
+
+  return workspaceId;
+};
 
 const handleDailyError = (error, res, next) => {
   if (error.name === 'DailyValidationError' || Number.isInteger(error.statusCode)) {
