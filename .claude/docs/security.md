@@ -37,6 +37,13 @@ caller's workspace.
 - Pattern to copy (see `server/controllers/*` `assertStatusInWorkspace`): fetch the resource,
   404 if absent, then compare `resource.workspace.toString()` to the resolved workspace id and
   reject on mismatch.
+- **A resource's foreign keys are part of its scope.** Scoping the ticket itself isn't enough if a
+  field on it can point at another workspace's row — the populated response hands that row's
+  contents back. Every workspace-scoped reference a caller can set must be validated against the
+  ticket's own workspace: `resolveStatusForWorkspace` (status),
+  `ensureAssignableUsersBelongToWorkspace` (assignees), `ensureCategoryBelongsToWorkspace`
+  (category) in `ticketService.js`, on both create and update. Add the equivalent check when you
+  add a new reference field.
 
 ## Socket rooms follow the same rule as HTTP
 
@@ -159,7 +166,13 @@ Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/
 `requireRole(ADMIN)`-guarded, cross-workspace reads (the workspace is passed explicitly via
 `?workspace=`, same admin-bypass `assertWorkspaceAccess` grants elsewhere in this file) — no
 mentor or intern surface, unlike the other `/api/dailies` routes which reuse `resolveWorkspaceId`'s
-ambient admin override. Read-only; derives everything live from existing `Daily` documents.
+ambient admin override. Read-only; derives everything live from existing `Daily` documents. Both go
+through `assertAdminWorkspaceTarget`, which validates the id and **confirms the workspace exists**
+before querying — `assertWorkspaceAccess` returns early for admins without touching the DB, so
+leaning on it alone would turn a malformed id into a 500 and an unknown or archived one into a
+fully-rendered all-zeros coverage grid that reads as "nobody reported". The ambient `/api/dailies`
+routes 400 when `resolveActiveWorkspaceId` resolves to `null`, in `controllers/dailies.js` — never
+pass `null` on to the service, an unscoped workspace filter matches every workspace.
 
 Intern dashboard. `GET /api/dashboard/me` is `requireRole(INTERN)`, read-only, and takes **no
 parameters** — the subject is always `req.user`. That is deliberate and load-bearing: the payload
