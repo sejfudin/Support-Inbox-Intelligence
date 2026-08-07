@@ -289,6 +289,14 @@ const updateTicket = async (req, res, next) => {
 const archiveTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(id);
+
+    // Admins and mentors can archive tickets in any workspace. Everyone else
+    // may only archive a ticket if they are an active member of that ticket's
+    // workspace.
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
     const ticket = await ticketService.archiveTicket(id, req.user._id);
 
     res.status(200).json({
@@ -297,6 +305,10 @@ const archiveTicket = async (req, res, next) => {
       message: 'Ticket archived successfully',
     });
   } catch (error) {
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
     if (error.message === 'Ticket not found') {
       return res.status(404).json({ message: error.message });
     }
@@ -307,6 +319,12 @@ const archiveTicket = async (req, res, next) => {
 const unarchiveTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(id);
+
+    // Same workspace rule as archiving above.
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
     const ticket = await ticketService.unarchiveTicket(id, req.user._id);
 
     res.status(200).json({
@@ -315,6 +333,10 @@ const unarchiveTicket = async (req, res, next) => {
       message: 'Ticket restored successfully',
     });
   } catch (error) {
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
     if (error.message === 'Ticket not found') {
       return res.status(404).json({ message: error.message });
     }
