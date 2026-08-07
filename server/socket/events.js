@@ -7,6 +7,7 @@ const {
 const { invalidationScopes } = require('./invalidationScopes');
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
+const { ROLES } = require('../constants/roles');
 
 const toSocketId = (value) => {
   if (!value) return null;
@@ -39,18 +40,22 @@ const buildTicketScopes = ({ ticketId, workspaceId }) => {
 
 const getWorkspaceAudienceUserIds = async (workspaceId) => {
   try {
-    const [workspace, users] = await Promise.all([
+    // Admins are notified across every workspace. Everyone else is reached
+    // through the workspace's owner and active members below — never through
+    // `User.workspaceId`, which is a pointer to the workspace a user last
+    // switched to and outlives the membership that made it valid.
+    const [workspace, admins] = await Promise.all([
       Workspace.findById(workspaceId).select('owner members.user members.status').lean(),
       User.find({
         active: true,
         status: 'active',
-        $or: [{ role: 'admin' }, { workspaceId }],
+        role: ROLES.ADMIN,
       })
         .select('_id')
         .lean(),
     ]);
 
-    const userIds = new Set(users.map((user) => toSocketId(user._id)).filter(Boolean));
+    const userIds = new Set(admins.map((admin) => toSocketId(admin._id)).filter(Boolean));
 
     if (workspace?.owner) {
       userIds.add(toSocketId(workspace.owner));

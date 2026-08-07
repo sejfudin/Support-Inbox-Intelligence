@@ -38,6 +38,26 @@ caller's workspace.
   404 if absent, then compare `resource.workspace.toString()` to the resolved workspace id and
   reject on mismatch.
 
+## Socket rooms follow the same rule as HTTP
+
+The pointer rule above binds `server/socket/` too — a websocket is a read surface, so a room a
+caller shouldn't reach is the same leak as a route they shouldn't call.
+
+- `canUserJoinWorkspaceRoom` / `canUserJoinTicketRoom` (`socket/socketServer.js`) gate `join_workspace`
+  and `join_ticket`: `canAccessAnyWorkspace(user.role)` bypasses for admins and mentors (matching
+  their HTTP reach), everyone else must be an active member of the workspace — for a ticket room,
+  of `ticket.workspace`. **Do not add a `user.workspaceId` fast path in front of the membership
+  query**; that pointer survives a lapsed membership or a role downgrade, and it would hand an
+  ex-member a live feed of ticket subjects and descriptions they now get a 404 for over HTTP.
+  `authenticateSocket` deliberately does **not** select `workspaceId` onto `socket.data.authUser`,
+  so the pointer isn't there to reach for.
+- Auto-join on connect (`getUserWorkspaceRoomNames`) resolves rooms from `Workspace.members`
+  (active, non-archived) — membership only, never the pointer.
+- `getWorkspaceAudienceUserIds` (`socket/events.js`) builds the per-user notification audience from
+  platform admins (every workspace, by design) plus the workspace's `owner` and **active** members.
+  Mentors are reached only when they are actually members — unlike HTTP, a mentor does not get
+  pushed events for every workspace.
+
 ## Workspace lifecycle roles
 
 - **Create** (`POST /api/workspaces`): platform `admin` or `mentor`. The creator becomes the
