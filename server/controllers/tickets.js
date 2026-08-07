@@ -1,6 +1,7 @@
 const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
-const { assertWorkspaceAccess } = require('../helpers/workspaceAuthz');
+const { assertWorkspaceAccess, resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
+const { ROLES } = require('../constants/roles');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -31,8 +32,10 @@ const getAllTickets = async (req, res) => {
       periodDays,
     } = req.query;
 
-    const isAdmin = req.user?.role === 'admin';
-    const workspaceId = isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: queryWorkspaceId,
+    });
 
     const result = await ticketService.getAllTickets({
       page: parseInt(page, 10) || 1,
@@ -117,10 +120,17 @@ const createTicket = async (req, res) => {
       storyPoints,
       category,
     } = req.body;
-    const isAdmin = req.user && req.user.role === 'admin';
+    const isAdmin = req.user?.role === ROLES.ADMIN;
     const hasStatus = status !== undefined && status !== null && status !== '';
     const hasStatusId = statusId !== undefined && statusId !== null && statusId !== '';
-    const workspaceId = isAdmin && bodyWorkspaceId ? bodyWorkspaceId : req.user.workspaceId;
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: bodyWorkspaceId,
+    });
+
+    if (!workspaceId) {
+      return res.status(400).json({ success: false, message: 'No workspace associated' });
+    }
 
     const assignedAgents = assignedTo
       ? Array.isArray(assignedTo)
@@ -279,6 +289,14 @@ const updateTicket = async (req, res, next) => {
 const archiveTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(id);
+
+    // Admins and mentors can archive tickets in any workspace. Everyone else
+    // may only archive a ticket if they are an active member of that ticket's
+    // workspace.
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
     const ticket = await ticketService.archiveTicket(id, req.user._id);
 
     res.status(200).json({
@@ -287,6 +305,10 @@ const archiveTicket = async (req, res, next) => {
       message: 'Ticket archived successfully',
     });
   } catch (error) {
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
     if (error.message === 'Ticket not found') {
       return res.status(404).json({ message: error.message });
     }
@@ -297,6 +319,12 @@ const archiveTicket = async (req, res, next) => {
 const unarchiveTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(id);
+
+    // Same workspace rule as archiving above.
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
     const ticket = await ticketService.unarchiveTicket(id, req.user._id);
 
     res.status(200).json({
@@ -305,6 +333,10 @@ const unarchiveTicket = async (req, res, next) => {
       message: 'Ticket restored successfully',
     });
   } catch (error) {
+    if (error.kind === 'ObjectId') {
+      return res.status(404).json({ message: 'Ticket not found' });
+    }
+
     if (error.message === 'Ticket not found') {
       return res.status(404).json({ message: error.message });
     }
@@ -329,7 +361,7 @@ const getMyTickets = async (req, res, next) => {
 
     const result = await ticketService.getMyTickets({
       userId: req.user._id,
-      workspaceId: req.user.workspaceId,
+      workspaceId: await resolveActiveWorkspaceId({ user: req.user }),
       page: parseInt(page, 10) || 1,
       limit: parseInt(limit, 10) || 10,
       search: search || '',

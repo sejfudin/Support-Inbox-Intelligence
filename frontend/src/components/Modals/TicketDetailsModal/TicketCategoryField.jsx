@@ -50,7 +50,9 @@ export function TicketCategoryField({ isArchived, categories, currentCategory, o
               : 'bg-muted text-foreground border-border hover:bg-muted'
           }`}
           style={
-            currentCategory === cat._id ? { backgroundColor: cat.color, borderColor: cat.color } : {}
+            currentCategory === cat._id
+              ? { backgroundColor: cat.color, borderColor: cat.color }
+              : {}
           }
         >
           <span

@@ -1,10 +1,25 @@
 const dailyService = require('../services/dailyService');
-const { ROLES } = require('../constants/roles');
+const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 
-const resolveWorkspaceId = (req) => {
-  const isAdmin = req.user?.role === ROLES.ADMIN;
-  const queryWorkspaceId = req.query?.workspace || req.body?.workspace;
-  return isAdmin && queryWorkspaceId ? queryWorkspaceId : req.user?.workspaceId;
+// `dailyService` asserts workspace access on every entry point, so a stale
+// pointer never leaked here — this keeps the resolution consistent with the
+// other ambient-workspace controllers rather than fixing a live hole.
+//
+// `resolveActiveWorkspaceId` returns `null` when the caller has no usable
+// active workspace, which must be treated as "no workspace" rather than passed
+// on — an unscoped workspace filter would match every workspace. The other
+// ambient controllers 400 here (see `controllers/tickets.js`), so do the same.
+const resolveWorkspaceId = async (req) => {
+  const workspaceId = await resolveActiveWorkspaceId({
+    user: req.user,
+    override: req.query?.workspace || req.body?.workspace,
+  });
+
+  if (!workspaceId) {
+    throw new dailyService.DailyValidationError('No workspace associated with this account.');
+  }
+
+  return workspaceId;
 };
 
 const handleDailyError = (error, res, next) => {
@@ -16,7 +31,7 @@ const handleDailyError = (error, res, next) => {
 
 const getDaily = async (req, res, next) => {
   try {
-    const workspaceId = resolveWorkspaceId(req);
+    const workspaceId = await resolveWorkspaceId(req);
     const { date } = req.query;
 
     const { daily, counts, activeInterns, isEditable } = await dailyService.getDaily({
@@ -37,7 +52,7 @@ const getDaily = async (req, res, next) => {
 
 const getDailyHistory = async (req, res, next) => {
   try {
-    const workspaceId = resolveWorkspaceId(req);
+    const workspaceId = await resolveWorkspaceId(req);
     const history = await dailyService.getDailyHistory({ workspaceId, user: req.user });
 
     res.status(200).json({ success: true, message: 'Daily history fetched', data: history });
@@ -48,7 +63,7 @@ const getDailyHistory = async (req, res, next) => {
 
 const startDaily = async (req, res, next) => {
   try {
-    const workspaceId = resolveWorkspaceId(req);
+    const workspaceId = await resolveWorkspaceId(req);
     const { date } = req.body;
 
     const daily = await dailyService.startDaily({ workspaceId, date, user: req.user });

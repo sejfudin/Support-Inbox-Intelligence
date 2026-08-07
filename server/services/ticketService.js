@@ -48,6 +48,7 @@ const normalizePriorityOrder = (value) => {
 };
 
 const INVALID_ASSIGNEE_ERROR = 'Assigned users must be active members of this workspace';
+const INVALID_CATEGORY_ERROR = 'Category is not valid for this workspace';
 
 const extractUserId = (value) => {
   if (!value) return null;
@@ -249,6 +250,26 @@ const ensureAssignableUsersBelongToWorkspace = async ({ workspaceId, assignedTo 
   const hasInvalidAssignee = assignedUserIds.some((userId) => !activeMemberIds.has(userId));
   if (hasInvalidAssignee) {
     throw new Error(INVALID_ASSIGNEE_ERROR);
+  }
+};
+
+// Categories are workspace-scoped, so a ticket may only point at one from its
+// own workspace — otherwise a caller could attach a foreign category id and
+// read that workspace's category name, colour and description template back
+// through the populated ticket. Mirrors `resolveStatusForWorkspace`.
+const ensureCategoryBelongsToWorkspace = async ({ workspaceId, categoryId }) => {
+  if (!categoryId) return;
+
+  if (!workspaceId || !mongoose.Types.ObjectId.isValid(categoryId)) {
+    throw new Error(INVALID_CATEGORY_ERROR);
+  }
+
+  const category = await Category.findOne({ _id: categoryId, workspace: workspaceId })
+    .select('_id')
+    .lean();
+
+  if (!category) {
+    throw new Error(INVALID_CATEGORY_ERROR);
   }
 };
 
@@ -467,6 +488,11 @@ const createTicket = async (ticketData) => {
     assignedTo: ticketData.assignedTo,
   });
 
+  await ensureCategoryBelongsToWorkspace({
+    workspaceId: ticketData.workspaceId,
+    categoryId: ticketData.category,
+  });
+
   const lastTicket = await Ticket.findOne({ workspace: ticketData.workspaceId })
     .sort('-taskNumber')
     .select('taskNumber')
@@ -594,6 +620,13 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       await ensureAssignableUsersBelongToWorkspace({
         workspaceId: oldTicket.workspace,
         assignedTo: updateData.assignedTo,
+      });
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updateData, 'category')) {
+      await ensureCategoryBelongsToWorkspace({
+        workspaceId: oldTicket.workspace,
+        categoryId: updateData.category,
       });
     }
 
@@ -1013,4 +1046,5 @@ module.exports = {
   unarchiveTicket,
   getMyTickets,
   INVALID_ASSIGNEE_ERROR,
+  INVALID_CATEGORY_ERROR,
 };

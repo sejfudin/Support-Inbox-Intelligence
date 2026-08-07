@@ -73,7 +73,7 @@ const createWorkspaces = async (ctx) => {
         user: ctx.users.get(member.key)._id,
         role: member.role,
         // Members must be 'active' to show up in the dailies picker
-        // (dailyService.getActiveInterns filters on it).
+        // (helpers/workspaceInterns.js filters on it).
         status: 'active',
         invitedBy: ctx.users.get(spec.ownerKey)._id,
         joinedAt: clock.at(clock.workdaysAgo(60), 9, 0),

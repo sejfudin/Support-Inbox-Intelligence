@@ -10,7 +10,7 @@ import TicketsHeader from '@/components/Tickets/TicketsHeader';
 import TicketsTabs from '@/components/Tickets/TicketsTabs';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
-import { normalizeTicket } from '@/helpers/normalizeTicket';
+import { normalizeTicket, extractStatusSlug } from '@/helpers/normalizeTicket';
 import { useTicketModals } from '@/hooks/useTicketModals';
 import { useTicketList } from '@/hooks/useTicketList';
 import { useWorkspace } from '@/queries/workspaces';
@@ -18,7 +18,7 @@ import { ArrowLeft, Building2 } from 'lucide-react';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUpdateTicket } from '@/queries/tickets';
+import { useTickets, useUpdateTicket } from '@/queries/tickets';
 import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 import { getAllTickets as getAllTicketsApi } from '@/api/tickets';
 import { useUsers } from '@/queries/users';
@@ -37,7 +37,15 @@ import TicketFiltersPanel from '@/components/Tickets/TicketsFiltersPanel';
 import { useTicketFiltersControls } from '@/hooks/useTicketFiltersControls';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
@@ -53,10 +61,41 @@ function isEditableTarget(target) {
   );
 }
 
+function TicketExportMenu({ exportPeriod, onExportPeriodChange, onExportCsv, isExporting }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon" data-test="ticket-export-menu-trigger">
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel>Export period</DropdownMenuLabel>
+        <div className="px-2 pb-2">
+          <TicketExportPeriodSelect value={exportPeriod} onValueChange={onExportPeriodChange} />
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={onExportCsv}
+          disabled={isExporting}
+          data-test="ticket-export-csv-menu-item"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          {isExporting ? 'Exporting...' : 'Export CSV'}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 const decodeTabParam = (value) => (value ? value.toLowerCase().replace(/_/g, ' ') : 'all');
 
 const encodeTabParam = (value) => value.replace(/\s+/g, '_');
 const URL_TICKET_ID_SORT_PARAM = 'ticketIdSort';
+const URL_ASSIGNEE_PARAM = 'assignee';
+// The alias the intern dashboard links with. Resolved against the signed-in user
+// on both read and write, so the URL never carries a raw id for "my tickets".
+const ASSIGNEE_SELF = 'me';
 
 export default function TicketPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,6 +111,10 @@ export default function TicketPage() {
     initialTicketIdSortRaw === TICKET_ID_ORDER_VALUES.DESC
       ? initialTicketIdSortRaw
       : TICKET_ID_ORDER_VALUES.NONE;
+  // `?assignee=` seeds the assignee filter, comma-separated. `me` is an alias for
+  // the caller's own id so the intern dashboard can link here without embedding a
+  // user id in the URL, and so the link means the same thing for whoever opens it.
+  const initialAssigneeRaw = searchParams.get(URL_ASSIGNEE_PARAM) || '';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState(initialView);
   const [exportPeriod, setExportPeriod] = useState(DEFAULT_EXPORT_PERIOD);
@@ -266,6 +309,29 @@ export default function TicketPage() {
     );
   }, [initialTicketIdSort, setControls]);
 
+  // Seed the assignee filter from the URL exactly once, unlike the sort above.
+  // The sort re-applies whenever its param changes; this must not, or clearing
+  // the "Assigned: …" chip would immediately snap back — the sync effect below
+  // rewrites the param from the controls, which would re-trigger this.
+  const hasSeededAssigneeRef = useRef(false);
+  useEffect(() => {
+    if (hasSeededAssigneeRef.current) return;
+    // Wait for the user before resolving `me`; resolving it to nothing would
+    // seed an empty filter and mark the seed done.
+    if (initialAssigneeRaw === ASSIGNEE_SELF && !user?._id) return;
+    hasSeededAssigneeRef.current = true;
+
+    const ids = initialAssigneeRaw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => (value === ASSIGNEE_SELF ? user?._id : value))
+      .filter(Boolean);
+
+    if (ids.length === 0) return;
+    setControls((prev) => ({ ...prev, assigneeIds: ids }));
+  }, [initialAssigneeRaw, user?._id, setControls]);
+
   const listData = useTicketList({
     activeTab,
     enabled: !isBoard,
@@ -276,6 +342,36 @@ export default function TicketPage() {
       workspaceId: overrideWorkspaceId,
     },
   });
+
+  const statusCountsParams = getTicketsQueryParams({
+    page: 1,
+    workspaceId: effectiveWorkspaceId,
+  }).board;
+
+  const { data: statusCountsData } = useTickets(statusCountsParams, {
+    enabled: !isBoard && !!effectiveWorkspaceId,
+  });
+
+  const statusTabCounts = useMemo(() => {
+    const rawTickets = statusCountsData?.data || [];
+    const counts = { all: rawTickets.length };
+    for (const ticket of rawTickets) {
+      const slug = extractStatusSlug(ticket.status).toLowerCase();
+      if (!slug) continue;
+      counts[slug] = (counts[slug] || 0) + 1;
+    }
+    return counts;
+  }, [statusCountsData]);
+
+  const statusTabsWithCounts = useMemo(
+    () =>
+      helpers.statusTabs.map((tab) => ({
+        ...tab,
+        color: tab.key === 'all' ? null : helpers.getStatusColor(tab.key),
+        count: statusTabCounts[tab.key] ?? 0,
+      })),
+    [helpers, statusTabCounts]
+  );
 
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
@@ -302,6 +398,7 @@ export default function TicketPage() {
         statusBadgeConfig: helpers.statusBadgeConfig,
         statusIsDone: helpers.statusIsDone,
         statusTracksTime: helpers.statusTracksTime,
+        hiddenColumns: ['status', 'totalTimeSpent'],
       }),
     [helpers, timeSpentTick]
   );
@@ -362,6 +459,18 @@ export default function TicketPage() {
       next.delete(URL_TICKET_ID_SORT_PARAM);
     }
 
+    // Written back so the filter survives a refresh and the URL stays shareable.
+    // The caller's own id collapses back to `me`, which keeps the dashboard's
+    // link stable and readable rather than growing an id the moment it is used.
+    if (controls.assigneeIds.length > 0) {
+      next.set(
+        URL_ASSIGNEE_PARAM,
+        controls.assigneeIds.map((id) => (id === user?._id ? ASSIGNEE_SELF : id)).join(',')
+      );
+    } else {
+      next.delete(URL_ASSIGNEE_PARAM);
+    }
+
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
@@ -371,6 +480,8 @@ export default function TicketPage() {
     listData.page,
     effectiveViewMode,
     controls.ticketIdOrder,
+    controls.assigneeIds,
+    user?._id,
     searchParams,
     setSearchParams,
   ]);
@@ -525,42 +636,28 @@ export default function TicketPage() {
         onNewTicket={openNewTicket}
         searchInputRef={searchInputRef}
         hideViewMode={isMobile}
-        afterNewTicketSlot={
-          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-            <TicketFiltersPanel {...ticketFiltersPanelProps} className="md:items-start" />
-            <div
-              className="flex w-full flex-col gap-2 rounded-2xl border border-border/80 bg-secondary/50 p-2 sm:flex-row sm:items-center md:w-auto"
-              data-test="ticket-export-controls"
-            >
-              <label className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
-                <span className="shrink-0 px-1 text-xs font-medium text-muted-foreground">
-                  Export period
-                </span>
-                <TicketExportPeriodSelect value={exportPeriod} onValueChange={setExportPeriod} />
-              </label>
-              <Button
-                variant="outline"
-                className="w-full shrink-0 sm:w-auto"
-                onClick={handleExportCsv}
-                disabled={isExporting}
-                data-test="ticket-export-csv-button"
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {isExporting ? 'Exporting...' : 'Export CSV'}
-              </Button>
-            </div>
-          </div>
-        }
       />
 
       {!isBoard && !statusesLoading ? (
         <TicketsTabs
           activeTab={activeTab}
-          statusTabs={helpers.statusTabs}
+          statusTabs={statusTabsWithCounts}
           onChange={(tabKey) => {
             setActiveTab(tabKey);
             listData.setPage(1);
           }}
+          panelClassName="bg-transparent border-none shadow-none px-0"
+          rightSlot={
+            <div className="flex items-center gap-2" data-test="ticket-tabs-controls">
+              <TicketFiltersPanel {...ticketFiltersPanelProps} activeFilterChips={[]} />
+              <TicketExportMenu
+                exportPeriod={exportPeriod}
+                onExportPeriodChange={setExportPeriod}
+                onExportCsv={handleExportCsv}
+                isExporting={isExporting}
+              />
+            </div>
+          }
         />
       ) : null}
 
@@ -582,7 +679,7 @@ export default function TicketPage() {
           </Suspense>
         </PageSection>
       ) : (
-        <PageSection className="flex-1 pt-6">
+        <PageSection className="flex-1 pt-2">
           <PagePanel className={isPlaceholderData ? 'opacity-60' : ''}>
             <TicketsState
               isLoading={isLoading}

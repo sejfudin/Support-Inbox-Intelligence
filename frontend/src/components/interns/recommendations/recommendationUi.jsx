@@ -5,46 +5,63 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { cn } from '@/lib/utils';
 import { getRecommendationResultLabel } from '@/helpers/recommendations';
 
-// ---- Recommendations design tokens (approved redesign — exact values) ----
+// ---- Recommendations design tokens ----
+//
+// The redesign was signed off as a set of exact hex values. Those hexes are now
+// expressed as the app's semantic theme tokens instead, because the literals
+// only rendered correctly in light mode — in dark mode this feature stayed a
+// white card on a dark page. The neutral swap is visually a no-op: the approved
+// hexes and the light-theme tokens agree to within ~4/255 per channel
+// (#171b2b vs --foreground #1a1e2e, #dcdfe9 vs --input #dee1ed, and so on).
+//
+// The brand violet is the one deliberate change. It was #6d5ce6; it is now
+// --primary, which is a visibly brighter violet in the default palette. That is
+// intentional: hardcoding the hex also made this the only feature that ignored
+// the data-theme colour-theme picker.
+//
+// Status tints (violet / amber / green / red) have no semantic tokens, so they
+// keep an explicit palette with hand-picked dark variants.
 
 // The redesign ships with its own system font stack, independent of the app
 // theme font.
 export const REC_FONT =
   "[font-family:-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,sans-serif]";
 
+// Timeline strip colours, painted via inline `style` (RecModal's `strip`), so
+// these stay literal rather than becoming utility classes.
 export const STATUS_COLORS = {
-  recommended: '#6d5ce6',
+  recommended: 'hsl(var(--primary))',
   interviewing: '#e2a400',
   resulted: '#17a06b',
 };
 
 // Status pill (view-modal header) tints, keyed by status.
 const STATUS_PILL_CLASSES = {
-  recommended: 'bg-[#eceafc] text-[#5a48d6]',
-  interviewing: 'bg-[#fef4e2] text-[#b06a05]',
-  resulted: 'bg-[#e2f5ec] text-[#157a52]',
+  recommended: 'bg-primary/10 text-primary dark:bg-primary/20',
+  interviewing: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+  resulted: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
 };
 
 export const INPUT_CLASS =
-  'w-full rounded-xl border border-[#dcdfe9] bg-white px-[14px] py-[11px] text-[14px] text-[#171b2b] outline-none transition placeholder:text-[#9aa1b4] focus:border-[#6d5ce6]';
+  'w-full rounded-xl border border-input bg-card px-[14px] py-[11px] text-[14px] text-foreground outline-none transition placeholder:text-muted-foreground/80 focus:border-ring';
 
 export const BTN_PRIMARY_CLASS =
-  'rounded-xl bg-[#6d5ce6] px-[18px] py-[11px] text-[14px] font-semibold text-white shadow-[0_2px_8px_rgba(109,92,230,.35)] transition hover:bg-[#5a48d6]';
+  'rounded-xl bg-primary px-[18px] py-[11px] text-[14px] font-semibold text-primary-foreground shadow-[0_2px_8px_hsl(var(--primary)/.35)] transition hover:bg-primary/90';
 
 export const BTN_PRIMARY_DISABLED_CLASS =
-  'cursor-not-allowed bg-[#d7dae4] text-[#9298ab] shadow-none hover:bg-[#d7dae4]';
+  'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted';
 
 export const BTN_SECONDARY_CLASS =
-  'rounded-xl border border-[#dcdfe9] bg-white px-[18px] py-[11px] text-[14px] font-semibold text-[#4a5064] transition hover:bg-[#f7f8fb]';
+  'rounded-xl border border-input bg-card px-[18px] py-[11px] text-[14px] font-semibold text-foreground/80 transition hover:bg-accent';
 
 export const BTN_DANGER_CLASS =
-  'rounded-xl bg-[#d64c4c] px-[18px] py-[11px] text-[14px] font-semibold text-white transition hover:bg-[#c04040]';
+  'rounded-xl bg-destructive px-[18px] py-[11px] text-[14px] font-semibold text-destructive-foreground transition hover:bg-destructive/90';
 
 export const BTN_DANGER_GHOST_CLASS =
-  'inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-[14px] font-semibold text-[#c04545] transition hover:bg-[#fdf1f1]';
+  'inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-[14px] font-semibold text-destructive transition hover:bg-destructive/10';
 
 export const CHIP_CLASS =
-  'inline-flex items-center rounded-full bg-[#f2f3f7] px-3 py-[5px] text-[12.5px] font-semibold text-[#3c4257]';
+  'inline-flex items-center rounded-full bg-muted px-3 py-[5px] text-[12.5px] font-semibold text-foreground/80';
 
 export const formatRecDate = (date) => {
   if (!date) return 'No date';
@@ -54,7 +71,12 @@ export const formatRecDate = (date) => {
 /** 11px uppercase section label used across cards and modals. */
 export function SectionLabel({ children, className }) {
   return (
-    <p className={cn('text-[11px] font-bold uppercase tracking-[1.2px] text-[#9aa1b4]', className)}>
+    <p
+      className={cn(
+        'text-[11px] font-bold uppercase tracking-[1.2px] text-muted-foreground/80',
+        className
+      )}
+    >
       {children}
     </p>
   );
@@ -65,10 +87,10 @@ export function FieldLabel({ children, required = false, htmlFor, className }) {
   return (
     <label
       htmlFor={htmlFor}
-      className={cn('block text-[14px] font-semibold text-[#33384c]', className)}
+      className={cn('block text-[14px] font-semibold text-foreground/90', className)}
     >
       {children}
-      {required && <span className="ml-1 text-[#d64c4c]">*</span>}
+      {required && <span className="ml-1 text-destructive">*</span>}
     </label>
   );
 }
@@ -88,8 +110,12 @@ export function StatusPill({ status, label }) {
 }
 
 /**
- * Dark hover tooltip (shared by locked status segments and the result "?"
- * button). Pure CSS hover — no positioning library needed.
+ * High-contrast hover tooltip (shared by locked status segments and the result
+ * "?" button). Pure CSS hover — no positioning library needed.
+ *
+ * Surfaced as `bg-foreground` / `text-background`, so it inverts against the
+ * page: near-black in light mode, near-white in dark. It used to be a literal
+ * #1e2130, which is all but invisible sitting on a dark-mode card.
  */
 export function DarkTooltip({ content, align = 'center', wrapperClassName, children }) {
   return (
@@ -97,7 +123,7 @@ export function DarkTooltip({ content, align = 'center', wrapperClassName, child
       {children}
       <span
         className={cn(
-          'pointer-events-none absolute bottom-full z-30 mb-2 w-max max-w-[280px] rounded-[10px] bg-[#1e2130] px-3 py-[7px] text-left text-[12.5px] font-medium leading-relaxed text-white opacity-0 shadow-[0_8px_24px_rgba(20,24,40,.3)] transition-opacity duration-[120ms] group-hover:opacity-100',
+          'pointer-events-none absolute bottom-full z-30 mb-2 w-max max-w-[280px] rounded-[10px] bg-foreground px-3 py-[7px] text-left text-[12.5px] font-medium leading-relaxed text-background opacity-0 shadow-elevated transition-opacity duration-[120ms] group-hover:opacity-100',
           align === 'center' ? 'left-1/2 -translate-x-1/2' : 'left-0'
         )}
         role="tooltip"
@@ -119,13 +145,15 @@ export function ResultChip({ result }) {
     <span
       className={cn(
         'inline-flex rounded-full px-3 py-[5px] text-[12.5px] font-semibold',
-        outcome === 'placed' ? 'bg-[#e2f5ec] text-[#157a52]' : 'bg-[#fef4e2] text-[#b06a05]'
+        outcome === 'placed'
+          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+          : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
       )}
     >
       {getRecommendationResultLabel(outcome)}
     </span>
   ) : (
-    <span className="inline-flex rounded-full bg-[#f2f3f7] px-3 py-[5px] text-[12.5px] font-semibold text-[#5b6175]">
+    <span className="inline-flex rounded-full bg-muted px-3 py-[5px] text-[12.5px] font-semibold text-muted-foreground">
       Awaiting result
     </span>
   );
@@ -145,7 +173,7 @@ export function ResultChip({ result }) {
           <button
             type="button"
             onClick={(event) => event.stopPropagation()}
-            className="grid h-5 w-5 cursor-help place-items-center rounded-full border border-[#dcdfe9] bg-white text-[11px] font-bold text-[#8b91a5]"
+            className="grid h-5 w-5 cursor-help place-items-center rounded-full border border-input bg-card text-[11px] font-bold text-muted-foreground"
             aria-label="Placement note"
           >
             ?
@@ -193,9 +221,9 @@ function TimelineCircle({ step, size }) {
     return (
       <div
         className={cn(
-          'grid place-items-center rounded-full bg-[#6d5ce6] text-white',
+          'grid place-items-center rounded-full bg-primary text-primary-foreground',
           dim,
-          step.state === 'current' && 'shadow-[0_0_0_4px_#e6e2fb]'
+          step.state === 'current' && 'shadow-[0_0_0_4px_hsl(var(--primary)/.25)]'
         )}
       >
         <Check className={icon} strokeWidth={3} />
@@ -205,11 +233,11 @@ function TimelineCircle({ step, size }) {
   return (
     <div
       className={cn(
-        'rounded-full bg-white',
+        'rounded-full bg-card',
         dim,
         step.state === 'skipped'
-          ? 'border-2 border-dashed border-[#c3c8d8]'
-          : 'border-2 border-solid border-[#d8dce8]'
+          ? 'border-2 border-dashed border-input'
+          : 'border-2 border-solid border-input'
       )}
     />
   );
@@ -232,7 +260,7 @@ export function RecommendationTimeline({ steps, size = 'card', showCurrentTag = 
               <div
                 className={cn(
                   'mx-[-38px] mt-3 h-[2px] min-w-6 flex-1 rounded-full',
-                  connectorActive ? 'bg-[#6d5ce6]' : 'bg-[#d8dce8]'
+                  connectorActive ? 'bg-primary' : 'bg-border'
                 )}
                 aria-hidden="true"
               />
@@ -242,20 +270,20 @@ export function RecommendationTimeline({ steps, size = 'card', showCurrentTag = 
               <span
                 className={cn(
                   'mt-2 text-[13px] font-semibold',
-                  stepIsActive(step) ? 'text-[#33384c]' : 'text-[#9aa1b4]'
+                  stepIsActive(step) ? 'text-foreground/90' : 'text-muted-foreground/80'
                 )}
               >
                 {step.label}
               </span>
               {step.state === 'skipped' ? (
-                <span className="text-[12px] italic text-[#b3b8c8]">Skipped</span>
+                <span className="text-[12px] italic text-muted-foreground/70">Skipped</span>
               ) : step.state === 'pending' ? (
-                <span className="text-[12px] text-[#9aa1b4]">Pending</span>
+                <span className="text-[12px] text-muted-foreground/80">Pending</span>
               ) : (
-                <span className="text-[12px] text-[#8b91a5]">{step.date}</span>
+                <span className="text-[12px] text-muted-foreground">{step.date}</span>
               )}
               {showCurrentTag && step.state === 'current' && (
-                <span className="mt-1.5 inline-flex rounded-full bg-[#eceafc] px-2 py-[3px] text-[10px] font-bold uppercase tracking-wide text-[#5a48d6]">
+                <span className="mt-1.5 inline-flex rounded-full bg-primary/10 px-2 py-[3px] text-[10px] font-bold uppercase tracking-wide text-primary dark:bg-primary/20">
                   Current
                 </span>
               )}
@@ -277,10 +305,7 @@ export function MiniTimeline({ steps }) {
           <Fragment key={step.key}>
             {index > 0 && (
               <div
-                className={cn(
-                  'h-[2px] w-[26px]',
-                  connectorActive ? 'bg-[#6d5ce6]' : 'bg-[#d8dce8]'
-                )}
+                className={cn('h-[2px] w-[26px]', connectorActive ? 'bg-primary' : 'bg-border')}
                 aria-hidden="true"
               />
             )}
@@ -288,10 +313,13 @@ export function MiniTimeline({ steps }) {
               className={cn(
                 'h-3 w-3 rounded-full',
                 stepIsActive(step)
-                  ? cn('bg-[#6d5ce6]', step.state === 'current' && 'shadow-[0_0_0_3px_#e6e2fb]')
+                  ? cn(
+                      'bg-primary',
+                      step.state === 'current' && 'shadow-[0_0_0_3px_hsl(var(--primary)/.25)]'
+                    )
                   : step.state === 'skipped'
-                    ? 'border-2 border-dashed border-[#c3c8d8] bg-white'
-                    : 'border-2 border-[#d8dce8] bg-white'
+                    ? 'border-2 border-dashed border-input bg-card'
+                    : 'border-2 border-input bg-card'
               )}
               title={step.label}
             />
@@ -303,14 +331,14 @@ export function MiniTimeline({ steps }) {
 }
 
 /**
- * Segmented status control (edit + create modals). Track #f2f3f8, active
- * option violet-filled; locked options are grayed with a padlock and reveal a
- * dark hover tooltip explaining why they can't be selected.
+ * Segmented status control (edit + create modals). Muted track, active option
+ * filled with the theme primary; locked options are grayed with a padlock and
+ * reveal a hover tooltip explaining why they can't be selected.
  */
 export function StatusSegmented({ statuses, value, onChange, lockedValues = [], lockedHint }) {
   return (
     <div
-      className="grid grid-cols-3 gap-1 rounded-xl bg-[#f2f3f8] p-1"
+      className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1"
       role="radiogroup"
       aria-label="Status"
       data-test="recommendation-status-select"
@@ -329,10 +357,10 @@ export function StatusSegmented({ statuses, value, onChange, lockedValues = [], 
             className={cn(
               'inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-3 py-[9px] text-[14px] font-semibold transition',
               active
-                ? 'bg-[#6d5ce6] text-white shadow-[0_2px_8px_rgba(109,92,230,.35)]'
+                ? 'bg-primary text-primary-foreground shadow-[0_2px_8px_hsl(var(--primary)/.35)]'
                 : locked
-                  ? 'cursor-not-allowed text-[#b0b5c6]'
-                  : 'text-[#4a5064] hover:text-[#171b2b]'
+                  ? 'cursor-not-allowed text-muted-foreground/70'
+                  : 'text-foreground/80 hover:text-foreground'
             )}
             data-test={`recommendation-status-option-${status.value}`}
           >
@@ -380,16 +408,16 @@ export function RecModal({
       {strip && (
         <div className="h-1 w-full shrink-0" style={{ background: strip }} aria-hidden="true" />
       )}
-      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[#eef0f5] px-8 pb-5 pt-6">
+      <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border/60 px-8 pb-5 pt-6">
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-3">
-            <DialogTitle className={cn('truncate font-bold text-[#171b2b]', titleClassName)}>
+            <DialogTitle className={cn('truncate font-bold text-foreground', titleClassName)}>
               {title}
             </DialogTitle>
             {titleAside}
           </div>
           {subtitle ? (
-            <DialogDescription className="mt-1.5 text-[13.5px] text-[#8b91a5]">
+            <DialogDescription className="mt-1.5 text-[13.5px] text-muted-foreground">
               {subtitle}
             </DialogDescription>
           ) : (
@@ -399,7 +427,7 @@ export function RecModal({
         <button
           type="button"
           onClick={onClose}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-[#f2f3f7] text-[#5b6175] transition hover:bg-[#e7e9ef] hover:text-[#171b2b]"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-muted text-muted-foreground transition hover:bg-accent hover:text-foreground"
           aria-label="Close"
           data-test="dialog-close-button"
         >
@@ -410,7 +438,7 @@ export function RecModal({
         {children}
       </div>
       {footer && (
-        <div className="flex shrink-0 items-center gap-3 border-t border-[#eef0f5] px-8 py-[18px]">
+        <div className="flex shrink-0 items-center gap-3 border-t border-border/60 px-8 py-[18px]">
           {footer}
         </div>
       )}
@@ -422,7 +450,7 @@ export function RecModal({
       <DialogContent
         hideCloseButton
         className={cn(
-          'flex max-h-[90vh] max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-0 bg-white p-0 text-[#171b2b] shadow-[0_24px_60px_rgba(20,24,40,.18)] sm:rounded-[20px] sm:p-0',
+          'flex max-h-[90vh] max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-0 bg-card p-0 text-foreground shadow-elevated sm:rounded-[20px] sm:p-0',
           REC_FONT
         )}
         data-test={dataTest}

@@ -71,7 +71,7 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
 
   return (
     <div className="h-full">
-      <InternPanel className="h-full overflow-hidden p-0">
+      <InternPanel className="h-full overflow-hidden p-0 md:p-0">
         <div className="border-b border-border/60 px-5 py-4 md:px-6">
           <h3 className="text-lg font-semibold">Placement readiness by technology</h3>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -125,9 +125,9 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
                         <ReadinessLevelBadge level={level} />
                       )}
                     </div>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground/70">
                       Assessed by:{' '}
-                      <span className="font-medium text-gray-500">
+                      <span className="font-medium text-muted-foreground">
                         {flag?.setBy?.fullname || '—'}
                       </span>
                     </p>

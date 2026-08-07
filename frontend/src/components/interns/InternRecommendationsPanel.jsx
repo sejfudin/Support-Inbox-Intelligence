@@ -67,6 +67,7 @@ const createEmptyForm = () => ({
   status: 'recommended',
   resultOutcome: 'none',
   resultNote: '',
+  startDate: '',
   statusDates: { recommended: todayInputDate(), interviewing: '', resulted: '' },
   interviewingSkipped: false,
 });
@@ -79,6 +80,12 @@ const formFromRecommendation = (recommendation) => {
   // without this the edit form rendered an empty Resulted date while the card
   // displayed one.
   const currentFallback = toInputDate(recommendation.updatedAt);
+  // The Resulted date *as the form will render it*, fallback included. The start
+  // date backfill below has to agree with what the user sees in that field — read
+  // the raw stored value instead and a legacy record shows a Resulted date beside
+  // an empty Start date, so saving it silently drops the intern's exemption.
+  const resultedDate =
+    toInputDate(dates.resulted) || (status === 'resulted' ? currentFallback : '');
   return {
     positionId: recommendation.position?._id || recommendation.position || '',
     projectId: recommendation.project?._id || recommendation.project || '',
@@ -87,6 +94,13 @@ const formFromRecommendation = (recommendation) => {
     status,
     resultOutcome: recommendation.result?.outcome || 'none',
     resultNote: recommendation.result?.note || '',
+    // The intern's first day on the project. Placements recorded before this
+    // field existed fall back to their Resulted date, which is what was already
+    // driving their attendance exemption — so opening an old record and saving
+    // it keeps the exemption it had instead of silently lifting it.
+    startDate:
+      toInputDate(recommendation.result?.startDate) ||
+      (recommendation.result?.outcome === 'placed' ? resultedDate : ''),
     statusDates: {
       recommended:
         toInputDate(dates.recommended) ||
@@ -94,7 +108,7 @@ const formFromRecommendation = (recommendation) => {
         todayInputDate(),
       interviewing:
         toInputDate(dates.interviewing) || (status === 'interviewing' ? currentFallback : ''),
-      resulted: toInputDate(dates.resulted) || (status === 'resulted' ? currentFallback : ''),
+      resulted: resultedDate,
     },
     // A resulted recommendation with no interviewing date means the stage was
     // skipped — a distinct state from "not reached yet".
@@ -104,7 +118,7 @@ const formFromRecommendation = (recommendation) => {
 
 function ViewModeSwitcher({ value, onChange }) {
   return (
-    <div className="flex h-11 items-center gap-1 rounded-xl bg-[#f2f3f8] p-1">
+    <div className="flex h-11 items-center gap-1 rounded-xl bg-muted p-1">
       {['detailed', 'compact'].map((mode) => (
         <button
           key={mode}
@@ -113,8 +127,8 @@ function ViewModeSwitcher({ value, onChange }) {
           className={cn(
             'h-full rounded-[9px] px-[18px] text-[14px] font-semibold capitalize transition',
             value === mode
-              ? 'bg-[#6d5ce6] text-white shadow-[0_2px_8px_rgba(109,92,230,.35)]'
-              : 'text-[#4a5064] hover:text-[#171b2b]'
+              ? 'bg-primary text-white shadow-[0_2px_8px_hsl(var(--primary)/.35)]'
+              : 'text-foreground/80 hover:text-foreground'
           )}
           aria-pressed={value === mode}
           data-test={`recommendation-view-${mode}`}
@@ -225,6 +239,10 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
       payload.result = {
         outcome: form.resultOutcome,
         note: form.resultNote,
+        // Explicit null, not undefined: an emptied field means "we don't know
+        // when they start yet", which the server must record as such rather than
+        // leave the previous date standing. Only a placement carries one.
+        startDate: form.resultOutcome === 'placed' ? form.startDate || null : null,
       };
     }
 
@@ -280,6 +298,10 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
         return;
       }
     }
+    // The placement start date is deliberately NOT checked against the stage
+    // dates. It isn't a stage — an intern can have started on the project before
+    // anyone got round to recording the placement, so a start date earlier than
+    // the Resulted date is legitimate, not a mistake to block.
 
     const payload = buildPayload();
 
@@ -364,13 +386,13 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     );
 
   return (
-    <div className={cn('space-y-4 text-[#171b2b]', REC_FONT)}>
+    <div className={cn('space-y-4 text-foreground', REC_FONT)}>
       {/* Header card */}
-      <div className="rounded-[18px] border border-[#e7e9ef] bg-white px-6 py-5 shadow-[0_1px_3px_rgba(20,24,40,.06)]">
+      <div className="rounded-[18px] border border-border bg-card px-6 py-5 shadow-elevated-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-[22px] font-bold text-[#171b2b]">Recommendation history</h2>
-            <p className="text-[13.5px] text-[#8b91a5]">{subtitle}</p>
+            <h2 className="text-[22px] font-bold text-foreground">Recommendation history</h2>
+            <p className="text-[13.5px] text-muted-foreground">{subtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <SortControl
@@ -379,8 +401,8 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
               options={SORT_OPTIONS}
               onSortKeyChange={handleSortKeyChange}
               onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-              className="h-11 border-[#dcdfe9] bg-white"
-              triggerClassName="text-[14px] font-semibold text-[#33384c]"
+              className="h-11 border-input bg-card"
+              triggerClassName="text-[14px] font-semibold text-foreground/90"
               dataTest="recommendation-history-sort"
             />
             <ViewModeSwitcher value={viewMode} onChange={changeViewMode} />
@@ -422,9 +444,11 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
 
       {/* Cards */}
       <div className={cn('flex flex-col', viewMode === 'compact' ? 'gap-3' : 'gap-4')}>
-        {isPending && <p className="py-8 text-center text-[13.5px] text-[#8b91a5]">Loading…</p>}
+        {isPending && (
+          <p className="py-8 text-center text-[13.5px] text-muted-foreground">Loading…</p>
+        )}
         {!isPending && sorted.length === 0 && (
-          <p className="py-12 text-center text-[13.5px] text-[#8b91a5]">
+          <p className="py-12 text-center text-[13.5px] text-muted-foreground">
             {isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'}
           </p>
         )}

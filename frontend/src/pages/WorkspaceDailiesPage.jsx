@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { format, addDays, subDays, isToday } from 'date-fns';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,21 +11,54 @@ import { DailyEmptyState } from '@/components/dailies/DailyEmptyState';
 import { DailyEntryCard } from '@/components/dailies/DailyEntryCard';
 import { AddEntryModal } from '@/components/dailies/AddEntryModal';
 import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import DailySkeleton from '@/components/Skeletons/DailySkeleton';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
 import { Button } from '@/components/ui/button';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 
 const toDateKey = (date) => format(date, 'yyyy-MM-dd');
 
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * `?date=YYYY-MM-DD` opens the page on that day — the intern dashboard's
+ * "View full note" links here for the day it is showing. Parsed at noon so the
+ * date can't slide to the neighbouring day in a timezone behind UTC. An invalid
+ * or missing param falls back to today rather than erroring.
+ */
+const parseDateParam = (value) => {
+  if (!value || !DATE_KEY_PATTERN.test(value)) return null;
+  const parsed = new Date(`${value}T12:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
 const WorkspaceDailiesPage = () => {
   const { user } = useAuth();
   const workspaceId = user?.workspaceId;
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedDate, setSelectedDate] = useState(
+    () => parseDateParam(searchParams.get('date')) || new Date()
+  );
   const dateKey = toDateKey(selectedDate);
   const canStartSelectedDate = isToday(selectedDate);
   const [isAddEntryOpen, setIsAddEntryOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState(null);
   const [entryToDelete, setEntryToDelete] = useState(null);
+
+  // Keep the URL on the day being viewed, so a refresh or a shared link lands on
+  // the same standup rather than snapping back to today. Today is the default and
+  // carries no param, which keeps the plain `/dailies` link in the sidebar clean.
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (isToday(selectedDate)) {
+      next.delete('date');
+    } else {
+      next.set('date', dateKey);
+    }
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [dateKey, selectedDate, searchParams, setSearchParams]);
 
   const { data: dailyResponse, isLoading } = useDaily(workspaceId, dateKey);
   const { data: historyResponse } = useDailyHistory(workspaceId);
@@ -95,6 +129,7 @@ const WorkspaceDailiesPage = () => {
               )
             }
           />
+          {isLoading && <DailySkeleton />}
           {!isLoading && daily && (
             <>
               <DailyHeader counts={daily.counts} />

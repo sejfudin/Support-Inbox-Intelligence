@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
+const { canAccessAnyWorkspace } = require('../helpers/workspaceAuthz');
 
 let io;
 const JOIN_RATE_LIMIT = {
@@ -65,8 +66,10 @@ const authenticateSocket = async (socket) => {
     throw new Error('Authentication error');
   }
 
+  // No `workspaceId` here on purpose — room access is decided by role and
+  // active membership, never by the caller's active-workspace pointer.
   const user = await User.findById(decodedUserId)
-    .select('_id role workspaceId tokenVersion active status')
+    .select('_id role tokenVersion active status')
     .lean();
 
   if (!user || !isActiveUser(user)) {
@@ -195,8 +198,12 @@ const canUserJoinWorkspaceRoom = async (user, workspaceId) => {
   if (!user || !workspaceId || !isValidObjectId(workspaceId)) return false;
 
   try {
-    if (user.role === 'admin') return true;
-    if (user.workspaceId && String(user.workspaceId) === String(workspaceId)) return true;
+    // Admins and mentors reach every workspace, same as over HTTP. Everyone
+    // else must be an active member. `user.workspaceId` is only a pointer to
+    // the workspace they last switched to and is NOT proof of membership — it
+    // outlives a lapsed membership or a role downgrade, so it must not shortcut
+    // the check below. See helpers/workspaceAuthz.js.
+    if (canAccessAnyWorkspace(user.role)) return true;
 
     const workspace = await Workspace.findOne({
       _id: workspaceId,
@@ -224,10 +231,12 @@ const canUserJoinTicketRoom = async (user, ticketId) => {
     const ticket = await Ticket.findById(ticketId).select('workspace').lean();
 
     if (!ticket) return false;
-    if (user.role === 'admin') return true;
+
+    // Same rule as canUserJoinWorkspaceRoom above — the pointer is not proof of
+    // membership in the ticket's workspace.
+    if (canAccessAnyWorkspace(user.role)) return true;
 
     const workspaceId = String(ticket.workspace);
-    if (user.workspaceId && String(user.workspaceId) === workspaceId) return true;
 
     const workspace = await Workspace.findOne({
       _id: workspaceId,

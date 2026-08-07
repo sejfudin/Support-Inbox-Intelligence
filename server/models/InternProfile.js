@@ -5,6 +5,12 @@ const mongoose = require('mongoose');
 const READY_STATUS = 'ready';
 const INTERN_STATUSES = ['active', READY_STATUS, 'placed', 'completed', 'discontinued'];
 
+// The statuses that mean "still in the programme" — an intern who is placed,
+// completed or discontinued has no live attendance or workload to report. Shared
+// so the attendance roster and the admin dashboard can't drift apart on who they
+// count; both used to carry their own copy of this list.
+const IN_PROGRAMME_STATUSES = ['active', READY_STATUS];
+
 const documentationLinkSchema = new mongoose.Schema(
   {
     label: {
@@ -57,7 +63,39 @@ const internProfileSchema = new mongoose.Schema(
     expectedEndDate: {
       type: Date,
     },
+    // The intern's FIRST DAY ON A REAL PROJECT. From this day on they are no longer
+    // obliged to record FEP attendance: those days leave the attendance denominator
+    // and render in their own colour in the calendar — not as absences, and not as
+    // a weekend's grey either. Null while the intern is still on the programme.
+    //
+    // Inclusive-from: `placedAt` itself is already exempt, so the last day the
+    // intern owed attendance is the day before it.
+    //
+    // Mirrors the start date on the placement that put them there — the day they
+    // actually begin, not the day the placement was decided — and is re-derived
+    // from it whenever that recommendation is updated, so editing the start date
+    // moves this with it. A placement recorded before anyone knows the start date
+    // leaves this null: still placed on paper, still owes attendance. Interns
+    // with no recommendation record at all are exempted by setting it by hand
+    // (internService). See recommendationService and helpers/attendanceStats.js.
+    //
+    // Distinct from `expectedEndDate`, which is when the internship is *expected*
+    // to finish and drives placement-bench urgency. Do not conflate them.
+    placedAt: {
+      type: Date,
+      default: null,
+    },
     selfTechnologies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Technology',
+      },
+    ],
+    // Provenance for the CV scan: the subset of `selfTechnologies` that the most recent CV
+    // upload added, so re-uploading a CV can replace those instead of piling on top of them.
+    // Always a subset of `selfTechnologies`; never exposed to clients. Anything the intern
+    // declared by hand stays out of here — see helpers/cvTechnologySync.js.
+    cvTechnologies: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Technology',
@@ -66,6 +104,15 @@ const internProfileSchema = new mongoose.Schema(
     declaredPosition: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Position',
+      default: null,
+    },
+    secondaryPosition: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Position',
+      default: null,
+    },
+    specializationAssignedAt: {
+      type: Date,
       default: null,
     },
     cvPath: {
@@ -91,3 +138,4 @@ const internProfileSchema = new mongoose.Schema(
 module.exports = mongoose.model('InternProfile', internProfileSchema);
 module.exports.INTERN_STATUSES = INTERN_STATUSES;
 module.exports.READY_STATUS = READY_STATUS;
+module.exports.IN_PROGRAMME_STATUSES = IN_PROGRAMME_STATUSES;

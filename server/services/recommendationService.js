@@ -9,9 +9,11 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { escapeRegex } = require('../helpers/escapeRegex');
+const { placementExemptionDate } = require('../helpers/attendanceStats');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
+const { httpError } = require('../helpers/httpError');
 
 // The status milestones tracked in the append-only history log — the status
 // lifecycle itself (recommended → interviewing → resulted). The placement
@@ -62,21 +64,15 @@ const RECOMMENDATION_POPULATE = [
   { path: 'result.decidedBy', select: 'fullname email role' },
 ];
 
-const createError = (message, statusCode = 400) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-};
-
 const assertValidObjectId = (id, label) => {
   if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw createError(`${label} is invalid`, 400);
+    throw httpError(`${label} is invalid`, 400);
   }
 };
 
 const assertReadAccess = (user) => {
   if (!READ_ROLES.includes(user.role)) {
-    throw createError('Not authorized', 403);
+    throw httpError('Not authorized', 403);
   }
 };
 
@@ -84,7 +80,7 @@ const assertReadAccess = (user) => {
 // create, update, or delete them.
 const assertRecommendationWriteAccess = (user) => {
   if (user.role !== ROLES.ADMIN) {
-    throw createError('Not authorized to modify recommendations', 403);
+    throw httpError('Not authorized to modify recommendations', 403);
   }
 };
 
@@ -128,6 +124,8 @@ const formatRecommendation = (recommendation, statusDates = {}) => {
       note: plain.result?.note || '',
       decidedAt: plain.result?.decidedAt || null,
       decidedBy: formatUser(plain.result?.decidedBy),
+      // The intern's first day on the project; null while it is still unknown.
+      startDate: plain.result?.startDate || null,
     },
     // Date each tracked status was applied. The document's own statusDates are
     // authoritative (author-editable, support skipping interviewing); records
@@ -156,7 +154,7 @@ const ensureTechnologyIds = async (technologyIds = []) => {
 
   const count = await Technology.countDocuments({ _id: { $in: ids }, isActive: true });
   if (count !== ids.length) {
-    throw createError('One or more technologies are invalid', 400);
+    throw httpError('One or more technologies are invalid', 400);
   }
 
   return ids;
@@ -164,14 +162,14 @@ const ensureTechnologyIds = async (technologyIds = []) => {
 
 const ensurePositionId = async (positionId) => {
   if (!positionId) {
-    throw createError('Position is required', 400);
+    throw httpError('Position is required', 400);
   }
 
   assertValidObjectId(positionId, 'Position');
 
   const exists = await Position.exists({ _id: positionId });
   if (!exists) {
-    throw createError('Position is invalid', 400);
+    throw httpError('Position is invalid', 400);
   }
 
   return positionId;
@@ -179,14 +177,14 @@ const ensurePositionId = async (positionId) => {
 
 const ensureProjectId = async (projectId) => {
   if (!projectId) {
-    throw createError('Project is required', 400);
+    throw httpError('Project is required', 400);
   }
 
   assertValidObjectId(projectId, 'Project');
 
   const exists = await Project.exists({ _id: projectId });
   if (!exists) {
-    throw createError('Project is invalid', 400);
+    throw httpError('Project is invalid', 400);
   }
 
   return projectId;
@@ -196,10 +194,14 @@ const parseDate = (value, label) => {
   if (!value) return undefined;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    throw createError(`${label} is invalid`, 400);
+    throw httpError(`${label} is invalid`, 400);
   }
   return date;
 };
+
+// Dates compare by value, and either side may be null — "no date" is a real
+// state here, not a missing one.
+const sameInstant = (a, b) => (a && b ? new Date(a).getTime() === new Date(b).getTime() : !a && !b);
 
 const cleanText = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -213,7 +215,7 @@ const normalizeFeedback = (feedback = {}) => {
   if (feedback.rating !== undefined && feedback.rating !== null && feedback.rating !== '') {
     const rating = Number(feedback.rating);
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      throw createError('Interview feedback rating must be between 1 and 5', 400);
+      throw httpError('Interview feedback rating must be between 1 and 5', 400);
     }
     normalized.rating = rating;
   }
@@ -237,15 +239,15 @@ const hasInterviewContent = (interview = {}) =>
 
 const normalizeInterviews = (interviews = []) => {
   if (!Array.isArray(interviews)) {
-    throw createError('Interviews must be a list', 400);
+    throw httpError('Interviews must be a list', 400);
   }
 
   return interviews.filter(hasInterviewContent).map((interview) => {
     const company = cleanText(interview.company);
     const role = cleanText(interview.role);
 
-    if (!company) throw createError('Interview company is required', 400);
-    if (!role) throw createError('Interview role is required', 400);
+    if (!company) throw httpError('Interview company is required', 400);
+    if (!role) throw httpError('Interview role is required', 400);
 
     return {
       _id:
@@ -265,13 +267,13 @@ const normalizeInterviews = (interviews = []) => {
 
 const assertValidStatus = (status) => {
   if (status !== undefined && !RECOMMENDATION_STATUSES.includes(status)) {
-    throw createError('Invalid recommendation status', 400);
+    throw httpError('Invalid recommendation status', 400);
   }
 };
 
 const assertValidOutcome = (outcome) => {
   if (outcome !== undefined && !RECOMMENDATION_RESULTS.includes(outcome)) {
-    throw createError('Invalid recommendation result', 400);
+    throw httpError('Invalid recommendation result', 400);
   }
 };
 
@@ -287,7 +289,7 @@ const assertValidOutcome = (outcome) => {
  */
 const applyStatusDates = (recommendation, payloadDates) => {
   if (payloadDates !== undefined && (typeof payloadDates !== 'object' || payloadDates === null)) {
-    throw createError('Status dates must be an object', 400);
+    throw httpError('Status dates must be an object', 400);
   }
 
   const currentIndex = RECOMMENDATION_STATUSES.indexOf(recommendation.status);
@@ -303,7 +305,7 @@ const applyStatusDates = (recommendation, payloadDates) => {
 
     if (provided === null) {
       if (statusKey !== 'interviewing' || recommendation.status !== 'resulted') {
-        throw createError(
+        throw httpError(
           'Only the interviewing stage of a resulted recommendation can be skipped',
           400
         );
@@ -330,14 +332,14 @@ const applyStatusDates = (recommendation, payloadDates) => {
 
   // Stage dates must not run backwards (recommended ≤ interviewing ≤ resulted).
   if (next.interviewing && next.recommended && next.interviewing < next.recommended) {
-    throw createError('Interviewing date cannot be before the recommended date', 400);
+    throw httpError('Interviewing date cannot be before the recommended date', 400);
   }
   if (next.resulted) {
     if (next.interviewing && next.resulted < next.interviewing) {
-      throw createError('Resulted date cannot be before the interviewing date', 400);
+      throw httpError('Resulted date cannot be before the interviewing date', 400);
     }
     if (next.recommended && next.resulted < next.recommended) {
-      throw createError('Resulted date cannot be before the recommended date', 400);
+      throw httpError('Resulted date cannot be before the recommended date', 400);
     }
   }
 
@@ -347,7 +349,7 @@ const applyStatusDates = (recommendation, payloadDates) => {
 const loadInternProfileByUserId = async (internUserId) => {
   assertValidObjectId(internUserId, 'Intern');
   const profile = await InternProfile.findOne({ user: internUserId });
-  if (!profile) throw createError('Intern profile not found', 404);
+  if (!profile) throw httpError('Intern profile not found', 404);
   return profile;
 };
 
@@ -464,7 +466,7 @@ const getRecommendation = async (user, recommendationId) => {
   const recommendation =
     await Recommendation.findById(recommendationId).populate(RECOMMENDATION_POPULATE);
 
-  if (!recommendation) throw createError('Recommendation not found', 404);
+  if (!recommendation) throw httpError('Recommendation not found', 404);
   assertReadAccess(user);
 
   const statusDates = await historyService.getLatestStatusDates(
@@ -484,14 +486,14 @@ const createRecommendation = async (user, payload = {}) => {
   assertRecommendationWriteAccess(user);
 
   if (NON_RECOMMENDABLE_PROFILE_STATUSES.includes(profile.status)) {
-    throw createError(`Cannot recommend an intern who is ${profile.status}`, 409);
+    throw httpError(`Cannot recommend an intern who is ${profile.status}`, 409);
   }
 
   assertValidStatus(payload.status);
   // The timeline only moves forward from Recommended — later stages are set by
   // updating the recommendation, so each milestone gets a date.
   if (payload.status !== undefined && payload.status !== 'recommended') {
-    throw createError('A new recommendation must start as Recommended', 400);
+    throw httpError('A new recommendation must start as Recommended', 400);
   }
   const position = await ensurePositionId(payload.positionId);
   const project = await ensureProjectId(payload.projectId);
@@ -538,14 +540,28 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
       : recommendation.result?.note || '';
 
   if (outcome && !note) {
-    throw createError('Result note is required', 400);
+    throw httpError('Result note is required', 400);
   }
+
+  // The start date is a straight passthrough: omit it to leave the recorded one
+  // alone, send a date to set or move it, send null to clear it back to
+  // "unknown". No default is invented here — the form prefills the field with the
+  // Resulted date, so an empty one arriving at this point was emptied on purpose,
+  // and refilling it would overrule the admin. Not constrained relative to the
+  // stage dates either: an intern can have started before anyone recorded the
+  // placement, so a start date earlier than the Resulted date is legitimate.
+  const startDate =
+    payloadResult.startDate === undefined
+      ? recommendation.result?.startDate
+      : parseDate(payloadResult.startDate, 'Start date');
 
   recommendation.result = {
     outcome,
     note,
     decidedAt: outcome ? new Date() : undefined,
     decidedBy: outcome ? user._id : undefined,
+    // Only a placement has a start date — reversing the outcome drops it.
+    startDate: outcome === 'placed' ? startDate : undefined,
   };
 
   if (outcome) {
@@ -626,10 +642,10 @@ const closeActiveRecommendationsForIntern = async (
 const updateRecommendation = async (user, recommendationId, payload = {}) => {
   assertValidObjectId(recommendationId, 'Recommendation');
   const recommendation = await Recommendation.findById(recommendationId);
-  if (!recommendation) throw createError('Recommendation not found', 404);
+  if (!recommendation) throw httpError('Recommendation not found', 404);
 
   const profile = await InternProfile.findById(recommendation.internProfile);
-  if (!profile) throw createError('Intern profile not found', 404);
+  if (!profile) throw httpError('Intern profile not found', 404);
 
   assertRecommendationWriteAccess(user);
 
@@ -656,7 +672,7 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
       RECOMMENDATION_STATUSES.indexOf(payload.status) <
       RECOMMENDATION_STATUSES.indexOf(recommendation.status)
     ) {
-      throw createError('Recommendation status can only move forward', 400);
+      throw httpError('Recommendation status can only move forward', 400);
     }
     recommendation.status = payload.status;
   }
@@ -695,14 +711,37 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   // (ready for a new placement). Terminal statuses are never touched.
   const outcome = recommendation.result?.outcome;
   if (outcome === 'placed') {
+    let dirty = false;
     if (profile.status !== 'placed') {
       profile.status = 'placed';
-      await profile.save();
+      dirty = true;
     }
+    // Going onto a project ends the attendance obligation, so stamp `placedAt` —
+    // otherwise the intern silently accrues absence for every working day after
+    // they leave.
+    //
+    // The day that happens is the placement's START DATE, and only that: see
+    // `placementExemptionDate` for why neither the Resulted date nor
+    // `result.decidedAt` will do. A placement whose start date is still unknown
+    // exempts nothing, which is the point — the intern is placed on paper but
+    // has not left the programme yet.
+    //
+    // Re-derived on every result update rather than only when empty, so moving
+    // the start date moves the exemption with it, in both directions and however
+    // many times the date slips. (An intern with no recommendation at all is
+    // still exempted by setting `placedAt` directly via internService.)
+    const exemptFrom = placementExemptionDate(recommendation.result);
+    if (!sameInstant(profile.placedAt, exemptFrom)) {
+      profile.placedAt = exemptFrom;
+      dirty = true;
+    }
+    if (dirty) await profile.save();
     // Note: the intern's OTHER open recommendations are intentionally left
     // untouched — each recommendation is resolved individually by the mentor.
   } else if (outcome === 'not_placed' && ['active', 'placed'].includes(profile.status)) {
     profile.status = READY_STATUS;
+    // Back on the bench: they owe attendance again, so the exemption is lifted.
+    profile.placedAt = null;
     await profile.save();
   }
 
@@ -730,10 +769,10 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
 const deleteRecommendation = async (user, recommendationId) => {
   assertValidObjectId(recommendationId, 'Recommendation');
   const recommendation = await Recommendation.findById(recommendationId);
-  if (!recommendation) throw createError('Recommendation not found', 404);
+  if (!recommendation) throw httpError('Recommendation not found', 404);
 
   const profile = await InternProfile.findById(recommendation.internProfile);
-  if (!profile) throw createError('Intern profile not found', 404);
+  if (!profile) throw httpError('Intern profile not found', 404);
 
   // Same rule as writes: admin-only.
   assertRecommendationWriteAccess(user);
@@ -750,11 +789,19 @@ const deleteRecommendation = async (user, recommendationId) => {
   if (['placed', READY_STATUS].includes(profile.status)) {
     const latest = await Recommendation.findOne({ internProfile: profile._id })
       .sort({ updatedAt: -1 })
-      .select('result.outcome')
+      .select('result.outcome result.startDate')
       .lean();
     const nextStatus = latest?.result?.outcome === 'placed' ? 'placed' : READY_STATUS;
-    if (profile.status !== nextStatus) {
+    // `placedAt` is a cache of the placing recommendation's start date, so it has
+    // to be recomputed from the same record the status is — not left behind.
+    // Otherwise deleting the recommendation that placed someone leaves them
+    // exempt from attendance forever with nothing left to explain why, while the
+    // delete dialog promises the opposite ("will set them back to Ready for a new
+    // placement"). A stale exemption inflates their attendance rate silently.
+    const nextPlacedAt = placementExemptionDate(latest?.result);
+    if (profile.status !== nextStatus || !sameInstant(profile.placedAt, nextPlacedAt)) {
       profile.status = nextStatus;
+      profile.placedAt = nextPlacedAt;
       await profile.save();
     }
   }
@@ -765,6 +812,97 @@ const deleteRecommendation = async (user, recommendationId) => {
   return { _id: recommendation._id, internProfile: { user: profile.user } };
 };
 
+/**
+ * The redacted shape an intern sees of their *own* recommendation.
+ *
+ * Shown: which project and position, which stage the record is at and when it
+ * got there, the scheduled interviews, the final outcome, and — once they are
+ * placed — the day they start. That is the lifecycle the intern is living
+ * through and the whole content of the dashboard's "My pipeline" card. The start
+ * date is a fact about the intern's own schedule, unlike the notes below, which
+ * are written *about* them.
+ *
+ * Withheld, deliberately: `recommendationNote` (the admin's internal pitch for
+ * this intern), `interviews[].feedback` (the interviewer's write-up, including a
+ * `concerns` field), and `result.note` (the reasoning behind a placement
+ * decision). All three are written *about* the intern for an internal audience.
+ * Fields are picked rather than deleted so a field added to the model later
+ * cannot leak in by default.
+ */
+const formatOwnRecommendation = (recommendation, historyDates = {}) => {
+  const dates = recommendation.statusDates?.recommended ? recommendation.statusDates : historyDates;
+
+  return {
+    id: recommendation._id,
+    status: recommendation.status,
+    statusDates: {
+      recommended: dates.recommended || null,
+      interviewing: dates.interviewing || null,
+      resulted: dates.resulted || null,
+    },
+    position: recommendation.position?.name || '',
+    project: recommendation.project?.name || '',
+    technologies: (recommendation.technologies || []).map((tech) => ({
+      id: tech._id,
+      name: tech.name,
+    })),
+    interviews: (recommendation.interviews || []).map((interview) => ({
+      company: interview.company,
+      role: interview.role,
+      stage: interview.stage || '',
+      scheduledAt: interview.scheduledAt || null,
+    })),
+    result: {
+      outcome: recommendation.result?.outcome || null,
+      decidedAt: recommendation.result?.decidedAt || null,
+      startDate: recommendation.result?.startDate || null,
+    },
+    updatedAt: recommendation.updatedAt,
+  };
+};
+
+/**
+ * The signed-in intern's own recommendations, most recently updated first.
+ *
+ * A deliberate, narrow exception to the admin/leadership-only rule that
+ * `assertReadAccess` enforces everywhere else in this service: an intern may
+ * read their own pipeline, and only through `formatOwnRecommendation`'s redacted
+ * shape. The intern is resolved from the authenticated user, never from a
+ * parameter, so there is nothing to tamper with — see `.claude/docs/security.md`.
+ */
+const listOwnRecommendations = async (user) => {
+  if (user.role !== ROLES.INTERN) {
+    throw httpError('Not authorized', 403);
+  }
+
+  const profile = await InternProfile.findOne({ user: user._id }).select('_id').lean();
+  if (!profile) return [];
+
+  const recommendations = await Recommendation.find({ internProfile: profile._id })
+    .sort({ updatedAt: -1 })
+    .populate([
+      { path: 'position', select: 'name' },
+      { path: 'project', select: 'name' },
+      { path: 'technologies', select: 'name' },
+    ])
+    .lean();
+
+  if (recommendations.length === 0) return [];
+
+  // Records written before `statusDates` existed fall back to the append-only
+  // history log — batched for all of them at once rather than per record.
+  const legacyIds = recommendations
+    .filter((rec) => !rec.statusDates?.recommended)
+    .map((rec) => rec._id);
+  const historyByRec = legacyIds.length
+    ? await historyService.getLatestStatusDatesForEntities('recommendation', legacyIds)
+    : {};
+
+  return recommendations.map((rec) =>
+    formatOwnRecommendation(rec, historyByRec[rec._id.toString()] || {})
+  );
+};
+
 module.exports = {
   listRecommendations,
   getRecommendation,
@@ -772,4 +910,5 @@ module.exports = {
   updateRecommendation,
   deleteRecommendation,
   closeActiveRecommendationsForIntern,
+  listOwnRecommendations,
 };

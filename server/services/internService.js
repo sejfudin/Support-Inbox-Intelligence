@@ -18,6 +18,7 @@ const {
   canEditOwnInternProfile,
   isAssignedMentor,
 } = require('../helpers/internAccess');
+const { canInternEditDeclaredPosition } = require('../helpers/specializationRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
@@ -42,11 +43,14 @@ const PROFILE_POPULATE = [
   },
   { path: 'selfTechnologies', select: 'name slug' },
   { path: 'declaredPosition', select: 'name slug' },
+  { path: 'secondaryPosition', select: 'name slug' },
 ];
 
 const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  const { internalCvUrl, ...rest } = plain;
+  // `cvTechnologies` is internal CV-scan provenance, not part of the API surface — it only
+  // tells the server which of `selfTechnologies` a re-upload may replace.
+  const { internalCvUrl, cvTechnologies, ...rest } = plain;
   const canSeeInternalCv =
     Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
 
@@ -207,6 +211,12 @@ const updateSelfTechnologies = async (user, technologyIds = []) => {
   }
 
   profile.selfTechnologies = ids;
+  // Keep the CV-scan provenance a subset of what is actually declared: a technology the intern
+  // just removed by hand stops being the scan's to manage, so re-adding it later counts as
+  // their own declaration and a future CV can no longer take it away. See
+  // helpers/cvTechnologySync.js.
+  const declared = new Set(ids.map((id) => String(id)));
+  profile.cvTechnologies = (profile.cvTechnologies || []).filter((id) => declared.has(String(id)));
   await profile.save();
   return getMyInternProfile(user);
 };
@@ -220,12 +230,43 @@ const updateSelfPosition = async (user, positionId = null) => {
     throw err;
   }
 
+  if (!canInternEditDeclaredPosition(profile)) {
+    const err = new Error('Your position is locked by your specialization');
+    err.statusCode = 403;
+    throw err;
+  }
+
   if (positionId) {
+    if (profile.secondaryPosition && positionId === profile.secondaryPosition.toString()) {
+      throw new Error('Main position must differ from your secondary position');
+    }
     const position = await Position.findById(positionId);
     if (!position) throw new Error('Invalid position');
   }
 
   profile.declaredPosition = positionId || null;
+  await profile.save();
+  return getMyInternProfile(user);
+};
+
+const updateSelfSecondaryPosition = async (user, positionId = null) => {
+  const profile = await InternProfile.findOne({ user: user._id });
+  if (!profile) throw new Error('Intern profile not found');
+  if (!canEditOwnInternProfile(user, profile)) {
+    const err = new Error('Not authorized');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  if (positionId) {
+    if (profile.declaredPosition && positionId === profile.declaredPosition.toString()) {
+      throw new Error('Secondary position must differ from your main position');
+    }
+    const position = await Position.findById(positionId);
+    if (!position) throw new Error('Invalid position');
+  }
+
+  profile.secondaryPosition = positionId || null;
   await profile.save();
   return getMyInternProfile(user);
 };
@@ -257,6 +298,16 @@ const updateInternProgramme = async (user, internUserId, payload) => {
 
   if (payload.expectedEndDate !== undefined) {
     profile.expectedEndDate = payload.expectedEndDate ? new Date(payload.expectedEndDate) : null;
+  }
+
+  // The intern's first day on a real project. For anyone with a placement record
+  // this is derived from that placement's start date and re-derived on every
+  // update (see recommendationService), so edit the start date there rather than
+  // here — a value written here is overwritten the next time the recommendation
+  // is touched. This path is for the intern who left without a placement record
+  // at all. Clearing it puts them back on the hook for attendance.
+  if (payload.placedAt !== undefined) {
+    profile.placedAt = payload.placedAt ? new Date(payload.placedAt) : null;
   }
 
   await profile.save();
@@ -515,6 +566,8 @@ const formatReadyCandidate = (
       : null,
     status: profile.status,
     expectedEndDate: profile.expectedEndDate || null,
+    // First day on a real project; from here the intern owes no attendance.
+    placedAt: profile.placedAt || null,
     cvUrl: buildCvUrl(profile.cvPath),
     readyTechnologies,
     latestEvaluationAverage,
@@ -1003,6 +1056,7 @@ module.exports = {
   getMyInternProfile,
   updateSelfTechnologies,
   updateSelfPosition,
+  updateSelfSecondaryPosition,
   updateInternProgramme,
   updateDocumentationLinks,
   updateInternalCvLink,

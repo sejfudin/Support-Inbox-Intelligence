@@ -6,7 +6,12 @@ import AttendanceStat from '@/components/attendance/AttendanceStat';
 import { CalendarCheck, Flame, Percent, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMyAttendance, useCheckInToday, useCancelTodayCheckIn } from '@/queries/attendance';
-import { computeStreak, attendanceRateTextClass } from '@/helpers/attendance';
+import {
+  computeStreak,
+  attendanceRateTextClass,
+  formatAttendanceRate,
+  isExemptToday,
+} from '@/helpers/attendance';
 
 export default function MyAttendancePage() {
   const { data, isPending, isError } = useMyAttendance();
@@ -15,37 +20,71 @@ export default function MyAttendancePage() {
 
   const records = data?.records ?? [];
   const cancelledDates = data?.cancelledDates ?? [];
-  // Current-month stats come from the server (start-date-prorated); the calendar
-  // and streak are derived client-side from the full record history.
+  // First day on a real project, if any — from there the intern owes no attendance.
+  const placedAt = data?.placedAt ?? null;
+  const nonWorkingDays = data?.nonWorkingDays ?? [];
+  const startDate = data?.startDate ?? null;
+  // Current-month stats come from the server (start-date-prorated, and clamped at
+  // `placedAt`); the calendar and streak are derived client-side from the full
+  // record history. `attendanceRate` is null when nothing was owed — do NOT default
+  // it to 0, which would show a fabricated 0%.
   const {
-    attendanceRate = 0,
+    attendanceRate = null,
     presentDays = 0,
     workingDays: workingDaysElapsed = 0,
   } = data?.month ?? {};
-  const streak = computeStreak(records);
+  const streak = computeStreak(records, placedAt);
   const monthLabel = format(new Date(), 'MMMM');
+  // Already on the project as of today (a future placedAt still owes attendance).
+  const onProject = isExemptToday(placedAt);
 
   return (
     <PageShell>
       <PageSection className="space-y-6">
         <div className="mx-auto w-full max-w-4xl space-y-6">
+          {/* Both the subtitle and the performance warning are addressed to someone
+              who still has to check in. Once the intern is on a project neither is
+              true any more, and leaving the amber "unplanned absences count against
+              you" notice up would be actively misleading — so it is replaced by the
+              reason their days are greyed out. */}
           <PageHeading
             kicker="Internship"
             title="My attendance"
-            subtitle="Check in each day you come into the office. Your mentor and admins can see your attendance, but only you can record it."
+            subtitle={
+              onProject
+                ? 'You are on a project, so you no longer record daily attendance. Your history up to that point is below.'
+                : 'Check in each day you come into the office. Your mentor and admins can see your attendance, but only you can record it.'
+            }
             showMetaDivider
             meta={
-              <div
-                className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3.5 py-3 text-sm text-muted-foreground"
-                data-test="attendance-performance-notice"
-              >
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <p>
-                  Your attendance is part of how your performance is assessed. Only be absent when
-                  you've agreed it in advance with your mentor and have their permission — unplanned
-                  absences count against you.
-                </p>
-              </div>
+              onProject ? (
+                <div
+                  className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-3 text-sm text-muted-foreground"
+                  data-test="attendance-on-project-notice"
+                >
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  <p>
+                    Attendance stopped counting on{' '}
+                    <span className="font-semibold text-foreground">
+                      {format(new Date(placedAt), 'MMMM d, yyyy')}
+                    </span>
+                    , the day you started on a project. Days from then on are greyed out — they are
+                    not absences.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3.5 py-3 text-sm text-muted-foreground"
+                  data-test="attendance-performance-notice"
+                >
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <p>
+                    Your attendance is part of how your performance is assessed. Only be absent when
+                    you've agreed it in advance with your mentor and have their permission —
+                    unplanned absences count against you.
+                  </p>
+                </div>
+              )
             }
           />
 
@@ -66,6 +105,7 @@ export default function MyAttendancePage() {
               <CheckInCard
                 records={records}
                 cancelledDates={cancelledDates}
+                placedAt={placedAt}
                 onCheckIn={() => checkIn()}
                 onCancel={() => cancelCheckIn()}
                 isCheckingIn={isCheckingIn}
@@ -75,8 +115,8 @@ export default function MyAttendancePage() {
               <div className="grid gap-4 sm:grid-cols-3">
                 <AttendanceStat
                   label="Attendance"
-                  value={`${attendanceRate}%`}
-                  hint={`${monthLabel} so far`}
+                  value={formatAttendanceRate(attendanceRate)}
+                  hint={onProject ? 'Not required — on a project' : `${monthLabel} so far`}
                   icon={Percent}
                   valueClassName={attendanceRateTextClass(attendanceRate)}
                 />
@@ -94,7 +134,13 @@ export default function MyAttendancePage() {
                 />
               </div>
 
-              <AttendanceCalendar records={records} cancelledDates={cancelledDates} />
+              <AttendanceCalendar
+                records={records}
+                cancelledDates={cancelledDates}
+                placedAt={placedAt}
+                nonWorkingDays={nonWorkingDays}
+                startDate={startDate}
+              />
             </>
           )}
         </div>

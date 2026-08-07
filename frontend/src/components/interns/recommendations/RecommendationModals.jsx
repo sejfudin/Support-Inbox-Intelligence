@@ -39,7 +39,7 @@ import {
 } from './recommendationUi';
 
 const SELECT_TRIGGER_CLASS =
-  'h-auto w-full rounded-xl border-[#dcdfe9] bg-white px-[14px] py-[11px] text-[14px] text-[#171b2b] shadow-none focus:ring-0 focus:ring-offset-0 data-[placeholder]:text-[#9aa1b4]';
+  'h-auto w-full rounded-xl border-input bg-card px-[14px] py-[11px] text-[14px] text-foreground shadow-none focus:ring-0 focus:ring-offset-0 data-[placeholder]:text-muted-foreground/80';
 
 /**
  * Read-only view modal: status strip + pill, timeline with CURRENT tag,
@@ -74,7 +74,7 @@ export function RecommendationViewModal({
       subtitle={
         <>
           Project{' '}
-          <span className="font-semibold text-[#33384c]">
+          <span className="font-semibold text-foreground/90">
             {recommendation.project?.name || '—'}
           </span>{' '}
           · Updated {formatRecDate(recommendation.updatedAt)} by{' '}
@@ -118,24 +118,36 @@ export function RecommendationViewModal({
       {recommendation.recommendationNote && (
         <div>
           <SectionLabel className="mb-2">Note</SectionLabel>
-          <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-[#5b6175] [overflow-wrap:anywhere]">
+          <p className="whitespace-pre-line text-[13.5px] leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
             {recommendation.recommendationNote}
           </p>
         </div>
       )}
 
       {recommendation.result?.outcome && (
-        <div className="rounded-[14px] border border-[#e7e9ef] bg-[#fafbfd] px-5 py-4">
+        <div className="rounded-[14px] border border-border bg-muted/30 px-5 py-4">
           <SectionLabel className="mb-2">Placement outcome</SectionLabel>
-          <p className="text-[14px] text-[#8b91a5]">
-            <span className="text-[15px] font-bold text-[#171b2b]">
+          <p className="text-[14px] text-muted-foreground">
+            <span className="text-[15px] font-bold text-foreground">
               {getRecommendationResultLabel(recommendation.result.outcome)}
             </span>{' '}
             · {formatRecDate(recommendation.result.decidedAt)} by{' '}
             {recommendation.result.decidedBy?.fullname || 'Unknown'}
           </p>
+          {recommendation.result.outcome === 'placed' && (
+            <p
+              className="mt-1 text-[13.5px] text-muted-foreground"
+              data-test="placement-start-date"
+            >
+              {recommendation.result.startDate ? (
+                <>Starts {formatRecDate(recommendation.result.startDate)}</>
+              ) : (
+                <>Start date not set — still counted in attendance</>
+              )}
+            </p>
+          )}
           {recommendation.result.note && (
-            <p className="mt-1 text-[13.5px] text-[#5b6175] [overflow-wrap:anywhere]">
+            <p className="mt-1 text-[13.5px] text-muted-foreground [overflow-wrap:anywhere]">
               {recommendation.result.note}
             </p>
           )}
@@ -220,6 +232,9 @@ export function RecommendationFormModal({
   };
 
   const showOutcomeSection = isEditing && (form.status === 'resulted' || hasRecordedOutcome);
+  // A start date belongs to a placement and nothing else, so the field is shown
+  // but inert until the outcome says Placed.
+  const placementStartDisabled = form.resultOutcome !== 'placed';
   // Saving a Resulted recommendation requires a concrete placement result;
   // while "--" is selected the primary action stays disabled.
   const outcomeMissing = isEditing && form.status === 'resulted' && form.resultOutcome === 'none';
@@ -332,9 +347,9 @@ export function RecommendationFormModal({
           }
         />
         {!isEditing && (
-          <p className="mt-2.5 flex items-center gap-2 text-[12.5px] text-[#8b91a5]">
+          <p className="mt-2.5 flex items-center gap-2 text-[12.5px] text-muted-foreground">
             <span
-              className="h-[5px] w-[5px] shrink-0 rounded-full bg-[#c3c8d8]"
+              className="h-[5px] w-[5px] shrink-0 rounded-full bg-muted-foreground/40"
               aria-hidden="true"
             />
             A new recommendation starts at Recommended — later stages are set by updating it.
@@ -372,7 +387,7 @@ export function RecommendationFormModal({
                     onChange={(event) => handleStageDateChange(status.value, event.target.value)}
                     className={cn(
                       INPUT_CLASS,
-                      disabled && 'cursor-not-allowed bg-[#f6f7fa] text-[#b0b5c6]'
+                      disabled && 'cursor-not-allowed bg-muted/40 text-muted-foreground/70'
                     )}
                     data-test={`recommendation-date-${status.value}`}
                   />
@@ -380,7 +395,7 @@ export function RecommendationFormModal({
               );
             })}
           </div>
-          <p className="mt-2.5 text-[12.5px] leading-relaxed text-[#8b91a5]">
+          <p className="mt-2.5 text-[12.5px] leading-relaxed text-muted-foreground">
             Defaults to today when a stage is reached — adjust if it happened earlier. Skipped
             stages show as &quot;Skipped&quot; on the timeline.
           </p>
@@ -400,7 +415,7 @@ export function RecommendationFormModal({
               data-test="recommendation-date-recommended"
             />
           </div>
-          <p className="mt-2 text-[12.5px] text-[#8b91a5]">
+          <p className="mt-2 text-[12.5px] text-muted-foreground">
             Defaults to today — change if it happened earlier.
           </p>
         </div>
@@ -415,7 +430,7 @@ export function RecommendationFormModal({
           variant={isEditing ? 'box' : 'select'}
           triggerClassName={cn(
             INPUT_CLASS,
-            'flex items-center justify-between text-left text-[#9aa1b4]'
+            'flex items-center justify-between text-left text-muted-foreground/80'
           )}
           chipClassName={CHIP_CLASS}
         />
@@ -439,7 +454,7 @@ export function RecommendationFormModal({
       </div>
 
       {showOutcomeSection && (
-        <div className="rounded-[14px] border border-[#e7e9ef] bg-[#fafbfd] px-5 py-[18px]">
+        <div className="rounded-[14px] border border-border bg-muted/30 px-5 py-[18px]">
           <SectionLabel className="mb-3.5">Placement outcome</SectionLabel>
           {form.status === 'resulted' ? (
             <>
@@ -451,7 +466,19 @@ export function RecommendationFormModal({
                   <Select
                     value={form.resultOutcome}
                     onValueChange={(resultOutcome) =>
-                      setForm((prev) => ({ ...prev, resultOutcome }))
+                      setForm((prev) => ({
+                        ...prev,
+                        resultOutcome,
+                        // Choosing "Placed" offers the Resulted date as the start
+                        // date, since starting straight away is the common case.
+                        // Only fills a blank field — a date already typed, or one
+                        // cleared on purpose while the picker stays on Placed, is
+                        // left alone.
+                        startDate:
+                          resultOutcome === 'placed' && !prev.startDate
+                            ? prev.statusDates.resulted || todayInputDate()
+                            : prev.startDate,
+                      }))
                     }
                   >
                     <SelectTrigger
@@ -486,7 +513,50 @@ export function RecommendationFormModal({
                   />
                 </div>
               </div>
-              <p className="mt-3 text-[12.5px] leading-relaxed text-[#8b91a5]">
+              {/* Always on show once the status is Resulted, disabled until the
+                  outcome is Placed — the same idiom as the unreached status-date
+                  inputs above. Rendering it only for a placement made the field
+                  impossible to find: you had to already know it would appear. */}
+              <div className="mt-4">
+                <FieldLabel htmlFor="recommendation-start-date" className="mb-2">
+                  Start date
+                </FieldLabel>
+                <div className="grid items-center gap-4 sm:grid-cols-2">
+                  <input
+                    id="recommendation-start-date"
+                    type="date"
+                    value={placementStartDisabled ? '' : form.startDate || ''}
+                    disabled={placementStartDisabled}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, startDate: event.target.value }))
+                    }
+                    className={cn(
+                      INPUT_CLASS,
+                      placementStartDisabled &&
+                        'cursor-not-allowed bg-muted/40 text-muted-foreground/70'
+                    )}
+                    data-test="recommendation-start-date"
+                  />
+                  {!placementStartDisabled && form.startDate && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, startDate: '' }))}
+                      className="justify-self-start text-[12.5px] font-semibold text-primary transition hover:text-primary/80"
+                      data-test="recommendation-start-date-clear"
+                    >
+                      Not known yet
+                    </button>
+                  )}
+                </div>
+                <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                  {placementStartDisabled
+                    ? 'Only a placement has a start date — choose “Placed” to set one.'
+                    : form.startDate
+                      ? 'The intern’s first day on the project — attendance stops counting from this day. Defaults to the Resulted date; edit it whenever the date moves.'
+                      : 'Not set. The intern stays on the programme and keeps owing attendance until a start date is entered — come back and set it once it’s known.'}
+                </p>
+              </div>
+              <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
                 Select &quot;Placed&quot; or &quot;Not placed&quot; to enable saving. &quot;Not
                 placed&quot; marks the intern as ready for a new placement.
               </p>
@@ -495,10 +565,10 @@ export function RecommendationFormModal({
             // Status was moved back while a result is already recorded. The
             // server keeps the result, so show it instead of hiding it.
             <div data-test="recommendation-stale-result-notice">
-              <p className="text-[14px] font-semibold text-[#171b2b]">
+              <p className="text-[14px] font-semibold text-foreground">
                 {getRecommendationResultLabel(activeRecommendation.result.outcome)} — kept
               </p>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-[#8b91a5]">
+              <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
                 This recommendation already has a recorded result. Moving the status back does not
                 clear it — set the status to Resulted to change the outcome.
               </p>
@@ -524,20 +594,20 @@ export function RecommendationDeleteDialog({
       <DialogContent
         hideCloseButton
         className={cn(
-          'block max-w-[430px] gap-0 rounded-[20px] border-0 bg-white p-7 shadow-[0_24px_60px_rgba(20,24,40,.18)] sm:rounded-[20px] sm:p-7',
+          'block max-w-[430px] gap-0 rounded-[20px] border-0 bg-card p-7 shadow-elevated sm:rounded-[20px] sm:p-7',
           REC_FONT
         )}
         data-test="recommendation-delete-dialog"
       >
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-[#fdeaea]">
-          <Trash2 className="h-5 w-5 text-[#d64c4c]" />
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-destructive/10">
+          <Trash2 className="h-5 w-5 text-destructive" />
         </div>
-        <DialogTitle className="mt-4 text-[18px] font-bold text-[#171b2b]">
+        <DialogTitle className="mt-4 text-[18px] font-bold text-foreground">
           Delete recommendation?
         </DialogTitle>
-        <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-[#5b6175]">
+        <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
           Are you sure you want to delete{' '}
-          <span className="font-bold text-[#171b2b]">
+          <span className="font-bold text-foreground">
             &quot;{positionName(recommendation)} · {recommendation.project?.name || '—'}&quot;
           </span>
           ? The full status history and placement outcome will be removed. This can&apos;t be
@@ -545,7 +615,7 @@ export function RecommendationDeleteDialog({
         </DialogDescription>
         {recommendation.result?.outcome === 'placed' && (
           <p
-            className="mt-3 rounded-[10px] bg-[#fef4e2] px-3 py-2.5 text-[12.5px] font-medium leading-relaxed text-[#b06a05]"
+            className="mt-3 rounded-[10px] bg-amber-50 dark:bg-amber-500/15 px-3 py-2.5 text-[12.5px] font-medium leading-relaxed text-amber-700 dark:text-amber-300"
             data-test="recommendation-delete-placed-warning"
           >
             This recommendation marked the intern as Placed — deleting it will set them back to
@@ -600,21 +670,21 @@ export function RecommendationDuplicateWarnDialog({
       <DialogContent
         hideCloseButton
         className={cn(
-          'block max-w-[460px] gap-0 rounded-[20px] border-0 bg-white p-7 shadow-[0_24px_60px_rgba(20,24,40,.18)] sm:rounded-[20px] sm:p-7',
+          'block max-w-[460px] gap-0 rounded-[20px] border-0 bg-card p-7 shadow-elevated sm:rounded-[20px] sm:p-7',
           REC_FONT
         )}
         data-test="recommendation-duplicate-warn-dialog"
       >
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-[#fef4e2]">
-          <AlertTriangle className="h-5 w-5 text-[#b06a05]" />
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-amber-50 dark:bg-amber-500/15">
+          <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
         </div>
-        <DialogTitle className="mt-4 text-[18px] font-bold text-[#171b2b]">
+        <DialogTitle className="mt-4 text-[18px] font-bold text-foreground">
           Already recommended elsewhere
         </DialogTitle>
-        <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-[#5b6175]">
-          <span className="font-bold text-[#171b2b]">{name}</span> is already recommended on{' '}
-          <span className="font-bold text-[#171b2b]">{existingLabel}</span>. Are you sure you want
-          to recommend them on <span className="font-bold text-[#171b2b]">{targetLabel}</span> as
+        <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+          <span className="font-bold text-foreground">{name}</span> is already recommended on{' '}
+          <span className="font-bold text-foreground">{existingLabel}</span>. Are you sure you want
+          to recommend them on <span className="font-bold text-foreground">{targetLabel}</span> as
           well?
         </DialogDescription>
         <div className="mt-6 flex justify-end gap-3">

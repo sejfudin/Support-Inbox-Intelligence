@@ -24,6 +24,7 @@ import {
   isCancelledToday,
   formatCheckInTime,
   checkInWindowState,
+  isExemptToday,
   CHECK_IN_WINDOW_LABEL,
 } from '@/helpers/attendance';
 
@@ -35,9 +36,14 @@ import {
  * Cancelling unchecks today; the intern can check in again until the window
  * closes. After the window closes, a cancelled day counts as absent.
  *
+ * Once the intern is on a real project (`placedAt`) the control is withdrawn
+ * entirely — the server refuses check-in with a 422, so offering the button would
+ * only produce an error on click.
+ *
  * @param {{
  *   records: Array<{date:string, checkedInAt:string}>,
  *   cancelledDates: string[],
+ *   placedAt?: string|null,
  *   onCheckIn: () => void,
  *   onCancel: () => void,
  *   isCheckingIn: boolean,
@@ -47,6 +53,7 @@ import {
 export default function CheckInCard({
   records = [],
   cancelledDates = [],
+  placedAt = null,
   onCheckIn,
   onCancel,
   isCheckingIn,
@@ -59,27 +66,34 @@ export default function CheckInCard({
   const cancelled = isCancelledToday(cancelledDates);
   const weekend = isWeekend(now);
   const windowState = checkInWindowState(now); // 'before' | 'open' | 'closed'
+  // On a project as of today. Back-dating `placedAt` flips this immediately, which
+  // is the point: the intern stops being asked for something they no longer owe.
+  const exempt = isExemptToday(placedAt, now);
   // Cancelled only locks as absent once the window has closed; while it's still
   // open (or not yet open), the intern can check in again.
-  const lockedAbsent = cancelled && windowState === 'closed';
-  const missed = !checkedIn && !cancelled && !weekend && windowState === 'closed';
-  const canCheckInAgain = cancelled && !weekend && windowState !== 'closed';
+  // Every "you are absent" state is suppressed while exempt — an intern on a
+  // project is not absent, they simply owe nothing.
+  const lockedAbsent = !exempt && cancelled && windowState === 'closed';
+  const missed = !exempt && !checkedIn && !cancelled && !weekend && windowState === 'closed';
+  const canCheckInAgain = !exempt && cancelled && !weekend && windowState !== 'closed';
 
-  const statusLine = lockedAbsent
-    ? 'Check-in cancelled — today counts as absent.'
-    : checkedIn
-      ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
-      : weekend
-        ? "It's the weekend — check-in isn't required today."
-        : missed
-          ? `Check-in window (${CHECK_IN_WINDOW_LABEL}) has closed — today counts as absent.`
-          : canCheckInAgain
-            ? windowState === 'before'
-              ? `Check-in was cancelled. Opens again at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}.`
-              : 'Check-in was cancelled — you can check in again.'
-            : windowState === 'before'
-              ? `Check-in opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}.`
-              : `Check in before ${CHECK_IN_WINDOW_LABEL.split('–')[1]}.`;
+  const statusLine = exempt
+    ? "You're on a project — recording attendance is no longer required."
+    : lockedAbsent
+      ? 'Check-in cancelled — today counts as absent.'
+      : checkedIn
+        ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
+        : weekend
+          ? "It's the weekend — check-in isn't required today."
+          : missed
+            ? `Check-in window (${CHECK_IN_WINDOW_LABEL}) has closed — today counts as absent.`
+            : canCheckInAgain
+              ? windowState === 'before'
+                ? `Check-in was cancelled. Opens again at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}.`
+                : 'Check-in was cancelled — you can check in again.'
+              : windowState === 'before'
+                ? `Check-in opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}.`
+                : `Check in before ${CHECK_IN_WINDOW_LABEL.split('–')[1]}.`;
 
   const confirmCancel = () => {
     onCancel();
@@ -105,7 +119,9 @@ export default function CheckInCard({
               lockedAbsent || missed ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
             )}
           >
-            {lockedAbsent ? (
+            {exempt ? (
+              <CalendarOff className="h-3.5 w-3.5 shrink-0" />
+            ) : lockedAbsent ? (
               <Ban className="h-3.5 w-3.5 shrink-0" />
             ) : weekend ? (
               <CalendarOff className="h-3.5 w-3.5 shrink-0" />
@@ -121,7 +137,15 @@ export default function CheckInCard({
         </div>
 
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-          {lockedAbsent ? (
+          {exempt ? (
+            <div
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-muted px-4 py-2.5 text-sm font-semibold text-muted-foreground"
+              data-test="attendance-on-project-badge"
+            >
+              <CalendarOff className="h-4 w-4" />
+              On a project
+            </div>
+          ) : lockedAbsent ? (
             <div
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-700 dark:text-red-300"
               data-test="attendance-cancelled-badge"

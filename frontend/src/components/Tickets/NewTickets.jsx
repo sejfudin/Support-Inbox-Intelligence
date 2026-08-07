@@ -33,6 +33,7 @@ const NewTickets = ({
   hideStatus = false,
   workspaceId: previewWorkspaceId,
   statusOptions = [],
+  contextNote,
 }) => {
   const createMutation = useCreateTicket();
   const { user } = useAuth();
@@ -221,8 +222,12 @@ const NewTickets = ({
 
         <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
+            {/* `contextNote` names the target workspace when the modal is opened
+                from somewhere that is not the workspace's own ticket board — an
+                admin who manages several should not have to guess where this
+                ticket is about to land. */}
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-              New Ticket
+              {contextNote || 'New Ticket'}
             </span>
             <button
               type="button"
