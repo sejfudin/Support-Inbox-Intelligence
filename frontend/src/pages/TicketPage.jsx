@@ -346,6 +346,8 @@ export default function TicketPage() {
   const statusCountsParams = getTicketsQueryParams({
     page: 1,
     workspaceId: effectiveWorkspaceId,
+    archived: false,
+    queryFilters,
   }).board;
 
   const { data: statusCountsData } = useTickets(statusCountsParams, {
