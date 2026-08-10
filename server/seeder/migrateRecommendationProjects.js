@@ -49,6 +49,7 @@ const run = async () => {
           slug: 'unspecified',
           isSystem: true,
           status: 'active',
+          type: 'internal',
         },
       },
       { upsert: true, returnDocument: 'after' }

@@ -243,13 +243,24 @@ controllers/specializations.js, routes/specializations.js}`. Frontend: `pages/Sp
 
 `Project` (`server/models/Project.js`) is the canonical list of client engagements a
 recommendation can point at (title, client, description, tech tags, `status`:
-`active | on_hold | completed`). Firm-global reference data, same pattern as `Technology`/
+`active | on_hold | completed`, `type`: `client | internal`). Firm-global reference data, same pattern as `Technology`/
 `Position` — **not** workspace-scoped despite the general "workspace-scope every resource" rule
 (that rule applies to the ticketing domain, not intern/recommendation reference data).
 
 - **Admin-only** create/edit (`requireRole(ROLES.ADMIN)`) — mentors can only select a project when
   writing a recommendation, they cannot manage the list. Managed from the "Projects" tab on
   `/admin/platform-management` (`ReferenceDataProjectsPanel`).
+- **`type`** (`client | internal`, `PROJECT_TYPES`) is **required with no schema default** — the
+  admin must classify every project explicitly, so `projectService.createProject` rejects a missing
+  or unknown value rather than letting a default absorb it. Purely descriptive today: it renders as
+  a neutral badge (`frontend/src/components/projects/ProjectTypeBadge.jsx`) on the admin and
+  leadership project views and **nothing branches on it** — no filtering, no KPI grouping, no
+  effect on the recommendation picker. The value set is a deliberate starting pair pending the full
+  list from the program leads; stored slugs live in the model enum, display labels in
+  `frontend/src/helpers/projects.js`, so relabelling never needs a migration. Projects predating
+  the field are typed by `npm run backfill:project-types`
+  (`server/seeder/backfillProjectTypes.js`, idempotent) — run it right after deploying the schema
+  change, since an unset `type` fails validation on any `save()`.
 - Only `status: active` projects are offered in the recommendation form's project picker;
   `on_hold`/`completed` stay on existing recommendations but drop out of the picker for new ones.
 - A locked sentinel project (`slug: 'unspecified'`, `isSystem: true`) exists because

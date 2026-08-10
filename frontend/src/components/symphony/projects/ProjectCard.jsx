@@ -2,6 +2,7 @@ import { Briefcase } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge';
 import { getProjectStatusLabel } from '@/helpers/projects';
 
 export function ProjectCard({ project }) {
@@ -19,10 +20,13 @@ export function ProjectCard({ project }) {
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[hsl(var(--symphony-brand)/0.12)] text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]">
             <Briefcase className="h-5 w-5" />
           </span>
-          <SymphonyStatusBadge
-            status={project.status}
-            label={getProjectStatusLabel(project.status)}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <ProjectTypeBadge type={project.type} />
+            <SymphonyStatusBadge
+              status={project.status}
+              label={getProjectStatusLabel(project.status)}
+            />
+          </div>
         </div>
 
         <div className="mt-4">
