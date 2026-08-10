@@ -31,9 +31,9 @@ function PipelineFlow() {
 
 export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = null }) {
   const dash = '—';
-  // Ready pool = interns on the bench NOT yet in the pipeline. Deducting the
+  // Ready pool = interns on the bench NOT yet in selection. Deducting the
   // active-recommendation interns keeps the three cards mutually exclusive, so
-  // Ready + In pipeline + Placed reads as a clean funnel with no double-count.
+  // Ready + In Selection + Placed reads as a clean funnel with no double-count.
   const ready = summary?.readyWithoutActiveRecommendation ?? stats?.readyForPlacement ?? 0;
   const inPipeline = summary?.activeRecommendations ?? 0;
   const placed = funnel?.placed ?? summary?.placedInterns ?? 0;
@@ -56,7 +56,7 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
           A mentor has confirmed these interns are ready to take on a real project, and they are not
           yet being pitched — free to be put forward as soon as a position opens.
           <span className="mt-2 block">
-            Interns in <span className="font-semibold text-foreground">In pipeline</span> are still
+            Interns in <span className="font-semibold text-foreground">In Selection</span> are still
             ready too; they are counted there instead of here so nobody is counted twice. A failed
             interview brings an intern back to this count.
           </span>
@@ -64,7 +64,7 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
       ),
     },
     {
-      label: 'In pipeline',
+      label: 'In Selection',
       value: isPending ? dash : inPipeline,
       hint: 'Put forward for a role — recommended or interviewing',
       dot: '#5B7CFA',
@@ -90,7 +90,7 @@ export function ProgrammeKpiRow({ isPending, stats, summary, funnel, accent = nu
       dot: '#E88AA6',
       to: '/interns?status=placed',
       testId: 'programme-kpi-placed-link',
-      info: 'Interns who cleared their interviews and are now staffed on a client project. This is the end of the pipeline.',
+      info: 'Interns who cleared their interviews and are now staffed on a client project. This is the end of the selection process.',
     },
   ];
 

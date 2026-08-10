@@ -98,7 +98,7 @@ page) are gated in the service layer, not route middleware — `assertLeadership
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
 **Interns may read their own recommendation and evaluations — and nothing else of either.** Two
-narrow self-only reads back the intern dashboard's "My pipeline" and "My evaluations" cards:
+narrow self-only reads back the intern dashboard's "My Selection Process" and "My evaluations" cards:
 `recommendationService.listOwnRecommendations(user)` and
 `evaluationService.listOwnEvaluations(user)`. Both are separate functions from the admin list
 paths (which still 403 an intern outright), both re-check `role === INTERN` at the service layer,
@@ -107,7 +107,7 @@ tamper with. They are only reachable through `GET /api/dashboard/me`, which take
 parameters at all.
 
 `listOwnRecommendations` returns **every** recommendation belonging to the caller, not just the
-newest — the pipeline card switches between them. That widens the payload but not its scope: the
+newest — the card switches between them. That widens the payload but not its scope: the
 records are still only ever the caller's own, and each is the same redacted shape described below.
 
 Their return shapes are **redacted, by picking fields rather than deleting them**, so a field added

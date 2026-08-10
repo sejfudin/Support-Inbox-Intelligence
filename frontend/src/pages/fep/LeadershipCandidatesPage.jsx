@@ -18,8 +18,8 @@ import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
 
-// Placement-stage filter options in funnel order; `in pipeline` sits between
-// ready and placed because pipelined interns are ready interns with an active
+// Placement-stage filter options in funnel order; `in selection` sits between
+// ready and placed because those interns are ready interns with an active
 // recommendation.
 const stageOptions = INTERN_STATUSES.flatMap((s) =>
   s === READY_STATUS ? [s, IN_PIPELINE_STAGE] : [s]
@@ -30,7 +30,7 @@ const stageOptions = INTERN_STATUSES.flatMap((s) =>
 // title-cased so the selected value in the trigger matches the dropdown.
 const stageLabel = (s) => {
   if (s === READY_STATUS) return 'Available for a project';
-  if (s === IN_PIPELINE_STAGE) return 'In Pipeline';
+  if (s === IN_PIPELINE_STAGE) return 'In Selection';
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 

@@ -218,11 +218,11 @@ function StageRow({ steps, recommendation = null }) {
 /** Shared between the empty and populated card, so the "?" never disappears. */
 function PipelineHelp() {
   return (
-    <DashboardCardHelp label="About my pipeline">
+    <DashboardCardHelp label="About my selection process">
       <p>
-        Your pipeline is the recommendation your mentor put you forward with, and the stages it
-        moves through: recommended → interview → result. The <strong>pulsing</strong> stage is where
-        you are now.
+        Your selection process is the recommendation your mentor put you forward with, and the
+        stages it moves through: recommended → interview → result. The <strong>pulsing</strong>{' '}
+        stage is where you are now.
       </p>
       <p>
         Only your mentor and the admins can move it along. The recommendation note and any interview
@@ -233,7 +233,7 @@ function PipelineHelp() {
 }
 
 /**
- * "My pipeline" — where the intern's current recommendation stands.
+ * "My Selection Process" — where the intern's current recommendation stands.
  *
  * The payload is redacted server-side (`recommendationService.listOwnRecommendations`):
  * stages, dates, project and outcome, but never the admin's recommendation note,
@@ -260,7 +260,7 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
     return (
       <DashboardCard
         className={className}
-        title="My pipeline"
+        title="My Selection Process"
         action={<PipelineHelp />}
         data-tour="intern-dashboard-pipeline"
       >
@@ -281,7 +281,7 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
   return (
     <DashboardCard
       className={className}
-      title="My pipeline"
+      title="My Selection Process"
       action={
         <div className="flex shrink-0 items-center gap-1.5">
           {isPreview && <ExampleChip />}
