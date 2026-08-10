@@ -85,3 +85,16 @@ _Avoid_: co-mentor, area mentor, second mentor (it is *the specialization mentor
 > (the platform **admin** role), and "mentor" usually means the *specialization mentor* (the
 > `secondaryMentor`). In code and docs use the platform-role words: **admin** assigns, the
 > **specialization mentor** is assigned.
+
+## Recommendations & placement
+
+**In Selection**:
+The user-facing name for an intern's `recommended` or `interviewing` recommendation status —
+ready and actively being put forward, not yet `resulted`. Already the term used on the
+leadership Projects view (`InSelectionModal`, "Skills in selection"); this made the same term the
+canonical one for the leadership Candidates filter and dashboard KPIs, which previously said
+"In Pipeline" / "Pipeline" for the identical concept and confused users on both the leadership and
+intern side. The intern-facing dashboard card for the same concept is **"My Selection Process"**
+(was "My pipeline").
+_Avoid_: pipeline, in pipeline (as UI copy — "pipeline" stays only as the internal/doc term for
+the whole `recommended → interviewing → resulted` lifecycle, see `.claude/docs/architecture.md`).

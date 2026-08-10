@@ -49,7 +49,7 @@ export function PlacementBenchTable({ isPending, readyBench = [] }) {
             <thead>
               <tr className="border-b border-border/60 text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="pb-3 pr-4 font-medium">Candidate</th>
-                <th className="pb-3 pr-4 font-medium">Pipeline</th>
+                <th className="pb-3 pr-4 font-medium">In Selection</th>
                 <th className="pb-3 pr-4 font-medium">Hub</th>
                 <th className="pb-3 pr-4 font-medium">Ready tech</th>
                 <th className="pb-3 pr-4 font-medium">End date</th>

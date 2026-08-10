@@ -33,7 +33,7 @@
 - Read-only, no write permissions anywhere
 - Sees all interns and all their profiles (not just assigned ones, unlike a mentor)
 - Sees all recommendations (created exclusively by admin), but can't create/edit them
-- Sees programme-wide statistics, the funnel/pipeline dashboard
+- Sees programme-wide statistics, the funnel/"In Selection" dashboard
 - Sees a read-only "Projects" view (`/projects`): every client project with who's placed on it,
   who's currently in selection (recommended/interviewing), technology demand across projects, and
   each project's full outcome history — no recommend/edit actions anywhere

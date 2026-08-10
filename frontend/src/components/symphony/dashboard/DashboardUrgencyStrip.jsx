@@ -33,7 +33,7 @@ export function DashboardUrgencyStrip({ urgent = [], pipelineAttention = [] }) {
         <div>
           <h2 className="symphony-urgency-title text-lg font-semibold">Needs attention</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Programme end dates and stalled placement pipeline items.
+            Programme end dates and stalled selection items.
           </p>
         </div>
       </div>
@@ -70,7 +70,7 @@ export function DashboardUrgencyStrip({ urgent = [], pipelineAttention = [] }) {
       {pipelineAttention.length > 0 && (
         <div className={urgent.length > 0 ? 'mt-4 space-y-2' : 'space-y-2'}>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Pipeline attention
+            Selection attention
           </p>
           {pipelineAttention.map((item) => (
             <Link

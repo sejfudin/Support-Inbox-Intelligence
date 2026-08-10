@@ -135,6 +135,12 @@ controllers/recommendations.js, routes/recommendations.js}`. Frontend:
 composing `components/interns/recommendations/` (`RecommendationCards`, `RecommendationModals`,
 `recommendationUi` — cards, view/edit/create modals, delete confirm, timeline, design tokens).
 
+**"In Selection"** is the user-facing name for the `recommended`/`interviewing` window of that
+lifecycle (not yet `resulted`) — used consistently across the leadership dashboard KPIs, the
+leadership Candidates filter, and the leadership Projects view. "Pipeline" is kept only as the
+internal/doc term for the lifecycle as a whole (this heading, `ACTIVE_PIPELINE_STATUSES`,
+`IN_PIPELINE_STAGE`); don't reintroduce it as UI copy. See `CONTEXT.md`.
+
 **Status lifecycle** — `recommended → interviewing → resulted`. Enforced server-side:
 
 - A new recommendation always starts at `recommended` (create rejects anything else).
@@ -439,7 +445,7 @@ The intern's landing board. Backend:
   self-only reads, separate from the admin list functions, returning **redacted** shapes that pick
   fields explicitly rather than deleting them. Withheld: `recommendationNote`,
   `interviews[].feedback`, `result.note`, and evaluation `notes`. See `security.md`.
-- **The pipeline card shows one recommendation at a time, out of all of them.** `loadPipeline`
+- **The "My Selection Process" card shows one recommendation at a time, out of all of them.** `loadPipeline`
   returns `current` (newest by `updatedAt`), `items` (the whole redacted list — same
   `formatOwnRecommendation` shapes, so nothing extra rides along) and `total`. The card renders a
   `‹ n/N ›` switcher when `items.length > 1` and clamps its index, because a recommendation resolving
