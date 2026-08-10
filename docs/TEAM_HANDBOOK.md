@@ -13,6 +13,7 @@
 - Creates user accounts, invites new users (mentors, interns, leadership, other admins), and changes their role
 - Views and edits all intern profiles
 - Only role that manages reference data (hubs, technologies, internship types)
+- Only role that adds and edits projects — and must pick each project's type (client or internal) when creating it; the type can be changed later
 - Doesn't see programme-wide statistics
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
 - Only role that can assign a specialization (confirm an intern's main or secondary declared position and pair them with a dedicated mentor) — mentors receive the pairing but never create or manage it, and have no view of the Specialization tab
@@ -37,6 +38,7 @@
 - Sees a read-only "Projects" view (`/projects`): every client project with who's placed on it,
   who's currently in selection (recommended/interviewing), technology demand across projects, and
   each project's full outcome history — no recommend/edit actions anywhere
+- Each project shows its type (client or internal) next to its status, on both the list and the project page
 - The Projects list opens on "With interns" (projects with someone placed or in selection);
   switching to "All projects" shows the empty ones too
 - No access to the workspace/ticket side of the platform (project work)

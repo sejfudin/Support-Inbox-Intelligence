@@ -35,6 +35,20 @@ The period a Daily stays editable: its date up to one working day in the past. O
 Dailies are frozen read-only history.
 _Avoid_: grace period, lock time.
 
+## Projects
+
+**Project type**:
+What kind of work a `Project` is, picked by the admin when the project is created and
+changeable afterwards. **Provisional set** — a starting pair pending the full list from the
+program leads, so expect values to be added and the wording to be revised:
+- **Client** — built for an external paying customer.
+- **Internal** — built for the firm itself, no external customer.
+
+Purely descriptive: it is a label shown on project views, and no rule, filter or statistic
+depends on it. Independent of the **`client`** field, which is free text and may legitimately
+name an internal stakeholder team — a project's type is not derived from whether that field is set.
+_Avoid_: category, kind, classification.
+
 ## Specializations & positions
 
 **Main position**:

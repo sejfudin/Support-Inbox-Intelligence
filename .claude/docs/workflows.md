@@ -62,6 +62,7 @@ npm run seed:positions
 npm run seed:technologies               # NON-destructive: adds missing technologies, see below
 npm run backfill:intern-positions
 npm run backfill:legacy-secondary-mentor # RUN-WHEN-READY: revokes ad-hoc mentor access, see below
+npm run backfill:project-types          # ADDITIVE: types pre-existing projects (client / internal)
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
 npm run cleanup:superseded-technologies # retire legacy combined catalog rows, see below
@@ -276,7 +277,10 @@ to date with the current model set:
 3. `backfill:recommendation-fields` — rewrites the retired `draft` status to `recommended`,
    backfills the now-required `position`, drops stale `placed` history rows from an earlier
    migration version, and tops up status `History` rows for old records.
-4. `cleanup:ready-for-placement` — removes the orphaned `readyForPlacement` boolean now that
+4. `backfill:project-types` — sets the now-required `Project.type` on projects created before the
+   field existed (`client`, or `internal` for the locked "Unspecified" sentinel). Runs after step 2
+   so the sentinel that step creates gets typed too.
+5. `cleanup:ready-for-placement` — removes the orphaned `readyForPlacement` boolean now that
    `InternProfile.status` covers the same concept via the `ready` value.
 
 ```bash

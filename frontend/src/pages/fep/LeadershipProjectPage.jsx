@@ -5,6 +5,7 @@ import { ArrowLeft, History, UserCheck, Users } from 'lucide-react';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useProjectOverview } from '@/queries/projects';
@@ -107,10 +108,13 @@ export default function LeadershipProjectPage() {
         title={project.name}
         subtitle={project.description || undefined}
         actions={
-          <SymphonyStatusBadge
-            status={project.status}
-            label={getProjectStatusLabel(project.status)}
-          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ProjectTypeBadge type={project.type} />
+            <SymphonyStatusBadge
+              status={project.status}
+              label={getProjectStatusLabel(project.status)}
+            />
+          </div>
         }
       >
         {project.technologies?.length > 0 && (
