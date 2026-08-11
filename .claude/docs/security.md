@@ -97,22 +97,18 @@ page) are gated in the service layer, not route middleware — `assertLeadership
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
-**Interns may read their own recommendations, evaluations and readiness — and nothing else of any
-of them.** Three narrow self-only reads back the intern dashboard's "My pipeline" / "My
-evaluations" cards and the "My Progress" page:
-`recommendationService.listOwnRecommendations(user)`,
-`evaluationService.listOwnEvaluations(user)` and
-`readinessFlagService.listMyReadinessFlags(user)`. All are separate functions from the admin list
-paths (which still 403 an intern outright), the first two re-check `role === INTERN` at the service
-layer, and all three resolve the `InternProfile` **from the authenticated user** — there is no id
-parameter to tamper with. They are reachable only through `GET /api/dashboard/me`,
-`GET /api/dashboard/me/progress` and `GET /api/interns/me/readiness`, none of which take any query
+**Interns may read their own recommendation and evaluations — and nothing else of either.** Two
+narrow self-only reads back the intern dashboard's "My Selection Process" and "My evaluations" cards:
+`recommendationService.listOwnRecommendations(user)` and
+`evaluationService.listOwnEvaluations(user)`. Both are separate functions from the admin list
+paths (which still 403 an intern outright), both re-check `role === INTERN` at the service layer,
+and both resolve the `InternProfile` **from the authenticated user** — there is no id parameter to
+tamper with. They are only reachable through `GET /api/dashboard/me`, which takes no query
 parameters at all.
 
 `listOwnRecommendations` returns **every** recommendation belonging to the caller, not just the
-newest — the pipeline card switches between them and the progress page lists them all. That widens
-the payload but not its scope: the records are still only ever the caller's own, and each is the
-same redacted shape described below.
+newest — the card switches between them. That widens the payload but not its scope: the
+records are still only ever the caller's own, and each is the same redacted shape described below.
 
 Their return shapes are **redacted, by picking fields rather than deleting them**, so a field added
 to either model later is absent by default instead of leaking. Withheld from the intern:

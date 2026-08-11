@@ -135,6 +135,12 @@ controllers/recommendations.js, routes/recommendations.js}`. Frontend:
 composing `components/interns/recommendations/` (`RecommendationCards`, `RecommendationModals`,
 `recommendationUi` — cards, view/edit/create modals, delete confirm, timeline, design tokens).
 
+**"In Selection"** is the user-facing name for the `recommended`/`interviewing` window of that
+lifecycle (not yet `resulted`) — used consistently across the leadership dashboard KPIs, the
+leadership Candidates filter, and the leadership Projects view. "Pipeline" is kept only as the
+internal/doc term for the lifecycle as a whole (this heading, `ACTIVE_PIPELINE_STATUSES`,
+`IN_PIPELINE_STAGE`); don't reintroduce it as UI copy. See `CONTEXT.md`.
+
 **Status lifecycle** — `recommended → interviewing → resulted`. Enforced server-side:
 
 - A new recommendation always starts at `recommended` (create rejects anything else).
@@ -243,13 +249,24 @@ controllers/specializations.js, routes/specializations.js}`. Frontend: `pages/Sp
 
 `Project` (`server/models/Project.js`) is the canonical list of client engagements a
 recommendation can point at (title, client, description, tech tags, `status`:
-`active | on_hold | completed`). Firm-global reference data, same pattern as `Technology`/
+`active | on_hold | completed`, `type`: `client | internal`). Firm-global reference data, same pattern as `Technology`/
 `Position` — **not** workspace-scoped despite the general "workspace-scope every resource" rule
 (that rule applies to the ticketing domain, not intern/recommendation reference data).
 
 - **Admin-only** create/edit (`requireRole(ROLES.ADMIN)`) — mentors can only select a project when
   writing a recommendation, they cannot manage the list. Managed from the "Projects" tab on
   `/admin/platform-management` (`ReferenceDataProjectsPanel`).
+- **`type`** (`client | internal`, `PROJECT_TYPES`) is **required with no schema default** — the
+  admin must classify every project explicitly, so `projectService.createProject` rejects a missing
+  or unknown value rather than letting a default absorb it. Purely descriptive today: it renders as
+  a neutral badge (`frontend/src/components/projects/ProjectTypeBadge.jsx`) on the admin and
+  leadership project views and **nothing branches on it** — no filtering, no KPI grouping, no
+  effect on the recommendation picker. The value set is a deliberate starting pair pending the full
+  list from the program leads; stored slugs live in the model enum, display labels in
+  `frontend/src/helpers/projects.js`, so relabelling never needs a migration. Projects predating
+  the field are typed by `npm run backfill:project-types`
+  (`server/seeder/backfillProjectTypes.js`, idempotent) — run it right after deploying the schema
+  change, since an unset `type` fails validation on any `save()`.
 - Only `status: active` projects are offered in the recommendation form's project picker;
   `on_hold`/`completed` stay on existing recommendations but drop out of the picker for new ones.
 - A locked sentinel project (`slug: 'unspecified'`, `isSystem: true`) exists because
@@ -438,9 +455,8 @@ The intern's landing board. Backend:
   `recommendationService.listOwnRecommendations` / `evaluationService.listOwnEvaluations` — narrow
   self-only reads, separate from the admin list functions, returning **redacted** shapes that pick
   fields explicitly rather than deleting them. Withheld: `recommendationNote`,
-  `interviews[].feedback`, `result.note`. Evaluation `notes` are now shown (see "My Progress"
-  below); this card does not render them, but the payload carries them. See `security.md`.
-- **The pipeline card shows one recommendation at a time, out of all of them.** `loadPipeline`
+  `interviews[].feedback`, `result.note`, and evaluation `notes`. See `security.md`.
+- **The "My Selection Process" card shows one recommendation at a time, out of all of them.** `loadPipeline`
   returns `current` (newest by `updatedAt`), `items` (the whole redacted list — same
   `formatOwnRecommendation` shapes, so nothing extra rides along) and `total`. The card renders a
   `‹ n/N ›` switcher when `items.length > 1` and clamps its index, because a recommendation resolving

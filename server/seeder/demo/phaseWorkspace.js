@@ -22,6 +22,7 @@ const createProjects = async (ctx) => {
     name: spec.name,
     slug: slugify(spec.name),
     client: spec.client,
+    type: spec.type,
     description: spec.description,
     technologies: (spec.technologies || []).map((slug) => ctx.ref.techBySlug(slug)._id),
     status: spec.status,

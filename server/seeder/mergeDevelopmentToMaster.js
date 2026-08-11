@@ -17,7 +17,7 @@
  *
  * Usage: NODE_ENV=production node seeder/mergeDevelopmentToMaster.js
  *
- * The 4 underlying scripts don't agree on how they load env: some read plain
+ * The underlying scripts don't agree on how they load env: some read plain
  * `.env`, `migrateRecommendationProjects.js` reads `.env.${NODE_ENV}`. Left
  * alone, that split could point different steps at different databases. This
  * wrapper resolves `.env.${NODE_ENV}` itself and loads it into `process.env`
@@ -64,6 +64,10 @@ const STEPS = [
   {
     file: 'backfillRecommendationFields.js',
     why: 'Rewrites retired `draft` status to `recommended`, backfills the now-required `position`, drops stale history rows, and tops up status History for old records.',
+  },
+  {
+    file: 'backfillProjectTypes.js',
+    why: 'Sets the now-required `Project.type` on projects created before the field existed (client, or internal for the sentinel). Must run after migrateRecommendationProjects so the sentinel it creates gets typed too.',
   },
   {
     file: 'unsetReadyForPlacement.js',

@@ -46,11 +46,11 @@ export function DashboardKpiBand({ isPending, stats, summary, funnel }) {
         </div>
       </KpiPanel>
 
-      <KpiPanel title="Placement pipeline" testId="leadership-dashboard-kpi-pipeline-panel">
+      <KpiPanel title="Selection progress" testId="leadership-dashboard-kpi-pipeline-panel">
         <div className="grid gap-6 sm:grid-cols-3">
           <DashboardStat
             primary
-            label="In pipeline"
+            label="In Selection"
             value={inPipeline}
             hint="Recommended or interviewing"
           />

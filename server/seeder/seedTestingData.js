@@ -113,7 +113,7 @@ const seedTestingData = async () => {
       const slug = slugify(name);
       let project = await Project.findOne({ slug });
       if (!project) {
-        project = await Project.create({ name, slug, status: 'active' });
+        project = await Project.create({ name, slug, status: 'active', type: 'client' });
       }
       return project;
     };
