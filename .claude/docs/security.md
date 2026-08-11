@@ -97,26 +97,47 @@ page) are gated in the service layer, not route middleware — `assertLeadership
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
-**Interns may read their own recommendation and evaluations — and nothing else of either.** Two
-narrow self-only reads back the intern dashboard's "My pipeline" and "My evaluations" cards:
-`recommendationService.listOwnRecommendations(user)` and
-`evaluationService.listOwnEvaluations(user)`. Both are separate functions from the admin list
-paths (which still 403 an intern outright), both re-check `role === INTERN` at the service layer,
-and both resolve the `InternProfile` **from the authenticated user** — there is no id parameter to
-tamper with. They are only reachable through `GET /api/dashboard/me`, which takes no query
+**Interns may read their own recommendations, evaluations and readiness — and nothing else of any
+of them.** Three narrow self-only reads back the intern dashboard's "My pipeline" / "My
+evaluations" cards and the "My Progress" page:
+`recommendationService.listOwnRecommendations(user)`,
+`evaluationService.listOwnEvaluations(user)` and
+`readinessFlagService.listMyReadinessFlags(user)`. All are separate functions from the admin list
+paths (which still 403 an intern outright), the first two re-check `role === INTERN` at the service
+layer, and all three resolve the `InternProfile` **from the authenticated user** — there is no id
+parameter to tamper with. They are reachable only through `GET /api/dashboard/me`,
+`GET /api/dashboard/me/progress` and `GET /api/interns/me/readiness`, none of which take any query
 parameters at all.
 
 `listOwnRecommendations` returns **every** recommendation belonging to the caller, not just the
-newest — the pipeline card switches between them. That widens the payload but not its scope: the
-records are still only ever the caller's own, and each is the same redacted shape described below.
+newest — the pipeline card switches between them and the progress page lists them all. That widens
+the payload but not its scope: the records are still only ever the caller's own, and each is the
+same redacted shape described below.
 
 Their return shapes are **redacted, by picking fields rather than deleting them**, so a field added
 to either model later is absent by default instead of leaking. Withheld from the intern:
 `recommendationNote` (the admin's internal pitch), `interviews[].feedback` (the interviewer's
-write-up, which has its own `concerns` field), `result.note` (the reasoning behind a placement
-decision), and evaluation `notes`. Shown: stage, stage dates, project, position, scheduled
-interviews, the placement outcome, and evaluation scores/periods/author. **If you add a field to
-either formatter, check first whether it is written *about* the intern rather than *to* them.**
+write-up, which has its own `concerns` field), and `result.note` (the reasoning behind a placement
+decision). Shown: stage, stage dates, project, position, scheduled interviews, the placement
+outcome and start date, and evaluation scores/periods/author/notes. **If you add a field to either
+formatter, check first whether it is written *about* the intern rather than *to* them.**
+
+**Evaluation `notes` used to be withheld and now are not** (`formatOwnEvaluation`). The reasoning:
+the notes are the mentor's written feedback *to* the intern that goes with the four scores, and a
+score with no explanation is not something anyone can act on — unlike the three recommendation
+fields above, which are written *about* the intern to support a placement decision. The channel
+that stays internal is `MentorComment`, which has its own `visibleTo` recipient list and remains
+completely invisible to interns (`listComments` 403s them). **Do not fold mentor notes into any
+intern-facing read**: existing ones were authored under an explicit expectation of staying
+internal, so exposing them would break that retroactively — that needs an author-side visibility
+choice at write time, not a read-side change.
+
+**Readiness is now readable by the intern for themselves, and only by that path.**
+`listReadinessFlags` (the `:userId` route) stays admin-only, `upsertReadinessFlag` stays
+admin-only, and `listMyReadinessFlags` resolves the profile from `req.user` with no id parameter.
+The progress payload joins those flags to the intern's *declared* technologies and position in
+`helpers/readinessSummary.js`, so a position flag left over from a previous role reads "Not
+assessed" rather than carrying a stale level onto the new one.
 
 Recommendations are otherwise admin-only: routes guard writes (POST/PATCH/DELETE) with
 `requireRole(ADMIN)`, and the service's `assertReadAccess` / `assertRecommendationWriteAccess`
@@ -132,7 +153,8 @@ performs the same write check before removing the record and its history.
 branch:
 - **Evaluations** (`evaluationService.js`) — `listEvaluations` / `createEvaluation` are admin-only
   (plus `leadership` read). The intern's own redacted read is a separate function — see above.
-- **Readiness** (`readinessFlagService.js`) — read and write, admin-only (plus `leadership` read).
+- **Readiness** (`readinessFlagService.js`) — the `:userId` read and the write are admin-only (plus
+  `leadership` read); `listMyReadinessFlags` is the intern's own self-scoped read — see above.
 - **Internal CV link** (`internService.js` `updateInternalCvLink`) — write is admin-only; read is
   unaffected (`formatProfile`'s `canSeeInternalCv` still allows the assigned mentor to view it).
 - **Lifecycle status** (`internService.js` `updateInternProgramme`, the `payload.status` branch)
@@ -183,6 +205,16 @@ payload (workload, tickets, standup) resolves through `resolveActiveWorkspaceId`
 `user.workspaceId` pointer, so an intern whose membership lapsed reads as "between workspaces"
 (programme cards only) instead of keeping the workspace they left; it then verifies that workspace
 still exists, so an archived one 404s instead of returning empty blocks that read as "no work".
+
+`GET /api/dashboard/me/progress` follows the identical rule and is the **widest self-read on the
+platform** — `requireRole(INTERN)`, read-only, no parameters, subject always `req.user`. It carries
+the caller's evaluations *including the mentor's written notes*, their readiness levels, and every
+recommendation they have been part of, so the absence of any intern override is the entire
+authorization story. Do not add one, and do not open the route to another role: the admin surfaces
+for the same data (`/api/interns/:userId/evaluations`, `/:userId/readiness`, `/api/recommendations`)
+already exist and are where cross-intern reads belong. Unlike `GET /api/dashboard/me` it touches no
+workspace at all — every section is programme data — so there is no `resolveActiveWorkspaceId` in
+it and nothing for a stale pointer to leak.
 
 `POST /api/dashboard/me/standup-summary` follows the same rule — `requireRole(INTERN)`, no
 parameters, and it locates the entry by matching `entry.member` against `req.user`, so an intern

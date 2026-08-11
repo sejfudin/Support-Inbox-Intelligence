@@ -18,6 +18,7 @@ import {
   CalendarDays,
   CalendarClock,
   Target,
+  TrendingUp,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -230,6 +231,10 @@ export default function AppSidebar() {
 
   const internNav = isIntern(user?.role)
     ? [
+        // First in the group: it is the read-only overview of everything the
+        // programme records about them, and the two rows below it are the parts they
+        // can act on (declare a technology, check in).
+        { label: 'My Progress', to: '/my-progress', icon: TrendingUp },
         { label: 'Position & Technologies', to: '/my-technologies', icon: Code2 },
         { label: 'Attendance', to: '/my-attendance', icon: CalendarCheck },
       ]

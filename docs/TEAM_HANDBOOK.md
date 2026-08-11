@@ -17,8 +17,8 @@
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
 - Only role that can assign a specialization (confirm an intern's main or secondary declared position and pair them with a dedicated mentor) — mentors receive the pairing but never create or manage it, and have no view of the Specialization tab
 - Only role that can reassign a specialization to the intern's other position, change the specialization mentor, or clear a specialization entirely
-- Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth)
-- Only role that can set readiness (by technology or by position) for an intern
+- Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth) — note the intern now reads their own scores **and the written notes** on their My Progress page, so write them as feedback addressed to the intern
+- Only role that can set readiness (by technology or by position) for an intern — the intern now sees their own levels, and who set them, on My Progress
 - Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
 - Only role that can view the per-workspace Daily standup reporting dashboard (who reported today, calendar-month coverage grid, open blockers) — a read-only compliance view, not a data-entry surface
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
@@ -61,10 +61,12 @@
 - Sees and edits only their own profile
 - Declares their own technologies
 - Uploads their own CV
-- Sees only their own readiness status, and not mentor notes
-- Sees their own evaluation scores and periods on their dashboard — but not the written notes on them
-- Sees their own recommendations on their dashboard: which project, which stage, interview dates, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? Arrows on the card switch between them
-- Sees no one else's recommendations or evaluations
+- Has a read-only "My Progress" page with everything the programme records about them: where they stand in the programme (status, dates, mentors, hub), every evaluation, their readiness, and every recommendation. Read-only throughout — nothing there is theirs to add, change, or delete
+- Sees their own readiness, both by position and per declared technology, including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
+- Sees their own evaluations in full: the four scores per review period, the movement since the previous period, **and their mentor's written notes** (new — the notes used to be hidden from them)
+- Still doesn't see mentor notes (the separate free-text notes a mentor writes with their own "who can see this" list) — those remain invisible to interns
+- Sees their own recommendations: which project and position, the technologies, which stage it reached and every date along the way, the interviews, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? All of them are listed on My Progress, and arrows on the dashboard card switch between them
+- Sees no one else's recommendations, evaluations, or readiness
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics
 - Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then

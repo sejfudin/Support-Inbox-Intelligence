@@ -2,6 +2,7 @@ import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 import { adminDashboardKeys } from '@/queries/adminDashboard';
 import { internDashboardKeys } from '@/queries/internDashboard';
+import { internProgressKeys } from '@/queries/internProgress';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -94,6 +95,13 @@ export const invalidateInternScope = (queryClient) => {
   // watching their own board keeps seeing the previous stage after an admin advances
   // it, until staleTime expires or the window refocuses.
   invalidateDashboards(queryClient);
+  // "My progress" is the same programme data in full, and it is a page an intern
+  // may well be sitting on when a mentor records an evaluation or sets a readiness
+  // level — both of which now emit this scope. Imported key, same reason as above.
+  queryClient.invalidateQueries({ queryKey: internProgressKeys.all });
+  // Readiness levels also render on /my-technologies, off its own key.
+  queryClient.invalidateQueries({ queryKey: ['intern-readiness'] });
+  queryClient.invalidateQueries({ queryKey: ['intern-profile'] });
 };
 
 export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {

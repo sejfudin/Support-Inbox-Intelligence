@@ -35,6 +35,7 @@ import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
 import SpecializationPage from '@/pages/SpecializationPage';
 import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
+import MyProgressPage from '@/pages/MyProgressPage';
 import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
 import WorkspaceDailiesPage from '@/pages/WorkspaceDailiesPage';
@@ -161,6 +162,12 @@ export default function AppRoutes() {
 
           <Route element={<ProtectedRoute allowedRoles={[ROLES.INTERN]} />}>
             <Route path="/my-technologies" element={<MyTechnologiesPage />} />
+            {/* Programme data, not workspace data — so it sits with the other
+                intern-only routes outside `WorkspaceGuard`. An intern between
+                workspaces still has evaluations, readiness and recommendations,
+                and bouncing them to /create-workspace to read their own review
+                history would be nonsense. */}
+            <Route path="/my-progress" element={<MyProgressPage />} />
             <Route path="/my-attendance" element={<MyAttendancePage />} />
           </Route>
 
