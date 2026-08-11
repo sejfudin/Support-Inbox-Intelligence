@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, X } from 'lucide-react';
+import { Minus, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/ui/date-picker';
 import { SearchableSelect } from '@/components/ui/searchable-select';
@@ -57,6 +56,46 @@ const requestSchema = z
   );
 
 const emptyPositionRow = { position: '', count: 1, technologies: [] };
+
+/** Row control class shared by the position / seats / technologies cells. */
+const rowControlClass = 'h-11 rounded-xl border-input/90';
+
+/**
+ * Seats are almost always a single digit, so the row spends its width on the
+ * two fields that need it and gives the count a stepper instead of a text box.
+ */
+function SeatStepper({ value, onChange, index }) {
+  const seats = Number(value) || 1;
+  const step = (delta) => onChange(Math.max(1, seats + delta));
+
+  return (
+    <div
+      className="flex h-11 items-center rounded-xl border border-input/90"
+      data-test={`request-form-position-count-${index}`}
+    >
+      <button
+        type="button"
+        onClick={() => step(-1)}
+        disabled={seats <= 1}
+        aria-label="One seat fewer"
+        className="flex h-full w-9 items-center justify-center rounded-l-xl text-muted-foreground transition hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        data-test={`request-form-position-count-decrement-${index}`}
+      >
+        <Minus className="h-3.5 w-3.5" />
+      </button>
+      <span className="w-6 text-center text-sm font-semibold tabular-nums">{seats}</span>
+      <button
+        type="button"
+        onClick={() => step(1)}
+        aria-label="One more seat"
+        className="flex h-full w-9 items-center justify-center rounded-r-xl text-muted-foreground transition hover:text-foreground"
+        data-test={`request-form-position-count-increment-${index}`}
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
 
 const defaultValues = {
   projectId: '',
@@ -119,9 +158,9 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
 
   const {
     control,
-    register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(requestSchema),
@@ -187,10 +226,24 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
     fileRequest(createPayload);
   };
 
+  const watchedPositions = watch('requestedPositions') ?? [];
+
   const usedPositionIds = (index) =>
-    fields
-      .map((field, fieldIndex) => (fieldIndex === index ? null : field.position))
+    watchedPositions
+      .map((row, rowIndex) => (rowIndex === index ? null : row?.position))
       .filter(Boolean);
+
+  // The footer says what's still missing instead of leaving a disabled-looking
+  // button unexplained; once the form is fileable it reports the total demand.
+  const totalSeats = watchedPositions.reduce((sum, row) => sum + (Number(row?.count) || 0), 0);
+  const filledRows = watchedPositions.filter((row) => row?.position).length;
+  const footerHint = (() => {
+    if (!isEditing && !watch('projectId')) return 'Pick a project to continue';
+    if (!filledRows) return 'Choose a position to continue';
+    return `${totalSeats} ${totalSeats === 1 ? 'seat' : 'seats'} across ${filledRows} ${
+      filledRows === 1 ? 'position' : 'positions'
+    }`;
+  })();
 
   return (
     <>
@@ -198,115 +251,126 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
           draft is still there behind it, and "Back to form" returns to it
           untouched. */}
       <Dialog open={open && !duplicateWarn} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl" data-test="request-form-modal">
-          <DialogHeader className="gap-1 border-b border-border/60 pb-4">
-            <DialogTitle className="text-xl">
-              {isEditing ? 'Edit staffing request' : 'File a staffing request'}
+        <DialogContent className="gap-0 p-0 sm:max-w-2xl" data-test="request-form-modal">
+          <DialogHeader className="gap-1 border-b border-border/60 px-6 py-5">
+            <DialogTitle className="text-2xl font-bold">
+              {isEditing ? 'Edit staffing request' : 'New staffing request'}
             </DialogTitle>
             <DialogDescription>
-              One requested position per discipline — position, count, and optionally the
-              technologies they should know.
+              {isEditing
+                ? 'One row per position. Mentors see the change right away.'
+                : 'One row per position. Mentors get it as soon as you file.'}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>
-                Project <span className="text-red-500">*</span>
-              </Label>
-              {isEditing ? (
-                <div
-                  className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
-                  data-test="request-form-project-locked"
-                >
-                  {request.project?.name ?? 'Draft project'}
-                </div>
-              ) : (
-                <Controller
-                  name="projectId"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="space-y-2">
-                      {selectedProject ? (
-                        <div className="flex items-center justify-between rounded-md border border-input bg-muted px-3 py-2 text-sm">
-                          <span>{selectedProject.name}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => {
-                              setSelectedProject(null);
-                              field.onChange('');
-                            }}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <SearchableSelect
-                          items={projects}
-                          getLabel={(project) => project.name}
-                          placeholder="Search projects…"
-                          onSelect={(project) => {
-                            setSelectedProject(project);
-                            field.onChange(project._id);
-                          }}
-                          dataTest="request-form-project-search"
-                        />
-                      )}
-                    </div>
-                  )}
-                />
-              )}
-              {errors.projectId && (
-                <p className="text-xs text-destructive">{errors.projectId.message}</p>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label>
-                Requested positions <span className="text-red-500">*</span>
-              </Label>
-              {fields.map((field, index) => (
-                <div
-                  key={field.id}
-                  className="flex flex-wrap items-start gap-2 rounded-lg border border-border/60 p-3"
-                  data-test={`request-form-position-row-${index}`}
-                >
+          <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-col">
+            <div className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto px-6 py-5">
+              <div className="flex flex-col gap-2">
+                <Label className="text-base font-semibold">Project</Label>
+                {isEditing ? (
+                  <div
+                    className="flex h-11 items-center rounded-xl border border-input bg-muted px-3.5 text-sm text-muted-foreground"
+                    data-test="request-form-project-locked"
+                  >
+                    {request.project?.name ?? 'Draft project'}
+                  </div>
+                ) : (
                   <Controller
-                    name={`requestedPositions.${index}.position`}
+                    name="projectId"
                     control={control}
-                    render={({ field: positionField }) => (
-                      <Select onValueChange={positionField.onChange} value={positionField.value}>
-                        <SelectTrigger
-                          className="w-44"
-                          data-test={`request-form-position-select-${index}`}
-                        >
-                          <SelectValue placeholder="Position" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {positionOptions.map((position) => (
-                            <SelectItem
-                              key={position._id}
-                              value={position._id}
-                              disabled={usedPositionIds(index).includes(position._id)}
+                    render={({ field }) => (
+                      <div className="space-y-2">
+                        {selectedProject ? (
+                          <div className="flex h-11 items-center justify-between rounded-xl border border-primary bg-transparent px-3.5 text-sm">
+                            <span>{selectedProject.name}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setSelectedProject(null);
+                                field.onChange('');
+                              }}
                             >
-                              {position.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <SearchableSelect
+                            items={projects}
+                            getLabel={(project) => project.name}
+                            placeholder="Search projects…"
+                            onSelect={(project) => {
+                              setSelectedProject(project);
+                              field.onChange(project._id);
+                            }}
+                            dataTest="request-form-project-search"
+                          />
+                        )}
+                      </div>
                     )}
                   />
-                  <Input
-                    type="number"
-                    min={1}
-                    className="w-20"
-                    data-test={`request-form-position-count-${index}`}
-                    {...register(`requestedPositions.${index}.count`)}
-                  />
-                  <div className="min-w-[220px] flex-1">
+                )}
+                {errors.projectId && (
+                  <p className="text-xs text-destructive">{errors.projectId.message}</p>
+                )}
+              </div>
+
+              {/* Column headers instead of a per-row card: the rows read as one
+                  table, so what each cell means is said once. */}
+              <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1.3fr)_2rem] items-center gap-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span>Position</span>
+                  <span>Seats</span>
+                  <span>
+                    Technologies <span className="font-normal normal-case">· optional</span>
+                  </span>
+                  <span />
+                </div>
+
+                {fields.map((field, index) => (
+                  <div
+                    key={field.id}
+                    className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1.3fr)_2rem] items-start gap-3"
+                    data-test={`request-form-position-row-${index}`}
+                  >
+                    <Controller
+                      name={`requestedPositions.${index}.position`}
+                      control={control}
+                      render={({ field: positionField }) => (
+                        <Select onValueChange={positionField.onChange} value={positionField.value}>
+                          <SelectTrigger
+                            className={`w-full ${rowControlClass}`}
+                            data-test={`request-form-position-select-${index}`}
+                          >
+                            <SelectValue placeholder="Choose position…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {positionOptions.map((position) => (
+                              <SelectItem
+                                key={position._id}
+                                value={position._id}
+                                disabled={usedPositionIds(index).includes(position._id)}
+                              >
+                                {position.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <Controller
+                      name={`requestedPositions.${index}.count`}
+                      control={control}
+                      render={({ field: countField }) => (
+                        <SeatStepper
+                          value={countField.value}
+                          onChange={countField.onChange}
+                          index={index}
+                        />
+                      )}
+                    />
                     <Controller
                       name={`requestedPositions.${index}.technologies`}
                       control={control}
@@ -315,63 +379,76 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
                           technologies={technologies?.data ?? technologies ?? []}
                           selectedIds={techField.value}
                           onChange={techField.onChange}
-                          variant="box"
+                          placeholder="React, TypeScript…"
                         />
                       )}
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-11 w-8 text-muted-foreground"
+                      disabled={fields.length === 1}
+                      onClick={() => remove(index)}
+                      aria-label="Remove position"
+                      data-test={`request-form-position-remove-${index}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    disabled={fields.length === 1}
-                    onClick={() => remove(index)}
-                    data-test={`request-form-position-remove-${index}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => append(emptyPositionRow)}
-                className="flex items-center gap-1 self-start text-sm font-medium text-primary hover:underline"
-                data-test="request-form-position-add"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Add requested position
-              </button>
-              {errors.requestedPositions && (
-                <p className="text-xs text-destructive">
-                  {errors.requestedPositions.message ||
-                    errors.requestedPositions.root?.message ||
-                    'Check the requested positions'}
-                </p>
-              )}
-            </div>
+                ))}
 
-            <div className="flex flex-col gap-2">
-              <Label>Needed by</Label>
-              <Controller
-                name="neededBy"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="No date given"
-                  />
+                <button
+                  type="button"
+                  onClick={() => append(emptyPositionRow)}
+                  className="flex h-11 items-center gap-2 self-start rounded-xl border border-dashed border-input px-4 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                  data-test="request-form-position-add"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add position
+                </button>
+
+                {errors.requestedPositions && (
+                  <p className="text-xs text-destructive">
+                    {errors.requestedPositions.message ||
+                      errors.requestedPositions.root?.message ||
+                      'Check the requested positions'}
+                  </p>
                 )}
-              />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label className="text-base font-semibold">
+                  Needed by{' '}
+                  <span className="text-sm font-normal text-muted-foreground">· optional</span>
+                </Label>
+                <Controller
+                  name="neededBy"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="No date given"
+                      className="h-11 w-full rounded-xl"
+                    />
+                  )}
+                />
+              </div>
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={mutation.isPending} data-test="request-form-save">
-                {mutation.isPending ? 'Saving…' : isEditing ? 'Save changes' : 'File request'}
-              </Button>
+            <DialogFooter className="items-center gap-3 border-t border-border/60 px-6 py-4 sm:justify-between">
+              <p className="text-sm text-muted-foreground" data-test="request-form-hint">
+                {footerHint}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={mutation.isPending} data-test="request-form-save">
+                  {mutation.isPending ? 'Saving…' : isEditing ? 'Save changes' : 'File request'}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>

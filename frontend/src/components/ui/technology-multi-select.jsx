@@ -52,6 +52,7 @@ export function TechnologyMultiSelect({
   selectedIds,
   onChange,
   variant = 'select',
+  placeholder = 'Select technologies…',
   triggerClassName = DEFAULT_TRIGGER_CLASS,
   chipClassName = DEFAULT_CHIP_CLASS,
 }) {
@@ -239,7 +240,7 @@ export function TechnologyMultiSelect({
         className={triggerClassName}
         data-test="technology-multi-select-trigger"
       >
-        Select technologies…
+        {placeholder}
         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-60" />
       </button>
       {dropdown}
