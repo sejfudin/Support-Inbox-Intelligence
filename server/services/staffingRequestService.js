@@ -7,8 +7,12 @@ const Technology = require('../models/Technology');
 const { ROLES } = require('../constants/roles');
 const { httpError } = require('../helpers/httpError');
 const {
+  deriveProgress,
   assertRequestedPositionsEditable,
   assertCanClose,
+  applyClose,
+  assertCanReopen,
+  applyReopen,
 } = require('../helpers/staffingRequestRules');
 
 // This is the platform's first leadership write path: no existing route
@@ -22,6 +26,7 @@ const REQUEST_POPULATE = [
   { path: 'requestedPositions.position', select: 'name slug' },
   { path: 'requestedPositions.technologies', select: 'name slug' },
   { path: 'closedBy', select: 'fullname email role' },
+  { path: 'noteBy', select: 'fullname email role' },
 ];
 
 const assertValidObjectId = (id, label) => {
@@ -120,12 +125,69 @@ const loadPositionsWithRecommendations = async (requestId) => {
   return [...new Set(tagged.map((recommendation) => String(recommendation.position)))];
 };
 
-const formatRequest = (request) => {
+// Recommendations tagged to a request, for the rules helper's progress/
+// display-state derivation and for the per-position suggestion cards. Fetched
+// separately from REQUEST_POPULATE because it's a reverse lookup
+// (Recommendation -> staffingRequest), not a field on the request document
+// itself. Only the fields those cards render are selected — everything else
+// about a recommendation stays behind the recommendations API and its own read
+// guard. Both staffing-request read routes are admin+leadership, the same tier
+// as recommendationService's READ_ROLES, so this widens no one's access.
+const loadTaggedRecommendations = async (requestIds) => {
+  const recommendations = await Recommendation.find({ staffingRequest: { $in: requestIds } })
+    .select('staffingRequest position result status technologies internProfile')
+    // `position` is deliberately left unpopulated — deriveProgress matches it
+    // against requestedPositions by id, and a populated document would never
+    // compare equal. The frontend already has the populated position names.
+    .populate({ path: 'technologies', select: 'name' })
+    .populate({
+      path: 'internProfile',
+      select: 'user startDate',
+      populate: { path: 'user', select: 'fullname' },
+    })
+    .lean();
+  const byRequestId = new Map();
+  for (const recommendation of recommendations) {
+    const key = String(recommendation.staffingRequest);
+    if (!byRequestId.has(key)) byRequestId.set(key, []);
+    byRequestId.get(key).push(recommendation);
+  }
+  return byRequestId;
+};
+
+// One suggestion card's worth of a tagged recommendation: who was put forward,
+// for which requested position, and what they bring. `position` stays a raw id
+// — the frontend groups by it against its own populated requestedPositions.
+const formatSuggestion = (recommendation) => ({
+  id: recommendation._id,
+  position: recommendation.position,
+  internName: recommendation.internProfile?.user?.fullname ?? 'Unknown intern',
+  internProfile: recommendation.internProfile?._id ?? null,
+  startDate: recommendation.internProfile?.startDate ?? null,
+  technologies: (recommendation.technologies ?? [])
+    .map((technology) => technology?.name)
+    .filter(Boolean),
+  status: recommendation.status,
+  outcome: recommendation.result?.outcome ?? null,
+});
+
+// The one place a request document is turned into a response: raw fields plus
+// `progress` (wanted / putForward / placed, per position and in total) and the
+// suggestions themselves. No derived status — `status` and `reason` are stored,
+// and anything else a screen wants to say is a comparison on these counts.
+const formatRequest = (request, recommendations = []) => {
   const plain = request.toObject ? request.toObject() : request;
   return {
     ...plain,
     id: plain._id,
+    progress: deriveProgress(plain.requestedPositions, recommendations),
+    suggestions: recommendations.map(formatSuggestion),
   };
+};
+
+const formatRequestWithLookup = async (request) => {
+  const byRequestId = await loadTaggedRecommendations([request._id]);
+  return formatRequest(request, byRequestId.get(String(request._id)) || []);
 };
 
 // A request is "duplicate demand" when another OPEN request already targets
@@ -138,7 +200,7 @@ const findExistingOpenRequestForProject = async (projectId) => {
     .sort({ createdAt: 1 })
     .select('author createdAt');
   if (!existing) return null;
-  return { author: existing.author, filedAt: existing.createdAt };
+  return { id: existing._id, author: existing.author, filedAt: existing.createdAt };
 };
 
 const listStaffingRequests = async (user, query = {}) => {
@@ -164,7 +226,10 @@ const listStaffingRequests = async (user, query = {}) => {
     .populate(REQUEST_POPULATE)
     .sort({ createdAt: -1 });
 
-  return requests.map(formatRequest);
+  const byRequestId = await loadTaggedRecommendations(requests.map((request) => request._id));
+  return requests.map((request) =>
+    formatRequest(request, byRequestId.get(String(request._id)) || [])
+  );
 };
 
 const getStaffingRequest = async (user, requestId) => {
@@ -174,7 +239,7 @@ const getStaffingRequest = async (user, requestId) => {
   const request = await StaffingRequest.findById(requestId).populate(REQUEST_POPULATE);
   if (!request) throw httpError('Staffing request not found', 404);
 
-  return formatRequest(request);
+  return formatRequestWithLookup(request);
 };
 
 const createStaffingRequest = async (user, payload = {}) => {
@@ -211,17 +276,19 @@ const createStaffingRequest = async (user, payload = {}) => {
     draftProject,
     requestedPositions,
     author: user._id,
-    note: cleanText(payload.note),
+    // No `note` — it is the admin's remark on this request, and no admin has
+    // looked at it yet. See setStaffingRequestNote.
     neededBy: parseDate(payload.neededBy, 'Needed-by date') || undefined,
     status: 'open',
   });
 
   await request.populate(REQUEST_POPULATE);
 
-  return { request: formatRequest(request), duplicateOf };
+  return { request: await formatRequestWithLookup(request), duplicateOf };
 };
 
-// Counts, technologies, note, needed-by only — per ticket 02. Moving the
+// Counts, technologies, needed-by only — per ticket 02. `note` belongs to the
+// admin who wrote it, so an author edit can never touch it. Moving the
 // project reference is "resolve project" (tickets 05/06/07's job, not this
 // one's) and is deliberately not accepted here.
 const updateStaffingRequest = async (user, requestId, payload = {}) => {
@@ -248,9 +315,6 @@ const updateStaffingRequest = async (user, requestId, payload = {}) => {
 
   request.requestedPositions = nextRequestedPositions;
 
-  if (payload.note !== undefined) {
-    request.note = cleanText(payload.note);
-  }
   if (payload.neededBy !== undefined) {
     request.neededBy = parseDate(payload.neededBy, 'Needed-by date');
   }
@@ -258,10 +322,70 @@ const updateStaffingRequest = async (user, requestId, payload = {}) => {
   await request.save();
   await request.populate(REQUEST_POPULATE);
 
-  return formatRequest(request);
+  return formatRequestWithLookup(request);
 };
 
-const cancelStaffingRequest = async (user, requestId, payload = {}) => {
+// A rules-helper refusal is a 403 when it means "not you" and a 400 when it
+// means "not a legal move" — the helper tags the former with FORBIDDEN so this
+// mapping never has to match on message text.
+const asHttpError = (error) => httpError(error.message, error.code === 'FORBIDDEN' ? 403 : 400);
+
+// The one close path, for all three reasons. `assertCanClose` owns who may use
+// which reason (cancel: author or admin; fulfil/decline: admin only, and
+// decline needs a note), so this function never re-implements that split.
+//
+// Where the supplied note lands depends on the reason, and the two fields are
+// not interchangeable:
+//   cancelled → `closeNote`. Withdrawing an ask must never overwrite what an
+//               admin already said about it.
+//   declined  → `note` (+ `noteBy`/`noteAt`). Mandatory, and it IS the admin's
+//               remark — the model enforces both the non-empty text and the
+//               attribution triple.
+//   fulfilled → `note` if one was given, otherwise nothing.
+const closeStaffingRequest = async (user, requestId, payload = {}) => {
+  assertValidObjectId(requestId, 'Staffing request');
+  const request = await StaffingRequest.findById(requestId);
+  if (!request) throw httpError('Staffing request not found', 404);
+
+  assertWriteAccess(user, request);
+
+  const isAdmin = user.role === ROLES.ADMIN;
+  const isAuthor = String(request.author) === String(user._id);
+  const note = cleanText(payload.note);
+
+  try {
+    assertCanClose(request, { isAdmin, isAuthor, reason: payload.reason, note });
+  } catch (error) {
+    throw asHttpError(error);
+  }
+
+  const closedAt = new Date();
+  Object.assign(
+    request,
+    applyClose(request, { reason: payload.reason, closedBy: user._id, closedAt })
+  );
+
+  if (payload.reason === 'cancelled') {
+    if (payload.note !== undefined) {
+      request.closeNote = note;
+    }
+  } else if (note) {
+    request.note = note;
+    request.noteBy = user._id;
+    request.noteAt = closedAt;
+  }
+
+  await request.save();
+  await request.populate(REQUEST_POPULATE);
+
+  return formatRequestWithLookup(request);
+};
+
+// Reopening clears every close marker, so a reopened request is
+// indistinguishable from one that was never closed. `closeNote` and `note`
+// deliberately survive: they are the record of what happened, and the next
+// close writes over them anyway.
+const reopenStaffingRequest = async (user, requestId) => {
   assertValidObjectId(requestId, 'Staffing request');
   const request = await StaffingRequest.findById(requestId);
   if (!request) throw httpError('Staffing request not found', 404);
@@ -272,29 +396,56 @@ const cancelStaffingRequest = async (user, requestId, payload = {}) => {
   const isAuthor = String(request.author) === String(user._id);
 
   try {
-    assertCanClose(request, { isAdmin, isAuthor, reason: 'cancelled', note: payload.note });
+    assertCanReopen(request, { isAdmin, isAuthor });
   } catch (error) {
-    throw httpError(error.message, 400);
+    throw asHttpError(error);
   }
 
-  request.status = 'closed';
-  request.reason = 'cancelled';
-  request.closedBy = user._id;
-  request.closedAt = new Date();
-  if (payload.note !== undefined) {
-    request.note = cleanText(payload.note);
-  }
+  Object.assign(request, applyReopen());
 
   await request.save();
   await request.populate(REQUEST_POPULATE);
 
-  return formatRequest(request);
+  return formatRequestWithLookup(request);
+};
+
+// The admin's remark on a request, attributed and stamped so leadership sees
+// who said it and when. Admin-only: leadership must not be able to write a
+// note onto its own ask. Saving again replaces the previous text — one note per
+// request, by design, not a thread. Eventually this is saved as part of picking
+// candidates (the fulfil flow); until that exists it has its own write path.
+const setStaffingRequestNote = async (user, requestId, payload = {}) => {
+  assertValidObjectId(requestId, 'Staffing request');
+  const request = await StaffingRequest.findById(requestId);
+  if (!request) throw httpError('Staffing request not found', 404);
+
+  assertReadAccess(user);
+  if (user.role !== ROLES.ADMIN) {
+    throw httpError('Only an admin may add a note to a staffing request', 403);
+  }
+  if (request.status === 'closed') {
+    throw httpError('Cannot note a closed staffing request', 400);
+  }
+
+  const note = cleanText(payload.note);
+  if (!note) throw httpError('Note text is required', 400);
+
+  request.note = note;
+  request.noteBy = user._id;
+  request.noteAt = new Date();
+
+  await request.save();
+  await request.populate(REQUEST_POPULATE);
+
+  return formatRequestWithLookup(request);
 };
 
 module.exports = {
+  setStaffingRequestNote,
   listStaffingRequests,
   getStaffingRequest,
   createStaffingRequest,
   updateStaffingRequest,
-  cancelStaffingRequest,
+  closeStaffingRequest,
+  reopenStaffingRequest,
 };

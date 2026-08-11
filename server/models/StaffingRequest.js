@@ -70,7 +70,27 @@ const staffingRequestSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    // The admin's remark on the request, written when picking candidates for
+    // it — anything leadership should know that the suggestions themselves
+    // don't say. One note per request, admin-authored, overwritten on re-save:
+    // this is a mention, not a conversation. Never written by the author who
+    // filed the request. Declining requires it (enforced below); a
+    // cancellation reason goes to `closeNote` so it can never overwrite this.
     note: {
+      type: String,
+      trim: true,
+      maxlength: 5000,
+      default: '',
+    },
+    noteBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    noteAt: {
+      type: Date,
+    },
+    // Why the request was cancelled — optional, author- or admin-supplied.
+    closeNote: {
       type: String,
       trim: true,
       maxlength: 5000,
@@ -122,6 +142,15 @@ staffingRequestSchema.pre('validate', function enforceExclusiveProjectIdentity()
   const hasDraftProject = Boolean(this.draftProject);
   if (hasProject === hasDraftProject) {
     throw new Error('Exactly one of project or draftProject must be set on a staffing request');
+  }
+});
+
+// The note is a triple — text, who wrote it, when. Any one alone leaves the
+// UI rendering an unattributed or undated remark.
+staffingRequestSchema.pre('validate', function enforceNoteFields() {
+  const parts = [Boolean(this.note?.trim()), Boolean(this.noteBy), Boolean(this.noteAt)];
+  if (parts.some(Boolean) && !parts.every(Boolean)) {
+    throw new Error('A note must carry its text, who wrote it, and when');
   }
 });
 

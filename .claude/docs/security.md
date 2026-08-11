@@ -229,14 +229,35 @@ same exception as `Project`/`Recommendation` above).
   cover for a colleague.
 - **Create** (`POST /`): `requireRole(LEADERSHIP)` only — an admin cannot file one. Recorded demand
   must trace back to an outside ask that came through leadership.
-- **Update / cancel** (`PATCH /:id`, `POST /:id/cancel`): route-gated to `ADMIN`/`LEADERSHIP`
-  (mentors/interns 403 before the resource even loads), then narrowed in
+- **Update / close / reopen** (`PATCH /:id`, `POST /:id/close`, `POST /:id/reopen`): route-gated to
+  `ADMIN`/`LEADERSHIP` (mentors/interns 403 before the resource even loads), then narrowed in
   `assertWriteAccess`/`assertCanClose` to **the request's own author, or any admin** — a leadership
   user who didn't file it gets the same 403 a mentor would, one level later. Edit legality (closed
   request rejects every edit, count floor, duplicate/locked position) is enforced by calling into
   `helpers/staffingRequestRules.js`, never re-implemented in the service.
+- **The close reason carries its own authorization**, and it lives in `assertCanClose`, not the
+  router: `cancelled` is author-or-admin, `fulfilled`/`declined` are **admin-only**, and `declined`
+  additionally requires a non-empty note. This is why closing is one route taking `reason` in the
+  body rather than three routes — a `requireRole(ADMIN)` on a fulfil-only route would put half the
+  rule in the router and leave the two copies free to drift. A leadership author asking to close
+  their own request as `fulfilled` gets a **403**, not a 400: the rules helper tags authorization
+  refusals with `code: 'FORBIDDEN'` (it stays HTTP-agnostic) and the service maps that code to 403
+  and everything else to 400.
+- **`PATCH /:id` cannot close anything.** `updateStaffingRequest` only ever writes
+  `requestedPositions` and `neededBy` — `status` and `reason` are not accepted, so a close can never
+  ride in on a generic edit and bypass `assertCanClose`. Keep it that way.
+- **Where a close note lands depends on the reason**, and the two fields are not interchangeable:
+  `cancelled` → `closeNote` (withdrawing an ask must never overwrite an admin's remark);
+  `declined` → `note` + `noteBy` + `noteAt`, mandatory; `fulfilled` → `note` if one was supplied.
+  Reopening clears `status`/`reason`/`closedBy`/`closedAt` and deliberately leaves both notes as the
+  record of what happened.
+- **Note** (`PATCH /:id/note`): `requireRole(ADMIN)` only, re-asserted in the service. The note is
+  the admin's remark back to leadership, so a leadership user — including the request's own author —
+  gets a 403; nobody annotates their own ask. Rejected on a closed request. Saving replaces the
+  previous text: one note per request, deliberately not a thread.
 - **Mentors and interns get 403 from every route**, including list/read — there is no aggregate-only
-  view for them.
+  view for them. A mentor therefore cannot answer a request either; no mentor is attached to a
+  request at all today.
 - **No delete route, ever.** Cancelling (`status: closed`, `reason: cancelled`) is the only way a
   request goes away; deleting would orphan `Recommendation.staffingRequest` references and the
   demand history that justifies the feature.

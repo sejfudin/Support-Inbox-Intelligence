@@ -1,7 +1,5 @@
 const {
   deriveProgress,
-  isDemandMet,
-  deriveDisplayState,
   assertProjectEditable,
   assertRequestedPositionsEditable,
   assertCanClose,
@@ -106,113 +104,26 @@ describe('deriveProgress', () => {
     );
     expect(progress.totals).toEqual({ wanted: 2, putForward: 2, placed: 1 });
   });
-});
 
-describe('isDemandMet', () => {
-  it('is false when one position is short', () => {
+  // The service populates `requestedPositions.position` so the UI has a name to
+  // show, which means this helper receives a document on one side and a raw id
+  // on the other. Comparing them with String() yields '[object Object]' vs a hex
+  // id — every count silently reads 0, which is exactly what happened until a
+  // fixture with tagged recommendations existed to catch it.
+  it('matches a populated requested position against a raw recommendation id', () => {
     const progress = deriveProgress(
-      [
-        requestedPosition({ position: FRONTEND, count: 2 }),
-        requestedPosition({ position: QA, count: 1 }),
-      ],
-      [
-        recommendation({ position: FRONTEND, outcome: 'placed' }),
-        recommendation({ position: FRONTEND, outcome: 'placed' }),
-      ]
+      [{ position: { _id: FRONTEND, name: 'Frontend Engineer' }, count: 2, technologies: [] }],
+      [recommendation({ outcome: 'placed' }), recommendation({ outcome: undefined })]
     );
-    expect(isDemandMet(progress)).toBe(false);
+    expect(progress.totals).toEqual({ wanted: 2, putForward: 2, placed: 1 });
   });
 
-  it('is true when every position is met', () => {
+  it('reports the position as an id even when it arrived populated', () => {
     const progress = deriveProgress(
-      [
-        requestedPosition({ position: FRONTEND, count: 1 }),
-        requestedPosition({ position: QA, count: 1 }),
-      ],
-      [
-        recommendation({ position: FRONTEND, outcome: 'placed' }),
-        recommendation({ position: QA, outcome: 'placed' }),
-      ]
+      [{ position: { _id: FRONTEND, name: 'Frontend Engineer' }, count: 1, technologies: [] }],
+      []
     );
-    expect(isDemandMet(progress)).toBe(true);
-  });
-
-  it('is true when met only because a count was lowered', () => {
-    const progress = deriveProgress(
-      [requestedPosition({ count: 1 })],
-      [recommendation({ outcome: 'placed' }), recommendation({ outcome: 'not_placed' })]
-    );
-    expect(isDemandMet(progress)).toBe(true);
-  });
-
-  it('is false for a request with no recommendations', () => {
-    const progress = deriveProgress([requestedPosition({ count: 1 })], []);
-    expect(isDemandMet(progress)).toBe(false);
-  });
-});
-
-describe('deriveDisplayState', () => {
-  it('reads needs project when the project is still a draft', () => {
-    const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
-    const progress = deriveProgress([requestedPosition({ count: 1 })], []);
-    expect(deriveDisplayState(request, progress)).toEqual({ state: 'needs_project' });
-  });
-
-  it('reads sourcing when open and nothing has been put forward', () => {
-    const progress = deriveProgress([requestedPosition({ count: 1 })], []);
-    expect(deriveDisplayState(baseRequest(), progress)).toEqual({ state: 'sourcing' });
-  });
-
-  it('reads N put forward when open with offers made', () => {
-    const progress = deriveProgress(
-      [requestedPosition({ count: 2 })],
-      [recommendation({ outcome: undefined })]
-    );
-    expect(deriveDisplayState(baseRequest(), progress)).toEqual({
-      state: 'put_forward',
-      putForward: 1,
-    });
-  });
-
-  it('reads fulfilled when closed for that reason and demand is met', () => {
-    const progress = deriveProgress(
-      [requestedPosition({ count: 1 })],
-      [recommendation({ outcome: 'placed' })]
-    );
-    const request = baseRequest({ status: 'closed', reason: 'fulfilled' });
-    expect(deriveDisplayState(request, progress)).toEqual({ state: 'fulfilled' });
-  });
-
-  it('reads declined when closed for that reason', () => {
-    const progress = deriveProgress([requestedPosition({ count: 1 })], []);
-    const request = baseRequest({ status: 'closed', reason: 'declined' });
-    expect(deriveDisplayState(request, progress)).toEqual({ state: 'declined' });
-  });
-
-  it('reads cancelled when closed for that reason', () => {
-    const progress = deriveProgress([requestedPosition({ count: 1 })], []);
-    const request = baseRequest({ status: 'closed', reason: 'cancelled' });
-    expect(deriveDisplayState(request, progress)).toEqual({ state: 'cancelled' });
-  });
-
-  it('reads placement lost when a closed(fulfilled) request has fallen below demand', () => {
-    const progress = deriveProgress(
-      [requestedPosition({ count: 1 })],
-      [recommendation({ outcome: 'not_placed' })]
-    );
-    const request = baseRequest({ status: 'closed', reason: 'fulfilled' });
-    expect(deriveDisplayState(request, progress)).toEqual({ state: 'placement_lost' });
-  });
-
-  it('never reads fulfilled for a draft-project request', () => {
-    const progress = deriveProgress([requestedPosition({ count: 1 })], []);
-    const request = baseRequest({
-      project: null,
-      draftProject: { name: 'Kestrel' },
-      status: 'closed',
-      reason: 'fulfilled',
-    });
-    expect(() => deriveDisplayState(request, progress)).toThrow();
+    expect(progress.positions[0].position).toBe(FRONTEND);
   });
 });
 

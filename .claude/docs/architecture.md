@@ -203,27 +203,39 @@ the model and the pure rules module — no routes, no screens yet.
   ticket 05's job, not this one's. `requestedPositions` is an embedded array of
   `{ position, count, technologies[] }`
   with a path validator rejecting a repeated `position`; a requested position is identified by
-  `staffingRequest + position`, with no separate line id. `author`, `note`, optional `neededBy`
+  `staffingRequest + position`, with no separate line id. `author`, optional `neededBy`
   (real `Date`, no free-text fallback). `status` is `open | closed`; closing sets `reason`
   (`fulfilled | declined | cancelled`), `closedBy`, `closedAt`, enforced together by a
   `pre('validate')` hook — `declined` additionally requires a non-empty `note`.
+  `note` is **the admin's remark on the request, not the author's ask** — one note per request,
+  written when picking candidates for it, so leadership reads anything the suggestions themselves
+  don't say. It carries `noteBy` + `noteAt`, and a `pre('validate')` hook requires all three
+  together or none (a half-written note would render unattributed). Leadership never authors it:
+  `createStaffingRequest`/`updateStaffingRequest` ignore `note` entirely. A cancellation reason
+  goes to the separate `closeNote` field precisely so cancelling cannot overwrite an admin's note;
+  a decline's mandatory reason is the admin's remark, so it writes `note` proper. Closing and
+  reopening are `POST /:id/close` (reason in the body) and `POST /:id/reopen` — see
+  `.claude/docs/security.md` for the per-reason permission split and the 403-vs-400 mapping.
+  Until the fulfil flow (tickets 06/07) can save the note alongside the candidate picks, it has its
+  own write path, `PATCH /:id/note` → `setStaffingRequestNote`.
+- **Formatted request payload** (`formatRequest` in `services/staffingRequestService.js`) — the one
+  place a request document becomes a response: adds `progress` (straight from the rules helper) and
+  `suggestions`. There is no derived status field — see the note under the rules module. `suggestions` is one entry per
+  tagged recommendation — `{ id, position, internName, internProfile, startDate, technologies[],
+  status, outcome }` — so the UI can group suggested interns under the requested position they were
+  put forward for. `position` stays a raw id on purpose: `deriveProgress` matches it against
+  `requestedPositions` by id, so populating it would silently break every progress count.
 - **`Recommendation.staffingRequest`** — new nullable ref to `StaffingRequest`, set only when the
   recommendation was created by fulfilling a request (ticket 06 sets it; nothing does yet). No
   other `Recommendation` behaviour changes; `RECOMMENDATION_RESULTS` is untouched — a leftover
   intern released when a request fills without them is still `not_placed`, with the nuance carried
   in the mandatory result note.
 - **`helpers/staffingRequestRules.js`** — the single pure rules module for this feature (no I/O, no
-  clock, timestamps passed in), following `helpers/specializationRules.js`. Five rule groups, all
+  clock, timestamps passed in), following `helpers/specializationRules.js`. Three rule groups, all
   unit-tested in `staffingRequestRules.test.js` with plain objects, no Mongo, no Express:
   - `deriveProgress` — requested positions + tagged recommendations → per-position
     `{ wanted, putForward, placed }` and totals. A tagged recommendation whose position isn't in
     the request is ignored rather than crashing.
-  - `isDemandMet` — auto-close predicate: every requested position has `placed >= wanted`.
-  - `deriveDisplayState` — the pill: `needs_project | sourcing | put_forward | fulfilled |
-    declined | cancelled | placement_lost`. A draft-project request can never read `fulfilled`
-    (throws — that state requires a resolved project, which fulfilling a draft cannot produce); a
-    closed(`fulfilled`) request whose recommendations have since fallen below demand reads
-    `placement_lost` instead, since nothing auto-reopens.
   - `assertProjectEditable` / `assertRequestedPositionsEditable` — edit legality: project locked
     once any recommendation is tagged; a requested position with recommendations can't be deleted
     (its count can still fall below its placed count); count floor of 1; duplicate position
@@ -234,6 +246,15 @@ the model and the pure rules module — no routes, no screens yet.
     `closedBy`, `closedAt`.
   - Picker eligibility and unread/badge derivation are separate rule groups added by later
     tickets, once there's a route or a screen to drive them.
+  - **No derived status.** There is deliberately no `deriveDisplayState`/`isDemandMet` here: a
+    request is `open` or `closed`, plus a close `reason`, and that is the whole status vocabulary.
+    Everything a screen used to read off a single pill is a comparison the client makes on
+    `progress` or `project` — nobody put forward yet (`totals.putForward === 0`), demand met
+    (`placed >= wanted` on every position), still a draft project (`!project`). The frontend
+    predicates live in `frontend/src/helpers/staffingRequests.js`. Deriving presentation on the
+    client is safe here because presentation never authorizes: the `assert*` functions above stay
+    the only authority on what a user may do. Note nothing auto-closes a request whose demand is
+    met — an admin closes it as `fulfilled` explicitly, via `POST /:id/close`.
 
 ## Specializations
 

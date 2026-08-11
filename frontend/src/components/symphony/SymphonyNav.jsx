@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Briefcase, GraduationCap, LayoutDashboard, LogOut } from 'lucide-react';
+import { Briefcase, ClipboardList, GraduationCap, LayoutDashboard, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SymphonyWordmark } from './SymphonyWordmark';
 import { SymphonyThemeToggle } from './SymphonyThemeToggle';
@@ -26,6 +26,12 @@ const NAV_ITEMS = [
     label: 'Projects',
     icon: Briefcase,
     testId: 'symphony-nav-projects-link',
+  },
+  {
+    to: '/requests',
+    label: 'Requests',
+    icon: ClipboardList,
+    testId: 'symphony-nav-requests-link',
   },
 ];
 

@@ -1,11 +1,38 @@
-// Pure rules for staffing-request decisions (progress, demand-met, display
-// state, edit legality, close/reopen legality). No I/O, no clock — timestamps
-// are always passed in so callers control them and this stays trivially
-// unit-testable. Follows helpers/specializationRules.js exactly.
+// Pure rules for staffing-request decisions (progress, edit legality,
+// close/reopen legality). No I/O, no clock — timestamps are always passed in
+// so callers control them and this stays trivially unit-testable. Follows
+// helpers/specializationRules.js exactly.
+//
+// There is deliberately no derived "display state" here. A request is `open`
+// or `closed`, plus a close `reason` — everything a UI used to read off a
+// single pill (nobody suggested yet, N put forward, demand met, project still
+// a draft) is a plain comparison on `progress` or `project`, so the response
+// carries the facts and the client presents them. Authority stays here: the
+// `assert*` functions below are the only thing that decides what is legal.
 
 const CLOSE_REASONS = ['fulfilled', 'declined', 'cancelled'];
 
-const idEquals = (a, b) => a != null && b != null && String(a) === String(b);
+// A position reference reaches here either as a raw ObjectId or, on the request
+// side, as a POPULATED document — `REQUEST_POPULATE` in staffingRequestService
+// populates `requestedPositions.position` so the UI has a name to show. Without
+// this unwrap, `String(populatedDoc)` is '[object Object]', nothing ever matches
+// a recommendation's raw id, and every count silently reads 0.
+const toId = (value) => (value && typeof value === 'object' && value._id ? value._id : value);
+
+const idEquals = (a, b) => {
+  const left = toId(a);
+  const right = toId(b);
+  return left != null && right != null && String(left) === String(right);
+};
+
+// "You may not do this", as opposed to "this is not a legal thing to do".
+// Callers map the code to a 403 and everything else to a 400 — this module
+// stays free of HTTP knowledge, it just says which kind of refusal it is.
+const forbidden = (message) => {
+  const error = new Error(message);
+  error.code = 'FORBIDDEN';
+  return error;
+};
 
 // Per requested position: how many are wanted, how many were put forward
 // (any recommendation tagged to this request for that position), and how
@@ -22,7 +49,11 @@ const deriveProgress = (requestedPositions, recommendations) => {
       (recommendation) => recommendation.result?.outcome === 'placed'
     ).length;
     return {
-      position: requestedPosition.position,
+      // Always the id, never the populated document: this field is an
+      // identifier the client pairs back against its own requestedPositions,
+      // and a document here fails that comparison the same way it fails the
+      // one above.
+      position: toId(requestedPosition.position),
       wanted: requestedPosition.count,
       putForward: matching.length,
       placed,
@@ -39,39 +70,6 @@ const deriveProgress = (requestedPositions, recommendations) => {
   );
 
   return { positions, totals };
-};
-
-// Auto-close predicate: every requested position has at least as many
-// placed as wanted. A request with no requested positions is vacuously met,
-// but the model requires at least one, so this never arises in practice.
-const isDemandMet = (progress) =>
-  progress.positions.every((position) => position.placed >= position.wanted);
-
-// The pill a request displays. Closed reasons win over everything else,
-// except that a request can never read "fulfilled" while its project is
-// still a draft (fulfilling requires a resolved project, so a request in
-// that state is a data-integrity violation, not a legitimate display case) —
-// and a closed(fulfilled) request whose recommendations have since dropped
-// below demand reads "placement lost" instead, since nothing auto-reopens.
-const deriveDisplayState = (request, progress) => {
-  const projectResolved = Boolean(request.project);
-
-  if (request.status === 'closed') {
-    if (!CLOSE_REASONS.includes(request.reason)) {
-      throw new Error(`Invalid close reason: ${request.reason}`);
-    }
-    if (request.reason === 'cancelled') return { state: 'cancelled' };
-    if (request.reason === 'declined') return { state: 'declined' };
-    // reason === 'fulfilled'
-    if (!projectResolved) {
-      throw new Error('A draft-project request can never be fulfilled');
-    }
-    return isDemandMet(progress) ? { state: 'fulfilled' } : { state: 'placement_lost' };
-  }
-
-  if (!projectResolved) return { state: 'needs_project' };
-  if (progress.totals.putForward === 0) return { state: 'sourcing' };
-  return { state: 'put_forward', putForward: progress.totals.putForward };
 };
 
 // Whether the project reference may still be changed / resolved.
@@ -129,13 +127,13 @@ const assertCanClose = (request, { isAdmin, isAuthor, reason, note }) => {
 
   if (reason === 'cancelled') {
     if (!isAdmin && !isAuthor) {
-      throw new Error('Only the author or an admin may cancel a staffing request');
+      throw forbidden('Only the author or an admin may cancel a staffing request');
     }
     return;
   }
 
   if (!isAdmin) {
-    throw new Error(`Only an admin may close a staffing request as ${reason}`);
+    throw forbidden(`Only an admin may close a staffing request as ${reason}`);
   }
   if (reason === 'declined' && !note?.trim()) {
     throw new Error('Declining a staffing request requires a non-empty note');
@@ -158,7 +156,7 @@ const assertCanReopen = (request, { isAdmin, isAuthor }) => {
     throw new Error('Staffing request is not closed');
   }
   if (!isAdmin && !isAuthor) {
-    throw new Error('Only the author or an admin may reopen a staffing request');
+    throw forbidden('Only the author or an admin may reopen a staffing request');
   }
 };
 
@@ -171,8 +169,6 @@ const applyReopen = () => ({
 
 module.exports = {
   deriveProgress,
-  isDemandMet,
-  deriveDisplayState,
   assertProjectEditable,
   assertRequestedPositionsEditable,
   assertCanClose,

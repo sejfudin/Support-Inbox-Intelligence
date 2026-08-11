@@ -60,14 +60,46 @@ exports.updateStaffingRequest = async (req, res, next) => {
   }
 };
 
-exports.cancelStaffingRequest = async (req, res, next) => {
+const CLOSE_MESSAGES = {
+  fulfilled: 'Staffing request closed as fulfilled',
+  declined: 'Staffing request declined',
+  cancelled: 'Staffing request cancelled',
+};
+
+exports.closeStaffingRequest = async (req, res, next) => {
   try {
-    const request = await staffingRequestService.cancelStaffingRequest(
+    const request = await staffingRequestService.closeStaffingRequest(
       req.user,
       req.params.id,
       req.body
     );
-    res.json({ success: true, message: 'Staffing request cancelled', data: request });
+    res.json({
+      success: true,
+      message: CLOSE_MESSAGES[req.body?.reason] ?? 'Staffing request closed',
+      data: request,
+    });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.reopenStaffingRequest = async (req, res, next) => {
+  try {
+    const request = await staffingRequestService.reopenStaffingRequest(req.user, req.params.id);
+    res.json({ success: true, message: 'Staffing request reopened', data: request });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.setStaffingRequestNote = async (req, res, next) => {
+  try {
+    const request = await staffingRequestService.setStaffingRequestNote(
+      req.user,
+      req.params.id,
+      req.body
+    );
+    res.json({ success: true, message: 'Note saved', data: request });
   } catch (error) {
     handleError(res, error, next);
   }

@@ -30,6 +30,7 @@ import LeadershipCandidatesPage from '@/pages/fep/LeadershipCandidatesPage';
 import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
 import LeadershipProjectsPage from '@/pages/fep/LeadershipProjectsPage';
 import LeadershipProjectPage from '@/pages/fep/LeadershipProjectPage';
+import LeadershipRequestsPage from '@/pages/fep/LeadershipRequestsPage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
@@ -141,6 +142,7 @@ export default function AppRoutes() {
             <Route path="/interns/:userId" element={<LeadershipCandidatePage />} />
             <Route path="/projects" element={<LeadershipProjectsPage />} />
             <Route path="/projects/:id" element={<LeadershipProjectPage />} />
+            <Route path="/requests" element={<LeadershipRequestsPage />} />
           </Route>
         </Route>
 

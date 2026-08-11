@@ -518,6 +518,164 @@
   color: hsl(220 8% 62%);
 }
 
+.symphony-status-warning {
+  border-color: hsl(38 92% 50% / 0.35);
+  background: hsl(38 92% 50% / 0.12);
+  color: hsl(32 80% 38%);
+}
+
+.dark .symphony-status-warning {
+  color: hsl(38 92% 65%);
+}
+
+.symphony-status-danger {
+  border-color: hsl(0 72% 51% / 0.35);
+  background: hsl(0 72% 51% / 0.1);
+  color: hsl(0 65% 42%);
+}
+
+.dark .symphony-status-danger {
+  color: hsl(0 90% 72%);
+}
+
+/* ——— Progress meter (staffing-request fulfilment) ——— */
+
+.symphony-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(var(--symphony-border));
+}
+
+.symphony-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: hsl(152 60% 45%);
+  transition: width 200ms ease;
+}
+
+/* One segment per requested seat, in three states. `placed` is the outcome that
+   matters, so it alone gets a solid fill; `put forward` is a promise, not an
+   arrival, and reads as an outline. Anything else is an empty seat. Colour is
+   never the only signal — the meter always ships with a text label beside it. */
+
+.symphony-seats {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.symphony-seat {
+  height: 6px;
+  min-width: 6px;
+  flex: 1 1 0;
+  border-radius: 999px;
+  background: hsl(var(--symphony-border) / 0.55);
+  box-shadow: none;
+  transition:
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.symphony-seat-placed {
+  background: hsl(152 55% 42%);
+}
+
+.dark .symphony-seat-placed {
+  background: hsl(152 55% 52%);
+}
+
+.symphony-seat-forward {
+  background: hsl(var(--symphony-brand) / 0.28);
+  box-shadow: inset 0 0 0 1px hsl(var(--symphony-brand) / 0.85);
+}
+
+/* Suggested interns, one card per recommendation. */
+
+[data-surface='symphony'] .symphony-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--symphony-radius);
+  border: 1px solid hsl(var(--symphony-border));
+  background: hsl(var(--symphony-surface));
+  padding: 0.625rem 0.75rem;
+}
+
+[data-surface='symphony'] .symphony-suggestion-avatar {
+  display: grid;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(var(--symphony-brand) / 0.18);
+  color: hsl(var(--symphony-brand-ink));
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* An empty seat: same footprint as a suggestion card so a half-filled position
+   reads as a row with gaps, not as a shorter row. */
+[data-surface='symphony'] .symphony-seat-empty-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--symphony-radius);
+  border: 1px dashed hsl(var(--symphony-border));
+  background: transparent;
+  padding: 0.625rem 0.75rem;
+  color: hsl(var(--symphony-muted));
+}
+
+/* The derived-blocker banner. Not a status — a status is stored, this is a
+   comparison on the counts that leadership needs pushed at them. */
+[data-surface='symphony'] .symphony-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border-radius: var(--symphony-radius);
+  border: 1px solid transparent;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.35rem;
+}
+
+[data-surface='symphony'] .symphony-notice-warning {
+  border-color: hsl(38 92% 50% / 0.35);
+  background: hsl(38 92% 50% / 0.1);
+  color: hsl(32 74% 32%);
+}
+
+.dark [data-surface='symphony'] .symphony-notice-warning,
+[data-surface='symphony'] .dark .symphony-notice-warning {
+  color: hsl(38 92% 78%);
+}
+
+[data-surface='symphony'] .symphony-notice-info {
+  border-color: hsl(var(--symphony-brand) / 0.3);
+  background: hsl(var(--symphony-brand) / 0.08);
+  color: hsl(var(--symphony-brand-ink));
+}
+
+[data-surface='symphony'] .symphony-notice-success {
+  border-color: hsl(152 55% 42% / 0.35);
+  background: hsl(152 55% 42% / 0.1);
+  color: hsl(152 45% 26%);
+}
+
+.dark [data-surface='symphony'] .symphony-notice-success,
+[data-surface='symphony'] .dark .symphony-notice-success {
+  color: hsl(152 55% 70%);
+}
+
+/* Selected row in the master list. */
+[data-surface='symphony'] .symphony-list-item-active {
+  border-color: hsl(var(--symphony-brand) / 0.65);
+  background: hsl(var(--symphony-brand) / 0.08);
+}
+
 /* ——— Hero (solid brand panel, no gradient) ——— */
 
 [data-surface='symphony'] .symphony-hero {

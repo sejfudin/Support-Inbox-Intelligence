@@ -25,6 +25,14 @@
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
 - Sets the start date on a placement — the day the intern actually begins on the project, which is often not the day the placement was decided. It is optional: leave it empty when nobody knows yet, and set it later once they do. From that day the intern no longer has to record attendance: those days show in their own colour instead of absent, and the month reads "—" instead of 0%. Until a start date is set the intern keeps recording attendance as normal, and moving the date moves the cut-off with it
+- Only role that can leave a note on a staffing request — one short remark per request, for
+  anything leadership should know that the suggested candidates don't say. Saving again replaces
+  it; there is no back-and-forth thread on a request
+- Only role that can close a staffing request as **fulfilled** (the seats are filled) or
+  **declined** (the ask is being refused). Declining requires a reason, which becomes the note
+  leadership reads. Nothing closes a request automatically — even when every seat is placed, an
+  admin still closes it
+- Can edit, cancel, or reopen any staffing request, whoever filed it
 - Manages documentation links on intern profiles
 - Works with tickets like everyone else, plus can cross workspace boundaries (view tickets/analytics of any workspace, not just their own)
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
@@ -32,9 +40,13 @@
 
 **Leadership**
 - Otherwise read-only; the one exception is staffing requests (below)
-- Only role that can file a staffing request (recorded demand for interns on a project, with an
-  outside-context note); can also edit or cancel a request they filed themselves — not a
-  colleague's. Sees every staffing request from every author, same as admin
+- Only role that can file a staffing request (recorded demand for interns on a project); can also
+  edit, cancel, or reopen a request they filed themselves — not a colleague's. Sees every staffing
+  request from every author, same as admin
+- Cannot close a request as fulfilled or declined — those are the admin's call. Cancelling is the
+  only close available to leadership
+- Reads the admin's note on a request (see Admin) but cannot write or edit one, not even on their
+  own request. Can leave a reason when cancelling their own request
 - Sees all interns and all their profiles (not just assigned ones, unlike a mentor)
 - Sees all recommendations (created exclusively by admin), but can't create/edit them
 - Sees programme-wide statistics, the funnel/"In Selection" dashboard
