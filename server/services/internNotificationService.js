@@ -8,17 +8,26 @@ const {
 } = require('../prompts/internNotificationPrompts');
 
 /**
- * Notifications for the intern-programme domain (recommendations, evaluations,
- * readiness, specialization, lifecycle status) — the intern-facing counterpart
- * to `notificationService.js`, which stays focused on tickets. Kept as a
+ * Notifications for the intern-programme domain — the counterpart to
+ * `notificationService.js`, which stays focused on tickets. Kept as a
  * separate module because the recipient shape and event set are unrelated:
- * these never carry a `ticket`/`workspace`, always an `internProfile`.
+ * these never carry a `ticket`/`workspace`.
+ *
+ * Two recipient axes share this module and its dispatch/tryWarm/safe
+ * machinery: most functions notify **the intern** about a change to their own
+ * record (recommendations, evaluations, readiness, specialization, lifecycle
+ * status, the 10:30 daily/attendance reminder); a couple notify **staff**
+ * (admin/mentor/leadership) about an intern-programme event that isn't the
+ * intern's to see — a mentor note they were tagged on, a leadership staffing
+ * request. Every function still carries `internProfile` when the event is
+ * about one specific intern, `null` when it isn't (e.g. a project-level
+ * staffing request).
  *
  * Every exported function is safe to call **without `await`** (fire-and-
  * forget) from a mutation service — it never throws and never rejects, so an
- * admin/mentor's action is never slowed down or broken by notification
- * generation, whether the failure is a DB hiccup or the AI provider being
- * unconfigured/down/slow. See `tryWarm` and `safe` below.
+ * admin/mentor/leadership action is never slowed down or broken by
+ * notification generation, whether the failure is a DB hiccup or the AI
+ * provider being unconfigured/down/slow. See `tryWarm` and `safe` below.
  */
 
 const toId = (value) => {
@@ -361,6 +370,97 @@ const notifyDocumentationLinksUpdated = safe(async ({ internUserId, internProfil
   });
 });
 
+const notifyDailyReminder = safe(
+  async ({ internUserId, internProfileId, missingAttendance, missingDaily }) => {
+    const missing = [
+      missingAttendance ? 'check in for the day' : '',
+      missingDaily ? "file today's standup note" : '',
+    ].filter(Boolean);
+    if (missing.length === 0) return;
+
+    await dispatch({
+      internUserId,
+      internProfileId,
+      type: 'daily_attendance_reminder',
+      link: '/dashboard',
+      fallback: {
+        title: 'Friendly reminder for today',
+        body: `You haven't ${missing.join(' or ')} yet — there's still time before the window closes.`,
+      },
+      promptBuilder: buildProgrammeUpdatePrompt,
+      promptArgs: {
+        summary:
+          "A gentle same-day reminder — the intern hasn't done one or more of today's routine programme tasks yet.",
+        details: `Still to do today: ${missing.join(', ')}.`,
+      },
+    });
+  }
+);
+
+const STAFF_INTERN_LINK = {
+  admin: (internUserId) => `/interns/${internUserId}`,
+  leadership: (internUserId) => `/interns/${internUserId}`,
+  mentor: (internUserId) => `/my-interns/${internUserId}`,
+};
+
+/** Staff-facing: someone was named in a mentor note's visibility list — never sent to the intern. */
+const notifyMentorNoteMention = safe(
+  async ({
+    recipientUserId,
+    recipientRole,
+    internUserId,
+    internProfileId,
+    internName,
+    authorName,
+  }) => {
+    const link = (STAFF_INTERN_LINK[recipientRole] || STAFF_INTERN_LINK.admin)(internUserId);
+    await dispatch({
+      internUserId: recipientUserId,
+      internProfileId,
+      type: 'mentor_note_mention',
+      link,
+      fallback: {
+        title: 'New note about an intern',
+        body: `${authorName} added a note about ${internName}.`,
+      },
+      promptBuilder: buildProgrammeUpdatePrompt,
+      promptArgs: {
+        summary:
+          'A colleague added a private note about an intern and named this person as a recipient.',
+        details: `Note author: ${authorName}. Intern: ${internName}.`,
+      },
+    });
+  }
+);
+
+/** Staff-facing: a leadership user asked for interns on a project — deliberately notify-only, no persisted request record. */
+const notifyInternRequestFromLeadership = safe(
+  async ({ adminUserId, projectName, requesterName, positionLabel, count, note }) => {
+    const ask = [
+      count ? `${count} intern${count === 1 ? '' : 's'}` : 'interns',
+      positionLabel ? `(${positionLabel})` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    await dispatch({
+      internUserId: adminUserId,
+      internProfileId: null,
+      type: 'intern_request_from_leadership',
+      link: '/admin/platform-management',
+      fallback: {
+        title: 'Interns requested for a project',
+        body: `${requesterName} requested ${ask} for ${projectName}: "${note}"`,
+      },
+      promptBuilder: buildProgrammeUpdatePrompt,
+      promptArgs: {
+        summary: 'A leadership user requested interns be staffed onto a project.',
+        details: `Requested by: ${requesterName}. Project: ${projectName}. Asking for: ${ask}. Note: ${note}.`,
+      },
+    });
+  }
+);
+
 module.exports = {
   notifyRecommendationCreated,
   notifyRecommendationStatusChanged,
@@ -375,4 +475,7 @@ module.exports = {
   notifyInternStatusChanged,
   notifyExpectedEndDateChanged,
   notifyDocumentationLinksUpdated,
+  notifyDailyReminder,
+  notifyMentorNoteMention,
+  notifyInternRequestFromLeadership,
 };

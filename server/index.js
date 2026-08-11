@@ -6,6 +6,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const { initSocket } = require('./socket/socketServer');
+const { startDailyReminderScheduler } = require('./services/dailyReminderService');
 
 const authRoutes = require('./routes/auth');
 const ticketRoutes = require('./routes/ticket');
@@ -91,6 +92,7 @@ app.use((req, res, next) => {
     await connectDB();
     const server = http.createServer(app);
     initSocket(server);
+    startDailyReminderScheduler();
 
     server.listen(PORT, () => {
       console.log(`🟢 Server is running at port: ${PORT}`);

@@ -34,6 +34,11 @@ const notificationSchema = new mongoose.Schema(
         'intern_status_changed',
         'intern_expected_end_date_changed',
         'intern_documentation_updated',
+        'daily_attendance_reminder',
+        // Intern-programme domain — staff-facing (recipient is admin/mentor/
+        // leadership, not the intern)
+        'mentor_note_mention',
+        'intern_request_from_leadership',
       ],
       required: true,
     },
