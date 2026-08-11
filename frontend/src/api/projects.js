@@ -34,3 +34,10 @@ export const updateProject = async (id, payload) => {
   const { data } = await apiClient.patch(`/projects/${id}`, payload);
   return data;
 };
+
+// Leadership-only: ask admins to staff interns onto a project. Notify-only —
+// nothing is persisted beyond the notification admins receive.
+export const requestInternsForProject = async (id, payload) => {
+  const { data } = await apiClient.post(`/projects/${id}/request-interns`, payload);
+  return data.data;
+};

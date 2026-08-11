@@ -1,13 +1,15 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowLeft, History, UserCheck, Users } from 'lucide-react';
+import { ArrowLeft, History, UserCheck, UserPlus, Users } from 'lucide-react';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
 import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge';
+import { RequestInternsModal } from '@/components/projects/RequestInternsModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useProjectOverview } from '@/queries/projects';
 import { getInitials } from '@/helpers/initials';
 import {
@@ -65,6 +67,7 @@ function PersonAvatar({ fullname, className }) {
 export default function LeadershipProjectPage() {
   const { id } = useParams();
   const { data, isPending, isError } = useProjectOverview(id);
+  const [requestOpen, setRequestOpen] = useState(false);
 
   const placedRef = useRef(null);
   const selectionRef = useRef(null);
@@ -114,6 +117,17 @@ export default function LeadershipProjectPage() {
               status={project.status}
               label={getProjectStatusLabel(project.status)}
             />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setRequestOpen(true)}
+              data-test="project-request-interns-button"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Request interns
+            </Button>
           </div>
         }
       >
@@ -130,6 +144,13 @@ export default function LeadershipProjectPage() {
           </div>
         )}
       </SymphonyPageHeader>
+
+      <RequestInternsModal
+        projectId={id}
+        projectName={project.name}
+        open={requestOpen}
+        onClose={() => setRequestOpen(false)}
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <SectionStatTile
