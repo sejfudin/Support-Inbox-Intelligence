@@ -2,12 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   closeStaffingRequest,
   createStaffingRequest,
+  fetchStaffingRequestHistory,
+  fetchStaffingRequestNews,
   fetchStaffingRequests,
+  markStaffingRequestsSeen,
   reopenStaffingRequest,
   updateStaffingRequest,
 } from '@/api/staffingRequests';
 
 export const STAFFING_REQUESTS_QUERY_KEY = ['staffing-requests'];
+export const STAFFING_REQUEST_NEWS_QUERY_KEY = ['staffing-requests-news'];
 
 // Every write invalidates the list, and the list is the only reader: the
 // Requests screen holds its opened request as a row out of that same array,
@@ -63,3 +67,32 @@ export const useReopenStaffingRequest = () => {
     onSuccess: () => invalidateRequests(queryClient),
   });
 };
+
+// Drives the Requests nav badge and per-row "new" markers on both shells.
+// Live via the `staffing-news:all` socket scope (lib/invalidationScopes.js),
+// so no polling interval is needed here.
+export const useStaffingRequestNews = (options = {}) =>
+  useQuery({
+    queryKey: STAFFING_REQUEST_NEWS_QUERY_KEY,
+    queryFn: fetchStaffingRequestNews,
+    staleTime: 30 * 1000,
+    ...options,
+  });
+
+export const useMarkStaffingRequestsSeen = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: markStaffingRequestsSeen,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STAFFING_REQUEST_NEWS_QUERY_KEY });
+    },
+  });
+};
+
+export const useStaffingRequestHistory = (requestId, options = {}) =>
+  useQuery({
+    queryKey: ['staffing-request-history', requestId],
+    queryFn: () => fetchStaffingRequestHistory(requestId),
+    enabled: Boolean(requestId),
+    ...options,
+  });

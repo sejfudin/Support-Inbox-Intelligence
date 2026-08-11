@@ -167,6 +167,23 @@ const applyReopen = () => ({
   closedAt: null,
 });
 
+// Which requests carry "news" a viewer hasn't seen yet, from their raw
+// history events (each `{ entityId, userId, timestamp }`). A viewer who has
+// never opened the tab (`lastSeenAt` nullish) sees news for everything —
+// there is no earlier "caught up" moment to compare against. An event is only
+// "new" if it is strictly newer than `lastSeenAt`: one landing at the exact
+// last-seen instant was already visible the moment that instant was stamped.
+// Events the viewer themselves caused never count, however they arrived.
+const deriveUnreadStaffingRequestIds = (events, { lastSeenAt, viewerId }) => {
+  const unread = new Set();
+  for (const event of events) {
+    if (idEquals(event.userId, viewerId)) continue;
+    if (lastSeenAt && !(event.timestamp > lastSeenAt)) continue;
+    unread.add(String(toId(event.entityId)));
+  }
+  return unread;
+};
+
 module.exports = {
   deriveProgress,
   assertProjectEditable,
@@ -175,4 +192,5 @@ module.exports = {
   applyClose,
   assertCanReopen,
   applyReopen,
+  deriveUnreadStaffingRequestIds,
 };

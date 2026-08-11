@@ -40,6 +40,7 @@ import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
 import WorkspaceDailiesPage from '@/pages/WorkspaceDailiesPage';
 import AdminDailyInsightsPage from '@/pages/AdminDailyInsightsPage';
+import AdminStaffingRequestsPage from '@/pages/AdminStaffingRequestsPage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -177,6 +178,7 @@ export default function AppRoutes() {
             <Route path="/admin/daily-insights" element={<AdminDailyInsightsPage />} />
             <Route path="/recommendations" element={<MentorRecommendationsPage />} />
             <Route path="/specialization" element={<SpecializationPage />} />
+            <Route path="/admin/staffing-requests" element={<AdminStaffingRequestsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />

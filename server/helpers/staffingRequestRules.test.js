@@ -6,6 +6,7 @@ const {
   applyClose,
   assertCanReopen,
   applyReopen,
+  deriveUnreadStaffingRequestIds,
 } = require('./staffingRequestRules');
 
 const FRONTEND = 'position-frontend';
@@ -298,5 +299,64 @@ describe('applyReopen', () => {
       closedBy: null,
       closedAt: null,
     });
+  });
+});
+
+describe('deriveUnreadStaffingRequestIds', () => {
+  const VIEWER = 'user-admin';
+  const OTHER_USER = 'user-leadership';
+  const REQUEST_A = 'request-a';
+  const REQUEST_B = 'request-b';
+  const LAST_SEEN = new Date('2026-02-01T00:00:00.000Z');
+
+  const event = (overrides = {}) => ({
+    entityId: REQUEST_A,
+    userId: OTHER_USER,
+    timestamp: new Date('2026-02-01T00:00:01.000Z'),
+    ...overrides,
+  });
+
+  it('badges every request with news when the viewer has never opened the tab', () => {
+    const unread = deriveUnreadStaffingRequestIds(
+      [event({ entityId: REQUEST_A, timestamp: new Date('2020-01-01') })],
+      { lastSeenAt: null, viewerId: VIEWER }
+    );
+    expect(unread).toEqual(new Set([REQUEST_A]));
+  });
+
+  it('excludes events the viewer themselves caused', () => {
+    const unread = deriveUnreadStaffingRequestIds([event({ userId: VIEWER })], {
+      lastSeenAt: LAST_SEEN,
+      viewerId: VIEWER,
+    });
+    expect(unread).toEqual(new Set());
+  });
+
+  it('excludes an event exactly on the last-seen boundary', () => {
+    const unread = deriveUnreadStaffingRequestIds([event({ timestamp: LAST_SEEN })], {
+      lastSeenAt: LAST_SEEN,
+      viewerId: VIEWER,
+    });
+    expect(unread).toEqual(new Set());
+  });
+
+  it('includes an event strictly newer than last-seen', () => {
+    const unread = deriveUnreadStaffingRequestIds(
+      [event({ timestamp: new Date(LAST_SEEN.getTime() + 1) })],
+      { lastSeenAt: LAST_SEEN, viewerId: VIEWER }
+    );
+    expect(unread).toEqual(new Set([REQUEST_A]));
+  });
+
+  it('counts a request once despite multiple events', () => {
+    const unread = deriveUnreadStaffingRequestIds(
+      [
+        event({ entityId: REQUEST_A, timestamp: new Date(LAST_SEEN.getTime() + 1) }),
+        event({ entityId: REQUEST_A, timestamp: new Date(LAST_SEEN.getTime() + 2) }),
+        event({ entityId: REQUEST_B, timestamp: new Date(LAST_SEEN.getTime() + 1) }),
+      ],
+      { lastSeenAt: LAST_SEEN, viewerId: VIEWER }
+    );
+    expect(unread).toEqual(new Set([REQUEST_A, REQUEST_B]));
   });
 });

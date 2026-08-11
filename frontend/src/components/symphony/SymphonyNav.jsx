@@ -5,6 +5,7 @@ import { SymphonyWordmark } from './SymphonyWordmark';
 import { SymphonyThemeToggle } from './SymphonyThemeToggle';
 import { useAuth } from '@/context/AuthContext';
 import { useLogoutUser } from '@/queries/auth';
+import { useStaffingRequestNews } from '@/queries/staffingRequests';
 import { getInitials } from '@/helpers/initials';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,8 @@ export function SymphonyNav() {
   const { user } = useAuth();
   const { mutate: logout } = useLogoutUser();
   const initials = getInitials(user?.fullname, 'L');
+  const { data: news } = useStaffingRequestNews();
+  const requestsBadge = news?.count > 0 ? news.count : null;
 
   return (
     <header className="symphony-navbar sticky top-0 z-40">
@@ -70,6 +73,14 @@ export function SymphonyNav() {
               >
                 <Icon className="h-[1.125rem] w-[1.125rem] shrink-0" aria-hidden />
                 <span>{item.label}</span>
+                {item.to === '/requests' && requestsBadge && (
+                  <span
+                    className="flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[hsl(var(--symphony-brand))] px-1.5 text-[10px] font-semibold text-white"
+                    data-test="symphony-nav-requests-badge"
+                  >
+                    {requestsBadge > 99 ? '99+' : requestsBadge}
+                  </span>
+                )}
               </NavLink>
             );
           })}

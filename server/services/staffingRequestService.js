@@ -4,6 +4,8 @@ const Recommendation = require('../models/Recommendation');
 const Project = require('../models/Project');
 const Position = require('../models/Position');
 const Technology = require('../models/Technology');
+const History = require('../models/History');
+const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { httpError } = require('../helpers/httpError');
 const {
@@ -13,7 +15,10 @@ const {
   applyClose,
   assertCanReopen,
   applyReopen,
+  deriveUnreadStaffingRequestIds,
 } = require('../helpers/staffingRequestRules');
+const { logStaffingRequestEvent } = require('./historyService');
+const { emitStaffingNewsChanged } = require('../socket/events');
 
 // This is the platform's first leadership write path: no existing route
 // admits ROLES.LEADERSHIP for a write, so every guard below is explicit
@@ -281,6 +286,16 @@ const createStaffingRequest = async (user, payload = {}) => {
 
   await request.populate(REQUEST_POPULATE);
 
+  // Awaited and unswallowed on purpose — this write is the news mechanism for
+  // the admin/leadership badge (ticket 04), not a best-effort audit line.
+  await logStaffingRequestEvent({
+    entityId: request._id,
+    userId: user._id,
+    action: 'Request filed',
+    statusKey: 'staffing:filed',
+  });
+  emitStaffingNewsChanged();
+
   return formatRequestWithLookup(request);
 };
 
@@ -437,6 +452,54 @@ const setStaffingRequestNote = async (user, requestId, payload = {}) => {
   return formatRequestWithLookup(request);
 };
 
+// Which requests carry news the viewer hasn't seen, and how many — drives the
+// Requests nav badge on both shells. Fetches raw staffing-request events
+// rather than aggregating in Mongo so the "unread" policy lives in one place
+// (deriveUnreadStaffingRequestIds) instead of being reimplemented as a
+// parallel aggregation pipeline that could quietly drift from it.
+const getStaffingRequestNews = async (user) => {
+  assertReadAccess(user);
+
+  const lastSeenAt = user.staffingRequestsLastSeenAt || null;
+  const events = await History.find({
+    entityType: 'staffingRequest',
+    ...(lastSeenAt ? { timestamp: { $gt: lastSeenAt } } : {}),
+  })
+    .select('entityId userId timestamp')
+    .lean();
+
+  const unread = deriveUnreadStaffingRequestIds(events, {
+    lastSeenAt,
+    viewerId: user._id,
+  });
+
+  return { count: unread.size, requestIds: [...unread] };
+};
+
+// Stamps the viewer's last-seen timestamp to now — called when the Requests
+// tab/nav entry is opened. Read state is per viewer, not per request.
+const markStaffingRequestsSeen = async (user) => {
+  assertReadAccess(user);
+  const lastSeenAt = new Date();
+  await User.findByIdAndUpdate(user._id, { staffingRequestsLastSeenAt: lastSeenAt });
+  return { lastSeenAt };
+};
+
+// The full trail behind a request's badge — who did what, when. Same shape as
+// the ticket history read (server/controllers/history.js): no populate, the
+// actor's name is read off the denormalized userName stored at write time.
+const getStaffingRequestHistory = async (user, requestId) => {
+  assertReadAccess(user);
+  assertValidObjectId(requestId, 'Staffing request');
+
+  const exists = await StaffingRequest.exists({ _id: requestId });
+  if (!exists) throw httpError('Staffing request not found', 404);
+
+  return History.find({ entityType: 'staffingRequest', entityId: requestId })
+    .sort({ timestamp: -1 })
+    .lean();
+};
+
 module.exports = {
   setStaffingRequestNote,
   listStaffingRequests,
@@ -445,4 +508,7 @@ module.exports = {
   updateStaffingRequest,
   closeStaffingRequest,
   reopenStaffingRequest,
+  getStaffingRequestNews,
+  markStaffingRequestsSeen,
+  getStaffingRequestHistory,
 };

@@ -10,7 +10,7 @@ import { formatDay, getNeededBy, getRequestBlocker, getRequestTitle } from './re
  * them. A blocker shows as a dot beside the needed-by date rather than repeating
  * the banner text, which only the detail pane has room for.
  */
-export function RequestListItem({ request, selected, onSelect }) {
+export function RequestListItem({ request, selected, onSelect, hasNews = false }) {
   const totals = getRequestTotals(request);
   const neededBy = getNeededBy(request);
   const blocker = getRequestBlocker(request);
@@ -31,7 +31,16 @@ export function RequestListItem({ request, selected, onSelect }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
-          <p className="truncate font-semibold text-foreground">{getRequestTitle(request)}</p>
+          <p className="flex items-center gap-1.5 truncate font-semibold text-foreground">
+            {hasNews && (
+              <span
+                className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--symphony-brand))]"
+                aria-hidden="true"
+                data-test="request-news-dot"
+              />
+            )}
+            <span className="truncate">{getRequestTitle(request)}</span>
+          </p>
           <p className="truncate text-xs text-muted-foreground">
             {formatRequestedPositionsSummary(request.requestedPositions) || 'No positions'}
           </p>

@@ -99,3 +99,30 @@ exports.setStaffingRequestNote = async (req, res, next) => {
     handleError(res, error, next);
   }
 };
+
+exports.getStaffingRequestNews = async (req, res, next) => {
+  try {
+    const news = await staffingRequestService.getStaffingRequestNews(req.user);
+    res.json({ success: true, message: 'Staffing request news fetched', data: news });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.markStaffingRequestsSeen = async (req, res, next) => {
+  try {
+    const result = await staffingRequestService.markStaffingRequestsSeen(req.user);
+    res.json({ success: true, message: 'Staffing requests marked as seen', data: result });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.getStaffingRequestHistory = async (req, res, next) => {
+  try {
+    const history = await staffingRequestService.getStaffingRequestHistory(req.user, req.params.id);
+    res.json({ success: true, message: 'Staffing request history fetched', data: history });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};

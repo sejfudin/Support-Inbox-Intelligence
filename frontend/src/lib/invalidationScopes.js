@@ -2,6 +2,7 @@ import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 import { adminDashboardKeys } from '@/queries/adminDashboard';
 import { internDashboardKeys } from '@/queries/internDashboard';
+import { STAFFING_REQUEST_NEWS_QUERY_KEY } from '@/queries/staffingRequests';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -10,6 +11,7 @@ export const invalidationScopes = {
   ticket: (ticketId) => `ticket:${String(ticketId)}`,
   intern: () => 'intern:all',
   workspaceDailies: (workspaceId) => `workspace-dailies:${String(workspaceId)}`,
+  staffingNews: () => 'staffing-news:all',
 };
 
 const parseScope = (scope) => {
@@ -96,6 +98,12 @@ export const invalidateInternScope = (queryClient) => {
   invalidateDashboards(queryClient);
 };
 
+// Global, like `intern:all` — staffing requests aren't workspace-scoped, so
+// one history write badges every connected admin/leadership client.
+export const invalidateStaffingNewsScope = (queryClient) => {
+  queryClient.invalidateQueries({ queryKey: STAFFING_REQUEST_NEWS_QUERY_KEY });
+};
+
 export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {
   // Prefix invalidation covers every date under ['dailies', workspaceId, date].
   queryClient.invalidateQueries({ queryKey: ['dailies', workspaceId] });
@@ -134,6 +142,11 @@ export const invalidateScope = (queryClient, scope) => {
 
   if (parsed.type === 'workspace-dailies') {
     invalidateWorkspaceDailiesScope(queryClient, parsed.id);
+    return true;
+  }
+
+  if (parsed.type === 'staffing-news') {
+    invalidateStaffingNewsScope(queryClient);
     return true;
   }
 

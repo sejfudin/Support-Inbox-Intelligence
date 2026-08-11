@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { getPositionProgressRows } from '@/helpers/staffingRequests';
 import { RequestActions } from './RequestActions';
+import { RequestHistoryTrail } from './RequestHistoryTrail';
 import { RequestNote } from './RequestNote';
 import { RequestPositionGroup } from './RequestPositionGroup';
 import { RequestStatStrip } from './RequestStatStrip';
@@ -94,6 +95,8 @@ export function RequestDetail({ request, canManage, onEdit, onClose }) {
           ))
         )}
       </div>
+
+      <RequestHistoryTrail requestId={request.id} />
     </SymphonyCard>
   );
 }

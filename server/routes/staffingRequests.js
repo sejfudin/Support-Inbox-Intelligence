@@ -11,6 +11,9 @@ const {
   closeStaffingRequest,
   reopenStaffingRequest,
   setStaffingRequestNote,
+  getStaffingRequestNews,
+  markStaffingRequestsSeen,
+  getStaffingRequestHistory,
 } = require('../controllers/staffingRequests');
 
 // This is the platform's first leadership write path — no existing route
@@ -27,8 +30,18 @@ const {
 // admin-only, and decline requires a note. A `requireRole(ADMIN)` on a
 // fulfil-only route would duplicate half that rule in the router and leave the
 // two copies free to drift.
+// `/news` and `/seen` are registered ahead of `/:id` so they aren't swallowed
+// by the id param route.
+router.get('/news', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), getStaffingRequestNews);
+router.post('/seen', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), markStaffingRequestsSeen);
 router.get('/', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), listStaffingRequests);
 router.get('/:id', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), getStaffingRequest);
+router.get(
+  '/:id/history',
+  protect,
+  requireRole(ROLES.ADMIN, ROLES.LEADERSHIP),
+  getStaffingRequestHistory
+);
 router.post('/', protect, requireRole(ROLES.LEADERSHIP), createStaffingRequest);
 router.patch('/:id', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), updateStaffingRequest);
 router.patch('/:id/note', protect, requireRole(ROLES.ADMIN), setStaffingRequestNote);

@@ -74,7 +74,9 @@ AI: `AISummary`.
 - `events.js` — event names + emit helpers.
 - `invalidationScopes.js` — room key builders that drive React Query cache invalidation:
   - `user:<id>`, `workspace:<id>`, `workspace-tickets:<id>`, `ticket:<id>`,
-    `workspace-dailies:<id>`.
+    `workspace-dailies:<id>`, `intern:all`, `staffing-news:all`.
+  - `intern:all` and `staffing-news:all` are global (not workspace-scoped) — broadcast to every
+    connected client via `broadcastToAll`, since there's no room to target.
 - Frontend consumes via `src/context/SocketContext.jsx`, invalidating query keys on events.
 
 ## Integrations
@@ -197,10 +199,10 @@ the model and the pure rules module — no routes, no screens yet.
 - **`StaffingRequest`** (`server/models/StaffingRequest.js`) — not workspace-scoped, matching
   `Project` and `Recommendation`. Project identity is exactly one of `project` (ref) or
   `draftProject` (embedded `name`/`client`/`description`) as of this ticket, enforced in a
-  `pre('validate')` hook. Ticket 05 (project resolution) will need to loosen this to "at least
+  `pre('validate')` hook. Project resolution will need to loosen this to "at least
   one" — the full spec's decision is that `draftProject` is kept forever as evidence of what was
   originally asked for, so `project` and `draftProject` coexist once resolved; that loosening is
-  ticket 05's job, not this one's. `requestedPositions` is an embedded array of
+  project resolution's job, not this one's. `requestedPositions` is an embedded array of
   `{ position, count, technologies[] }`
   with a path validator rejecting a repeated `position`; a requested position is identified by
   `staffingRequest + position`, with no separate line id. `author`, optional `neededBy`
@@ -255,6 +257,65 @@ the model and the pure rules module — no routes, no screens yet.
     client is safe here because presentation never authorizes: the `assert*` functions above stay
     the only authority on what a user may do. Note nothing auto-closes a request whose demand is
     met — an admin closes it as `fulfilled` explicitly, via `POST /:id/close`.
+
+**News badge (ticket 04)** — both shells find out about staffing-request activity without a bell.
+Deliberately doesn't use `Notification` (see
+`docs/adr/0003-staffing-news-uses-history-log.md`): the history log itself is the notification.
+
+- `History.entityType` gains `'staffingRequest'`. Filing a request (and, once tickets 06/07 land,
+  resolving/fulfilling/closing/reopening it) appends an event via
+  `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
+  (`staffing:filed`, ...) — namespaced because `statusKey` is a string space shared with
+  recommendation stage tracking, where bare `placed` already means something. Unlike every other
+  history write, this one is **awaited and its errors surfaced**
+  (`staffingRequestService.createStaffingRequest`), with a comment at the call site — a lost row
+  here means leadership/admin silently never finds out, not just a missing log line.
+- `User.staffingRequestsLastSeenAt` (Date, nullable) — per-viewer read marker for this feature. Never
+  opened ⟹ `null` ⟹ every existing event counts as news, not zero.
+- `helpers/staffingRequestRules.js#deriveUnreadStaffingRequestIds` — pure derivation: given raw
+  `{ entityId, userId, timestamp }` events plus `{ lastSeenAt, viewerId }`, returns the set of
+  request ids with news. Excludes events the viewer caused; an event exactly at `lastSeenAt` does
+  not count (must be strictly newer).
+- `staffingRequestService.getStaffingRequestNews` — fetches staffing-request events newer than the
+  viewer's last-seen (or all, if never seen) and runs them through `deriveUnreadStaffingRequestIds`,
+  rather than reimplementing the same policy as a Mongo aggregation. Backs `GET
+  /api/staffing-requests/news` → `{ count, requestIds }`.
+- `staffingRequestService.markStaffingRequestsSeen` — stamps `staffingRequestsLastSeenAt` to now.
+  Backs `POST /api/staffing-requests/seen`.
+- `staffingRequestService.getStaffingRequestHistory` — full trail for one request, newest first, same
+  shape as the existing ticket-history read (no populate; actor name comes from the denormalized
+  `userName` on each `History` row). Backs `GET /api/staffing-requests/:id/history`.
+- New index `History.{ entityType: 1, timestamp: -1 }` — the existing one
+  (`entityType, entityId, timestamp`) is scoped to a single entity and can't answer "which entities
+  of this type have an event newer than X."
+- Socket key `staffing-news:all` (`server/socket/invalidationScopes.js#staffingNews`, emitted via
+  `events.js#emitStaffingNewsChanged`) — global like `intern:all`, since staffing requests aren't
+  workspace-scoped; fired on every staffing-request history write.
+
+**Frontend** — `frontend/src/queries/staffingRequests.js` adds
+`useStaffingRequestNews` (`GET /news` → `{ count, requestIds }`),
+`useMarkStaffingRequestsSeen` (`POST /seen`), and `useStaffingRequestHistory` (`GET
+/:id/history`). `frontend/src/lib/invalidationScopes.js` handles the `staffing-news` scope by
+invalidating the news query key — the only frontend consumer of that socket key, so no per-row
+query needs its own subscription.
+
+- **Leadership** (`SymphonyNav.jsx`) and **admin** (`AppSidebar.jsx`'s `adminNav`) each show a
+  numeric badge on their Requests nav entry, sourced from the same `useStaffingRequestNews` hook.
+  The admin sidebar gates the query on `isAdmin(user?.role)` so a mentor/intern sidebar render
+  never fires a request the route would 403.
+- Both `LeadershipRequestsPage.jsx` and the new `AdminStaffingRequestsPage.jsx`
+  (`/admin/staffing-requests`, admin-only) stamp `staffingRequestsLastSeenAt` once per mount via
+  `useMarkStaffingRequestsSeen`, and mark `RequestListItem`'s `hasNews` prop from
+  `news.requestIds`, rendering a small dot next to the title.
+- **The admin page reuses ticket 03's `RequestListItem`/`RequestDetail`** (and their `symphony-*`
+  styling) wrapped in its own `data-surface="symphony"` div, since those styles are scoped to that
+  attribute and the admin page lives in the sidebar shell, not `SymphonyLayout`. It renders
+  read-only (`canManage={false}` always) — resolving a draft project, putting interns forward, and
+  closing/reopening are tickets 06/07/08, not this one; `RequestDetail`'s existing `canManage`
+  branch already renders nothing extra when false, so no separate read-only variant was needed.
+- `RequestDetail` renders a request's full history trail (`RequestHistoryTrail.jsx`, newest first,
+  same shape as `TicketHistory.jsx`) below the requested-position groups; it renders nothing when
+  the trail is empty rather than an empty "History" section.
 
 ## Specializations
 
@@ -619,4 +680,4 @@ Domain terms used throughout the code. Get these right — especially the two "a
 | **Recommendation** | An admin's placement recommendation for an intern (candidate pipeline) — mentors have no access. Resolving one recommendation (including a `placed` outcome) never touches the intern's other recommendations — each is resolved individually. Setting the profile status to `placed` directly (via the intern update endpoint) still auto-closes any open recommendations as `not_placed`. Concurrent open recommendations across projects are allowed, but the UI greys out create when the profile is already `placed`/`completed`/`discontinued`, and warns before creating another while one is already open on a different project. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
-| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:`) that drives React Query cache invalidation. |
+| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |
