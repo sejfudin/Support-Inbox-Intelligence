@@ -100,7 +100,41 @@ _Avoid_: co-mentor, area mentor, second mentor (it is *the specialization mentor
 > `secondaryMentor`). In code and docs use the platform-role words: **admin** assigns, the
 > **specialization mentor** is assigned.
 
+## Staffing requests
+
+**Staffing request**:
+Leadership's record of demand that arrived from **outside the platform** — a project needing a
+stated number of interns placed on it. Authored on the leadership side, acted on by an admin.
+Demand only: a staffing request never says who is on a project, only how many are wanted.
+_Avoid_: request (bare — invitations and recommendations are also requests), opening, headcount
+slot, demand.
+
+**Requested position**:
+One discipline's worth of demand inside a staffing request: a `Position`, how many interns are
+wanted for it, and optionally the technologies they should know. A position appears at most once
+per request — more demand for the same discipline is a higher count, never a second entry. A
+request is a set of requested positions; the interns it asks for in total is the sum of their
+counts, and each is fulfilled and counted separately.
+_Avoid_: line, line item, slot, opening, role (a role is a platform role — admin/mentor/
+leadership/intern).
+
+**Fulfilling**:
+The admin's response to a staffing request: choosing interns, which **creates recommendations**
+for the request's project. A staffing request holds no intern list of its own — who is being put
+forward, and whether they were placed, is always read off those recommendations. Fulfilling
+therefore means *put forward*, never *placed* — placement is the recommendations' own outcome,
+reached later and per intern.
+_Avoid_: assigning, staffing (as a verb for this act), placing (that is the recommendation's
+outcome, not this act).
+
 ## Recommendations & placement
+
+**Put forward**:
+An intern having been offered to a project by an admin — i.e. a recommendation exists for them
+on it — with no outcome yet. The counterpart to **placed**: a request showing "6 put forward,
+2 placed" has six interns offered and two actually on the project. Progress is always reported
+as both numbers; neither alone is meaningful.
+_Avoid_: proposed, submitted, shortlisted, sourced (all seen in drafts — this is the one term).
 
 **In Selection**:
 The user-facing name for an intern's `recommended` or `interviewing` recommendation status —
