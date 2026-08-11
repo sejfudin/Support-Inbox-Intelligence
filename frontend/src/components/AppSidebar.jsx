@@ -25,7 +25,6 @@ import {
   UserRound,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
-import NavbarNotifications from '@/components/NavbarNotifications';
 import { ThemeAppearanceSubmenu } from '@/components/ThemeSwitcher';
 import { WhatsNewButton } from '@/components/onboarding/WhatsNewButton';
 import {
@@ -356,11 +355,10 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-2 pt-1.5 group-data-[collapsible=icon]:p-2">
-        {/* Three peer icons next to the avatar left ~70px for the name at 16rem,
-            which truncated it to "Admi…". So profile, appearance and logout fold
-            into one menu on the identity row, and notifications stay the single
-            standalone icon — it is the only one whose state (unread) has to be
-            readable without opening anything.
+        {/* Peer icons next to the avatar left ~70px for the name at 16rem, which
+            truncated it to "Admi…". So profile, appearance and logout fold into
+            one menu on the identity row — notifications live in the top bar now
+            (see SidebarLayout/PageHeader), not here.
 
             Padding here is deliberately tight (footer p-2, row p-1.5, trigger
             px-1.5) and the avatar is `sm`: every pixel spent on chrome comes
@@ -439,12 +437,6 @@ export default function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* 32px in the rail: the default 40px trigger overflows the 3rem
-                  rail, so ask NavbarNotifications for its small size directly. */}
-              <div className="shrink-0" data-tour="notifications">
-                <NavbarNotifications size="sm" />
-              </div>
             </>
           )}
         </div>
