@@ -4,6 +4,7 @@ const { invalidationScopes } = require('../socket/invalidationScopes');
 const { requestGroqOutputText, extractJsonObject } = require('./groqAiClient');
 const {
   buildProgrammeUpdatePrompt,
+  buildStaffUpdatePrompt,
   buildPlacementCelebrationPrompt,
 } = require('../prompts/internNotificationPrompts');
 
@@ -423,7 +424,7 @@ const notifyMentorNoteMention = safe(
         title: 'New note about an intern',
         body: `${authorName} added a note about ${internName}.`,
       },
-      promptBuilder: buildProgrammeUpdatePrompt,
+      promptBuilder: buildStaffUpdatePrompt,
       promptArgs: {
         summary:
           'A colleague added a private note about an intern and named this person as a recipient.',
@@ -452,7 +453,7 @@ const notifyInternRequestFromLeadership = safe(
         title: 'Interns requested for a project',
         body: `${requesterName} requested ${ask} for ${projectName}: "${note}"`,
       },
-      promptBuilder: buildProgrammeUpdatePrompt,
+      promptBuilder: buildStaffUpdatePrompt,
       promptArgs: {
         summary: 'A leadership user requested interns be staffed onto a project.',
         details: `Requested by: ${requesterName}. Project: ${projectName}. Asking for: ${ask}. Note: ${note}.`,
