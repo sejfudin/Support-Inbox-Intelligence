@@ -3,6 +3,7 @@ import { Briefcase, GraduationCap, LayoutDashboard, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { SymphonyWordmark } from './SymphonyWordmark';
 import { SymphonyThemeToggle } from './SymphonyThemeToggle';
+import NavbarNotifications from '@/components/NavbarNotifications';
 import { useAuth } from '@/context/AuthContext';
 import { useLogoutUser } from '@/queries/auth';
 import { getInitials } from '@/helpers/initials';
@@ -83,6 +84,7 @@ export function SymphonyNav() {
           </div>
 
           <div className="symphony-navbar-controls">
+            <NavbarNotifications />
             <SymphonyThemeToggle compact className="symphony-navbar-icon-button" />
             <Button
               type="button"
