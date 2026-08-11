@@ -28,10 +28,26 @@ export function NotificationRow({
   const isMention = notification.type === 'ticket_mention';
   const isPlacement = notification.type === 'intern_placed';
   const canMarkRead = !notification.read && !markReadPending && notification._id;
+  const hasTicketTarget = isMongoId(String(ticketId));
+  const hasDestination = hasTicketTarget || Boolean(link);
+  const isClickable = canMarkRead || hasDestination;
 
   const handleMarkRead = () => {
     if (!canMarkRead) return;
     onMarkRead(notification._id);
+  };
+
+  // Clicking anywhere on the row opens the notification's destination (same
+  // as the explicit button below) and marks it read as a side effect — not
+  // just mark-read, which made the row feel unresponsive when there was
+  // somewhere to go. Buttons stop propagation so this doesn't double-fire.
+  const handleRowActivate = () => {
+    handleMarkRead();
+    if (hasTicketTarget) {
+      onOpenTicket({ ticketId: String(ticketId), commentId: String(commentId || '') });
+    } else if (link) {
+      onOpenLink(link);
+    }
   };
 
   return (
@@ -39,15 +55,16 @@ export function NotificationRow({
       data-test={`notification-row-${notification._id}`}
       className={cn(
         'px-3 py-2.5 transition-colors',
-        !notification.read ? 'cursor-pointer bg-primary/5 hover:bg-primary/10' : 'bg-transparent'
+        !notification.read ? 'cursor-pointer bg-primary/5 hover:bg-primary/10' : 'bg-transparent',
+        hasDestination && 'cursor-pointer hover:bg-muted/40'
       )}
-      role={canMarkRead ? 'button' : undefined}
-      tabIndex={canMarkRead ? 0 : undefined}
-      onClick={handleMarkRead}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={handleRowActivate}
       onKeyDown={(e) => {
-        if (!canMarkRead || (e.key !== 'Enter' && e.key !== ' ')) return;
+        if (!isClickable || (e.key !== 'Enter' && e.key !== ' ')) return;
         e.preventDefault();
-        handleMarkRead();
+        handleRowActivate();
       }}
     >
       <div className="flex flex-col gap-1">
