@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ScrollFade } from '@/components/ui/scroll-fade';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { RequestsFilterTabs } from '@/components/symphony/requests/RequestsFilterTabs';
@@ -225,7 +226,13 @@ export default function LeadershipRequestsPage() {
           {/* On mobile the two panes collapse to one: the list hides once a
               request is open, with a back affordance above the detail. */}
           <div className={selected ? 'hidden lg:block' : 'block'}>
-            <div className="space-y-3 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto lg:pr-1">
+            {/* The pane caps its height on desktop, so the list has to advertise
+                that it scrolls — the fade marks the edge that still has rows
+                past it, and the count says how many there are in total. */}
+            <ScrollFade
+              viewportClassName="space-y-3 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1"
+              fadeClassName="from-[hsl(var(--symphony-surface))]"
+            >
               {visibleRequests.length === 0 ? (
                 <SymphonyCard className="py-10 text-center text-sm text-muted-foreground">
                   {query ? 'Nothing matches that search.' : 'Nothing in this group right now.'}
@@ -240,20 +247,29 @@ export default function LeadershipRequestsPage() {
                   />
                 ))
               )}
-            </div>
+            </ScrollFade>
+            {visibleRequests.length > 0 && (
+              <p
+                className="mt-2 text-xs text-muted-foreground lg:mt-3"
+                data-test="requests-list-count"
+              >
+                {visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}
+              </p>
+            )}
           </div>
 
           {/* Same height and its own scrollbar as the list beside it, so the
               two panes start and end on the same line and a long request
               scrolls inside the card instead of pushing the page down past the
-              list.
+              list. The cap matches the list's viewport, not the list column —
+              the count line below the list is what fills the remaining gap.
 
               No `space-y-*` here: the back button below is the first child and
               only `display: none` on desktop, which `space-y` still counts as a
               sibling — it would push the card down by a gap belonging to
               something nobody can see, and the two panes would start on
               different lines. The button carries its own margin instead. */}
-          <div className="min-w-0 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto lg:pr-1">
+          <div className="min-w-0 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1">
             {selected && (
               <Button
                 type="button"
