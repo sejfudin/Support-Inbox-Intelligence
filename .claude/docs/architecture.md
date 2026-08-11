@@ -30,7 +30,8 @@ Roles are assigned at the **user** level and drive route landing + guards.
 Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
 `Notification`, `RefreshToken`, `Integration`, `Daily`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
-`Attendance`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`, `Invitation`.
+`Attendance`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`, `Invitation`,
+`StaffingRequest`.
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
@@ -184,6 +185,55 @@ project shows a confirm dialog naming both projects before the create proceeds.
 (`assertReadAccess` / `assertRecommendationWriteAccess` in `recommendationService.js`); `leadership`
 additionally has read access (fully read-only UI — no create/edit/delete controls rendered).
 Mentors have no access at all, on the per-intern tab or the standalone `/recommendations` page.
+
+## Staffing requests
+
+Leadership records demand that arrived from outside the platform; admins answer it by putting
+interns forward, which creates ordinary recommendations. See `.scratch/staffing-requests/spec.md`
+and `CONTEXT.md` § "Staffing requests" for the domain writeup and canonical terms (**staffing
+request**, **requested position**, **fulfilling**, **put forward**). This ticket (01) lands only
+the model and the pure rules module — no routes, no screens yet.
+
+- **`StaffingRequest`** (`server/models/StaffingRequest.js`) — not workspace-scoped, matching
+  `Project` and `Recommendation`. Project identity is exactly one of `project` (ref) or
+  `draftProject` (embedded `name`/`client`/`description`) as of this ticket, enforced in a
+  `pre('validate')` hook. Ticket 05 (project resolution) will need to loosen this to "at least
+  one" — the full spec's decision is that `draftProject` is kept forever as evidence of what was
+  originally asked for, so `project` and `draftProject` coexist once resolved; that loosening is
+  ticket 05's job, not this one's. `requestedPositions` is an embedded array of
+  `{ position, count, technologies[] }`
+  with a path validator rejecting a repeated `position`; a requested position is identified by
+  `staffingRequest + position`, with no separate line id. `author`, `note`, optional `neededBy`
+  (real `Date`, no free-text fallback). `status` is `open | closed`; closing sets `reason`
+  (`fulfilled | declined | cancelled`), `closedBy`, `closedAt`, enforced together by a
+  `pre('validate')` hook — `declined` additionally requires a non-empty `note`.
+- **`Recommendation.staffingRequest`** — new nullable ref to `StaffingRequest`, set only when the
+  recommendation was created by fulfilling a request (ticket 06 sets it; nothing does yet). No
+  other `Recommendation` behaviour changes; `RECOMMENDATION_RESULTS` is untouched — a leftover
+  intern released when a request fills without them is still `not_placed`, with the nuance carried
+  in the mandatory result note.
+- **`helpers/staffingRequestRules.js`** — the single pure rules module for this feature (no I/O, no
+  clock, timestamps passed in), following `helpers/specializationRules.js`. Five rule groups, all
+  unit-tested in `staffingRequestRules.test.js` with plain objects, no Mongo, no Express:
+  - `deriveProgress` — requested positions + tagged recommendations → per-position
+    `{ wanted, putForward, placed }` and totals. A tagged recommendation whose position isn't in
+    the request is ignored rather than crashing.
+  - `isDemandMet` — auto-close predicate: every requested position has `placed >= wanted`.
+  - `deriveDisplayState` — the pill: `needs_project | sourcing | put_forward | fulfilled |
+    declined | cancelled | placement_lost`. A draft-project request can never read `fulfilled`
+    (throws — that state requires a resolved project, which fulfilling a draft cannot produce); a
+    closed(`fulfilled`) request whose recommendations have since fallen below demand reads
+    `placement_lost` instead, since nothing auto-reopens.
+  - `assertProjectEditable` / `assertRequestedPositionsEditable` — edit legality: project locked
+    once any recommendation is tagged; a requested position with recommendations can't be deleted
+    (its count can still fall below its placed count); count floor of 1; duplicate position
+    rejected; every edit rejected once the request is closed.
+  - `assertCanClose` / `applyClose` / `assertCanReopen` / `applyReopen` — close/reopen legality:
+    `cancelled` is author-or-admin, `fulfilled`/`declined` are admin-only, `declined` requires a
+    non-empty note; reopening (author or admin, from either terminal reason) clears `reason`,
+    `closedBy`, `closedAt`.
+  - Picker eligibility and unread/badge derivation are separate rule groups added by later
+    tickets, once there's a route or a screen to drive them.
 
 ## Specializations
 

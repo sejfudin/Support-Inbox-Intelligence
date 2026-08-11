@@ -106,6 +106,16 @@ const recommendationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // Set when this recommendation was created by fulfilling a staffing
+    // request; null for recommendations created the ordinary way. A requested
+    // position is identified by staffingRequest + position — there is no
+    // separate line id on the request itself.
+    staffingRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'StaffingRequest',
+      default: null,
+      index: true,
+    },
     technologies: [
       {
         type: mongoose.Schema.Types.ObjectId,
