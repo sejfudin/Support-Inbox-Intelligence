@@ -86,6 +86,15 @@ read/select a project (needed for the recommendation form) but cannot create or 
 locked "Unspecified" sentinel project (`isSystem: true`) additionally rejects edits at the service
 layer regardless of role.
 
+`POST /api/projects/:id/request-interns` is the one exception to "leadership is read-only" stated
+throughout this file — gated `requireRole(ROLES.LEADERSHIP)` (not admin, deliberately: this is
+leadership's own action, not something an admin would call). It cannot create/edit/delete a
+`Project` or anything else — `projectService.requestInternsForProject` only reads the project (to
+404 on a missing/system one) and fans out a notification to every active admin
+(`internNotificationService.notifyInternRequestFromLeadership`). No new persisted write surface —
+if this route is ever extended to actually create a tracked record, treat that as a new resource
+needing its own authz review, not an extension of this narrow notify-only action.
+
 `GET /api/projects/:id` has no role gate beyond `protect`, same as the existing `GET /api/projects`
 list. `GET /api/projects/overview` and `GET /api/projects/:id/overview` (the leadership Projects
 page) are gated in the service layer, not route middleware — `assertLeadershipReadAccess` in
@@ -147,16 +156,21 @@ for a mentor means the UI should expose it — check the carve-out list above fi
 
 **Intern notifications must not leak admin/mentor-private fields.**
 `internNotificationService.js` (see `.claude/docs/architecture.md` § Notifications) generates
-AI-flavored text as a side effect of admin/mentor writes to intern data — every prompt input and
-deterministic fallback must stay within what the intern is already allowed to see. Never pass in
-`Recommendation.recommendationNote`, `interviews[].feedback`, or `result.note` (all three withheld
-from the intern in `formatOwnRecommendation`), or `Evaluation.notes` (withheld in
-`formatOwnEvaluation`). Two admin/mentor writes get **no notification at all**, not even a
-content-free one: `internService.js#updateInternalCvLink` (`internalCvUrl` is modeled as never
-visible to the intern — `formatProfile`'s `canSeeInternalCv` excludes `INTERN`) and
-`mentorCommentService.js#createComment` (`MentorComment` has a `visibleTo` whitelist and is never
-intern-readable via `canReadComment` — these are notes *about* the intern, not *to* them). If you
-add a new admin/mentor write to intern data, check this list before wiring a notification for it.
+AI-flavored text as a side effect of admin/mentor/leadership writes to intern data — every prompt
+input and deterministic fallback must stay within what the *recipient* is already allowed to see.
+Never pass `Recommendation.recommendationNote`, `interviews[].feedback`, or `result.note` (all
+three withheld from the intern in `formatOwnRecommendation`), or `Evaluation.notes` (withheld in
+`formatOwnEvaluation`) into anything that could reach the intern. `internService.js
+#updateInternalCvLink` gets **no notification at all**, to anyone — `internalCvUrl` is modeled as
+never visible to the intern (`formatProfile`'s `canSeeInternalCv` excludes `INTERN`), and it has no
+other audience either. `mentorCommentService.js#createComment` (`MentorComment` has a `visibleTo`
+whitelist, never intern-readable via `canReadComment` — these are notes *about* the intern, not
+*to* them) is the one case with an **asymmetric** rule: the intern still gets nothing, but each
+`visibleTo` recipient (already-authorized admin/mentor/leadership) now gets a notification that a
+note arrived and who wrote it — never the note's content, since that isn't needed to justify
+"delivery" and keeps the AI prompt input minimal. If you add a new admin/mentor/leadership write to
+intern data, check this list before wiring a notification for it, and be explicit about which
+recipient axis (intern vs. staff) it belongs to.
 
 Specializations. `/api/specializations` (list/candidates/assign/reassign/change-mentor/clear, all
 `requireRole(ADMIN)` at the route) plus `specializationService#assertSpecializationAccess` at the

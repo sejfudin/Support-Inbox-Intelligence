@@ -49,6 +49,7 @@ export function MyEvaluationsCard({ evaluations, className, isPreview = false })
   if (!latest) {
     return (
       <DashboardCard
+        id="my-evaluations"
         className={className}
         title="My evaluations"
         action={<EvaluationsHelp />}
@@ -68,6 +69,7 @@ export function MyEvaluationsCard({ evaluations, className, isPreview = false })
 
   return (
     <DashboardCard
+      id="my-evaluations"
       className={className}
       title="My evaluations"
       action={

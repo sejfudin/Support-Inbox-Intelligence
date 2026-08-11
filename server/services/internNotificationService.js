@@ -117,7 +117,7 @@ const notifyRecommendationCreated = safe(
       internUserId,
       internProfileId,
       type: 'recommendation_created',
-      link: '/dashboard',
+      link: '/dashboard#my-selection-process',
       fallback: {
         title: "You've been put forward for a project",
         body: `You're being considered for ${position} on ${project}.`,
@@ -140,7 +140,7 @@ const notifyRecommendationStatusChanged = safe(
       internUserId,
       internProfileId,
       type: 'recommendation_status_changed',
-      link: '/dashboard',
+      link: '/dashboard#my-selection-process',
       fallback: {
         title: 'Your recommendation moved forward',
         body: `Your recommendation for ${project} is now at the ${label} stage.`,
@@ -159,7 +159,7 @@ const notifyRecommendationNotPlaced = safe(async ({ internUserId, internProfileI
     internUserId,
     internProfileId,
     type: 'recommendation_not_placed',
-    link: '/dashboard',
+    link: '/dashboard#my-selection-process',
     fallback: {
       title: 'Update on your recommendation',
       body: `You weren't placed on ${project} this time. New opportunities come up regularly.`,
@@ -179,7 +179,7 @@ const notifyInternPlaced = safe(
       internUserId,
       internProfileId,
       type: 'intern_placed',
-      link: '/dashboard',
+      link: '/dashboard#my-selection-process',
       fallback: {
         title: "You've been placed on a project!",
         body: `Congratulations — you're now placed as ${position || 'your role'} on ${
@@ -200,7 +200,7 @@ const notifyEvaluationCreated = safe(
       internUserId,
       internProfileId,
       type: 'evaluation_created',
-      link: '/dashboard',
+      link: '/dashboard#my-evaluations',
       fallback: {
         title: 'New evaluation available',
         body: `A new evaluation covering ${startLabel} – ${endLabel} was added to your profile.`,

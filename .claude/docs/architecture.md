@@ -17,7 +17,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 |---|---|---|
 | Admin | `/dashboard` (admin dashboard) if they have an active workspace, else `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
 | Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
-| Leadership | `/programme` | Read-oriented stakeholder view. No ticket/workspace workflow — redirected to `/programme`. |
+| Leadership | `/programme` | Read-oriented stakeholder view. No ticket/workspace workflow — redirected to `/programme`. One narrow write exception: requesting interns for a project (see "Project (reference entity)"). |
 | Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. |
 
 **Two authorization layers** — do not conflate:
@@ -131,27 +131,40 @@ AI: `AISummary`.
 empty) and the intern-programme domain (`recommendation_created`, `recommendation_status_changed`,
 `recommendation_not_placed`, `intern_placed`, `evaluation_created`, `readiness_updated`, the four
 `specialization_*` types, `intern_status_changed`, `intern_expected_end_date_changed`,
-`intern_documentation_updated` — `internProfile` set, `ticket`/`workspace` null, `link` a frontend
-route the bell's action button navigates to). Both domains push through the same
+`intern_documentation_updated`, `daily_attendance_reminder`, `mentor_note_mention`,
+`intern_request_from_leadership` — `internProfile` set when the event is about one specific intern
+(null for a project-level staffing request), `ticket`/`workspace` null, `link` a frontend route the
+bell's action button navigates to). Both domains push through the same
 `sendToUser(..., 'new_notification', ...)` socket event and the same `user:<id>` invalidation
-scope (`socket/invalidationScopes.js`) — no new scope key was needed for the intern domain.
+scope (`socket/invalidationScopes.js`) — no new scope key was needed for the intern domain. The
+bell (`NavbarNotifications`) is mounted in both top-level shells — `SidebarLayout.jsx` (admin/
+mentor/intern) and `SymphonyNav.jsx` (leadership, a separate layout) — so every role that can
+receive a notification has somewhere to read it.
 
 - **Ticketing** notifications live in `server/services/notificationService.js`
   (`notifyNewTicketComment`, `notifyTicketAssigned`, `notifyTicketMention`), `await`ed from
   `commentService.js` / `ticketService.js` inside a try/catch that only logs on failure.
 - **Intern-programme** notifications live in `server/services/internNotificationService.js`, one
-  function per event (see `.claude/docs/security.md` for the two admin/mentor writes that must
-  never notify). Every exported function computes a deterministic title/body first, then attempts
-  a best-effort Groq rewrite (`server/prompts/internNotificationPrompts.js`, a JSON
+  function per event (see `.claude/docs/security.md` for the writes that must never notify, or
+  must notify staff instead of the intern). Every exported function computes a deterministic
+  title/body first, then attempts a best-effort Groq rewrite for warmer phrasing — a JSON
   `{"title","body"}` contract parsed via `groqAiClient.extractJsonObject` — the same contract style
-  as `ticketPrompts.js`'s JSON-returning prompts) for warmer phrasing, with a distinctly
-  celebratory prompt reserved for `intern_placed`. Any AI failure at all — unconfigured key,
+  as `ticketPrompts.js`'s JSON-returning prompts. Any AI failure at all — unconfigured key,
   timeout, malformed output — silently falls back to the deterministic text; a notification is
-  always created either way, since this must never be the thing that makes an admin/mentor action
-  fail or wait.
+  always created either way, since this must never be the thing that makes an admin/mentor/
+  leadership action fail or wait.
+- **Two recipient axes, two prompt builders** (`server/prompts/internNotificationPrompts.js`).
+  Most events notify **the intern** about their own record — `buildProgrammeUpdatePrompt`, with a
+  distinctly celebratory `buildPlacementCelebrationPrompt` for `intern_placed`. A couple notify
+  **staff** (admin/mentor/leadership) about someone else's situation — `mentor_note_mention`,
+  `intern_request_from_leadership` — which use `buildStaffUpdatePrompt` instead: reusing the
+  intern-framed prompt for a staff recipient produced text like "your programme record was
+  updated" for a recipient reading about someone *else's* record, which is actively confusing.
+  Always match the builder to the recipient axis when adding a new event type.
 - **Called fire-and-forget** (no `await`) from the mutation services that trigger them
   (`recommendationService.js`, `evaluationService.js`, `readinessFlagService.js`,
-  `specializationService.js`, `internService.js`) — mirrors the existing non-awaited
+  `specializationService.js`, `internService.js`, `mentorCommentService.js`, `projectService.js`,
+  and the scheduled `dailyReminderService.js`) — mirrors the existing non-awaited
   `historyService.logEvent(...)` call in `commentService.js`. Every exported function catches its
   own errors internally and never rejects, which is what makes the bare, unawaited call safe — an
   unhandled rejection from a non-awaited async call is a process-level risk, so the safety net has
@@ -163,6 +176,17 @@ scope (`socket/invalidationScopes.js`) — no new scope key was needed for the i
   transition into placed" snapshot taken before the write, so it fires at most once per real
   transition and never on a no-op re-save (e.g. nudging an already-placed recommendation's start
   date). The two paths can't both fire for the same request.
+- **Scheduled reminder** (`server/services/dailyReminderService.js`): a 10:30 Europe/Sarajevo,
+  weekday-only nudge — "check in" and/or "file today's standup" — for whichever of the two an
+  intern hasn't done yet; nothing fires for one who's done both. Polled every 5 minutes via
+  `setInterval` (started from `index.js` after `connectDB()`), gated by an in-memory
+  `lastRunDateKey` so the check body runs once per office day. No new dependency — reuses
+  `attendanceTime.js`'s existing `Intl`-based, dependency-free timezone helpers (`officeHour`,
+  `officeMinute`, `officeDateKey`, `isOfficeWeekend`) and skips `NonWorkingDay` entries. Attendance
+  candidates mirror the roster `attendanceService.js#getRoster` already uses
+  (`IN_PROGRAMME_STATUSES`, minus anyone exempt today); daily candidates mirror the roster
+  `dailyService.js#getWorkspaceDailyOverview` already uses (`getActiveWorkspaceInterns`, per active
+  workspace) — two different existing scoping rules, deliberately not unified into one.
 
 ## Recommendations (placement pipeline)
 
@@ -332,9 +356,19 @@ recommendation can point at (title, client, description, tech tags, `status`:
   `GET /api/projects/:id` (any authenticated role, mirrors the existing `GET /api/projects`) fills
   the one gap the existing list route had: no single-project fetch. All three new routes respond
   `{ success, message, data }` (the documented convention); the original three project routes
-  (list/create/update) keep their pre-existing raw-JSON shape untouched. The page is read-only for
-  leadership — no recommend/edit affordances — same as its existing read access to
-  `Recommendation` data.
+  (list/create/update) keep their pre-existing raw-JSON shape untouched. The page has no
+  recommend/edit affordances — leadership still cannot touch `Recommendation` data — but it does
+  have one write action, below.
+- **`POST /api/projects/:id/request-interns`** (`requireRole(ROLES.LEADERSHIP)`) — the first and
+  so far only leadership write route anywhere in this domain. A leadership user asks admins to
+  staff interns onto a project (optional position + count, a required note);
+  `projectService.requestInternsForProject` notifies every active admin
+  (`internNotificationService.notifyInternRequestFromLeadership`) and persists nothing else — no
+  request record, no queue. Deliberately thin: a fuller tracked-request workflow (admins mark a
+  request fulfilled/dismissed from a dedicated view) is separate, larger work; this is just the
+  button and the notification so it doesn't compete with that. Frontend:
+  `frontend/src/components/projects/RequestInternsModal.jsx`, opened from a button in
+  `LeadershipProjectPage.jsx`'s header.
 
 ## Attendance (office check-in)
 
