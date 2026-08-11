@@ -145,6 +145,19 @@ branch:
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
 
+**Intern notifications must not leak admin/mentor-private fields.**
+`internNotificationService.js` (see `.claude/docs/architecture.md` § Notifications) generates
+AI-flavored text as a side effect of admin/mentor writes to intern data — every prompt input and
+deterministic fallback must stay within what the intern is already allowed to see. Never pass in
+`Recommendation.recommendationNote`, `interviews[].feedback`, or `result.note` (all three withheld
+from the intern in `formatOwnRecommendation`), or `Evaluation.notes` (withheld in
+`formatOwnEvaluation`). Two admin/mentor writes get **no notification at all**, not even a
+content-free one: `internService.js#updateInternalCvLink` (`internalCvUrl` is modeled as never
+visible to the intern — `formatProfile`'s `canSeeInternalCv` excludes `INTERN`) and
+`mentorCommentService.js#createComment` (`MentorComment` has a `visibleTo` whitelist and is never
+intern-readable via `canReadComment` — these are notes *about* the intern, not *to* them). If you
+add a new admin/mentor write to intern data, check this list before wiring a notification for it.
+
 Specializations. `/api/specializations` (list/candidates/assign/reassign/change-mentor/clear, all
 `requireRole(ADMIN)` at the route) plus `specializationService#assertSpecializationAccess` at the
 service layer — mentors have no read or write surface, even for their own assigned interns. Not

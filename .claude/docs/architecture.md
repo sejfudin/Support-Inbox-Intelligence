@@ -124,6 +124,46 @@ AI: `AISummary`.
   backfill databases that were seeded before the addition. `helpers/cvTechnologyMatcher.test.js`
   fails if a seeded slug has no alias entry.
 
+## Notifications
+
+`Notification` (`server/models/Notification.js`) covers two domains on one model: ticketing
+(`ticket_comment`/`ticket_assigned`/`ticket_mention` — `ticket`/`workspace` populated, `link`
+empty) and the intern-programme domain (`recommendation_created`, `recommendation_status_changed`,
+`recommendation_not_placed`, `intern_placed`, `evaluation_created`, `readiness_updated`, the four
+`specialization_*` types, `intern_status_changed`, `intern_expected_end_date_changed`,
+`intern_documentation_updated` — `internProfile` set, `ticket`/`workspace` null, `link` a frontend
+route the bell's action button navigates to). Both domains push through the same
+`sendToUser(..., 'new_notification', ...)` socket event and the same `user:<id>` invalidation
+scope (`socket/invalidationScopes.js`) — no new scope key was needed for the intern domain.
+
+- **Ticketing** notifications live in `server/services/notificationService.js`
+  (`notifyNewTicketComment`, `notifyTicketAssigned`, `notifyTicketMention`), `await`ed from
+  `commentService.js` / `ticketService.js` inside a try/catch that only logs on failure.
+- **Intern-programme** notifications live in `server/services/internNotificationService.js`, one
+  function per event (see `.claude/docs/security.md` for the two admin/mentor writes that must
+  never notify). Every exported function computes a deterministic title/body first, then attempts
+  a best-effort Groq rewrite (`server/prompts/internNotificationPrompts.js`, a JSON
+  `{"title","body"}` contract parsed via `groqAiClient.extractJsonObject` — the same contract style
+  as `ticketPrompts.js`'s JSON-returning prompts) for warmer phrasing, with a distinctly
+  celebratory prompt reserved for `intern_placed`. Any AI failure at all — unconfigured key,
+  timeout, malformed output — silently falls back to the deterministic text; a notification is
+  always created either way, since this must never be the thing that makes an admin/mentor action
+  fail or wait.
+- **Called fire-and-forget** (no `await`) from the mutation services that trigger them
+  (`recommendationService.js`, `evaluationService.js`, `readinessFlagService.js`,
+  `specializationService.js`, `internService.js`) — mirrors the existing non-awaited
+  `historyService.logEvent(...)` call in `commentService.js`. Every exported function catches its
+  own errors internally and never rejects, which is what makes the bare, unawaited call safe — an
+  unhandled rejection from a non-awaited async call is a process-level risk, so the safety net has
+  to live inside the module rather than at each call site.
+- **Placement dedup is structural, not a runtime lock.** `intern_placed` can be triggered from two
+  independent admin actions — a recommendation's outcome flipping to `placed`
+  (`recommendationService.js#updateRecommendation`) or a direct lifecycle status write
+  (`internService.js#updateInternProgramme`) — and each guards on its own "did the profile just
+  transition into placed" snapshot taken before the write, so it fires at most once per real
+  transition and never on a no-op re-save (e.g. nudging an already-placed recommendation's start
+  date). The two paths can't both fire for the same request.
+
 ## Recommendations (placement pipeline)
 
 A recommendation is a mentor's placement proposal for an intern: a position + **project** (ref to

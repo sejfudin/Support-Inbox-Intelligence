@@ -2,6 +2,7 @@ const Evaluation = require('../models/Evaluation');
 const InternProfile = require('../models/InternProfile');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess } = require('../helpers/internAccess');
+const internNotificationService = require('./internNotificationService');
 
 const averageOf = (scores = {}) => {
   const values = Object.values(scores);
@@ -83,6 +84,14 @@ const createEvaluation = async (user, internUserId, payload) => {
   });
 
   await evaluation.populate('evaluator', 'fullname email role');
+
+  internNotificationService.notifyEvaluationCreated({
+    internUserId: profile.user,
+    internProfileId: profile._id,
+    periodStart: evaluation.periodStart,
+    periodEnd: evaluation.periodEnd,
+  });
+
   return formatEvaluation(evaluation);
 };
 

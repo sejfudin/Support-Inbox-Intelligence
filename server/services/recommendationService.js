@@ -14,6 +14,7 @@ const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
 const { httpError } = require('../helpers/httpError');
+const internNotificationService = require('./internNotificationService');
 
 // The status milestones tracked in the append-only history log — the status
 // lifecycle itself (recommended → interviewing → resulted). The placement
@@ -521,6 +522,14 @@ const createRecommendation = async (user, payload = {}) => {
 
   await recommendation.populate(RECOMMENDATION_POPULATE);
   emitInternDataChanged();
+
+  internNotificationService.notifyRecommendationCreated({
+    internUserId: profile.user,
+    internProfileId: profile._id,
+    position: recommendation.position?.name,
+    project: recommendation.project?.name,
+  });
+
   const statusDates = await historyService.getLatestStatusDates(
     'recommendation',
     recommendation._id
@@ -650,8 +659,12 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   assertRecommendationWriteAccess(user);
 
   // Snapshot the status BEFORE mutating so we append a history record only on an
-  // actual status change (append-only — never overwrite an existing record).
+  // actual status change (append-only — never overwrite an existing record),
+  // and so the placement notification below fires only on the intern's actual
+  // transition into "placed", not on every subsequent edit to an already-
+  // placed recommendation (e.g. nudging the start date).
   const previousStatus = recommendation.status;
+  const wasPlacedBefore = profile.status === 'placed';
 
   if (payload.positionId !== undefined) {
     recommendation.position = await ensurePositionId(payload.positionId);
@@ -710,6 +723,8 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   // marks the profile placed; "not placed" puts the intern back on the bench
   // (ready for a new placement). Terminal statuses are never touched.
   const outcome = recommendation.result?.outcome;
+  const justPlaced = outcome === 'placed' && !wasPlacedBefore;
+  const justNotPlaced = outcome === 'not_placed' && ['active', 'placed'].includes(profile.status);
   if (outcome === 'placed') {
     let dirty = false;
     if (profile.status !== 'placed') {
@@ -759,6 +774,28 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   // Covers the direct update and any auto-closed sibling recommendations —
   // the invalidation is a single global "intern data changed" broadcast.
   emitInternDataChanged();
+
+  const recipient = { internUserId: profile.user, internProfileId: profile._id };
+  if (justPlaced) {
+    internNotificationService.notifyInternPlaced({
+      ...recipient,
+      position: recommendation.position?.name,
+      project: recommendation.project?.name,
+      startDate: recommendation.result?.startDate,
+    });
+  } else if (justNotPlaced) {
+    internNotificationService.notifyRecommendationNotPlaced({
+      ...recipient,
+      project: recommendation.project?.name,
+    });
+  } else if (recommendation.status !== previousStatus && recommendation.status === 'interviewing') {
+    internNotificationService.notifyRecommendationStatusChanged({
+      ...recipient,
+      project: recommendation.project?.name,
+      newStatus: recommendation.status,
+    });
+  }
+
   const statusDates = await historyService.getLatestStatusDates(
     'recommendation',
     recommendation._id
@@ -800,9 +837,18 @@ const deleteRecommendation = async (user, recommendationId) => {
     // placement"). A stale exemption inflates their attendance rate silently.
     const nextPlacedAt = placementExemptionDate(latest?.result);
     if (profile.status !== nextStatus || !sameInstant(profile.placedAt, nextPlacedAt)) {
+      const previousStatus = profile.status;
       profile.status = nextStatus;
       profile.placedAt = nextPlacedAt;
       await profile.save();
+
+      if (nextStatus !== previousStatus) {
+        internNotificationService.notifyInternStatusChanged({
+          internUserId: profile.user,
+          internProfileId: profile._id,
+          newStatus: nextStatus,
+        });
+      }
     }
   }
 

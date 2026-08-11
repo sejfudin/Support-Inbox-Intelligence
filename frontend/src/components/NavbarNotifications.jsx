@@ -59,6 +59,15 @@ export default function NavbarNotifications({ size = 'default' }) {
     [navigate]
   );
 
+  const goToLink = useCallback(
+    (link) => {
+      if (!link) return;
+      setOpen(false);
+      navigate(link);
+    },
+    [navigate]
+  );
+
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
@@ -153,6 +162,7 @@ export default function NavbarNotifications({ size = 'default' }) {
                   markReadPending={markRead.isPending}
                   onMarkRead={(id) => markRead.mutate(id)}
                   onOpenTicket={goToTicket}
+                  onOpenLink={goToLink}
                 />
               ))}
             </ul>

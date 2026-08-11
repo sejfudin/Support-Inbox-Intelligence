@@ -13,3 +13,10 @@ export function getCommentIdFromNotification(notification) {
   if (typeof c === 'string') return c;
   return c?._id ?? c ?? null;
 }
+
+// Generic frontend route for notification types with no ticket to deep-link
+// to (intern-programme domain). Ticket types keep navigating via
+// getTicketIdFromNotification/getCommentIdFromNotification instead.
+export function getNotificationLink(notification) {
+  return notification?.link || null;
+}
