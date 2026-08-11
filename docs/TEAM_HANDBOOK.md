@@ -33,6 +33,10 @@
   leadership reads. Nothing closes a request automatically — even when every seat is placed, an
   admin still closes it
 - Can edit, cancel, or reopen any staffing request, whoever filed it
+- Only role that can resolve a staffing request filed against a project that doesn't exist yet
+  ("Needs project") — link it to an existing project, or create one from leadership's description.
+  Leadership can describe a project when filing but can never create or link one itself. A request
+  needing a project can never be closed as fulfilled until it's resolved
 - Manages documentation links on intern profiles
 - Works with tickets like everyone else, plus can cross workspace boundaries (view tickets/analytics of any workspace, not just their own)
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
@@ -43,6 +47,9 @@
 - Only role that can file a staffing request (recorded demand for interns on a project); can also
   edit, cancel, or reopen a request they filed themselves — not a colleague's. Sees every staffing
   request from every author, same as admin
+- Can file a request for a project that doesn't exist on the platform yet, by describing it (name,
+  client, description) instead of picking one. It shows as "Needs project" until an admin resolves
+  it; leadership never creates the project itself
 - Cannot close a request as fulfilled or declined — those are the admin's call. Cancelling is the
   only close available to leadership
 - Reads the admin's note on a request (see Admin) but cannot write or edit one, not even on their

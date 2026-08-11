@@ -3,12 +3,13 @@
 // so callers control them and this stays trivially unit-testable. Follows
 // helpers/specializationRules.js exactly.
 //
-// There is deliberately no derived "display state" here. A request is `open`
-// or `closed`, plus a close `reason` — everything a UI used to read off a
-// single pill (nobody suggested yet, N put forward, demand met, project still
-// a draft) is a plain comparison on `progress` or `project`, so the response
-// carries the facts and the client presents them. Authority stays here: the
-// `assert*` functions below are the only thing that decides what is legal.
+// Display state stays minimal: most of what a UI wants to say (nobody
+// suggested yet, N put forward, demand met) is a plain comparison on
+// `progress`, so the response carries the facts and the client presents them.
+// The one state worth deriving here is "needs project" — it is not just a
+// presentation nicety, it is also what `assertCanClose` below refuses to let
+// become `fulfilled`, so both live next to each other. Authority stays here:
+// the `assert*` functions are the only thing that decides what is legal.
 
 const CLOSE_REASONS = ['fulfilled', 'declined', 'cancelled'];
 
@@ -82,6 +83,27 @@ const assertProjectEditable = (request, { hasRecommendations }) => {
   }
 };
 
+// A request has no real project yet — filed with `draftProject` only, and
+// nobody can be put forward against it (`Recommendation.project` is a
+// required reference). This is the one display state derived here rather
+// than left as a plain comparison in the client: `assertCanClose` below
+// enforces it can never resolve to `fulfilled`, so the definition needs to
+// live in exactly one place.
+const needsProject = (request) => !request.project;
+
+// Whether an unresolved request may be linked to a project. Resolving twice
+// or resolving a closed request are both refused — a project reference, once
+// set, is only ever moved through the edit path (`assertProjectEditable`),
+// not through resolution again.
+const assertCanResolveProject = (request) => {
+  if (request.status === 'closed') {
+    throw new Error('Cannot resolve a closed staffing request');
+  }
+  if (request.project) {
+    throw new Error('This request already has a project');
+  }
+};
+
 // Whether a proposed requestedPositions array may replace the current one.
 // `positionsWithRecommendations` are the position ids of requested positions
 // that currently have recommendations tagged against them — those cannot be
@@ -123,6 +145,13 @@ const assertCanClose = (request, { isAdmin, isAuthor, reason, note }) => {
   }
   if (!CLOSE_REASONS.includes(reason)) {
     throw new Error(`Invalid close reason: ${reason}`);
+  }
+  // A request that only names a draft project can never be marked fulfilled
+  // — there is no real project for anyone to have been placed against.
+  // Enforced here, not only hidden in the UI, so the refusal holds even if a
+  // client is out of date or bypassed entirely.
+  if (reason === 'fulfilled' && needsProject(request)) {
+    throw new Error('Cannot close as fulfilled while the request needs a project');
   }
 
   if (reason === 'cancelled') {
@@ -187,6 +216,8 @@ const deriveUnreadStaffingRequestIds = (events, { lastSeenAt, viewerId }) => {
 module.exports = {
   deriveProgress,
   assertProjectEditable,
+  needsProject,
+  assertCanResolveProject,
   assertRequestedPositionsEditable,
   assertCanClose,
   applyClose,

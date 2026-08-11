@@ -19,6 +19,21 @@ export const updateStaffingRequest = async (id, payload) => {
   return data.data;
 };
 
+// Links an unresolved (draft-project) request to an existing project.
+export const resolveStaffingRequestProject = async (id, projectId) => {
+  const { data } = await apiClient.post(`/staffing-requests/${id}/resolve-project`, { projectId });
+  return data.data;
+};
+
+// Creates a new project from the admin's own choices and links it in one
+// step. `project` is `{ name, client, description, type, status, technologyIds }`.
+export const resolveStaffingRequestProjectByCreating = async (id, project) => {
+  const { data } = await apiClient.post(`/staffing-requests/${id}/resolve-project/create`, {
+    project,
+  });
+  return data.data;
+};
+
 // `reason` is required: 'fulfilled' | 'declined' | 'cancelled'. `note` is
 // mandatory for 'declined', optional otherwise — and it lands in a different
 // field depending on the reason (see closeStaffingRequest on the server).

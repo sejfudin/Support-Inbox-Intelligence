@@ -1,6 +1,8 @@
 const {
   deriveProgress,
   assertProjectEditable,
+  needsProject,
+  assertCanResolveProject,
   assertRequestedPositionsEditable,
   assertCanClose,
   applyClose,
@@ -143,6 +145,38 @@ describe('assertProjectEditable', () => {
   });
 });
 
+describe('needsProject', () => {
+  it('is false once a real project is set', () => {
+    expect(needsProject(baseRequest())).toBe(false);
+  });
+
+  it('is true for a request filed with only draft project details', () => {
+    const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
+    expect(needsProject(request)).toBe(true);
+  });
+});
+
+describe('assertCanResolveProject', () => {
+  it('allows resolving an open request that needs a project', () => {
+    const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
+    expect(() => assertCanResolveProject(request)).not.toThrow();
+  });
+
+  it('rejects resolving a request that already has a project', () => {
+    expect(() => assertCanResolveProject(baseRequest())).toThrow();
+  });
+
+  it('rejects resolving a closed request', () => {
+    const request = baseRequest({
+      project: null,
+      draftProject: { name: 'Kestrel' },
+      status: 'closed',
+      reason: 'cancelled',
+    });
+    expect(() => assertCanResolveProject(request)).toThrow();
+  });
+});
+
 describe('assertRequestedPositionsEditable', () => {
   it('allows a legal set of requested positions', () => {
     expect(() =>
@@ -254,6 +288,20 @@ describe('assertCanClose', () => {
     expect(() =>
       assertCanClose(request, { isAdmin: true, isAuthor: false, reason: 'fulfilled' })
     ).toThrow();
+  });
+
+  it('rejects closing as fulfilled while the request still needs a project', () => {
+    const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
+    expect(() =>
+      assertCanClose(request, { isAdmin: true, isAuthor: false, reason: 'fulfilled' })
+    ).toThrow();
+  });
+
+  it('allows cancelling a request that still needs a project', () => {
+    const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
+    expect(() =>
+      assertCanClose(request, { isAdmin: false, isAuthor: true, reason: 'cancelled' })
+    ).not.toThrow();
   });
 });
 

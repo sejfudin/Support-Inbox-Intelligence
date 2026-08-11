@@ -7,8 +7,11 @@ import {
   fetchStaffingRequests,
   markStaffingRequestsSeen,
   reopenStaffingRequest,
+  resolveStaffingRequestProject,
+  resolveStaffingRequestProjectByCreating,
   updateStaffingRequest,
 } from '@/api/staffingRequests';
+import { PROJECTS_QUERY_KEY } from '@/queries/projects';
 
 export const STAFFING_REQUESTS_QUERY_KEY = ['staffing-requests'];
 export const STAFFING_REQUEST_NEWS_QUERY_KEY = ['staffing-requests-news'];
@@ -57,6 +60,32 @@ export const useCloseStaffingRequest = () => {
   return useMutation({
     mutationFn: ({ id, data }) => closeStaffingRequest(id, data),
     onSuccess: () => invalidateRequests(queryClient),
+  });
+};
+
+// Resolving a draft project may also create a project, so both caches
+// invalidate — the requests list picks up the new `project` reference, and
+// the projects list/pickers pick up the row that may not have existed a
+// moment ago.
+export const useResolveStaffingRequestProject = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, projectId }) => resolveStaffingRequestProject(id, projectId),
+    onSuccess: () => {
+      invalidateRequests(queryClient);
+      queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
+    },
+  });
+};
+
+export const useResolveStaffingRequestProjectByCreating = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, project }) => resolveStaffingRequestProjectByCreating(id, project),
+    onSuccess: () => {
+      invalidateRequests(queryClient);
+      queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
+    },
   });
 };
 

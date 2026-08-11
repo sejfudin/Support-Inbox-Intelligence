@@ -2,7 +2,11 @@ const staffingRequestService = require('../services/staffingRequestService');
 
 const handleError = (res, error, next) => {
   if (error.statusCode) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
+    return res.status(error.statusCode).json({
+      success: false,
+      message: error.message,
+      ...(error.data ? { data: error.data } : {}),
+    });
   }
 
   if (error.name === 'ValidationError') {
@@ -50,6 +54,32 @@ exports.updateStaffingRequest = async (req, res, next) => {
       req.body
     );
     res.json({ success: true, message: 'Staffing request updated', data: request });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.resolveStaffingRequestProject = async (req, res, next) => {
+  try {
+    const request = await staffingRequestService.resolveStaffingRequestProject(
+      req.user,
+      req.params.id,
+      req.body
+    );
+    res.json({ success: true, message: 'Project linked', data: request });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.resolveStaffingRequestProjectByCreating = async (req, res, next) => {
+  try {
+    const request = await staffingRequestService.resolveStaffingRequestProjectByCreating(
+      req.user,
+      req.params.id,
+      req.body
+    );
+    res.status(201).json({ success: true, message: 'Project created and linked', data: request });
   } catch (error) {
     handleError(res, error, next);
   }

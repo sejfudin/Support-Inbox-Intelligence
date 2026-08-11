@@ -8,6 +8,8 @@ const {
   getStaffingRequest,
   createStaffingRequest,
   updateStaffingRequest,
+  resolveStaffingRequestProject,
+  resolveStaffingRequestProjectByCreating,
   closeStaffingRequest,
   reopenStaffingRequest,
   setStaffingRequestNote,
@@ -45,6 +47,22 @@ router.get(
 router.post('/', protect, requireRole(ROLES.LEADERSHIP), createStaffingRequest);
 router.patch('/:id', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), updateStaffingRequest);
 router.patch('/:id/note', protect, requireRole(ROLES.ADMIN), setStaffingRequestNote);
+// Resolving a draft project — link to an existing project, or create one from
+// leadership's draft details and link that instead. Admin-only: leadership
+// can describe a project, it can never create or link one (see
+// resolveStaffingRequestProject/…ByCreating in the service).
+router.post(
+  '/:id/resolve-project',
+  protect,
+  requireRole(ROLES.ADMIN),
+  resolveStaffingRequestProject
+);
+router.post(
+  '/:id/resolve-project/create',
+  protect,
+  requireRole(ROLES.ADMIN),
+  resolveStaffingRequestProjectByCreating
+);
 router.post(
   '/:id/close',
   protect,

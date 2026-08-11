@@ -197,12 +197,11 @@ request**, **requested position**, **fulfilling**, **put forward**). This ticket
 the model and the pure rules module — no routes, no screens yet.
 
 - **`StaffingRequest`** (`server/models/StaffingRequest.js`) — not workspace-scoped, matching
-  `Project` and `Recommendation`. Project identity is exactly one of `project` (ref) or
-  `draftProject` (embedded `name`/`client`/`description`) as of this ticket, enforced in a
-  `pre('validate')` hook. Project resolution will need to loosen this to "at least
-  one" — the full spec's decision is that `draftProject` is kept forever as evidence of what was
-  originally asked for, so `project` and `draftProject` coexist once resolved; that loosening is
-  project resolution's job, not this one's. `requestedPositions` is an embedded array of
+  `Project` and `Recommendation`. Project identity is **at least one** of `project` (ref) or
+  `draftProject` (embedded `name`/`client`/`description`), enforced in a `pre('validate')` hook
+  (loosened from "exactly one" once project resolution — ticket 06 — landed): `draftProject` is
+  kept forever as evidence of what was originally asked for, so `project` and `draftProject`
+  coexist once resolved. `requestedPositions` is an embedded array of
   `{ position, count, technologies[] }`
   with a path validator rejecting a repeated `position`; a requested position is identified by
   `staffingRequest + position`, with no separate line id. `author`, optional `neededBy`
@@ -227,11 +226,11 @@ the model and the pure rules module — no routes, no screens yet.
   status, outcome }` — so the UI can group suggested interns under the requested position they were
   put forward for. `position` stays a raw id on purpose: `deriveProgress` matches it against
   `requestedPositions` by id, so populating it would silently break every progress count.
-- **`Recommendation.staffingRequest`** — new nullable ref to `StaffingRequest`, set only when the
-  recommendation was created by fulfilling a request (ticket 06 sets it; nothing does yet). No
-  other `Recommendation` behaviour changes; `RECOMMENDATION_RESULTS` is untouched — a leftover
-  intern released when a request fills without them is still `not_placed`, with the nuance carried
-  in the mandatory result note.
+- **`Recommendation.staffingRequest`** — nullable ref to `StaffingRequest`, set only when the
+  recommendation was created by fulfilling a request (ticket 07's job; nothing sets it yet — ticket
+  06 only resolves the project reference). No other `Recommendation` behaviour changes;
+  `RECOMMENDATION_RESULTS` is untouched — a leftover intern released when a request fills without
+  them is still `not_placed`, with the nuance carried in the mandatory result note.
 - **`helpers/staffingRequestRules.js`** — the single pure rules module for this feature (no I/O, no
   clock, timestamps passed in), following `helpers/specializationRules.js`. Three rule groups, all
   unit-tested in `staffingRequestRules.test.js` with plain objects, no Mongo, no Express:
@@ -246,26 +245,47 @@ the model and the pure rules module — no routes, no screens yet.
     `cancelled` is author-or-admin, `fulfilled`/`declined` are admin-only, `declined` requires a
     non-empty note; reopening (author or admin, from either terminal reason) clears `reason`,
     `closedBy`, `closedAt`.
-  - Picker eligibility and unread/badge derivation are separate rule groups added by later
-    tickets, once there's a route or a screen to drive them.
-  - **No derived status.** There is deliberately no `deriveDisplayState`/`isDemandMet` here: a
-    request is `open` or `closed`, plus a close `reason`, and that is the whole status vocabulary.
-    Everything a screen used to read off a single pill is a comparison the client makes on
-    `progress` or `project` — nobody put forward yet (`totals.putForward === 0`), demand met
-    (`placed >= wanted` on every position), still a draft project (`!project`). The frontend
+  - Picker eligibility is a separate rule group added by a later ticket, once there's a route or
+    a screen to drive it. Unread/badge derivation (`deriveUnreadStaffingRequestIds`) landed in
+    ticket 04, below.
+  - **`needsProject` / `assertCanResolveProject`** (ticket 06) — the one derived display state
+    that does live here, rather than as a client-side comparison: `needsProject(request)` is
+    `!request.project`, and `assertCanClose` calls it directly to refuse `reason: 'fulfilled'`
+    while it holds, enforced server-side rather than only hidden in the UI. `assertCanResolveProject`
+    is the legality check for linking a project: refuses a request that already has one, or is
+    closed. Everything else a screen used to read off a single pill is still a comparison the
+    client makes on `progress` or `project` — nobody put forward yet
+    (`totals.putForward === 0`), demand met (`placed >= wanted` on every position). The frontend
     predicates live in `frontend/src/helpers/staffingRequests.js`. Deriving presentation on the
     client is safe here because presentation never authorizes: the `assert*` functions above stay
     the only authority on what a user may do. Note nothing auto-closes a request whose demand is
     met — an admin closes it as `fulfilled` explicitly, via `POST /:id/close`.
+- **Resolving a draft project** (ticket 06) — `server/services/staffingRequestService.js` adds
+  `resolveStaffingRequestProject` (link to an existing project) and
+  `resolveStaffingRequestProjectByCreating` (create one from the admin's own choices, then link).
+  Both are admin-only, checked directly in the service rather than through the usual
+  author-or-admin `assertWriteAccess` — leadership can describe a project, never create or link
+  one. `resolveStaffingRequestProjectByCreating` proactively checks `Project.slug` for a collision
+  before inserting and returns `{ existingProject }` in a 409 rather than a raw `E11000`; the
+  schema's unique index remains the last-resort catch for the check-then-insert race, mapped to the
+  same shape. `type`, `status` and `technologies` are never seeded from the request — the admin
+  picks them fresh (leadership never classifies a project); `name`/`client`/`description` are
+  prefilled from `draftProject` on the client only, and remain editable. Routes:
+  `POST /:id/resolve-project` and `POST /:id/resolve-project/create`. Frontend: fuzzy name matching
+  against the draft (`frontend/src/helpers/projectMatch.js`, pure, no server round-trip since the
+  admin's project list is already loaded) drives a "possible matches" list ahead of "create new"
+  in `ResolveProjectDialog.jsx`, wired into `RequestActions.jsx` — that button checks the viewer's
+  own role directly rather than through the `canManage` prop, so it appears on the admin Requests
+  screen even though that screen still passes `canManage={false}` pending tickets 07/08.
 
 **News badge (ticket 04)** — both shells find out about staffing-request activity without a bell.
 Deliberately doesn't use `Notification` (see
 `docs/adr/0003-staffing-news-uses-history-log.md`): the history log itself is the notification.
 
-- `History.entityType` gains `'staffingRequest'`. Filing a request (and, once tickets 06/07 land,
-  resolving/fulfilling/closing/reopening it) appends an event via
-  `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
-  (`staffing:filed`, ...) — namespaced because `statusKey` is a string space shared with
+- `History.entityType` gains `'staffingRequest'`. Filing a request and resolving its project both
+  append an event via `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
+  (`staffing:filed`, `staffing:project_resolved`; fulfilling/closing/reopening add more once
+  tickets 07/08 land) — namespaced because `statusKey` is a string space shared with
   recommendation stage tracking, where bare `placed` already means something. Unlike every other
   history write, this one is **awaited and its errors surfaced**
   (`staffingRequestService.createStaffingRequest`), with a comment at the call site — a lost row

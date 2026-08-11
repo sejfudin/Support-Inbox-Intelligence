@@ -51,9 +51,9 @@ const requestedPositionSchema = new mongoose.Schema(
 
 const staffingRequestSchema = new mongoose.Schema(
   {
-    // Exactly one of these two is set — enforced below. `draftProject` is never
-    // overwritten once `project` is resolved; both coexist so the original ask
-    // stays visible after resolution (see ticket 05).
+    // At least one of these two is set — enforced below. `draftProject` is
+    // never overwritten once `project` is resolved (see ticket 06); both then
+    // coexist so the original ask stays visible after resolution.
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Project',
@@ -137,11 +137,11 @@ staffingRequestSchema.path('requestedPositions').validate(function validateNoDup
 // Throw rather than call a `next` callback — Mongoose 9 dropped callback-style
 // middleware, and a `function (next)` hook here fails with "next is not a
 // function" on every save (see the identical note in ReadinessFlag.js).
-staffingRequestSchema.pre('validate', function enforceExclusiveProjectIdentity() {
+staffingRequestSchema.pre('validate', function enforceProjectIdentity() {
   const hasProject = Boolean(this.project);
   const hasDraftProject = Boolean(this.draftProject);
-  if (hasProject === hasDraftProject) {
-    throw new Error('Exactly one of project or draftProject must be set on a staffing request');
+  if (!hasProject && !hasDraftProject) {
+    throw new Error('At least one of project or draftProject must be set on a staffing request');
   }
 });
 

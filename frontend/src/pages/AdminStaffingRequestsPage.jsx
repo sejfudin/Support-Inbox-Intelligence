@@ -43,11 +43,11 @@ const byNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
  * in its own `data-surface="symphony"` scope since those styles are keyed off
  * that attribute and this page lives in the sidebar shell, not `SymphonyLayout`.
  *
- * Deliberately read-only for now: resolving a draft project, putting interns
- * forward, and closing/reopening are tickets 06/07/08. `RequestDetail` already
- * renders read-only when `canManage` is false (no edit/cancel, no reopen), so
- * nothing extra is needed here to keep this screen from offering actions this
- * ticket doesn't build.
+ * `canManage={false}` here because edit/cancel/reopen stay leadership-side for
+ * now (putting interns forward and closing/reopening are tickets 07/08).
+ * "Resolve project" is the one admin action this screen already offers —
+ * `RequestActions` checks the viewer's own role for it rather than reading
+ * `canManage`, so it shows up here without this page doing anything special.
  */
 export default function AdminStaffingRequestsPage() {
   const [searchParams, setSearchParams] = useSearchParams();

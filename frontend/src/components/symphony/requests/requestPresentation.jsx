@@ -96,7 +96,7 @@ export const getRequestBlocker = (request, today = new Date()) => {
     return {
       tone: 'warning',
       Icon: FolderPlus,
-      text: 'This request names a project that does not exist yet. Nobody can be put forward until it is created and linked.',
+      text: 'Needs project — this request names a project that does not exist yet. Nobody can be put forward until an admin links or creates one.',
     };
   }
 

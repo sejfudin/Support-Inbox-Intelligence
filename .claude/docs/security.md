@@ -265,6 +265,24 @@ same exception as `Project`/`Recommendation` above).
   create** — a second wave of demand months later is legitimately its own request. The filing screen
   warns beforehand off `GET /api/staffing-requests?projectId=&status=open` (the `projectId` filter
   exists for exactly this), so the author still has the choice; the server never blocks it.
+- **A request may be filed with `draftProject` instead of `projectId`** — leadership describes a
+  project that doesn't exist yet. It reads **Needs project**
+  (`helpers/staffingRequestRules.js#needsProject`) and can never close as `fulfilled`
+  (`assertCanClose` rejects that reason whenever `needsProject` is true — enforced server-side, not
+  only hidden in the UI); `cancelled`/`declined` are unaffected.
+- **Resolving a draft project** (`POST /:id/resolve-project`, `POST /:id/resolve-project/create`) is
+  **admin-only**, checked directly in the service (`resolveStaffingRequestProject*`) rather than
+  through `assertWriteAccess` — unlike every other write on this model there is no author-or-admin
+  carve-out; leadership can never create or link a project through this flow, only describe one.
+  `assertCanResolveProject` refuses a request that already has a project or is closed.
+  `draftProject` is never overwritten by resolution — it stays on the document alongside the newly
+  set `project` reference, as the record of what was actually asked for.
+- **Creating a project from a draft** (`…/resolve-project/create`) proactively checks for a slug
+  collision before inserting and returns it as a 409 with
+  `{ data: { existingProject } }` — never a raw Mongo `E11000`. The unique index on `Project.slug`
+  is still the last-resort catch for the race between that check and the insert, mapped to the same
+  friendly shape. The admin chooses `type`, `status` and `technologies` fresh; none are seeded from
+  the request even though `name`/`client`/`description` are prefilled from the draft on the client.
 
 ## Middleware guards (`server/middleware/`)
 

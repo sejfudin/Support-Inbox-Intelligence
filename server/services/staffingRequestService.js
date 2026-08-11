@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const StaffingRequest = require('../models/StaffingRequest');
 const Recommendation = require('../models/Recommendation');
 const Project = require('../models/Project');
+const { PROJECT_TYPES, PROJECT_STATUSES } = Project;
 const Position = require('../models/Position');
 const Technology = require('../models/Technology');
 const History = require('../models/History');
@@ -10,6 +11,7 @@ const { ROLES } = require('../constants/roles');
 const { httpError } = require('../helpers/httpError');
 const {
   deriveProgress,
+  assertCanResolveProject,
   assertRequestedPositionsEditable,
   assertCanClose,
   applyClose,
@@ -17,6 +19,7 @@ const {
   applyReopen,
   deriveUnreadStaffingRequestIds,
 } = require('../helpers/staffingRequestRules');
+const { slugify } = require('../helpers/slugify');
 const { logStaffingRequestEvent } = require('./historyService');
 const { emitStaffingNewsChanged } = require('../socket/events');
 
@@ -342,6 +345,111 @@ const updateStaffingRequest = async (user, requestId, payload = {}) => {
 // mapping never has to match on message text.
 const asHttpError = (error) => httpError(error.message, error.code === 'FORBIDDEN' ? 403 : 400);
 
+const loadResolvableRequest = async (user, requestId) => {
+  // Admin-only for both halves of resolution (link and create-then-link) —
+  // leadership can describe a project it wants, it can never create or link
+  // one. There is no author-or-admin carve-out here, unlike every other write
+  // path on this model.
+  if (user.role !== ROLES.ADMIN) {
+    throw httpError('Only an admin may resolve a staffing request project', 403);
+  }
+  assertValidObjectId(requestId, 'Staffing request');
+  const request = await StaffingRequest.findById(requestId);
+  if (!request) throw httpError('Staffing request not found', 404);
+
+  try {
+    assertCanResolveProject(request);
+  } catch (error) {
+    throw asHttpError(error);
+  }
+  return request;
+};
+
+// The one write both halves of resolution end with: link the project, keep
+// `draftProject` exactly as leadership wrote it, log the event that feeds the
+// news badge (ticket 04), and return the same shape every other read does.
+const finishResolvingProject = async (request, projectId, userId) => {
+  request.project = projectId;
+  await request.save();
+  await request.populate(REQUEST_POPULATE);
+
+  await logStaffingRequestEvent({
+    entityId: request._id,
+    userId,
+    action: 'Project resolved',
+    statusKey: 'staffing:project_resolved',
+  });
+  emitStaffingNewsChanged();
+
+  return formatRequestWithLookup(request);
+};
+
+// Links an unresolved request to a project that already exists — the "found
+// it, use this one" half of resolution. `draftProject` is never touched: it
+// stays the evidence of what was actually asked for.
+const resolveStaffingRequestProject = async (user, requestId, payload = {}) => {
+  const request = await loadResolvableRequest(user, requestId);
+  const projectId = await ensureProjectId(payload.projectId);
+  return finishResolvingProject(request, projectId, user._id);
+};
+
+// Creates a new project from the admin's own choices — prefilled from the
+// draft on the client, but `type`, `status` and `technologies` are never
+// seeded from the request; the admin picks them fresh every time (leadership
+// never classifies a project). A slug collision is looked up proactively so
+// it comes back as "link to it instead?" with the actual conflicting project,
+// not a raw duplicate-key error; the schema's unique index is still the
+// last-resort catch for the race between the check and the insert.
+const resolveStaffingRequestProjectByCreating = async (user, requestId, payload = {}) => {
+  const request = await loadResolvableRequest(user, requestId);
+  const draft = payload.project || {};
+
+  const name = cleanText(draft.name);
+  if (!name) throw httpError('Project name is required', 400);
+  if (!PROJECT_TYPES.includes(draft.type)) throw httpError('Invalid project type', 400);
+  const status = draft.status !== undefined ? draft.status : 'active';
+  if (!PROJECT_STATUSES.includes(status)) throw httpError('Invalid project status', 400);
+
+  const slug = slugify(name);
+  if (slug === 'unspecified') throw httpError('This project name is reserved', 400);
+
+  const collision = await Project.findOne({ slug }).select('_id name slug').lean();
+  if (collision) {
+    throw Object.assign(
+      httpError('A project with this slug already exists — link to it instead?', 409),
+      { data: { existingProject: collision } }
+    );
+  }
+
+  const technologyIds = await ensureTechnologyIds(draft.technologyIds);
+
+  let project;
+  try {
+    project = await Project.create({
+      name,
+      slug,
+      type: draft.type,
+      status,
+      client: cleanText(draft.client),
+      description: cleanText(draft.description),
+      technologies: technologyIds,
+    });
+  } catch (error) {
+    // Fallback for the race between the check above and this insert — same
+    // friendly shape, not a raw Mongo error.
+    if (error.code === 11000) {
+      const existingProject = await Project.findOne({ slug }).select('_id name slug').lean();
+      throw Object.assign(
+        httpError('A project with this slug already exists — link to it instead?', 409),
+        { data: { existingProject } }
+      );
+    }
+    throw error;
+  }
+
+  return finishResolvingProject(request, project._id, user._id);
+};
+
 // The one close path, for all three reasons. `assertCanClose` owns who may use
 // which reason (cancel: author or admin; fulfil/decline: admin only, and
 // decline needs a note), so this function never re-implements that split.
@@ -506,6 +614,8 @@ module.exports = {
   getStaffingRequest,
   createStaffingRequest,
   updateStaffingRequest,
+  resolveStaffingRequestProject,
+  resolveStaffingRequestProjectByCreating,
   closeStaffingRequest,
   reopenStaffingRequest,
   getStaffingRequestNews,
