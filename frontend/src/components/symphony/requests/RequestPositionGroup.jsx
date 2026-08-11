@@ -35,12 +35,16 @@ const SuggestionCard = ({ suggestion }) => {
   );
 };
 
-const EmptySeat = () => (
-  <div className="symphony-seat-empty-card">
-    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-dashed border-border text-xs">
-      ?
+// One card for the whole gap, not one per seat: eighteen seats produced
+// sixteen identical "no one put forward yet" tiles that pushed the actual
+// suggestions off the top of the pane. The number is the information — which
+// particular empty seat it is never was.
+const EmptySeats = ({ count }) => (
+  <div className="symphony-seat-empty-card" data-test="empty-seats">
+    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-dashed border-border text-xs font-semibold">
+      +{count}
     </span>
-    <p className="text-xs">No one put forward yet</p>
+    <p className="text-xs">still to put forward</p>
   </div>
 );
 
@@ -94,9 +98,7 @@ export function RequestPositionGroup({ row, requestedPosition }) {
         {row.suggestions.map((suggestion) => (
           <SuggestionCard key={suggestion.id} suggestion={suggestion} />
         ))}
-        {Array.from({ length: emptySeats }, (_unused, index) => (
-          <EmptySeat key={`empty-${index}`} />
-        ))}
+        {emptySeats > 0 && <EmptySeats count={emptySeats} />}
       </div>
     </section>
   );

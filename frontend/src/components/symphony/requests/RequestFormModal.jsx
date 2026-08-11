@@ -28,7 +28,12 @@ import {
 import { useProjects } from '@/queries/projects';
 import { usePositions } from '@/queries/positions';
 import { useTechnologies } from '@/queries/technologies';
-import { useCreateStaffingRequest, useUpdateStaffingRequest } from '@/queries/staffingRequests';
+import {
+  useCreateStaffingRequest,
+  useStaffingRequests,
+  useUpdateStaffingRequest,
+} from '@/queries/staffingRequests';
+import { DuplicateRequestDialog } from './DuplicateRequestDialog';
 
 const requestedPositionSchema = z.object({
   position: z.string().min(1, 'Select a position'),
@@ -84,7 +89,7 @@ const toPayload = (values) => ({
  * draft-project path, that arrives with the admin-side project resolution
  * work in later tickets.
  */
-export function RequestFormModal({ open, onOpenChange, request = null, onDuplicateWarning }) {
+export function RequestFormModal({ open, onOpenChange, request = null, onViewExisting }) {
   const isEditing = Boolean(request);
   const { data: projectsData } = useProjects();
   const projects = projectsData?.data ?? projectsData ?? [];
@@ -95,6 +100,22 @@ export function RequestFormModal({ open, onOpenChange, request = null, onDuplica
   const mutation = isEditing ? updateMutation : createMutation;
 
   const [selectedProject, setSelectedProject] = useState(null);
+  const [duplicateWarn, setDuplicateWarn] = useState(null);
+
+  // Open demand already recorded against the project being filed for. Only
+  // fetched while filing — an edit can't change the project, so it can't
+  // create a duplicate.
+  const { data: openForProject = [] } = useStaffingRequests(
+    { status: 'open', projectId: selectedProject?._id },
+    { enabled: open && !isEditing && Boolean(selectedProject?._id) }
+  );
+  // The oldest one, not the newest: "someone already asked for this" is a
+  // question about who got there first.
+  const existingOpenRequest = openForProject.reduce(
+    (oldest, candidate) =>
+      !oldest || new Date(candidate.createdAt) < new Date(oldest.createdAt) ? candidate : oldest,
+    null
+  );
 
   const {
     control,
@@ -113,9 +134,25 @@ export function RequestFormModal({ open, onOpenChange, request = null, onDuplica
     if (!open) return;
     reset(isEditing ? toFormValues(request) : defaultValues);
     setSelectedProject(isEditing ? request.project : null);
+    setDuplicateWarn(null);
   }, [open, isEditing, request, reset]);
 
   const positionOptions = useMemo(() => positions?.data ?? positions ?? [], [positions]);
+
+  const fileRequest = (payload) => {
+    createMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success('Request filed');
+        setDuplicateWarn(null);
+        onOpenChange(false);
+      },
+      onError: (error) => {
+        toast.error('Could not file request', {
+          description: error?.response?.data?.message,
+        });
+      },
+    });
+  };
 
   const onSubmit = (values) => {
     const payload = toPayload(values);
@@ -138,23 +175,16 @@ export function RequestFormModal({ open, onOpenChange, request = null, onDuplica
       return;
     }
 
-    createMutation.mutate(
-      { ...payload, projectId: values.projectId },
-      {
-        onSuccess: (data) => {
-          toast.success('Request filed');
-          onOpenChange(false);
-          if (data.duplicateOf) {
-            onDuplicateWarning?.(data.duplicateOf);
-          }
-        },
-        onError: (error) => {
-          toast.error('Could not file request', {
-            description: error?.response?.data?.message,
-          });
-        },
-      }
-    );
+    const createPayload = { ...payload, projectId: values.projectId };
+
+    // Warn before filing, so "file anyway" and "go look at theirs" are both
+    // still open. Filing first and warning after leaves only an announcement.
+    if (existingOpenRequest) {
+      setDuplicateWarn({ payload: createPayload, existing: existingOpenRequest });
+      return;
+    }
+
+    fileRequest(createPayload);
   };
 
   const usedPositionIds = (index) =>
@@ -163,184 +193,203 @@ export function RequestFormModal({ open, onOpenChange, request = null, onDuplica
       .filter(Boolean);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl" data-test="request-form-modal">
-        <DialogHeader className="gap-1 border-b border-border/60 pb-4">
-          <DialogTitle className="text-xl">
-            {isEditing ? 'Edit staffing request' : 'File a staffing request'}
-          </DialogTitle>
-          <DialogDescription>
-            One requested position per discipline — position, count, and optionally the technologies
-            they should know.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {/* The form steps aside rather than stacking a dialog on a dialog — the
+          draft is still there behind it, and "Back to form" returns to it
+          untouched. */}
+      <Dialog open={open && !duplicateWarn} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-2xl" data-test="request-form-modal">
+          <DialogHeader className="gap-1 border-b border-border/60 pb-4">
+            <DialogTitle className="text-xl">
+              {isEditing ? 'Edit staffing request' : 'File a staffing request'}
+            </DialogTitle>
+            <DialogDescription>
+              One requested position per discipline — position, count, and optionally the
+              technologies they should know.
+            </DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label>
-              Project <span className="text-red-500">*</span>
-            </Label>
-            {isEditing ? (
-              <div
-                className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
-                data-test="request-form-project-locked"
-              >
-                {request.project?.name ?? 'Draft project'}
-              </div>
-            ) : (
-              <Controller
-                name="projectId"
-                control={control}
-                render={({ field }) => (
-                  <div className="space-y-2">
-                    {selectedProject ? (
-                      <div className="flex items-center justify-between rounded-md border border-input bg-muted px-3 py-2 text-sm">
-                        <span>{selectedProject.name}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => {
-                            setSelectedProject(null);
-                            field.onChange('');
-                          }}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <SearchableSelect
-                        items={projects}
-                        getLabel={(project) => project.name}
-                        placeholder="Search projects…"
-                        onSelect={(project) => {
-                          setSelectedProject(project);
-                          field.onChange(project._id);
-                        }}
-                        dataTest="request-form-project-search"
-                      />
-                    )}
-                  </div>
-                )}
-              />
-            )}
-            {errors.projectId && (
-              <p className="text-xs text-destructive">{errors.projectId.message}</p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label>
-              Requested positions <span className="text-red-500">*</span>
-            </Label>
-            {fields.map((field, index) => (
-              <div
-                key={field.id}
-                className="flex flex-wrap items-start gap-2 rounded-lg border border-border/60 p-3"
-                data-test={`request-form-position-row-${index}`}
-              >
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label>
+                Project <span className="text-red-500">*</span>
+              </Label>
+              {isEditing ? (
+                <div
+                  className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
+                  data-test="request-form-project-locked"
+                >
+                  {request.project?.name ?? 'Draft project'}
+                </div>
+              ) : (
                 <Controller
-                  name={`requestedPositions.${index}.position`}
+                  name="projectId"
                   control={control}
-                  render={({ field: positionField }) => (
-                    <Select onValueChange={positionField.onChange} value={positionField.value}>
-                      <SelectTrigger
-                        className="w-44"
-                        data-test={`request-form-position-select-${index}`}
-                      >
-                        <SelectValue placeholder="Position" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {positionOptions.map((position) => (
-                          <SelectItem
-                            key={position._id}
-                            value={position._id}
-                            disabled={usedPositionIds(index).includes(position._id)}
+                  render={({ field }) => (
+                    <div className="space-y-2">
+                      {selectedProject ? (
+                        <div className="flex items-center justify-between rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                          <span>{selectedProject.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              setSelectedProject(null);
+                              field.onChange('');
+                            }}
                           >
-                            {position.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <SearchableSelect
+                          items={projects}
+                          getLabel={(project) => project.name}
+                          placeholder="Search projects…"
+                          onSelect={(project) => {
+                            setSelectedProject(project);
+                            field.onChange(project._id);
+                          }}
+                          dataTest="request-form-project-search"
+                        />
+                      )}
+                    </div>
                   )}
                 />
-                <Input
-                  type="number"
-                  min={1}
-                  className="w-20"
-                  data-test={`request-form-position-count-${index}`}
-                  {...register(`requestedPositions.${index}.count`)}
-                />
-                <div className="min-w-[220px] flex-1">
+              )}
+              {errors.projectId && (
+                <p className="text-xs text-destructive">{errors.projectId.message}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>
+                Requested positions <span className="text-red-500">*</span>
+              </Label>
+              {fields.map((field, index) => (
+                <div
+                  key={field.id}
+                  className="flex flex-wrap items-start gap-2 rounded-lg border border-border/60 p-3"
+                  data-test={`request-form-position-row-${index}`}
+                >
                   <Controller
-                    name={`requestedPositions.${index}.technologies`}
+                    name={`requestedPositions.${index}.position`}
                     control={control}
-                    render={({ field: techField }) => (
-                      <TechnologyMultiSelect
-                        technologies={technologies?.data ?? technologies ?? []}
-                        selectedIds={techField.value}
-                        onChange={techField.onChange}
-                        variant="box"
-                      />
+                    render={({ field: positionField }) => (
+                      <Select onValueChange={positionField.onChange} value={positionField.value}>
+                        <SelectTrigger
+                          className="w-44"
+                          data-test={`request-form-position-select-${index}`}
+                        >
+                          <SelectValue placeholder="Position" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {positionOptions.map((position) => (
+                            <SelectItem
+                              key={position._id}
+                              value={position._id}
+                              disabled={usedPositionIds(index).includes(position._id)}
+                            >
+                              {position.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   />
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-20"
+                    data-test={`request-form-position-count-${index}`}
+                    {...register(`requestedPositions.${index}.count`)}
+                  />
+                  <div className="min-w-[220px] flex-1">
+                    <Controller
+                      name={`requestedPositions.${index}.technologies`}
+                      control={control}
+                      render={({ field: techField }) => (
+                        <TechnologyMultiSelect
+                          technologies={technologies?.data ?? technologies ?? []}
+                          selectedIds={techField.value}
+                          onChange={techField.onChange}
+                          variant="box"
+                        />
+                      )}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={fields.length === 1}
+                    onClick={() => remove(index)}
+                    data-test={`request-form-position-remove-${index}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={fields.length === 1}
-                  onClick={() => remove(index)}
-                  data-test={`request-form-position-remove-${index}`}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => append(emptyPositionRow)}
-              className="flex items-center gap-1 self-start text-sm font-medium text-primary hover:underline"
-              data-test="request-form-position-add"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add requested position
-            </button>
-            {errors.requestedPositions && (
-              <p className="text-xs text-destructive">
-                {errors.requestedPositions.message ||
-                  errors.requestedPositions.root?.message ||
-                  'Check the requested positions'}
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label>Needed by</Label>
-            <Controller
-              name="neededBy"
-              control={control}
-              render={({ field }) => (
-                <DatePicker
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="No date given"
-                />
+              ))}
+              <button
+                type="button"
+                onClick={() => append(emptyPositionRow)}
+                className="flex items-center gap-1 self-start text-sm font-medium text-primary hover:underline"
+                data-test="request-form-position-add"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add requested position
+              </button>
+              {errors.requestedPositions && (
+                <p className="text-xs text-destructive">
+                  {errors.requestedPositions.message ||
+                    errors.requestedPositions.root?.message ||
+                    'Check the requested positions'}
+                </p>
               )}
-            />
-          </div>
+            </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending} data-test="request-form-save">
-              {mutation.isPending ? 'Saving…' : isEditing ? 'Save changes' : 'File request'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <div className="flex flex-col gap-2">
+              <Label>Needed by</Label>
+              <Controller
+                name="neededBy"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="No date given"
+                  />
+                )}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={mutation.isPending} data-test="request-form-save">
+                {mutation.isPending ? 'Saving…' : isEditing ? 'Save changes' : 'File request'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <DuplicateRequestDialog
+        open={Boolean(duplicateWarn)}
+        duplicateOf={duplicateWarn?.existing}
+        isSaving={createMutation.isPending}
+        onCancel={() => setDuplicateWarn(null)}
+        onFileAnyway={() => fileRequest(duplicateWarn.payload)}
+        onViewExisting={() => {
+          const existingId = duplicateWarn?.existing?.id;
+          setDuplicateWarn(null);
+          onOpenChange(false);
+          onViewExisting?.(existingId);
+        }}
+      />
+    </>
   );
 }

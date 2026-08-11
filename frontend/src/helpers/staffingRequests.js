@@ -124,13 +124,6 @@ export const formatSuggestionMeta = (suggestion, now = new Date()) => {
   return parts.join(' · ');
 };
 
-export const getRequestSkills = (request) => {
-  const names = (request?.requestedPositions ?? []).flatMap((requestedPosition) =>
-    (requestedPosition.technologies ?? []).map((technology) => technology?.name).filter(Boolean)
-  );
-  return [...new Set(names)];
-};
-
 // Editing is gated on the request still being open (see the assertions in
 // server/helpers/staffingRequestRules.js) — once closed, say so and say why.
 export const getRequestLockLabel = (request) => {

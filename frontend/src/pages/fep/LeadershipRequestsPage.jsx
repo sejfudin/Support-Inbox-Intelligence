@@ -17,7 +17,6 @@ import { RequestListItem } from '@/components/symphony/requests/RequestListItem'
 import { RequestDetail } from '@/components/symphony/requests/RequestDetail';
 import { RequestFormModal } from '@/components/symphony/requests/RequestFormModal';
 import { CloseRequestDialog } from '@/components/symphony/requests/CloseRequestDialog';
-import { DuplicateRequestDialog } from '@/components/symphony/requests/DuplicateRequestDialog';
 import { getRequestTitle } from '@/components/symphony/requests/requestPresentation';
 import { useAuth } from '@/context/AuthContext';
 import { useStaffingRequests } from '@/queries/staffingRequests';
@@ -69,7 +68,6 @@ export default function LeadershipRequestsPage() {
   const [sort, setSort] = useState('needed');
   const [formState, setFormState] = useState({ open: false, request: null });
   const [closeReason, setCloseReason] = useState(null);
-  const [duplicateOf, setDuplicateOf] = useState(null);
 
   const { data: requests = [], isPending, isError } = useStaffingRequests({ mine: mineOnly });
 
@@ -118,11 +116,15 @@ export default function LeadershipRequestsPage() {
     selected && String(selected.author?._id ?? selected.author) === String(currentUserId)
   );
 
-  const handleViewExisting = () => {
+  // Reached from the duplicate warning while filing: the request being pointed
+  // at is someone else's and may sit outside the current filters, so clear them
+  // rather than select an id the list won't show.
+  const handleViewExisting = (id) => {
+    if (!id) return;
     setMineOnly(false);
     setGroup('all');
     setQuery('');
-    if (duplicateOf?.id) selectRequest(duplicateOf.id);
+    selectRequest(id);
   };
 
   return (
@@ -241,13 +243,23 @@ export default function LeadershipRequestsPage() {
             </div>
           </div>
 
-          <div className="min-w-0 space-y-3">
+          {/* Same height and its own scrollbar as the list beside it, so the
+              two panes start and end on the same line and a long request
+              scrolls inside the card instead of pushing the page down past the
+              list.
+
+              No `space-y-*` here: the back button below is the first child and
+              only `display: none` on desktop, which `space-y` still counts as a
+              sibling — it would push the card down by a gap belonging to
+              something nobody can see, and the two panes would start on
+              different lines. The button carries its own margin instead. */}
+          <div className="min-w-0 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto lg:pr-1">
             {selected && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="lg:hidden"
+                className="mb-3 lg:hidden"
                 onClick={() => selectRequest(null)}
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -275,7 +287,7 @@ export default function LeadershipRequestsPage() {
         open={formState.open}
         onOpenChange={(open) => setFormState((state) => ({ ...state, open }))}
         request={formState.request}
-        onDuplicateWarning={setDuplicateOf}
+        onViewExisting={handleViewExisting}
       />
 
       <CloseRequestDialog
@@ -283,13 +295,6 @@ export default function LeadershipRequestsPage() {
         onOpenChange={(open) => !open && setCloseReason(null)}
         request={selected}
         reason={closeReason}
-      />
-
-      <DuplicateRequestDialog
-        open={Boolean(duplicateOf)}
-        onOpenChange={(open) => !open && setDuplicateOf(null)}
-        duplicateOf={duplicateOf}
-        onViewExisting={handleViewExisting}
       />
     </div>
   );

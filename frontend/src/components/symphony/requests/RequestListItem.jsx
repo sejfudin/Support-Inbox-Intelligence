@@ -56,8 +56,8 @@ export function RequestListItem({ request, selected, onSelect }) {
             <span
               className={cn(
                 'h-1.5 w-1.5 rounded-full',
-                blocker.tone === 'warning' && 'bg-[hsl(38_92%_50%)]',
-                blocker.tone === 'success' && 'bg-[hsl(152_55%_45%)]',
+                blocker.tone === 'warning' && 'bg-[hsl(var(--symphony-warning))]',
+                blocker.tone === 'success' && 'bg-[hsl(var(--symphony-placed))]',
                 blocker.tone === 'info' && 'bg-[hsl(var(--symphony-brand))]'
               )}
               aria-hidden="true"

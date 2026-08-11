@@ -190,19 +190,6 @@ const formatRequestWithLookup = async (request) => {
   return formatRequest(request, byRequestId.get(String(request._id)) || []);
 };
 
-// A request is "duplicate demand" when another OPEN request already targets
-// the same resolved project — surfaced as a warning, never a rejection: a
-// second wave of demand months later is legitimately its own request.
-const findExistingOpenRequestForProject = async (projectId) => {
-  if (!projectId) return null;
-  const existing = await StaffingRequest.findOne({ project: projectId, status: 'open' })
-    .populate({ path: 'author', select: 'fullname email' })
-    .sort({ createdAt: 1 })
-    .select('author createdAt');
-  if (!existing) return null;
-  return { id: existing._id, author: existing.author, filedAt: existing.createdAt };
-};
-
 const listStaffingRequests = async (user, query = {}) => {
   assertReadAccess(user);
 
@@ -216,6 +203,14 @@ const listStaffingRequests = async (user, query = {}) => {
   if (query.authorId) {
     assertValidObjectId(query.authorId, 'Author');
     filter.author = query.authorId;
+  }
+  // Narrows to one project. With `status=open` this is the "does this project
+  // already have demand recorded against it" lookup the filing form asks
+  // BEFORE it files, so the warning can offer a choice instead of announcing a
+  // request that already exists.
+  if (query.projectId) {
+    assertValidObjectId(query.projectId, 'Project');
+    filter.project = query.projectId;
   }
   // Convenience "mine" filter, one query parameter.
   if (query.mine === 'true') {
@@ -253,11 +248,13 @@ const createStaffingRequest = async (user, payload = {}) => {
 
   const requestedPositions = await normalizeRequestedPositions(payload.requestedPositions);
 
+  // Filing against a project that already has an open request is allowed and
+  // not even remarked on here: a second wave of demand months later is
+  // legitimately its own request. Warning about it is a decision the caller
+  // makes before filing, off `GET /?projectId=&status=open`.
   let projectId;
-  let duplicateOf = null;
   if (hasProject) {
     projectId = await ensureProjectId(payload.projectId);
-    duplicateOf = await findExistingOpenRequestForProject(projectId);
   }
 
   let draftProject;
@@ -284,7 +281,7 @@ const createStaffingRequest = async (user, payload = {}) => {
 
   await request.populate(REQUEST_POPULATE);
 
-  return { request: await formatRequestWithLookup(request), duplicateOf };
+  return formatRequestWithLookup(request);
 };
 
 // Counts, technologies, needed-by only — per ticket 02. `note` belongs to the

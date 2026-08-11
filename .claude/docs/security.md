@@ -261,9 +261,10 @@ same exception as `Project`/`Recommendation` above).
 - **No delete route, ever.** Cancelling (`status: closed`, `reason: cancelled`) is the only way a
   request goes away; deleting would orphan `Recommendation.staffingRequest` references and the
   demand history that justifies the feature.
-- Filing against a project that already has an open request is **allowed, not rejected** — the
-  create response includes `duplicateOf: { author, filedAt }` from the existing one so the caller
-  can warn, never block. A second wave of demand months later is legitimately its own request.
+- Filing against a project that already has an open request is **allowed, and not even checked on
+  create** — a second wave of demand months later is legitimately its own request. The filing screen
+  warns beforehand off `GET /api/staffing-requests?projectId=&status=open` (the `projectId` filter
+  exists for exactly this), so the author still has the choice; the server never blocks it.
 
 ## Middleware guards (`server/middleware/`)
 

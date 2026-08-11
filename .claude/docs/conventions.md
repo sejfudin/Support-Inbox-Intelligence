@@ -87,9 +87,10 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 
 ## Tests
 
-- Narrow. `npm test` in `server/` (Jest) covers pure helpers (`helpers/*.test.js`) plus two
+- Narrow. `npm test` in `server/` (Jest) covers pure helpers (`helpers/*.test.js`) plus three
   services with Mongo/Supabase mocked (`services/internCvService.test.js`,
-  `services/internService.test.js`). There is no integration or E2E suite, and the frontend has
-  no tests at all.
+  `services/internService.test.js`, `services/staffingRequestService.test.js`). `npm test` in
+  `frontend/` (vitest) covers a handful of pure helpers under `src/helpers/*.test.js` and nothing
+  else — no component is rendered in a test anywhere. There is no integration or E2E suite.
 - So a passing suite says nothing about a route, query or screen. Never report those as verified
   by tests — verify by driving the app (see workflows.md, `/verify`, `/run`).

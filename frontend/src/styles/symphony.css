@@ -10,6 +10,11 @@
   --symphony-gold: 43 96% 52%;
   --symphony-cta: 24 95% 53%;
 
+  /* Status accents. `placed` is the one green in this surface — the seat meter
+     draws it as segments and as a bar, and they must not drift apart. */
+  --symphony-placed: 152 55% 42%;
+  --symphony-warning: 38 92% 50%;
+
   /* Surfaces */
   --symphony-surface: 0 0% 98%;
   --symphony-surface-elevated: 0 0% 100%;
@@ -49,6 +54,8 @@
   --symphony-card-shadow: 0 1px 0 hsl(0 0% 100% / 0.04), 0 8px 24px -8px hsl(0 0% 0% / 0.45);
   --symphony-brand-strong: 243 100% 76%;
   --symphony-brand-ink: 243 90% 82%;
+  --symphony-placed: 152 55% 52%;
+  --symphony-warning: 38 92% 62%;
 }
 
 [data-surface='symphony'] .symphony-shell {
@@ -547,13 +554,6 @@
   background: hsl(var(--symphony-border));
 }
 
-.symphony-progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: hsl(152 60% 45%);
-  transition: width 200ms ease;
-}
-
 /* One segment per requested seat, in three states. `placed` is the outcome that
    matters, so it alone gets a solid fill; `put forward` is a promise, not an
    arrival, and reads as an outline. Anything else is an empty seat. Colour is
@@ -577,12 +577,11 @@
     box-shadow 200ms ease;
 }
 
-.symphony-seat-placed {
-  background: hsl(152 55% 42%);
-}
-
-.dark .symphony-seat-placed {
-  background: hsl(152 55% 52%);
+/* Shared by the segment meter and the bar it falls back to above 14 seats —
+   one token, so the two can't disagree in either theme. */
+.symphony-seat-placed,
+.symphony-progress-placed {
+  background: hsl(var(--symphony-placed));
 }
 
 .symphony-seat-forward {

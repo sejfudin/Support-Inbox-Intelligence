@@ -35,13 +35,8 @@ exports.getStaffingRequest = async (req, res, next) => {
 
 exports.createStaffingRequest = async (req, res, next) => {
   try {
-    const { request, duplicateOf } = await staffingRequestService.createStaffingRequest(
-      req.user,
-      req.body
-    );
-    res
-      .status(201)
-      .json({ success: true, message: 'Staffing request created', data: { request, duplicateOf } });
+    const request = await staffingRequestService.createStaffingRequest(req.user, req.body);
+    res.status(201).json({ success: true, message: 'Staffing request created', data: request });
   } catch (error) {
     handleError(res, error, next);
   }

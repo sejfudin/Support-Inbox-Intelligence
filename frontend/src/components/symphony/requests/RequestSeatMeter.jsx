@@ -38,7 +38,7 @@ export function RequestSeatMeter({ wanted, putForward, placed, showLabel = true,
         <div className="symphony-progress" role="img" aria-label={label}>
           <div className="flex h-full w-full">
             <div
-              className="h-full rounded-l-full bg-[hsl(152_55%_42%)]"
+              className="symphony-progress-placed h-full rounded-l-full"
               style={{ width: `${pct(placedSeats)}%` }}
             />
             <div

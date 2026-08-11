@@ -1,15 +1,11 @@
 import apiClient from '@/api/axios';
 
-export const fetchStaffingRequests = async ({ status, mine } = {}) => {
+export const fetchStaffingRequests = async ({ status, mine, projectId } = {}) => {
   const params = {};
   if (status) params.status = status;
   if (mine) params.mine = 'true';
+  if (projectId) params.projectId = projectId;
   const { data } = await apiClient.get('/staffing-requests', { params });
-  return data.data;
-};
-
-export const fetchStaffingRequest = async (id) => {
-  const { data } = await apiClient.get(`/staffing-requests/${id}`);
   return data.data;
 };
 
@@ -33,10 +29,5 @@ export const closeStaffingRequest = async (id, payload) => {
 
 export const reopenStaffingRequest = async (id) => {
   const { data } = await apiClient.post(`/staffing-requests/${id}/reopen`);
-  return data.data;
-};
-
-export const setStaffingRequestNote = async (id, payload) => {
-  const { data } = await apiClient.patch(`/staffing-requests/${id}/note`, payload);
   return data.data;
 };

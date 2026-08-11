@@ -52,12 +52,20 @@ The reference-data scripts (`seed:positions`, `seed:technologies`) only upsert m
 rows with `$setOnInsert` and are safe to run anywhere. `seed:recommendations` is additive and
 idempotent — it is the one dataset script that is safe to point at a shared dev database.
 
+`seed:staffing-requests` is a fourth destructive one, but **narrowly** so: it deletes every
+`StaffingRequest` and only those `Recommendation`s carrying a `staffingRequest` reference.
+Interns, projects, users, ordinary recommendations and reference data are untouched, so unlike
+`seed:demo` it can be pointed at the shared dev cluster — at the cost of every staffing request
+there. It takes `--dry-run`.
+
 ```bash
 # server/
 npm run seed:demo   # RECOMMENDED — coherent demo dataset (see below)
 npm run seed        # destructive reset + demo workspace + admin@test.com / mentor@test.com
 npm run seed:test   # richer dataset (Symphony staff + interns, password: "password")
 npm run seed:recommendations            # ADDITIVE: top up the placement pipeline, see below
+npm run seed:staffing-requests          # NARROWLY DESTRUCTIVE: staffing requests + their recommendations only
+npm run seed:staffing-requests -- --dry-run  # inspect the target, change nothing
 npm run seed:positions
 npm run seed:technologies               # NON-destructive: adds missing technologies, see below
 npm run backfill:intern-positions
@@ -308,10 +316,18 @@ script and a new step here, in the same change that alters the model.
 ## Verifying a change
 
 There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers pure helpers —
-`slugify`, `dailyRules`, `cvTechnologyMatcher`, `cvTechnologySync` (`helpers/*.test.js`) — plus two
-services that mock Mongo and Supabase: `internCvService` (`services/internCvService.test.js`), for
-the CV re-upload → technology replacement wiring, and `internService`
-(`services/internService.test.js`), for the CV-scan provenance prune on a manual technology save.
+`slugify`, `dailyRules`, `cvTechnologyMatcher`, `cvTechnologySync`, `staffingRequestRules`
+(`helpers/*.test.js`) — plus three services that mock Mongo and Supabase: `internCvService`
+(`services/internCvService.test.js`), for the CV re-upload → technology replacement wiring,
+`internService` (`services/internService.test.js`), for the CV-scan provenance prune on a manual
+technology save, and `staffingRequestService` (`services/staffingRequestService.test.js`), for the
+close/reopen wiring around the rules helper — which note field each close reason writes, and the
+403-vs-400 split.
+
+`npm test` in `frontend/` (vitest) is narrower still: pure helpers under `src/helpers/*.test.js`,
+including `staffingRequests.test.js` for the presentation predicates that read `progress`. No
+component is rendered in a test anywhere.
+
 Run them when you touch any of those, but they still prove nothing about a route, a query or a
 screen. To confirm a change works, drive the real app:
 

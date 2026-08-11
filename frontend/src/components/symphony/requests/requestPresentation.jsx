@@ -1,6 +1,7 @@
 import { format, differenceInCalendarDays, isValid } from 'date-fns';
-import { AlertTriangle, CheckCircle2, Clock, FolderPlus } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, FolderPlus, UserRoundX } from 'lucide-react';
 import { hasNobodyPutForward, isAwaitingProject, isDemandMet } from '@/helpers/staffingRequests';
+import { isActivePipelineRecommendation } from '@/helpers/recommendations';
 
 // `client` is optional on a draft project and `project` may be absent
 // altogether, so the title has to survive every combination rather than
@@ -11,11 +12,6 @@ export const getRequestTitle = (request) => {
   const draft = request?.draftProject;
   if (!draft?.name) return 'Untitled request';
   return draft.client ? `${draft.client} — ${draft.name}` : draft.name;
-};
-
-export const getRequestSubtitle = (request) => {
-  if (request?.project?.name) return request.project.client ?? '';
-  return request?.draftProject?.description ?? '';
 };
 
 export const formatDay = (value) => {
@@ -60,6 +56,15 @@ export const getNeededBy = (request, today = new Date()) => {
 };
 
 /**
+ * Interns still mid-pipeline (recommended / interviewing) on a request. Closing
+ * a request resolves none of them — cancelling changes nothing about anyone
+ * already put forward — so on a closed request they are people left waiting on
+ * an answer nobody is coming to give.
+ */
+export const getLeftoverSuggestions = (request) =>
+  (request?.suggestions ?? []).filter(isActivePipelineRecommendation);
+
+/**
  * The one thing this request most needs someone to notice, or null. Derived
  * from the counts — deliberately NOT a status, so it renders as a banner rather
  * than as another pill competing with open/closed.
@@ -69,7 +74,23 @@ export const getNeededBy = (request, today = new Date()) => {
  * cases. Only the first applicable one shows; a stack of banners is noise.
  */
 export const getRequestBlocker = (request, today = new Date()) => {
-  if (!request || request.status === 'closed') return null;
+  if (!request) return null;
+
+  // A closed request has exactly one thing left worth saying, and it is not
+  // about the request: the people stranded on it. Everything else below is
+  // about filling seats, which a closed request is no longer trying to do.
+  if (request.status === 'closed') {
+    const leftover = getLeftoverSuggestions(request);
+    if (leftover.length === 0) return null;
+    return {
+      tone: 'warning',
+      Icon: UserRoundX,
+      text:
+        leftover.length === 1
+          ? 'One intern is still open on this closed request. Closing it resolved nothing for them — they need placing, marking not placed, or reassigning to another request.'
+          : `${leftover.length} interns are still open on this closed request. Closing it resolved nothing for them — they need placing, marking not placed, or reassigning to another request.`,
+    };
+  }
 
   if (isAwaitingProject(request)) {
     return {
