@@ -114,36 +114,32 @@ staffingRequestSchema.path('requestedPositions').validate(function validateNoDup
   return true;
 }, 'A position may appear at most once per request');
 
-staffingRequestSchema.pre('validate', function enforceExclusiveProjectIdentity(next) {
+// Throw rather than call a `next` callback — Mongoose 9 dropped callback-style
+// middleware, and a `function (next)` hook here fails with "next is not a
+// function" on every save (see the identical note in ReadinessFlag.js).
+staffingRequestSchema.pre('validate', function enforceExclusiveProjectIdentity() {
   const hasProject = Boolean(this.project);
   const hasDraftProject = Boolean(this.draftProject);
   if (hasProject === hasDraftProject) {
-    next(new Error('Exactly one of project or draftProject must be set on a staffing request'));
-    return;
+    throw new Error('Exactly one of project or draftProject must be set on a staffing request');
   }
-  next();
 });
 
-staffingRequestSchema.pre('validate', function enforceCloseFields(next) {
+staffingRequestSchema.pre('validate', function enforceCloseFields() {
   if (this.status === 'closed') {
     if (!this.reason) {
-      next(new Error('A closed staffing request must carry a reason'));
-      return;
+      throw new Error('A closed staffing request must carry a reason');
     }
     if (!this.closedBy) {
-      next(new Error('A closed staffing request must carry who closed it'));
-      return;
+      throw new Error('A closed staffing request must carry who closed it');
     }
     if (!this.closedAt) {
-      next(new Error('A closed staffing request must carry when it was closed'));
-      return;
+      throw new Error('A closed staffing request must carry when it was closed');
     }
     if (this.reason === 'declined' && !this.note?.trim()) {
-      next(new Error('Declining a staffing request requires a non-empty note'));
-      return;
+      throw new Error('Declining a staffing request requires a non-empty note');
     }
   }
-  next();
 });
 
 module.exports = mongoose.model('StaffingRequest', staffingRequestSchema);

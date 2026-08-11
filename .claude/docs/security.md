@@ -216,6 +216,34 @@ Three things to preserve when touching `adminDashboardService.js`:
   member's currently *active* workspace — scoping on it silently omits interns who belong to this
   workspace but are switched into another one.
 
+## Staffing requests — first leadership write path
+
+`/api/staffing-requests` (`server/routes/staffingRequests.js`,
+`server/services/staffingRequestService.js`) is the **first route on the platform that admits
+`ROLES.LEADERSHIP` for a write** — no other feature's middleware default covers this, so every
+route guards explicitly rather than inheriting one. Not workspace-scoped (intern/project domain,
+same exception as `Project`/`Recommendation` above).
+
+- **Read** (`GET /`, `GET /:id`): `requireRole(ADMIN, LEADERSHIP)` at the route, plus
+  `assertReadAccess` at the service layer. Every request, regardless of author — leadership can
+  cover for a colleague.
+- **Create** (`POST /`): `requireRole(LEADERSHIP)` only — an admin cannot file one. Recorded demand
+  must trace back to an outside ask that came through leadership.
+- **Update / cancel** (`PATCH /:id`, `POST /:id/cancel`): route-gated to `ADMIN`/`LEADERSHIP`
+  (mentors/interns 403 before the resource even loads), then narrowed in
+  `assertWriteAccess`/`assertCanClose` to **the request's own author, or any admin** — a leadership
+  user who didn't file it gets the same 403 a mentor would, one level later. Edit legality (closed
+  request rejects every edit, count floor, duplicate/locked position) is enforced by calling into
+  `helpers/staffingRequestRules.js`, never re-implemented in the service.
+- **Mentors and interns get 403 from every route**, including list/read — there is no aggregate-only
+  view for them.
+- **No delete route, ever.** Cancelling (`status: closed`, `reason: cancelled`) is the only way a
+  request goes away; deleting would orphan `Recommendation.staffingRequest` references and the
+  demand history that justifies the feature.
+- Filing against a project that already has an open request is **allowed, not rejected** — the
+  create response includes `duplicateOf: { author, filedAt }` from the existing one so the caller
+  can warn, never block. A second wave of demand months later is legitimately its own request.
+
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.

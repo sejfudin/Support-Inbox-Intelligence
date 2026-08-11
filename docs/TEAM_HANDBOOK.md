@@ -31,7 +31,10 @@
 - Can edit workspaces (add a workspace image, add backlog statuses, add categories like bug/feature/etc.)
 
 **Leadership**
-- Read-only, no write permissions anywhere
+- Otherwise read-only; the one exception is staffing requests (below)
+- Only role that can file a staffing request (recorded demand for interns on a project, with an
+  outside-context note); can also edit or cancel a request they filed themselves — not a
+  colleague's. Sees every staffing request from every author, same as admin
 - Sees all interns and all their profiles (not just assigned ones, unlike a mentor)
 - Sees all recommendations (created exclusively by admin), but can't create/edit them
 - Sees programme-wide statistics, the funnel/"In Selection" dashboard
