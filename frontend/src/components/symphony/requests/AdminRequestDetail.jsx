@@ -219,18 +219,27 @@ export function AdminRequestDetail({
                   {refusal}
                 </p>
               )}
-              {/* Answering "no" is the same size of act as answering "yes", but
-                  it is the rarer one, so it sits under the slot as a link rather
-                  than competing with it as a second button. */}
-              <button
-                type="button"
-                onClick={() => setCloseReason('declined')}
-                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                data-test="request-decline"
-              >
-                Decline this request
-              </button>
             </>
+          )}
+          {/* Answering "no" outlives whichever primary action is in the slot, so
+              it sits below the branch rather than inside one of them. A request
+              that still needs a project is exactly when an admin wants to
+              decline — there is no capacity, and resolving a project first just
+              to refuse the ask is busywork. The server agrees: only `fulfilled`
+              is refused while the project is a draft.
+
+              Still a link, not a button: it is the rarer answer, and a
+              destructive button beside "Submit 3 picks to leadership" competes
+              with the action the admin came here for. */}
+          {isOpen && (
+            <button
+              type="button"
+              onClick={() => setCloseReason('declined')}
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              data-test="request-decline"
+            >
+              Decline this request
+            </button>
           )}
         </div>
       </div>

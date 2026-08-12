@@ -127,6 +127,12 @@ const formatRecommendation = (recommendation, statusDates = {}) => {
       decidedBy: formatUser(plain.result?.decidedBy),
       // The intern's first day on the project; null while it is still unknown.
       startDate: plain.result?.startDate || null,
+      // Whether this `not_placed` came from demand ending rather than from a
+      // decision about the intern. The internal audience needs it at least as
+      // much as the intern does: without it, a record the close-out cascade
+      // wrote and a genuine rejection read identically here too, and the
+      // `result.note` beside it was written about the request, not the person.
+      demandEnded: Boolean(plain.result?.demandEnded),
     },
     // Date each tracked status was applied. The document's own statusDates are
     // authoritative (author-editable, support skipping interviewing); records
