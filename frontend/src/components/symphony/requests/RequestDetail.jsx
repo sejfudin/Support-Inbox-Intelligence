@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { getPositionProgressRows } from '@/helpers/staffingRequests';
 import { RequestActions } from './RequestActions';
-import { RequestHistoryTrail } from './RequestHistoryTrail';
+import { RequestClosure } from './RequestClosure';
 import { RequestNote } from './RequestNote';
 import { RequestPositionGroup } from './RequestPositionGroup';
 import { RequestStatStrip } from './RequestStatStrip';
@@ -67,20 +67,14 @@ export function RequestDetail({ request, canManage, onEdit, onClose }) {
 
       <RequestStatStrip request={request} />
 
-      {/* Why it was cancelled, kept apart from the admin's note — the two are
-          different fields and different voices. */}
-      {request.closeNote?.trim() && (
-        <section className="space-y-1">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
-            Why it was closed
-          </p>
-          <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-            {request.closeNote}
-          </p>
-        </section>
+      {/* The admin's note, except when it IS the close reason — a decline stores
+          its mandatory reason in `note`, and the closure panel below already
+          gives that text the prominence it earned. A cancellation keeps both:
+          `closeNote` is why the ask went away, `note` is what the admin said
+          about it, two fields and two voices. */}
+      {(request.status !== 'closed' || request.reason === 'cancelled') && (
+        <RequestNote request={request} />
       )}
-
-      <RequestNote request={request} />
 
       <div className="divide-y divide-border/60 border-t border-border/60">
         {rows.length === 0 ? (
@@ -90,7 +84,9 @@ export function RequestDetail({ request, canManage, onEdit, onClose }) {
         )}
       </div>
 
-      <RequestHistoryTrail requestId={request.id} />
+      {/* Last, because it is the end of the story, and because on an open request
+          there is nothing here at all. */}
+      <RequestClosure request={request} />
     </SymphonyCard>
   );
 }

@@ -15,6 +15,7 @@ import { useTechnologies } from '@/queries/technologies';
 import { countStagedPicks } from '@/hooks/useStagedPicks';
 import { AdminRequestSeatGroup } from './AdminRequestSeatGroup';
 import { CloseRequestDialog } from './CloseRequestDialog';
+import { RequestClosure } from './RequestClosure';
 import { RequestNote } from './RequestNote';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { ResolveProjectDialog } from './ResolveProjectDialog';
@@ -247,18 +248,9 @@ export function AdminRequestDetail({
         />
       )}
 
-      {request.closeNote?.trim() && (
-        <section className="space-y-1">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
-            Why it was closed
-          </p>
-          <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-            {request.closeNote}
-          </p>
-        </section>
-      )}
-
-      <RequestNote request={request} />
+      {/* See `RequestDetail` for why a decline's note is withheld here: the
+          closure panel at the foot of the card is already showing that text. */}
+      {(isOpen || request.reason === 'cancelled') && <RequestNote request={request} />}
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between gap-3">
@@ -300,6 +292,10 @@ export function AdminRequestDetail({
           )}
         </div>
       </div>
+
+      {/* How it ended, for a request that has. Replaces the history trail, which
+          listed the close as one event among equals and never said why. */}
+      <RequestClosure request={request} />
 
       {/* Answering "no" lives in its own footer, past the seats, rather than
           beside the primary action. Two reasons: it applies whichever action is
