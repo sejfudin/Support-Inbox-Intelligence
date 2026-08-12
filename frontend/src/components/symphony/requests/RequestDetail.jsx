@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
@@ -34,6 +35,19 @@ const Blocker = ({ blocker }) => (
 export function RequestDetail({ request, canManage, onEdit, onClose }) {
   const rows = getPositionProgressRows(request);
   const blocker = getRequestBlocker(request);
+
+  // Which cards the reader has opened, `{ [positionId]: bool }`. Absent means
+  // closed: every position starts compact, so a four-position request is four
+  // readable lines rather than a pane to scroll before seeing what was asked for.
+  // Owned here rather than in the card so `Collapse all` can mean something.
+  const [expanded, setExpandedState] = useState({});
+  const setExpanded = useCallback(
+    (positionId, next) => setExpandedState((current) => ({ ...current, [positionId]: next })),
+    []
+  );
+  const anyExpanded = rows.some((row) => expanded[row.id]);
+  const toggleAll = () =>
+    setExpandedState(Object.fromEntries(rows.map((row) => [row.id, !anyExpanded])));
 
   return (
     <SymphonyCard className="space-y-5">
@@ -76,12 +90,42 @@ export function RequestDetail({ request, canManage, onEdit, onClose }) {
         <RequestNote request={request} />
       )}
 
-      <div className="divide-y divide-border/60 border-t border-border/60">
-        {rows.length === 0 ? (
-          <p className="py-5 text-sm text-muted-foreground">No positions on this request.</p>
-        ) : (
-          rows.map((row) => <RequestPositionGroup key={row.id} row={row} />)
-        )}
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between gap-3">
+          {/* Not "Seats asked for": the stat strip above already owns that label
+              for its count, and the same words twice on one card read as the
+              same thing twice. These are the positions themselves. */}
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
+            Positions
+          </p>
+          {rows.length > 1 && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-xs text-muted-foreground hover:text-foreground"
+              data-test="toggle-all-positions"
+            >
+              {anyExpanded ? 'Collapse all' : 'Expand all'}
+            </button>
+          )}
+        </div>
+        {/* One card per requested position, each opening on its own — the same
+            unit the admin fills, so both sides talk about the same objects. A
+            divided list read as one long form. */}
+        <div className="space-y-3">
+          {rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No positions on this request.</p>
+          ) : (
+            rows.map((row) => (
+              <RequestPositionGroup
+                key={row.id}
+                row={row}
+                expanded={Boolean(expanded[row.id])}
+                onExpandedChange={(next) => setExpanded(row.id, next)}
+              />
+            ))
+          )}
+        </div>
       </div>
 
       {/* Last, because it is the end of the story, and because on an open request
