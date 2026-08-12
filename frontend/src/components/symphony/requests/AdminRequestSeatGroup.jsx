@@ -122,18 +122,15 @@ export function AdminRequestSeatGroup({
           className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/40"
           data-test={`position-toggle-${row.id}`}
         >
-          {isFilled ? (
+          {/* Only a finished position gets a marker, because "done" is the one
+              thing the summary line underneath cannot say at a glance. An
+              unfilled one carries no icon and no count here — the summary says
+              how many of how many, and saying it twice reads as two numbers. */}
+          {isFilled && (
             <CheckCircle2
               className="h-4 w-4 shrink-0 text-[hsl(var(--symphony-placed))]"
               aria-hidden="true"
             />
-          ) : (
-            <span
-              className="grid h-4 w-4 shrink-0 place-items-center rounded-full border border-dashed border-border text-[0.5rem] font-bold text-muted-foreground"
-              aria-hidden="true"
-            >
-              {row.wanted}
-            </span>
           )}
 
           <span className="min-w-0 flex-1 space-y-0.5">

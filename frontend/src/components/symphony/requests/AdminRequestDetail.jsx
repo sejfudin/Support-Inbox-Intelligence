@@ -6,12 +6,12 @@ import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
 import {
   getPositionProgressRows,
+  getRequestLockLabel,
   getRequestTotals,
   isAwaitingProject,
 } from '@/helpers/staffingRequests';
 import { countStagedPicks } from '@/hooks/useStagedPicks';
 import { AdminRequestSeatGroup } from './AdminRequestSeatGroup';
-import { RequestActions } from './RequestActions';
 import { RequestNote } from './RequestNote';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { ResolveProjectDialog } from './ResolveProjectDialog';
@@ -62,16 +62,16 @@ export function AdminRequestDetail({
   const needsProject = isAwaitingProject(request);
   const canStage = isOpen && !needsProject;
 
-  // Why the button is off, in the button's own words. A disabled control that
-  // doesn't say why is a dead end — and for the draft-project case the fix is
-  // right beside it rather than only in the header.
-  const refusal = !isOpen
-    ? 'This request is closed — nothing more can be sent.'
-    : needsProject
-      ? 'This request names a project that does not exist yet. Recommendations need a real project, so resolve it before sending picks.'
-      : stagedCount === 0
-        ? 'Nothing staged yet. Add candidates to a seat and they collect here.'
-        : null;
+  // One action slot, one action in it. A request that still names a project
+  // nobody created cannot be answered at all, so resolving it *is* the next
+  // step — offering both buttons made the admin choose between a live control
+  // and a dead one. The reason it is dead is not repeated here either: the
+  // blocker banner below already says it, in more words than a button caption
+  // has room for.
+  const refusal =
+    isOpen && !needsProject && stagedCount === 0
+      ? 'Nothing staged yet. Add candidates to a seat and they collect here.'
+      : null;
 
   return (
     <SymphonyCard className="space-y-5">
@@ -80,7 +80,50 @@ export function AdminRequestDetail({
         data-test={`request-detail-${request.id}`}
       >
         <RequestStatusBadge request={request} />
-        <RequestActions request={request} canManage={false} onEdit={() => {}} onClose={() => {}} />
+
+        {/* `RequestActions` is leadership's — its edit / cancel / resolve set is
+            written around `canManage` and the viewer's role. The admin pane has
+            exactly one action, so it renders it itself. */}
+        <div className="flex flex-col items-end gap-1.5">
+          {!isOpen ? (
+            <span className="text-xs text-muted-foreground">
+              Locked · {getRequestLockLabel(request).toLowerCase()}
+              {request.closedBy?.fullname && ` by ${request.closedBy.fullname}`}
+            </span>
+          ) : needsProject ? (
+            <Button
+              type="button"
+              onClick={() => setResolveOpen(true)}
+              className="gap-2"
+              data-test="request-resolve-project"
+            >
+              <FolderPlus className="h-4 w-4" aria-hidden="true" />
+              Resolve project
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                onClick={onSubmit}
+                disabled={stagedCount === 0 || isSubmitting}
+                className="gap-2"
+                data-test="submit-picks"
+              >
+                <Send className="h-4 w-4" aria-hidden="true" />
+                {isSubmitting
+                  ? 'Sending…'
+                  : stagedCount === 0
+                    ? 'Submit to leadership'
+                    : `Submit ${stagedCount} ${stagedCount === 1 ? 'pick' : 'picks'} to leadership`}
+              </Button>
+              {refusal && (
+                <p className="text-right text-xs text-muted-foreground" data-test="submit-refusal">
+                  {refusal}
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="space-y-1">
@@ -119,45 +162,6 @@ export function AdminRequestDetail({
             {neededBy.sub && ` — ${neededBy.sub}`}
           </span>
         </p>
-      </div>
-
-      {/* The one action this screen exists for. Closing and editing are
-          leadership-side or a later ticket; neither competes with it here. */}
-      <div className="space-y-2">
-        <Button
-          type="button"
-          onClick={onSubmit}
-          disabled={Boolean(refusal) || isSubmitting}
-          className="gap-2"
-          data-test="submit-picks"
-        >
-          <Send className="h-4 w-4" aria-hidden="true" />
-          {isSubmitting
-            ? 'Sending…'
-            : stagedCount === 0
-              ? 'Submit to leadership'
-              : `Submit ${stagedCount} ${stagedCount === 1 ? 'pick' : 'picks'} to leadership`}
-        </Button>
-        {refusal && (
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs text-muted-foreground" data-test="submit-refusal">
-              {refusal}
-            </p>
-            {needsProject && isOpen && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 gap-1.5 px-2.5 text-xs"
-                onClick={() => setResolveOpen(true)}
-                data-test="submit-resolve-project"
-              >
-                <FolderPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                Resolve project
-              </Button>
-            )}
-          </div>
-        )}
       </div>
 
       <ResolveProjectDialog open={resolveOpen} onOpenChange={setResolveOpen} request={request} />
