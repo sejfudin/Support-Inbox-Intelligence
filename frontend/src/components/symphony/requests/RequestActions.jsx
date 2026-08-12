@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getRequestLockLabel, isAwaitingProject } from '@/helpers/staffingRequests';
 import { useAuth } from '@/context/AuthContext';
@@ -65,14 +66,22 @@ export function RequestActions({ request, canManage, onEdit, onClose }) {
           Edit
         </Button>
       )}
+      {/* Same treatment as the admin's Decline (see `AdminRequestDetail`): these
+          are the two ways a request ends, they carry the same consequence for
+          whoever is still in selection, and they should not look like different
+          weights of decision on the two shells. Outlined rather than filled —
+          the tone is unmistakable without it becoming the thing the eye lands on
+          first. */}
       {canCancel && (
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={() => onClose('cancelled')}
+          className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
           data-test="request-cancel"
         >
+          <Ban className="h-4 w-4" aria-hidden="true" />
           Cancel request
         </Button>
       )}
