@@ -114,31 +114,68 @@ One discipline's worth of demand inside a staffing request: a `Position`, how ma
 wanted for it, and optionally the technologies they should know. A position appears at most once
 per request — more demand for the same discipline is a higher count, never a second entry. A
 request is a set of requested positions; the interns it asks for in total is the sum of their
-counts, and each is fulfilled and counted separately.
+counts, and each is worked and counted separately.
 _Avoid_: line, line item, slot, opening, role (a role is a platform role — admin/mentor/
 leadership/intern).
 
-**Fulfilling**:
+**Putting interns forward**:
 The admin's response to a staffing request: choosing interns, which **creates recommendations**
 for the request's project. A staffing request holds no intern list of its own — who is being put
-forward, and whether they were placed, is always read off those recommendations. Fulfilling
-therefore means *put forward*, never *placed* — placement is the recommendations' own outcome,
-reached later and per intern.
-_Avoid_: assigning, staffing (as a verb for this act), placing (that is the recommendation's
-outcome, not this act).
+forward, and whether they were placed, is always read off those recommendations. It means *put
+forward*, never *placed* — placement is the recommendations' own outcome, reached later and per
+intern.
+_Avoid_: fulfilling (**fulfilled** is a close reason, below — using it for this act too made one
+word mean both "interns were offered" and "the ask is done"), assigning, staffing (as a verb for
+this act), placing (that is the recommendation's outcome, not this act).
+
+**Closing a request**:
+Ending a staffing request. Terminal — a closed request is never reopened, and there is no delete.
+Exactly one of three reasons, each owned by one role:
+- **Cancelled** — the outside ask evaporated. **Leadership only**: only they speak to the outside
+  party, so only they can state that the demand is gone.
+- **Declined** — the ask is being refused rather than filled. **Admin only**, reason required. This
+  is the answer leadership takes back to whoever asked.
+- **Fulfilled** — the ask is done, whether the counts were met or the outside party said "that's
+  enough". **Admin only.**
+
+Closing always **closes out** whoever is still in selection, whatever the reason.
+_Avoid_: cancelling (as a word for closing generally — it is one specific reason), archiving,
+resolving (that is the draft **project** being resolved), reopening (does not exist).
+
+**Closing out**:
+An intern's still-live recommendation being resolved as **not placed** because the demand behind it
+ended, not because anyone judged them. Happens when the staffing request closes for any reason, or
+when the requested position it was created against is changed or removed. A **placed** intern is
+never closed out — placement is a fact about them, not about the demand.
+_Avoid_: releasing, cancelling (a *request* is cancelled; an *intern* is closed out), withdrawing,
+rejecting (nobody rejected them — that is the whole point).
 
 ## Recommendations & placement
 
 **Put forward**:
-An intern having been offered to a project by an admin — i.e. a recommendation exists for them
-on it — with no outcome yet. The counterpart to **placed**: a request showing "6 put forward,
-2 placed" has six interns offered and two actually on the project. Progress is always reported
-as both numbers; neither alone is meaningful.
+An intern having been offered to a project by an admin — i.e. a recommendation exists for them on
+it. Counts **every** intern ever offered against a requested position, including the ones since
+closed out, so it is a record of effort spent rather than of who is still live. A request's progress
+is therefore always three numbers next to what was wanted: "6 put forward, 0 in selection, 2
+placed" means six were offered, none are still live, and two are on the project. No number is
+meaningful alone, and **put forward** on its own says nothing about whether anyone is still being
+considered.
 _Avoid_: proposed, submitted, shortlisted, sourced (all seen in drafts — this is the one term).
+
+**Demand ended**:
+The mark on a **not-placed** recommendation saying the not-placement was caused by the ask behind it
+ending rather than by a decision about the intern. Set only by **closing out**, never by hand — an
+admin resolving someone deliberately is making a decision, which is the opposite of this. The
+intern's own view renders it as the opportunity having closed before a decision was made about them,
+never as an outcome they earned.
+_Avoid_: cancelled, withdrawn, lapsed, auto-resolved.
 
 **In Selection**:
 The user-facing name for an intern's `recommended` or `interviewing` recommendation status —
-ready and actively being put forward, not yet `resulted`. Already the term used on the
+ready and actively being put forward, not yet `resulted`. On a staffing request it is also a
+**count**: how many of the interns put forward are still live, as distinct from how many were ever
+offered. That distinction is what stops a request whose candidates have all been closed out from
+still reading as though it has a full pipeline. Already the term used on the
 leadership Projects view (`InSelectionModal`, "Skills in selection"); this made the same term the
 canonical one for the leadership Candidates filter and dashboard KPIs, which previously said
 "In Pipeline" / "Pipeline" for the identical concept and confused users on both the leadership and
