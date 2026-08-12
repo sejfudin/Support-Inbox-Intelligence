@@ -13,7 +13,6 @@ const {
   listPutForwardCandidates,
   putInternsForward,
   closeStaffingRequest,
-  reopenStaffingRequest,
   setStaffingRequestNote,
   getStaffingRequestNews,
   markStaffingRequestsSeen,
@@ -23,14 +22,16 @@ const {
 // This is the platform's first leadership write path — no existing route
 // admits ROLES.LEADERSHIP for a write, so nothing here leans on a middleware
 // default. Reads: all leadership and all admins. Create: leadership only.
-// Update/close/reopen: role-gated here to admin+leadership, narrowed to
-// author-or-admin in the service. Note: admin only — leadership must not write
-// a note onto its own ask. Mentors and interns get 403 from every route below.
-// There is no delete route, ever — closing as `cancelled` is the eraser.
+// Update: role-gated here to admin+leadership, narrowed to author-or-admin in
+// the service. Close: role-gated here to admin+leadership, split per reason in
+// the service. Note: admin only — leadership must not write a note onto its own
+// ask. Mentors and interns get 403 from every route below. There is no delete
+// route, ever — closing as `cancelled` is the eraser, and there is no reopen
+// either: `closed` is terminal (ADR 0005).
 //
 // `POST /:id/close` takes the reason in the body rather than being three
 // routes, because the per-reason permission split already lives in one place
-// (`assertCanClose`): cancel is author-or-admin, fulfil and decline are
+// (`assertCanClose`): cancel is leadership-only, fulfil and decline are
 // admin-only, and decline requires a note. A `requireRole(ADMIN)` on a
 // fulfil-only route would duplicate half that rule in the router and leave the
 // two copies free to drift.
@@ -87,12 +88,6 @@ router.post(
   protect,
   requireRole(ROLES.ADMIN, ROLES.LEADERSHIP),
   closeStaffingRequest
-);
-router.post(
-  '/:id/reopen',
-  protect,
-  requireRole(ROLES.ADMIN, ROLES.LEADERSHIP),
-  reopenStaffingRequest
 );
 
 module.exports = router;

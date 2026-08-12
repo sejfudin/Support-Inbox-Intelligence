@@ -56,13 +56,32 @@ export const getNeededBy = (request, today = new Date()) => {
 };
 
 /**
- * Interns still mid-pipeline (recommended / interviewing) on a request. Closing
- * a request resolves none of them — cancelling changes nothing about anyone
- * already put forward — so on a closed request they are people left waiting on
- * an answer nobody is coming to give.
+ * Interns still mid-pipeline (recommended / interviewing) on a request — the
+ * ones a close would close out. On an open request this is the number the close
+ * dialog has to name before anyone confirms; on a closed one it should be zero,
+ * because closing resolved them.
  */
 export const getLeftoverSuggestions = (request) =>
   (request?.suggestions ?? []).filter(isActivePipelineRecommendation);
+
+/**
+ * The candidates a close would actually close out — the leftovers, narrowed to
+ * the positions the request still asks for.
+ *
+ * That narrowing is not cosmetic: it mirrors `selectCloseOutRecommendations` on
+ * the server, and without it the close dialog can promise to close out an intern
+ * the cascade will leave alone, and demand a reason the server doesn't want.
+ */
+export const getCloseOutSuggestions = (request) => {
+  const requested = new Set(
+    (request?.requestedPositions ?? []).map((requestedPosition) =>
+      String(requestedPosition.position?._id ?? requestedPosition.position)
+    )
+  );
+  return getLeftoverSuggestions(request).filter((suggestion) =>
+    requested.has(String(suggestion.position))
+  );
+};
 
 /**
  * The one thing this request most needs someone to notice, or null. Derived
@@ -77,23 +96,29 @@ export const getRequestBlocker = (request, today = new Date()) => {
   if (!request) return null;
 
   // A closed request has exactly one thing left worth saying, and it is not
-  // about the request: the people stranded on it. Everything else below is
-  // about filling seats, which a closed request is no longer trying to do.
+  // about the request: anyone still open on it. Closing closes out every
+  // candidate in selection for a position the request asked for, so this should
+  // be empty — a leftover means a recommendation tagged here for a position the
+  // request no longer lists, which the cascade deliberately does not touch.
+  // Everything else below is about filling seats, which a closed request is no
+  // longer trying to do.
   if (request.status === 'closed') {
     const leftover = getLeftoverSuggestions(request);
     if (leftover.length === 0) return null;
     return {
+      key: 'leftover',
       tone: 'warning',
       Icon: UserRoundX,
       text:
         leftover.length === 1
-          ? 'One intern is still open on this closed request. Closing it resolved nothing for them — they need placing, marking not placed, or reassigning to another request.'
-          : `${leftover.length} interns are still open on this closed request. Closing it resolved nothing for them — they need placing, marking not placed, or reassigning to another request.`,
+          ? 'One intern is still open on this closed request, for a position it no longer asks for — so closing it resolved nothing for them. They need placing, marking not placed, or reassigning to another request.'
+          : `${leftover.length} interns are still open on this closed request, for positions it no longer asks for — so closing it resolved nothing for them. They need placing, marking not placed, or reassigning to another request.`,
     };
   }
 
   if (isAwaitingProject(request)) {
     return {
+      key: 'needs-project',
       tone: 'warning',
       Icon: FolderPlus,
       text: 'Needs project — this request names a project that does not exist yet. Nobody can be put forward until an admin links or creates one.',
@@ -102,6 +127,7 @@ export const getRequestBlocker = (request, today = new Date()) => {
 
   if (isDemandMet(request)) {
     return {
+      key: 'demand-met',
       tone: 'success',
       Icon: CheckCircle2,
       text: 'Every seat is placed. Nothing closes a request automatically — an admin still needs to close it as fulfilled.',
@@ -111,6 +137,7 @@ export const getRequestBlocker = (request, today = new Date()) => {
   const neededBy = getNeededBy(request, today);
   if (neededBy.overdue) {
     return {
+      key: 'overdue',
       tone: 'warning',
       Icon: AlertTriangle,
       text: `The needed-by date passed ${neededBy.sub?.replace(' overdue', '')} ago and the seats are not filled.`,
@@ -119,6 +146,7 @@ export const getRequestBlocker = (request, today = new Date()) => {
 
   if (hasNobodyPutForward(request)) {
     return {
+      key: 'nobody-put-forward',
       tone: 'info',
       Icon: Clock,
       text: 'Nobody has been put forward yet. Waiting on an admin to suggest candidates.',

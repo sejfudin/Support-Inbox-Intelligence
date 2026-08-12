@@ -8,8 +8,7 @@ const {
   assertCanPutForward,
   assertCanClose,
   applyClose,
-  assertCanReopen,
-  applyReopen,
+  selectCloseOutRecommendations,
   deriveUnreadStaffingRequestIds,
 } = require('./staffingRequestRules');
 
@@ -474,34 +473,47 @@ describe('assertRequestedPositionsEditable', () => {
   });
 });
 
+// Leadership withdraws, admin answers — one sentence, and every case below is
+// a reading of it.
 describe('assertCanClose', () => {
-  it('allows the author to cancel', () => {
+  it('allows any leadership user to cancel, author or not', () => {
     expect(() =>
-      assertCanClose(baseRequest(), { isAdmin: false, isAuthor: true, reason: 'cancelled' })
+      assertCanClose(baseRequest(), { isAdmin: false, isLeadership: true, reason: 'cancelled' })
     ).not.toThrow();
   });
 
-  it('allows an admin to cancel someone else’s request', () => {
+  it('rejects an admin cancelling — only leadership speaks for the demand', () => {
     expect(() =>
-      assertCanClose(baseRequest(), { isAdmin: true, isAuthor: false, reason: 'cancelled' })
-    ).not.toThrow();
+      assertCanClose(baseRequest(), { isAdmin: true, isLeadership: false, reason: 'cancelled' })
+    ).toThrow(/leadership/i);
   });
 
-  it('rejects cancel from a non-author, non-admin', () => {
+  it('rejects cancel from neither admin nor leadership', () => {
     expect(() =>
-      assertCanClose(baseRequest(), { isAdmin: false, isAuthor: false, reason: 'cancelled' })
+      assertCanClose(baseRequest(), { isAdmin: false, isLeadership: false, reason: 'cancelled' })
     ).toThrow();
   });
 
-  it('rejects a non-admin closing as fulfilled', () => {
+  it('rejects leadership closing as fulfilled', () => {
     expect(() =>
-      assertCanClose(baseRequest(), { isAdmin: false, isAuthor: true, reason: 'fulfilled' })
-    ).toThrow();
+      assertCanClose(baseRequest(), { isAdmin: false, isLeadership: true, reason: 'fulfilled' })
+    ).toThrow(/admin/i);
+  });
+
+  it('rejects leadership declining', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), {
+        isAdmin: false,
+        isLeadership: true,
+        reason: 'declined',
+        note: 'No capacity',
+      })
+    ).toThrow(/admin/i);
   });
 
   it('allows an admin to close as fulfilled', () => {
     expect(() =>
-      assertCanClose(baseRequest(), { isAdmin: true, isAuthor: false, reason: 'fulfilled' })
+      assertCanClose(baseRequest(), { isAdmin: true, isLeadership: false, reason: 'fulfilled' })
     ).not.toThrow();
   });
 
@@ -509,7 +521,7 @@ describe('assertCanClose', () => {
     expect(() =>
       assertCanClose(baseRequest(), {
         isAdmin: true,
-        isAuthor: false,
+        isLeadership: false,
         reason: 'declined',
         note: '  ',
       })
@@ -520,7 +532,7 @@ describe('assertCanClose', () => {
     expect(() =>
       assertCanClose(baseRequest(), {
         isAdmin: true,
-        isAuthor: false,
+        isLeadership: false,
         reason: 'declined',
         note: 'No budget this quarter',
       })
@@ -530,21 +542,75 @@ describe('assertCanClose', () => {
   it('rejects closing an already-closed request', () => {
     const request = baseRequest({ status: 'closed', reason: 'cancelled' });
     expect(() =>
-      assertCanClose(request, { isAdmin: true, isAuthor: false, reason: 'fulfilled' })
+      assertCanClose(request, { isAdmin: true, isLeadership: false, reason: 'fulfilled' })
     ).toThrow();
+  });
+
+  it('rejects an unknown reason', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), { isAdmin: true, isLeadership: false, reason: 'abandoned' })
+    ).toThrow(/reason/i);
   });
 
   it('rejects closing as fulfilled while the request still needs a project', () => {
     const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
     expect(() =>
-      assertCanClose(request, { isAdmin: true, isAuthor: false, reason: 'fulfilled' })
+      assertCanClose(request, { isAdmin: true, isLeadership: false, reason: 'fulfilled' })
     ).toThrow();
   });
 
   it('allows cancelling a request that still needs a project', () => {
     const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
     expect(() =>
-      assertCanClose(request, { isAdmin: false, isAuthor: true, reason: 'cancelled' })
+      assertCanClose(request, { isAdmin: false, isLeadership: true, reason: 'cancelled' })
+    ).not.toThrow();
+  });
+
+  // The not-placed reason is required exactly when the close will write it onto
+  // someone's record, and not one case earlier.
+  it('requires a not-placed reason when candidates are in selection', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), {
+        isAdmin: false,
+        isLeadership: true,
+        reason: 'cancelled',
+        inSelectionCount: 3,
+      })
+    ).toThrow(/reason/i);
+  });
+
+  it('rejects a blank not-placed reason when candidates are in selection', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), {
+        isAdmin: true,
+        isLeadership: false,
+        reason: 'fulfilled',
+        notPlacedReason: '   ',
+        inSelectionCount: 1,
+      })
+    ).toThrow(/reason/i);
+  });
+
+  it('allows a close with a not-placed reason when candidates are in selection', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), {
+        isAdmin: true,
+        isLeadership: false,
+        reason: 'fulfilled',
+        notPlacedReason: 'The seats went to two other candidates',
+        inSelectionCount: 2,
+      })
+    ).not.toThrow();
+  });
+
+  it('needs no not-placed reason when nobody is in selection', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), {
+        isAdmin: true,
+        isLeadership: false,
+        reason: 'fulfilled',
+        inSelectionCount: 0,
+      })
     ).not.toThrow();
   });
 });
@@ -562,35 +628,75 @@ describe('applyClose', () => {
   });
 });
 
-describe('assertCanReopen', () => {
-  it('allows the author to reopen a cancelled request', () => {
-    const request = baseRequest({ status: 'closed', reason: 'cancelled' });
-    expect(() => assertCanReopen(request, { isAdmin: false, isAuthor: true })).not.toThrow();
+describe('selectCloseOutRecommendations', () => {
+  it('selects the candidates still in selection', () => {
+    const selected = selectCloseOutRecommendations(
+      [
+        recommendation({ status: 'recommended' }),
+        recommendation({ status: 'interviewing' }),
+        recommendation({ position: QA, status: 'recommended' }),
+      ],
+      [FRONTEND, QA]
+    );
+    expect(selected).toHaveLength(3);
   });
 
-  it('allows an admin to reopen a fulfilled request', () => {
-    const request = baseRequest({ status: 'closed', reason: 'fulfilled' });
-    expect(() => assertCanReopen(request, { isAdmin: true, isAuthor: false })).not.toThrow();
+  it('leaves placed interns alone', () => {
+    const selected = selectCloseOutRecommendations(
+      [recommendation({ outcome: 'placed' })],
+      [FRONTEND]
+    );
+    expect(selected).toEqual([]);
   });
 
-  it('rejects reopening from a non-author, non-admin', () => {
-    const request = baseRequest({ status: 'closed', reason: 'cancelled' });
-    expect(() => assertCanReopen(request, { isAdmin: false, isAuthor: false })).toThrow();
+  it('leaves candidates already resolved as not placed alone', () => {
+    const selected = selectCloseOutRecommendations(
+      [recommendation({ outcome: 'not_placed' })],
+      [FRONTEND]
+    );
+    expect(selected).toEqual([]);
   });
 
-  it('rejects reopening a request that is already open', () => {
-    expect(() => assertCanReopen(baseRequest(), { isAdmin: true, isAuthor: false })).toThrow();
+  it('takes only the in-selection ones out of a mixed set', () => {
+    const live = recommendation({ status: 'interviewing' });
+    const selected = selectCloseOutRecommendations(
+      [recommendation({ outcome: 'placed' }), live, recommendation({ outcome: 'not_placed' })],
+      [FRONTEND]
+    );
+    expect(selected).toEqual([live]);
   });
-});
 
-describe('applyReopen', () => {
-  it('clears reason, closedBy and closedAt', () => {
-    expect(applyReopen()).toEqual({
-      status: 'open',
-      reason: null,
-      closedBy: null,
-      closedAt: null,
-    });
+  it('selects nobody when nobody is in selection', () => {
+    expect(selectCloseOutRecommendations([], [FRONTEND])).toEqual([]);
+  });
+
+  // The same recommendation this ignores is the one deriveProgress ignores: it
+  // is not attributable to any position the close is ending.
+  it('ignores a tagged recommendation whose position is not among the ones ending', () => {
+    const selected = selectCloseOutRecommendations(
+      [recommendation({ position: OTHER, status: 'interviewing' })],
+      [FRONTEND, QA]
+    );
+    expect(selected).toEqual([]);
+  });
+
+  // Ticket 10's edit path ends one position at a time, so the selector has to
+  // narrow to the positions it is given rather than to the whole request.
+  it('narrows to the positions it is given', () => {
+    const frontend = recommendation({ status: 'recommended' });
+    const selected = selectCloseOutRecommendations(
+      [frontend, recommendation({ position: QA, status: 'recommended' })],
+      [FRONTEND]
+    );
+    expect(selected).toEqual([frontend]);
+  });
+
+  it('matches a populated position document against a requested position id', () => {
+    const selected = selectCloseOutRecommendations(
+      [{ position: { _id: FRONTEND, name: 'Frontend Engineer' }, status: 'interviewing' }],
+      [FRONTEND]
+    );
+    expect(selected).toHaveLength(1);
   });
 });
 

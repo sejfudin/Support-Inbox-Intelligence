@@ -1,8 +1,9 @@
-// Wiring-level cover for the close / reopen / put-forward paths. Who may do
-// what is decided by helpers/staffingRequestRules.js and tested there; what
-// this checks is what the service does around those decisions — which field the
+// Wiring-level cover for the close / note / put-forward paths. Who may do what
+// is decided by helpers/staffingRequestRules.js and tested there; what this
+// checks is what the service does around those decisions — which field the
 // supplied note lands in per reason (they are not interchangeable), that the
-// close markers are written and cleared, that putting interns forward creates
+// close markers are written, that closing runs the close-out cascade and names
+// its consequence in the trail, that putting interns forward creates
 // recommendations tagged to the request with the position forced, and that a
 // "not you" refusal comes back as 403 while an illegal move comes back as 400.
 // Mongo is mocked.
@@ -17,6 +18,7 @@ jest.mock('../models/InternProfile', () => ({ find: jest.fn() }));
 // Supabase config, which throws without env.
 jest.mock('./recommendationService', () => ({
   createRecommendationsForStaffingRequest: jest.fn().mockResolvedValue([]),
+  closeOutRecommendationsForDemandEnd: jest.fn().mockResolvedValue({ closedOutCount: 0 }),
 }));
 jest.mock('./historyService', () => ({ logStaffingRequestEvent: jest.fn().mockResolvedValue() }));
 jest.mock('../socket/events', () => ({ emitStaffingNewsChanged: jest.fn() }));
@@ -24,13 +26,16 @@ jest.mock('../socket/events', () => ({ emitStaffingNewsChanged: jest.fn() }));
 const StaffingRequest = require('../models/StaffingRequest');
 const Recommendation = require('../models/Recommendation');
 const InternProfile = require('../models/InternProfile');
-const { createRecommendationsForStaffingRequest } = require('./recommendationService');
+const {
+  createRecommendationsForStaffingRequest,
+  closeOutRecommendationsForDemandEnd,
+} = require('./recommendationService');
 const { logStaffingRequestEvent } = require('./historyService');
 const { emitStaffingNewsChanged } = require('../socket/events');
 const { ROLES } = require('../constants/roles');
 const {
   closeStaffingRequest,
-  reopenStaffingRequest,
+  setStaffingRequestNote,
   putInternsForward,
 } = require('./staffingRequestService');
 
@@ -87,7 +92,12 @@ const expectHttpError = async (promise, statusCode) => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  closeOutRecommendationsForDemandEnd.mockResolvedValue({ closedOutCount: 0 });
 });
+
+// A recommendation as the close path sees it: tagged to the request, with a
+// position and a pipeline status. In selection unless told otherwise.
+const tagged = ({ position = POSITION_ID, status = 'interviewing' } = {}) => ({ position, status });
 
 describe('putInternsForward', () => {
   // Two Recommendation.find shapes run through this path: the already-put-
@@ -386,6 +396,22 @@ describe('closeStaffingRequest', () => {
     expect(doc.save).not.toHaveBeenCalled();
   });
 
+  it('rejects an admin cancelling with 403 — the withdrawal is leadership’s', async () => {
+    const doc = arrange(mockRequest());
+    await expectHttpError(closeStaffingRequest(admin, REQUEST_ID, { reason: 'cancelled' }), 403);
+    expect(doc.save).not.toHaveBeenCalled();
+  });
+
+  // Cancelling belongs to leadership as a side, not to whoever's name is on the
+  // request — the author may well have left by the time the client pulls out.
+  it('lets a leadership member who is not the author cancel', async () => {
+    const doc = arrange(mockRequest());
+    await closeStaffingRequest(otherLeader, REQUEST_ID, { reason: 'cancelled' });
+
+    expect(doc.status).toBe('closed');
+    expect(doc.reason).toBe('cancelled');
+  });
+
   it('rejects a decline with no note as 400', async () => {
     const doc = arrange(mockRequest());
     await expectHttpError(
@@ -410,14 +436,6 @@ describe('closeStaffingRequest', () => {
     await expectHttpError(closeStaffingRequest(admin, REQUEST_ID, { reason: 'fulfilled' }), 400);
   });
 
-  it('rejects a leadership member who is not the author as 403', async () => {
-    arrange(mockRequest());
-    await expectHttpError(
-      closeStaffingRequest(otherLeader, REQUEST_ID, { reason: 'cancelled' }),
-      403
-    );
-  });
-
   it('404s an unknown request', async () => {
     StaffingRequest.findById.mockResolvedValue(null);
     await expectHttpError(closeStaffingRequest(admin, REQUEST_ID, { reason: 'fulfilled' }), 404);
@@ -427,37 +445,116 @@ describe('closeStaffingRequest', () => {
     await expectHttpError(closeStaffingRequest(admin, 'not-an-id', { reason: 'fulfilled' }), 400);
     expect(StaffingRequest.findById).not.toHaveBeenCalled();
   });
-});
 
-describe('reopenStaffingRequest', () => {
-  it('clears every close marker and keeps the notes as the record', async () => {
-    const doc = arrange(
-      mockRequest({
-        status: 'closed',
-        reason: 'declined',
-        closedBy: ADMIN_ID,
-        closedAt: new Date('2026-07-01T00:00:00.000Z'),
-        note: 'No capacity',
-        noteBy: ADMIN_ID,
+  // The not-placed reason is required by the request's own state, not by the
+  // payload: whoever closes has to answer for the candidates they end.
+  it('rejects a close with candidates in selection and no not-placed reason as 400', async () => {
+    const doc = arrange(mockRequest(), [tagged(), tagged()]);
+    await expectHttpError(closeStaffingRequest(admin, REQUEST_ID, { reason: 'fulfilled' }), 400);
+    expect(doc.save).not.toHaveBeenCalled();
+    expect(closeOutRecommendationsForDemandEnd).not.toHaveBeenCalled();
+  });
+
+  it('ignores a tagged recommendation whose position the request no longer asks for', async () => {
+    const doc = arrange(mockRequest(), [tagged({ position: OTHER_POSITION_ID })]);
+    await closeStaffingRequest(admin, REQUEST_ID, { reason: 'fulfilled' });
+    expect(doc.status).toBe('closed');
+  });
+
+  it('runs the cascade with the shared reason and every requested position', async () => {
+    closeOutRecommendationsForDemandEnd.mockResolvedValue({ closedOutCount: 4 });
+    arrange(mockRequest(), [tagged()]);
+    await closeStaffingRequest(otherLeader, REQUEST_ID, {
+      reason: 'cancelled',
+      notPlacedReason: '  The client withdrew the ask  ',
+    });
+
+    expect(closeOutRecommendationsForDemandEnd).toHaveBeenCalledWith(
+      otherLeader,
+      expect.objectContaining({
+        staffingRequestId: REQUEST_ID,
+        positionIds: [POSITION_ID],
+        reason: 'The client withdrew the ask',
       })
     );
-    await reopenStaffingRequest(author, REQUEST_ID);
+  });
 
-    expect(doc.status).toBe('open');
-    expect(doc.reason).toBeNull();
-    expect(doc.closedBy).toBeNull();
-    expect(doc.closedAt).toBeNull();
-    expect(doc.note).toBe('No capacity');
+  it('appends a history event naming the consequence, and badges the other side', async () => {
+    closeOutRecommendationsForDemandEnd.mockResolvedValue({ closedOutCount: 4 });
+    arrange(mockRequest(), [tagged()]);
+    await closeStaffingRequest(otherLeader, REQUEST_ID, {
+      reason: 'cancelled',
+      notPlacedReason: 'The client withdrew the ask',
+    });
+
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: REQUEST_ID,
+        userId: otherLeader._id,
+        action: 'Cancelled — 4 interns closed out',
+        statusKey: 'staffing:closed',
+      })
+    );
+    expect(emitStaffingNewsChanged).toHaveBeenCalled();
+  });
+
+  it('names one intern in the singular', async () => {
+    closeOutRecommendationsForDemandEnd.mockResolvedValue({ closedOutCount: 1 });
+    arrange(mockRequest(), [tagged()]);
+    await closeStaffingRequest(admin, REQUEST_ID, {
+      reason: 'declined',
+      note: 'No capacity',
+      notPlacedReason: 'We could not staff this',
+    });
+
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'Declined — 1 intern closed out' })
+    );
+  });
+
+  it('logs the bare verb when the close ended nobody’s process', async () => {
+    arrange(mockRequest());
+    await closeStaffingRequest(admin, REQUEST_ID, { reason: 'fulfilled' });
+
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'Closed as fulfilled' })
+    );
+  });
+});
+
+// Notes are the one write a closed request still accepts: with no reopen, this
+// is the only way to annotate a mis-close or cross-reference a refiling.
+describe('setStaffingRequestNote', () => {
+  it('writes a note onto a closed request', async () => {
+    const doc = arrange(mockRequest({ status: 'closed', reason: 'cancelled' }));
+    await setStaffingRequestNote(admin, REQUEST_ID, {
+      note: '  Cancelled in error, refiled as #52  ',
+    });
+
+    expect(doc.note).toBe('Cancelled in error, refiled as #52');
+    expect(String(doc.noteBy)).toBe(ADMIN_ID);
+    expect(doc.noteAt).toBeInstanceOf(Date);
     expect(doc.save).toHaveBeenCalled();
   });
 
-  it('rejects reopening a request that is already open as 400', async () => {
+  it('appends a history event and badges the other side', async () => {
     arrange(mockRequest());
-    await expectHttpError(reopenStaffingRequest(admin, REQUEST_ID), 400);
+    await setStaffingRequestNote(admin, REQUEST_ID, { note: 'Two interviews booked' });
+
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'Note added', statusKey: 'staffing:note' })
+    );
+    expect(emitStaffingNewsChanged).toHaveBeenCalled();
   });
 
-  it('rejects a leadership member who is not the author as 403', async () => {
-    arrange(mockRequest({ status: 'closed', reason: 'cancelled' }));
-    await expectHttpError(reopenStaffingRequest(otherLeader, REQUEST_ID), 403);
+  it('rejects leadership writing a note as 403', async () => {
+    const doc = arrange(mockRequest());
+    await expectHttpError(setStaffingRequestNote(author, REQUEST_ID, { note: 'Mine now' }), 403);
+    expect(doc.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty note as 400', async () => {
+    arrange(mockRequest());
+    await expectHttpError(setStaffingRequestNote(admin, REQUEST_ID, { note: '   ' }), 400);
   });
 });

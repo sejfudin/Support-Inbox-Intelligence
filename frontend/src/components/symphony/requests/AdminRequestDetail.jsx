@@ -14,12 +14,13 @@ import { buildTechnologyIndex } from '@/helpers/technologyIcons';
 import { useTechnologies } from '@/queries/technologies';
 import { countStagedPicks } from '@/hooks/useStagedPicks';
 import { AdminRequestSeatGroup } from './AdminRequestSeatGroup';
+import { CloseRequestDialog } from './CloseRequestDialog';
 import { RequestNote } from './RequestNote';
 import { RequestStatusBadge } from './RequestStatusBadge';
 import { ResolveProjectDialog } from './ResolveProjectDialog';
 import { formatDay, getNeededBy, getRequestBlocker, getRequestTitle } from './requestPresentation';
 
-const Blocker = ({ blocker }) => (
+const Blocker = ({ blocker, action }) => (
   <div
     className={cn(
       'symphony-notice',
@@ -30,7 +31,10 @@ const Blocker = ({ blocker }) => (
     data-test="request-blocker"
   >
     <blocker.Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-    <p>{blocker.text}</p>
+    <div className="min-w-0 flex-1 space-y-2">
+      <p>{blocker.text}</p>
+      {action}
+    </div>
   </div>
 );
 
@@ -40,9 +44,13 @@ const Blocker = ({ blocker }) => (
  * a component — the shared one (`RequestDetail`) stays exactly as leadership
  * needs it.
  *
- * Nothing on this screen writes until `Submit to leadership`. Picks are staged
- * into the page's cart, and the submit sends the whole cart as one act: one
- * insert, one history event, one badge, however many seats it spans.
+ * Picking writes nothing until `Submit to leadership`. Picks are staged into the
+ * page's cart, and the submit sends the whole cart as one act: one insert, one
+ * history event, one badge, however many seats it spans.
+ *
+ * The two ways an admin ends a request live here too — close as fulfilled, and
+ * decline — because both are admin-only. Cancelling is leadership's and is
+ * absent from this screen (see `RequestActions`).
  */
 export function AdminRequestDetail({
   request,
@@ -54,6 +62,10 @@ export function AdminRequestDetail({
   rejections,
 }) {
   const [resolveOpen, setResolveOpen] = useState(false);
+  // Which close dialog is open, if any: 'fulfilled' | 'declined' | null. The
+  // admin owns both of those reasons; cancelling belongs to leadership and is
+  // absent from this screen entirely.
+  const [closeReason, setCloseReason] = useState(null);
   // Which cards the admin has opened or closed by hand, `{ [positionId]: bool }`.
   // Absent means closed: every position starts compact, and the roster behind it
   // is opened on request. A request with four positions is then four readable
@@ -169,7 +181,7 @@ export function AdminRequestDetail({
 
         {/* `RequestActions` is leadership's — its edit / cancel / resolve set is
             written around `canManage` and the viewer's role. The admin pane has
-            exactly one action, so it renders it itself. */}
+            one primary action at a time, so it renders its own slot. */}
         <div className="flex flex-col items-end gap-1.5">
           {!isOpen ? (
             <span className="text-xs text-muted-foreground">
@@ -207,14 +219,51 @@ export function AdminRequestDetail({
                   {refusal}
                 </p>
               )}
+              {/* Answering "no" is the same size of act as answering "yes", but
+                  it is the rarer one, so it sits under the slot as a link rather
+                  than competing with it as a second button. */}
+              <button
+                type="button"
+                onClick={() => setCloseReason('declined')}
+                className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                data-test="request-decline"
+              >
+                Decline this request
+              </button>
             </>
           )}
         </div>
       </div>
 
       <ResolveProjectDialog open={resolveOpen} onOpenChange={setResolveOpen} request={request} />
+      <CloseRequestDialog
+        open={Boolean(closeReason)}
+        onOpenChange={(next) => !next && setCloseReason(null)}
+        request={request}
+        reason={closeReason}
+      />
 
-      {blocker && <Blocker blocker={blocker} />}
+      {blocker && (
+        <Blocker
+          blocker={blocker}
+          // Demand met is a prompt, never an action: nothing closes a request on
+          // its own, because closing writes a mandatory reason onto other
+          // people's records. So the banner carries the button that opens the
+          // dialog — and only on this screen, because only an admin may fulfil.
+          action={
+            blocker.key === 'demand-met' ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setCloseReason('fulfilled')}
+                data-test="request-close-fulfilled"
+              >
+                Close as fulfilled
+              </Button>
+            ) : null
+          }
+        />
+      )}
 
       {request.closeNote?.trim() && (
         <section className="space-y-1">

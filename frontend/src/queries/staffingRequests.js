@@ -8,7 +8,6 @@ import {
   fetchPutForwardCandidates,
   markStaffingRequestsSeen,
   putInternsForward,
-  reopenStaffingRequest,
   resolveStaffingRequestProject,
   resolveStaffingRequestProjectByCreating,
   updateStaffingRequest,
@@ -59,12 +58,20 @@ export const useUpdateStaffingRequest = () => {
   });
 };
 
-// `data` is `{ reason, note? }` — see closeStaffingRequest in api/.
+// `data` is `{ reason, note?, notPlacedReason? }` — see closeStaffingRequest in
+// api/. Closing resolves every candidate still in selection, so it invalidates
+// the same caches putting them forward does: the recommendations and interns
+// that just changed outcome, and the request's own trail.
 export const useCloseStaffingRequest = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }) => closeStaffingRequest(id, data),
-    onSuccess: () => invalidateRequests(queryClient),
+    onSuccess: (_data, { id }) => {
+      invalidateRequests(queryClient);
+      queryClient.invalidateQueries({ queryKey: RECOMMENDATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['staffing-request-history', id] });
+    },
   });
 };
 
@@ -123,14 +130,6 @@ export const usePutInternsForward = () => {
       // it — leadership's pane shows it, so it must not go stale behind them.
       queryClient.invalidateQueries({ queryKey: ['staffing-request-history', id] });
     },
-  });
-};
-
-export const useReopenStaffingRequest = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id }) => reopenStaffingRequest(id),
-    onSuccess: () => invalidateRequests(queryClient),
   });
 };
 

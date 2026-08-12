@@ -124,6 +124,12 @@ reject any non-admin (`leadership` is the one exception, with read-only access).
 no read or write access, on the per-intern tab or the standalone `/recommendations` page. Delete
 performs the same write check before removing the record and its history.
 
+Read that as **only admins write recommendations _directly_**. There is one indirect path: closing a
+staffing request resolves every candidate still in selection for it, and cancelling is
+leadership-only, so a leadership user can cause that write — see "Staffing requests" below and
+`docs/adr/0004`. It goes through `recommendationService.closeOutRecommendationsForDemandEnd`, never
+through the recommendations routes, which stay `requireRole(ADMIN)`.
+
 **Mentor role is narrower than `canWriteMentorData` alone suggests.** That helper (`admin`, or
 `mentor` assigned to the intern) still gates *some* mentor-writable intern data — mentor notes
 (`mentorCommentService.js`) and the `expectedEndDate` field in `updateInternProgramme`
@@ -229,35 +235,58 @@ same exception as `Project`/`Recommendation` above).
   cover for a colleague.
 - **Create** (`POST /`): `requireRole(LEADERSHIP)` only — an admin cannot file one. Recorded demand
   must trace back to an outside ask that came through leadership.
-- **Update / close / reopen** (`PATCH /:id`, `POST /:id/close`, `POST /:id/reopen`): route-gated to
-  `ADMIN`/`LEADERSHIP` (mentors/interns 403 before the resource even loads), then narrowed in
-  `assertWriteAccess`/`assertCanClose` to **the request's own author, or any admin** — a leadership
-  user who didn't file it gets the same 403 a mentor would, one level later. Edit legality (closed
-  request rejects every edit, count floor, duplicate position, a position with recommendations
-  can't be deleted) is enforced by calling into `helpers/staffingRequestRules.js`, never
-  re-implemented in the service. Note there is **no project lock**: putting interns forward does not
-  freeze the project reference, and the `assertProjectEditable` helper that once said otherwise is
-  gone (see `docs/adr/0006`).
+- **Update** (`PATCH /:id`): route-gated to `ADMIN`/`LEADERSHIP` (mentors/interns 403 before the
+  resource even loads), then narrowed in `assertWriteAccess` to **the request's own author, or any
+  admin** — a leadership user who didn't file it gets the same 403 a mentor would, one level later.
+  Edit legality (closed request rejects every edit, count floor, duplicate position, a position with
+  recommendations can't be deleted) is enforced by calling into `helpers/staffingRequestRules.js`,
+  never re-implemented in the service. Note there is **no project lock**: putting interns forward
+  does not freeze the project reference, and the `assertProjectEditable` helper that once said
+  otherwise is gone (see `docs/adr/0006`).
+- **Close** (`POST /:id/close`): route-gated to `ADMIN`/`LEADERSHIP`, then split **per reason** in
+  `assertCanClose`. Deliberately **not** behind `assertWriteAccess`: cancelling belongs to any
+  leadership user, not only the author, so the service asserts the read tier and lets the rules
+  helper decide. **There is no reopen route** — `closed` is terminal (`docs/adr/0005`).
 - **The close reason carries its own authorization**, and it lives in `assertCanClose`, not the
-  router: `cancelled` is author-or-admin, `fulfilled`/`declined` are **admin-only**, and `declined`
+  router. One sentence: **leadership withdraws, admin answers**. `cancelled` is **leadership-only**
+  (any leadership user; an admin gets a 403 — only leadership speaks to the outside party, so only
+  they can state the demand is gone); `fulfilled`/`declined` are **admin-only**, and `declined`
   additionally requires a non-empty note. This is why closing is one route taking `reason` in the
   body rather than three routes — a `requireRole(ADMIN)` on a fulfil-only route would put half the
-  rule in the router and leave the two copies free to drift. A leadership author asking to close
-  their own request as `fulfilled` gets a **403**, not a 400: the rules helper tags authorization
-  refusals with `code: 'FORBIDDEN'` (it stays HTTP-agnostic) and the service maps that code to 403
-  and everything else to 400.
+  rule in the router and leave the two copies free to drift. A leadership user asking to close a
+  request as `fulfilled` gets a **403**, not a 400: the rules helper tags authorization refusals with
+  `code: 'FORBIDDEN'` (it stays HTTP-agnostic) and the service maps that code to 403 and everything
+  else to 400.
+- **Closing writes other people's recommendations, and that is the one place a non-admin does.**
+  Every close resolves each candidate still in selection as `not_placed` with `result.demandEnded`
+  and one shared, mandatory `notPlacedReason`
+  (`recommendationService.closeOutRecommendationsForDemandEnd`). Since cancelling is leadership-only,
+  a leadership user can cause that write and `result.decidedBy` records them — correct, not a bug,
+  they did decide it (`docs/adr/0004`). So the rule stated further up this file reads precisely: only
+  admins write recommendations **directly**; the staffing-request cascade writes them on behalf of
+  whoever legitimately closed the request. There is no batch close-out anywhere outside the
+  staffing-request flows, and no unattended trigger — nothing auto-closes, because the cascade needs
+  a reason nothing unattended can author.
+- **`result.demandEnded` cannot be set through the recommendations API.**
+  `applyResultPayload` ignores the field on `PATCH /recommendations/:id` whatever the payload says.
+  An admin who could set it by hand could label a genuine rejection as the demand ending, and the
+  intern would be told the opportunity was withdrawn when they were actually turned down. It is also
+  the one part of `result` besides the outcome and dates that reaches the intern —
+  `formatOwnRecommendation` still withholds `result.note`, so the reason typed at close time is read
+  only by admins, leadership and mentors.
 - **`PATCH /:id` cannot close anything.** `updateStaffingRequest` only ever writes
   `requestedPositions` and `neededBy` — `status` and `reason` are not accepted, so a close can never
   ride in on a generic edit and bypass `assertCanClose`. Keep it that way.
 - **Where a close note lands depends on the reason**, and the two fields are not interchangeable:
   `cancelled` → `closeNote` (withdrawing an ask must never overwrite an admin's remark);
   `declined` → `note` + `noteBy` + `noteAt`, mandatory; `fulfilled` → `note` if one was supplied.
-  Reopening clears `status`/`reason`/`closedBy`/`closedAt` and deliberately leaves both notes as the
-  record of what happened.
+  The separate `notPlacedReason` never lands on the request at all — it goes to each closed-out
+  recommendation's `result.note`.
 - **Note** (`PATCH /:id/note`): `requireRole(ADMIN)` only, re-asserted in the service. The note is
   the admin's remark back to leadership, so a leadership user — including the request's own author —
-  gets a 403; nobody annotates their own ask. Rejected on a closed request. Saving replaces the
-  previous text: one note per request, deliberately not a thread.
+  gets a 403; nobody annotates their own ask. Saving replaces the previous text: one note per
+  request, deliberately not a thread. **Accepted on a closed request** — it is the only write that
+  is, and with no reopen it is the entire remedy for a mis-close (`docs/adr/0005`).
 - **Putting interns forward** (`GET /:id/positions/:positionId/candidates`,
   `POST /:id/put-forward`) is **admin-only** at the route and re-asserted in
   `assertCanPutForward` — leadership files demand, admins answer it, and there is no author

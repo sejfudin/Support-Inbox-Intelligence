@@ -321,8 +321,9 @@ There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers pur
 (`services/internCvService.test.js`), for the CV re-upload → technology replacement wiring,
 `internService` (`services/internService.test.js`), for the CV-scan provenance prune on a manual
 technology save, and `staffingRequestService` (`services/staffingRequestService.test.js`), for the
-close/reopen wiring around the rules helper — which note field each close reason writes, and the
-403-vs-400 split.
+close / note / put-forward wiring around the rules helper — which note field each close reason
+writes, that closing runs the close-out cascade and names its consequence in the trail, that a
+closed request still accepts a note, and the 403-vs-400 split.
 
 `npm test` in `frontend/` (vitest) is narrower still: pure helpers under `src/helpers/*.test.js`,
 including `staffingRequests.test.js` for the presentation predicates that read `progress`, plus

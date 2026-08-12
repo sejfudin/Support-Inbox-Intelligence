@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getLeftoverSuggestions, getRequestBlocker, getNeededBy } from './requestPresentation';
+import {
+  getCloseOutSuggestions,
+  getLeftoverSuggestions,
+  getRequestBlocker,
+  getNeededBy,
+} from './requestPresentation';
 
 // Only one blocker ever shows, so these assert precedence as much as content.
 
@@ -15,7 +20,10 @@ const openRequest = (overrides = {}) => ({
 });
 
 describe('getRequestBlocker on a closed request', () => {
-  it('names the interns left mid-pipeline, because closing resolved none of them', () => {
+  // Closing closes out everyone in selection for a position the request asked
+  // for, so a leftover can only be someone tagged here for a position it no
+  // longer lists — which the cascade leaves alone on purpose.
+  it('names the interns left mid-pipeline on a position the request dropped', () => {
     const blocker = getRequestBlocker(
       openRequest({
         status: 'closed',
@@ -117,6 +125,54 @@ describe('getLeftoverSuggestions', () => {
 
   it('is empty for a request nobody was suggested for', () => {
     expect(getLeftoverSuggestions({})).toEqual([]);
+  });
+});
+
+// This is the number the close dialog promises and requires a reason off, so it
+// has to agree with the server's `selectCloseOutRecommendations` exactly.
+describe('getCloseOutSuggestions', () => {
+  const request = (suggestions) => ({
+    requestedPositions: [
+      { position: { _id: 'fe' }, count: 1 },
+      { position: 'qa', count: 1 },
+    ],
+    suggestions,
+  });
+
+  it('counts the in-selection candidates on the requested positions', () => {
+    expect(
+      getCloseOutSuggestions(
+        request([
+          { position: 'fe', status: 'recommended' },
+          { position: 'qa', status: 'interviewing' },
+        ])
+      )
+    ).toHaveLength(2);
+  });
+
+  it('leaves out anyone already resolved', () => {
+    expect(
+      getCloseOutSuggestions(
+        request([
+          { position: 'fe', status: 'resulted', outcome: 'placed' },
+          { position: 'fe', status: 'resulted', outcome: 'not_placed' },
+        ])
+      )
+    ).toEqual([]);
+  });
+
+  // The cascade doesn't touch these, so promising to close them out would make
+  // the dialog lie — and would demand a reason the server never asked for.
+  it('leaves out a candidate on a position the request no longer asks for', () => {
+    expect(
+      getCloseOutSuggestions(request([{ position: 'devops', status: 'interviewing' }]))
+    ).toEqual([]);
+  });
+
+  it('matches a populated requested position against a raw suggestion id', () => {
+    expect(
+      getCloseOutSuggestions(request([{ position: 'fe', status: 'interviewing' }]))
+    ).toHaveLength(1);
   });
 });
 

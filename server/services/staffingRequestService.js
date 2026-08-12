@@ -19,13 +19,15 @@ const {
   assertRequestedPositionsEditable,
   assertCanClose,
   applyClose,
-  assertCanReopen,
-  applyReopen,
+  selectCloseOutRecommendations,
   deriveUnreadStaffingRequestIds,
 } = require('../helpers/staffingRequestRules');
 const { slugify } = require('../helpers/slugify');
 const { logStaffingRequestEvent } = require('./historyService');
-const { createRecommendationsForStaffingRequest } = require('./recommendationService');
+const {
+  createRecommendationsForStaffingRequest,
+  closeOutRecommendationsForDemandEnd,
+} = require('./recommendationService');
 const { emitStaffingNewsChanged } = require('../socket/events');
 const InternProfile = require('../models/InternProfile');
 
@@ -63,9 +65,12 @@ const assertCreateAccess = (user) => {
   }
 };
 
-// Editing / cancelling / reopening: the author or any admin. Mentors and
-// interns are rejected by the role-tier gate; leadership members who aren't
-// the author are rejected by the author-or-admin check right after it.
+// Editing: the author or any admin. Mentors and interns are rejected by the
+// role-tier gate; leadership members who aren't the author are rejected by the
+// author-or-admin check right after it. Closing deliberately does NOT come
+// through here — cancelling belongs to leadership as a side, not to one
+// account, so `closeStaffingRequest` runs on the read tier and lets
+// `assertCanClose` decide.
 const assertWriteAccess = (user, request) => {
   assertReadAccess(user);
   const isAuthor = String(request.author) === String(user._id);
@@ -755,9 +760,31 @@ const putInternsForward = async (user, requestId, payload = {}) => {
   return formatRequestWithLookup(request);
 };
 
-// The one close path, for all three reasons. `assertCanClose` owns who may use
-// which reason (cancel: author or admin; fulfil/decline: admin only, and
-// decline needs a note), so this function never re-implements that split.
+// What a close is called in the trail, per reason. The event names its
+// consequence rather than just its verb — a cancellation that ended four live
+// processes is a different fact from one that ended none.
+const CLOSE_EVENT_VERB = {
+  fulfilled: 'Closed as fulfilled',
+  declined: 'Declined',
+  cancelled: 'Cancelled',
+};
+
+// The recommendation-side trail entry for a close-out. Names the cause, because
+// on the recommendation itself there is otherwise nothing to distinguish this
+// from an admin resolving it by hand.
+const CLOSE_OUT_EVENT_ACTION =
+  'Status set to Resulted (the staffing request closed before a decision was made)';
+
+// The one close path, for all three reasons, and the only thing that ends a
+// request — nothing auto-closes, because closing writes a mandatory reason onto
+// other people's records and nothing unattended can author that.
+//
+// `assertCanClose` owns who may use which reason (cancel: leadership only;
+// fulfil/decline: admin only, and decline needs a note), so this function never
+// re-implements that split. It runs on the read tier rather than
+// `assertWriteAccess` for one reason: cancelling belongs to any leadership user,
+// not only to the author, and the author-or-admin check would refuse a
+// colleague of the person who filed it.
 //
 // Where the supplied note lands depends on the reason, and the two fields are
 // not interchangeable:
@@ -767,19 +794,43 @@ const putInternsForward = async (user, requestId, payload = {}) => {
 //               remark — the model enforces both the non-empty text and the
 //               attribution triple.
 //   fulfilled → `note` if one was given, otherwise nothing.
+//
+// `notPlacedReason` is the separate, shared reason written onto every candidate
+// the close resolves; it is required exactly when there is at least one of them.
 const closeStaffingRequest = async (user, requestId, payload = {}) => {
   assertValidObjectId(requestId, 'Staffing request');
   const request = await StaffingRequest.findById(requestId);
   if (!request) throw httpError('Staffing request not found', 404);
 
-  assertWriteAccess(user, request);
+  assertReadAccess(user);
 
   const isAdmin = user.role === ROLES.ADMIN;
-  const isAuthor = String(request.author) === String(user._id);
+  const isLeadership = user.role === ROLES.LEADERSHIP;
   const note = cleanText(payload.note);
+  const notPlacedReason = cleanText(payload.notPlacedReason);
+
+  // Counted before the legality check, because whether the not-placed reason is
+  // required is a fact about the request rather than about the payload.
+  const positionIds = request.requestedPositions.map(
+    (requestedPosition) => requestedPosition.position
+  );
+  const tagged = await Recommendation.find({
+    staffingRequest: request._id,
+    status: { $in: IN_SELECTION_STATUSES },
+  })
+    .select('position status')
+    .lean();
+  const inSelectionCount = selectCloseOutRecommendations(tagged, positionIds).length;
 
   try {
-    assertCanClose(request, { isAdmin, isAuthor, reason: payload.reason, note });
+    assertCanClose(request, {
+      isAdmin,
+      isLeadership,
+      reason: payload.reason,
+      note,
+      notPlacedReason,
+      inSelectionCount,
+    });
   } catch (error) {
     throw asHttpError(error);
   }
@@ -801,34 +852,38 @@ const closeStaffingRequest = async (user, requestId, payload = {}) => {
   }
 
   await request.save();
-  await request.populate(REQUEST_POPULATE);
 
-  return formatRequestWithLookup(request);
-};
-
-// Reopening clears every close marker, so a reopened request is
-// indistinguishable from one that was never closed. `closeNote` and `note`
-// deliberately survive: they are the record of what happened, and the next
-// close writes over them anyway.
-const reopenStaffingRequest = async (user, requestId) => {
-  assertValidObjectId(requestId, 'Staffing request');
-  const request = await StaffingRequest.findById(requestId);
-  if (!request) throw httpError('Staffing request not found', 404);
-
-  assertWriteAccess(user, request);
-
-  const isAdmin = user.role === ROLES.ADMIN;
-  const isAuthor = String(request.author) === String(user._id);
-
+  // The cascade runs after the request is safely closed: if it fails, the
+  // request is still shut and the close-out can be retried, whereas the reverse
+  // order would resolve a dozen people for a request that stayed open.
+  //
+  // The trail is written in a `finally` for the same reason — a close that
+  // happened must appear in the history whether or not the cascade that followed
+  // it did, and a partial close-out is exactly the case someone needs the trail
+  // to reconstruct. On failure `closedOutCount` is still 0, so the event names
+  // the close alone rather than claiming a consequence it can't vouch for.
+  let closedOutCount = 0;
   try {
-    assertCanReopen(request, { isAdmin, isAuthor });
-  } catch (error) {
-    throw asHttpError(error);
+    ({ closedOutCount } = await closeOutRecommendationsForDemandEnd(user, {
+      staffingRequestId: request._id,
+      positionIds,
+      reason: notPlacedReason,
+      action: CLOSE_OUT_EVENT_ACTION,
+    }));
+  } finally {
+    const verb = CLOSE_EVENT_VERB[payload.reason];
+    await logStaffingRequestEvent({
+      entityId: request._id,
+      userId: user._id,
+      action:
+        closedOutCount > 0
+          ? `${verb} — ${closedOutCount} ${closedOutCount === 1 ? 'intern' : 'interns'} closed out`
+          : verb,
+      statusKey: 'staffing:closed',
+    });
+    emitStaffingNewsChanged();
   }
 
-  Object.assign(request, applyReopen());
-
-  await request.save();
   await request.populate(REQUEST_POPULATE);
 
   return formatRequestWithLookup(request);
@@ -839,6 +894,11 @@ const reopenStaffingRequest = async (user, requestId) => {
 // note onto its own ask. Saving again replaces the previous text — one note per
 // request, by design, not a thread. Eventually this is saved as part of picking
 // candidates (the fulfil flow); until that exists it has its own write path.
+//
+// Writable on a CLOSED request, and it is the only thing that is. With no
+// reopen, this note is the entire remedy for a mis-close — "cancelled in error,
+// refiled as #52" — and the cross-reference when demand comes back. Blocking it
+// would leave a wrong record with no way to say so (ADR 0005).
 const setStaffingRequestNote = async (user, requestId, payload = {}) => {
   assertValidObjectId(requestId, 'Staffing request');
   const request = await StaffingRequest.findById(requestId);
@@ -847,9 +907,6 @@ const setStaffingRequestNote = async (user, requestId, payload = {}) => {
   assertReadAccess(user);
   if (user.role !== ROLES.ADMIN) {
     throw httpError('Only an admin may add a note to a staffing request', 403);
-  }
-  if (request.status === 'closed') {
-    throw httpError('Cannot note a closed staffing request', 400);
   }
 
   const note = cleanText(payload.note);
@@ -860,6 +917,15 @@ const setStaffingRequestNote = async (user, requestId, payload = {}) => {
   request.noteAt = new Date();
 
   await request.save();
+
+  await logStaffingRequestEvent({
+    entityId: request._id,
+    userId: user._id,
+    action: 'Note added',
+    statusKey: 'staffing:note',
+  });
+  emitStaffingNewsChanged();
+
   await request.populate(REQUEST_POPULATE);
 
   return formatRequestWithLookup(request);
@@ -924,7 +990,6 @@ module.exports = {
   listPutForwardCandidates,
   putInternsForward,
   closeStaffingRequest,
-  reopenStaffingRequest,
   getStaffingRequestNews,
   markStaffingRequestsSeen,
   getStaffingRequestHistory,

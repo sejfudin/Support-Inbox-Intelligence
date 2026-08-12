@@ -61,13 +61,13 @@ export const putInternsForward = async (id, groups) => {
 // `reason` is required: 'fulfilled' | 'declined' | 'cancelled'. `note` is
 // mandatory for 'declined', optional otherwise — and it lands in a different
 // field depending on the reason (see closeStaffingRequest on the server).
+// `notPlacedReason` is the separate, shared reason written onto every candidate
+// still in selection, and the server requires it whenever there is one.
+//
+// There is no reopen: a close resolves everyone still in selection, so `closed`
+// is terminal (ADR 0005).
 export const closeStaffingRequest = async (id, payload) => {
   const { data } = await apiClient.post(`/staffing-requests/${id}/close`, payload);
-  return data.data;
-};
-
-export const reopenStaffingRequest = async (id) => {
-  const { data } = await apiClient.post(`/staffing-requests/${id}/reopen`);
   return data.data;
 };
 

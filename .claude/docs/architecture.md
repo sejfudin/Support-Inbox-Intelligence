@@ -214,11 +214,14 @@ the model and the pure rules module — no routes, no screens yet.
   together or none (a half-written note would render unattributed). Leadership never authors it:
   `createStaffingRequest`/`updateStaffingRequest` ignore `note` entirely. A cancellation reason
   goes to the separate `closeNote` field precisely so cancelling cannot overwrite an admin's note;
-  a decline's mandatory reason is the admin's remark, so it writes `note` proper. Closing and
-  reopening are `POST /:id/close` (reason in the body) and `POST /:id/reopen` — see
-  `.claude/docs/security.md` for the per-reason permission split and the 403-vs-400 mapping.
+  a decline's mandatory reason is the admin's remark, so it writes `note` proper. Closing is
+  `POST /:id/close` (reason in the body) — see `.claude/docs/security.md` for the per-reason
+  permission split and the 403-vs-400 mapping. **`closed` is terminal: there is no reopen and no
+  delete** (`docs/adr/0005`).
   Until the fulfil flow (tickets 06/07) can save the note alongside the candidate picks, it has its
-  own write path, `PATCH /:id/note` → `setStaffingRequestNote`.
+  own write path, `PATCH /:id/note` → `setStaffingRequestNote`. That path is the one write a
+  **closed** request still accepts: with no reopen, the note is the entire remedy for a mis-close
+  ("cancelled in error, refiled as #52") and the cross-reference when demand returns.
 - **Formatted request payload** (`formatRequest` in `services/staffingRequestService.js`) — the one
   place a request document becomes a response: adds `progress` (straight from the rules helper) and
   `suggestions`. There is no derived status field — see the note under the rules module. `suggestions` is one entry per
@@ -230,10 +233,18 @@ the model and the pure rules module — no routes, no screens yet.
   recommendation was created by putting an intern forward against a request
   (`recommendationService.createRecommendationsForStaffingRequest`, ticket 07). A requested position
   is identified by `staffingRequest + position`, and the position is forced to the one the
-  recommendation was created against — see `docs/adr/0006`. No other `Recommendation` behaviour
-  changes;
-  `RECOMMENDATION_RESULTS` is untouched — a leftover intern released when a request fills without
-  them is still `not_placed`, with the nuance carried in the mandatory result note.
+  recommendation was created against — see `docs/adr/0006`.
+  `RECOMMENDATION_RESULTS` is untouched — an intern closed out when the demand behind their process
+  ends is still `not_placed`, with the difference carried by `result.demandEnded` rather than by a
+  third outcome (`docs/adr/0004`).
+- **`Recommendation.result.demandEnded`** (Boolean, default `false`, ticket 09) — this `not_placed`
+  was caused by the demand ending, not by a decision about the intern. Written **only** by the
+  close-out cascade (`recommendationService.closeOutRecommendationsForDemandEnd`);
+  `applyResultPayload` ignores it on the way in, carries a stored `true` over while the record stays
+  `not_placed`, and drops it the moment the outcome changes. It is the one part of `result` besides
+  the outcome and dates that reaches the intern — `formatOwnRecommendation` exposes the boolean and
+  still withholds `result.note` — where it swaps "Not placed this time" for "This opportunity closed
+  before a decision was made about you". Any future placed-vs-not-placed metric must exclude these.
 - **`helpers/staffingRequestRules.js`** — the single pure rules module for this feature (no I/O, no
   clock, timestamps passed in), following `helpers/specializationRules.js`. Three rule groups, all
   unit-tested in `staffingRequestRules.test.js` with plain objects, no Mongo, no Express:
@@ -254,10 +265,16 @@ the model and the pure rules module — no routes, no screens yet.
     project lock — putting interns forward never freezes the project reference.
   - `assertCanPutForward` — admin only, request open, project resolved. The last of those is not
     cosmetic: `Recommendation.project` is a required reference.
-  - `assertCanClose` / `applyClose` / `assertCanReopen` / `applyReopen` — close/reopen legality:
-    `cancelled` is author-or-admin, `fulfilled`/`declined` are admin-only, `declined` requires a
-    non-empty note; reopening (author or admin, from either terminal reason) clears `reason`,
-    `closedBy`, `closedAt`.
+  - `assertCanClose` / `applyClose` — close legality, one sentence: **leadership withdraws, admin
+    answers**. `cancelled` is leadership-only (any leadership user, not just the author — the ask
+    belongs to the side that made it); `fulfilled`/`declined` are admin-only; `declined` requires a
+    non-empty close reason; `fulfilled` is refused while the request only has a draft project. It
+    also takes `inSelectionCount` and requires a `notPlacedReason` exactly when that is above zero.
+    There is no `assertCanReopen`/`applyReopen` — `closed` is terminal (`docs/adr/0005`).
+  - `selectCloseOutRecommendations(recommendations, positionIds)` — which candidates a close (or an
+    edit that drops demand) resolves: tagged, still in selection, and for one of `positionIds`.
+    Placed interns fall out for free, since a placement is already `resulted`. Position-scoped so the
+    edit path (ticket 10) can reuse it for a single changed or removed position.
   - Unread/badge derivation (`deriveUnreadStaffingRequestIds`) landed in ticket 04, below.
   - **`needsProject` / `assertCanResolveProject`** (ticket 06) — the one derived display state
     that does live here, rather than as a client-side comparison: `needsProject(request)` is
@@ -308,6 +325,35 @@ the model and the pure rules module — no routes, no screens yet.
   the total across every position ("3 put forward for Frontend Developer, QA Engineer"), and exactly
   one leadership badge. Individual placements deliberately do not badge.
   Frontend: the admin stages picks client-side first — see the admin Requests screen below.
+- **Closing, and closing out its candidates** (ticket 09) — `POST /:id/close` is the only thing that
+  ends a request, and it ends the whole thing: whatever the reason, every candidate still **in
+  selection** is resolved `not_placed` with `result.demandEnded` and one shared reason. Placed
+  interns are never touched. Both ADRs behind this are load-bearing: `docs/adr/0004` (the cascade,
+  and why not untag/delete/third-outcome) and `docs/adr/0005` (no reopen).
+  - Body is `{ reason, note?, notPlacedReason? }`. `notPlacedReason` is required exactly when at
+    least one candidate is in selection, is written to every closed-out record's `result.note`, and
+    has **no** per-intern variant — a person-specific reason is written on that person's
+    recommendation, one at a time.
+  - The cascade is `recommendationService.closeOutRecommendationsForDemandEnd(user, {
+    staffingRequestId, positionIds, reason, action })` — a reusable unit, called from the close path
+    and (ticket 10) from the edit path. Per record it writes the result, stamps
+    `statusDates.resulted`, and appends its own `recommendation` history row (shared with the
+    placement auto-close via `resolveAsNotPlaced`); then it returns each intern to the ready bench
+    (`status: 'ready'`, `placedAt: null`) **unless they hold a placement elsewhere**, and emits
+    `emitInternDataChanged()`. It returns `{ closedOutCount }`, which the caller names in the trail.
+  - `closeStaffingRequest` runs on the **read** tier rather than `assertWriteAccess`: cancelling
+    belongs to any leadership user, and an author-or-admin check would refuse a colleague of whoever
+    filed it. The per-reason split stays entirely in `assertCanClose`. The cascade runs after the
+    request is saved, so a failure leaves a closed request with a retryable close-out rather than a
+    dozen resolved people on a still-open one.
+  - Nothing auto-closes. Demand met renders a "Close as fulfilled" button inside the existing blocker
+    banner on `AdminRequestDetail.jsx` only (keyed off `blocker.key === 'demand-met'`); leadership
+    never sees it. Declining sits under the same pane's action slot as a low-emphasis link. The
+    leadership pane keeps Cancel (`RequestActions.jsx`), now offered to any leadership viewer rather
+    than only the author, and has no Reopen.
+  - `CloseRequestDialog.jsx` carries both fields, close reason first, per-reason placeholders and
+    never prefilled values, states that the close cannot be undone, and names how many interns will
+    be closed out (counted client-side with `getLeftoverSuggestions`).
 
 **The admin Requests screen (ticket 08)** — admin and leadership no longer share a detail pane.
 Leadership keeps `RequestDetail.jsx`; the admin gets `AdminRequestDetail.jsx` plus
@@ -330,8 +376,9 @@ Deliberately doesn't use `Notification` (see
 
 - `History.entityType` gains `'staffingRequest'`. Filing a request and resolving its project both
   append an event via `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
-  (`staffing:filed`, `staffing:project_resolved`, `staffing:put_forward`; closing adds more once
-  ticket 09 lands) — namespaced because `statusKey` is a string space shared with
+  (`staffing:filed`, `staffing:project_resolved`, `staffing:put_forward`, and from ticket 09
+  `staffing:closed` and `staffing:note`) — namespaced because `statusKey` is a string space shared
+  with
   recommendation stage tracking, where bare `placed` already means something. Unlike every other
   history write, this one is **awaited and its errors surfaced**
   (`staffingRequestService.createStaffingRequest`), with a comment at the call site — a lost row
@@ -375,10 +422,12 @@ query needs its own subscription.
   `news.requestIds`, rendering a small dot next to the title.
 - **The admin page reuses ticket 03's `RequestListItem`/`RequestDetail`** (and their `symphony-*`
   styling) wrapped in its own `data-surface="symphony"` div, since those styles are scoped to that
-  attribute and the admin page lives in the sidebar shell, not `SymphonyLayout`. It renders
+  attribute and the admin page lives in the sidebar shell, not `SymphonyLayout`. It rendered
   read-only (`canManage={false}` always) — resolving a draft project, putting interns forward, and
-  closing/reopening are tickets 06/07/08, not this one; `RequestDetail`'s existing `canManage`
-  branch already renders nothing extra when false, so no separate read-only variant was needed.
+  closing were later tickets; `RequestDetail`'s existing `canManage` branch already renders nothing
+  extra when false, so no separate read-only variant was needed. Since ticket 08 the admin has its
+  own pane (`AdminRequestDetail.jsx`), which carries put-forward, project resolution, and — from
+  ticket 09 — closing as fulfilled and declining.
 - `RequestDetail` renders a request's full history trail (`RequestHistoryTrail.jsx`, newest first,
   same shape as `TicketHistory.jsx`) below the requested-position groups; it renders nothing when
   the trail is empty rather than an empty "History" section.

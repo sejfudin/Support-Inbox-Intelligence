@@ -27,11 +27,14 @@
 - Sets the start date on a placement — the day the intern actually begins on the project, which is often not the day the placement was decided. It is optional: leave it empty when nobody knows yet, and set it later once they do. From that day the intern no longer has to record attendance: those days show in their own colour instead of absent, and the month reads "—" instead of 0%. Until a start date is set the intern keeps recording attendance as normal, and moving the date moves the cut-off with it
 - Only role that can leave a note on a staffing request — one short remark per request, for
   anything leadership should know that the suggested candidates don't say. Saving again replaces
-  it; there is no back-and-forth thread on a request
+  it; there is no back-and-forth thread on a request. A note can still be added to a **closed**
+  request: since a close can't be undone, the note is how a mistake gets recorded ("cancelled in
+  error, refiled as #52")
 - Only role that can close a staffing request as **fulfilled** (the seats are filled) or
   **declined** (the ask is being refused). Declining requires a reason, which becomes the note
-  leadership reads. Nothing closes a request automatically — even when every seat is placed, an
-  admin still closes it
+  leadership reads. Cannot cancel — that is leadership's, since only they speak to the outside
+  party. Nothing closes a request automatically — even when every seat is placed, an admin still
+  closes it
 - Only role that can put interns forward against a staffing request — candidates are picked one
   seat at a time, so each intern is offered for the discipline that was actually asked for. Picks
   are **staged first and sent together**: nothing reaches leadership until "Submit to leadership",
@@ -44,7 +47,15 @@
   already placed or already in selection elsewhere are, flagged with where. The same intern can't
   be staged onto two seats of one request. A request still waiting on its project can have
   candidates staged but nothing submitted until the project is resolved
-- Can edit, cancel, or reopen any staffing request, whoever filed it
+- Can edit any staffing request, whoever filed it. Cannot cancel or reopen one — cancelling is
+  leadership's, and no closed request can be reopened by anyone
+- Closing a request, for any of the three reasons, **closes out everyone still in selection for it**:
+  each is recorded as not placed, with one shared reason the admin types in the close dialog, which
+  is read by admins, leadership and mentors and never by the intern. Anyone already placed keeps
+  their placement, untouched. The interns closed out go back on the ready bench. This can't be
+  undone, and there is no per-intern opt-out — if the ask has only shrunk, lower the seat count
+  instead, which closes out nobody. For something specific to one person, write it on their own
+  recommendation instead of in the shared reason
 - Only role that can resolve a staffing request filed against a project that doesn't exist yet
   ("Needs project") — link it to an existing project, or create one from leadership's description.
   Leadership can describe a project when filing but can never create or link one itself. A request
@@ -56,16 +67,21 @@
 
 **Leadership**
 - Otherwise read-only; the one exception is staffing requests (below)
-- Only role that can file a staffing request (recorded demand for interns on a project); can also
-  edit, cancel, or reopen a request they filed themselves — not a colleague's. Sees every staffing
-  request from every author, same as admin
+- Only role that can file a staffing request (recorded demand for interns on a project); can edit a
+  request they filed themselves — not a colleague's. Sees every staffing request from every author,
+  same as admin
+- Only role that can **cancel** a staffing request, and any leadership user can cancel any of them,
+  not only their own: only leadership speaks to the outside party, so only leadership can say the
+  demand is gone. Cancelling closes out everyone still in selection for the request (see Admin), so
+  it asks for a reason for them as well as for the request. It cannot be undone — no closed request
+  can be reopened
 - Can file a request for a project that doesn't exist on the platform yet, by describing it (name,
   client, description) instead of picking one. It shows as "Needs project" until an admin resolves
   it; leadership never creates the project itself
 - Cannot close a request as fulfilled or declined — those are the admin's call. Cancelling is the
   only close available to leadership
 - Reads the admin's note on a request (see Admin) but cannot write or edit one, not even on their
-  own request. Can leave a reason when cancelling their own request
+  own request. Can leave a reason when cancelling a request
 - Sees all interns and all their profiles (not just assigned ones, unlike a mentor)
 - Sees all recommendations (created exclusively by admin), but can't create/edit them
 - Sees programme-wide statistics, the funnel/"In Selection" dashboard
@@ -100,6 +116,9 @@
 - Sees only their own readiness status, and not mentor notes
 - Sees their own evaluation scores and periods on their dashboard — but not the written notes on them
 - Sees their own recommendations on their dashboard: which project, which stage, interview dates, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? Arrows on the card switch between them
+- When the opportunity itself ends — the staffing request behind it was closed, or the position they
+  were put forward for changed — their card says the opportunity closed before a decision was made
+  about them, rather than "not placed this time". They never see the reason the admin typed for it
 - Sees no one else's recommendations or evaluations
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics

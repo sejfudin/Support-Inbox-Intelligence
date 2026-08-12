@@ -134,15 +134,6 @@ exports.closeStaffingRequest = async (req, res, next) => {
   }
 };
 
-exports.reopenStaffingRequest = async (req, res, next) => {
-  try {
-    const request = await staffingRequestService.reopenStaffingRequest(req.user, req.params.id);
-    res.json({ success: true, message: 'Staffing request reopened', data: request });
-  } catch (error) {
-    handleError(res, error, next);
-  }
-};
-
 exports.setStaffingRequestNote = async (req, res, next) => {
   try {
     const request = await staffingRequestService.setStaffingRequestNote(

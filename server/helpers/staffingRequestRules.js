@@ -1,7 +1,7 @@
-// Pure rules for staffing-request decisions (progress, edit legality,
-// close/reopen legality). No I/O, no clock — timestamps are always passed in
-// so callers control them and this stays trivially unit-testable. Follows
-// helpers/specializationRules.js exactly.
+// Pure rules for staffing-request decisions (progress, edit legality, close
+// legality, and which candidates a close takes down with it). No I/O, no clock
+// — timestamps are always passed in so callers control them and this stays
+// trivially unit-testable. Follows helpers/specializationRules.js exactly.
 //
 // Display state stays minimal: most of what a UI wants to say (nobody
 // suggested yet, N put forward, demand met) is a plain comparison on
@@ -255,16 +255,38 @@ const assertRequestedPositionsEditable = (
   }
 };
 
-// Who may close a request with which reason, and under what conditions.
-// `cancelled` is available to the author or an admin; `fulfilled` and
-// `declined` are admin-only, and `declined` requires a non-empty note.
-const assertCanClose = (request, { isAdmin, isAuthor, reason, note }) => {
+// Who may close a request with which reason, and under what conditions. One
+// sentence covers the split: leadership withdraws, admin answers. `cancelled`
+// is leadership-only — they are the ones who speak to the outside party, so
+// only they can state the demand is gone — and any leadership user qualifies,
+// not only the author, because the ask belongs to the side that made it rather
+// than to one person's account. `fulfilled` and `declined` are admin-only, and
+// `declined` requires a non-empty close reason.
+//
+// `inSelectionCount` is how many candidates the close will resolve (see
+// `selectCloseOutRecommendations`). Whenever that is above zero the close needs
+// a `notPlacedReason` as well: the cascade writes it onto other people's
+// records, and a blank one would leave every closed-out intern with no stated
+// reason at all.
+const assertCanClose = (
+  request,
+  { isAdmin, isLeadership, reason, note, notPlacedReason, inSelectionCount = 0 }
+) => {
   if (request.status === 'closed') {
     throw new Error('Staffing request is already closed');
   }
   if (!CLOSE_REASONS.includes(reason)) {
     throw new Error(`Invalid close reason: ${reason}`);
   }
+
+  if (reason === 'cancelled') {
+    if (!isLeadership) {
+      throw forbidden('Only leadership may cancel a staffing request');
+    }
+  } else if (!isAdmin) {
+    throw forbidden(`Only an admin may close a staffing request as ${reason}`);
+  }
+
   // A request that only names a draft project can never be marked fulfilled
   // — there is no real project for anyone to have been placed against.
   // Enforced here, not only hidden in the UI, so the refusal holds even if a
@@ -272,20 +294,33 @@ const assertCanClose = (request, { isAdmin, isAuthor, reason, note }) => {
   if (reason === 'fulfilled' && needsProject(request)) {
     throw new Error('Cannot close as fulfilled while the request needs a project');
   }
-
-  if (reason === 'cancelled') {
-    if (!isAdmin && !isAuthor) {
-      throw forbidden('Only the author or an admin may cancel a staffing request');
-    }
-    return;
-  }
-
-  if (!isAdmin) {
-    throw forbidden(`Only an admin may close a staffing request as ${reason}`);
-  }
   if (reason === 'declined' && !note?.trim()) {
     throw new Error('Declining a staffing request requires a non-empty note');
   }
+  if (inSelectionCount > 0 && !notPlacedReason?.trim()) {
+    throw new Error('Closing out candidates requires a reason');
+  }
+};
+
+// The recommendations a close (or an edit that drops demand) resolves: the ones
+// tagged to the request that are still in selection for one of `positionIds`.
+//
+// Placed interns fall out for free — a placement moves the recommendation to
+// `resulted`, so it is not in selection — and that is deliberate: placement is
+// a fact about the intern, not about the demand. A tagged recommendation whose
+// position is no longer requested falls out too, the same way `deriveProgress`
+// ignores it, because it is not attributable to any of the positions being
+// ended.
+//
+// Pure and position-scoped so ticket 10's edit path can reuse it for a single
+// changed or removed position rather than the whole request.
+const selectCloseOutRecommendations = (recommendations, positionIds) => {
+  const ending = new Set(positionIds.map((positionId) => String(toId(positionId))));
+  return recommendations.filter(
+    (recommendation) =>
+      IN_SELECTION_STATUSES.includes(recommendation.status) &&
+      ending.has(String(toId(recommendation.position)))
+  );
 };
 
 // The change set to persist when a close decision has already been found
@@ -297,23 +332,11 @@ const applyClose = (request, { reason, closedBy, closedAt }) => ({
   closedAt,
 });
 
-// Reopening is available from either terminal reason, to the author or an
-// admin, and always clears the close markers — nothing ever auto-reopens.
-const assertCanReopen = (request, { isAdmin, isAuthor }) => {
-  if (request.status !== 'closed') {
-    throw new Error('Staffing request is not closed');
-  }
-  if (!isAdmin && !isAuthor) {
-    throw forbidden('Only the author or an admin may reopen a staffing request');
-  }
-};
-
-const applyReopen = () => ({
-  status: 'open',
-  reason: null,
-  closedBy: null,
-  closedAt: null,
-});
+// There is no reopen: `closed` is terminal (ADR 0005). A close resolves
+// everyone still in selection, so a reopened request would come back with
+// nobody live on it — a fresh request wearing an old date, with notes
+// explaining why it was cancelled. A mis-close is corrected by filing again and
+// annotating the dead request, which is why notes stay writable once closed.
 
 // Which requests carry "news" a viewer hasn't seen yet, from their raw
 // history events (each `{ entityId, userId, timestamp }`). A viewer who has
@@ -344,7 +367,6 @@ module.exports = {
   assertCanPutForward,
   assertCanClose,
   applyClose,
-  assertCanReopen,
-  applyReopen,
+  selectCloseOutRecommendations,
   deriveUnreadStaffingRequestIds,
 };

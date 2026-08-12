@@ -259,7 +259,7 @@ const buildFixture = ({ projects, positions, technologies, interns }) => {
     },
     {
       key: 'closed-fulfilled',
-      why: 'Closed as fulfilled — green badge, locked, reopenable',
+      why: 'Closed as fulfilled — green badge, locked for good (no reopen)',
       project: project('meridian'),
       neededBy: day(-30),
       close: { reason: 'fulfilled', daysAgo: 9, by: 'admin' },
@@ -297,7 +297,7 @@ const buildFixture = ({ projects, positions, technologies, interns }) => {
     },
     {
       key: 'closed-cancelled',
-      why: 'Closed as cancelled — grey badge, and closeNote renders separately from the admin note it must not have overwritten',
+      why: 'Cancelled by leadership — grey badge, closeNote renders separately from the admin note it must not have overwritten, and one candidate closed out as demand-ended',
       project: project('kestrel'),
       neededBy: day(60),
       close: {
@@ -305,6 +305,10 @@ const buildFixture = ({ projects, positions, technologies, interns }) => {
         daysAgo: 2,
         by: 'author',
         closeNote: 'Client pushed the whole phase to next year — we no longer need these seats.',
+        // The shared reason the cascade writes onto everyone still in selection.
+        // Internal: read by admins, leadership and mentors, never by the intern,
+        // whose card reads off `demandEnded` instead.
+        notPlacedReason: 'The client withdrew the ask before we could put anyone in front of them.',
       },
       note: {
         text: 'Had two frontend interns lined up for this before it was pulled.',
@@ -412,6 +416,13 @@ const run = async () => {
     for (const row of entry.positions) {
       for (const suggestion of row.suggestions) {
         const reachedInterviewing = suggestion.placed || suggestion.status === 'interviewing';
+        // Nobody is left in selection on a closed request: closing closes out
+        // every candidate who was, as `not_placed` with `demandEnded` and the one
+        // shared reason (ticket 09 / ADR 0004). Seeding them still mid-pipeline
+        // would produce a state the app can no longer reach, and would show the
+        // "still open on a closed request" banner for a case that can't happen.
+        const closedOut = Boolean(entry.close) && !suggestion.placed;
+        const closedAt = entry.close ? day(-entry.close.daysAgo) : undefined;
         await Recommendation.create({
           internProfile: suggestion.intern._id,
           createdBy: admin._id,
@@ -420,11 +431,11 @@ const run = async () => {
           project: entry.project._id,
           staffingRequest: request._id,
           technologies: suggestion.technologies,
-          status: suggestion.placed ? 'resulted' : suggestion.status,
+          status: suggestion.placed || closedOut ? 'resulted' : suggestion.status,
           statusDates: {
             recommended: day(-20),
             interviewing: reachedInterviewing ? day(-12) : undefined,
-            resulted: suggestion.placed ? day(-6) : undefined,
+            resulted: suggestion.placed ? day(-6) : closedOut ? closedAt : undefined,
           },
           result: suggestion.placed
             ? {
@@ -434,7 +445,18 @@ const run = async () => {
                 decidedBy: admin._id,
                 startDate: day(14),
               }
-            : undefined,
+            : closedOut
+              ? {
+                  outcome: 'not_placed',
+                  note: entry.close.notPlacedReason,
+                  // Whoever closed the request caused this write — for a
+                  // cancellation that is the leadership author, which is correct
+                  // and is the platform's one non-admin recommendation write.
+                  decidedAt: closedAt,
+                  decidedBy: entry.close.by === 'admin' ? admin._id : author._id,
+                  demandEnded: true,
+                }
+              : undefined,
         });
         createdRecommendations += 1;
       }
