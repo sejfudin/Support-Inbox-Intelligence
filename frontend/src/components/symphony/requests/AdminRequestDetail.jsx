@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, FolderPlus, Send } from 'lucide-react';
+import { ArrowUpRight, Ban, FolderPlus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
@@ -228,18 +228,23 @@ export function AdminRequestDetail({
               to refuse the ask is busywork. The server agrees: only `fulfilled`
               is refused while the project is a draft.
 
-              Still a link, not a button: it is the rarer answer, and a
-              destructive button beside "Submit 3 picks to leadership" competes
-              with the action the admin came here for. */}
+              An outlined button rather than a text link: declining is one of the
+              two answers an admin owes leadership, and a grey underline read as
+              a footnote. It carries the destructive colour so the tone is
+              unmistakable, but stays unfilled — the filled button is whatever
+              moves the request forward, and there should only ever be one. */}
           {isOpen && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setCloseReason('declined')}
-              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
               data-test="request-decline"
             >
+              <Ban className="h-4 w-4" aria-hidden="true" />
               Decline this request
-            </button>
+            </Button>
           )}
         </div>
       </div>
