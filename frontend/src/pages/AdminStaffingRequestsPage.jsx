@@ -10,7 +10,7 @@ import PageHeading from '@/components/PageHeading';
 import { RequestsFilterTabs } from '@/components/symphony/requests/RequestsFilterTabs';
 import { RequestListItem } from '@/components/symphony/requests/RequestListItem';
 import { AdminRequestDetail } from '@/components/symphony/requests/AdminRequestDetail';
-import { AdminCandidateRail } from '@/components/symphony/requests/AdminCandidateRail';
+import { PutForwardDialog } from '@/components/symphony/requests/PutForwardDialog';
 import {
   useMarkStaffingRequestsSeen,
   usePutInternsForward,
@@ -20,7 +20,6 @@ import {
 import {
   EMPTY_CART,
   countStagedPicks,
-  stagedInternIds,
   toPutForwardGroups,
   useStagedPicks,
 } from '@/hooks/useStagedPicks';
@@ -70,9 +69,10 @@ export default function AdminStaffingRequestsPage() {
 
   const [group, setGroup] = useState('all');
   const [query, setQuery] = useState('');
-  // The requested position the candidate rail is filtered to. Staging is always
-  // against one requested position, never against the request as a whole.
-  const [armedRow, setArmedRow] = useState(null);
+  // The requested position the picker is open against — and, being nullable,
+  // the picker's own open state. Staging is always against one requested
+  // position, never against the request as a whole.
+  const [pickerRow, setPickerRow] = useState(null);
   // Per-row refusals from the last submit, keyed positionId → internProfileId.
   // A pick can go stale while it is staged, and the admin needs to know which
   // pick — not that something, somewhere, was wrong.
@@ -82,7 +82,7 @@ export default function AdminStaffingRequestsPage() {
   const { data: news } = useStaffingRequestNews();
   const unreadRequestIds = useMemo(() => new Set(news?.requestIds ?? []), [news]);
 
-  const { carts, togglePick, clearRequest } = useStagedPicks();
+  const { carts, togglePick, setPositionPicks, clearRequest } = useStagedPicks();
   const submitMutation = usePutInternsForward();
 
   const markSeenMutation = useMarkStaffingRequestsSeen();
@@ -127,19 +127,9 @@ export default function AdminStaffingRequestsPage() {
   // Which seat is armed, and any refusals, belong to the request being looked
   // at. The cart does not — it survives the move, which is the whole point.
   useEffect(() => {
-    setArmedRow(null);
+    setPickerRow(null);
     setRejections({});
   }, [selectedId]);
-
-  const stagedForSeat = useMemo(
-    () => new Set((cart[armedRow?.id] ?? []).map((pick) => pick.id)),
-    [cart, armedRow]
-  );
-  const stagedElsewhere = useMemo(() => {
-    const all = stagedInternIds(cart);
-    stagedForSeat.forEach((id) => all.delete(id));
-    return all;
-  }, [cart, stagedForSeat]);
 
   // Only the row that was touched loses its marker. Clearing them all would
   // mean an admin with two stale picks drops the first, loses sight of the
@@ -158,18 +148,31 @@ export default function AdminStaffingRequestsPage() {
     []
   );
 
-  const onToggleCandidate = useCallback(
-    (candidate) => {
-      if (!selectedId || !armedRow) return;
-      clearRejection(armedRow.id, candidate.internProfile);
-      togglePick(selectedId, armedRow.id, {
-        id: candidate.internProfile,
-        name: candidate.internName,
-        technologies: candidate.technologies ?? [],
-        startDate: candidate.startDate ?? null,
+  // The picker assembles a shortlist as its own draft and hands the whole list
+  // over on save, so this replaces the position's picks rather than toggling
+  // one. Cancelling in the picker never reaches here — that is the point of it
+  // holding a draft.
+  const onSavePicks = useCallback(
+    (positionId, picks) => {
+      if (!selectedId) return;
+      const keptIds = new Set(picks.map((pick) => pick.id));
+      // A dropped pick takes its stale-pick marker with it. A kept one keeps its
+      // marker: the reason the server refused it has not gone away just because
+      // the admin opened the picker again.
+      setRejections((current) => {
+        const forPosition = current[positionId];
+        if (!forPosition) return current;
+        const remaining = Object.fromEntries(
+          Object.entries(forPosition).filter(([internProfileId]) => keptIds.has(internProfileId))
+        );
+        const next = { ...current };
+        if (Object.keys(remaining).length === 0) delete next[positionId];
+        else next[positionId] = remaining;
+        return next;
       });
+      setPositionPicks(selectedId, positionId, picks);
     },
-    [selectedId, armedRow, togglePick, clearRejection]
+    [selectedId, setPositionPicks]
   );
 
   const onUnstage = useCallback(
@@ -188,7 +191,7 @@ export default function AdminStaffingRequestsPage() {
     try {
       await submitMutation.mutateAsync({ id: selectedId, groups });
       clearRequest(selectedId);
-      setArmedRow(null);
+      setPickerRow(null);
       toast.success(total === 1 ? '1 intern put forward' : `${total} interns put forward`);
     } catch (error) {
       const rows = error?.response?.data?.data?.rejections;
@@ -263,7 +266,7 @@ export default function AdminStaffingRequestsPage() {
         )}
 
         {!isPending && requests.length > 0 && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(320px,360px)]">
+          <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
             <div className={selected ? 'hidden lg:block' : 'block'}>
               <ScrollFade
                 viewportClassName="space-y-3 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1"
@@ -314,8 +317,7 @@ export default function AdminStaffingRequestsPage() {
                 <AdminRequestDetail
                   request={selected}
                   cart={cart}
-                  armedRow={armedRow}
-                  onArm={setArmedRow}
+                  onArm={setPickerRow}
                   onUnstage={onUnstage}
                   onSubmit={onSubmit}
                   isSubmitting={submitMutation.isPending}
@@ -327,25 +329,18 @@ export default function AdminStaffingRequestsPage() {
                 </SymphonyCard>
               )}
             </div>
-
-            {/* The rail sits below the detail until there is room for a third
-                column — squeezed beside it, the conflict warnings clip, and they
-                are the one string here that must stay readable. */}
-            {selected && (
-              <div className="min-w-0 lg:col-span-2 xl:col-span-1 xl:max-h-[calc(100vh-18rem)] xl:overflow-y-auto xl:pr-1">
-                <AdminCandidateRail
-                  request={selected}
-                  row={armedRow}
-                  stagedIdsForSeat={stagedForSeat}
-                  stagedIdsElsewhere={stagedElsewhere}
-                  onToggle={onToggleCandidate}
-                  onClearSeat={() => setArmedRow(null)}
-                />
-              </div>
-            )}
           </div>
         )}
       </div>
+
+      <PutForwardDialog
+        open={Boolean(pickerRow)}
+        onOpenChange={(next) => !next && setPickerRow(null)}
+        request={selected}
+        row={pickerRow}
+        cart={cart}
+        onSave={onSavePicks}
+      />
     </div>
   );
 }

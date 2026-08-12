@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FolderPlus, Send } from 'lucide-react';
+import { ArrowUpRight, FolderPlus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,8 @@ import {
   getRequestTotals,
   isAwaitingProject,
 } from '@/helpers/staffingRequests';
+import { buildTechnologyIndex } from '@/helpers/technologyIcons';
+import { useTechnologies } from '@/queries/technologies';
 import { countStagedPicks } from '@/hooks/useStagedPicks';
 import { AdminRequestSeatGroup } from './AdminRequestSeatGroup';
 import { RequestNote } from './RequestNote';
@@ -45,7 +47,6 @@ const Blocker = ({ blocker }) => (
 export function AdminRequestDetail({
   request,
   cart,
-  armedRow,
   onArm,
   onUnstage,
   onSubmit,
@@ -53,6 +54,11 @@ export function AdminRequestDetail({
   rejections,
 }) {
   const [resolveOpen, setResolveOpen] = useState(false);
+  // Which cards the admin has opened or closed by hand, `{ [positionId]: bool }`.
+  // Absent means closed: every position starts compact, and the roster behind it
+  // is opened on request. A request with four positions is then four readable
+  // lines rather than a pane the admin has to scroll to see what it asked for.
+  const [expandOverrides, setExpandOverrides] = useState({});
   const rows = getPositionProgressRows(request);
   const blocker = getRequestBlocker(request);
   const totals = getRequestTotals(request);
@@ -73,13 +79,93 @@ export function AdminRequestDetail({
       ? 'Nothing staged yet. Add candidates to a seat and they collect here.'
       : null;
 
+  // Only for the technology logos on the position headers — rows carry names, and
+  // the icon map keys off slugs. Shared, long-cached query.
+  const { data: allTechnologies = [] } = useTechnologies();
+  const technologyIndex = useMemo(() => buildTechnologyIndex(allTechnologies), [allTechnologies]);
+
+  // Closed unless the admin opened it — or unless it holds a pick the server
+  // refused, which is the one thing that must not stay hidden.
+  const hasRejection = (row) => (cart[row.id] ?? []).some((pick) => rejections[row.id]?.[pick.id]);
+  const isExpanded = (row) => expandOverrides[row.id] ?? hasRejection(row);
+
+  const setExpanded = useCallback(
+    (positionId, next) => setExpandOverrides((current) => ({ ...current, [positionId]: next })),
+    []
+  );
+
+  // A refused pick opens its own card, overriding a hand-collapse: the refusal
+  // names a position, and a position the admin cannot see is the same as no
+  // refusal at all.
+  useEffect(() => {
+    const refused = Object.keys(rejections);
+    if (refused.length === 0) return;
+    setExpandOverrides((current) => {
+      const next = { ...current };
+      refused.forEach((positionId) => delete next[positionId]);
+      return next;
+    });
+  }, [rejections]);
+
+  const anyExpanded = rows.some(isExpanded);
+  const toggleAll = () =>
+    setExpandOverrides(Object.fromEntries(rows.map((row) => [row.id, !anyExpanded])));
+
   return (
     <SymphonyCard className="space-y-5">
+      {/* Title first, and the filing details demoted to the line above it. The
+          request is identified by its project, not by its status — the status is
+          one fact about it, so it rides along with who filed it and when. */}
       <div
         className="flex flex-wrap items-start justify-between gap-3"
         data-test={`request-detail-${request.id}`}
       >
-        <RequestStatusBadge request={request} />
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <RequestStatusBadge request={request} />
+            <p className="text-sm text-muted-foreground">
+              {`Filed ${formatDay(request.createdAt) ?? '—'}`}
+              {request.author?.fullname && ` by ${request.author.fullname}`}
+            </p>
+            {request.project?._id && (
+              <Link
+                to={`/projects/${request.project._id}`}
+                className="symphony-link inline-flex items-center gap-0.5 text-sm"
+              >
+                View project
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">
+            {getRequestTitle(request)}
+          </h2>
+
+          {/* One line for where the request stands. `placed of wanted` leads
+              because it is the only number that says whether the ask is answered
+              — the rest are steps on the way there. */}
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              {totals.placed} of {totals.wanted}
+            </span>
+            {` ${totals.wanted === 1 ? 'seat' : 'seats'} placed`}
+            {totals.putForward > 0 && ` · ${totals.putForward} put forward`}
+            {stagedCount > 0 && (
+              <>
+                {' · '}
+                <span className="font-semibold text-[hsl(var(--symphony-brand-ink))]">
+                  {stagedCount} staged
+                </span>
+              </>
+            )}
+            {' · '}
+            <span className={cn(neededBy.overdue && 'symphony-date-urgent')}>
+              {neededBy.missing ? 'no needed-by date' : `due ${neededBy.short}`}
+              {neededBy.sub && ` · ${neededBy.sub}`}
+            </span>
+          </p>
+        </div>
 
         {/* `RequestActions` is leadership's — its edit / cancel / resolve set is
             written around `canManage` and the viewer's role. The admin pane has
@@ -126,44 +212,6 @@ export function AdminRequestDetail({
         </div>
       </div>
 
-      <div className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">
-          {getRequestTitle(request)}
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {`Filed ${formatDay(request.createdAt) ?? '—'}`}
-          {request.author?.fullname && ` by ${request.author.fullname}`}
-          {request.project?._id && (
-            <>
-              {' · '}
-              <Link to={`/projects/${request.project._id}`} className="symphony-link">
-                View project
-              </Link>
-            </>
-          )}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {totals.wanted} {totals.wanted === 1 ? 'seat' : 'seats'}
-          {' · '}
-          <span className="font-semibold text-foreground">{totals.placed} placed</span>
-          {' · '}
-          {totals.putForward} put forward
-          {stagedCount > 0 && (
-            <>
-              {' · '}
-              <span className="font-semibold text-[hsl(var(--symphony-brand-ink))]">
-                {stagedCount} staged
-              </span>
-            </>
-          )}
-          {' · '}
-          <span className={cn(neededBy.overdue && 'symphony-date-urgent')}>
-            {neededBy.missing ? 'no needed-by date' : `due ${neededBy.short}`}
-            {neededBy.sub && ` — ${neededBy.sub}`}
-          </span>
-        </p>
-      </div>
-
       <ResolveProjectDialog open={resolveOpen} onOpenChange={setResolveOpen} request={request} />
 
       {blocker && <Blocker blocker={blocker} />}
@@ -182,11 +230,24 @@ export function AdminRequestDetail({
       <RequestNote request={request} />
 
       <div className="space-y-2">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
-          Seats asked for
-        </p>
-        {/* One card per seat, each opening and closing on its own. A divided
-            list read as a single long form; these are the units of the work. */}
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
+            Seats asked for
+          </p>
+          {rows.length > 1 && (
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-xs text-muted-foreground hover:text-foreground"
+              data-test="toggle-all-positions"
+            >
+              {anyExpanded ? 'Collapse all' : 'Expand all'}
+            </button>
+          )}
+        </div>
+        {/* One card per requested position, each opening and closing on its own.
+            A divided list read as a single long form; these are the units of the
+            work. */}
         <div className="space-y-3">
           {rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">No positions on this request.</p>
@@ -197,10 +258,12 @@ export function AdminRequestDetail({
                 row={row}
                 stagedPicks={cart[row.id] ?? []}
                 rejections={rejections[row.id] ?? {}}
-                armed={armedRow?.id === row.id}
+                expanded={isExpanded(row)}
+                onExpandedChange={(next) => setExpanded(row.id, next)}
                 onArm={onArm}
                 onUnstage={onUnstage}
                 canStage={canStage}
+                technologyIndex={technologyIndex}
               />
             ))
           )}

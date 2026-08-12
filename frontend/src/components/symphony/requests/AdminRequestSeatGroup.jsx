@@ -1,16 +1,21 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, CircleAlert, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatSuggestionMeta, getInitials } from '@/helpers/staffingRequests';
+import { getAvatarColor } from '@/helpers/avatarColor';
+import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { RequestSeatMeter } from './RequestSeatMeter';
-import { RequestEmptySeats, RequestSuggestionCard } from './RequestSuggestionCard';
+import {
+  RequestEmptySeats,
+  RequestSuggestionCard,
+  SuggestionStatePill,
+} from './RequestSuggestionCard';
 
 /**
  * A pick that has been staged but never sent. It shows the same skills-and-
  * duration line as everyone else — the candidate under active consideration is
- * the one most in need of comparing — with its unsent state said in words
- * beside them rather than replacing them.
+ * the one most in need of comparing — and keeps the dashed border to itself:
+ * of everyone on this card it is the only one the admin can still take back.
  */
 const StagedCard = ({ pick, rejection, onRemove }) => (
   <div
@@ -20,13 +25,19 @@ const StagedCard = ({ pick, rejection, onRemove }) => (
     )}
     data-test={`staged-pick-${pick.id}`}
   >
-    <span className="symphony-suggestion-avatar" aria-hidden="true">
+    <span
+      className={cn(
+        'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold',
+        getAvatarColor(pick.name)
+      )}
+      aria-hidden="true"
+    >
       {getInitials(pick.name)}
     </span>
     <div className="min-w-0 flex-1">
       <p className="truncate text-sm font-semibold text-foreground">{pick.name}</p>
-      <p className="text-xs leading-snug text-muted-foreground">
-        {[formatSuggestionMeta(pick), 'staged — not sent yet'].filter(Boolean).join(' · ')}
+      <p className="truncate text-xs leading-snug text-muted-foreground">
+        {formatSuggestionMeta(pick)}
       </p>
       {/* A stale pick reports against its own row: the admin drops this one and
           submits the rest, rather than being told the whole cart was wrong. */}
@@ -40,13 +51,14 @@ const StagedCard = ({ pick, rejection, onRemove }) => (
         </p>
       )}
     </div>
+    <SuggestionStatePill label="Staged" />
     <Button
       type="button"
       variant="ghost"
       size="icon"
       className="h-7 w-7 shrink-0"
       onClick={() => onRemove(pick)}
-      aria-label={`Remove ${pick.name} from this seat`}
+      aria-label={`Remove ${pick.name} from this position`}
       data-test={`unstage-${pick.id}`}
     >
       <X className="h-4 w-4" aria-hidden="true" />
@@ -56,152 +68,162 @@ const StagedCard = ({ pick, rejection, onRemove }) => (
 
 /**
  * One requested position on the admin's work surface, as its own card. Each
- * seat is a distinct object rather than a band in a divided list, because this
- * screen is worked position by position — arming one, filling it, moving on —
- * and a run of hairline rules made three seats read as one long form.
+ * position is a distinct object rather than a band in a divided list, because
+ * this screen is worked position by position — open the picker, fill it, move on
+ * — and a run of hairline rules made three positions read as one long form.
  *
- * Every card opens and closes; the header is the toggle and always carries the
- * summary (how many placed, staged and still empty), so a closed card still
- * answers "does this seat need me". What is behind the toggle is the detail:
- * the technologies asked for, who is on it, and the control that arms the rail.
- * A position whose seats are all placed starts closed — it is finished, and
- * leaving it open pushes the seats that still need someone off the pane.
+ * The header answers the whole question while closed: the discipline, the
+ * technologies asked for, how far along it is, and the one action that moves it.
+ * `Add candidates` sits up here rather than behind the toggle — it is the point
+ * of the card, and a primary action hidden by default is not a primary action.
+ * What the toggle hides is only the roster: who is on it and who is missing.
  *
- * Arming a seat filters the candidate rail to it. Which seat is armed is stated
- * here and in the rail's own header; the mock's arrow and its "adjust in the
- * candidate rail" caption are both dropped, because the rail already says it and
- * a UI that narrates itself is a UI that isn't clear enough.
+ * Expansion is owned by the pane, not the card, so `Collapse all` can mean
+ * something and a card holding a refused pick can be forced open.
  */
 export function AdminRequestSeatGroup({
   row,
   stagedPicks = [],
   rejections = {},
-  armed,
+  expanded,
+  onExpandedChange,
   onArm,
   onUnstage,
   canStage,
+  technologyIndex,
 }) {
   const isFilled = row.placed >= row.wanted && row.wanted > 0;
-  const [expanded, setExpanded] = useState(!isFilled);
   const technologies = row.technologies ?? [];
   const emptySeats = Math.max(0, row.wanted - row.suggestions.length - stagedPicks.length);
   const hasRejection = stagedPicks.some((pick) => rejections[pick.id]);
 
-  // A refused pick opens its own card. The refusal names a row, and a row the
-  // admin cannot see is the same as no refusal at all.
-  useEffect(() => {
-    if (hasRejection) setExpanded(true);
-  }, [hasRejection]);
+  // Named rather than counted when there is exactly one seat and it is filled:
+  // "1 of 1 placed · Amina Delić" is the whole story of that position, and at one
+  // seat there is no list to truncate.
+  const solePlacedName =
+    row.wanted === 1 && isFilled
+      ? row.suggestions.find((suggestion) => suggestion.outcome === 'placed')?.internName
+      : null;
 
   // The one line a closed card has to be worth reading. Staged is named
   // separately from put forward everywhere on this screen — nobody has been
   // offered a staged pick yet.
   const summary = [
     `${row.placed} of ${row.wanted} placed`,
-    row.inSelection > 0 && `${row.inSelection} in selection`,
+    solePlacedName,
+    !solePlacedName && row.inSelection > 0 && `${row.inSelection} awaiting leadership`,
     stagedPicks.length > 0 && `${stagedPicks.length} staged`,
-    emptySeats > 0 && `${emptySeats} still to fill`,
+    !solePlacedName && emptySeats > 0 && `${emptySeats} still to fill`,
   ]
     .filter(Boolean)
     .join(' · ');
+
+  // Two markers, and only where they say something the summary cannot: finished,
+  // or waiting on a decision that is not the admin's to make. A position nobody
+  // has started on carries neither — there is nothing to flag about untouched
+  // work.
+  const marker = isFilled
+    ? { Icon: CheckCircle2, className: 'text-[hsl(var(--symphony-placed))]' }
+    : row.inSelection > 0
+      ? { Icon: CircleAlert, className: 'text-amber-500' }
+      : null;
 
   return (
     <section
       className={cn(
         'symphony-card-muted overflow-hidden transition-colors',
-        armed && 'border-[hsl(var(--symphony-brand)/0.65)] bg-[hsl(var(--symphony-brand)/0.05)]',
         hasRejection && 'border-destructive/60'
       )}
       data-test={`position-group-${row.id}`}
     >
-      <h3>
+      <div className="flex items-center gap-3 p-4">
+        <h3 className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => onExpandedChange(!expanded)}
+            aria-expanded={expanded}
+            className="group flex w-full items-center gap-3 text-left"
+            data-test={`position-toggle-${row.id}`}
+          >
+            {marker ? (
+              <marker.Icon
+                className={cn('h-5 w-5 shrink-0', marker.className)}
+                aria-hidden="true"
+              />
+            ) : (
+              <span className="h-5 w-5 shrink-0" aria-hidden="true" />
+            )}
+
+            <span className="min-w-0 flex-1 space-y-1">
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="font-semibold text-foreground group-hover:underline">
+                  {row.name}
+                </span>
+                {/* The brief, at header level: a closed card still says which
+                    discipline this is, which is what the pane is scanned for. */}
+                {technologies.map((name) => (
+                  <span
+                    key={name}
+                    className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[0.6875rem] text-muted-foreground"
+                  >
+                    <TechnologyIcon
+                      technology={technologyIndex?.get(name.toLowerCase())}
+                      size={11}
+                      className="shrink-0"
+                    />
+                    {name}
+                  </span>
+                ))}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">{summary}</span>
+            </span>
+          </button>
+        </h3>
+
+        {canStage && (
+          <Button
+            type="button"
+            size="sm"
+            variant={isFilled ? 'outline' : 'default'}
+            className="h-8 shrink-0 gap-1.5 px-3 text-xs font-semibold"
+            onClick={() => onArm(row)}
+            data-test={`arm-seat-${row.id}`}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Add candidates
+          </Button>
+        )}
+
+        <RequestSeatMeter
+          wanted={row.wanted}
+          putForward={row.putForward}
+          inSelection={row.inSelection}
+          placed={row.placed}
+          staged={stagedPicks.length}
+          showLabel={false}
+          className="hidden w-20 shrink-0 sm:block"
+        />
+
         <button
           type="button"
-          onClick={() => setExpanded((current) => !current)}
+          onClick={() => onExpandedChange(!expanded)}
           aria-expanded={expanded}
-          className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/40"
-          data-test={`position-toggle-${row.id}`}
+          aria-label={`${expanded ? 'Hide' : 'Show'} who is on ${row.name}`}
+          className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          data-test={`position-chevron-${row.id}`}
         >
-          {/* Only a finished position gets a marker, because "done" is the one
-              thing the summary line underneath cannot say at a glance. An
-              unfilled one carries no icon and no count here — the summary says
-              how many of how many, and saying it twice reads as two numbers. */}
-          {isFilled && (
-            <CheckCircle2
-              className="h-4 w-4 shrink-0 text-[hsl(var(--symphony-placed))]"
-              aria-hidden="true"
-            />
-          )}
-
-          <span className="min-w-0 flex-1 space-y-0.5">
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-foreground">{row.name}</span>
-              {armed && (
-                <span className="rounded-full bg-[hsl(var(--symphony-brand)/0.15)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[hsl(var(--symphony-brand-ink))]">
-                  Filling now
-                </span>
-              )}
-              {stagedPicks.length > 0 && (
-                <span className="rounded-full border border-dashed border-[hsl(var(--symphony-brand)/0.6)] px-2 py-0.5 text-[0.6875rem] font-semibold text-[hsl(var(--symphony-brand-ink))]">
-                  {stagedPicks.length} staged
-                </span>
-              )}
-            </span>
-            <span className="block truncate text-xs text-muted-foreground">{summary}</span>
-          </span>
-
-          <RequestSeatMeter
-            wanted={row.wanted}
-            putForward={row.putForward}
-            inSelection={row.inSelection}
-            placed={row.placed}
-            staged={stagedPicks.length}
-            showLabel={false}
-            className="hidden w-28 shrink-0 sm:block"
-          />
           <ChevronDown
-            className={cn(
-              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-              expanded && 'rotate-180'
-            )}
+            className={cn('h-4 w-4 transition-transform', expanded && 'rotate-180')}
             aria-hidden="true"
           />
         </button>
-      </h3>
+      </div>
 
       {expanded && (
-        <div className="space-y-3 border-t border-border/60 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {technologies.length > 0 ? (
-              <ul className="flex flex-wrap gap-1.5">
-                {technologies.map((name) => (
-                  <li
-                    key={name}
-                    className="rounded-full border border-border px-2 py-0.5 text-[0.6875rem] text-muted-foreground"
-                  >
-                    {name}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-muted-foreground">No technologies asked for.</p>
-            )}
-            {canStage && (
-              <Button
-                type="button"
-                size="sm"
-                variant={armed ? 'default' : 'outline'}
-                className="h-7 gap-1.5 px-2.5 text-xs"
-                onClick={() => onArm(armed ? null : row)}
-                aria-pressed={armed}
-                data-test={`arm-seat-${row.id}`}
-              >
-                <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
-                {armed ? 'Filling this seat' : 'Add candidates'}
-              </Button>
-            )}
-          </div>
-
+        <div className="border-t border-border/60 p-4">
+          {technologies.length === 0 && (
+            <p className="mb-3 text-xs text-muted-foreground">No technologies asked for.</p>
+          )}
           <div className="grid gap-2 sm:grid-cols-2">
             {row.suggestions.map((suggestion) => (
               <RequestSuggestionCard key={suggestion.id} suggestion={suggestion} />

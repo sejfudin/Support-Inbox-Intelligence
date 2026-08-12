@@ -1,11 +1,41 @@
 import { Link } from 'react-router-dom';
+import { getAvatarColor } from '@/helpers/avatarColor';
 import { formatSuggestionMeta, getInitials } from '@/helpers/staffingRequests';
+import { cn } from '@/lib/utils';
 import { getSuggestionState } from './requestPresentation';
+
+// Where an intern stands, as a pill rather than the tail of the meta line. It is
+// the one thing on the card that decides whether this person is actually coming,
+// and at two columns it was the part that clipped.
+const STATE_PILL = {
+  placed: 'bg-[hsl(var(--symphony-placed)/0.15)] text-[hsl(var(--symphony-placed))]',
+  active: 'bg-[hsl(var(--symphony-brand)/0.14)] text-[hsl(var(--symphony-brand-ink))]',
+  muted: 'bg-muted text-muted-foreground',
+};
+
+export function SuggestionStatePill({ label, tone = 'active', className }) {
+  return (
+    <span
+      className={cn(
+        'shrink-0 rounded-md px-2 py-0.5 text-[0.6875rem] font-semibold capitalize',
+        STATE_PILL[tone] ?? STATE_PILL.active,
+        className
+      )}
+    >
+      {label}
+    </span>
+  );
+}
 
 /**
  * One intern already put forward for a requested position. Shared by
  * leadership's position group and the admin's seat group — the two panes differ
  * in what an admin can do, never in how a suggestion reads.
+ *
+ * Solid border, and the state in a pill on the right. A staged pick (admin-side,
+ * never sent) keeps the dashed border to itself: it is the only state on this
+ * screen the admin can still take back, so it must not look like anything
+ * leadership has already been told about.
  */
 export function RequestSuggestionCard({ suggestion }) {
   const state = getSuggestionState(suggestion);
@@ -13,27 +43,29 @@ export function RequestSuggestionCard({ suggestion }) {
 
   return (
     <div className="symphony-suggestion" data-test={`suggestion-${suggestion.id}`}>
-      <span className="symphony-suggestion-avatar" aria-hidden="true">
+      <span
+        className={cn(
+          'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold',
+          getAvatarColor(suggestion.internName)
+        )}
+        aria-hidden="true"
+      >
         {getInitials(suggestion.internName)}
       </span>
       <div className="min-w-0 flex-1">
         {suggestion.internProfile ? (
           <Link
             to={`/interns/${suggestion.internProfile}`}
-            className="truncate text-sm font-semibold text-foreground hover:underline"
+            className="block truncate text-sm font-semibold text-foreground hover:underline"
           >
             {suggestion.internName}
           </Link>
         ) : (
           <p className="truncate text-sm font-semibold text-foreground">{suggestion.internName}</p>
         )}
-        {/* Wraps rather than truncates: at three columns the single line clipped
-            the recommendation state ("intervi…"), which is the part that says
-            whether this person is actually coming. */}
-        <p className="text-xs leading-snug text-muted-foreground">
-          {[meta, state.label].filter(Boolean).join(' · ')}
-        </p>
+        <p className="truncate text-xs leading-snug text-muted-foreground">{meta}</p>
       </div>
+      <SuggestionStatePill label={state.label} tone={state.tone} />
     </div>
   );
 }

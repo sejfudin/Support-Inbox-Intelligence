@@ -126,6 +126,25 @@ export function useStagedPicks() {
     [update]
   );
 
+  // Replaces one position's picks wholesale — what the picker saves when it
+  // hands back a shortlist it assembled as a draft. Anyone in the new list is
+  // pulled off the request's other positions for the same reason `togglePick`
+  // moves rather than duplicates: one person cannot answer two of one request's
+  // seats, and the server refuses it on submit.
+  const setPositionPicks = useCallback(
+    (requestId, positionId, picks) =>
+      update(requestId, (cart) => {
+        const ids = new Set(picks.map((pick) => pick.id));
+        const withoutElsewhere = Object.fromEntries(
+          Object.entries(cart)
+            .filter(([key]) => key !== positionId)
+            .map(([key, staged]) => [key, staged.filter((pick) => !ids.has(pick.id))])
+        );
+        return { ...withoutElsewhere, [positionId]: picks };
+      }),
+    [update]
+  );
+
   const clearRequest = useCallback(
     (requestId) =>
       setCarts((current) => {
@@ -137,5 +156,5 @@ export function useStagedPicks() {
     []
   );
 
-  return { carts, togglePick, clearRequest };
+  return { carts, togglePick, setPositionPicks, clearRequest };
 }
