@@ -25,27 +25,39 @@ export function RequestListItem({ request, selected, onSelect, hasNews = false, 
         'symphony-card-muted w-full space-y-3 p-4 text-left transition-colors',
         'hover:border-[hsl(var(--symphony-brand)/0.45)]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--symphony-brand))]',
+        // A row someone else moved since the last visit is worth spotting from
+        // across the list, so the marker is the whole row — accent edge and a
+        // tint — not a dot the eye has to hunt for. The tint stays under the
+        // selected treatment so "unread" never reads as "open".
+        hasNews &&
+          !selected &&
+          'border-l-2 border-l-[hsl(var(--symphony-brand))] bg-[hsl(var(--symphony-brand)/0.06)]',
         selected && 'symphony-list-item-active'
       )}
       data-test={`request-row-${request.id}`}
+      data-news={hasNews ? 'true' : undefined}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
-          <p className="flex items-center gap-1.5 truncate font-semibold text-foreground">
-            {hasNews && (
-              <span
-                className="h-2 w-2 shrink-0 rounded-full bg-[hsl(var(--symphony-brand))]"
-                aria-hidden="true"
-                data-test="request-news-dot"
-              />
-            )}
-            <span className="truncate">{getRequestTitle(request)}</span>
-          </p>
+          <p className="truncate font-semibold text-foreground">{getRequestTitle(request)}</p>
           <p className="truncate text-xs text-muted-foreground">
             {formatRequestedPositionsSummary(request.requestedPositions) || 'No positions'}
           </p>
         </div>
-        <RequestStatusBadge request={request} className="shrink-0 px-2.5 py-0.5 text-xs" />
+        <span className="flex shrink-0 items-center gap-1.5">
+          {/* Deliberately not "New" — the marker fires on notes, put-forwards
+              and closures just as much as on filing, and only the request's
+              own history can say which. */}
+          {hasNews && (
+            <span
+              className="rounded-full bg-[hsl(var(--symphony-brand))] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white"
+              data-test="request-news-pill"
+            >
+              New activity
+            </span>
+          )}
+          <RequestStatusBadge request={request} className="px-2.5 py-0.5 text-xs" />
+        </span>
       </div>
 
       <RequestSeatMeter

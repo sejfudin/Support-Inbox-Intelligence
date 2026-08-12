@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,8 @@ import { RequestFormModal } from '@/components/symphony/requests/RequestFormModa
 import { CloseRequestDialog } from '@/components/symphony/requests/CloseRequestDialog';
 import { getRequestTitle } from '@/components/symphony/requests/requestPresentation';
 import { useAuth } from '@/context/AuthContext';
-import {
-  useMarkStaffingRequestsSeen,
-  useStaffingRequestNews,
-  useStaffingRequests,
-} from '@/queries/staffingRequests';
+import { useStaffingRequests } from '@/queries/staffingRequests';
+import { useStaffingNewsMarkers } from '@/hooks/useStaffingNewsMarkers';
 import { getRequestGroup } from '@/helpers/staffingRequests';
 
 const SORTS = {
@@ -75,19 +72,9 @@ export default function LeadershipRequestsPage() {
   const [closeReason, setCloseReason] = useState(null);
 
   const { data: requests = [], isPending, isError } = useStaffingRequests({ mine: mineOnly });
-  const { data: news } = useStaffingRequestNews();
-  const unreadRequestIds = useMemo(() => new Set(news?.requestIds ?? []), [news]);
-
   // Opening the tab clears the badge — read state is tab-level, stamped once
   // per mount rather than on every render.
-  const markSeenMutation = useMarkStaffingRequestsSeen();
-  const hasMarkedSeen = useRef(false);
-  useEffect(() => {
-    if (hasMarkedSeen.current) return;
-    hasMarkedSeen.current = true;
-    markSeenMutation.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const unreadRequestIds = useStaffingNewsMarkers();
 
   const currentUserId = user?._id ?? user?.id;
   const canFile = user?.role === 'leadership';
@@ -97,8 +84,14 @@ export default function LeadershipRequestsPage() {
       (request) =>
         (group === 'all' || getRequestGroup(request) === group) && matchesQuery(request, query)
     );
-    return [...filtered].sort(sort === 'needed' ? byNeededBy : byNewest);
-  }, [requests, group, query, sort]);
+    // Unread first, chosen sort within each half. Someone arriving off the
+    // badge should not have to scroll a long list to find what moved.
+    const bySort = sort === 'needed' ? byNeededBy : byNewest;
+    return [...filtered].sort(
+      (a, b) =>
+        Number(unreadRequestIds.has(b.id)) - Number(unreadRequestIds.has(a.id)) || bySort(a, b)
+    );
+  }, [requests, group, query, sort, unreadRequestIds]);
 
   // The selected request comes from the full list, not the filtered one: opening
   // a request and then switching tabs shouldn't blank the pane. It only resets

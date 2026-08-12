@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,12 +11,8 @@ import { RequestsFilterTabs } from '@/components/symphony/requests/RequestsFilte
 import { RequestListItem } from '@/components/symphony/requests/RequestListItem';
 import { AdminRequestDetail } from '@/components/symphony/requests/AdminRequestDetail';
 import { PutForwardDialog } from '@/components/symphony/requests/PutForwardDialog';
-import {
-  useMarkStaffingRequestsSeen,
-  usePutInternsForward,
-  useStaffingRequestNews,
-  useStaffingRequests,
-} from '@/queries/staffingRequests';
+import { usePutInternsForward, useStaffingRequests } from '@/queries/staffingRequests';
+import { useStaffingNewsMarkers } from '@/hooks/useStaffingNewsMarkers';
 import {
   EMPTY_CART,
   countStagedPicks,
@@ -79,28 +75,23 @@ export default function AdminStaffingRequestsPage() {
   const [rejections, setRejections] = useState({});
 
   const { data: requests = [], isPending, isError } = useStaffingRequests();
-  const { data: news } = useStaffingRequestNews();
-  const unreadRequestIds = useMemo(() => new Set(news?.requestIds ?? []), [news]);
+  const unreadRequestIds = useStaffingNewsMarkers();
 
   const { carts, togglePick, setPositionPicks, clearRequest } = useStagedPicks();
   const submitMutation = usePutInternsForward();
-
-  const markSeenMutation = useMarkStaffingRequestsSeen();
-  const hasMarkedSeen = useRef(false);
-  useEffect(() => {
-    if (hasMarkedSeen.current) return;
-    hasMarkedSeen.current = true;
-    markSeenMutation.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const visibleRequests = useMemo(() => {
     const filtered = requests.filter(
       (request) =>
         (group === 'all' || getRequestGroup(request) === group) && matchesQuery(request, query)
     );
-    return [...filtered].sort(byNewest);
-  }, [requests, group, query]);
+    // Unread first, newest within each half. An admin arriving off the badge
+    // should not have to scroll a long list to find what moved.
+    return [...filtered].sort(
+      (a, b) =>
+        Number(unreadRequestIds.has(b.id)) - Number(unreadRequestIds.has(a.id)) || byNewest(a, b)
+    );
+  }, [requests, group, query, unreadRequestIds]);
 
   const selected = requests.find((request) => request.id === selectedId) ?? null;
   const cart = carts[selectedId] ?? EMPTY_CART;
