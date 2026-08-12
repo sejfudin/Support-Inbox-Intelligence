@@ -83,13 +83,13 @@ export function AdminRequestDetail({
   // One action slot, one action in it. A request that still names a project
   // nobody created cannot be answered at all, so resolving it *is* the next
   // step — offering both buttons made the admin choose between a live control
-  // and a dead one. The reason it is dead is not repeated here either: the
-  // blocker banner below already says it, in more words than a button caption
-  // has room for.
-  const refusal =
-    isOpen && !needsProject && stagedCount === 0
-      ? 'Nothing staged yet. Add candidates to a seat and they collect here.'
-      : null;
+  // and a dead one. The reason it is dead is not spelled out next to the button
+  // either: the blocker banner below already says it, in more words than a
+  // button caption has room for.
+  //
+  // Nor is the empty cart: a disabled "Submit to leadership" beside seat cards
+  // that each offer "Add candidates" is already the whole story, and a sentence
+  // repeating it just crowded the header.
 
   // Only for the technology logos on the position headers — rows carry names, and
   // the icon map keys off slugs. Shared, long-cached query.
@@ -199,27 +199,20 @@ export function AdminRequestDetail({
               Resolve project
             </Button>
           ) : (
-            <>
-              <Button
-                type="button"
-                onClick={onSubmit}
-                disabled={stagedCount === 0 || isSubmitting}
-                className="gap-2"
-                data-test="submit-picks"
-              >
-                <Send className="h-4 w-4" aria-hidden="true" />
-                {isSubmitting
-                  ? 'Sending…'
-                  : stagedCount === 0
-                    ? 'Submit to leadership'
-                    : `Submit ${stagedCount} ${stagedCount === 1 ? 'pick' : 'picks'} to leadership`}
-              </Button>
-              {refusal && (
-                <p className="text-right text-xs text-muted-foreground" data-test="submit-refusal">
-                  {refusal}
-                </p>
-              )}
-            </>
+            <Button
+              type="button"
+              onClick={onSubmit}
+              disabled={stagedCount === 0 || isSubmitting}
+              className="gap-2"
+              data-test="submit-picks"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+              {isSubmitting
+                ? 'Sending…'
+                : stagedCount === 0
+                  ? 'Submit to leadership'
+                  : `Submit ${stagedCount} ${stagedCount === 1 ? 'pick' : 'picks'} to leadership`}
+            </Button>
           )}
           {/* Answering "no" outlives whichever primary action is in the slot, so
               it sits below the branch rather than inside one of them. A request
