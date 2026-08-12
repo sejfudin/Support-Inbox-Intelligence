@@ -589,6 +589,22 @@
   box-shadow: inset 0 0 0 1px hsl(var(--symphony-brand) / 0.85);
 }
 
+/* Staged, admin-side only: picked but never sent. Lighter than `forward`
+   because it is not yet a promise to anyone — nobody outside this browser
+   knows about it. */
+.symphony-seat-staged {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px hsl(var(--symphony-brand) / 0.5);
+}
+
+/* A staged candidate's card, in the seat group and in the rail. Same footprint
+   as an ordinary suggestion so a seat with one of each reads as one row. */
+[data-surface='symphony'] .symphony-suggestion-staged {
+  border-style: dashed;
+  border-color: hsl(var(--symphony-brand) / 0.6);
+  background: hsl(var(--symphony-brand) / 0.06);
+}
+
 /* Suggested interns, one card per recommendation. */
 
 [data-surface='symphony'] .symphony-suggestion {

@@ -65,22 +65,23 @@ router.post(
   requireRole(ROLES.ADMIN),
   resolveStaffingRequestProjectByCreating
 );
-// Putting interns forward, per requested position — never from one flat list,
-// so the position is a path segment rather than a body field and cannot be a
-// free choice. Admin-only: leadership files demand, admins answer it. Both
-// halves (read the picker, write the picks) share that guard.
+// Putting interns forward. Admin-only: leadership files demand, admins answer
+// it. Both halves (read the picker, write the picks) share that guard.
+//
+// The picker is read per requested position — an intern is offered for the
+// discipline that was actually asked for, so the position is a path segment.
+// The write is request-level, because an admin stages picks across seats and
+// sends them as one act: one body carrying every position group, one insert,
+// one history event, one badge. The position is still never a free choice — it
+// is the key of the group the picks were staged under, and the service checks
+// each one is a position this request asked for.
 router.get(
   '/:id/positions/:positionId/candidates',
   protect,
   requireRole(ROLES.ADMIN),
   listPutForwardCandidates
 );
-router.post(
-  '/:id/positions/:positionId/put-forward',
-  protect,
-  requireRole(ROLES.ADMIN),
-  putInternsForward
-);
+router.post('/:id/put-forward', protect, requireRole(ROLES.ADMIN), putInternsForward);
 router.post(
   '/:id/close',
   protect,

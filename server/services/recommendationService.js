@@ -544,25 +544,30 @@ const createRecommendation = async (user, payload = {}) => {
 //     about, and refusing it would only push them to edit recommendations by
 //     hand. Discontinued and completed interns are still refused — that
 //     exclusion is enforced by the caller's picker rules.
+// Takes every requested position in one call rather than one call per position:
+// an admin submits their staged picks as a single act, so the recommendations
+// behind it are inserted in one write and either all appear or none do.
 const createRecommendationsForStaffingRequest = async (
   user,
-  { internProfileIds, positionId, projectId, staffingRequestId, technologyIds = [] }
+  { groups = [], projectId, staffingRequestId }
 ) => {
   assertRecommendationWriteAccess(user);
 
   const recommendedAt = new Date();
   const created = await Recommendation.insertMany(
-    internProfileIds.map((internProfileId) => ({
-      internProfile: internProfileId,
-      createdBy: user._id,
-      updatedBy: user._id,
-      position: positionId,
-      project: projectId,
-      staffingRequest: staffingRequestId,
-      technologies: technologyIds,
-      status: 'recommended',
-      statusDates: { recommended: recommendedAt },
-    }))
+    groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
+      internProfileIds.map((internProfileId) => ({
+        internProfile: internProfileId,
+        createdBy: user._id,
+        updatedBy: user._id,
+        position: positionId,
+        project: projectId,
+        staffingRequest: staffingRequestId,
+        technologies: technologyIds,
+        status: 'recommended',
+        statusDates: { recommended: recommendedAt },
+      }))
+    )
   );
 
   await Promise.all(

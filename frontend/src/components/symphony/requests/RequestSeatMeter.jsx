@@ -18,12 +18,17 @@ const MAX_SEGMENTS = 14;
  * Over-supply is real (an admin may put three people forward for two seats) and
  * is reported in the label rather than by drawing extra seats — the meter
  * measures demand, and demand doesn't grow because more names arrived.
+ *
+ * `staged` is admin-side only and is a fourth state, never folded into the
+ * others: nobody has been offered anyone yet, and a meter that counted staged
+ * picks as put forward would tell the admin the work was already sent.
  */
 export function RequestSeatMeter({
   wanted,
   putForward,
   inSelection,
   placed,
+  staged = 0,
   showLabel = true,
   className,
 }) {
@@ -31,16 +36,18 @@ export function RequestSeatMeter({
   const safePlaced = Math.max(0, placed ?? 0);
   const safeInSelection = Math.max(0, inSelection ?? 0);
   const safeForward = Math.max(safePlaced, putForward ?? 0);
+  const safeStaged = Math.max(0, staged ?? 0);
 
   const placedSeats = Math.min(safePlaced, safeWanted);
   const liveSeats = Math.min(safeInSelection, safeWanted - placedSeats);
-  const emptySeats = Math.max(0, safeWanted - placedSeats - liveSeats);
+  const stagedSeats = Math.min(safeStaged, safeWanted - placedSeats - liveSeats);
+  const emptySeats = Math.max(0, safeWanted - placedSeats - liveSeats - stagedSeats);
   const surplus = Math.max(0, safeForward - safeWanted);
 
   // One sentence, because the segment colours alone don't carry this.
-  const label = `${safePlaced} placed, ${safeInSelection} in selection, ${safeForward} put forward, of ${safeWanted} ${
-    safeWanted === 1 ? 'seat' : 'seats'
-  }`;
+  const label = `${safePlaced} placed, ${safeInSelection} in selection, ${safeForward} put forward${
+    safeStaged > 0 ? `, ${safeStaged} staged` : ''
+  }, of ${safeWanted} ${safeWanted === 1 ? 'seat' : 'seats'}`;
 
   const asBar = safeWanted > MAX_SEGMENTS;
   const pct = (value) => (safeWanted === 0 ? 0 : (value / safeWanted) * 100);
@@ -68,6 +75,9 @@ export function RequestSeatMeter({
           {Array.from({ length: liveSeats }, (_unused, index) => (
             <span key={`forward-${index}`} className="symphony-seat symphony-seat-forward" />
           ))}
+          {Array.from({ length: stagedSeats }, (_unused, index) => (
+            <span key={`staged-${index}`} className="symphony-seat symphony-seat-staged" />
+          ))}
           {Array.from({ length: emptySeats }, (_unused, index) => (
             <span key={`empty-${index}`} className="symphony-seat" />
           ))}
@@ -81,6 +91,7 @@ export function RequestSeatMeter({
           {safeInSelection} in selection
           {' · '}
           {safeForward} put forward of {safeWanted}
+          {safeStaged > 0 && ` · ${safeStaged} staged`}
           {surplus > 0 && ` · ${surplus} more than asked for`}
         </p>
       )}

@@ -113,13 +113,15 @@ export const usePutForwardCandidates = ({ requestId, positionId }, options = {})
 export const usePutInternsForward = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, positionId, internProfileIds }) =>
-      putInternsForward(id, positionId, internProfileIds),
-    onSuccess: () => {
+    mutationFn: ({ id, groups }) => putInternsForward(id, groups),
+    onSuccess: (_data, { id }) => {
       invalidateRequests(queryClient);
       queryClient.invalidateQueries({ queryKey: RECOMMENDATIONS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: STAFFING_REQUEST_CANDIDATES_QUERY_KEY });
+      // The trail is the audit record of this act and nothing else refetches
+      // it — leadership's pane shows it, so it must not go stale behind them.
+      queryClient.invalidateQueries({ queryKey: ['staffing-request-history', id] });
     },
   });
 };

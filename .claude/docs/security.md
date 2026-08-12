@@ -259,18 +259,29 @@ same exception as `Project`/`Recommendation` above).
   gets a 403; nobody annotates their own ask. Rejected on a closed request. Saving replaces the
   previous text: one note per request, deliberately not a thread.
 - **Putting interns forward** (`GET /:id/positions/:positionId/candidates`,
-  `POST /:id/positions/:positionId/put-forward`) is **admin-only** at the route and re-asserted in
+  `POST /:id/put-forward`) is **admin-only** at the route and re-asserted in
   `assertCanPutForward` — leadership files demand, admins answer it, and there is no author
   carve-out. Both routes also refuse a closed request and one that still needs its project; that
-  second refusal is structural, not cosmetic (`Recommendation.project` is required). The position
-  is a **path segment, not a body field**, and must be one the request actually asked for — that is
-  what "the position is forced" means server-side, and it is why no payload can steer a
-  recommendation onto a discipline nobody asked for.
+  second refusal is structural, not cosmetic (`Recommendation.project` is required). The read is
+  scoped to one requested position by **path segment**; the write is request-level and takes
+  `{ groups: [{ positionId, internProfileIds }] }`, but the position is still never free — every
+  group's `positionId` must be one the request actually asked for (`findRequestedPosition`, which
+  throws otherwise). That is what "the position is forced" means server-side, and it is why no
+  payload can steer a recommendation onto a discipline nobody asked for. A group naming a position
+  twice is refused outright.
 - **The picker's eligibility rules are enforced on the write, not only on the read.** The write path
-  re-runs `partitionPickerCandidates` over the picked profiles, so a stale or bypassed client cannot
-  offer an intern who has left the programme, or double-offer one already in selection for that same
-  requested position. Interns already placed, or in selection *elsewhere*, are deliberately allowed
-  through — the rules warn there, they do not block.
+  re-runs `partitionPickerCandidates` per group over the picked profiles, so a stale or bypassed
+  client cannot offer an intern who has left the programme, or double-offer one already in selection
+  for that same requested position. Interns already placed, or in selection *elsewhere*, are
+  deliberately allowed through — the rules warn there, they do not block. One further rule belongs
+  to the body rather than the picker and is checked beside it: the same intern may not appear under
+  two seats of one request.
+- **A submit is all-or-nothing, and its refusals are per row.** Any rejected pick aborts the whole
+  submit before a single recommendation is inserted, and comes back as `409` with
+  `data: { rejections: [{ positionId, internProfileId, reason }] }`. The reasons are written words,
+  never the rules helper's own flag tokens. Nothing about this is advisory to the client: the cart
+  the admin stages is client-side only, so the submit is the first and only point the server has
+  ever seen these picks.
 - **The candidates route leaves the request's own data.** It reads every in-programme
   `InternProfile` and their recommendations across all projects, which is what the "in selection on
   Borealis" flag needs. That is admin-only and admins already read every intern, so it widens

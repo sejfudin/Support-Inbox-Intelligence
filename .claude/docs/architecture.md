@@ -288,21 +288,41 @@ the model and the pure rules module — no routes, no screens yet.
   in `ResolveProjectDialog.jsx`, wired into `RequestActions.jsx` — that button checks the viewer's
   own role directly rather than through the `canManage` prop, so it appears on the admin Requests
   screen even though that screen still passes `canManage={false}` pending ticket 09.
-- **Putting interns forward** (ticket 07) — the feature's load-bearing write. Two admin-only routes,
-  both scoped to one requested position by path rather than by body field, because the position is
-  forced and never a free choice:
-  `GET /:id/positions/:positionId/candidates` and `POST /:id/positions/:positionId/put-forward`.
-  The read returns the picker's rows already partitioned by `partitionPickerCandidates` (excluded
-  interns are dropped, not greyed out) plus the requested position's technologies; the write calls
+- **Putting interns forward** (tickets 07, 08) — the feature's load-bearing write. Two admin-only
+  routes, with deliberately different shapes:
+  `GET /:id/positions/:positionId/candidates` reads the picker for **one** requested position (the
+  position is a path segment because an intern is offered for the discipline that was asked for,
+  never out of one flat list), returning rows already partitioned by `partitionPickerCandidates`
+  (excluded interns are dropped, not greyed out) plus the position's technologies.
+  `POST /:id/put-forward` is **request-level** and takes the whole staged cart in one body:
+  `{ groups: [{ positionId, internProfileIds }] }`. The position is still never a free choice — it
+  is the key of the group and must be one the request asked for. It calls
   `recommendationService.createRecommendationsForStaffingRequest`, which `insertMany`s one
-  recommendation per intern tagged with `staffingRequest`, logs each one's initial status event, and
-  emits `emitInternDataChanged()`. The picker rules are re-checked server-side on the write, so a
-  stale or bypassed client can't offer someone who has left the programme. The request itself is
-  never written — see `docs/adr/0006`. Putting interns forward appends a
-  `staffing:put_forward` history event (naming its consequence: "2 put forward for Frontend
-  Developer") and so badges the other side; individual placements deliberately do not.
-  Frontend: `PutForwardModal.jsx`, opened per position group from `RequestPositionGroup.jsx` on the
-  admin Requests screen.
+  recommendation per pick across every group in a single write, tagged with `staffingRequest`, logs
+  each one's initial status event, and emits `emitInternDataChanged()`. The picker rules are
+  re-checked server-side per group (a cart goes stale while it is staged), and refusals come back
+  **all-or-nothing** as `409` with `data.rejections = [{ positionId, internProfileId, reason }]` so
+  the client can mark the offending rows rather than fail the whole form with one message. The
+  request itself is never written — see `docs/adr/0006`.
+  **One submit is one answer**: exactly one `staffing:put_forward` history event per submit, naming
+  the total across every position ("3 put forward for Frontend Developer, QA Engineer"), and exactly
+  one leadership badge. Individual placements deliberately do not badge.
+  Frontend: the admin stages picks client-side first — see the admin Requests screen below.
+
+**The admin Requests screen (ticket 08)** — admin and leadership no longer share a detail pane.
+Leadership keeps `RequestDetail.jsx`; the admin gets `AdminRequestDetail.jsx` plus
+`AdminCandidateRail.jsx` and `AdminRequestSeatGroup.jsx`, laid out list / detail / rail in
+`pages/AdminStaffingRequestsPage.jsx`.
+
+Picks are **staged, not sent**. The cart lives in the page (`hooks/useStagedPicks.js`), keyed
+`requestId → positionId → [{ id, name, technologies, startDate }]`, mirrored to `sessionStorage`
+so a refresh or a move to another request doesn't discard unsent work. It is deliberately **never
+persisted server-side**: a staged pick is an intention the server has never been told about, so
+there is nothing to read back off it and no model holds it. Revisiting that is a new ticket and a
+new ADR, not a quiet addition. The cart carries display fields as well as ids because the seat
+groups show staged picks for every seat while candidates are only fetched for the armed one; only
+ids are ever submitted. An intern staged on one seat is excluded from the rail for the request's
+other seats, the same way genuinely put-forward interns are.
 
 **News badge (ticket 04)** — both shells find out about staffing-request activity without a bell.
 Deliberately doesn't use `Notification` (see

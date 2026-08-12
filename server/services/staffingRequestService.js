@@ -458,13 +458,9 @@ const resolveStaffingRequestProjectByCreating = async (user, requestId, payload 
 
 // Both put-forward paths (read the picker, write the picks) start the same way:
 // the request must exist, the caller must be an admin, and the request must be
-// open with a real project — then the position they named must actually be one
-// this request asked for. That last check is what "the position is forced to
-// the requested position" means server-side: there is no free-choice position
-// in this flow, only one of the request's own.
-const loadRequestedPositionForPutForward = async (user, requestId, positionId) => {
+// open with a real project.
+const loadRequestForPutForward = async (user, requestId) => {
   assertValidObjectId(requestId, 'Staffing request');
-  assertValidObjectId(positionId, 'Position');
 
   const request = await StaffingRequest.findById(requestId);
   if (!request) throw httpError('Staffing request not found', 404);
@@ -475,6 +471,16 @@ const loadRequestedPositionForPutForward = async (user, requestId, positionId) =
     throw asHttpError(error);
   }
 
+  return request;
+};
+
+// …then the position they named must actually be one this request asked for.
+// That is what "the position is forced to the requested position" means
+// server-side: there is no free-choice position in this flow, only one of the
+// request's own.
+const findRequestedPosition = (request, positionId) => {
+  assertValidObjectId(positionId, 'Position');
+
   const requestedPosition = request.requestedPositions.find(
     (candidate) => String(candidate.position) === String(positionId)
   );
@@ -482,16 +488,31 @@ const loadRequestedPositionForPutForward = async (user, requestId, positionId) =
     throw httpError('That position is not on this staffing request', 400);
   }
 
-  return { request, requestedPosition };
+  return requestedPosition;
+};
+
+const loadRequestedPositionForPutForward = async (user, requestId, positionId) => {
+  const request = await loadRequestForPutForward(user, requestId);
+  return { request, requestedPosition: findRequestedPosition(request, positionId) };
 };
 
 // A picker-rule refusal, said in words rather than by leaking the rule's own
-// token. Keyed by the flag types `partitionPickerCandidates` can exclude on.
+// token. Keyed by the flag types `partitionPickerCandidates` can exclude on —
+// nothing is added to this map that the helper cannot produce, because the
+// helper stays the only place the picker rules live. Phrased per intern,
+// because a refusal is reported against the row it came from: one stale pick
+// must not read as if the whole submit was wrong.
 const PUT_FORWARD_REFUSALS = {
-  discontinued: 'One or more of those interns has left the programme',
-  completed: 'One or more of those interns has completed the programme',
-  'already-put-forward': 'One or more of those interns is already in selection for this position',
+  discontinued: 'Has left the programme',
+  completed: 'Has completed the programme',
+  'already-put-forward': 'Already in selection for this position',
 };
+
+// Not a picker rule: the picker rules judge one intern against the programme
+// and against a seat, and cannot see a cart at all. This is a property of the
+// submitted body — the same intern appearing under two of one request's seats —
+// so it is checked where the body is read.
+const DUPLICATE_PICK_REFUSAL = 'Staged on more than one seat of this request';
 
 // Whether a recommendation is a LIVE offer of this intern for this exact
 // requested position. Only live ones make an intern "already put forward":
@@ -519,7 +540,7 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
   // as by the picker rules below — they can never appear, so there is no reason
   // to load them and their whole recommendation history first.
   const profiles = await InternProfile.find({ status: { $nin: PICKER_EXCLUDED_INTERN_STATUSES } })
-    .select('user status declaredPosition selfTechnologies cvTechnologies')
+    .select('user status startDate declaredPosition selfTechnologies cvTechnologies')
     .populate({ path: 'user', select: 'fullname email' })
     .populate({ path: 'declaredPosition', select: 'name' })
     .populate({ path: 'selfTechnologies', select: 'name' })
@@ -561,6 +582,10 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
       internName: profile.user?.fullname ?? 'Unknown intern',
       email: profile.user?.email ?? null,
       status: profile.status,
+      // How long they have been in the programme, the same anchor the suggestion
+      // cards use — a candidate row that can't be compared on experience is only
+      // half a row.
+      startDate: profile.startDate ?? null,
       position: profile.declaredPosition?.name ?? null,
       // Both technology lists, because a picker matching against what the
       // request asked for should not care which of the two an intern's skill
@@ -585,76 +610,144 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
   };
 };
 
+// Normalise the submitted cart: one group per requested position, deduped
+// within a group, empty groups dropped. Shape errors throw; picker-rule
+// failures do not — those are collected per row further down.
+const readPutForwardGroups = (request, payload) => {
+  const rawGroups = Array.isArray(payload.groups) ? payload.groups : [];
+
+  const groups = rawGroups
+    .map((group) => {
+      const requestedPosition = findRequestedPosition(request, group?.positionId);
+      const internProfileIds = [
+        ...new Set((group?.internProfileIds || []).filter(Boolean).map((id) => String(id))),
+      ];
+      internProfileIds.forEach((id) => assertValidObjectId(id, 'Intern'));
+      return {
+        positionId: String(group.positionId),
+        internProfileIds,
+        // Seeded from what the request asked for — the admin is answering this
+        // requested position, so its technologies are the ones being matched.
+        technologyIds: (requestedPosition.technologies ?? []).map((technology) =>
+          String(technology)
+        ),
+      };
+    })
+    .filter((group) => group.internProfileIds.length > 0);
+
+  if (groups.length === 0) {
+    throw httpError('Pick at least one intern to put forward', 400);
+  }
+  if (new Set(groups.map((group) => group.positionId)).size !== groups.length) {
+    throw httpError('That position is on this submission twice', 400);
+  }
+
+  return groups;
+};
+
 // The load-bearing write of the whole feature: putting interns forward creates
 // ordinary recommendations tagged back to this request. The request never holds
 // its own list of interns — who was put forward, and whether they were placed,
 // is always read back off those recommendations (see docs/adr/0006).
 //
+// It takes the whole cart, not one position, because putting interns forward is
+// the answer leadership is waiting on and there is one answer per submit: one
+// insert, one history event, one badge, however many positions it spans.
 // Over-supply is expected, not blocked: more interns than the count may be put
 // forward, because interviews fail.
-const putInternsForward = async (user, requestId, positionId, payload = {}) => {
-  const { request, requestedPosition } = await loadRequestedPositionForPutForward(
-    user,
-    requestId,
-    positionId
-  );
+//
+// Rejections are collected across every group and returned together, keyed by
+// the row that produced them, rather than failing on the first one — an admin
+// with one stale pick needs to know which pick, not that something was wrong.
+const putInternsForward = async (user, requestId, payload = {}) => {
+  const request = await loadRequestForPutForward(user, requestId);
+  const groups = readPutForwardGroups(request, payload);
 
-  const internProfileIds = [
-    ...new Set((payload.internProfileIds || []).filter(Boolean).map((id) => String(id))),
-  ];
-  if (internProfileIds.length === 0) {
-    throw httpError('Pick at least one intern to put forward', 400);
-  }
-  internProfileIds.forEach((id) => assertValidObjectId(id, 'Intern'));
-
+  const internProfileIds = [...new Set(groups.flatMap((group) => group.internProfileIds))];
   const profiles = await InternProfile.find({ _id: { $in: internProfileIds } })
     .select('status')
     .lean();
   if (profiles.length !== internProfileIds.length) {
     throw httpError('One or more interns are invalid', 400);
   }
+  const profilesById = new Map(profiles.map((profile) => [String(profile._id), profile]));
 
-  // The picker rules are enforced here too, not only in the UI: a client that
-  // is out of date, or bypassed entirely, must not be able to offer an intern
-  // who has left the programme or who is already put forward for this seat.
+  // The picker rules are enforced here too, not only in the UI: a cart goes
+  // stale while it is staged, and a client that is out of date — or bypassed
+  // entirely — must not be able to offer an intern who has left the programme
+  // or who is already put forward for this seat.
   const tagged = await Recommendation.find({
     staffingRequest: request._id,
-    position: positionId,
+    position: { $in: groups.map((group) => group.positionId) },
     status: { $in: IN_SELECTION_STATUSES },
   })
-    .select('internProfile')
+    .select('internProfile position')
     .lean();
-  const { excluded } = partitionPickerCandidates(
-    profiles.map((profile) => ({ internProfile: profile._id, status: profile.status })),
-    { alreadyPutForwardProfileIds: tagged.map((recommendation) => recommendation.internProfile) }
-  );
-  if (excluded.length > 0) {
-    throw httpError(PUT_FORWARD_REFUSALS[excluded[0].flags[0].type], 400);
+
+  const rejections = [];
+  const seenProfileIds = new Set();
+  for (const group of groups) {
+    const alreadyPutForwardProfileIds = tagged
+      .filter((recommendation) => String(recommendation.position) === group.positionId)
+      .map((recommendation) => recommendation.internProfile);
+
+    const { excluded } = partitionPickerCandidates(
+      group.internProfileIds.map((id) => ({
+        internProfile: id,
+        status: profilesById.get(id).status,
+      })),
+      { alreadyPutForwardProfileIds }
+    );
+    excluded.forEach((candidate) =>
+      rejections.push({
+        positionId: group.positionId,
+        internProfileId: String(candidate.internProfile),
+        reason: PUT_FORWARD_REFUSALS[candidate.flags[0].type],
+      })
+    );
+
+    // One seat per intern per request: staging someone onto a second seat of the
+    // same request is offering the same person twice for one ask.
+    for (const id of group.internProfileIds) {
+      if (seenProfileIds.has(id)) {
+        rejections.push({
+          positionId: group.positionId,
+          internProfileId: id,
+          reason: DUPLICATE_PICK_REFUSAL,
+        });
+      }
+      seenProfileIds.add(id);
+    }
+  }
+  if (rejections.length > 0) {
+    throw Object.assign(httpError('Some picks could not be sent', 409), {
+      data: { rejections },
+    });
   }
 
   await createRecommendationsForStaffingRequest(user, {
-    internProfileIds,
-    positionId,
+    groups,
     projectId: request.project,
     staffingRequestId: request._id,
-    // Seeded from what the request asked for — the admin is answering this
-    // requested position, so its technologies are the ones being matched.
-    technologyIds: (requestedPosition.technologies ?? []).map((technology) => String(technology)),
   });
 
   await request.populate(REQUEST_POPULATE);
-  const positionName =
-    request.requestedPositions.find(
-      (candidate) => String(candidate.position?._id ?? candidate.position) === String(positionId)
-    )?.position?.name ?? 'position';
+  const positionNames = groups.map(
+    (group) =>
+      request.requestedPositions.find(
+        (candidate) => String(candidate.position?._id ?? candidate.position) === group.positionId
+      )?.position?.name ?? 'position'
+  );
 
-  // The event names its consequence, not just its verb. Individual placements
-  // deliberately do not badge the other side — only the act of putting interns
-  // forward does, because that is the answer leadership is waiting on.
+  // The event names its consequence, not just its verb, and there is exactly
+  // one of it per submit — the total across every position the cart spanned.
+  // Individual placements deliberately do not badge the other side; only the
+  // act of putting interns forward does, because that is the answer leadership
+  // is waiting on.
   await logStaffingRequestEvent({
     entityId: request._id,
     userId: user._id,
-    action: `${internProfileIds.length} put forward for ${positionName}`,
+    action: `${internProfileIds.length} put forward for ${positionNames.join(', ')}`,
     statusKey: 'staffing:put_forward',
   });
   emitStaffingNewsChanged();

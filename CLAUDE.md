@@ -29,7 +29,7 @@ Detail lives in the referenced docs below — read them when the task calls for 
   see `.claude/docs/workflows.md`.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
 - **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
-- **There is no integration or E2E suite.** `npm test` in `server/` covers pure helpers (`helpers/*.test.js`) plus three services with Mongo/Supabase mocked (`services/internCvService.test.js`, `services/internService.test.js`, `services/staffingRequestService.test.js`) — nothing else. `npm test` in `frontend/` (vitest) covers a couple of pure helpers only (`src/helpers/*.test.js`); no component renders. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).
+- **There is no integration or E2E suite.** `npm test` in `server/` covers pure helpers (`helpers/*.test.js`) plus three services with Mongo/Supabase mocked (`services/internCvService.test.js`, `services/internService.test.js`, `services/staffingRequestService.test.js`) — nothing else. `npm test` in `frontend/` (vitest) covers a couple of pure helpers only (`src/helpers/*.test.js`, plus the pure cart functions in `src/hooks/useStagedPicks.test.js`); no component renders. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).
 - Match surrounding code style. Prettier is the formatter; run `npm run format` in the package you changed.
 - Backend is CommonJS (`require`), frontend is ESM (`import`). Don't mix.
 

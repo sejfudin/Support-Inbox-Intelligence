@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollFade } from '@/components/ui/scroll-fade';
@@ -8,13 +9,21 @@ import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { RequestsFilterTabs } from '@/components/symphony/requests/RequestsFilterTabs';
 import { RequestListItem } from '@/components/symphony/requests/RequestListItem';
-import { RequestDetail } from '@/components/symphony/requests/RequestDetail';
-import { PutForwardModal } from '@/components/symphony/requests/PutForwardModal';
+import { AdminRequestDetail } from '@/components/symphony/requests/AdminRequestDetail';
+import { AdminCandidateRail } from '@/components/symphony/requests/AdminCandidateRail';
 import {
   useMarkStaffingRequestsSeen,
+  usePutInternsForward,
   useStaffingRequestNews,
   useStaffingRequests,
 } from '@/queries/staffingRequests';
+import {
+  EMPTY_CART,
+  countStagedPicks,
+  stagedInternIds,
+  toPutForwardGroups,
+  useStagedPicks,
+} from '@/hooks/useStagedPicks';
 import { getRequestGroup } from '@/helpers/staffingRequests';
 
 const matchesQuery = (request, query) => {
@@ -39,17 +48,21 @@ const matchesQuery = (request, query) => {
 const byNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
 
 /**
- * The admin-side Requests view — same list and detail built for leadership in
- * ticket 03 (`RequestListItem`/`RequestDetail`, `symphony-*` styling), wrapped
- * in its own `data-surface="symphony"` scope since those styles are keyed off
- * that attribute and this page lives in the sidebar shell, not `SymphonyLayout`.
+ * The admin-side Requests view: a work surface, not a scorecard. Leadership
+ * files demand and watches it; the admin fills seats and sends one answer, so
+ * this page no longer renders leadership's `RequestDetail` — it has its own
+ * (`AdminRequestDetail`) plus a candidate rail beside it.
  *
- * `canManage={false}` here because edit/cancel stay leadership-side for now
- * (closing is ticket 09). The two admin actions this screen does offer are
- * "resolve project" — `RequestActions` checks the viewer's own role for it
- * rather than reading `canManage` — and putting interns forward, which is
- * per requested position and so lives on each position group rather than in
- * the header.
+ * Putting interns forward is staged, not immediate. Picks collect in a cart
+ * held here — keyed by request id, mirrored to `sessionStorage`, deliberately
+ * never persisted server-side (ticket 08) — and only `Submit to leadership`
+ * writes anything. That is why the cart lives at page level rather than in the
+ * rail: the list badges requests with unsent picks, the detail pane counts
+ * them, and the rail reads them back as "already staged".
+ *
+ * Wrapped in its own `data-surface="symphony"` scope since the `symphony-*`
+ * styles are keyed off that attribute and this page lives in the sidebar shell,
+ * not `SymphonyLayout`.
  */
 export default function AdminStaffingRequestsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,13 +70,20 @@ export default function AdminStaffingRequestsPage() {
 
   const [group, setGroup] = useState('all');
   const [query, setQuery] = useState('');
-  // The requested position the picker is open against — putting interns forward
-  // is always per requested position, never against the request as a whole.
-  const [putForwardRow, setPutForwardRow] = useState(null);
+  // The requested position the candidate rail is filtered to. Staging is always
+  // against one requested position, never against the request as a whole.
+  const [armedRow, setArmedRow] = useState(null);
+  // Per-row refusals from the last submit, keyed positionId → internProfileId.
+  // A pick can go stale while it is staged, and the admin needs to know which
+  // pick — not that something, somewhere, was wrong.
+  const [rejections, setRejections] = useState({});
 
   const { data: requests = [], isPending, isError } = useStaffingRequests();
   const { data: news } = useStaffingRequestNews();
   const unreadRequestIds = useMemo(() => new Set(news?.requestIds ?? []), [news]);
+
+  const { carts, togglePick, clearRequest } = useStagedPicks();
+  const submitMutation = usePutInternsForward();
 
   const markSeenMutation = useMarkStaffingRequestsSeen();
   const hasMarkedSeen = useRef(false);
@@ -83,6 +103,7 @@ export default function AdminStaffingRequestsPage() {
   }, [requests, group, query]);
 
   const selected = requests.find((request) => request.id === selectedId) ?? null;
+  const cart = carts[selectedId] ?? EMPTY_CART;
 
   const selectRequest = (id) => {
     setSearchParams(
@@ -102,6 +123,100 @@ export default function AdminStaffingRequestsPage() {
     selectRequest(visibleRequests[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPending, selectedId, requests, visibleRequests]);
+
+  // Which seat is armed, and any refusals, belong to the request being looked
+  // at. The cart does not — it survives the move, which is the whole point.
+  useEffect(() => {
+    setArmedRow(null);
+    setRejections({});
+  }, [selectedId]);
+
+  const stagedForSeat = useMemo(
+    () => new Set((cart[armedRow?.id] ?? []).map((pick) => pick.id)),
+    [cart, armedRow]
+  );
+  const stagedElsewhere = useMemo(() => {
+    const all = stagedInternIds(cart);
+    stagedForSeat.forEach((id) => all.delete(id));
+    return all;
+  }, [cart, stagedForSeat]);
+
+  // Only the row that was touched loses its marker. Clearing them all would
+  // mean an admin with two stale picks drops the first, loses sight of the
+  // second, and submits straight back into the same refusal.
+  const clearRejection = useCallback(
+    (positionId, internProfileId) =>
+      setRejections((current) => {
+        if (!current[positionId]?.[internProfileId]) return current;
+        const forPosition = { ...current[positionId] };
+        delete forPosition[internProfileId];
+        const next = { ...current };
+        if (Object.keys(forPosition).length === 0) delete next[positionId];
+        else next[positionId] = forPosition;
+        return next;
+      }),
+    []
+  );
+
+  const onToggleCandidate = useCallback(
+    (candidate) => {
+      if (!selectedId || !armedRow) return;
+      clearRejection(armedRow.id, candidate.internProfile);
+      togglePick(selectedId, armedRow.id, {
+        id: candidate.internProfile,
+        name: candidate.internName,
+        technologies: candidate.technologies ?? [],
+        startDate: candidate.startDate ?? null,
+      });
+    },
+    [selectedId, armedRow, togglePick, clearRejection]
+  );
+
+  const onUnstage = useCallback(
+    (positionId, pick) => {
+      if (!selectedId) return;
+      clearRejection(positionId, pick.id);
+      togglePick(selectedId, positionId, pick);
+    },
+    [selectedId, togglePick, clearRejection]
+  );
+
+  const onSubmit = async () => {
+    const groups = toPutForwardGroups(cart);
+    const total = countStagedPicks(cart);
+    setRejections({});
+    try {
+      await submitMutation.mutateAsync({ id: selectedId, groups });
+      clearRequest(selectedId);
+      setArmedRow(null);
+      toast.success(total === 1 ? '1 intern put forward' : `${total} interns put forward`);
+    } catch (error) {
+      const rows = error?.response?.data?.data?.rejections;
+      if (rows?.length) {
+        // Nothing was created — the server applies a submit all-or-nothing — so
+        // the cart is left exactly as it was, with the bad rows marked.
+        setRejections(
+          rows.reduce(
+            (byPosition, row) => ({
+              ...byPosition,
+              [row.positionId]: {
+                ...(byPosition[row.positionId] ?? {}),
+                [row.internProfileId]: row.reason,
+              },
+            }),
+            {}
+          )
+        );
+        toast.error('Some picks went stale', {
+          description: 'Nothing was sent. Drop the flagged picks and submit again.',
+        });
+        return;
+      }
+      toast.error('Could not put anyone forward', {
+        description: error?.response?.data?.message,
+      });
+    }
+  };
 
   return (
     <div data-surface="symphony" className="app-page-content space-y-6">
@@ -145,7 +260,7 @@ export default function AdminStaffingRequestsPage() {
       )}
 
       {!isPending && requests.length > 0 && (
-        <div className="grid gap-4 lg:grid-cols-[minmax(280px,340px)_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(260px,300px)_minmax(0,1fr)_minmax(320px,360px)]">
           <div className={selected ? 'hidden lg:block' : 'block'}>
             <ScrollFade
               viewportClassName="space-y-3 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1"
@@ -163,6 +278,7 @@ export default function AdminStaffingRequestsPage() {
                     selected={request.id === selectedId}
                     onSelect={selectRequest}
                     hasNews={unreadRequestIds.has(request.id)}
+                    stagedCount={countStagedPicks(carts[request.id])}
                   />
                 ))
               )}
@@ -192,12 +308,15 @@ export default function AdminStaffingRequestsPage() {
             )}
 
             {selected ? (
-              <RequestDetail
+              <AdminRequestDetail
                 request={selected}
-                canManage={false}
-                onEdit={() => {}}
-                onClose={() => {}}
-                onPutForward={(row) => setPutForwardRow(row)}
+                cart={cart}
+                armedRow={armedRow}
+                onArm={setArmedRow}
+                onUnstage={onUnstage}
+                onSubmit={onSubmit}
+                isSubmitting={submitMutation.isPending}
+                rejections={rejections}
               />
             ) : (
               <SymphonyCard className="py-16 text-center text-sm text-muted-foreground">
@@ -205,15 +324,24 @@ export default function AdminStaffingRequestsPage() {
               </SymphonyCard>
             )}
           </div>
+
+          {/* The rail sits below the detail until there is room for a third
+              column — squeezed beside it, the conflict warnings clip, and they
+              are the one string here that must stay readable. */}
+          {selected && (
+            <div className="min-w-0 lg:col-span-2 xl:col-span-1 xl:max-h-[calc(100vh-18rem)] xl:overflow-y-auto xl:pr-1">
+              <AdminCandidateRail
+                request={selected}
+                row={armedRow}
+                stagedIdsForSeat={stagedForSeat}
+                stagedIdsElsewhere={stagedElsewhere}
+                onToggle={onToggleCandidate}
+                onClearSeat={() => setArmedRow(null)}
+              />
+            </div>
+          )}
         </div>
       )}
-
-      <PutForwardModal
-        open={Boolean(putForwardRow)}
-        onOpenChange={(next) => !next && setPutForwardRow(null)}
-        request={selected}
-        row={putForwardRow}
-      />
     </div>
   );
 }

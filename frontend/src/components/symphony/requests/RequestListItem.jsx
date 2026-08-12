@@ -10,7 +10,7 @@ import { formatDay, getNeededBy, getRequestBlocker, getRequestTitle } from './re
  * them. A blocker shows as a dot beside the needed-by date rather than repeating
  * the banner text, which only the detail pane has room for.
  */
-export function RequestListItem({ request, selected, onSelect, hasNews = false }) {
+export function RequestListItem({ request, selected, onSelect, hasNews = false, stagedCount = 0 }) {
   const totals = getRequestTotals(request);
   const neededBy = getNeededBy(request);
   const blocker = getRequestBlocker(request);
@@ -53,6 +53,7 @@ export function RequestListItem({ request, selected, onSelect, hasNews = false }
         putForward={totals.putForward}
         inSelection={totals.inSelection}
         placed={totals.placed}
+        staged={stagedCount}
         showLabel={false}
       />
 
@@ -66,6 +67,16 @@ export function RequestListItem({ request, selected, onSelect, hasNews = false }
           {totals.putForward === 0
             ? 'Nobody put forward'
             : `${totals.placed} placed · ${totals.inSelection} in selection · ${totals.putForward} put forward`}
+          {/* Unsent picks are invisible everywhere else once the admin
+              navigates away, which is the cart's worst failure mode. */}
+          {stagedCount > 0 && (
+            <span
+              className="font-semibold text-[hsl(var(--symphony-brand-ink))]"
+              data-test="request-staged-count"
+            >
+              {` · ${stagedCount} staged, not sent`}
+            </span>
+          )}
         </span>
         <span className="flex items-center gap-1.5">
           {blocker && (

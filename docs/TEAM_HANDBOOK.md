@@ -32,13 +32,18 @@
   **declined** (the ask is being refused). Declining requires a reason, which becomes the note
   leadership reads. Nothing closes a request automatically — even when every seat is placed, an
   admin still closes it
-- Only role that can put interns forward against a staffing request — done one requested position
-  at a time, so each intern is offered for the discipline that was actually asked for. Each pick
-  creates an ordinary recommendation on that project, so the usual interview and placement steps
-  follow. Putting someone forward never means they are placed. More interns than the seats asked
-  for can be put forward, on purpose. Interns who left the programme or completed it aren't
-  offered; interns already placed or already in selection elsewhere are, flagged with where. A
-  request still waiting on its project can't have anyone put forward against it
+- Only role that can put interns forward against a staffing request — candidates are picked one
+  seat at a time, so each intern is offered for the discipline that was actually asked for. Picks
+  are **staged first and sent together**: nothing reaches leadership until "Submit to leadership",
+  so a misclick is undone by removing the pick, and one submit is one answer however many seats it
+  covered. Staged picks survive a refresh or a look at another request, but they live only in that
+  browser — a colleague can't see them, and neither can leadership. Each sent pick creates an
+  ordinary recommendation on that project, so the usual interview and placement steps follow.
+  Putting someone forward never means they are placed. More interns than the seats asked for can be
+  put forward, on purpose. Interns who left the programme or completed it aren't offered; interns
+  already placed or already in selection elsewhere are, flagged with where. The same intern can't
+  be staged onto two seats of one request. A request still waiting on its project can have
+  candidates staged but nothing submitted until the project is resolved
 - Can edit, cancel, or reopen any staffing request, whoever filed it
 - Only role that can resolve a staffing request filed against a project that doesn't exist yet
   ("Needs project") — link it to an existing project, or create one from leadership's description.

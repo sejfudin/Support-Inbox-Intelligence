@@ -47,13 +47,14 @@ export const fetchPutForwardCandidates = async (id, positionId) => {
   return data.data;
 };
 
-// Creates one recommendation per picked intern, tagged back to this request
-// with the position forced to the requested position. Returns the request.
-export const putInternsForward = async (id, positionId, internProfileIds) => {
-  const { data } = await apiClient.post(
-    `/staffing-requests/${id}/positions/${positionId}/put-forward`,
-    { internProfileIds }
-  );
+// Sends a whole staged cart in one act: `groups` is
+// `[{ positionId, internProfileIds }]`, one entry per requested position with
+// picks on it. Creates one recommendation per pick, tagged back to this request
+// with the position forced to the group it was staged under, and applied
+// all-or-nothing — a pick that went stale while it was staged rejects the whole
+// submit with `data.rejections` naming which rows. Returns the request.
+export const putInternsForward = async (id, groups) => {
+  const { data } = await apiClient.post(`/staffing-requests/${id}/put-forward`, { groups });
   return data.data;
 };
 

@@ -26,6 +26,7 @@ const Recommendation = require('../models/Recommendation');
 const InternProfile = require('../models/InternProfile');
 const { createRecommendationsForStaffingRequest } = require('./recommendationService');
 const { logStaffingRequestEvent } = require('./historyService');
+const { emitStaffingNewsChanged } = require('../socket/events');
 const { ROLES } = require('../constants/roles');
 const {
   closeStaffingRequest,
@@ -41,6 +42,8 @@ const POSITION_ID = '507f1f77bcf86cd799439016';
 const PROFILE_ID = '507f1f77bcf86cd799439017';
 const OTHER_PROFILE_ID = '507f1f77bcf86cd799439018';
 const TECHNOLOGY_ID = '507f1f77bcf86cd799439019';
+const OTHER_POSITION_ID = '507f1f77bcf86cd79943901a';
+const OTHER_TECHNOLOGY_ID = '507f1f77bcf86cd79943901b';
 
 const author = { _id: AUTHOR_ID, role: ROLES.LEADERSHIP };
 const admin = { _id: ADMIN_ID, role: ROLES.ADMIN };
@@ -67,11 +70,11 @@ const mockRequest = (overrides = {}) => {
   return doc;
 };
 
-const arrange = (doc) => {
+const arrange = (doc, tagged = []) => {
   StaffingRequest.findById.mockResolvedValue(doc);
   Recommendation.find.mockReturnValue({
     select: () => ({
-      lean: async () => [],
+      lean: async () => tagged,
       populate: () => ({ populate: () => ({ lean: async () => [] }) }),
     }),
   });
@@ -97,6 +100,17 @@ describe('putInternsForward', () => {
     });
   };
 
+  const twoPositionRequest = () =>
+    mockRequest({
+      requestedPositions: [
+        { position: POSITION_ID, count: 2, technologies: [TECHNOLOGY_ID] },
+        { position: OTHER_POSITION_ID, count: 1, technologies: [OTHER_TECHNOLOGY_ID] },
+      ],
+    });
+
+  const submit = (groups) => putInternsForward(admin, REQUEST_ID, { groups });
+  const oneGroup = [{ positionId: POSITION_ID, internProfileIds: [PROFILE_ID] }];
+
   it('creates recommendations tagged to the request, with the position forced', async () => {
     const doc = arrange(mockRequest());
     arrangeCandidates([
@@ -104,24 +118,47 @@ describe('putInternsForward', () => {
       { _id: OTHER_PROFILE_ID, status: 'ready' },
     ]);
 
-    await putInternsForward(admin, REQUEST_ID, POSITION_ID, {
-      internProfileIds: [PROFILE_ID, OTHER_PROFILE_ID],
-    });
+    await submit([{ positionId: POSITION_ID, internProfileIds: [PROFILE_ID, OTHER_PROFILE_ID] }]);
 
     expect(createRecommendationsForStaffingRequest).toHaveBeenCalledWith(admin, {
-      internProfileIds: [PROFILE_ID, OTHER_PROFILE_ID],
-      positionId: POSITION_ID,
+      groups: [
+        {
+          positionId: POSITION_ID,
+          internProfileIds: [PROFILE_ID, OTHER_PROFILE_ID],
+          technologyIds: [TECHNOLOGY_ID],
+        },
+      ],
       projectId: doc.project,
       staffingRequestId: REQUEST_ID,
-      technologyIds: [TECHNOLOGY_ID],
     });
+  });
+
+  // One submit is one answer, however many seats it spans: one insert, one
+  // event naming the total, one badge.
+  it('sends a cart spanning two positions as a single write', async () => {
+    arrange(twoPositionRequest());
+    arrangeCandidates([
+      { _id: PROFILE_ID, status: 'ready' },
+      { _id: OTHER_PROFILE_ID, status: 'ready' },
+    ]);
+
+    await submit([
+      { positionId: POSITION_ID, internProfileIds: [PROFILE_ID] },
+      { positionId: OTHER_POSITION_ID, internProfileIds: [OTHER_PROFILE_ID] },
+    ]);
+
+    expect(createRecommendationsForStaffingRequest).toHaveBeenCalledTimes(1);
+    expect(createRecommendationsForStaffingRequest.mock.calls[0][1].groups).toHaveLength(2);
+    expect(logStaffingRequestEvent).toHaveBeenCalledTimes(1);
+    expect(logStaffingRequestEvent.mock.calls[0][0].action).toMatch(/^2 put forward for /);
+    expect(emitStaffingNewsChanged).toHaveBeenCalledTimes(1);
   });
 
   it('appends a history event so the other side is badged', async () => {
     arrange(mockRequest());
     arrangeCandidates([{ _id: PROFILE_ID, status: 'ready' }]);
 
-    await putInternsForward(admin, REQUEST_ID, POSITION_ID, { internProfileIds: [PROFILE_ID] });
+    await submit(oneGroup);
 
     expect(logStaffingRequestEvent).toHaveBeenCalledWith(
       expect.objectContaining({ statusKey: 'staffing:put_forward', userId: ADMIN_ID })
@@ -136,63 +173,115 @@ describe('putInternsForward', () => {
       { _id: OTHER_PROFILE_ID, status: 'ready' },
     ]);
 
-    await putInternsForward(admin, REQUEST_ID, POSITION_ID, {
-      internProfileIds: [PROFILE_ID, OTHER_PROFILE_ID],
-    });
+    await submit([{ positionId: POSITION_ID, internProfileIds: [PROFILE_ID, OTHER_PROFILE_ID] }]);
 
     expect(createRecommendationsForStaffingRequest).toHaveBeenCalled();
   });
 
   it('refuses a non-admin with a 403', async () => {
     arrange(mockRequest());
-    await expectHttpError(
-      putInternsForward(author, REQUEST_ID, POSITION_ID, { internProfileIds: [PROFILE_ID] }),
-      403
-    );
+    await expectHttpError(putInternsForward(author, REQUEST_ID, { groups: oneGroup }), 403);
     expect(createRecommendationsForStaffingRequest).not.toHaveBeenCalled();
   });
 
   it('refuses a request whose draft project is unresolved', async () => {
     arrange(mockRequest({ project: null, draftProject: { name: 'Kestrel' } }));
-    await expectHttpError(
-      putInternsForward(admin, REQUEST_ID, POSITION_ID, { internProfileIds: [PROFILE_ID] }),
-      400
-    );
+    await expectHttpError(submit(oneGroup), 400);
   });
 
   it('refuses a closed request', async () => {
     arrange(mockRequest({ status: 'closed', reason: 'cancelled' }));
-    await expectHttpError(
-      putInternsForward(admin, REQUEST_ID, POSITION_ID, { internProfileIds: [PROFILE_ID] }),
-      400
-    );
+    await expectHttpError(submit(oneGroup), 400);
   });
 
   // The position is not a free choice in this flow: it must be one this
-  // request actually asked for.
+  // request actually asked for, even though it now arrives in the body.
   it('refuses a position that is not on the request', async () => {
     arrange(mockRequest());
     await expectHttpError(
-      putInternsForward(admin, REQUEST_ID, OTHER_PROFILE_ID, { internProfileIds: [PROFILE_ID] }),
+      submit([{ positionId: OTHER_POSITION_ID, internProfileIds: [PROFILE_ID] }]),
       400
     );
   });
 
-  it('refuses an empty pick', async () => {
+  it('refuses an empty cart', async () => {
     arrange(mockRequest());
-    await expectHttpError(putInternsForward(admin, REQUEST_ID, POSITION_ID, {}), 400);
+    await expectHttpError(putInternsForward(admin, REQUEST_ID, {}), 400);
+    await expectHttpError(submit([{ positionId: POSITION_ID, internProfileIds: [] }]), 400);
   });
 
-  // The picker rules hold server-side, not only in the UI.
-  it('refuses an intern who has left the programme', async () => {
+  // The picker rules hold server-side, not only in the UI — a cart goes stale
+  // between staging and submit.
+  it('refuses an intern who has left the programme, naming the row', async () => {
     arrange(mockRequest());
     arrangeCandidates([{ _id: PROFILE_ID, status: 'discontinued' }]);
 
-    await expectHttpError(
-      putInternsForward(admin, REQUEST_ID, POSITION_ID, { internProfileIds: [PROFILE_ID] }),
-      400
-    );
+    await expect(submit(oneGroup)).rejects.toMatchObject({
+      statusCode: 409,
+      data: {
+        rejections: [{ positionId: POSITION_ID, internProfileId: PROFILE_ID }],
+      },
+    });
     expect(createRecommendationsForStaffingRequest).not.toHaveBeenCalled();
+  });
+
+  // All-or-nothing: the good pick in the other group is not created either.
+  it('creates nothing when one pick in a two-position cart is stale', async () => {
+    arrange(twoPositionRequest());
+    arrangeCandidates([
+      { _id: PROFILE_ID, status: 'ready' },
+      { _id: OTHER_PROFILE_ID, status: 'discontinued' },
+    ]);
+
+    await expect(
+      submit([
+        { positionId: POSITION_ID, internProfileIds: [PROFILE_ID] },
+        { positionId: OTHER_POSITION_ID, internProfileIds: [OTHER_PROFILE_ID] },
+      ])
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      data: { rejections: [{ positionId: OTHER_POSITION_ID }] },
+    });
+    expect(createRecommendationsForStaffingRequest).not.toHaveBeenCalled();
+    expect(logStaffingRequestEvent).not.toHaveBeenCalled();
+  });
+
+  // One seat per intern per request: the same person cannot answer two of its
+  // seats. Only a request-level submit can break this rule.
+  it('refuses the same intern staged on two seats of one request', async () => {
+    arrange(twoPositionRequest());
+    arrangeCandidates([{ _id: PROFILE_ID, status: 'ready' }]);
+
+    await expect(
+      submit([
+        { positionId: POSITION_ID, internProfileIds: [PROFILE_ID] },
+        { positionId: OTHER_POSITION_ID, internProfileIds: [PROFILE_ID] },
+      ])
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      data: { rejections: [{ positionId: OTHER_POSITION_ID, internProfileId: PROFILE_ID }] },
+    });
+  });
+
+  // A stale pick is reported against its own row, so the admin drops that one
+  // rather than being told the whole submit was wrong.
+  it('reports every stale pick, not just the first', async () => {
+    arrange(mockRequest());
+    arrangeCandidates([
+      { _id: PROFILE_ID, status: 'discontinued' },
+      { _id: OTHER_PROFILE_ID, status: 'completed' },
+    ]);
+
+    await expect(
+      submit([{ positionId: POSITION_ID, internProfileIds: [PROFILE_ID, OTHER_PROFILE_ID] }])
+    ).rejects.toMatchObject({
+      data: {
+        rejections: [
+          { internProfileId: PROFILE_ID, reason: 'Has left the programme' },
+          { internProfileId: OTHER_PROFILE_ID, reason: 'Has completed the programme' },
+        ],
+      },
+    });
   });
 
   // Only LIVE tags exclude. Someone whose process here fell through is a
@@ -202,14 +291,26 @@ describe('putInternsForward', () => {
     arrange(mockRequest());
     arrangeCandidates([{ _id: PROFILE_ID, status: 'ready' }]);
 
-    await putInternsForward(admin, REQUEST_ID, POSITION_ID, { internProfileIds: [PROFILE_ID] });
+    await submit(oneGroup);
 
     expect(Recommendation.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        position: POSITION_ID,
+        position: { $in: [POSITION_ID] },
         status: { $in: ['recommended', 'interviewing'] },
       })
     );
+  });
+
+  it('refuses an intern already in selection for that seat', async () => {
+    arrange(mockRequest(), [{ internProfile: PROFILE_ID, position: POSITION_ID }]);
+    arrangeCandidates([{ _id: PROFILE_ID, status: 'ready' }]);
+
+    await expect(submit(oneGroup)).rejects.toMatchObject({
+      statusCode: 409,
+      data: {
+        rejections: [{ reason: 'Already in selection for this position' }],
+      },
+    });
   });
 
   // Putting an already-placed intern forward is a deliberate act the admin was
@@ -218,7 +319,7 @@ describe('putInternsForward', () => {
     arrange(mockRequest());
     arrangeCandidates([{ _id: PROFILE_ID, status: 'placed' }]);
 
-    await putInternsForward(admin, REQUEST_ID, POSITION_ID, { internProfileIds: [PROFILE_ID] });
+    await submit(oneGroup);
 
     expect(createRecommendationsForStaffingRequest).toHaveBeenCalled();
   });

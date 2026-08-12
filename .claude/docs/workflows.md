@@ -325,8 +325,9 @@ close/reopen wiring around the rules helper — which note field each close reas
 403-vs-400 split.
 
 `npm test` in `frontend/` (vitest) is narrower still: pure helpers under `src/helpers/*.test.js`,
-including `staffingRequests.test.js` for the presentation predicates that read `progress`. No
-component is rendered in a test anywhere.
+including `staffingRequests.test.js` for the presentation predicates that read `progress`, plus
+`src/hooks/useStagedPicks.test.js` for the pure half of the staged-picks cart (its `sessionStorage`
+mirroring is not covered — drive the app for that). No component is rendered in a test anywhere.
 
 Run them when you touch any of those, but they still prove nothing about a route, a query or a
 screen. To confirm a change works, drive the real app:
