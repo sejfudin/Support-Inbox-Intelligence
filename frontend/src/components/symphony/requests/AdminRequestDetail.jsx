@@ -177,13 +177,15 @@ export function AdminRequestDetail({
 
       <RequestNote request={request} />
 
-      <div className="space-y-1">
+      <div className="space-y-2">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
           Seats asked for
         </p>
-        <div className="divide-y divide-border/60 border-t border-border/60">
+        {/* One card per seat, each opening and closing on its own. A divided
+            list read as a single long form; these are the units of the work. */}
+        <div className="space-y-3">
           {rows.length === 0 ? (
-            <p className="py-5 text-sm text-muted-foreground">No positions on this request.</p>
+            <p className="text-sm text-muted-foreground">No positions on this request.</p>
           ) : (
             rows.map((row) => (
               <AdminRequestSeatGroup
