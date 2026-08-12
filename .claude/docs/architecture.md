@@ -287,7 +287,7 @@ the model and the pure rules module — no routes, no screens yet.
   admin's project list is already loaded) drives a "possible matches" list ahead of "create new"
   in `ResolveProjectDialog.jsx`, wired into `RequestActions.jsx` — that button checks the viewer's
   own role directly rather than through the `canManage` prop, so it appears on the admin Requests
-  screen even though that screen still passes `canManage={false}` pending ticket 08.
+  screen even though that screen still passes `canManage={false}` pending ticket 09.
 - **Putting interns forward** (ticket 07) — the feature's load-bearing write. Two admin-only routes,
   both scoped to one requested position by path rather than by body field, because the position is
   forced and never a free choice:
@@ -311,7 +311,7 @@ Deliberately doesn't use `Notification` (see
 - `History.entityType` gains `'staffingRequest'`. Filing a request and resolving its project both
   append an event via `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
   (`staffing:filed`, `staffing:project_resolved`, `staffing:put_forward`; closing adds more once
-  ticket 08 lands) — namespaced because `statusKey` is a string space shared with
+  ticket 09 lands) — namespaced because `statusKey` is a string space shared with
   recommendation stage tracking, where bare `placed` already means something. Unlike every other
   history write, this one is **awaited and its errors surfaced**
   (`staffingRequestService.createStaffingRequest`), with a comment at the call site — a lost row

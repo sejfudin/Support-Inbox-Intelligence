@@ -45,7 +45,7 @@ const byNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
  * that attribute and this page lives in the sidebar shell, not `SymphonyLayout`.
  *
  * `canManage={false}` here because edit/cancel stay leadership-side for now
- * (closing is ticket 08). The two admin actions this screen does offer are
+ * (closing is ticket 09). The two admin actions this screen does offer are
  * "resolve project" — `RequestActions` checks the viewer's own role for it
  * rather than reading `canManage` — and putting interns forward, which is
  * per requested position and so lives on each position group rather than in

@@ -59,7 +59,7 @@ list of interns.**
   live. Neither is meaningful alone, and no UI may collapse them into one badge.
 - **The project reference is not locked by putting interns forward.** An earlier design froze it
   once anyone was offered. That refusal is gone: repointing a request only ever means the wrong
-  project was named, and moving the request moves its tagged recommendations with it (ticket 09). A
+  project was named, and moving the request moves its tagged recommendations with it (ticket 10). A
   genuinely different project is a new request. The dead `assertProjectEditable` helper went with
   the rule.
 - **An already-placed intern can be put forward.** `createRecommendation`'s
