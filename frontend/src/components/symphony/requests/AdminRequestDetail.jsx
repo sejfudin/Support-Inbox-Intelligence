@@ -214,31 +214,6 @@ export function AdminRequestDetail({
                   : `Submit ${stagedCount} ${stagedCount === 1 ? 'pick' : 'picks'} to leadership`}
             </Button>
           )}
-          {/* Answering "no" outlives whichever primary action is in the slot, so
-              it sits below the branch rather than inside one of them. A request
-              that still needs a project is exactly when an admin wants to
-              decline — there is no capacity, and resolving a project first just
-              to refuse the ask is busywork. The server agrees: only `fulfilled`
-              is refused while the project is a draft.
-
-              An outlined button rather than a text link: declining is one of the
-              two answers an admin owes leadership, and a grey underline read as
-              a footnote. It carries the destructive colour so the tone is
-              unmistakable, but stays unfilled — the filled button is whatever
-              moves the request forward, and there should only ever be one. */}
-          {isOpen && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setCloseReason('declined')}
-              className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              data-test="request-decline"
-            >
-              <Ban className="h-4 w-4" aria-hidden="true" />
-              Decline this request
-            </Button>
-          )}
         </div>
       </div>
 
@@ -325,6 +300,34 @@ export function AdminRequestDetail({
           )}
         </div>
       </div>
+
+      {/* Answering "no" lives in its own footer, past the seats, rather than
+          beside the primary action. Two reasons: it applies whichever action is
+          in the slot — including on a request that still needs a project, which
+          is exactly when an admin wants to decline and where the server allows
+          it (only `fulfilled` is refused on a draft project) — and a destructive
+          control directly beside "Submit 3 picks to leadership" is a misclick
+          waiting to happen.
+          Reached only after scrolling past what was asked for, which is the
+          right order for refusing it. The prompt on the left is what makes the
+          button legible on its own down here: without it, an outlined red
+          control under a list of seats has to be guessed at. */}
+      {isOpen && (
+        <div className="-mx-5 -mb-5 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-b-[inherit] border-t border-border/60 bg-muted/30 px-5 py-4 md:-mx-6 md:-mb-6 md:px-6">
+          <p className="text-sm text-muted-foreground">Can’t staff this one?</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCloseReason('declined')}
+            className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            data-test="request-decline"
+          >
+            <Ban className="h-4 w-4" aria-hidden="true" />
+            Decline this request
+          </Button>
+        </div>
+      )}
     </SymphonyCard>
   );
 }
