@@ -5,16 +5,21 @@ import {
   fetchStaffingRequestHistory,
   fetchStaffingRequestNews,
   fetchStaffingRequests,
+  fetchPutForwardCandidates,
   markStaffingRequestsSeen,
+  putInternsForward,
   reopenStaffingRequest,
   resolveStaffingRequestProject,
   resolveStaffingRequestProjectByCreating,
   updateStaffingRequest,
 } from '@/api/staffingRequests';
 import { PROJECTS_QUERY_KEY } from '@/queries/projects';
+import { RECOMMENDATIONS_QUERY_KEY } from '@/queries/recommendations';
+import { INTERNS_QUERY_KEY } from '@/queries/interns';
 
 export const STAFFING_REQUESTS_QUERY_KEY = ['staffing-requests'];
 export const STAFFING_REQUEST_NEWS_QUERY_KEY = ['staffing-requests-news'];
+export const STAFFING_REQUEST_CANDIDATES_QUERY_KEY = ['staffing-request-candidates'];
 
 // Every write invalidates the list, and the list is the only reader: the
 // Requests screen holds its opened request as a row out of that same array,
@@ -85,6 +90,36 @@ export const useResolveStaffingRequestProjectByCreating = () => {
     onSuccess: () => {
       invalidateRequests(queryClient);
       queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
+    },
+  });
+};
+
+// Fetched only while the picker is open, and never cached across positions —
+// the flags say where each intern is committed right now, and a stale one would
+// hide a double-booking the admin is about to create.
+export const usePutForwardCandidates = ({ requestId, positionId }, options = {}) =>
+  useQuery({
+    queryKey: [...STAFFING_REQUEST_CANDIDATES_QUERY_KEY, requestId, positionId],
+    queryFn: () => fetchPutForwardCandidates(requestId, positionId),
+    enabled: Boolean(requestId && positionId),
+    staleTime: 0,
+    ...options,
+  });
+
+// Putting interns forward creates recommendations, so both sides of that fact
+// are invalidated: the requests list (its progress counts and the interns shown
+// under each requested position are read off those recommendations) and the
+// recommendation/intern caches that now have a new row.
+export const usePutInternsForward = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, positionId, internProfileIds }) =>
+      putInternsForward(id, positionId, internProfileIds),
+    onSuccess: () => {
+      invalidateRequests(queryClient);
+      queryClient.invalidateQueries({ queryKey: RECOMMENDATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: STAFFING_REQUEST_CANDIDATES_QUERY_KEY });
     },
   });
 };

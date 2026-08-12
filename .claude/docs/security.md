@@ -233,8 +233,11 @@ same exception as `Project`/`Recommendation` above).
   `ADMIN`/`LEADERSHIP` (mentors/interns 403 before the resource even loads), then narrowed in
   `assertWriteAccess`/`assertCanClose` to **the request's own author, or any admin** — a leadership
   user who didn't file it gets the same 403 a mentor would, one level later. Edit legality (closed
-  request rejects every edit, count floor, duplicate/locked position) is enforced by calling into
-  `helpers/staffingRequestRules.js`, never re-implemented in the service.
+  request rejects every edit, count floor, duplicate position, a position with recommendations
+  can't be deleted) is enforced by calling into `helpers/staffingRequestRules.js`, never
+  re-implemented in the service. Note there is **no project lock**: putting interns forward does not
+  freeze the project reference, and the `assertProjectEditable` helper that once said otherwise is
+  gone (see `docs/adr/0006`).
 - **The close reason carries its own authorization**, and it lives in `assertCanClose`, not the
   router: `cancelled` is author-or-admin, `fulfilled`/`declined` are **admin-only**, and `declined`
   additionally requires a non-empty note. This is why closing is one route taking `reason` in the
@@ -255,6 +258,23 @@ same exception as `Project`/`Recommendation` above).
   the admin's remark back to leadership, so a leadership user — including the request's own author —
   gets a 403; nobody annotates their own ask. Rejected on a closed request. Saving replaces the
   previous text: one note per request, deliberately not a thread.
+- **Putting interns forward** (`GET /:id/positions/:positionId/candidates`,
+  `POST /:id/positions/:positionId/put-forward`) is **admin-only** at the route and re-asserted in
+  `assertCanPutForward` — leadership files demand, admins answer it, and there is no author
+  carve-out. Both routes also refuse a closed request and one that still needs its project; that
+  second refusal is structural, not cosmetic (`Recommendation.project` is required). The position
+  is a **path segment, not a body field**, and must be one the request actually asked for — that is
+  what "the position is forced" means server-side, and it is why no payload can steer a
+  recommendation onto a discipline nobody asked for.
+- **The picker's eligibility rules are enforced on the write, not only on the read.** The write path
+  re-runs `partitionPickerCandidates` over the picked profiles, so a stale or bypassed client cannot
+  offer an intern who has left the programme, or double-offer one already in selection for that same
+  requested position. Interns already placed, or in selection *elsewhere*, are deliberately allowed
+  through — the rules warn there, they do not block.
+- **The candidates route leaves the request's own data.** It reads every in-programme
+  `InternProfile` and their recommendations across all projects, which is what the "in selection on
+  Borealis" flag needs. That is admin-only and admins already read every intern, so it widens
+  nobody's access — but keep the route admin-only for exactly this reason.
 - **Mentors and interns get 403 from every route**, including list/read — there is no aggregate-only
   view for them. A mentor therefore cannot answer a request either; no mentor is attached to a
   request at all today.

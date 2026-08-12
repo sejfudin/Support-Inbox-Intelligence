@@ -1,9 +1,11 @@
 const {
   deriveProgress,
-  assertProjectEditable,
+  isDemandMet,
+  partitionPickerCandidates,
   needsProject,
   assertCanResolveProject,
   assertRequestedPositionsEditable,
+  assertCanPutForward,
   assertCanClose,
   applyClose,
   assertCanReopen,
@@ -26,8 +28,11 @@ const requestedPosition = (overrides = {}) => ({
   ...overrides,
 });
 
-const recommendation = ({ position = FRONTEND, outcome } = {}) => ({
+// A recommendation is `resulted` exactly when an outcome has been written, so
+// the default status follows the outcome unless a test overrides it.
+const recommendation = ({ position = FRONTEND, outcome, status } = {}) => ({
   position,
+  status: status ?? (outcome ? 'resulted' : 'interviewing'),
   result: outcome ? { outcome } : {},
 });
 
@@ -44,8 +49,8 @@ describe('deriveProgress', () => {
   it('reports zero put forward and placed when nothing has been offered', () => {
     const progress = deriveProgress([requestedPosition({ count: 2 })], []);
     expect(progress).toEqual({
-      positions: [{ position: FRONTEND, wanted: 2, putForward: 0, placed: 0 }],
-      totals: { wanted: 2, putForward: 0, placed: 0 },
+      positions: [{ position: FRONTEND, wanted: 2, putForward: 0, inSelection: 0, placed: 0 }],
+      totals: { wanted: 2, putForward: 0, inSelection: 0, placed: 0 },
     });
   });
 
@@ -53,8 +58,8 @@ describe('deriveProgress', () => {
     const recs = Array.from({ length: 6 }, () => recommendation({ outcome: 'placed' }));
     const progress = deriveProgress([requestedPosition({ count: 3 })], recs);
     expect(progress).toEqual({
-      positions: [{ position: FRONTEND, wanted: 3, putForward: 6, placed: 6 }],
-      totals: { wanted: 3, putForward: 6, placed: 6 },
+      positions: [{ position: FRONTEND, wanted: 3, putForward: 6, inSelection: 0, placed: 6 }],
+      totals: { wanted: 3, putForward: 6, inSelection: 0, placed: 6 },
     });
   });
 
@@ -69,16 +74,43 @@ describe('deriveProgress', () => {
       position: FRONTEND,
       wanted: 2,
       putForward: 3,
+      inSelection: 1,
       placed: 1,
     });
+  });
+
+  // The case the third number exists for: everyone offered has been resolved,
+  // so `putForward` still reports a full pipeline while nobody is live.
+  it('reports every candidate resolved as put forward without anyone in selection', () => {
+    const recs = [
+      ...Array.from({ length: 2 }, () => recommendation({ outcome: 'placed' })),
+      ...Array.from({ length: 4 }, () => recommendation({ outcome: 'not_placed' })),
+    ];
+    const progress = deriveProgress([requestedPosition({ count: 3 })], recs);
+    expect(progress.positions[0]).toEqual({
+      position: FRONTEND,
+      wanted: 3,
+      putForward: 6,
+      inSelection: 0,
+      placed: 2,
+    });
+  });
+
+  it('counts a recommended candidate as in selection alongside an interviewing one', () => {
+    const recs = [
+      recommendation({ status: 'recommended' }),
+      recommendation({ status: 'interviewing' }),
+    ];
+    const progress = deriveProgress([requestedPosition({ count: 2 })], recs);
+    expect(progress.positions[0].inSelection).toBe(2);
   });
 
   it('ignores a recommendation whose position is not in the request', () => {
     const recs = [recommendation({ position: OTHER, outcome: 'placed' })];
     const progress = deriveProgress([requestedPosition({ count: 2 })], recs);
     expect(progress).toEqual({
-      positions: [{ position: FRONTEND, wanted: 2, putForward: 0, placed: 0 }],
-      totals: { wanted: 2, putForward: 0, placed: 0 },
+      positions: [{ position: FRONTEND, wanted: 2, putForward: 0, inSelection: 0, placed: 0 }],
+      totals: { wanted: 2, putForward: 0, inSelection: 0, placed: 0 },
     });
   });
 
@@ -89,6 +121,7 @@ describe('deriveProgress', () => {
       position: FRONTEND,
       wanted: 1,
       putForward: 2,
+      inSelection: 0,
       placed: 2,
     });
   });
@@ -97,6 +130,7 @@ describe('deriveProgress', () => {
     const recs = [
       recommendation({ position: FRONTEND, outcome: 'placed' }),
       recommendation({ position: QA, outcome: 'not_placed' }),
+      recommendation({ position: QA, status: 'recommended' }),
     ];
     const progress = deriveProgress(
       [
@@ -105,7 +139,7 @@ describe('deriveProgress', () => {
       ],
       recs
     );
-    expect(progress.totals).toEqual({ wanted: 2, putForward: 2, placed: 1 });
+    expect(progress.totals).toEqual({ wanted: 2, putForward: 3, inSelection: 1, placed: 1 });
   });
 
   // The service populates `requestedPositions.position` so the UI has a name to
@@ -118,7 +152,7 @@ describe('deriveProgress', () => {
       [{ position: { _id: FRONTEND, name: 'Frontend Engineer' }, count: 2, technologies: [] }],
       [recommendation({ outcome: 'placed' }), recommendation({ outcome: undefined })]
     );
-    expect(progress.totals).toEqual({ wanted: 2, putForward: 2, placed: 1 });
+    expect(progress.totals).toEqual({ wanted: 2, putForward: 2, inSelection: 1, placed: 1 });
   });
 
   it('reports the position as an id even when it arrived populated', () => {
@@ -130,18 +164,228 @@ describe('deriveProgress', () => {
   });
 });
 
-describe('assertProjectEditable', () => {
-  it('allows editing the project when no recommendations exist', () => {
-    expect(() => assertProjectEditable(baseRequest(), { hasRecommendations: false })).not.toThrow();
+// Demand met is a prompt, never an action — this asserts a boolean and nothing
+// in this ticket acts on it.
+describe('isDemandMet', () => {
+  const progressOf = (positions) =>
+    deriveProgress(
+      positions.map(([position, count]) => requestedPosition({ position, count })),
+      []
+    );
+
+  const withPlaced = (positions, recs) =>
+    deriveProgress(
+      positions.map(([position, count]) => requestedPosition({ position, count })),
+      recs
+    );
+
+  it('is false while one requested position is still short', () => {
+    const progress = withPlaced(
+      [
+        [FRONTEND, 2],
+        [QA, 1],
+      ],
+      [recommendation({ position: FRONTEND, outcome: 'placed' })]
+    );
+    expect(isDemandMet(progress)).toBe(false);
   });
 
-  it('locks the project once recommendations exist', () => {
-    expect(() => assertProjectEditable(baseRequest(), { hasRecommendations: true })).toThrow();
+  it('is true once every requested position has its seats placed', () => {
+    const progress = withPlaced(
+      [
+        [FRONTEND, 1],
+        [QA, 1],
+      ],
+      [
+        recommendation({ position: FRONTEND, outcome: 'placed' }),
+        recommendation({ position: QA, outcome: 'placed' }),
+      ]
+    );
+    expect(isDemandMet(progress)).toBe(true);
   });
 
-  it('rejects any edit on a closed request', () => {
+  it('is true when a lowered count brought the bar down to what is already placed', () => {
+    const progress = withPlaced([[FRONTEND, 1]], [recommendation({ outcome: 'placed' })]);
+    expect(isDemandMet(progress)).toBe(true);
+  });
+
+  it('is false for a request nobody has been put forward against', () => {
+    expect(isDemandMet(progressOf([[FRONTEND, 2]]))).toBe(false);
+  });
+
+  // An empty `every()` is vacuously true, which would call a request with no
+  // demand at all "met" — that is a request nobody has finished filing.
+  it('is false for a request with no requested positions', () => {
+    expect(isDemandMet(deriveProgress([], []))).toBe(false);
+  });
+
+  it('ignores candidates still in selection — only placements count', () => {
+    const progress = withPlaced([[FRONTEND, 1]], [recommendation({ status: 'interviewing' })]);
+    expect(isDemandMet(progress)).toBe(false);
+  });
+});
+
+describe('partitionPickerCandidates', () => {
+  const BOREALIS = { _id: 'project-borealis', name: 'Borealis' };
+  const KESTREL = { _id: PROJECT, name: 'Kestrel' };
+
+  const candidate = (overrides = {}) => ({
+    internProfile: 'profile-1',
+    status: 'ready',
+    recommendations: [],
+    ...overrides,
+  });
+
+  const onProject = (project, overrides = {}) => ({
+    project,
+    status: 'interviewing',
+    result: {},
+    ...overrides,
+  });
+
+  it('keeps an available intern with no recommendations clean', () => {
+    const { excluded, warned, clean } = partitionPickerCandidates([candidate()]);
+    expect(excluded).toEqual([]);
+    expect(warned).toEqual([]);
+    expect(clean).toEqual([{ internProfile: 'profile-1', eligibility: 'clean', flags: [] }]);
+  });
+
+  it('excludes a discontinued intern — offering them is always a mistake', () => {
+    const { excluded, clean } = partitionPickerCandidates([candidate({ status: 'discontinued' })]);
+    expect(clean).toEqual([]);
+    expect(excluded).toEqual([
+      { internProfile: 'profile-1', eligibility: 'excluded', flags: [{ type: 'discontinued' }] },
+    ]);
+  });
+
+  it('excludes an intern who has completed the programme', () => {
+    const { excluded } = partitionPickerCandidates([candidate({ status: 'completed' })]);
+    expect(excluded[0].flags).toEqual([{ type: 'completed' }]);
+  });
+
+  it('excludes an intern already put forward against this requested position', () => {
+    const { excluded } = partitionPickerCandidates([candidate()], {
+      alreadyPutForwardProfileIds: ['profile-1'],
+    });
+    expect(excluded[0].flags).toEqual([{ type: 'already-put-forward' }]);
+  });
+
+  it('warns rather than blocks an intern who is already placed, naming where', () => {
+    const { warned, clean } = partitionPickerCandidates([
+      candidate({
+        status: 'placed',
+        recommendations: [
+          onProject(BOREALIS, { status: 'resulted', result: { outcome: 'placed' } }),
+        ],
+      }),
+    ]);
+    expect(clean).toEqual([]);
+    expect(warned).toEqual([
+      {
+        internProfile: 'profile-1',
+        eligibility: 'warned',
+        flags: [{ type: 'placed', projects: ['Borealis'] }],
+      },
+    ]);
+  });
+
+  it('warns about an intern in selection elsewhere, naming where', () => {
+    const { warned } = partitionPickerCandidates([
+      candidate({ recommendations: [onProject(BOREALIS)] }),
+    ]);
+    expect(warned[0].flags).toEqual([{ type: 'in-selection', projects: ['Borealis'] }]);
+  });
+
+  // The picker is scoped to one project, so being in selection for that same
+  // project is the request's own pipeline, not a double-booking.
+  it('does not warn about being in selection for the project being staffed', () => {
+    const { clean } = partitionPickerCandidates(
+      [candidate({ recommendations: [onProject(KESTREL)] })],
+      { projectId: PROJECT }
+    );
+    expect(clean).toHaveLength(1);
+  });
+
+  it('names every project an intern is in selection for, without duplicates', () => {
+    const { warned } = partitionPickerCandidates([
+      candidate({
+        recommendations: [onProject(BOREALIS), onProject(BOREALIS), onProject(KESTREL)],
+      }),
+    ]);
+    expect(warned[0].flags).toEqual([{ type: 'in-selection', projects: ['Borealis', 'Kestrel'] }]);
+  });
+
+  it('carries both flags for an intern who is placed and in selection elsewhere', () => {
+    const { warned } = partitionPickerCandidates([
+      candidate({
+        status: 'placed',
+        recommendations: [
+          onProject(KESTREL, { status: 'resulted', result: { outcome: 'placed' } }),
+          onProject(BOREALIS),
+        ],
+      }),
+    ]);
+    expect(warned[0].flags).toEqual([
+      { type: 'placed', projects: ['Kestrel'] },
+      { type: 'in-selection', projects: ['Borealis'] },
+    ]);
+  });
+
+  // Exclusion wins outright: a discontinued intern is never shown, whatever
+  // else is true of them.
+  it('excludes rather than warns when both apply', () => {
+    const { excluded, warned } = partitionPickerCandidates([
+      candidate({ status: 'discontinued', recommendations: [onProject(BOREALIS)] }),
+    ]);
+    expect(warned).toEqual([]);
+    expect(excluded[0].flags).toEqual([{ type: 'discontinued' }]);
+  });
+
+  // Otherwise most of the programme carries a warning: an intern who finished
+  // a project months ago still has a placed recommendation on record.
+  it('does not flag a past placement when the intern is no longer placed', () => {
+    const { clean } = partitionPickerCandidates([
+      candidate({
+        status: 'ready',
+        recommendations: [
+          onProject(BOREALIS, { status: 'resulted', result: { outcome: 'placed' } }),
+        ],
+      }),
+    ]);
+    expect(clean).toHaveLength(1);
+  });
+
+  it('ignores a resolved not-placed recommendation — that process is over', () => {
+    const { clean } = partitionPickerCandidates([
+      candidate({
+        recommendations: [
+          onProject(BOREALIS, { status: 'resulted', result: { outcome: 'not_placed' } }),
+        ],
+      }),
+    ]);
+    expect(clean).toHaveLength(1);
+  });
+});
+
+describe('assertCanPutForward', () => {
+  it('allows an admin to put interns forward against an open, resolved request', () => {
+    expect(() => assertCanPutForward(baseRequest(), { isAdmin: true })).not.toThrow();
+  });
+
+  it('rejects a non-admin', () => {
+    expect(() => assertCanPutForward(baseRequest(), { isAdmin: false })).toThrow();
+  });
+
+  it('rejects a closed request', () => {
     const request = baseRequest({ status: 'closed', reason: 'cancelled' });
-    expect(() => assertProjectEditable(request, { hasRecommendations: false })).toThrow();
+    expect(() => assertCanPutForward(request, { isAdmin: true })).toThrow();
+  });
+
+  // Recommendation.project is a required reference — there is nothing to create
+  // a recommendation against until the draft project is resolved.
+  it('rejects a request whose draft project is unresolved', () => {
+    const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
+    expect(() => assertCanPutForward(request, { isAdmin: true })).toThrow();
   });
 });
 

@@ -227,27 +227,38 @@ the model and the pure rules module — no routes, no screens yet.
   put forward for. `position` stays a raw id on purpose: `deriveProgress` matches it against
   `requestedPositions` by id, so populating it would silently break every progress count.
 - **`Recommendation.staffingRequest`** — nullable ref to `StaffingRequest`, set only when the
-  recommendation was created by fulfilling a request (ticket 07's job; nothing sets it yet — ticket
-  06 only resolves the project reference). No other `Recommendation` behaviour changes;
+  recommendation was created by putting an intern forward against a request
+  (`recommendationService.createRecommendationsForStaffingRequest`, ticket 07). A requested position
+  is identified by `staffingRequest + position`, and the position is forced to the one the
+  recommendation was created against — see `docs/adr/0006`. No other `Recommendation` behaviour
+  changes;
   `RECOMMENDATION_RESULTS` is untouched — a leftover intern released when a request fills without
   them is still `not_placed`, with the nuance carried in the mandatory result note.
 - **`helpers/staffingRequestRules.js`** — the single pure rules module for this feature (no I/O, no
   clock, timestamps passed in), following `helpers/specializationRules.js`. Three rule groups, all
   unit-tested in `staffingRequestRules.test.js` with plain objects, no Mongo, no Express:
   - `deriveProgress` — requested positions + tagged recommendations → per-position
-    `{ wanted, putForward, placed }` and totals. A tagged recommendation whose position isn't in
-    the request is ignored rather than crashing.
-  - `assertProjectEditable` / `assertRequestedPositionsEditable` — edit legality: project locked
-    once any recommendation is tagged; a requested position with recommendations can't be deleted
-    (its count can still fall below its placed count); count floor of 1; duplicate position
-    rejected; every edit rejected once the request is closed.
+    `{ wanted, putForward, inSelection, placed }` and totals. A tagged recommendation whose position
+    isn't in the request is ignored rather than crashing. `putForward` counts every tagged
+    recommendation regardless of outcome; `inSelection` counts the ones not yet `resulted`. The two
+    are not interchangeable and no screen may collapse them — see `docs/adr/0006`.
+  - `isDemandMet` — every requested position has `placed >= wanted`. A boolean and nothing more: it
+    drives the admin's "close as fulfilled" prompt, and nothing anywhere auto-closes.
+  - `partitionPickerCandidates` — intern profiles + their recommendations → `excluded` (discontinued,
+    completed, or already put forward for this requested position) / `warned` (already placed, or in
+    selection on another project, flagged with which) / `clean`. Excluded interns are dropped by the
+    service rather than returned; warned ones are shown and selectable.
+  - `assertRequestedPositionsEditable` — edit legality: a requested position with recommendations
+    can't be deleted (its count can still fall below its placed count); count floor of 1; duplicate
+    position rejected; every edit rejected once the request is closed. There is deliberately **no**
+    project lock — putting interns forward never freezes the project reference.
+  - `assertCanPutForward` — admin only, request open, project resolved. The last of those is not
+    cosmetic: `Recommendation.project` is a required reference.
   - `assertCanClose` / `applyClose` / `assertCanReopen` / `applyReopen` — close/reopen legality:
     `cancelled` is author-or-admin, `fulfilled`/`declined` are admin-only, `declined` requires a
     non-empty note; reopening (author or admin, from either terminal reason) clears `reason`,
     `closedBy`, `closedAt`.
-  - Picker eligibility is a separate rule group added by a later ticket, once there's a route or
-    a screen to drive it. Unread/badge derivation (`deriveUnreadStaffingRequestIds`) landed in
-    ticket 04, below.
+  - Unread/badge derivation (`deriveUnreadStaffingRequestIds`) landed in ticket 04, below.
   - **`needsProject` / `assertCanResolveProject`** (ticket 06) — the one derived display state
     that does live here, rather than as a client-side comparison: `needsProject(request)` is
     `!request.project`, and `assertCanClose` calls it directly to refuse `reason: 'fulfilled'`
@@ -276,7 +287,22 @@ the model and the pure rules module — no routes, no screens yet.
   admin's project list is already loaded) drives a "possible matches" list ahead of "create new"
   in `ResolveProjectDialog.jsx`, wired into `RequestActions.jsx` — that button checks the viewer's
   own role directly rather than through the `canManage` prop, so it appears on the admin Requests
-  screen even though that screen still passes `canManage={false}` pending tickets 07/08.
+  screen even though that screen still passes `canManage={false}` pending ticket 08.
+- **Putting interns forward** (ticket 07) — the feature's load-bearing write. Two admin-only routes,
+  both scoped to one requested position by path rather than by body field, because the position is
+  forced and never a free choice:
+  `GET /:id/positions/:positionId/candidates` and `POST /:id/positions/:positionId/put-forward`.
+  The read returns the picker's rows already partitioned by `partitionPickerCandidates` (excluded
+  interns are dropped, not greyed out) plus the requested position's technologies; the write calls
+  `recommendationService.createRecommendationsForStaffingRequest`, which `insertMany`s one
+  recommendation per intern tagged with `staffingRequest`, logs each one's initial status event, and
+  emits `emitInternDataChanged()`. The picker rules are re-checked server-side on the write, so a
+  stale or bypassed client can't offer someone who has left the programme. The request itself is
+  never written — see `docs/adr/0006`. Putting interns forward appends a
+  `staffing:put_forward` history event (naming its consequence: "2 put forward for Frontend
+  Developer") and so badges the other side; individual placements deliberately do not.
+  Frontend: `PutForwardModal.jsx`, opened per position group from `RequestPositionGroup.jsx` on the
+  admin Requests screen.
 
 **News badge (ticket 04)** — both shells find out about staffing-request activity without a bell.
 Deliberately doesn't use `Notification` (see
@@ -284,8 +310,8 @@ Deliberately doesn't use `Notification` (see
 
 - `History.entityType` gains `'staffingRequest'`. Filing a request and resolving its project both
   append an event via `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
-  (`staffing:filed`, `staffing:project_resolved`; fulfilling/closing/reopening add more once
-  tickets 07/08 land) — namespaced because `statusKey` is a string space shared with
+  (`staffing:filed`, `staffing:project_resolved`, `staffing:put_forward`; closing adds more once
+  ticket 08 lands) — namespaced because `statusKey` is a string space shared with
   recommendation stage tracking, where bare `placed` already means something. Unlike every other
   history write, this one is **awaited and its errors surfaced**
   (`staffingRequestService.createStaffingRequest`), with a comment at the call site — a lost row

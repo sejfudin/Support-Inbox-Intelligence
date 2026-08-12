@@ -85,6 +85,33 @@ exports.resolveStaffingRequestProjectByCreating = async (req, res, next) => {
   }
 };
 
+exports.listPutForwardCandidates = async (req, res, next) => {
+  try {
+    const data = await staffingRequestService.listPutForwardCandidates(
+      req.user,
+      req.params.id,
+      req.params.positionId
+    );
+    res.json({ success: true, message: 'Candidates fetched', data });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.putInternsForward = async (req, res, next) => {
+  try {
+    const request = await staffingRequestService.putInternsForward(
+      req.user,
+      req.params.id,
+      req.params.positionId,
+      req.body
+    );
+    res.status(201).json({ success: true, message: 'Interns put forward', data: request });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
 const CLOSE_MESSAGES = {
   fulfilled: 'Staffing request closed as fulfilled',
   declined: 'Staffing request declined',

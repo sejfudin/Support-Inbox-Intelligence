@@ -73,7 +73,7 @@ export const countRequestsByGroup = (requests = []) => {
 // `progress` comes from the backend rules helper (deriveProgress) — read it,
 // never recompute the counts themselves.
 export const getRequestTotals = (request) =>
-  request?.progress?.totals ?? { wanted: 0, putForward: 0, placed: 0 };
+  request?.progress?.totals ?? { wanted: 0, putForward: 0, inSelection: 0, placed: 0 };
 
 // deriveProgress keys its per-position rows by position id only, so pair each
 // row back to the populated requestedPosition to get a name to show. Each row
@@ -88,8 +88,14 @@ export const getPositionProgressRows = (request) => {
     return {
       id: String(positionId),
       name: requestedPosition.position?.name ?? 'Unknown position',
+      // What a candidate for this position gets judged against — carried on the
+      // row so the picker doesn't have to be handed the requestedPosition too.
+      technologies: (requestedPosition.technologies ?? [])
+        .map((technology) => technology?.name)
+        .filter(Boolean),
       wanted: row?.wanted ?? requestedPosition.count,
       putForward: row?.putForward ?? 0,
+      inSelection: row?.inSelection ?? 0,
       placed: row?.placed ?? 0,
       suggestions: suggestions.filter(
         (suggestion) => String(suggestion.position) === String(positionId)

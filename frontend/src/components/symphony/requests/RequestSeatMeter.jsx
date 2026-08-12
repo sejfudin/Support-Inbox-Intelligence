@@ -5,27 +5,40 @@ import { cn } from '@/lib/utils';
 const MAX_SEGMENTS = 14;
 
 /**
- * The three counts, in one control: `wanted` seats, of which `putForward` have
- * someone suggested and `placed` actually took it. `placed` is a subset of
- * `putForward`, so the segments run solid → outlined → empty and never
- * double-count.
+ * The counts, in one control: `wanted` seats, of which `placed` are filled and
+ * `inSelection` still have someone live against them.
  *
- * Over-supply is real (an admin may suggest three people for two seats) and is
- * reported in the label rather than by drawing extra seats — the meter measures
- * demand, and demand doesn't grow because more names arrived.
+ * The seats show the live picture — placed, then still-being-decided, then
+ * empty — while `putForward` goes in the label instead of the bar. That split
+ * is the point: `putForward` counts every intern ever offered here, including
+ * the ones since closed out, so drawing it as occupied seats would show a full
+ * request whose candidates are all finished. It is a record of effort spent;
+ * `inSelection` is the one that says whether anyone is still coming.
+ *
+ * Over-supply is real (an admin may put three people forward for two seats) and
+ * is reported in the label rather than by drawing extra seats — the meter
+ * measures demand, and demand doesn't grow because more names arrived.
  */
-export function RequestSeatMeter({ wanted, putForward, placed, showLabel = true, className }) {
+export function RequestSeatMeter({
+  wanted,
+  putForward,
+  inSelection,
+  placed,
+  showLabel = true,
+  className,
+}) {
   const safeWanted = Math.max(0, wanted ?? 0);
   const safePlaced = Math.max(0, placed ?? 0);
+  const safeInSelection = Math.max(0, inSelection ?? 0);
   const safeForward = Math.max(safePlaced, putForward ?? 0);
 
   const placedSeats = Math.min(safePlaced, safeWanted);
-  const forwardSeats = Math.min(safeForward, safeWanted) - placedSeats;
-  const emptySeats = Math.max(0, safeWanted - placedSeats - forwardSeats);
+  const liveSeats = Math.min(safeInSelection, safeWanted - placedSeats);
+  const emptySeats = Math.max(0, safeWanted - placedSeats - liveSeats);
   const surplus = Math.max(0, safeForward - safeWanted);
 
   // One sentence, because the segment colours alone don't carry this.
-  const label = `${safePlaced} placed, ${safeForward} put forward, of ${safeWanted} ${
+  const label = `${safePlaced} placed, ${safeInSelection} in selection, ${safeForward} put forward, of ${safeWanted} ${
     safeWanted === 1 ? 'seat' : 'seats'
   }`;
 
@@ -43,7 +56,7 @@ export function RequestSeatMeter({ wanted, putForward, placed, showLabel = true,
             />
             <div
               className="h-full bg-[hsl(var(--symphony-brand)/0.45)]"
-              style={{ width: `${pct(forwardSeats)}%` }}
+              style={{ width: `${pct(liveSeats)}%` }}
             />
           </div>
         </div>
@@ -52,7 +65,7 @@ export function RequestSeatMeter({ wanted, putForward, placed, showLabel = true,
           {Array.from({ length: placedSeats }, (_unused, index) => (
             <span key={`placed-${index}`} className="symphony-seat symphony-seat-placed" />
           ))}
-          {Array.from({ length: forwardSeats }, (_unused, index) => (
+          {Array.from({ length: liveSeats }, (_unused, index) => (
             <span key={`forward-${index}`} className="symphony-seat symphony-seat-forward" />
           ))}
           {Array.from({ length: emptySeats }, (_unused, index) => (
@@ -64,6 +77,8 @@ export function RequestSeatMeter({ wanted, putForward, placed, showLabel = true,
       {showLabel && (
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{safePlaced} placed</span>
+          {' · '}
+          {safeInSelection} in selection
           {' · '}
           {safeForward} put forward of {safeWanted}
           {surplus > 0 && ` · ${surplus} more than asked for`}

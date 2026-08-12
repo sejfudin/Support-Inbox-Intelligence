@@ -10,8 +10,12 @@ const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { httpError } = require('../helpers/httpError');
 const {
+  IN_SELECTION_STATUSES,
+  PICKER_EXCLUDED_INTERN_STATUSES,
   deriveProgress,
+  partitionPickerCandidates,
   assertCanResolveProject,
+  assertCanPutForward,
   assertRequestedPositionsEditable,
   assertCanClose,
   applyClose,
@@ -21,7 +25,9 @@ const {
 } = require('../helpers/staffingRequestRules');
 const { slugify } = require('../helpers/slugify');
 const { logStaffingRequestEvent } = require('./historyService');
+const { createRecommendationsForStaffingRequest } = require('./recommendationService');
 const { emitStaffingNewsChanged } = require('../socket/events');
+const InternProfile = require('../models/InternProfile');
 
 // This is the platform's first leadership write path: no existing route
 // admits ROLES.LEADERSHIP for a write, so every guard below is explicit
@@ -450,6 +456,212 @@ const resolveStaffingRequestProjectByCreating = async (user, requestId, payload 
   return finishResolvingProject(request, project._id, user._id);
 };
 
+// Both put-forward paths (read the picker, write the picks) start the same way:
+// the request must exist, the caller must be an admin, and the request must be
+// open with a real project — then the position they named must actually be one
+// this request asked for. That last check is what "the position is forced to
+// the requested position" means server-side: there is no free-choice position
+// in this flow, only one of the request's own.
+const loadRequestedPositionForPutForward = async (user, requestId, positionId) => {
+  assertValidObjectId(requestId, 'Staffing request');
+  assertValidObjectId(positionId, 'Position');
+
+  const request = await StaffingRequest.findById(requestId);
+  if (!request) throw httpError('Staffing request not found', 404);
+
+  try {
+    assertCanPutForward(request, { isAdmin: user.role === ROLES.ADMIN });
+  } catch (error) {
+    throw asHttpError(error);
+  }
+
+  const requestedPosition = request.requestedPositions.find(
+    (candidate) => String(candidate.position) === String(positionId)
+  );
+  if (!requestedPosition) {
+    throw httpError('That position is not on this staffing request', 400);
+  }
+
+  return { request, requestedPosition };
+};
+
+// A picker-rule refusal, said in words rather than by leaking the rule's own
+// token. Keyed by the flag types `partitionPickerCandidates` can exclude on.
+const PUT_FORWARD_REFUSALS = {
+  discontinued: 'One or more of those interns has left the programme',
+  completed: 'One or more of those interns has completed the programme',
+  'already-put-forward': 'One or more of those interns is already in selection for this position',
+};
+
+// Whether a recommendation is a LIVE offer of this intern for this exact
+// requested position. Only live ones make an intern "already put forward":
+// someone whose process here fell through — closed out, or not placed — is a
+// legitimate pick again, which is the whole reason the picker warns rather than
+// blocks everywhere else.
+const isLiveTagFor = (recommendation, requestId, positionId) =>
+  String(recommendation.staffingRequest) === String(requestId) &&
+  String(recommendation.position) === String(positionId) &&
+  IN_SELECTION_STATUSES.includes(recommendation.status);
+
+// Every intern still in the programme, plus the recommendations that say where
+// else they are committed, partitioned by the picker rules. Excluded interns are
+// dropped rather than returned: they are absent from the picker, not greyed out
+// in it, because offering them is always a mistake and there is nothing for an
+// admin to weigh up.
+const listPutForwardCandidates = async (user, requestId, positionId) => {
+  const { request, requestedPosition } = await loadRequestedPositionForPutForward(
+    user,
+    requestId,
+    positionId
+  );
+
+  // Interns who have left the programme are filtered out in the query as well
+  // as by the picker rules below — they can never appear, so there is no reason
+  // to load them and their whole recommendation history first.
+  const profiles = await InternProfile.find({ status: { $nin: PICKER_EXCLUDED_INTERN_STATUSES } })
+    .select('user status declaredPosition selfTechnologies cvTechnologies')
+    .populate({ path: 'user', select: 'fullname email' })
+    .populate({ path: 'declaredPosition', select: 'name' })
+    .populate({ path: 'selfTechnologies', select: 'name' })
+    .populate({ path: 'cvTechnologies', select: 'name' })
+    .lean();
+
+  const recommendations = await Recommendation.find({
+    internProfile: { $in: profiles.map((profile) => profile._id) },
+  })
+    .select('internProfile project position status result staffingRequest')
+    .populate({ path: 'project', select: 'name' })
+    .lean();
+
+  const recommendationsByProfile = new Map();
+  for (const recommendation of recommendations) {
+    const key = String(recommendation.internProfile);
+    if (!recommendationsByProfile.has(key)) recommendationsByProfile.set(key, []);
+    recommendationsByProfile.get(key).push(recommendation);
+  }
+
+  const alreadyPutForwardProfileIds = recommendations
+    .filter((recommendation) => isLiveTagFor(recommendation, request._id, positionId))
+    .map((recommendation) => recommendation.internProfile);
+
+  const { warned, clean } = partitionPickerCandidates(
+    profiles.map((profile) => ({
+      internProfile: profile._id,
+      status: profile.status,
+      recommendations: recommendationsByProfile.get(String(profile._id)) ?? [],
+    })),
+    { projectId: request.project, alreadyPutForwardProfileIds }
+  );
+
+  const profilesById = new Map(profiles.map((profile) => [String(profile._id), profile]));
+  const toCandidate = (partitioned) => {
+    const profile = profilesById.get(String(partitioned.internProfile));
+    return {
+      internProfile: profile._id,
+      internName: profile.user?.fullname ?? 'Unknown intern',
+      email: profile.user?.email ?? null,
+      status: profile.status,
+      position: profile.declaredPosition?.name ?? null,
+      // Both technology lists, because a picker matching against what the
+      // request asked for should not care which of the two an intern's skill
+      // was recorded in.
+      technologies: [
+        ...new Set(
+          [...(profile.selfTechnologies ?? []), ...(profile.cvTechnologies ?? [])]
+            .map((technology) => technology?.name)
+            .filter(Boolean)
+        ),
+      ],
+      eligibility: partitioned.eligibility,
+      flags: partitioned.flags,
+    };
+  };
+
+  // Clean first, then warned: an admin scanning the list should reach the
+  // uncomplicated picks before the ones that need a decision.
+  const byName = (a, b) => a.internName.localeCompare(b.internName);
+  return {
+    candidates: [...clean.map(toCandidate).sort(byName), ...warned.map(toCandidate).sort(byName)],
+  };
+};
+
+// The load-bearing write of the whole feature: putting interns forward creates
+// ordinary recommendations tagged back to this request. The request never holds
+// its own list of interns — who was put forward, and whether they were placed,
+// is always read back off those recommendations (see docs/adr/0006).
+//
+// Over-supply is expected, not blocked: more interns than the count may be put
+// forward, because interviews fail.
+const putInternsForward = async (user, requestId, positionId, payload = {}) => {
+  const { request, requestedPosition } = await loadRequestedPositionForPutForward(
+    user,
+    requestId,
+    positionId
+  );
+
+  const internProfileIds = [
+    ...new Set((payload.internProfileIds || []).filter(Boolean).map((id) => String(id))),
+  ];
+  if (internProfileIds.length === 0) {
+    throw httpError('Pick at least one intern to put forward', 400);
+  }
+  internProfileIds.forEach((id) => assertValidObjectId(id, 'Intern'));
+
+  const profiles = await InternProfile.find({ _id: { $in: internProfileIds } })
+    .select('status')
+    .lean();
+  if (profiles.length !== internProfileIds.length) {
+    throw httpError('One or more interns are invalid', 400);
+  }
+
+  // The picker rules are enforced here too, not only in the UI: a client that
+  // is out of date, or bypassed entirely, must not be able to offer an intern
+  // who has left the programme or who is already put forward for this seat.
+  const tagged = await Recommendation.find({
+    staffingRequest: request._id,
+    position: positionId,
+    status: { $in: IN_SELECTION_STATUSES },
+  })
+    .select('internProfile')
+    .lean();
+  const { excluded } = partitionPickerCandidates(
+    profiles.map((profile) => ({ internProfile: profile._id, status: profile.status })),
+    { alreadyPutForwardProfileIds: tagged.map((recommendation) => recommendation.internProfile) }
+  );
+  if (excluded.length > 0) {
+    throw httpError(PUT_FORWARD_REFUSALS[excluded[0].flags[0].type], 400);
+  }
+
+  await createRecommendationsForStaffingRequest(user, {
+    internProfileIds,
+    positionId,
+    projectId: request.project,
+    staffingRequestId: request._id,
+    // Seeded from what the request asked for — the admin is answering this
+    // requested position, so its technologies are the ones being matched.
+    technologyIds: (requestedPosition.technologies ?? []).map((technology) => String(technology)),
+  });
+
+  await request.populate(REQUEST_POPULATE);
+  const positionName =
+    request.requestedPositions.find(
+      (candidate) => String(candidate.position?._id ?? candidate.position) === String(positionId)
+    )?.position?.name ?? 'position';
+
+  // The event names its consequence, not just its verb. Individual placements
+  // deliberately do not badge the other side — only the act of putting interns
+  // forward does, because that is the answer leadership is waiting on.
+  await logStaffingRequestEvent({
+    entityId: request._id,
+    userId: user._id,
+    action: `${internProfileIds.length} put forward for ${positionName}`,
+    statusKey: 'staffing:put_forward',
+  });
+  emitStaffingNewsChanged();
+
+  return formatRequestWithLookup(request);
+};
+
 // The one close path, for all three reasons. `assertCanClose` owns who may use
 // which reason (cancel: author or admin; fulfil/decline: admin only, and
 // decline needs a note), so this function never re-implements that split.
@@ -616,6 +828,8 @@ module.exports = {
   updateStaffingRequest,
   resolveStaffingRequestProject,
   resolveStaffingRequestProjectByCreating,
+  listPutForwardCandidates,
+  putInternsForward,
   closeStaffingRequest,
   reopenStaffingRequest,
   getStaffingRequestNews,

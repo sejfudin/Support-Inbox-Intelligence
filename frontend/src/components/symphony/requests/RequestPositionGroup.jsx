@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { UserPlus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getInitials, formatSuggestionMeta } from '@/helpers/staffingRequests';
 import { RequestSeatMeter } from './RequestSeatMeter';
@@ -57,21 +59,32 @@ const EmptySeats = ({ count }) => (
  * The requested technologies live on the header because they are what a
  * suggestion gets judged against.
  */
-export function RequestPositionGroup({ row, requestedPosition }) {
-  const technologies = (requestedPosition?.technologies ?? [])
-    .map((technology) => technology?.name)
-    .filter(Boolean);
+export function RequestPositionGroup({ row, onPutForward }) {
+  const technologies = row.technologies ?? [];
   const emptySeats = Math.max(0, row.wanted - row.suggestions.length);
 
   return (
     <section className="space-y-3 py-5" data-test={`position-group-${row.id}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-foreground">{row.name}</h3>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {row.placed} of {row.wanted} placed
+              {row.wanted} wanted
             </span>
+            {onPutForward && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1.5 px-2.5 text-xs"
+                onClick={() => onPutForward(row)}
+                data-test={`put-forward-${row.id}`}
+              >
+                <UserPlus className="h-3.5 w-3.5" aria-hidden="true" />
+                Put forward
+              </Button>
+            )}
           </div>
           {technologies.length > 0 && (
             <ul className="flex flex-wrap gap-1.5">
@@ -89,6 +102,7 @@ export function RequestPositionGroup({ row, requestedPosition }) {
         <RequestSeatMeter
           wanted={row.wanted}
           putForward={row.putForward}
+          inSelection={row.inSelection}
           placed={row.placed}
           className="w-full max-w-[220px]"
         />

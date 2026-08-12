@@ -51,14 +51,21 @@ export function RequestListItem({ request, selected, onSelect, hasNews = false }
       <RequestSeatMeter
         wanted={totals.wanted}
         putForward={totals.putForward}
+        inSelection={totals.inSelection}
         placed={totals.placed}
         showLabel={false}
       />
 
       <div className="flex items-center justify-between gap-2 text-xs">
+        {/* Each number is named. `wanted` is already on the row above, as the
+            per-position summary ("2 Frontend Developer, 1 QA Engineer"), so it
+            is not repeated here — but placed, in selection and put forward all
+            are, because no two of them mean the same thing and a row that
+            collapses them cannot say whether anyone is still coming. */}
         <span className="text-muted-foreground">
-          {totals.placed}/{totals.wanted} placed
-          {totals.putForward > totals.placed && ` · ${totals.putForward} suggested`}
+          {totals.putForward === 0
+            ? 'Nobody put forward'
+            : `${totals.placed} placed · ${totals.inSelection} in selection · ${totals.putForward} put forward`}
         </span>
         <span className="flex items-center gap-1.5">
           {blocker && (

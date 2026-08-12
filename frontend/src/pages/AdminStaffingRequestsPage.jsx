@@ -9,6 +9,7 @@ import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { RequestsFilterTabs } from '@/components/symphony/requests/RequestsFilterTabs';
 import { RequestListItem } from '@/components/symphony/requests/RequestListItem';
 import { RequestDetail } from '@/components/symphony/requests/RequestDetail';
+import { PutForwardModal } from '@/components/symphony/requests/PutForwardModal';
 import {
   useMarkStaffingRequestsSeen,
   useStaffingRequestNews,
@@ -43,11 +44,12 @@ const byNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
  * in its own `data-surface="symphony"` scope since those styles are keyed off
  * that attribute and this page lives in the sidebar shell, not `SymphonyLayout`.
  *
- * `canManage={false}` here because edit/cancel/reopen stay leadership-side for
- * now (putting interns forward and closing/reopening are tickets 07/08).
- * "Resolve project" is the one admin action this screen already offers —
- * `RequestActions` checks the viewer's own role for it rather than reading
- * `canManage`, so it shows up here without this page doing anything special.
+ * `canManage={false}` here because edit/cancel stay leadership-side for now
+ * (closing is ticket 08). The two admin actions this screen does offer are
+ * "resolve project" — `RequestActions` checks the viewer's own role for it
+ * rather than reading `canManage` — and putting interns forward, which is
+ * per requested position and so lives on each position group rather than in
+ * the header.
  */
 export default function AdminStaffingRequestsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -55,6 +57,9 @@ export default function AdminStaffingRequestsPage() {
 
   const [group, setGroup] = useState('all');
   const [query, setQuery] = useState('');
+  // The requested position the picker is open against — putting interns forward
+  // is always per requested position, never against the request as a whole.
+  const [putForwardRow, setPutForwardRow] = useState(null);
 
   const { data: requests = [], isPending, isError } = useStaffingRequests();
   const { data: news } = useStaffingRequestNews();
@@ -192,6 +197,7 @@ export default function AdminStaffingRequestsPage() {
                 canManage={false}
                 onEdit={() => {}}
                 onClose={() => {}}
+                onPutForward={(row) => setPutForwardRow(row)}
               />
             ) : (
               <SymphonyCard className="py-16 text-center text-sm text-muted-foreground">
@@ -201,6 +207,13 @@ export default function AdminStaffingRequestsPage() {
           </div>
         </div>
       )}
+
+      <PutForwardModal
+        open={Boolean(putForwardRow)}
+        onOpenChange={(next) => !next && setPutForwardRow(null)}
+        request={selected}
+        row={putForwardRow}
+      />
     </div>
   );
 }

@@ -23,18 +23,23 @@ const request = ({ positions = [], ...rest } = {}) => ({
       (totals, position) => ({
         wanted: totals.wanted + position.wanted,
         putForward: totals.putForward + position.putForward,
+        inSelection: totals.inSelection + position.inSelection,
         placed: totals.placed + position.placed,
       }),
-      { wanted: 0, putForward: 0, placed: 0 }
+      { wanted: 0, putForward: 0, inSelection: 0, placed: 0 }
     ),
   },
   ...rest,
 });
 
-const progressRow = (position, wanted, putForward, placed) => ({
+// `inSelection` defaults to whatever is put forward and not yet placed, which
+// is the shape most of these cases want; the ones about resolved candidates
+// pass it explicitly.
+const progressRow = (position, wanted, putForward, placed, inSelection) => ({
   position,
   wanted,
   putForward,
+  inSelection: inSelection ?? Math.max(0, putForward - placed),
   placed,
 });
 
@@ -141,8 +146,26 @@ describe('getPositionProgressRows', () => {
     });
 
     expect(rows).toHaveLength(2);
-    expect(rows[1]).toMatchObject({ name: 'QA', wanted: 1, putForward: 0, placed: 0 });
+    expect(rows[1]).toMatchObject({
+      name: 'QA',
+      wanted: 1,
+      putForward: 0,
+      inSelection: 0,
+      placed: 0,
+    });
     expect(rows[1].suggestions).toEqual([]);
+  });
+
+  // The number that says whether anyone is still live, carried per position so
+  // a group can never collapse "six offered" into "six waiting".
+  it('carries in-selection through from the progress row', () => {
+    const rows = getPositionProgressRows({
+      requestedPositions: [requestedPosition('fe', 'Frontend', 3)],
+      progress: { positions: [progressRow('fe', 3, 6, 2, 0)] },
+      suggestions: [],
+    });
+
+    expect(rows[0]).toMatchObject({ wanted: 3, putForward: 6, inSelection: 0, placed: 2 });
   });
 
   it('pairs suggestions to their position by id', () => {

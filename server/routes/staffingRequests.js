@@ -10,6 +10,8 @@ const {
   updateStaffingRequest,
   resolveStaffingRequestProject,
   resolveStaffingRequestProjectByCreating,
+  listPutForwardCandidates,
+  putInternsForward,
   closeStaffingRequest,
   reopenStaffingRequest,
   setStaffingRequestNote,
@@ -62,6 +64,22 @@ router.post(
   protect,
   requireRole(ROLES.ADMIN),
   resolveStaffingRequestProjectByCreating
+);
+// Putting interns forward, per requested position — never from one flat list,
+// so the position is a path segment rather than a body field and cannot be a
+// free choice. Admin-only: leadership files demand, admins answer it. Both
+// halves (read the picker, write the picks) share that guard.
+router.get(
+  '/:id/positions/:positionId/candidates',
+  protect,
+  requireRole(ROLES.ADMIN),
+  listPutForwardCandidates
+);
+router.post(
+  '/:id/positions/:positionId/put-forward',
+  protect,
+  requireRole(ROLES.ADMIN),
+  putInternsForward
 );
 router.post(
   '/:id/close',

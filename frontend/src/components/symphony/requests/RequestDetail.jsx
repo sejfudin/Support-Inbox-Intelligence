@@ -25,15 +25,17 @@ const Blocker = ({ blocker }) => (
   </div>
 );
 
-export function RequestDetail({ request, canManage, onEdit, onClose }) {
+/**
+ * `onPutForward` is the admin's answer to a requested position. It is absent
+ * for leadership, and absent on a request that is closed or still needs its
+ * project — in both cases there is nothing to put anyone forward against, and
+ * the server refuses it anyway (`assertCanPutForward`).
+ */
+export function RequestDetail({ request, canManage, onEdit, onClose, onPutForward }) {
   const rows = getPositionProgressRows(request);
   const blocker = getRequestBlocker(request);
-  const requestedPositionsById = new Map(
-    (request.requestedPositions ?? []).map((requestedPosition) => [
-      String(requestedPosition.position?._id ?? requestedPosition.position),
-      requestedPosition,
-    ])
-  );
+  const canPutForward =
+    Boolean(onPutForward) && request.status !== 'closed' && Boolean(request.project);
 
   return (
     <SymphonyCard className="space-y-5">
@@ -90,7 +92,7 @@ export function RequestDetail({ request, canManage, onEdit, onClose }) {
             <RequestPositionGroup
               key={row.id}
               row={row}
-              requestedPosition={requestedPositionsById.get(row.id)}
+              onPutForward={canPutForward ? onPutForward : undefined}
             />
           ))
         )}

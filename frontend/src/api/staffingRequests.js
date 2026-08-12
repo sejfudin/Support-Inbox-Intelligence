@@ -34,6 +34,29 @@ export const resolveStaffingRequestProjectByCreating = async (id, project) => {
   return data.data;
 };
 
+// The interns an admin may put forward for one requested position, already
+// partitioned by the server's picker rules: interns who left the programme, and
+// interns already in selection for this same position, never appear; the rest
+// carry `flags` saying where else they are committed. Clean picks come before
+// flagged ones. Returns
+// `{ candidates: [{ internProfile, internName, position, technologies, flags, … }] }`.
+export const fetchPutForwardCandidates = async (id, positionId) => {
+  const { data } = await apiClient.get(
+    `/staffing-requests/${id}/positions/${positionId}/candidates`
+  );
+  return data.data;
+};
+
+// Creates one recommendation per picked intern, tagged back to this request
+// with the position forced to the requested position. Returns the request.
+export const putInternsForward = async (id, positionId, internProfileIds) => {
+  const { data } = await apiClient.post(
+    `/staffing-requests/${id}/positions/${positionId}/put-forward`,
+    { internProfileIds }
+  );
+  return data.data;
+};
+
 // `reason` is required: 'fulfilled' | 'declined' | 'cancelled'. `note` is
 // mandatory for 'declined', optional otherwise — and it lands in a different
 // field depending on the reason (see closeStaffingRequest on the server).

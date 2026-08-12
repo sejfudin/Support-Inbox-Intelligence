@@ -13,6 +13,15 @@
 
 const CLOSE_REASONS = ['fulfilled', 'declined', 'cancelled'];
 
+// A recommendation is live until an outcome has been written for it. Mirrors
+// ACTIVE_PIPELINE_STATUSES in recommendationService — the same lifecycle read
+// from the demand side.
+const IN_SELECTION_STATUSES = ['recommended', 'interviewing'];
+
+// Offering one of these interns is always a mistake, so they never reach the
+// picker at all. Everything else is at most a warning.
+const PICKER_EXCLUDED_INTERN_STATUSES = ['discontinued', 'completed'];
+
 // A position reference reaches here either as a raw ObjectId or, on the request
 // side, as a POPULATED document — `REQUEST_POPULATE` in staffingRequestService
 // populates `requestedPositions.position` so the UI has a name to show. Without
@@ -26,6 +35,17 @@ const idEquals = (a, b) => {
   return left != null && right != null && String(left) === String(right);
 };
 
+// The distinct project names behind a set of recommendations, in the order they
+// were first seen — an intern can have several recommendations on one project,
+// and naming it twice reads as two different double-bookings.
+const projectNames = (recommendations) => [
+  ...new Set(
+    recommendations
+      .map((recommendation) => recommendation.project?.name)
+      .filter((name) => Boolean(name))
+  ),
+];
+
 // "You may not do this", as opposed to "this is not a legal thing to do".
 // Callers map the code to a 403 and everything else to a 400 — this module
 // stays free of HTTP knowledge, it just says which kind of refusal it is.
@@ -35,12 +55,17 @@ const forbidden = (message) => {
   return error;
 };
 
-// Per requested position: how many are wanted, how many were put forward
-// (any recommendation tagged to this request for that position), and how
-// many of those were actually placed. Recommendations tagged to the request
-// whose position doesn't match any requested position are ignored — they
-// cannot happen through the normal fulfil flow, and are not attributable to
-// any position's counts.
+// Per requested position: how many are wanted, how many were put forward (any
+// recommendation tagged to this request for that position), how many of those
+// are still in selection, and how many were actually placed. Recommendations
+// tagged to the request whose position doesn't match any requested position are
+// ignored — they cannot happen through the normal put-forward flow, and are not
+// attributable to any position's counts.
+//
+// Three numbers, never one collapsed badge. `putForward` counts every
+// recommendation ever tagged here, including ones since resolved, so on its own
+// it reports a full pipeline for candidates who are all finished. `inSelection`
+// is the number that says whether anyone is still live.
 const deriveProgress = (requestedPositions, recommendations) => {
   const positions = requestedPositions.map((requestedPosition) => {
     const matching = recommendations.filter((recommendation) =>
@@ -48,6 +73,9 @@ const deriveProgress = (requestedPositions, recommendations) => {
     );
     const placed = matching.filter(
       (recommendation) => recommendation.result?.outcome === 'placed'
+    ).length;
+    const inSelection = matching.filter((recommendation) =>
+      IN_SELECTION_STATUSES.includes(recommendation.status)
     ).length;
     return {
       // Always the id, never the populated document: this field is an
@@ -57,6 +85,7 @@ const deriveProgress = (requestedPositions, recommendations) => {
       position: toId(requestedPosition.position),
       wanted: requestedPosition.count,
       putForward: matching.length,
+      inSelection,
       placed,
     };
   });
@@ -65,21 +94,110 @@ const deriveProgress = (requestedPositions, recommendations) => {
     (acc, position) => ({
       wanted: acc.wanted + position.wanted,
       putForward: acc.putForward + position.putForward,
+      inSelection: acc.inSelection + position.inSelection,
       placed: acc.placed + position.placed,
     }),
-    { wanted: 0, putForward: 0, placed: 0 }
+    { wanted: 0, putForward: 0, inSelection: 0, placed: 0 }
   );
 
   return { positions, totals };
 };
 
-// Whether the project reference may still be changed / resolved.
-const assertProjectEditable = (request, { hasRecommendations }) => {
-  if (request.status === 'closed') {
-    throw new Error('Cannot edit a closed staffing request');
+// Whether every requested position has as many interns placed as it wanted.
+// This is a prompt, not an action: it drives the admin's "close as fulfilled"
+// banner, and nothing anywhere closes a request off the back of it. A request
+// with no requested positions is never met — an empty `every()` is vacuously
+// true, and calling a request with no demand "met" is nonsense.
+const isDemandMet = (progress) =>
+  progress.positions.length > 0 &&
+  progress.positions.every((position) => position.placed >= position.wanted);
+
+// Partition the interns a picker could offer into the ones it must not show,
+// the ones it shows with a flag, and the ones it shows plainly.
+//
+// Excluded interns are absent from the picker outright. Everything else is
+// shown and selectable: putting forward someone already placed or already in
+// selection elsewhere is legitimate when a process falls through or a stronger
+// opportunity appears, and blocking it would just get worked around by editing
+// recommendations directly. So we name where, and let the admin decide.
+//
+// Each candidate arrives as `{ internProfile, status, recommendations }`, where
+// `recommendations` are that intern's recommendations across all projects.
+// Flags are data, never copy — the client writes the sentence.
+const partitionPickerCandidates = (
+  candidates,
+  { projectId = null, alreadyPutForwardProfileIds = [] } = {}
+) => {
+  const alreadyPutForward = new Set(alreadyPutForwardProfileIds.map((id) => String(toId(id))));
+  const result = { excluded: [], warned: [], clean: [] };
+
+  for (const candidate of candidates) {
+    const flags = [];
+
+    if (PICKER_EXCLUDED_INTERN_STATUSES.includes(candidate.status)) {
+      flags.push({ type: candidate.status });
+    } else if (alreadyPutForward.has(String(toId(candidate.internProfile)))) {
+      flags.push({ type: 'already-put-forward' });
+    }
+
+    if (flags.length > 0) {
+      result.excluded.push({
+        internProfile: candidate.internProfile,
+        eligibility: 'excluded',
+        flags,
+      });
+      continue;
+    }
+
+    const recommendations = candidate.recommendations ?? [];
+    // Gated on the intern being placed *now*, not on ever having been: a
+    // historical placement on a project they have since finished is not a
+    // conflict, and flagging it would put a warning on most of the programme.
+    // The projects come from the recommendations because the profile only
+    // records that they are placed, never where.
+    const placedOn =
+      candidate.status === 'placed'
+        ? projectNames(
+            recommendations.filter((recommendation) => recommendation.result?.outcome === 'placed')
+          )
+        : [];
+    // Being in selection for the project being staffed is this request's own
+    // pipeline, not a double-booking worth flagging.
+    const inSelectionOn = projectNames(
+      recommendations.filter(
+        (recommendation) =>
+          IN_SELECTION_STATUSES.includes(recommendation.status) &&
+          !(projectId && idEquals(recommendation.project, projectId))
+      )
+    );
+
+    if (placedOn.length > 0) flags.push({ type: 'placed', projects: placedOn });
+    if (inSelectionOn.length > 0) flags.push({ type: 'in-selection', projects: inSelectionOn });
+
+    const bucket = flags.length > 0 ? result.warned : result.clean;
+    bucket.push({
+      internProfile: candidate.internProfile,
+      eligibility: flags.length > 0 ? 'warned' : 'clean',
+      flags,
+    });
   }
-  if (hasRecommendations) {
-    throw new Error('Project is locked once recommendations exist');
+
+  return result;
+};
+
+// Whether an admin may put interns forward against this request. Both refusals
+// are enforced here rather than only hidden in the UI: `Recommendation.project`
+// is a required reference, so an unresolved draft project has nothing to create
+// a recommendation against.
+const assertCanPutForward = (request, { isAdmin }) => {
+  if (!isAdmin) {
+    throw forbidden('Only an admin may put interns forward against a staffing request');
+  }
+  if (request.status === 'closed') {
+    throw new Error('Cannot put interns forward against a closed staffing request');
+  }
+  if (needsProject(request)) {
+    throw new Error('Resolve the project before putting interns forward');
   }
 };
 
@@ -93,8 +211,9 @@ const needsProject = (request) => !request.project;
 
 // Whether an unresolved request may be linked to a project. Resolving twice
 // or resolving a closed request are both refused — a project reference, once
-// set, is only ever moved through the edit path (`assertProjectEditable`),
-// not through resolution again.
+// set, is only ever moved through the edit path, not through resolution again.
+// There is no lock: putting interns forward never freezes the project, because
+// repointing a request only ever means the wrong project was named.
 const assertCanResolveProject = (request) => {
   if (request.status === 'closed') {
     throw new Error('Cannot resolve a closed staffing request');
@@ -214,11 +333,15 @@ const deriveUnreadStaffingRequestIds = (events, { lastSeenAt, viewerId }) => {
 };
 
 module.exports = {
+  IN_SELECTION_STATUSES,
+  PICKER_EXCLUDED_INTERN_STATUSES,
   deriveProgress,
-  assertProjectEditable,
+  isDemandMet,
+  partitionPickerCandidates,
   needsProject,
   assertCanResolveProject,
   assertRequestedPositionsEditable,
+  assertCanPutForward,
   assertCanClose,
   applyClose,
   assertCanReopen,

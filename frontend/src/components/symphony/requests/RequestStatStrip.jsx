@@ -22,9 +22,12 @@ const Tile = ({ label, value, sub, tone }) => (
 );
 
 /**
- * `wanted` split into its two downstream counts, then the date. Put forward and
- * placed are separate tiles on purpose — a single "6 of 8" cannot say which of
- * the two it means, and they lead to different actions.
+ * `wanted` split into its three downstream counts, then the date. They are
+ * separate tiles on purpose — a single "6 of 8" cannot say which of them it
+ * means, and each leads to a different action. In selection is the one that
+ * says whether anyone is still coming: put forward counts everyone ever offered
+ * here, so it reads the same whether six people are interviewing or all six
+ * were closed out.
  */
 export function RequestStatStrip({ request }) {
   const totals = getRequestTotals(request);
@@ -38,6 +41,15 @@ export function RequestStatStrip({ request }) {
         label="Put forward"
         value={`${totals.putForward} of ${totals.wanted}`}
         sub={surplus > 0 ? `${surplus} more than asked for` : undefined}
+      />
+      <Tile
+        label="In selection"
+        value={totals.inSelection}
+        sub={
+          totals.inSelection === 0 && totals.putForward > 0
+            ? 'nobody still being considered'
+            : undefined
+        }
       />
       <Tile
         label="Placed"

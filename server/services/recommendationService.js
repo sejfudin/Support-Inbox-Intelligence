@@ -528,6 +528,53 @@ const createRecommendation = async (user, payload = {}) => {
   return formatRecommendation(recommendation, statusDates);
 };
 
+// Putting interns forward against a staffing request creates ordinary
+// recommendations — the whole point of the design is that there is no parallel
+// concept, so the existing pipeline, placement and attendance behaviour all
+// apply untouched. It lives here rather than in staffingRequestService because
+// what a freshly created recommendation needs (an initial status event, the
+// intern-data invalidation) is knowledge that belongs to this module.
+//
+// Two deliberate differences from `createRecommendation`:
+//   - `position` is forced to the requested position it is created against,
+//     never taken from a payload;
+//   - an already-placed intern is allowed through. `NON_RECOMMENDABLE_PROFILE_
+//     STATUSES` guards the ad-hoc flow, where offering a placed intern is
+//     almost always a slip. Here it is a deliberate act the admin was warned
+//     about, and refusing it would only push them to edit recommendations by
+//     hand. Discontinued and completed interns are still refused — that
+//     exclusion is enforced by the caller's picker rules.
+const createRecommendationsForStaffingRequest = async (
+  user,
+  { internProfileIds, positionId, projectId, staffingRequestId, technologyIds = [] }
+) => {
+  assertRecommendationWriteAccess(user);
+
+  const recommendedAt = new Date();
+  const created = await Recommendation.insertMany(
+    internProfileIds.map((internProfileId) => ({
+      internProfile: internProfileId,
+      createdBy: user._id,
+      updatedBy: user._id,
+      position: positionId,
+      project: projectId,
+      staffingRequest: staffingRequestId,
+      technologies: technologyIds,
+      status: 'recommended',
+      statusDates: { recommended: recommendedAt },
+    }))
+  );
+
+  await Promise.all(
+    created.map((recommendation) =>
+      logStatusEvent(recommendation._id, user._id, recommendation.status)
+    )
+  );
+  emitInternDataChanged();
+
+  return created;
+};
+
 const applyResultPayload = (recommendation, payloadResult, user) => {
   if (!payloadResult || typeof payloadResult !== 'object') return;
 
@@ -907,6 +954,7 @@ module.exports = {
   listRecommendations,
   getRecommendation,
   createRecommendation,
+  createRecommendationsForStaffingRequest,
   updateRecommendation,
   deleteRecommendation,
   closeActiveRecommendationsForIntern,
