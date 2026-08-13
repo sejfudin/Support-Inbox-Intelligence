@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
+import { Info, Search, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -87,58 +87,73 @@ const CandidateRow = ({ candidate, staged, onToggle }) => {
   const meta = formatSuggestionMeta(candidate);
   const conflicted = warnings.length > 0;
 
+  const button = (
+    <Button
+      type="button"
+      size="sm"
+      variant={staged ? 'outline' : conflicted ? 'outline' : 'default'}
+      className="h-8 shrink-0 px-3 text-xs font-semibold"
+      onClick={() => onToggle(candidate)}
+      data-test={`candidate-toggle-${candidate.internProfile}`}
+    >
+      {staged ? 'Remove' : conflicted ? 'Add anyway' : 'Add'}
+    </Button>
+  );
+
   return (
     <li
       className={cn(
-        'flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors',
+        'rounded-xl border transition-colors',
+        conflicted ? 'p-3' : 'flex items-center gap-3 px-3 py-2.5',
         staged
           ? 'border-[hsl(var(--symphony-brand)/0.6)] bg-[hsl(var(--symphony-brand)/0.07)]'
-          : 'border-border hover:bg-muted/40'
+          : 'border-border/50 bg-gradient-to-br from-card via-card to-[hsl(var(--symphony-brand)/0.05)] shadow-sm hover:shadow-elevated'
       )}
       data-test={`candidate-${candidate.internProfile}`}
     >
-      <span
-        className={cn(
-          'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
-          getAvatarColor(candidate.internName)
-        )}
-        aria-hidden="true"
-      >
-        {getInitials(candidate.internName)}
-      </span>
+      <div className={cn('flex items-center gap-3', conflicted && 'pb-2.5')}>
+        <span
+          className={cn(
+            'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
+            getAvatarColor(candidate.internName)
+          )}
+          aria-hidden="true"
+        >
+          {getInitials(candidate.internName)}
+        </span>
 
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2 text-sm font-semibold leading-tight text-foreground">
-          <span className="truncate">{candidate.internName}</span>
-          {staged && (
-            <span className="shrink-0 rounded-md bg-[hsl(var(--symphony-brand)/0.15)] px-1.5 py-0.5 text-[0.6875rem] font-semibold text-[hsl(var(--symphony-brand-ink))]">
-              Staged
-            </span>
-          )}
-        </p>
-        <p className="truncate text-xs leading-snug text-muted-foreground">
-          {meta || candidate.position || candidate.email}
-          {warnings.length > 0 && (
-            <>
-              {(meta || candidate.position || candidate.email) && ' · '}
-              <span className="font-medium text-amber-700 dark:text-amber-300">
-                <CandidateWarnings warnings={warnings} />
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 text-sm font-semibold leading-tight text-foreground">
+            <span className="truncate">{candidate.internName}</span>
+            {staged && (
+              <span className="shrink-0 rounded-md bg-[hsl(var(--symphony-brand)/0.15)] px-1.5 py-0.5 text-[0.6875rem] font-semibold text-[hsl(var(--symphony-brand-ink))]">
+                Staged
               </span>
-            </>
-          )}
-        </p>
+            )}
+          </p>
+          <p className="truncate text-xs leading-snug text-muted-foreground">
+            {meta || candidate.position || candidate.email}
+          </p>
+        </div>
+
+        {/* A clean row's only decision is the button, so it stays on this
+            line. A conflict gets its own line below instead — the caveat is
+            read as its own thing, not squeezed after the skills. */}
+        {!conflicted && button}
       </div>
 
-      <Button
-        type="button"
-        size="sm"
-        variant={staged ? 'outline' : conflicted ? 'outline' : 'default'}
-        className="h-8 shrink-0 px-3 text-xs font-semibold"
-        onClick={() => onToggle(candidate)}
-        data-test={`candidate-toggle-${candidate.internProfile}`}
-      >
-        {staged ? 'Remove' : conflicted ? 'Add anyway' : 'Add'}
-      </Button>
+      {conflicted && (
+        <div className="flex items-center gap-2 pl-12">
+          <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-amber-600/40 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
+            <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              <CandidateWarnings warnings={warnings} />
+            </span>
+          </span>
+          <span className="flex-1" />
+          {button}
+        </div>
+      )}
     </li>
   );
 };
@@ -162,6 +177,20 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
   // The shortlist being assembled — `{ [internProfileId]: pick }`, so a row can
   // answer "am I in?" without scanning an array on every render.
   const [draft, setDraft] = useState({});
+
+  // Radix portals dialog content straight to `document.body`, outside the
+  // page's `[data-surface="symphony"]` wrapper — and every `--symphony-brand`
+  // colour used below (the position badge, the staged pill, the asked-for
+  // chips) is a CSS variable scoped to that wrapper. Without a matching
+  // portal container those colours are simply undefined here: the class is
+  // applied, the declaration is just invalid, so the browser drops it and the
+  // element renders with no colour at all. Retargeting the portal into the
+  // same subtree is what makes the variables resolve.
+  const [portalContainer, setPortalContainer] = useState(null);
+  useEffect(() => {
+    if (!open) return;
+    setPortalContainer(document.querySelector('[data-surface="symphony"]'));
+  }, [open]);
 
   const requestId = request?.id;
   const positionId = row?.id;
@@ -207,34 +236,9 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
 
   const askedTechnologies = useMemo(() => new Set(row?.technologies ?? []), [row]);
 
-  /**
-   * Chips, in two tiers. First what the request actually asked for — those lead
-   * and stay marked as asked-for even when switched off, because they are the
-   * brief and the admin should see them without hunting.
-   *
-   * The widening tier is drawn only from interns whose declared position is the
-   * one being staffed. There is no position→technology map in reference data
-   * (`Position` carries a name and nothing else), so an intern's own position is
-   * the only signal for whether a skill belongs to this discipline: without it a
-   * Data Engineer request offers a `Manual QA` chip that can only ever narrow
-   * the list to people nobody asked for. Where no candidate declares this
-   * position — a real gap while profiles are still being filled in — every
-   * candidate's technologies are used instead, since one relevant chip beats an
-   * empty filter row.
-   */
-  const technologyOptions = useMemo(() => {
-    const candidates = data?.candidates ?? [];
-    const sameDiscipline = candidates.filter((candidate) => candidate.position === row?.name);
-    const widenFrom = sameDiscipline.length > 0 ? sameDiscipline : candidates;
-
-    const rest = new Set();
-    for (const candidate of widenFrom) {
-      (candidate.technologies ?? []).forEach((name) => {
-        if (!askedTechnologies.has(name)) rest.add(name);
-      });
-    }
-    return [...askedTechnologies, ...[...rest].sort()];
-  }, [row, data, askedTechnologies]);
+  // Only what the request actually asked for — those are the brief, and stay
+  // shown as filters even when switched off.
+  const technologyOptions = useMemo(() => [...askedTechnologies], [askedTechnologies]);
 
   // The fold never swallows a chip the admin needs: everything the request asked
   // for is kept, and so is anything currently switched on — a filter hidden
@@ -322,57 +326,87 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
 
   if (!request || !row) return null;
 
-  const seatsFilled = Math.min(row.placed ?? 0, row.wanted ?? 0);
-  const seatProgress = row.wanted > 0 ? (seatsFilled / row.wanted) * 100 : 0;
+  // Placed, in selection, and this visit's staged picks together — the bar is
+  // meant to move as an admin stages, not sit still until something is
+  // actually placed later. Capped at `wanted` for the fill; `overBy` is what
+  // spills past it, since demand doesn't stop existing once the bar is full.
+  const wanted = Math.max(0, row.wanted ?? 0);
+  const committedSeats =
+    Math.max(0, row.placed ?? 0) + Math.max(0, row.inSelection ?? 0) + draftPicks.length;
+  const overBy = Math.max(0, committedSeats - wanted);
+  const seatProgress = wanted > 0 ? (Math.min(committedSeats, wanted) / wanted) * 100 : 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        portalContainer={portalContainer}
         className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-3xl"
         data-test="put-forward-dialog"
       >
         <DialogHeader className="gap-0 space-y-0 border-b border-border/60 px-6 pb-5 pt-6 text-left">
-          <div className="flex items-start justify-between gap-6">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                {/* The position being staffed, said once and said loudly: the
-                    dialog decides one position and every list below is scoped to
-                    it. */}
-                <span
-                  className="rounded-lg bg-[hsl(var(--symphony-brand)/0.12)] px-2.5 py-1 text-xs font-bold uppercase tracking-[0.08em] text-[hsl(var(--symphony-brand-ink))]"
-                  data-test="picker-position-badge"
-                >
-                  {row.name}
-                </span>
-                <span className="truncate text-sm text-muted-foreground">
-                  {getRequestTitle(request)}
-                </span>
-              </div>
-              <DialogTitle className="mt-2 text-2xl font-bold">Put interns forward</DialogTitle>
-              <DialogDescription className="mt-1 max-w-lg">
-                Picks are staged here and sent together from the request. Putting someone forward is
-                not placing them.
-              </DialogDescription>
-            </div>
+          {/* The position being staffed, said once and said loudly: the dialog
+              decides one position and every list below is scoped to it. */}
+          <span
+            className="inline-block w-fit rounded-lg bg-[hsl(var(--symphony-brand)/0.12)] px-2.5 py-1 text-xs font-bold uppercase tracking-[0.08em] text-[hsl(var(--symphony-brand-ink))]"
+            data-test="picker-position-badge"
+          >
+            {row.name}
+          </span>
+          <p className="mt-1 truncate text-sm text-muted-foreground">{getRequestTitle(request)}</p>
 
-            {/* This position's own seats, not the request's — the dialog only
-                ever decides one position, and a request-wide number here would
-                be read as this one's. */}
-            <div className="hidden w-44 shrink-0 pt-1 text-right sm:block">
-              <p className="text-sm text-muted-foreground" data-test="picker-seats">
-                <span className="font-bold text-foreground">{seatsFilled}</span> of {row.wanted}{' '}
-                {row.wanted === 1 ? 'seat' : 'seats'} placed
+          <DialogTitle className="pt-4 text-2xl font-bold">Put interns forward</DialogTitle>
+          <DialogDescription className="mt-1 max-w-lg">
+            Picks are staged here and sent together from the request. Putting someone forward is not
+            placing them.
+          </DialogDescription>
+
+          {/* This position's own seats, not the request's — the dialog only
+              ever decides one position, and a request-wide number here would
+              be read as this one's. Moves as picks are staged, not just once
+              something is placed, so the bar answers the question an admin is
+              actually asking while working through the list. */}
+          <div className="mt-4">
+            <p className="flex items-center justify-between text-sm text-muted-foreground">
+              <span className="pt-4">Seats accounted for</span>
+              <span data-test="picker-seats">
+                <span
+                  className={cn(
+                    'font-bold',
+                    overBy > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-foreground'
+                  )}
+                >
+                  {committedSeats}
+                </span>{' '}
+                of {wanted} {wanted === 1 ? 'seat' : 'seats'}
+              </span>
+            </p>
+            {/* `bg-muted` alone is nearly indistinguishable from the dialog
+                background in the light themes — an empty track needs its own
+                edge, not just a fill colour that never gets a chance to show. */}
+            <Progress
+              value={seatProgress}
+              className={cn(
+                'mt-2 h-1.5 border',
+                overBy > 0
+                  ? 'border-amber-400/50 bg-amber-100 dark:bg-amber-950/40'
+                  : 'border-border bg-muted'
+              )}
+              indicatorClassName={overBy > 0 ? 'bg-amber-500' : undefined}
+              aria-label={`${committedSeats} of ${wanted} seats accounted for`}
+            />
+            {overBy > 0 && (
+              <p
+                className="mt-1.5 text-xs font-medium text-amber-700 dark:text-amber-400"
+                data-test="picker-surplus-warning"
+              >
+                {overBy} more than this position needs — placed, in selection and staged already
+                cover every seat.
               </p>
-              <Progress
-                value={seatProgress}
-                className="mt-2 h-1.5 bg-muted"
-                aria-label={`${seatsFilled} of ${row.wanted} seats placed`}
-              />
-            </div>
+            )}
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 border-b border-border/60 bg-muted/30 px-6 py-4">
+        <div className="space-y-3 px-6 py-4">
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -382,7 +416,7 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search name or skill…"
-              className="bg-background pl-9 pr-16"
+              className="bg-muted pl-9 pr-16"
               aria-label="Search candidates"
               autoFocus
               data-test="picker-search"
@@ -406,22 +440,11 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
                   Asked for
                 </span>
               )}
-              {visibleTechnologies.map((name, index) => {
+              {visibleTechnologies.map((name) => {
                 const active = technologyFilters.includes(name);
                 const asked = askedTechnologies.has(name);
-                // The one place the two tiers are told apart in layout: after
-                // the last asked-for chip, before the widening ones.
-                const startsRest =
-                  !asked && index > 0 && askedTechnologies.has(visibleTechnologies[index - 1]);
                 return (
                   <div key={name} className="flex items-center gap-2">
-                    {startsRest && (
-                      <span
-                        className="h-4 w-px bg-border"
-                        aria-hidden="true"
-                        data-test="picker-technology-divider"
-                      />
-                    )}
                     <button
                       type="button"
                       onClick={() => toggleTechnology(name)}
@@ -505,7 +528,10 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
         <DialogFooter className="flex-col items-stretch gap-3 border-t border-border/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 flex-1 space-y-1.5">
             <p
-              className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground"
+              className={cn(
+                'text-[0.6875rem] font-semibold uppercase tracking-wide',
+                overBy > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
+              )}
               data-test="picker-total"
             >
               {draftPicks.length === 0 ? 'Nothing staged' : `Staged · ${draftPicks.length}`}
