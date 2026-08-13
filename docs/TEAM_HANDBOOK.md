@@ -12,7 +12,9 @@
 - Creates, deletes, and views all workspaces
 - Creates user accounts, invites new users (mentors, interns, leadership, other admins), and changes their role
 - Views and edits all intern profiles
-- Only role that manages reference data (hubs, technologies, internship types)
+- Only role that manages reference data (hubs, positions, technologies, internship types) —
+  positions (specializations like "Frontend Engineer") and technologies (concrete tools like
+  "React") are kept as separate catalogs on purpose
 - Only role that adds and edits projects — and must pick each project's type (client or internal) when creating it; the type can be changed later
 - Doesn't see programme-wide statistics
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
