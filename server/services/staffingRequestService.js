@@ -101,12 +101,22 @@ const ensurePositionId = async (positionId) => {
   return positionId;
 };
 
-const ensureTechnologyIds = async (technologyIds = []) => {
+/**
+ * `carriedIds` are the technology ids the request being edited already has.
+ * They are exempt from the active check: a technology can be deactivated long
+ * after a request was filed, and re-sending the ask unchanged is not the moment
+ * to refuse it — that refusal blocked every edit of the request, including ones
+ * that never touched technologies. Only newly added ids must still be active.
+ */
+const ensureTechnologyIds = async (technologyIds = [], { carriedIds = [] } = {}) => {
   const ids = [...new Set((technologyIds || []).filter(Boolean).map((id) => id.toString()))];
   ids.forEach((id) => assertValidObjectId(id, 'Technology'));
   if (ids.length === 0) return [];
-  const count = await Technology.countDocuments({ _id: { $in: ids }, isActive: true });
-  if (count !== ids.length) throw httpError('One or more technologies are invalid', 400);
+  const carried = new Set(carriedIds.filter(Boolean).map((id) => id.toString()));
+  const added = ids.filter((id) => !carried.has(id));
+  if (added.length === 0) return ids;
+  const count = await Technology.countDocuments({ _id: { $in: added }, isActive: true });
+  if (count !== added.length) throw httpError('One or more technologies are invalid', 400);
   return ids;
 };
 
@@ -117,7 +127,7 @@ const ensureProjectId = async (projectId) => {
   return project._id;
 };
 
-const normalizeRequestedPositions = async (requestedPositions) => {
+const normalizeRequestedPositions = async (requestedPositions, { carriedIds = [] } = {}) => {
   if (!Array.isArray(requestedPositions) || requestedPositions.length === 0) {
     throw httpError('At least one requested position is required', 400);
   }
@@ -131,11 +141,20 @@ const normalizeRequestedPositions = async (requestedPositions) => {
       return {
         position: await ensurePositionId(requestedPosition.position),
         count,
-        technologies: await ensureTechnologyIds(requestedPosition.technologies),
+        technologies: await ensureTechnologyIds(requestedPosition.technologies, { carriedIds }),
       };
     })
   );
 };
+
+// Every technology id the request currently carries, across all its positions —
+// the exemption list for an edit (see ensureTechnologyIds).
+const carriedTechnologyIds = (request) =>
+  (request.requestedPositions ?? []).flatMap((requestedPosition) =>
+    (requestedPosition.technologies ?? []).map((technology) =>
+      String(technology?._id ?? technology)
+    )
+  );
 
 // Recommendations tagged to a request, for the rules helper's progress/
 // display-state derivation and for the per-position suggestion cards. Fetched
@@ -381,7 +400,9 @@ const updateStaffingRequest = async (user, requestId, payload = {}) => {
       : undefined;
   const nextRequestedPositions =
     payload.requestedPositions !== undefined
-      ? await normalizeRequestedPositions(payload.requestedPositions)
+      ? await normalizeRequestedPositions(payload.requestedPositions, {
+          carriedIds: carriedTechnologyIds(request),
+        })
       : undefined;
 
   let plan;

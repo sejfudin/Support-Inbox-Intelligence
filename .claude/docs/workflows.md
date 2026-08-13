@@ -223,6 +223,11 @@ This script deactivates such rows (`isActive: false`) rather than deleting them:
 intern who already declared it keeps a valid reference. Deleting would strand ObjectIds in
 `selfTechnologies`. It refuses to retire a row whose replacements are not seeded yet.
 
+Anything that *validates* technology ids on write has to honour that: a staffing request edit
+exempts the ids the request already carries from the active check (only newly added ones must be
+active), and the edit form merges them back into the active-only picker list so they still render
+as chips. Without both halves, one retired technology freezes every edit of the request.
+
 ```bash
 npm run cleanup:superseded-technologies -- --dry-run   # report only, change nothing
 npm run cleanup:superseded-technologies                # deactivate the superseded rows

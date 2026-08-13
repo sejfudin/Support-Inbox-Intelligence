@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { DatePicker } from '@/components/ui/date-picker';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { TechnologyMultiSelect } from '@/components/ui/technology-multi-select';
+import {
+  SelectedTechnologyChips,
+  TechnologyMultiSelect,
+} from '@/components/ui/technology-multi-select';
 import {
   Dialog,
   DialogContent,
@@ -86,6 +89,13 @@ const emptyDraftProject = { name: '', client: '', description: '' };
 
 /** Row control class shared by the position / seats / technologies cells. */
 const rowControlClass = 'h-11 rounded-xl border-input/90';
+
+// The column headers and the rows below them are separate grids, so the seats
+// track has to be an explicit width rather than `auto`: sized to content, each
+// grid measures its own column and the "Technologies" header drifts off the
+// picker it labels. 6.25rem is the stepper (two 2.25rem buttons + a 1.5rem
+// readout) with its border.
+const positionGridClass = 'grid grid-cols-[minmax(0,1fr)_6.25rem_minmax(0,1.3fr)_2rem] gap-3';
 
 /**
  * Seats are almost always a single digit, so the row spends its width on the
@@ -312,6 +322,27 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
   }, [open, isEditing, request, reset]);
 
   const positionOptions = useMemo(() => positions?.data ?? positions ?? [], [positions]);
+
+  // The technology list is active-only, but a request can carry one that was
+  // deactivated after it was filed. Without merging those back in, the picker
+  // renders no chip for them — the ask looks like it lost a technology it is
+  // still about to re-submit. (The server exempts them from its active check
+  // for the same reason.) They stay out of the add-list only while selected,
+  // which is exactly as long as the request still carries them.
+  const technologyOptions = useMemo(() => {
+    const active = technologies?.data ?? technologies ?? [];
+    if (!request) return active;
+    const known = new Set(active.map((technology) => technology._id));
+    const carried = [];
+    for (const requestedPosition of request.requestedPositions ?? []) {
+      for (const technology of requestedPosition.technologies ?? []) {
+        if (!technology?._id || known.has(technology._id)) continue;
+        known.add(technology._id);
+        carried.push(technology);
+      }
+    }
+    return carried.length > 0 ? [...active, ...carried] : active;
+  }, [technologies, request]);
 
   const fileRequest = (payload) => {
     createMutation.mutate(payload, {
@@ -572,7 +603,9 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
               {/* Column headers instead of a per-row card: the rows read as one
                   table, so what each cell means is said once. */}
               <div className="flex flex-col gap-2">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1.3fr)_2rem] items-center gap-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <div
+                  className={`${positionGridClass} items-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground`}
+                >
                   <span>Position</span>
                   <span>Seats</span>
                   <span>
@@ -584,69 +617,100 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
                 {fields.map((field, index) => (
                   <div
                     key={field.id}
-                    className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1.3fr)_2rem] items-start gap-3"
+                    className="flex flex-col gap-2"
                     data-test={`request-form-position-row-${index}`}
                   >
-                    <Controller
-                      name={`requestedPositions.${index}.position`}
-                      control={control}
-                      render={({ field: positionField }) => (
-                        <Select onValueChange={positionField.onChange} value={positionField.value}>
-                          <SelectTrigger
-                            className={`w-full ${rowControlClass}`}
-                            data-test={`request-form-position-select-${index}`}
+                    <div className={`${positionGridClass} items-start`}>
+                      <Controller
+                        name={`requestedPositions.${index}.position`}
+                        control={control}
+                        render={({ field: positionField }) => (
+                          <Select
+                            onValueChange={positionField.onChange}
+                            value={positionField.value}
                           >
-                            <SelectValue placeholder="Choose position…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {positionOptions.map((position) => (
-                              <SelectItem
-                                key={position._id}
-                                value={position._id}
-                                disabled={usedPositionIds(index).includes(position._id)}
-                              >
-                                {position.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <Controller
-                      name={`requestedPositions.${index}.count`}
-                      control={control}
-                      render={({ field: countField }) => (
-                        <SeatStepper
-                          value={countField.value}
-                          onChange={countField.onChange}
-                          index={index}
-                        />
-                      )}
-                    />
+                            <SelectTrigger
+                              className={`w-full ${rowControlClass}`}
+                              data-test={`request-form-position-select-${index}`}
+                            >
+                              <SelectValue placeholder="Choose position…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {positionOptions.map((position) => (
+                                <SelectItem
+                                  key={position._id}
+                                  value={position._id}
+                                  disabled={usedPositionIds(index).includes(position._id)}
+                                >
+                                  {position.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                      <Controller
+                        name={`requestedPositions.${index}.count`}
+                        control={control}
+                        render={({ field: countField }) => (
+                          <SeatStepper
+                            value={countField.value}
+                            onChange={countField.onChange}
+                            index={index}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name={`requestedPositions.${index}.technologies`}
+                        control={control}
+                        render={({ field: techField }) => (
+                          <TechnologyMultiSelect
+                            technologies={technologyOptions}
+                            selectedIds={techField.value}
+                            onChange={techField.onChange}
+                            placeholder="React, TypeScript…"
+                            showSelected={false}
+                          />
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-11 w-8 text-muted-foreground"
+                        disabled={fields.length === 1}
+                        onClick={() => remove(index)}
+                        aria-label="Remove position"
+                        data-test={`request-form-position-remove-${index}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* The picked chips get the full row width instead of the
+                        narrow technologies column, and say what they are — three
+                        of them wrapping inside the column read as an overflow. */}
                     <Controller
                       name={`requestedPositions.${index}.technologies`}
                       control={control}
-                      render={({ field: techField }) => (
-                        <TechnologyMultiSelect
-                          technologies={technologies?.data ?? technologies ?? []}
-                          selectedIds={techField.value}
-                          onChange={techField.onChange}
-                          placeholder="React, TypeScript…"
-                        />
-                      )}
+                      render={({ field: techField }) =>
+                        (techField.value ?? []).length > 0 ? (
+                          <div
+                            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-muted/40 px-3 py-2.5"
+                            data-test={`request-form-position-technologies-${index}`}
+                          >
+                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Technologies picked
+                            </span>
+                            <SelectedTechnologyChips
+                              technologies={technologyOptions}
+                              selectedIds={techField.value}
+                              onChange={techField.onChange}
+                            />
+                          </div>
+                        ) : null
+                      }
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-11 w-8 text-muted-foreground"
-                      disabled={fields.length === 1}
-                      onClick={() => remove(index)}
-                      aria-label="Remove position"
-                      data-test={`request-form-position-remove-${index}`}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
                   </div>
                 ))}
 

@@ -13,6 +13,37 @@ const DEFAULT_CHIP_CLASS =
 const VIEW_CHIP_LIMIT = 8;
 const EDIT_CHIP_LIMIT = 4;
 
+/**
+ * The picked chips, on their own. Split out so a caller whose trigger sits in a
+ * narrow column (the request form's position rows) can render them somewhere
+ * with room — full width under the row — instead of wrapping them three-per-
+ * line inside the column. Pair it with `showSelected={false}` on the picker so
+ * they aren't drawn twice, and hand both the same `selectedIds`/`onChange`.
+ */
+export function SelectedTechnologyChips({
+  technologies,
+  selectedIds,
+  onChange,
+  chipClassName = DEFAULT_CHIP_CLASS,
+  className,
+}) {
+  const selected = technologies.filter((technology) => selectedIds.includes(technology._id));
+  if (selected.length === 0) return null;
+
+  return (
+    <div className={cn('flex flex-wrap gap-2', className)}>
+      {selected.map((technology) => (
+        <RemovableChip
+          key={technology._id}
+          technology={technology}
+          onRemove={() => onChange(selectedIds.filter((id) => id !== technology._id))}
+          chipClassName={chipClassName}
+        />
+      ))}
+    </div>
+  );
+}
+
 function RemovableChip({ technology, onRemove, chipClassName }) {
   return (
     <span className={cn(chipClassName, 'gap-1.5')}>
@@ -55,6 +86,8 @@ export function TechnologyMultiSelect({
   placeholder = 'Select technologies…',
   triggerClassName = DEFAULT_TRIGGER_CLASS,
   chipClassName = DEFAULT_CHIP_CLASS,
+  // "select" only: leave the chips to the caller (see SelectedTechnologyChips).
+  showSelected = true,
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -244,7 +277,7 @@ export function TechnologyMultiSelect({
         <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-60" />
       </button>
       {dropdown}
-      {selectedTechnologies.length > 0 && (
+      {showSelected && selectedTechnologies.length > 0 && (
         <div className="mt-2.5 flex flex-wrap gap-2">
           {selectedTechnologies.map((technology) => (
             <RemovableChip

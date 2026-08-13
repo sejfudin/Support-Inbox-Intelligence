@@ -16,7 +16,7 @@ jest.mock('../models/Position', () => ({
   exists: jest.fn(),
   find: jest.fn(),
 }));
-jest.mock('../models/Technology', () => ({ find: jest.fn() }));
+jest.mock('../models/Technology', () => ({ find: jest.fn(), countDocuments: jest.fn() }));
 jest.mock('../models/InternProfile', () => ({ find: jest.fn() }));
 // Not just isolation: requiring the real recommendationService pulls in
 // Supabase config, which throws without env.
@@ -32,6 +32,7 @@ jest.mock('../socket/events', () => ({
 
 const StaffingRequest = require('../models/StaffingRequest');
 const Recommendation = require('../models/Recommendation');
+const Technology = require('../models/Technology');
 const Position = require('../models/Position');
 const Project = require('../models/Project');
 const InternProfile = require('../models/InternProfile');
@@ -691,6 +692,43 @@ describe('updateStaffingRequest', () => {
     expect(logStaffingRequestEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'Request edited — counts', statusKey: 'staffing:edited' })
     );
+  });
+
+  // A technology deactivated after the request was filed. Re-sending the ask
+  // unchanged has to keep working, or one retired technology freezes the whole
+  // request — every edit of it, including ones that never touch technologies.
+  it('re-accepts a technology the request already carries, even if it is no longer active', async () => {
+    Technology.countDocuments.mockResolvedValue(0);
+    const doc = arrangeEdit(
+      editable({
+        requestedPositions: [
+          {
+            position: { _id: POSITION_ID, name: 'Frontend' },
+            count: 2,
+            technologies: [{ _id: TECHNOLOGY_ID, name: 'Data Engineering' }],
+          },
+        ],
+      })
+    );
+
+    await updateStaffingRequest(author, REQUEST_ID, {
+      requestedPositions: [line(POSITION_ID, 1, [TECHNOLOGY_ID])],
+    });
+
+    expect(doc.save).toHaveBeenCalled();
+  });
+
+  it('still refuses an inactive technology the request did not already carry', async () => {
+    Technology.countDocuments.mockResolvedValue(0);
+    const doc = arrangeEdit(editable());
+
+    await expectHttpError(
+      updateStaffingRequest(author, REQUEST_ID, {
+        requestedPositions: [line(POSITION_ID, 1, [TECHNOLOGY_ID])],
+      }),
+      400
+    );
+    expect(doc.save).not.toHaveBeenCalled();
   });
 
   it('moves every tagged recommendation with a project change and names the count', async () => {
