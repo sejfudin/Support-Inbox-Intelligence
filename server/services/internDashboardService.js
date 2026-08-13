@@ -9,6 +9,7 @@ const { resolveWorkloadBuckets } = require('../helpers/workloadBuckets');
 const { officeDateKey } = require('../helpers/attendanceTime');
 const { scoreTicketUrgency, compareByUrgency } = require('../helpers/ticketUrgency');
 const { shouldSummarize, isSummaryFresh } = require('../helpers/standupNote');
+const { averageDelta } = require('../helpers/evaluationTrend');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const { httpError } = require('../helpers/httpError');
 
@@ -186,14 +187,17 @@ const loadPipeline = async (user) => {
  */
 const loadEvaluations = async (user) => {
   const evaluations = await evaluationService.listOwnEvaluations(user);
-  const [latest, previous] = evaluations;
 
-  const delta =
-    latest?.averageScore != null && previous?.averageScore != null
-      ? Math.round((latest.averageScore - previous.averageScore) * 10) / 10
-      : null;
-
-  return { latest: latest || null, delta, total: evaluations.length, items: evaluations };
+  return {
+    latest: evaluations[0] || null,
+    // `helpers/evaluationTrend.averageDelta` owns this arithmetic — it is the same
+    // number the My Progress page prints, and it used to be hand-rolled here from
+    // the already-rounded `averageScore` (rounding twice). Two copies of one rule is
+    // how the two chips end up disagreeing after the next change to it.
+    delta: averageDelta(evaluations),
+    total: evaluations.length,
+    items: evaluations,
+  };
 };
 
 /**

@@ -3,7 +3,7 @@ import { Bell, Building2, Check, CalendarClock, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/helpers/date';
-import { RESULT_LABEL, buildStageSteps, sortInterviews } from '@/helpers/recommendationStages';
+import { buildStageSteps, outcomeLabel, sortInterviews } from '@/helpers/recommendationStages';
 import { ProgressPanel, ProgressPanelEmpty } from './ProgressPanel';
 
 const STAGE_HINT = {
@@ -80,7 +80,13 @@ function StageList({ recommendation }) {
                   ? `${step.date} · ${STAGE_HINT[step.key]}`
                   : isSkipped
                     ? 'No interview stage was recorded for this recommendation.'
-                    : 'Not reached yet.'}
+                    : // The stage they are ON, with no date recorded — legacy records
+                      // whose history fallback has no entry for the current status.
+                      // Without this branch it fell through to the pending copy and
+                      // printed "You are here" and "Not reached yet." on one row.
+                      isCurrent
+                      ? STAGE_HINT[step.key]
+                      : 'Not reached yet.'}
               </p>
             </div>
           </li>
@@ -136,17 +142,26 @@ function InterviewList({ interviews }) {
  * recorded, so "to be confirmed" is said out loud rather than papered over with the
  * decision date. It is also the date that ends the intern's attendance obligation,
  * which is why it is worth its own line here.
+ *
+ * The label goes through `outcomeLabel`, shared with the dashboard card: a
+ * `not_placed` whose demand ended underneath it is not a rejection, and labelling it
+ * "Not placed this time" would tell the intern they were turned down for something
+ * nobody ever decided. Its badge stays neutral for the same reason — the red
+ * `destructive` tone is for a decision that actually went against them.
  */
 function OutcomeBlock({ result }) {
   const outcome = result?.outcome;
   if (!outcome) return null;
 
   const placed = outcome === 'placed';
+  const demandEnded = Boolean(result.demandEnded);
 
   return (
     <div className="mt-4 border-t border-border/60 pt-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={placed ? 'success' : 'destructive'}>{RESULT_LABEL[outcome]}</Badge>
+        <Badge variant={placed ? 'success' : demandEnded ? 'secondary' : 'destructive'}>
+          {outcomeLabel(result)}
+        </Badge>
         {result.decidedAt ? (
           <span className="text-xs text-muted-foreground">
             Decided {formatDate(result.decidedAt)}

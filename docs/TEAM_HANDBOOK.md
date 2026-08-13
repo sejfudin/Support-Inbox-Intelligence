@@ -25,13 +25,73 @@
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
 - Sets the start date on a placement — the day the intern actually begins on the project, which is often not the day the placement was decided. It is optional: leave it empty when nobody knows yet, and set it later once they do. From that day the intern no longer has to record attendance: those days show in their own colour instead of absent, and the month reads "—" instead of 0%. Until a start date is set the intern keeps recording attendance as normal, and moving the date moves the cut-off with it
+- Only role that can leave a note on a staffing request — one short remark, written when they close
+  it, for anything leadership should know that the suggested candidates don't say. It cannot be
+  edited or added afterwards: a closed request is a fixed record, so what was said at the time is
+  what stays
+- Only role that can close a staffing request as **fulfilled** (the seats are filled) or
+  **declined** (the ask is being refused). Declining requires a reason, which becomes the note
+  leadership reads; fulfilling doesn't — the placements say it. Cannot cancel — that is
+  leadership's, since only they speak to the outside party. Nothing closes a request automatically —
+  even when every seat is placed, an admin still closes it
+- Only role that can put interns forward against a staffing request — candidates are picked one
+  seat at a time, so each intern is offered for the discipline that was actually asked for. Picks
+  are **staged first and sent together**: nothing reaches leadership until "Submit to leadership",
+  so a misclick is undone by removing the pick, and one submit is one answer however many seats it
+  covered. Staged picks survive a refresh or a look at another request, but they live only in that
+  browser — a colleague can't see them, and neither can leadership. Each sent pick creates an
+  ordinary recommendation on that project, so the usual interview and placement steps follow.
+  Putting someone forward never means they are placed. More interns than the seats asked for can be
+  put forward, on purpose. Interns who left the programme or completed it aren't offered; interns
+  already placed or already in selection elsewhere are, flagged with where. The same intern can't
+  be staged onto two seats of one request. A request still waiting on its project can have
+  candidates staged but nothing submitted until the project is resolved
+- Cannot edit, cancel or reopen a staffing request. Editing belongs to the leadership user who
+  filed it — an admin answers a request rather than restating it — cancelling is leadership's, and
+  no closed request can be reopened by anyone
+- Closing a request, for any of the three reasons, **closes out everyone still in selection for it**:
+  each is recorded as not placed, with one shared reason the admin types in the close dialog, which
+  is read by admins, leadership and mentors and never by the intern. Anyone already placed keeps
+  their placement, untouched. The interns closed out go back on the ready bench. This can't be
+  undone, and there is no per-intern opt-out — if the ask has only shrunk, lower the seat count
+  instead, which closes out nobody. For something specific to one person, write it on their own
+  recommendation instead of in the shared reason
+- Only role that can resolve a staffing request filed against a project that doesn't exist yet
+  ("Needs project") — link it to an existing project, or create one from leadership's description.
+  Leadership can describe a project when filing but can never create or link one itself. A request
+  needing a project can never be closed as fulfilled until it's resolved
 - Manages documentation links on intern profiles
 - Works with tickets like everyone else, plus can cross workspace boundaries (view tickets/analytics of any workspace, not just their own)
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
 - Can edit workspaces (add a workspace image, add backlog statuses, add categories like bug/feature/etc.)
 
 **Leadership**
-- Read-only, no write permissions anywhere
+- Otherwise read-only; the one exception is staffing requests (below)
+- Only role that can file a staffing request (recorded demand for interns on a project); can edit a
+  request they filed themselves — not a colleague's. Sees every staffing request from every author,
+  same as admin. Nobody else can edit it, admins included
+- Editing an open request can reach the people already on it. Changing or removing a position the
+  request no longer wants **closes out everyone still in selection for that position** — same
+  shared reason as closing, asked for before the edit is saved, and warned about by name and count
+  first. The one edit that is refused outright: a position someone is already **placed** against
+  can't be changed or removed. Lowering a seat count closes out nobody, so "1 wanted, 2 placed" is
+  a legal, truthful state. Pointing a request at a different project moves everyone put forward
+  with it, placed interns included, and is never refused — repointing only ever means the wrong
+  project was named. Every one of these edits shows up in the request's history and tells the other
+  side about it
+- Only role that can **cancel** a staffing request, and any leadership user can cancel any of them,
+  not only their own: only leadership speaks to the outside party, so only leadership can say the
+  demand is gone. Cancelling closes out everyone still in selection for the request (see Admin), so
+  it asks for a reason for them as well as for the request. It cannot be undone — no closed request
+  can be reopened
+- Can file a request for a project that doesn't exist on the platform yet, by describing it (name,
+  client, description) instead of picking one. It shows as "Needs project" until an admin resolves
+  it; leadership never creates the project itself. The details they described stay editable
+  afterwards, resolved or not — the history keeps both versions
+- Cannot close a request as fulfilled or declined — those are the admin's call. Cancelling is the
+  only close available to leadership
+- Reads the admin's note on a request (see Admin) but cannot write or edit one, not even on their
+  own request. **Must** give a reason when cancelling a request — it can't be added or changed later
 - Sees all interns and all their profiles (not just assigned ones, unlike a mentor)
 - Sees all recommendations (created exclusively by admin), but can't create/edit them
 - Sees programme-wide statistics, the funnel/"In Selection" dashboard
@@ -68,6 +128,10 @@
 - Sees their own evaluations in full: the four scores per review period, the movement since the previous period, **and their mentor's written notes** (new — the notes used to be hidden from them)
 - Still doesn't see mentor notes (the separate free-text notes a mentor writes with their own "who can see this" list) — those remain invisible to interns
 - Sees their own recommendations: which project and position, the technologies, which stage it reached and every date along the way, the interviews, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? All of them are listed on My Progress, and arrows on the dashboard card switch between them
+- When the opportunity itself ends — the staffing request behind it was closed, or the position they
+  were put forward for changed — both the dashboard card and My Progress say the opportunity closed
+  before a decision was made about them, rather than "not placed this time". They never see the
+  reason the admin typed for it
 - Sees no one else's recommendations, evaluations, or readiness
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics

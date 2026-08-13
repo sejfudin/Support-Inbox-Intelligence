@@ -4,6 +4,7 @@ import { Bell, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardCard, DashboardCardHelp } from '@/components/dashboard/DashboardCard';
 import {
+  DEMAND_ENDED_LABEL,
   EMPTY_STAGE_STEPS as EMPTY_STEPS,
   RESULT_LABEL,
   buildStageSteps as buildSteps,
@@ -64,7 +65,8 @@ const stepDetail = (step, recommendation) => {
         : `${RESULT_LABEL.placed} · start date to be confirmed`;
     }
     const decided = formatDay(recommendation.result.decidedAt);
-    return decided ? `${RESULT_LABEL[outcome]} · ${decided}` : RESULT_LABEL[outcome];
+    const label = recommendation.result.demandEnded ? DEMAND_ENDED_LABEL : RESULT_LABEL[outcome];
+    return decided ? `${label} · ${decided}` : label;
   }
   return step.state === 'pending' ? 'Decision pending' : 'Awaiting result';
 };

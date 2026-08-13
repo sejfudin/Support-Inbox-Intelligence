@@ -31,6 +31,7 @@ const specializationRoutes = require('./routes/specializations');
 const dailyRoutes = require('./routes/dailies');
 const attendanceRoutes = require('./routes/attendance');
 const dashboardRoutes = require('./routes/dashboard');
+const staffingRequestRoutes = require('./routes/staffingRequests');
 const { handleWebhook } = require('./controllers/github');
 
 const PORT = process.env.PORT || 4000;
@@ -77,6 +78,7 @@ app.use('/api/specializations', specializationRoutes);
 app.use('/api/dailies', dailyRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/staffing-requests', staffingRequestRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {

@@ -25,6 +25,31 @@ export const RESULT_LABEL = Object.freeze({
   not_placed: 'Not placed this time',
 });
 
+/**
+ * A `not_placed` caused by the demand ending, not by a decision about the intern:
+ * the staffing request behind this process was closed, or the position they were put
+ * forward for was changed. "Not placed this time" would read as a rejection they
+ * never got.
+ *
+ * Driven by `result.demandEnded` on the redacted own-recommendation shape. Fixed
+ * copy, no free text — the reason an admin typed is `result.note`, which is internal
+ * and never reaches either intern-facing surface.
+ *
+ * Shared so the dashboard card and the full history on /my-progress can't tell the
+ * same intern two different stories about why a process ended.
+ */
+export const DEMAND_ENDED_LABEL = 'This opportunity closed before a decision was made about you';
+
+/**
+ * How a resolved process should be labelled: the outcome, unless the demand ended
+ * underneath it. Returns `null` when there is no recorded outcome yet.
+ */
+export const outcomeLabel = (result) => {
+  if (!result?.outcome) return null;
+  if (result.outcome === 'not_placed' && result.demandEnded) return DEMAND_ENDED_LABEL;
+  return RESULT_LABEL[result.outcome];
+};
+
 export const formatStageDay = (value) => (value ? format(new Date(value), 'MMM d') : null);
 
 /**

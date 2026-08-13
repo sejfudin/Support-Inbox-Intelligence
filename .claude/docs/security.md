@@ -97,18 +97,22 @@ page) are gated in the service layer, not route middleware — `assertLeadership
 `server/helpers/internAccess.js` gates which interns a mentor/leadership user may view or edit
 (primary/secondary mentor relationships). Reuse it — don't reimplement mentor-intern checks inline.
 
-**Interns may read their own recommendation and evaluations — and nothing else of either.** Two
-narrow self-only reads back the intern dashboard's "My Selection Process" and "My evaluations" cards:
-`recommendationService.listOwnRecommendations(user)` and
-`evaluationService.listOwnEvaluations(user)`. Both are separate functions from the admin list
-paths (which still 403 an intern outright), both re-check `role === INTERN` at the service layer,
-and both resolve the `InternProfile` **from the authenticated user** — there is no id parameter to
-tamper with. They are only reachable through `GET /api/dashboard/me`, which takes no query
+**Interns may read their own recommendations, evaluations and readiness — and nothing else of any
+of them.** Three narrow self-only reads back the intern dashboard's "My Selection Process" / "My
+evaluations" cards and the "My Progress" page:
+`recommendationService.listOwnRecommendations(user)`,
+`evaluationService.listOwnEvaluations(user)` and
+`readinessFlagService.listMyReadinessFlags(user)`. All are separate functions from the admin list
+paths (which still 403 an intern outright), the first two re-check `role === INTERN` at the service
+layer, and all three resolve the `InternProfile` **from the authenticated user** — there is no id
+parameter to tamper with. They are reachable only through `GET /api/dashboard/me`,
+`GET /api/dashboard/me/progress` and `GET /api/interns/me/readiness`, none of which take any query
 parameters at all.
 
 `listOwnRecommendations` returns **every** recommendation belonging to the caller, not just the
-newest — the card switches between them. That widens the payload but not its scope: the
-records are still only ever the caller's own, and each is the same redacted shape described below.
+newest — the card switches between them and the progress page lists them all. That widens the
+payload but not its scope: the records are still only ever the caller's own, and each is the same
+redacted shape described below.
 
 Their return shapes are **redacted, by picking fields rather than deleting them**, so a field added
 to either model later is absent by default instead of leaking. Withheld from the intern:
@@ -140,6 +144,12 @@ Recommendations are otherwise admin-only: routes guard writes (POST/PATCH/DELETE
 reject any non-admin (`leadership` is the one exception, with read-only access). Mentors have
 no read or write access, on the per-intern tab or the standalone `/recommendations` page. Delete
 performs the same write check before removing the record and its history.
+
+Read that as **only admins write recommendations _directly_**. There is one indirect path: closing a
+staffing request resolves every candidate still in selection for it, and cancelling is
+leadership-only, so a leadership user can cause that write — see "Staffing requests" below and
+`docs/adr/0004`. It goes through `recommendationService.closeOutRecommendationsForDemandEnd`, never
+through the recommendations routes, which stay `requireRole(ADMIN)`.
 
 **Mentor role is narrower than `canWriteMentorData` alone suggests.** That helper (`admin`, or
 `mentor` assigned to the intern) still gates *some* mentor-writable intern data — mentor notes
@@ -243,6 +253,146 @@ Three things to preserve when touching `adminDashboardService.js`:
   `User.workspaceId`. `InternProfile` has no `workspace` field, and `User.workspaceId` is only the
   member's currently *active* workspace — scoping on it silently omits interns who belong to this
   workspace but are switched into another one.
+
+## Staffing requests — first leadership write path
+
+This section is the authority on who may do what to a staffing request. How the feature works —
+model, rules module, put-forward flow, close-out cascade — is `.claude/docs/staffing-requests.md`.
+
+`/api/staffing-requests` (`server/routes/staffingRequests.js`,
+`server/services/staffingRequestService.js`) is the **first route on the platform that admits
+`ROLES.LEADERSHIP` for a write** — no other feature's middleware default covers this, so every
+route guards explicitly rather than inheriting one. Not workspace-scoped (intern/project domain,
+same exception as `Project`/`Recommendation` above).
+
+- **Read** (`GET /`, `GET /:id`): `requireRole(ADMIN, LEADERSHIP)` at the route, plus
+  `assertReadAccess` at the service layer. Every request, regardless of author — leadership can
+  cover for a colleague.
+- **Create** (`POST /`): `requireRole(LEADERSHIP)` only — an admin cannot file one. Recorded demand
+  must trace back to an outside ask that came through leadership.
+- **Update** (`PATCH /:id`): route-gated to `LEADERSHIP` (everyone else, admins included, 403s
+  before the resource even loads), then narrowed in `assertWriteAccess` to **the request's own
+  author** — a leadership user who didn't file it gets the same 403 a mentor would, one level
+  later. The ask belongs to whoever made it: an admin answers a request rather than restating it,
+  and since ticket 10 an edit writes other people's recommendations, so the narrowest set of
+  editors is the right default.
+  Edit legality is enforced by one call into `helpers/staffingRequestRules.js`
+  (`planStaffingRequestEdit`), never re-implemented in the service: a closed request rejects every
+  edit, count floor of 1, duplicate position rejected, and — the only refusal about other people's
+  records — **a requested position with a `placed` intern cannot be ended**, as a 400 naming them.
+  A position with candidates merely *in selection* may be changed or removed; doing so runs ticket
+  09's close-out cascade, so `PATCH /:id` is the second path on which a leadership author causes
+  writes to recommendations, under the same mandatory `notPlacedReason` (ticket 10). Note there is
+  **no project lock**: putting interns forward does not freeze the project reference, the author or
+  an admin may repoint it (which repoints every tagged recommendation), and the
+  `assertProjectEditable` helper that once said otherwise is gone (see `docs/adr/0006`). Setting the
+  *first* project is still admin-only resolution — `planStaffingRequestEdit` refuses it.
+- **Close** (`POST /:id/close`): route-gated to `ADMIN`/`LEADERSHIP`, then split **per reason** in
+  `assertCanClose`. Deliberately **not** behind `assertWriteAccess`: cancelling belongs to any
+  leadership user, not only the author, so the service asserts the read tier and lets the rules
+  helper decide. **There is no reopen route** — `closed` is terminal (`docs/adr/0005`).
+- **The close reason carries its own authorization**, and it lives in `assertCanClose`, not the
+  router. One sentence: **leadership withdraws, admin answers**. `cancelled` is **leadership-only**
+  (any leadership user; an admin gets a 403 — only leadership speaks to the outside party, so only
+  they can state the demand is gone); `fulfilled`/`declined` are **admin-only**. `cancelled` and
+  `declined` both additionally require a non-empty note — they are the two closes that leave the ask
+  unmet, and nothing on a closed request can be revised afterwards, so a blank reason would be
+  permanent. `fulfilled` does not: the placements are the explanation. This is why closing is one route taking `reason` in the
+  body rather than three routes — a `requireRole(ADMIN)` on a fulfil-only route would put half the
+  rule in the router and leave the two copies free to drift. A leadership user asking to close a
+  request as `fulfilled` gets a **403**, not a 400: the rules helper tags authorization refusals with
+  a `StaffingRequestForbiddenError`, which carries `statusCode: 403` the way `StatusValidationError`
+  does; an illegal *move* is a plain `Error`, which has no status and falls to 400. The service maps
+  by reading `statusCode`, never by matching message text.
+- **Closing writes other people's recommendations, and that is the one place a non-admin does.**
+  Every close resolves each candidate still in selection as `not_placed` with `result.demandEnded`
+  and one shared, mandatory `notPlacedReason`
+  (`recommendationService.closeOutRecommendationsForDemandEnd`). Since cancelling is leadership-only,
+  a leadership user can cause that write and `result.decidedBy` records them — correct, not a bug,
+  they did decide it (`docs/adr/0004`). So the rule stated further up this file reads precisely: only
+  admins write recommendations **directly**; the staffing-request cascade writes them on behalf of
+  whoever legitimately closed the request. There is no batch close-out anywhere outside the
+  staffing-request flows, and no unattended trigger — nothing auto-closes, because the cascade needs
+  a reason nothing unattended can author.
+- **`result.demandEnded` cannot be set through the recommendations API.**
+  `applyResultPayload` ignores the field on `PATCH /recommendations/:id` whatever the payload says.
+  An admin who could set it by hand could label a genuine rejection as the demand ending, and the
+  intern would be told the opportunity was withdrawn when they were actually turned down. It is also
+  the one part of `result` besides the outcome and dates that reaches the intern —
+  `formatOwnRecommendation` still withholds `result.note`, so the reason typed at close time is read
+  only by admins, leadership and mentors.
+- **`PATCH /:id` cannot close anything.** `updateStaffingRequest` writes only
+  `requestedPositions`, `neededBy`, `project` and `draftProject` — `status`, `reason` and `note` are
+  not accepted, so neither a close nor an admin's remark can ride in on a generic edit and bypass
+  `assertCanClose` — which is now the only writer of either. Keep it that way. It *can* resolve candidates, but
+  only through the same cascade a close uses, and only for a position the request stopped asking
+  for.
+- **Where a close note lands depends on the reason**, and the two fields are not interchangeable:
+  `cancelled` → `closeNote`, mandatory (withdrawing an ask must never overwrite an admin's remark, so
+  it gets its own field); `declined` → `note` + `noteBy` + `noteAt`, mandatory; `fulfilled` → `note`
+  if one was supplied.
+  The separate `notPlacedReason` never lands on the request at all — it goes to each closed-out
+  recommendation's `result.note`.
+- **A closed request is frozen.** No route writes to one — there is no note endpoint, no reopen, and
+  no delete. The reason given at close time is the record, which is why `cancelled` and `declined`
+  demand one (`docs/adr/0005`). A mis-close is corrected by filing the ask again, not by editing the
+  dead request.
+- **Putting interns forward** (`GET /:id/positions/:positionId/candidates`,
+  `POST /:id/put-forward`) is **admin-only** at the route and re-asserted in
+  `assertCanPutForward` — leadership files demand, admins answer it, and there is no author
+  carve-out. Both routes also refuse a closed request and one that still needs its project; that
+  second refusal is structural, not cosmetic (`Recommendation.project` is required). The read is
+  scoped to one requested position by **path segment**; the write is request-level and takes
+  `{ groups: [{ positionId, internProfileIds }] }`, but the position is still never free — every
+  group's `positionId` must be one the request actually asked for (`findRequestedPosition`, which
+  throws otherwise). That is what "the position is forced" means server-side, and it is why no
+  payload can steer a recommendation onto a discipline nobody asked for. A group naming a position
+  twice is refused outright.
+- **The picker's eligibility rules are enforced on the write, not only on the read.** The write path
+  re-runs `partitionPickerCandidates` per group over the picked profiles, so a stale or bypassed
+  client cannot offer an intern who has left the programme, or double-offer one already in selection
+  for that same requested position. Interns already placed, or in selection *elsewhere*, are
+  deliberately allowed through — the rules warn there, they do not block. One further rule belongs
+  to the body rather than the picker and is checked beside it: the same intern may not appear under
+  two seats of one request.
+- **A submit is all-or-nothing, and its refusals are per row.** Any rejected pick aborts the whole
+  submit before a single recommendation is inserted, and comes back as `409` with
+  `data: { rejections: [{ positionId, internProfileId, reason }] }`. The reasons are written words,
+  never the rules helper's own flag tokens. Nothing about this is advisory to the client: the cart
+  the admin stages is client-side only, so the submit is the first and only point the server has
+  ever seen these picks.
+- **The candidates route leaves the request's own data.** It reads every in-programme
+  `InternProfile` and their recommendations across all projects, which is what the "in selection on
+  Borealis" flag needs. That is admin-only and admins already read every intern, so it widens
+  nobody's access — but keep the route admin-only for exactly this reason.
+- **Mentors and interns get 403 from every route**, including list/read — there is no aggregate-only
+  view for them. A mentor therefore cannot answer a request either; no mentor is attached to a
+  request at all today.
+- **No delete route, ever.** Cancelling (`status: closed`, `reason: cancelled`) is the only way a
+  request goes away; deleting would orphan `Recommendation.staffingRequest` references and the
+  demand history that justifies the feature.
+- Filing against a project that already has an open request is **allowed, and not even checked on
+  create** — a second wave of demand months later is legitimately its own request. The filing screen
+  warns beforehand off `GET /api/staffing-requests?projectId=&status=open` (the `projectId` filter
+  exists for exactly this), so the author still has the choice; the server never blocks it.
+- **A request may be filed with `draftProject` instead of `projectId`** — leadership describes a
+  project that doesn't exist yet. It reads **Needs project**
+  (`helpers/staffingRequestRules.js#needsProject`) and can never close as `fulfilled`
+  (`assertCanClose` rejects that reason whenever `needsProject` is true — enforced server-side, not
+  only hidden in the UI); `cancelled`/`declined` are unaffected.
+- **Resolving a draft project** (`POST /:id/resolve-project`, `POST /:id/resolve-project/create`) is
+  **admin-only**, checked directly in the service (`resolveStaffingRequestProject*`) rather than
+  through `assertWriteAccess` — unlike every other write on this model there is no author-or-admin
+  carve-out; leadership can never create or link a project through this flow, only describe one.
+  `assertCanResolveProject` refuses a request that already has a project or is closed.
+  `draftProject` is never overwritten by resolution — it stays on the document alongside the newly
+  set `project` reference, as the record of what was actually asked for.
+- **Creating a project from a draft** (`…/resolve-project/create`) proactively checks for a slug
+  collision before inserting and returns it as a 409 with
+  `{ data: { existingProject } }` — never a raw Mongo `E11000`. The unique index on `Project.slug`
+  is still the last-resort catch for the race between that check and the insert, mapped to the same
+  friendly shape. The admin chooses `type`, `status` and `technologies` fresh; none are seeded from
+  the request even though `name`/`client`/`description` are prefilled from the draft on the client.
 
 ## Middleware guards (`server/middleware/`)
 

@@ -81,6 +81,11 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Hub',
     },
+    // When this viewer last opened the staffing-requests area — drives the
+    // news badge (unset means "never opened", not "caught up").
+    staffingRequestsLastSeenAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

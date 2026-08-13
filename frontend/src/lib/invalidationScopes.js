@@ -3,6 +3,7 @@ import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 import { adminDashboardKeys } from '@/queries/adminDashboard';
 import { internDashboardKeys } from '@/queries/internDashboard';
 import { internProgressKeys } from '@/queries/internProgress';
+import { STAFFING_REQUEST_NEWS_QUERY_KEY } from '@/queries/staffingRequests';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -11,6 +12,7 @@ export const invalidationScopes = {
   ticket: (ticketId) => `ticket:${String(ticketId)}`,
   intern: () => 'intern:all',
   workspaceDailies: (workspaceId) => `workspace-dailies:${String(workspaceId)}`,
+  staffingNews: () => 'staffing-news:all',
 };
 
 const parseScope = (scope) => {
@@ -99,9 +101,21 @@ export const invalidateInternScope = (queryClient) => {
   // may well be sitting on when a mentor records an evaluation or sets a readiness
   // level — both of which now emit this scope. Imported key, same reason as above.
   queryClient.invalidateQueries({ queryKey: internProgressKeys.all });
+  // The per-intern admin panels for the same data. Prefix keys, so one entry each
+  // covers every intern's. Evaluations belong here as much as readiness does: the
+  // scope now fires on an evaluation write too, and leaving this key out meant a
+  // second admin's open `InternEvaluationsPanel` stayed stale while the readiness
+  // panel beside it refreshed — the two writes behaving differently for no reason.
+  queryClient.invalidateQueries({ queryKey: ['intern-evaluations'] });
   // Readiness levels also render on /my-technologies, off its own key.
   queryClient.invalidateQueries({ queryKey: ['intern-readiness'] });
   queryClient.invalidateQueries({ queryKey: ['intern-profile'] });
+};
+
+// Global, like `intern:all` — staffing requests aren't workspace-scoped, so
+// one history write badges every connected admin/leadership client.
+export const invalidateStaffingNewsScope = (queryClient) => {
+  queryClient.invalidateQueries({ queryKey: STAFFING_REQUEST_NEWS_QUERY_KEY });
 };
 
 export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {
@@ -142,6 +156,11 @@ export const invalidateScope = (queryClient, scope) => {
 
   if (parsed.type === 'workspace-dailies') {
     invalidateWorkspaceDailiesScope(queryClient, parsed.id);
+    return true;
+  }
+
+  if (parsed.type === 'staffing-news') {
+    invalidateStaffingNewsScope(queryClient);
     return true;
   }
 
