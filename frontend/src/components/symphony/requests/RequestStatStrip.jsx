@@ -12,7 +12,7 @@ const Tile = ({ label, value, sub, tone }) => (
     <p
       className={cn(
         'mt-1 truncate text-xl font-bold text-foreground',
-        tone === 'danger' && 'text-[hsl(0_72%_51%)] dark:text-[hsl(0_90%_72%)]'
+        tone === 'danger' && 'text-destructive'
       )}
     >
       {value}

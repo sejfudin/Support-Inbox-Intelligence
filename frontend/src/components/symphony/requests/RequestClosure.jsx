@@ -82,7 +82,8 @@ export function RequestClosure({ request }) {
       className={cn(
         'space-y-3 rounded-xl border-l-4 p-4',
         closure.tone === 'danger' && 'border-l-destructive bg-destructive/5',
-        closure.tone === 'success' && 'border-l-emerald-500 bg-emerald-500/5'
+        closure.tone === 'success' &&
+          'border-l-emerald-600 bg-emerald-500/5 dark:border-l-emerald-400 dark:bg-emerald-400/10'
       )}
       data-test={`request-closure-${request.reason}`}
     >

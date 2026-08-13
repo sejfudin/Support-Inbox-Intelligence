@@ -391,7 +391,7 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
                   ? 'border-amber-400/50 bg-amber-100 dark:bg-amber-950/40'
                   : 'border-border bg-muted'
               )}
-              indicatorClassName={overBy > 0 ? 'bg-amber-500' : undefined}
+              indicatorClassName={overBy > 0 ? 'bg-amber-500 dark:bg-amber-400' : undefined}
               aria-label={`${committedSeats} of ${wanted} seats accounted for`}
             />
             {overBy > 0 && (

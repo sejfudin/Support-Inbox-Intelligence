@@ -47,7 +47,7 @@ export function RequestPositionGroup({ row, expanded, onExpandedChange }) {
   const marker = isFilled
     ? { Icon: CheckCircle2, className: 'text-[hsl(var(--symphony-placed))]' }
     : row.inSelection > 0
-      ? { Icon: CircleAlert, className: 'text-amber-500' }
+      ? { Icon: CircleAlert, className: 'text-amber-600 dark:text-amber-400' }
       : null;
 
   return (
