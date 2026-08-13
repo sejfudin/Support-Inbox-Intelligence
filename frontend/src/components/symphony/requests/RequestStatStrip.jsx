@@ -28,6 +28,9 @@ const Tile = ({ label, value, sub, tone }) => (
  * says whether anyone is still coming: put forward counts everyone ever offered
  * here, so it reads the same whether six people are interviewing or all six
  * were closed out.
+ *
+ * There is no "Seats asked for" tile: `wanted` is the denominator of two tiles
+ * already, so a third one repeating it bare said nothing the row didn't.
  */
 export function RequestStatStrip({ request }) {
   const totals = getRequestTotals(request);
@@ -36,7 +39,6 @@ export function RequestStatStrip({ request }) {
 
   return (
     <div className="flex flex-wrap divide-x divide-border/60 border-y border-border/60 py-1">
-      <Tile label="Seats asked for" value={totals.wanted} />
       <Tile
         label="Put forward"
         value={`${totals.putForward} of ${totals.wanted}`}

@@ -92,9 +92,8 @@ export function RequestDetail({ request, canManage, onEdit, onClose }) {
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between gap-3">
-          {/* Not "Seats asked for": the stat strip above already owns that label
-              for its count, and the same words twice on one card read as the
-              same thing twice. These are the positions themselves. */}
+          {/* Not "Seats asked for": the strip above already reports the seat
+              counts, and this section is the positions themselves. */}
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
             Positions
           </p>
