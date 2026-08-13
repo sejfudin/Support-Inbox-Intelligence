@@ -11,9 +11,9 @@ and especially ../.claude/docs/security.md (authz is the top risk here).
 - `routes/` → `controllers/` → `services/` → `models/`. Thin controllers, logic in services.
 - `middleware/` — `auth.js` (`protect`), `requireWorkspaceManager.js`, `role` (file exporting
   `requireRole(...roles)`), `upload.js`.
-- `helpers/` — pure cross-cutting logic: `workspaceAuthz.js`, `internAccess.js`, `crypto.js`,
-  `statusValidation.js`, `statusSlugAliases.js`, `commentMention.js`, `aiValidationRules.js`,
-  `slugify.js`, `taskExtractor.js`.
+- `helpers/` — pure cross-cutting logic, unit-tested in place (`*.test.js` alongside). The
+  authz-critical ones are `workspaceAuthz.js` and `internAccess.js`; `htmlSanitize.js` and
+  `httpError.js` are the other two you'll reach for often. `ls` for the rest.
 - `socket/` — `socketServer.js`, `events.js`, `invalidationScopes.js`.
 - `config/` — `db.js` (Mongoose), `supabase.js`. `constants/` — `roles.js`.
 - `prompts/` — Groq AI prompt templates. `seeder/` — seed scripts (destructive; see workflows).
