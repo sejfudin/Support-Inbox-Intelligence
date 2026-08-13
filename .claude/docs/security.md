@@ -235,15 +235,18 @@ same exception as `Project`/`Recommendation` above).
   cover for a colleague.
 - **Create** (`POST /`): `requireRole(LEADERSHIP)` only — an admin cannot file one. Recorded demand
   must trace back to an outside ask that came through leadership.
-- **Update** (`PATCH /:id`): route-gated to `ADMIN`/`LEADERSHIP` (mentors/interns 403 before the
-  resource even loads), then narrowed in `assertWriteAccess` to **the request's own author, or any
-  admin** — a leadership user who didn't file it gets the same 403 a mentor would, one level later.
+- **Update** (`PATCH /:id`): route-gated to `LEADERSHIP` (everyone else, admins included, 403s
+  before the resource even loads), then narrowed in `assertWriteAccess` to **the request's own
+  author** — a leadership user who didn't file it gets the same 403 a mentor would, one level
+  later. The ask belongs to whoever made it: an admin answers a request rather than restating it,
+  and since ticket 10 an edit writes other people's recommendations, so the narrowest set of
+  editors is the right default.
   Edit legality is enforced by one call into `helpers/staffingRequestRules.js`
   (`planStaffingRequestEdit`), never re-implemented in the service: a closed request rejects every
   edit, count floor of 1, duplicate position rejected, and — the only refusal about other people's
   records — **a requested position with a `placed` intern cannot be ended**, as a 400 naming them.
   A position with candidates merely *in selection* may be changed or removed; doing so runs ticket
-  09's close-out cascade, so `PATCH /:id` is a second path on which a leadership author causes
+  09's close-out cascade, so `PATCH /:id` is the second path on which a leadership author causes
   writes to recommendations, under the same mandatory `notPlacedReason` (ticket 10). Note there is
   **no project lock**: putting interns forward does not freeze the project reference, the author or
   an admin may repoint it (which repoints every tagged recommendation), and the

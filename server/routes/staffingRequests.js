@@ -48,7 +48,7 @@ router.get(
   getStaffingRequestHistory
 );
 router.post('/', protect, requireRole(ROLES.LEADERSHIP), createStaffingRequest);
-router.patch('/:id', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), updateStaffingRequest);
+router.patch('/:id', protect, requireRole(ROLES.LEADERSHIP), updateStaffingRequest);
 router.patch('/:id/note', protect, requireRole(ROLES.ADMIN), setStaffingRequestNote);
 // Resolving a draft project — link to an existing project, or create one from
 // leadership's draft details and link that instead. Admin-only: leadership

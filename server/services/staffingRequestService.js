@@ -65,18 +65,20 @@ const assertCreateAccess = (user) => {
   }
 };
 
-// Editing: the author or any admin. Mentors and interns are rejected by the
-// role-tier gate; leadership members who aren't the author are rejected by the
-// author-or-admin check right after it. Closing deliberately does NOT come
-// through here — cancelling belongs to leadership as a side, not to one
-// account, so `closeStaffingRequest` runs on the read tier and lets
+// Editing: the author, and nobody else. The ask belongs to whoever made it —
+// an admin answers a request, they don't restate it, and an edit now moves
+// other people's recommendations (ticket 10), so the widest possible set of
+// editors is the wrong default. Admins and mentors are rejected here; a
+// leadership user who isn't the author gets the same 403. Closing deliberately
+// does NOT come through here — cancelling belongs to leadership as a side, not
+// to one account, so `closeStaffingRequest` runs on the read tier and lets
 // `assertCanClose` decide.
 const assertWriteAccess = (user, request) => {
-  assertReadAccess(user);
-  const isAuthor = String(request.author) === String(user._id);
-  const isAdmin = user.role === ROLES.ADMIN;
-  if (!isAuthor && !isAdmin) {
-    throw httpError('Only the author or an admin may modify this staffing request', 403);
+  if (user.role !== ROLES.LEADERSHIP) {
+    throw httpError('Only leadership may edit a staffing request', 403);
+  }
+  if (String(request.author) !== String(user._id)) {
+    throw httpError('Only the author may modify this staffing request', 403);
   }
 };
 

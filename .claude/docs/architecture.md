@@ -378,8 +378,9 @@ the model and the pure rules module — no routes, no screens yet.
     routes a costly edit through `EditImpactDialog.jsx` first. The counts and the placed-intern
     refusal are derived client-side by `helpers/staffingRequests.js#getEditImpact` /
     `describePlacedRefusal`, worded identically to the server's so the pre-flight stop and the 400
-    behind it never disagree. Editing is still author-only in the leadership shell; the admin pane
-    has no edit entry point, though the API admits an admin.
+    behind it never disagree. Editing is **the author's alone**: `PATCH /:id` is route-gated to
+    `LEADERSHIP` and narrowed to the author in `assertWriteAccess`, matching the leadership shell,
+    which is the only screen that mounts the form.
 
 **The admin Requests screen (ticket 08)** — admin and leadership no longer share a detail pane.
 Leadership keeps `RequestDetail.jsx`; the admin gets `AdminRequestDetail.jsx` plus

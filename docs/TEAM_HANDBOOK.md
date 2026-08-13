@@ -47,8 +47,9 @@
   already placed or already in selection elsewhere are, flagged with where. The same intern can't
   be staged onto two seats of one request. A request still waiting on its project can have
   candidates staged but nothing submitted until the project is resolved
-- Can edit any staffing request, whoever filed it. Cannot cancel or reopen one — cancelling is
-  leadership's, and no closed request can be reopened by anyone
+- Cannot edit, cancel or reopen a staffing request. Editing belongs to the leadership user who
+  filed it — an admin answers a request rather than restating it — cancelling is leadership's, and
+  no closed request can be reopened by anyone
 - Closing a request, for any of the three reasons, **closes out everyone still in selection for it**:
   each is recorded as not placed, with one shared reason the admin types in the close dialog, which
   is read by admins, leadership and mentors and never by the intern. Anyone already placed keeps
@@ -56,15 +57,6 @@
   undone, and there is no per-intern opt-out — if the ask has only shrunk, lower the seat count
   instead, which closes out nobody. For something specific to one person, write it on their own
   recommendation instead of in the shared reason
-- Editing an open request can reach the people already on it. Changing or removing a position the
-  request no longer wants **closes out everyone still in selection for that position** — same
-  shared reason as closing, asked for before the edit is saved, and warned about by name and count
-  first. The one edit that is refused outright: a position someone is already **placed** against
-  can't be changed or removed. Lowering a seat count closes out nobody, so "1 wanted, 2 placed" is
-  a legal, truthful state. Pointing a request at a different project moves everyone put forward
-  with it, placed interns included, and is never refused — repointing only ever means the wrong
-  project was named. Every one of these edits shows up in the request's history and tells the other
-  side about it
 - Only role that can resolve a staffing request filed against a project that doesn't exist yet
   ("Needs project") — link it to an existing project, or create one from leadership's description.
   Leadership can describe a project when filing but can never create or link one itself. A request
@@ -78,9 +70,16 @@
 - Otherwise read-only; the one exception is staffing requests (below)
 - Only role that can file a staffing request (recorded demand for interns on a project); can edit a
   request they filed themselves — not a colleague's. Sees every staffing request from every author,
-  same as admin. Editing their own request carries the same consequences it does for an admin (see
-  Admin): dropping a position closes out its candidates, and repointing the project moves everyone
-  put forward with it — the one time leadership writes to candidate records outside cancelling
+  same as admin. Nobody else can edit it, admins included
+- Editing an open request can reach the people already on it. Changing or removing a position the
+  request no longer wants **closes out everyone still in selection for that position** — same
+  shared reason as closing, asked for before the edit is saved, and warned about by name and count
+  first. The one edit that is refused outright: a position someone is already **placed** against
+  can't be changed or removed. Lowering a seat count closes out nobody, so "1 wanted, 2 placed" is
+  a legal, truthful state. Pointing a request at a different project moves everyone put forward
+  with it, placed interns included, and is never refused — repointing only ever means the wrong
+  project was named. Every one of these edits shows up in the request's history and tells the other
+  side about it
 - Only role that can **cancel** a staffing request, and any leadership user can cancel any of them,
   not only their own: only leadership speaks to the outside party, so only leadership can say the
   demand is gone. Cancelling closes out everyone still in selection for the request (see Admin), so

@@ -769,11 +769,13 @@ describe('updateStaffingRequest', () => {
     );
   });
 
-  it('lets an admin edit a request they did not file', async () => {
-    arrangeEdit(editable());
-    await expect(
-      updateStaffingRequest(admin, REQUEST_ID, { requestedPositions: [line(POSITION_ID, 3)] })
-    ).resolves.toBeDefined();
+  it('rejects an admin as 403 — answering a request is not restating it', async () => {
+    const doc = arrangeEdit(editable());
+    await expectHttpError(
+      updateStaffingRequest(admin, REQUEST_ID, { requestedPositions: [line(POSITION_ID, 3)] }),
+      403
+    );
+    expect(doc.save).not.toHaveBeenCalled();
   });
 
   it('rejects a leadership user who is not the author as 403', async () => {
