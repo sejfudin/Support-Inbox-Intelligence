@@ -7,6 +7,7 @@ const Workspace = require('../models/Workspace');
 const { resolveWorkloadBuckets } = require('../helpers/workloadBuckets');
 const { getActiveWorkspaceInterns } = require('../helpers/workspaceInterns');
 const {
+  splitRows,
   computeMonthStats,
   averageAttendanceRate,
   loadNonWorkingDays,
@@ -85,9 +86,15 @@ const loadWorkloads = async ({ workspaceId, internUserIds, statusIdToSlug }) => 
 };
 
 /**
- * This month's attendance for the given intern profiles, keyed by profile id.
- * Cancelled rows are excluded — a cancelled day reads as absent (see the
- * Attendance model), so it must not count as a present record here either.
+ * This month's attendance for the given intern profiles, keyed by profile id, as
+ * the `{ records, exemptDates }` split `computeMonthStats` expects.
+ *
+ * Rows are partitioned by the shared `splitRows` rather than by a local rule. This
+ * function used to treat every non-cancelled row as present, which was right while
+ * `remote` was the only extra status and became wrong the moment approved leave
+ * could write a row: a fortnight of holiday would have read as a fortnight of
+ * perfect attendance on the admin dashboard while reading correctly everywhere
+ * else. One partition, every caller.
  */
 const loadAttendance = async ({ profiles, monthKey }) => {
   const { start, end } = monthBounds(monthKey);
@@ -96,17 +103,22 @@ const loadAttendance = async ({ profiles, monthKey }) => {
     ? await Attendance.find({
         intern: { $in: profileIds },
         date: { $gte: start, $lte: end },
-        status: { $ne: Attendance.CANCELLED },
       })
-        .select('intern date')
+        .select('intern date status checkedInAt')
         .lean()
     : [];
 
-  const byProfile = new Map();
+  const rowsByProfile = new Map();
   for (const row of rows) {
     const key = String(row.intern);
-    if (!byProfile.has(key)) byProfile.set(key, []);
-    byProfile.get(key).push({ date: row.date });
+    if (!rowsByProfile.has(key)) rowsByProfile.set(key, []);
+    rowsByProfile.get(key).push(row);
+  }
+
+  const byProfile = new Map();
+  for (const [key, internRows] of rowsByProfile) {
+    const { records, exemptDates } = splitRows(internRows);
+    byProfile.set(key, { records, exemptDates });
   }
   return byProfile;
 };
@@ -246,19 +258,27 @@ const getAdminDashboard = async ({ workspaceId }) => {
       loadNonWorkingDays(),
     ]);
 
-  // `presentToday` drives the presence KPI and the absent list, and is dropped
-  // again before the rows are returned — the interns table reports the month's
-  // attendance rate, not today's single bit.
+  // `presentToday` and `awayToday` drive the presence KPI and the absent list, and
+  // are dropped again before the rows are returned — the interns table reports the
+  // month's attendance rate, not today's single bit.
+  //
+  // `awayToday` is approved leave: vacation, a religious holiday, or a sick day.
+  // Such an intern is neither present nor absent, and putting them in the absent
+  // list would send an admin chasing somebody whose day off that same admin signed.
   const rows = inProgrammeUsers
     .map((user) => {
       const profile = profileByUser.get(String(user._id));
-      const records = attendanceByProfile.get(String(profile._id)) || [];
+      const { records, exemptDates } = attendanceByProfile.get(String(profile._id)) || {
+        records: [],
+        exemptDates: [],
+      };
       const { attendanceRate, presentDays, workingDays } = computeMonthStats(
         records,
         monthKey,
         profile.startDate,
         profile.placedAt,
-        nonWorking.keys
+        nonWorking.keys,
+        exemptDates
       );
       const counts = workloadByUser.get(String(user._id)) || {};
 
@@ -268,6 +288,7 @@ const getAdminDashboard = async ({ workspaceId }) => {
         email: user.email || '',
         position: profile.declaredPosition?.name || '',
         presentToday: records.some((r) => r.date === todayKey),
+        awayToday: exemptDates.includes(todayKey),
         attendanceRate,
         presentDays,
         workingDays,
@@ -292,15 +313,16 @@ const getAdminDashboard = async ({ workspaceId }) => {
         endHour: CHECK_IN_WINDOW.endHour,
         state: checkInWindowState(now),
       },
+      awayToday: rows.filter((row) => row.awayToday).length,
       absentToday: rows
-        .filter((row) => !row.presentToday)
+        .filter((row) => !row.presentToday && !row.awayToday)
         .map(({ id, fullname, email, position }) => ({ id, fullname, email, position })),
     },
     lastPlacement: recentPlacements[0] || null,
     recentPlacements,
     recentSpecializations,
     workloadBuckets: buckets.map(({ slug, label, color }) => ({ slug, label, color })),
-    interns: rows.map(({ presentToday, ...intern }) => intern),
+    interns: rows.map(({ presentToday, awayToday, ...intern }) => intern),
   };
 };
 

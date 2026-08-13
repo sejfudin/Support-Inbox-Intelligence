@@ -60,6 +60,9 @@ npm run seed:test   # richer dataset (Symphony staff + interns, password: "passw
 npm run seed:recommendations            # ADDITIVE: top up the placement pipeline, see below
 npm run seed:positions
 npm run seed:technologies               # NON-destructive: adds missing technologies, see below
+npm run seed:observances                # NON-destructive: 20 years of religious observances,
+                                        # calendar notices only — never attendance. --dry-run /
+                                        # --replace (to correct an announced Bajram date)
 npm run backfill:intern-positions
 npm run backfill:legacy-secondary-mentor # RUN-WHEN-READY: revokes ad-hoc mentor access, see below
 npm run cleanup:invitations

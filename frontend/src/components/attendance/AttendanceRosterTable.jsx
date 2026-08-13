@@ -9,8 +9,11 @@ import {
   formatCheckInDate,
   isCheckedInToday,
   isExemptToday,
-  isRemoteToday,
+  requestedStatusToday,
+  dayStatusLabel,
+  dayStatusBadgeVariant,
 } from '@/helpers/attendance';
+import { DayStatusGlyph } from '@/components/attendance/dayStatusVisuals';
 
 const columnsFor = (rateLabel) => [
   { key: 'name', label: 'Intern', sortable: true },
@@ -175,11 +178,14 @@ export default function AttendanceRosterTable({
               </tr>
             )}
             {sorted.map((row) => {
-              // Remote is checked first: an approved remote day is in `records`
-              // too, so `isCheckedInToday` is true for it as well and would
-              // report working-from-home as an office check-in.
-              const remoteToday = isRemoteToday(row.remoteDates);
-              const inToday = !remoteToday && isCheckedInToday(row.records);
+              // What an approval wrote for today, if anything, is checked first: an
+              // approved remote day is in `records` too, so `isCheckedInToday` is
+              // true for it as well and would report working-from-home as an office
+              // check-in. The three leave statuses are not in `records`, but they
+              // still have to win here — an intern on holiday must not read as
+              // "Not yet", which is a prompt to go and chase them.
+              const requestedToday = requestedStatusToday(row.requestedDays);
+              const inToday = !requestedToday && isCheckedInToday(row.records);
               return (
                 <tr
                   key={row.intern.id}
@@ -207,8 +213,11 @@ export default function AttendanceRosterTable({
                   </td>
                   {showToday && (
                     <td className="px-5 py-4">
-                      {remoteToday ? (
-                        <Badge variant="info">Remote work</Badge>
+                      {requestedToday ? (
+                        <Badge variant={dayStatusBadgeVariant(requestedToday)} className="gap-1">
+                          <DayStatusGlyph status={requestedToday} />
+                          {dayStatusLabel(requestedToday)}
+                        </Badge>
                       ) : inToday ? (
                         <Badge variant="success">Checked in</Badge>
                       ) : (

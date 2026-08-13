@@ -49,7 +49,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLogoutUser } from '@/queries/auth';
 import { useMyInvitations } from '@/queries/invitations';
-import { useRemoteWorkRequests } from '@/queries/remoteWork';
+import { useAttendanceRequests } from '@/queries/attendanceRequests';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
@@ -213,11 +213,11 @@ export default function AppSidebar() {
   // Admin-only: the endpoint is admin-guarded, so asking as anyone else is a
   // guaranteed 403. Shares its query key with the Attendance page's own fetch, so
   // opening that page costs no extra request.
-  const { data: remoteWork } = useRemoteWorkRequests(
+  const { data: attendanceRequests } = useAttendanceRequests(
     { status: 'pending' },
     { enabled: isAdmin(user?.role) }
   );
-  const remotePendingRequests = remoteWork?.pendingCount ?? 0;
+  const pendingRequests = attendanceRequests?.pendingCount ?? 0;
 
   // Tooltips replace labels only in the desktop rail — the mobile sheet always
   // shows the full-width sidebar, so it must keep its labels.
@@ -287,15 +287,15 @@ export default function AppSidebar() {
           label: 'Attendance',
           to: '/attendance',
           icon: CalendarCheck,
-          // Remote-work requests are decided by admins (mentors have no attendance
+          // Time-away requests are decided by admins (mentors have no attendance
           // view at all), and a request nobody notices goes stale on the very day
           // it was asked for — so the pending state has to be visible from
-          // anywhere in the app, not only once you are already on the page.
-          dot: remotePendingRequests > 0,
+          // anywhere in the app, not only once you are already on the page. A sick
+          // day makes that sharper still: it is always for today or the last couple
+          // of days, so an unanswered one is stale almost immediately.
+          dot: pendingRequests > 0,
           dotLabel:
-            remotePendingRequests === 1
-              ? '1 remote work request'
-              : `${remotePendingRequests} remote work requests`,
+            pendingRequests === 1 ? '1 time-away request' : `${pendingRequests} time-away requests`,
         },
         {
           label: 'Daily Insights',

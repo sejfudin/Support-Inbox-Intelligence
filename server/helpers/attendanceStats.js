@@ -8,6 +8,67 @@ const {
 const EMPTY_SET = new Set();
 
 /**
+ * Split raw attendance rows into the buckets every caller needs.
+ *
+ * Lives here, next to `computeMonthStats`, because **both** services that compute a
+ * rate have to agree on which rows are which. `attendanceService` used to own this
+ * privately while `adminDashboardService` did its own thing (every non-cancelled
+ * row counted as present) — harmless while `remote` was the only extra status,
+ * and silently wrong the moment a vacation row appeared. One partition, two
+ * callers, no drift.
+ *
+ * The three buckets answer three different questions:
+ *
+ * - `records` — days that count toward the numerator: a real check-in or an
+ *   approved remote day. Working from home is work.
+ * - `exemptDates` — approved vacation, religious holiday or sick leave. These leave
+ *   the denominator (see `computeMonthStats`); they are neither attended nor missed.
+ * - `cancelledDates` — the intern unchecked the day. Reads as absent, and the day
+ *   is free to be claimed again.
+ *
+ * `requestedDays` is a flat `{ 'YYYY-MM-DD': status }` map of every row an approval
+ * wrote, sent to the client so it can colour the day by what it actually is. One
+ * lookup per cell, rather than four Sets to build and search.
+ */
+const splitRows = (rows) => {
+  const Attendance = require('../models/Attendance');
+  const { CANCELLED, PRESENT, REMOTE } = Attendance;
+  const exemptStatuses = new Set(Attendance.EXEMPT_STATUSES);
+
+  const records = [];
+  const cancelledDates = [];
+  const exemptDates = [];
+  const requestedDays = {};
+  let lastCheckIn = null;
+
+  for (const row of rows) {
+    if (row.status === CANCELLED) {
+      cancelledDates.push(row.date);
+      continue;
+    }
+
+    if (row.status !== PRESENT) requestedDays[row.date] = row.status;
+
+    if (exemptStatuses.has(row.status)) {
+      exemptDates.push(row.date);
+      continue;
+    }
+
+    records.push({ date: row.date, checkedInAt: row.checkedInAt });
+
+    if (row.status === REMOTE) {
+      // Deliberately not a candidate for `lastCheckIn`: nobody checked in. The
+      // timestamp on a remote row is when an admin approved it, and surfacing that
+      // under "Last check-in" would misreport an approval as an arrival.
+      continue;
+    }
+    if (!lastCheckIn || row.checkedInAt > lastCheckIn) lastCheckIn = row.checkedInAt;
+  }
+
+  return { records, cancelledDates, exemptDates, requestedDays, lastCheckIn };
+};
+
+/**
  * Attendance stats for a single calendar month. Working days (Mon–Fri) are
  * counted within the month, clamped to `[max(monthStart, startDate), min(monthEnd,
  * today, lastOwedDay)]` — so a mid-month joiner isn't penalised for days before
@@ -27,6 +88,17 @@ const EMPTY_SET = new Set();
  * conflating them renders a fabricated 0% that reads exactly like a real one.
  * Callers must handle null (render `—`, and exclude it from averages).
  *
+ * `exemptDates` is this **one intern's** approved vacation, religious-holiday and
+ * sick days (`splitRows` above produces it). They leave the denominator exactly the
+ * way a cohort-wide `nonWorkingDay` does, and for the same reason: a day nobody
+ * owed is not an absence. The difference is only who it applies to — which is why
+ * it arrives per call rather than being loaded once.
+ *
+ * A day off could have been counted three ways and only this one is honest.
+ * Counting it as attended would read a month of holiday as 100%; counting it as
+ * absent would punish leave an admin approved. Leaving the sum on both sides reads
+ * as what it is: nothing owed, nothing missed.
+ *
  * Lives here rather than in attendanceService because both the admin roster and
  * the admin dashboard derive the same numbers from their own record sets.
  */
@@ -35,7 +107,8 @@ const computeMonthStats = (
   monthKey,
   startDate,
   placedAt = null,
-  nonWorkingDays = EMPTY_SET
+  nonWorkingDays = EMPTY_SET,
+  exemptDates = EMPTY_SET
 ) => {
   const { start, end } = monthBounds(monthKey);
   const todayKey = officeDateKey();
@@ -46,12 +119,16 @@ const computeMonthStats = (
   const lastOwedKey = placedAt ? previousDayKey(officeDateKey(placedAt)) : null;
   if (lastOwedKey && lastOwedKey < rangeEnd) rangeEnd = lastOwedKey;
 
-  const workingDays =
-    rangeStart <= rangeEnd ? countWorkingDays(rangeStart, rangeEnd, nonWorkingDays) : 0;
-  // A check-in on a non-working day is dropped too, not just from the denominator:
+  // Cohort-wide and personal exclusions do the same job, so the denominator sees
+  // one set. Built per call because the personal half differs per intern.
+  const exemptKeys = exemptDates instanceof Set ? exemptDates : new Set(exemptDates);
+  const excluded = exemptKeys.size ? new Set([...nonWorkingDays, ...exemptKeys]) : nonWorkingDays;
+
+  const workingDays = rangeStart <= rangeEnd ? countWorkingDays(rangeStart, rangeEnd, excluded) : 0;
+  // A check-in on an excluded day is dropped too, not just from the denominator:
   // counting it while its day is excluded could push a rate above 100%.
   const presentDays = records.filter(
-    (r) => r.date >= rangeStart && r.date <= rangeEnd && !nonWorkingDays.has(r.date)
+    (r) => r.date >= rangeStart && r.date <= rangeEnd && !excluded.has(r.date)
   ).length;
   const attendanceRate = workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : null;
   return { presentDays, workingDays, attendanceRate };
@@ -109,8 +186,33 @@ const loadNonWorkingDays = async () => {
   };
 };
 
+/**
+ * Every religious observance, as a plain list for the client to mark on the
+ * calendar. Read whole for the same reason `loadNonWorkingDays` is — a few dozen
+ * rows across several years is cheaper than threading date bounds through every
+ * call site.
+ *
+ * Carries no attendance meaning whatsoever: see `models/Observance.js`. It is
+ * returned alongside `nonWorkingDays` and must never be merged into it.
+ */
+const loadObservances = async () => {
+  const Observance = require('../models/Observance');
+  const rows = await Observance.find({})
+    .select('date label tradition provisional')
+    .sort({ date: 1 })
+    .lean();
+  return rows.map((r) => ({
+    date: r.date,
+    label: r.label,
+    tradition: r.tradition || 'other',
+    provisional: Boolean(r.provisional),
+  }));
+};
+
 module.exports = {
+  splitRows,
   computeMonthStats,
+  loadObservances,
   averageAttendanceRate,
   isExemptOn,
   placementExemptionDate,

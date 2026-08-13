@@ -9,6 +9,7 @@ import {
   formatCheckInTime,
   DAY_STATUS,
 } from '@/helpers/attendance';
+import { DayStatusGlyph } from '@/components/attendance/dayStatusVisuals';
 
 /**
  * Read-only per-intern attendance status for a single day (admin "By day" tab,
@@ -33,16 +34,24 @@ export default function DailyAttendanceTable({
       roster
         .map((row) => ({ ...row, day: internStatusOnDate(row, day, nonWorkingKeys) }))
         .sort((a, b) => {
-          // Present first, then remote, then not-yet, then absent, then non-working.
+          // Worked first, then approved leave, then not-yet, then absent, then the
+          // days nobody owed.
+          //
           // Remote sits beside present because it is the same verdict — the day was
-          // worked — and an admin scanning the top of the list wants both together.
+          // worked — and an admin scanning the top wants both together. The three
+          // leave types sit just below: also accounted for, also nothing to chase,
+          // but not work. Absent stays above the inert statuses because it is the
+          // only row on this tab that ever needs acting on.
           const order = {
             [DAY_STATUS.PRESENT]: 0,
             [DAY_STATUS.REMOTE]: 1,
-            [DAY_STATUS.TODAY_PENDING]: 2,
-            [DAY_STATUS.ABSENT]: 3,
-            [DAY_STATUS.FUTURE]: 4,
-            [DAY_STATUS.WEEKEND]: 5,
+            [DAY_STATUS.VACATION]: 2,
+            [DAY_STATUS.RELIGIOUS]: 2,
+            [DAY_STATUS.SICK]: 2,
+            [DAY_STATUS.TODAY_PENDING]: 3,
+            [DAY_STATUS.ABSENT]: 4,
+            [DAY_STATUS.FUTURE]: 5,
+            [DAY_STATUS.WEEKEND]: 6,
           };
           const diff = (order[a.day.status] ?? 9) - (order[b.day.status] ?? 9);
           if (diff !== 0) return diff;
@@ -88,13 +97,15 @@ export default function DailyAttendanceTable({
                 </td>
                 <td className="px-5 py-4 text-muted-foreground">{row.intern.hub}</td>
                 <td className="px-5 py-4">
-                  <Badge variant={dayStatusBadgeVariant(row.day.status)}>
+                  <Badge variant={dayStatusBadgeVariant(row.day.status)} className="gap-1">
+                    <DayStatusGlyph status={row.day.status} />
                     {dayStatusLabel(row.day.status)}
                   </Badge>
                 </td>
                 <td className="px-5 py-4 tabular-nums text-muted-foreground">
-                  {/* A remote day has no check-in time — its timestamp is when an
-                      admin approved it, which is not an arrival. */}
+                  {/* Only a real check-in has an arrival time. Every other status an
+                      approval writes is stamped with when the admin decided it, which
+                      is not the same fact and must not be shown as one. */}
                   {row.day.status === DAY_STATUS.PRESENT
                     ? formatCheckInTime(row.day.checkInTime)
                     : '—'}

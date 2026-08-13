@@ -155,7 +155,7 @@ export default function InternDashboardPage() {
                     placedAt={attendance?.placedAt}
                     nonWorkingDays={attendance?.nonWorkingDays}
                     startDate={attendance?.startDate}
-                    remoteDates={attendance?.remoteDates}
+                    requestedDays={attendance?.requestedDays}
                     onCheckIn={() => checkIn()}
                     isCheckingIn={isCheckingIn}
                   />

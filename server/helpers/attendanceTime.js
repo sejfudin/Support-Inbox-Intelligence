@@ -88,6 +88,31 @@ const previousDayKey = (key) => new Date(keyToUtcNoon(key) - DAY_MS).toISOString
 const NO_EXCLUSIONS = new Set();
 
 /**
+ * Walk back `count` working days from `key` and return where you land.
+ *
+ * `count` of 0 returns `key` unchanged. Weekends are skipped, and so is anything in
+ * `excluded` (holidays, breaks) — walking back "two working days" from a Wednesday
+ * that follows a long weekend has to reach the previous Thursday, not Monday.
+ *
+ * Used for the sick-day backdating window: the earliest day an intern may still
+ * claim is `previousWorkingDayKey(today, backdateWorkingDays)`.
+ */
+const previousWorkingDayKey = (key, count, excluded = NO_EXCLUSIONS) => {
+  let current = key;
+  let remaining = count;
+  // Bounded so a pathological `excluded` set can never spin forever; a fortnight
+  // of exclusions is already far beyond anything the office calendar produces.
+  let guard = 0;
+  while (remaining > 0 && guard < 365) {
+    current = previousDayKey(current);
+    guard += 1;
+    if (isWeekendKey(current) || excluded.has(current)) continue;
+    remaining -= 1;
+  }
+  return current;
+};
+
+/**
  * Count working days (Mon–Fri) between two 'YYYY-MM-DD' keys, inclusive.
  * Returns 0 if the range is empty or inverted.
  *
@@ -134,6 +159,7 @@ module.exports = {
   isWithinCheckInWindow,
   isWeekendKey,
   previousDayKey,
+  previousWorkingDayKey,
   countWorkingDays,
   officeMonthKey,
   isValidMonthKey,

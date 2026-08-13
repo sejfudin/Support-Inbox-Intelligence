@@ -1,0 +1,175 @@
+import { House, TreePalm, Star, Thermometer, Briefcase } from 'lucide-react';
+import { DAY_STATUS } from '@/helpers/attendance';
+import { cn } from '@/lib/utils';
+
+/**
+ * How every attendance day state is drawn. One source, so the calendar, the two
+ * admin tables and the dashboard week strip cannot disagree about what a day looks
+ * like.
+ *
+ * ── Why colour alone stopped working ─────────────────────────────────────────
+ *
+ * There are eleven day states and six shipped themes, and `--primary` moves across
+ * all of them: `styles/themes.css` sets it to hue 241 (indigo), 215/213 (slate),
+ * 199 (sky), 187 (cyan), **152 (emerald)** and **24 (orange)**, plus a desaturated
+ * grey in `mono`. Emerald is what Present is drawn in and orange is what a sick day
+ * asks for, so in the `forest` and `sunset` themes any status hue is somebody's
+ * primary. There is no safe band left to claim.
+ *
+ * So the system stops trying:
+ *
+ * - **Fill says what happened.** A fixed hue per status, never `--primary`.
+ * - **Ring says when.** "Today" is a temporal fact, not a status — it is drawn as a
+ *   ring over whatever the day actually is, so it survives the intern checking in
+ *   and cannot be confused with a status colour in any theme.
+ * - **Glyph says which.** Every away-from-the-office state carries a mark. Present
+ *   and Absent carry none, which keeps an ordinary month quiet and makes the
+ *   exceptions the thing the eye finds.
+ *
+ * The glyph is what actually separates the four away states. Their hues are as far
+ * apart as a wheel with six occupants allows, but blue-vacation sits 27° from
+ * violet-religious and orange-sick sits 30° from red-absent, and no amount of
+ * shuffling fixes that. Encoding the difference in shape as well as hue is also the
+ * only version that works for a colour-blind viewer, which the old palette did not.
+ *
+ * ── The five families ────────────────────────────────────────────────────────
+ *
+ * | Family           | States                                    | Reads as          |
+ * | ---------------- | ----------------------------------------- | ----------------- |
+ * | Attended         | PRESENT, REMOTE                           | counted           |
+ * | Approved absence | VACATION, RELIGIOUS, SICK                 | away, and allowed |
+ * | Not owed         | WEEKEND, NON_WORKING, BEFORE_START, EXEMPT| nobody's day      |
+ * | Missed           | ABSENT                                    | the one alarm     |
+ * | Now              | today (a ring, over any of the above)     | you are here      |
+ */
+
+// Every fill is the same recipe: the 500 tint at 15% over the page, a 30% inset
+// ring, and a 700/300 foreground. That pairing is what the rest of the app already
+// uses and it clears 4.5:1 in both light and dark — don't lighten the text "for
+// elegance", which is the usual way this kind of palette goes unreadable.
+//
+// Written out per status rather than generated from a hue name: Tailwind scans
+// source for whole class names, so anything built by template literal is purged
+// from the production build and the cell ships unstyled.
+const STATUS_STYLES = {
+  // ── Attended ──
+  [DAY_STATUS.PRESENT]:
+    'bg-emerald-500/15 text-emerald-700 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300',
+  // Fuchsia, carried over from pt.1 and still the right call: it is the one band no
+  // theme's primary occupies, and it reads as clearly "not the office" next to the
+  // emerald of a real check-in while counting exactly the same.
+  [DAY_STATUS.REMOTE]:
+    'bg-fuchsia-500/15 text-fuchsia-700 ring-1 ring-inset ring-fuchsia-500/30 dark:text-fuchsia-300',
+
+  // ── Approved absence ──
+  // Blue for vacation and orange for sick were both asked for by name. They are
+  // kept, and the glyphs are what stop them colliding with their neighbours.
+  [DAY_STATUS.VACATION]:
+    'bg-blue-500/15 text-blue-700 ring-1 ring-inset ring-blue-500/30 dark:text-blue-300',
+  [DAY_STATUS.RELIGIOUS]:
+    'bg-violet-500/15 text-violet-700 ring-1 ring-inset ring-violet-500/30 dark:text-violet-300',
+  [DAY_STATUS.SICK]:
+    'bg-orange-500/15 text-orange-700 ring-1 ring-inset ring-orange-500/30 dark:text-orange-300',
+
+  // ── Missed ──
+  [DAY_STATUS.ABSENT]:
+    'bg-red-500/10 text-red-700 ring-1 ring-inset ring-red-500/25 dark:text-red-300',
+
+  // ── Not owed ──
+  // All four recede together, because they are the same fact: nobody owed this day.
+  // On-project used to be amber, which claimed a hue for a state that means "no
+  // obligation" and left nothing for sick. It keeps its distinctness through the
+  // briefcase glyph instead, so a placed intern's month still reads as accounted
+  // for rather than blank.
+  [DAY_STATUS.WEEKEND]: 'bg-muted/30 text-muted-foreground/40',
+  [DAY_STATUS.NON_WORKING]: 'bg-muted/30 text-muted-foreground/40',
+  [DAY_STATUS.EXEMPT]: 'bg-muted/50 text-muted-foreground/70',
+  // Before the intern joined: faintest of all, and deliberately not a filled cell —
+  // these days are not part of their record at all.
+  [DAY_STATUS.BEFORE_START]: 'text-muted-foreground/30',
+
+  // ── Now, and not yet anything ──
+  // A working today with no check-in yet. Neutral rather than tinted: nothing has
+  // happened, and the ring below is what marks it as today.
+  [DAY_STATUS.TODAY_PENDING]: 'bg-muted/40 text-foreground font-semibold',
+  [DAY_STATUS.FUTURE]: 'text-muted-foreground/40',
+};
+
+/**
+ * The "this is today" ring, laid over whatever the day already is.
+ *
+ * Deliberately drawn in `--foreground` rather than `--primary`. Foreground is the
+ * one token guaranteed to contrast with the page in every theme, where primary is
+ * the very thing that collides with the status hues. Using a ring rather than a
+ * fill also means today stays visible after the intern checks in — the old
+ * treatment lost the marker the moment PRESENT won the ladder.
+ */
+const TODAY_RING = 'ring-2 ring-foreground/50 ring-offset-1 ring-offset-background';
+
+const STATUS_DOT = {
+  [DAY_STATUS.PRESENT]: 'bg-emerald-500',
+  [DAY_STATUS.REMOTE]: 'bg-fuchsia-500',
+  [DAY_STATUS.VACATION]: 'bg-blue-500',
+  [DAY_STATUS.RELIGIOUS]: 'bg-violet-500',
+  [DAY_STATUS.SICK]: 'bg-orange-500',
+  [DAY_STATUS.ABSENT]: 'bg-red-500',
+  [DAY_STATUS.EXEMPT]: 'bg-muted-foreground/50',
+  [DAY_STATUS.NON_WORKING]: 'bg-muted-foreground/30',
+};
+
+/**
+ * The mark that identifies a state independently of its colour.
+ *
+ * Religious holiday gets a plain `Star`, and it is the same star every tradition
+ * gets in the observance notice — the calendar draws no distinction between faiths
+ * anywhere. Two reasons it stays that way: the request itself never records which
+ * faith it is for (`AttendanceRequest` holds a type and some dates, nothing else),
+ * and where the tradition *is* known the label already names the holiday, so a
+ * per-faith symbol would only rank traditions by which ones have an icon available.
+ * The star means "religious observance", nothing narrower.
+ */
+const STATUS_GLYPH = {
+  [DAY_STATUS.REMOTE]: House,
+  [DAY_STATUS.VACATION]: TreePalm,
+  [DAY_STATUS.RELIGIOUS]: Star,
+  [DAY_STATUS.SICK]: Thermometer,
+  [DAY_STATUS.EXEMPT]: Briefcase,
+};
+
+/** Tailwind classes for a day cell in `status`, with the today ring when asked. */
+export const dayStatusClass = (status, { isToday = false } = {}) =>
+  cn(STATUS_STYLES[status], isToday && TODAY_RING);
+
+/** The legend/table dot colour for a status, or null if it has no swatch. */
+export const dayStatusDot = (status) => STATUS_DOT[status] || null;
+
+/**
+ * The glyph for a status, rendered small enough to sit inside a calendar cell
+ * without competing with the date number. Returns null for the states that
+ * deliberately have none.
+ */
+export function DayStatusGlyph({ status, className }) {
+  const Icon = STATUS_GLYPH[status];
+  if (!Icon) return null;
+  return <Icon aria-hidden="true" className={cn('h-3 w-3 shrink-0 opacity-80', className)} />;
+}
+
+/** Whether this status is drawn with a glyph — for legends and table cells. */
+export const hasGlyph = (status) => Boolean(STATUS_GLYPH[status]);
+
+/**
+ * The mark on an observance in the calendar's advance notice.
+ *
+ * **One star for every tradition, deliberately.** The row's own label already names
+ * the holiday, so a per-faith symbol would add no information the reader does not
+ * already have — and it would mean ranking traditions by whichever ones happen to
+ * have an icon available, which is not a judgement this calendar should make. The
+ * star means "religious observance", nothing narrower.
+ *
+ * `Observance.tradition` is still stored; it is simply not what draws this.
+ */
+export function ObservanceGlyph({ className }) {
+  return <Star aria-hidden="true" className={cn('h-3 w-3 shrink-0', className)} />;
+}
+
+export { STATUS_STYLES, STATUS_DOT, STATUS_GLYPH, TODAY_RING };
