@@ -2,6 +2,7 @@ import PageHeading from '@/components/PageHeading';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { ReferenceDataHubsPanel } from '@/components/reference-data/ReferenceDataHubsPanel';
 import { ReferenceDataInternshipTypesPanel } from '@/components/reference-data/ReferenceDataInternshipTypesPanel';
+import { ReferenceDataPositionsPanel } from '@/components/reference-data/ReferenceDataPositionsPanel';
 import { ReferenceDataProjectsPanel } from '@/components/reference-data/ReferenceDataProjectsPanel';
 import { ReferenceDataTechnologiesPanel } from '@/components/reference-data/ReferenceDataTechnologiesPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,12 +18,12 @@ export default function AdminReferenceDataPage() {
           <PageHeading
             kicker="Administration"
             title="Platform Management"
-            subtitle="Manage hubs, internship types, technologies, and projects used across the platform."
+            subtitle="Manage hubs, internship types, positions, technologies, and projects used across the platform."
           />
 
           <PagePanel className="p-6">
             <Tabs defaultValue="hubs">
-              <TabsList className="mb-8 grid h-auto w-full grid-cols-4 rounded-none border-b border-border bg-transparent p-0">
+              <TabsList className="mb-8 grid h-auto w-full grid-cols-5 rounded-none border-b border-border bg-transparent p-0">
                 <TabsTrigger
                   value="hubs"
                   className={platformTabTriggerClass}
@@ -36,6 +37,13 @@ export default function AdminReferenceDataPage() {
                   data-test="platform-management-internship-types-tab"
                 >
                   Internship Types
+                </TabsTrigger>
+                <TabsTrigger
+                  value="positions"
+                  className={platformTabTriggerClass}
+                  data-test="platform-management-positions-tab"
+                >
+                  Positions
                 </TabsTrigger>
                 <TabsTrigger
                   value="technologies"
@@ -58,6 +66,9 @@ export default function AdminReferenceDataPage() {
               </TabsContent>
               <TabsContent value="types" className="mt-0">
                 <ReferenceDataInternshipTypesPanel />
+              </TabsContent>
+              <TabsContent value="positions" className="mt-0">
+                <ReferenceDataPositionsPanel />
               </TabsContent>
               <TabsContent value="technologies" className="mt-0">
                 <ReferenceDataTechnologiesPanel />
