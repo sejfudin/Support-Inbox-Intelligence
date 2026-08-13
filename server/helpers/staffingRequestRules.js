@@ -127,15 +127,6 @@ const deriveProgress = (requestedPositions, recommendations) => {
   return { positions, totals };
 };
 
-// Whether every requested position has as many interns placed as it wanted.
-// This is a prompt, not an action: it drives the admin's "close as fulfilled"
-// banner, and nothing anywhere closes a request off the back of it. A request
-// with no requested positions is never met — an empty `every()` is vacuously
-// true, and calling a request with no demand "met" is nonsense.
-const isDemandMet = (progress) =>
-  progress.positions.length > 0 &&
-  progress.positions.every((position) => position.placed >= position.wanted);
-
 // Partition the interns a picker could offer into the ones it must not show,
 // the ones it shows with a flag, and the ones it shows plainly.
 //
@@ -456,7 +447,6 @@ module.exports = {
   IN_SELECTION_STATUSES,
   PICKER_EXCLUDED_INTERN_STATUSES,
   deriveProgress,
-  isDemandMet,
   partitionPickerCandidates,
   needsProject,
   assertCanResolveProject,

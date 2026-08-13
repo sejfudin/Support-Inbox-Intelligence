@@ -3,7 +3,7 @@
 // there is no component-render setup in this project (see the root CLAUDE.md),
 // so `sessionStorage` mirroring is verified by driving the app.
 import { describe, it, expect } from 'vitest';
-import { countStagedPicks, stagedInternIds, toPutForwardGroups } from './useStagedPicks';
+import { countStagedPicks, toPutForwardGroups } from './useStagedPicks';
 
 const pick = (id, name = id) => ({ id, name, technologies: [], startDate: null });
 
@@ -20,12 +20,6 @@ describe('countStagedPicks', () => {
   it('is zero for a missing or empty cart', () => {
     expect(countStagedPicks()).toBe(0);
     expect(countStagedPicks({ frontend: [] })).toBe(0);
-  });
-});
-
-describe('stagedInternIds', () => {
-  it('collects the ids from every seat', () => {
-    expect(stagedInternIds(cart)).toEqual(new Set(['a', 'b', 'c']));
   });
 });
 

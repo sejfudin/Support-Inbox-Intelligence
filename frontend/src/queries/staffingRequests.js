@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   closeStaffingRequest,
   createStaffingRequest,
-  fetchStaffingRequestHistory,
   fetchStaffingRequestNews,
   fetchStaffingRequests,
   fetchPutForwardCandidates,
@@ -162,11 +161,3 @@ export const useMarkStaffingRequestsSeen = () => {
     },
   });
 };
-
-export const useStaffingRequestHistory = (requestId, options = {}) =>
-  useQuery({
-    queryKey: ['staffing-request-history', requestId],
-    queryFn: () => fetchStaffingRequestHistory(requestId),
-    enabled: Boolean(requestId),
-    ...options,
-  });

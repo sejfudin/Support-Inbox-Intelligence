@@ -82,9 +82,3 @@ export const markStaffingRequestsSeen = async () => {
   const { data } = await apiClient.post('/staffing-requests/seen');
   return data.data;
 };
-
-// Full trail for one request, newest first.
-export const fetchStaffingRequestHistory = async (id) => {
-  const { data } = await apiClient.get(`/staffing-requests/${id}/history`);
-  return data.data;
-};

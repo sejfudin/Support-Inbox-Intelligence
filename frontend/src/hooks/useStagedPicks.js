@@ -50,13 +50,6 @@ const writeStorage = (carts) => {
 export const countStagedPicks = (cart = {}) =>
   Object.values(cart).reduce((total, picks) => total + picks.length, 0);
 
-export const stagedInternIds = (cart = {}) =>
-  new Set(
-    Object.values(cart)
-      .flat()
-      .map((pick) => pick.id)
-  );
-
 export const toPutForwardGroups = (cart = {}) =>
   Object.entries(cart)
     .filter(([, picks]) => picks.length > 0)

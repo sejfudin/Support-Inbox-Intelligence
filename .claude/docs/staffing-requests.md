@@ -50,8 +50,6 @@ re-derive them:
   isn't in the request is ignored rather than crashing. **`putForward` counts every tagged
   recommendation regardless of outcome; `inSelection` counts the ones not yet `resulted`. The two
   are not interchangeable and no screen may collapse them** (`docs/adr/0006`).
-- `isDemandMet` — every requested position has `placed >= wanted`. A boolean and nothing more: it
-  drives the admin's "close as fulfilled" prompt. **Nothing anywhere auto-closes.**
 - `needsProject` / `assertCanResolveProject` — `needsProject(request)` is `!request.project`;
   `assertCanClose` calls it directly to refuse `fulfilled` while it holds, server-side rather than
   merely hidden in the UI. `assertCanResolveProject` refuses a request that already has a project,

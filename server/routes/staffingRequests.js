@@ -15,7 +15,6 @@ const {
   closeStaffingRequest,
   getStaffingRequestNews,
   markStaffingRequestsSeen,
-  getStaffingRequestHistory,
 } = require('../controllers/staffingRequests');
 
 // This is the platform's first leadership write path — no existing route
@@ -43,12 +42,6 @@ router.get('/news', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), getStaf
 router.post('/seen', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), markStaffingRequestsSeen);
 router.get('/', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), listStaffingRequests);
 router.get('/:id', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), getStaffingRequest);
-router.get(
-  '/:id/history',
-  protect,
-  requireRole(ROLES.ADMIN, ROLES.LEADERSHIP),
-  getStaffingRequestHistory
-);
 router.post('/', protect, requireRole(ROLES.LEADERSHIP), createStaffingRequest);
 router.patch('/:id', protect, requireRole(ROLES.LEADERSHIP), updateStaffingRequest);
 // Resolving a draft project — link to an existing project, or create one from

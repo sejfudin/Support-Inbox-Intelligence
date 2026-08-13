@@ -151,12 +151,3 @@ exports.markStaffingRequestsSeen = async (req, res, next) => {
     handleError(res, error, next);
   }
 };
-
-exports.getStaffingRequestHistory = async (req, res, next) => {
-  try {
-    const history = await staffingRequestService.getStaffingRequestHistory(req.user, req.params.id);
-    res.json({ success: true, message: 'Staffing request history fetched', data: history });
-  } catch (error) {
-    handleError(res, error, next);
-  }
-};

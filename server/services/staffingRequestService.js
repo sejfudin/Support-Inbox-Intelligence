@@ -1106,7 +1106,6 @@ const closeStaffingRequest = async (user, requestId, payload = {}) => {
   return formatRequestWithLookup(request);
 };
 
-// The admin's remark on a request, attributed and stamped so leadership sees
 // Which requests carry news the viewer hasn't seen, and how many — drives the
 // Requests nav badge on both shells. Fetches raw staffing-request events
 // rather than aggregating in Mongo so the "unread" policy lives in one place
@@ -1140,21 +1139,6 @@ const markStaffingRequestsSeen = async (user) => {
   return { lastSeenAt };
 };
 
-// The full trail behind a request's badge — who did what, when. Same shape as
-// the ticket history read (server/controllers/history.js): no populate, the
-// actor's name is read off the denormalized userName stored at write time.
-const getStaffingRequestHistory = async (user, requestId) => {
-  assertReadAccess(user);
-  assertValidObjectId(requestId, 'Staffing request');
-
-  const exists = await StaffingRequest.exists({ _id: requestId });
-  if (!exists) throw httpError('Staffing request not found', 404);
-
-  return History.find({ entityType: 'staffingRequest', entityId: requestId })
-    .sort({ timestamp: -1 })
-    .lean();
-};
-
 module.exports = {
   listStaffingRequests,
   getStaffingRequest,
@@ -1167,5 +1151,4 @@ module.exports = {
   closeStaffingRequest,
   getStaffingRequestNews,
   markStaffingRequestsSeen,
-  getStaffingRequestHistory,
 };

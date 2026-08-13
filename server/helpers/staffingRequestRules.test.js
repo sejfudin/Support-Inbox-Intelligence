@@ -2,7 +2,6 @@ const {
   StaffingRequestForbiddenError,
   StagedPickRejectionError,
   deriveProgress,
-  isDemandMet,
   partitionPickerCandidates,
   needsProject,
   assertCanResolveProject,
@@ -163,67 +162,6 @@ describe('deriveProgress', () => {
       []
     );
     expect(progress.positions[0].position).toBe(FRONTEND);
-  });
-});
-
-// Demand met is a prompt, never an action — this asserts a boolean and nothing
-// in this ticket acts on it.
-describe('isDemandMet', () => {
-  const progressOf = (positions) =>
-    deriveProgress(
-      positions.map(([position, count]) => requestedPosition({ position, count })),
-      []
-    );
-
-  const withPlaced = (positions, recs) =>
-    deriveProgress(
-      positions.map(([position, count]) => requestedPosition({ position, count })),
-      recs
-    );
-
-  it('is false while one requested position is still short', () => {
-    const progress = withPlaced(
-      [
-        [FRONTEND, 2],
-        [QA, 1],
-      ],
-      [recommendation({ position: FRONTEND, outcome: 'placed' })]
-    );
-    expect(isDemandMet(progress)).toBe(false);
-  });
-
-  it('is true once every requested position has its seats placed', () => {
-    const progress = withPlaced(
-      [
-        [FRONTEND, 1],
-        [QA, 1],
-      ],
-      [
-        recommendation({ position: FRONTEND, outcome: 'placed' }),
-        recommendation({ position: QA, outcome: 'placed' }),
-      ]
-    );
-    expect(isDemandMet(progress)).toBe(true);
-  });
-
-  it('is true when a lowered count brought the bar down to what is already placed', () => {
-    const progress = withPlaced([[FRONTEND, 1]], [recommendation({ outcome: 'placed' })]);
-    expect(isDemandMet(progress)).toBe(true);
-  });
-
-  it('is false for a request nobody has been put forward against', () => {
-    expect(isDemandMet(progressOf([[FRONTEND, 2]]))).toBe(false);
-  });
-
-  // An empty `every()` is vacuously true, which would call a request with no
-  // demand at all "met" — that is a request nobody has finished filing.
-  it('is false for a request with no requested positions', () => {
-    expect(isDemandMet(deriveProgress([], []))).toBe(false);
-  });
-
-  it('ignores candidates still in selection — only placements count', () => {
-    const progress = withPlaced([[FRONTEND, 1]], [recommendation({ status: 'interviewing' })]);
-    expect(isDemandMet(progress)).toBe(false);
   });
 });
 
