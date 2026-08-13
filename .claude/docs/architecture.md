@@ -397,6 +397,10 @@ Frontend: `components/attendance/{AttendanceRequestPanel,AttendanceRequestQueue,
   | `religious` | 3 | 3 / calendar year | no | exempt |
   | `sick` | 1 | none | 2 working days | exempt |
 
+  The first two columns are **defaults an admin can change** — see "Configurable limits" below.
+  Backdating and `attended` are fixed in code: neither is a quantity to weigh up, and `attended`
+  decides arithmetic the whole attendance module rests on.
+
 - **A request is decided as a unit.** Days need not be consecutive. Approving writes a row per day;
   rejecting refuses all of them. There is no per-day verdict — the intern chose those days together.
 - **Ceilings bound a request, not an intern.** Wanting a fourth remote day means another request,
@@ -434,6 +438,40 @@ Frontend: `components/attendance/{AttendanceRequestPanel,AttendanceRequestQueue,
   remaining allowance and requestable bounds, so **no limit is duplicated on the client**.
   `pendingCount` on the admin list is deliberately unfiltered, so the nav dot and tab badge keep
   meaning "anything waiting" while a type filter is applied.
+
+#### Configurable limits
+
+An admin sets the per-request ceiling and the yearly allowance per type, from their own profile.
+`server/{models/AttendanceRequestSettings.js, services/attendanceSettingsService.js,
+controllers/attendanceSettings.js, routes/attendanceSettings.js}`. Frontend:
+`components/profile/AttendanceLimitsPanel.jsx`, `api/attendanceRequestSettings.js`,
+`queries/attendanceRequestSettings.js`.
+
+- **One document, global.** `key: 'global'`, unique — a second row cannot be written, so the
+  effective configuration never depends on a sort order. Global rather than per-workspace on the
+  same grounds as `NonWorkingDay`: an `AttendanceRequest` carries no workspace at all.
+- **Only differences from the shipped table are stored.** An empty `limits` map is a system running
+  as shipped, which makes "reset to defaults" a deletion and lets a later change to
+  `constants/attendanceRequestTypes.js` still reach types nobody overrode. Saving a value equal to
+  the default therefore stores nothing — "unset" and "set to the default" mean the same thing.
+- **Unbudgeted stays unbudgeted.** `remote` and `sick` have no yearly allowance and an admin cannot
+  give them one — `yearlyBudgetFor` returns `null` for them whatever is stored. Read off the table
+  (`yearlyBudget: null`), so the fact is stated once. Their *ceilings* are configurable.
+- **The rules take limits as an argument.** `helpers/attendanceRequestRules.js` and
+  `constants/attendanceRequestTypes.js` stay Mongoose-free; `attendanceRequestService` loads the
+  limits (`getEffectiveLimits()`) and passes them down. Omit the argument and everything falls back
+  to the shipped defaults — which is what keeps the rules unit-testable without a database.
+- **The per-type ceiling is not a schema validator.** `AttendanceRequest.dates` is bounded by the
+  absolute `LIMIT_BOUNDS.maxDaysPerRequest.max` instead. A validator holding a number an admin can
+  lower would make an existing five-day request unsaveable the moment the ceiling dropped to
+  three — so approving one filed last week would fail validation on a document that was legal when
+  written.
+- **Lowering a limit binds only what comes next.** Nothing already filed is re-validated or
+  revoked, and `budgetStateFor` clamps `remaining` at zero: an intern who spent four when the
+  allowance drops to three is out of days, not owed minus one.
+- Endpoints: `GET|PUT|DELETE /api/attendance-request-settings` — **admin-only in both directions**.
+  Interns never call them; the numbers reach them already applied, in the `types` payload of their
+  own request list.
 
 ### Religious observances
 

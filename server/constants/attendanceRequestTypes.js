@@ -85,17 +85,74 @@ const isRequestType = (type) => Object.prototype.hasOwnProperty.call(TYPE_RULES,
  */
 const rulesFor = (type) => TYPE_RULES[type] || TYPE_RULES[REMOTE];
 
-/** The most days one request of this type may cover. */
-const maxDaysFor = (type) => rulesFor(type).maxDaysPerRequest;
+/**
+ * The two numbers above are **defaults**, not the law: an admin sets them per type
+ * from their profile, and what is stored arrives here as a `limits` override —
+ * `{ [type]: { maxDaysPerRequest, yearlyBudget } }` — loaded by
+ * `services/attendanceSettingsService.js` and passed down from the service layer.
+ *
+ * Everything else on a row stays fixed in code, because none of it is a quantity
+ * an admin can weigh up: `label` is copy, `backdateWorkingDays` encodes why sick
+ * days may look backwards, and `attended` decides arithmetic that the whole
+ * attendance module is built on.
+ *
+ * The readers take the override as an argument rather than reaching for it. This
+ * file has no database access on purpose — `helpers/attendanceRequestRules.js`
+ * depends on it and is deliberately Mongoose-free so the rules unit-test without
+ * a Mongo — and an override is per-call anyway.
+ */
 
-/** Days per calendar year for this type, or null if it is unbudgeted. */
-const yearlyBudgetFor = (type) => rulesFor(type).yearlyBudget;
+/** Rails an admin cannot configure outside of. Sanity, not policy. */
+const LIMIT_BOUNDS = Object.freeze({
+  // Six working weeks in a single request. Past this, it is a leave of absence
+  // and not something the admin queue should be deciding as one row.
+  maxDaysPerRequest: Object.freeze({ min: 1, max: 30 }),
+  // Roughly every working day in a year. A budget is a bound, so zero is not
+  // offered: a type nobody may use should be removed, not silently zeroed.
+  yearlyBudget: Object.freeze({ min: 1, max: 260 }),
+});
+
+/** The shipped numbers, as the shape an override takes. */
+const DEFAULT_LIMITS = Object.freeze(
+  Object.fromEntries(
+    REQUEST_TYPES.map((type) => [
+      type,
+      Object.freeze({
+        maxDaysPerRequest: TYPE_RULES[type].maxDaysPerRequest,
+        yearlyBudget: TYPE_RULES[type].yearlyBudget,
+      }),
+    ])
+  )
+);
+
+/**
+ * Whether this type is bounded by a yearly allowance at all.
+ *
+ * Read off the table rather than listed, so "remote and sick are unbudgeted" is
+ * stated in exactly one place — their `yearlyBudget: null` — and an admin cannot
+ * introduce a budget where the design says there is none. Both are deliberate:
+ * exam week must not become a queue of refusals, and an intern who is ill past a
+ * cap cannot be refused their illness.
+ */
+const isBudgetedType = (type) => rulesFor(type).yearlyBudget !== null;
+
+// A stored override is only honoured if it is a positive whole number. Anything
+// else — null, a string, a legacy key, a hand-edited document — falls through to
+// the default rather than propagating as a limit nobody chose.
+const configuredValue = (value) => (Number.isInteger(value) && value > 0 ? value : null);
+
+/** The most days one request of this type may cover, under `limits` if given. */
+const maxDaysFor = (type, limits) =>
+  configuredValue(limits?.[type]?.maxDaysPerRequest) ?? rulesFor(type).maxDaysPerRequest;
+
+/** Days per calendar year for this type under `limits`, or null if it is unbudgeted. */
+const yearlyBudgetFor = (type, limits) => {
+  if (!isBudgetedType(type)) return null;
+  return configuredValue(limits?.[type]?.yearlyBudget) ?? rulesFor(type).yearlyBudget;
+};
 
 /** Whether a day of this type counts as worked (remote) or is exempt (the rest). */
 const isAttendedType = (type) => rulesFor(type).attended;
-
-/** The largest ceiling across all types — what a client can safely pre-allocate. */
-const MAX_DAYS_ANY_TYPE = Math.max(...REQUEST_TYPES.map(maxDaysFor));
 
 module.exports = {
   REMOTE,
@@ -104,8 +161,10 @@ module.exports = {
   SICK,
   REQUEST_TYPES,
   TYPE_RULES,
-  MAX_DAYS_ANY_TYPE,
+  LIMIT_BOUNDS,
+  DEFAULT_LIMITS,
   isRequestType,
+  isBudgetedType,
   rulesFor,
   maxDaysFor,
   yearlyBudgetFor,

@@ -20,6 +20,7 @@ const {
 } = require('../constants/attendanceRequestTypes');
 const { httpError } = require('../helpers/httpError');
 const { loadMyProfile } = require('./attendanceService');
+const { getEffectiveLimits } = require('./attendanceSettingsService');
 
 const { PENDING, APPROVED, REJECTED, CANCELLED, REVOKED, LIVE_STATUSES } = AttendanceRequest;
 
@@ -35,6 +36,11 @@ const { PENDING, APPROVED, REJECTED, CANCELLED, REVOKED, LIVE_STATUSES } = Atten
  * Nothing here branches on the type. Ceilings, budgets and backdating all come out
  * of `constants/attendanceRequestTypes.js` via the rules, and the attendance status
  * an approval writes is the type's own name.
+ *
+ * The ceiling and the budget are admin-set, so this module is where they are
+ * loaded — `getEffectiveLimits()` once per request path — and handed to the pure
+ * rules. Backdating and `attended` are not configurable and still come straight
+ * off the table.
  */
 
 const toRequestSummary = (request) => ({
@@ -96,19 +102,22 @@ const liveRequestsFor = (internId) =>
  * — an intern who has just spent their last vacation day sees the option lock
  * without a refresh.
  */
-const buildTypeInfo = (requests, todayKey, nonWorkingKeys) => {
+const buildTypeInfo = (requests, todayKey, nonWorkingKeys, limits) => {
   const year = yearOf(todayKey);
   return REQUEST_TYPES.map((type) => {
-    const { label, maxDaysPerRequest, backdateWorkingDays } = TYPE_RULES[type];
+    const { label, backdateWorkingDays } = TYPE_RULES[type];
     return {
       type,
       label,
-      maxDaysPerRequest,
+      // The admin's number, not the table's. This is the field the intern's date
+      // picker bounds itself by, so a ceiling changed on the admin's profile
+      // reaches the form on their next load with nothing else to do.
+      maxDaysPerRequest: limits[type].maxDaysPerRequest,
       backdateWorkingDays,
       earliestDate: earliestRequestableKey(type, todayKey, nonWorkingKeys),
       // Sick may not be booked ahead: you cannot know you will be ill on Thursday.
       latestDate: backdateWorkingDays ? todayKey : null,
-      budget: budgetStateFor(type, year, requests),
+      budget: budgetStateFor(type, year, requests, limits),
       // Days spent this year, sent for **every** type including the unbudgeted ones.
       // The balance card shows "3 used" for those rather than a fraction: there is
       // no denominator, and inventing one would be a limit the rules do not enforce.
@@ -123,17 +132,18 @@ const buildTypeInfo = (requests, todayKey, nonWorkingKeys) => {
  */
 const listMyRequests = async (user) => {
   const profile = await loadMyProfile(user);
-  const [requests, nonWorking] = await Promise.all([
+  const [requests, nonWorking, limits] = await Promise.all([
     AttendanceRequest.find({ intern: profile._id })
       .populate({ path: 'decidedBy', select: 'fullname' })
       .sort({ createdAt: -1 })
       .lean(),
     loadNonWorkingDays(),
+    getEffectiveLimits(),
   ]);
 
   return {
     requests: requests.map(toRequestSummary),
-    types: buildTypeInfo(requests, officeDateKey(), nonWorking.keys),
+    types: buildTypeInfo(requests, officeDateKey(), nonWorking.keys, limits),
   };
 };
 
@@ -145,10 +155,13 @@ const createMyRequest = async (user, { type = REMOTE, dates, reason } = {}) => {
   const context = await loadDayContext(profile);
   // Every request, not just the live ones: the budget check has to see days already
   // spent this year, and `usedDaysByYear` decides for itself which statuses count.
-  const existingRequests = await allRequestsFor(profile._id);
+  const [existingRequests, limits] = await Promise.all([
+    allRequestsFor(profile._id),
+    getEffectiveLimits(),
+  ]);
 
   const days = normaliseDates(dates);
-  const refusal = createRequestRefusal(days, { ...context, type, existingRequests });
+  const refusal = createRequestRefusal(days, { ...context, type, existingRequests, limits });
   if (refusal) throw httpError(refusal, 422);
 
   await AttendanceRequest.create({

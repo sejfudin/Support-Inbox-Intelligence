@@ -211,6 +211,24 @@ Three things to preserve when touching `adminDashboardService.js`:
 - Apply guards in the route file, in order: `protect` first, then role/workspace guards, then
   upload middleware, then the controller.
 
+## Credentials
+
+- **Changing your own password requires the current one.** `PATCH /api/auth/me/password` →
+  `authService.changeOwnPassword`, which `bcrypt.compare`s the supplied current password against
+  the stored hash before writing anything. Applies to every role; the account comes from the
+  token, never from the URL, so there is no self-service path that skips the check.
+- `PATCH /api/auth/:id` **refuses `password` when the caller is the target** and points at the
+  endpoint above. It still accepts `password` for an admin editing *another* user — that is a
+  reset for someone locked out, who by definition cannot supply their old password. Leaving both
+  doors open would have made the check optional.
+- A successful change bumps `tokenVersion` and deletes every `RefreshToken` for that user, so a
+  password change evicts anyone holding a stolen session. The endpoint answers with a fresh token
+  pair for the caller, since the bump invalidates their own access token too.
+- Wrong password, no password set, and no such user all return the same 401. Do not add a message
+  that tells them apart.
+- Not covered by any of this: `POST /api/auth/invite/set-password`, which is guarded by the
+  single-use invite token instead — there is no old password at that point.
+
 ## Input handling
 
 - **Sanitize user-supplied rich-text HTML** (TipTap ticket descriptions — anything rendered
@@ -235,3 +253,4 @@ Three things to preserve when touching `adminDashboardService.js`:
 4. Is the platform role AND workspace-membership role checked where the action requires it?
 5. Is user HTML sanitized?
 6. Does the response leak fields the caller shouldn't see (other workspaces, other interns)?
+7. If it writes a credential, does it re-prove the caller owns it? (see Credentials)

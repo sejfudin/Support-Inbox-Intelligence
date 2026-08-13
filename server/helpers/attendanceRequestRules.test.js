@@ -572,3 +572,155 @@ describe('createRequestRefusal — clashes with existing requests', () => {
     ).toMatch(/working day/i);
   });
 });
+
+// The ceiling and the yearly allowance are admin-set. Everything above asserts the
+// shipped table by passing no `limits` at all, which is the point of the argument
+// being optional: those cases keep testing the defaults, and these test that an
+// override displaces them.
+describe('admin-set limits', () => {
+  const ctx = { todayKey: TODAY };
+  const spent = (type, count, startDay = 2) =>
+    typed(
+      type,
+      'approved',
+      ...Array.from({ length: count }, (_, i) => `2026-02-${String(startDay + i).padStart(2, '0')}`)
+    );
+
+  const WEEK = ['2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'];
+
+  describe('resolving a limit', () => {
+    it('prefers the override, and falls back per field', () => {
+      const limits = { vacation: { maxDaysPerRequest: 2 } };
+
+      expect(maxDaysFor('vacation', limits)).toBe(2);
+      // Only `maxDaysPerRequest` was set, so the allowance is still the table's.
+      expect(yearlyBudgetFor('vacation', limits)).toBe(5);
+      // And a type nobody touched is untouched.
+      expect(maxDaysFor('religious', limits)).toBe(3);
+    });
+
+    it('ignores an override that is not a positive whole number', () => {
+      for (const bad of [0, -1, 2.5, '3', null, undefined, NaN]) {
+        expect(maxDaysFor('vacation', { vacation: { maxDaysPerRequest: bad } })).toBe(5);
+      }
+    });
+
+    it('will not give an unbudgeted type a budget', () => {
+      // Remote and sick are unbudgeted by design, not by omission. A row saying
+      // otherwise — a seeder, a hand-edited document — does not get to introduce
+      // a limit the design refuses.
+      expect(yearlyBudgetFor('remote', { remote: { yearlyBudget: 12 } })).toBeNull();
+      expect(yearlyBudgetFor('sick', { sick: { yearlyBudget: 5 } })).toBeNull();
+    });
+
+    it('still bounds the ceiling of an unbudgeted type', () => {
+      expect(maxDaysFor('remote', { remote: { maxDaysPerRequest: 10 } })).toBe(10);
+      expect(maxDaysFor('sick', { sick: { maxDaysPerRequest: 3 } })).toBe(3);
+    });
+  });
+
+  describe('a raised ceiling', () => {
+    it('lets a request run past the shipped bound', () => {
+      const limits = { religious: { maxDaysPerRequest: 5, yearlyBudget: 5 } };
+
+      expect(createRequestRefusal(WEEK, { ...ctx, type: 'religious' })).toMatch(/at most 3 days/i);
+      expect(createRequestRefusal(WEEK, { ...ctx, type: 'religious', limits })).toBeNull();
+    });
+
+    it('lets sick stop being a single day, and drops the singular wording', () => {
+      const limits = { sick: { maxDaysPerRequest: 3 } };
+      const twoDays = [TWO_BACK, YESTERDAY];
+
+      expect(createRequestRefusal(twoDays, { ...ctx, type: 'sick' })).toMatch(/single day/i);
+      expect(createRequestRefusal(twoDays, { ...ctx, type: 'sick', limits })).toBeNull();
+    });
+  });
+
+  describe('a lowered ceiling', () => {
+    it('refuses what the default allowed, and says the new number', () => {
+      const limits = { vacation: { maxDaysPerRequest: 2 } };
+      const threeDays = WEEK.slice(0, 3);
+
+      expect(createRequestRefusal(threeDays, { ...ctx, type: 'vacation' })).toBeNull();
+      expect(createRequestRefusal(threeDays, { ...ctx, type: 'vacation', limits })).toMatch(
+        /at most 2 days/i
+      );
+    });
+
+    it('uses the singular wording when it is lowered to one', () => {
+      const limits = { remote: { maxDaysPerRequest: 1 } };
+
+      expect(createRequestRefusal([TODAY, TOMORROW], { ...ctx, type: 'remote', limits })).toMatch(
+        /single day/i
+      );
+    });
+  });
+
+  describe('a changed allowance', () => {
+    it('charges against the new budget and names it in the refusal', () => {
+      const limits = { vacation: { yearlyBudget: 3 } };
+      const existingRequests = [spent('vacation', 2)];
+
+      // Two days spent, three allowed: one left, so a two-day request is over.
+      const refusal = createRequestRefusal(['2026-06-22', '2026-06-23'], {
+        ...ctx,
+        type: 'vacation',
+        existingRequests,
+        limits,
+      });
+
+      expect(refusal).toMatch(/over your 3 vacation days/i);
+      expect(refusal).toMatch(/1 left/i);
+      // Under the shipped five, the same request is fine.
+      expect(
+        createRequestRefusal(['2026-06-22', '2026-06-23'], {
+          ...ctx,
+          type: 'vacation',
+          existingRequests,
+        })
+      ).toBeNull();
+    });
+
+    it('reports zero left, never a negative, when the budget drops below what is spent', () => {
+      // The case the admin screen has to survive: four days taken under an
+      // allowance of five, then the allowance cut to three. Nothing is clawed
+      // back — those days were granted — but there is nothing left either.
+      const requests = [spent('vacation', 4)];
+      const limits = { vacation: { yearlyBudget: 3 } };
+
+      expect(budgetStateFor('vacation', '2026', requests, limits)).toEqual({
+        budget: 3,
+        used: 4,
+        remaining: 0,
+      });
+
+      expect(budgetRefusal('vacation', ['2026-06-22'], requests, limits)).toMatch(
+        /used all 3 of your vacation days/i
+      );
+    });
+
+    it('still reports null for a type the admin cannot budget', () => {
+      const requests = [spent('remote', 20)];
+
+      expect(
+        budgetStateFor('remote', '2026', requests, { remote: { yearlyBudget: 5 } })
+      ).toBeNull();
+      expect(
+        budgetRefusal('remote', ['2026-06-22'], requests, { remote: { yearlyBudget: 5 } })
+      ).toBeNull();
+    });
+  });
+
+  it('leaves the day rules alone — a limit is not a licence', () => {
+    // Raising a ceiling does not make a Saturday requestable, move the sick
+    // backdating window, or reach past the day the intern joined.
+    const limits = { vacation: { maxDaysPerRequest: 10 }, sick: { maxDaysPerRequest: 5 } };
+
+    expect(createRequestRefusal([SATURDAY], { ...ctx, type: 'vacation', limits })).toMatch(
+      /working day/i
+    );
+    expect(createRequestRefusal([THREE_BACK], { ...ctx, type: 'sick', limits })).toMatch(
+      /last 2 working days/i
+    );
+  });
+});

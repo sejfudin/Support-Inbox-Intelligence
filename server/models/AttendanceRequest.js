@@ -1,10 +1,5 @@
 const mongoose = require('mongoose');
-const {
-  REQUEST_TYPES,
-  REMOTE,
-  maxDaysFor,
-  rulesFor,
-} = require('../constants/attendanceRequestTypes');
+const { REQUEST_TYPES, REMOTE, LIMIT_BOUNDS } = require('../constants/attendanceRequestTypes');
 
 /**
  * One intern asking for days away from the usual office check-in, and the admin
@@ -16,6 +11,10 @@ const {
  * ceiling, the yearly budget, whether the day may be backdated, and whether it
  * counts as worked — lives in `constants/attendanceRequestTypes.js`, one row per
  * type. Four parallel collections would have been four copies of this file.
+ *
+ * Two of those four numbers are only the *defaults*: an admin sets the ceiling and
+ * the yearly allowance per type, stored in `AttendanceRequestSettings` and applied
+ * by the rules helper.
  *
  * **A request is decided as a unit.** Its days need not be consecutive; nothing in
  * the rules cares, and "Monday and Friday" is as ordinary a request as "Monday to
@@ -71,8 +70,14 @@ const attendanceRequestSchema = new mongoose.Schema(
     // `Attendance.date` and `NonWorkingDay.date`, so all three compare as plain
     // strings with no timezone maths anywhere.
     //
-    // Stored sorted. The bound here is per-type and is the last line of defence —
-    // the real validation, with the reasons an intern can act on, is in
+    // Stored sorted. The bound here is the absolute one, not the per-type ceiling:
+    // that ceiling is admin-set, and a validator is the wrong place for a number
+    // that can move. Lower vacation from five days to three and every five-day
+    // request already in the collection becomes unsaveable — so *approving* one
+    // filed last week would fail validation on a document that was legal when it
+    // was written, and the admin would be told the intern's own request is
+    // invalid. The per-type ceiling is enforced where a refusal can be explained
+    // and where lowering it is allowed to bind only what comes next:
     // `helpers/attendanceRequestRules.js`.
     dates: {
       type: [
@@ -83,16 +88,12 @@ const attendanceRequestSchema = new mongoose.Schema(
       ],
       required: true,
       validate: [
-        // A plain function, not an arrow: `this` has to be the document so the
-        // ceiling can depend on the type being validated.
-        function (value) {
-          return Array.isArray(value) && value.length >= 1 && value.length <= maxDaysFor(this.type);
-        },
-        function (props) {
-          const max = maxDaysFor(this.type);
-          const label = rulesFor(this.type).label.toLowerCase();
-          return `a ${label} request must cover between 1 and ${max} day${max === 1 ? '' : 's'} (got ${props.value?.length ?? 0})`;
-        },
+        (value) =>
+          Array.isArray(value) &&
+          value.length >= 1 &&
+          value.length <= LIMIT_BOUNDS.maxDaysPerRequest.max,
+        (props) =>
+          `a request must cover between 1 and ${LIMIT_BOUNDS.maxDaysPerRequest.max} days (got ${props.value?.length ?? 0})`,
       ],
     },
     status: {

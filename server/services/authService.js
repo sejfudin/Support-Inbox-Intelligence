@@ -9,6 +9,7 @@ const RefreshToken = require('../models/RefreshToken');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { httpError } = require('../helpers/httpError');
 
 const generateAccessToken = (id, tokenVersion) => {
   return jwt.sign({ id, tokenVersion }, process.env.JWT_SECRET, {
@@ -226,6 +227,63 @@ const logout = async (refreshToken) => {
   };
 };
 
+/**
+ * Change your own password, having proved you know the current one.
+ *
+ * Separate from `updateUser` on purpose. That function is also the admin's tool
+ * for editing somebody else's account, where no old password can be supplied —
+ * so a single code path would either block admins from resetting a locked-out
+ * intern, or leave a branch that skips the check. This one only ever acts on the
+ * caller's own account, and the check is unconditional.
+ *
+ * Without it, an access token was a permanent account takeover: whoever held one
+ * could set a new password and lock the owner out of their own account, never
+ * having known the old one.
+ *
+ * Returns a fresh token pair. The `tokenVersion` bump below invalidates *every*
+ * token issued under the old password, including the one that made this request,
+ * so re-issuing here is what makes "your other sessions were signed out" true
+ * rather than "everyone, including you, was signed out".
+ */
+const changeOwnPassword = async (userId, { currentPassword, newPassword } = {}) => {
+  const current = String(currentPassword || '');
+  const next = String(newPassword || '');
+
+  if (!current || !next) throw httpError('Enter your current password and a new one.', 400);
+  if (next.length < 6) throw httpError('Password must have at least 6 characters.', 400);
+
+  const user = await User.findById(userId).select('+password');
+
+  // One refusal for every way of failing to prove it. Telling a caller apart
+  // "no such account" from "wrong password" would make this an oracle, and the
+  // caller is already authenticated — they learn nothing they should not know
+  // from a single message.
+  if (!user || !user.password || !(await bcrypt.compare(current, user.password))) {
+    throw httpError('Your current password is not correct.', 401);
+  }
+  if (await bcrypt.compare(next, user.password)) {
+    throw httpError('Your new password must be different from your current one.', 400);
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  user.password = await bcrypt.hash(next, salt);
+  user.passwordSetAt = new Date();
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  await user.save();
+
+  // Everything issued under the old password dies with it — a password change is
+  // how you evict someone who has your session, so leaving their refresh token
+  // alive would defeat the point.
+  await RefreshToken.deleteMany({ user: user._id });
+
+  return {
+    success: true,
+    message: 'Password updated. Any other sessions have been signed out.',
+    accessToken: generateAccessToken(user._id, user.tokenVersion),
+    refreshToken: await createRefreshToken(user._id, user.tokenVersion),
+  };
+};
+
 const updateUser = async (userId, updateData) => {
   const updateOperation = { $set: updateData };
 
@@ -392,6 +450,7 @@ module.exports = {
   login,
   refresh,
   logout,
+  changeOwnPassword,
   updateUser,
   createUserInvite,
   verifyInvite,

@@ -20,6 +20,15 @@ const {
  * What differs per type is not branched on here — it is read from
  * `constants/attendanceRequestTypes.js`, so a new type is a row in that table
  * rather than an `if` in this file.
+ *
+ * The two numbers an admin can set — the per-request ceiling and the yearly
+ * allowance — arrive as an optional `limits` argument, shaped
+ * `{ [type]: { maxDaysPerRequest, yearlyBudget } }` and loaded by
+ * `services/attendanceSettingsService.js`. Passed in rather than fetched: this
+ * file must not learn how to reach a database, or the rules stop being testable
+ * without one. Omit it and every function falls back to the shipped defaults,
+ * which is what keeps the existing tests honest — they assert the behaviour of
+ * the table, not of whatever a developer's database happens to hold.
  */
 
 const EMPTY_SET = new Set();
@@ -99,9 +108,13 @@ const usedDaysByYear = (requests = [], type, todayKey = officeDateKey()) => {
  * What is left of one type's yearly allowance, for the UI to show before the
  * intern picks anything. Null for an unbudgeted type (remote, sick) — the caller
  * renders "no limit" rather than a number.
+ *
+ * `remaining` clamps at zero, which matters more now that the allowance can be
+ * lowered underneath days already taken: an intern who spent four when the budget
+ * drops to three is out of days, not owed minus one.
  */
-const budgetStateFor = (type, year, requests = []) => {
-  const budget = yearlyBudgetFor(type);
+const budgetStateFor = (type, year, requests = [], limits) => {
+  const budget = yearlyBudgetFor(type, limits);
   if (budget === null) return null;
   const used = usedDaysByYear(requests, type).get(String(year)) || 0;
   return { budget, used, remaining: Math.max(0, budget - used) };
@@ -202,8 +215,8 @@ const normaliseDates = (dates) =>
  * Checked per year rather than per request, so a New Year request is refused only
  * for the side of the boundary that is actually short.
  */
-const budgetRefusal = (type, days, existingRequests = []) => {
-  const budget = yearlyBudgetFor(type);
+const budgetRefusal = (type, days, existingRequests = [], limits) => {
+  const budget = yearlyBudgetFor(type, limits);
   if (budget === null) return null;
 
   const { label } = rulesFor(type);
@@ -248,14 +261,15 @@ const budgetRefusal = (type, days, existingRequests = []) => {
  * @param {Array<{dates:string[],status:string,type:string}>} [ctx.existingRequests] -
  *   the intern's requests. Spent ones may be passed too — they are ignored for the
  *   day-claim check and released from the budget — so callers need not pre-filter.
+ * @param {object} [ctx.limits] - the admin-set limits; defaults if omitted.
  */
 const createRequestRefusal = (dates, ctx = {}) => {
-  const { type = REMOTE } = ctx;
+  const { type = REMOTE, limits } = ctx;
   if (!isRequestType(type)) return 'Pick what kind of day you are requesting.';
 
   const days = normaliseDates(dates);
   const { label } = rulesFor(type);
-  const max = maxDaysFor(type);
+  const max = maxDaysFor(type, limits);
 
   if (days.length === 0) return 'Pick at least one day.';
   if (days.length > max) {
@@ -281,7 +295,7 @@ const createRequestRefusal = (dates, ctx = {}) => {
       : `You already have a ${claimLabel} request for one of those dates waiting on a decision.`;
   }
 
-  return budgetRefusal(type, days, existingRequests);
+  return budgetRefusal(type, days, existingRequests, limits);
 };
 
 module.exports = {

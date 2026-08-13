@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { registerUser, loginUser, getMe, logoutUser, updateUser } from '@/api/auth';
+import { registerUser, loginUser, getMe, logoutUser, updateUser, changePassword } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { clearSessionQueries } from '@/lib/sessionQueryCache';
 
@@ -71,6 +71,25 @@ export const useLogoutUser = () => {
     onSuccess: clearAuth,
     onError: (error) => {
       clearAuth();
+    },
+  });
+};
+
+export const useChangePassword = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: changePassword,
+
+    onSuccess: (data) => {
+      // The server bumped `tokenVersion`, so the pair already in storage is dead
+      // — including the access token that made this very request. Swap in the
+      // one it minted for this session, or the next call 401s and the
+      // interceptor drops the user at the login screen for having changed their
+      // password successfully.
+      if (data?.accessToken) localStorage.setItem('accessToken', data.accessToken);
+      if (data?.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
     },
   });
 };

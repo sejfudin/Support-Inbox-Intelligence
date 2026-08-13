@@ -3,7 +3,7 @@ import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Pencil } from 'lucide-react';
+import { Pencil } from 'lucide-react';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { RoleBadge } from '@/components/RoleBadge';
 import { useUpdateUser } from '@/queries/auth';
@@ -13,38 +13,28 @@ import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
 import { InternSelfServicePanel } from '@/components/interns/InternSelfServicePanel';
-import { isIntern } from '@/helpers/roles';
+import { ChangePasswordPanel } from '@/components/profile/ChangePasswordPanel';
+import { AttendanceLimitsPanel } from '@/components/profile/AttendanceLimitsPanel';
+import { isAdmin, isIntern } from '@/helpers/roles';
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const { user, loading, refetchUser } = useAuth();
   const updateUserMutation = useUpdateUser();
 
-  const [draftProfile, setDraftProfile] = useState({
-    fullName: '',
-    password: '',
-  });
+  const [draftProfile, setDraftProfile] = useState({ fullName: '' });
 
   const handleSave = (e) => {
     e.preventDefault();
     const id = user?.id || user?._id;
-    const payload = {
-      fullname: draftProfile.fullName,
-    };
-
-    if (draftProfile.password) {
-      payload.password = draftProfile.password;
-    }
 
     updateUserMutation.mutate(
-      { id, data: payload },
+      { id, data: { fullname: draftProfile.fullName } },
       {
         onSuccess: () => {
           setIsEditing(false);
-          setShowPassword(false);
-          setDraftProfile({ fullName: '', password: '' });
+          setDraftProfile({ fullName: '' });
           refetchUser();
           toast.success('Profile updated', {
             description: 'Your information has been successfully saved.',
@@ -67,12 +57,9 @@ const ProfilePage = () => {
     email: user.email || '',
     role: user.role || 'User',
     status: user.status || 'Active',
-    password: isEditing ? draftProfile.password : '',
   };
 
   const isFullNameValid = profile.fullName.trim().length > 0;
-  const isPasswordValid = profile.password.length === 0 || profile.password.length >= 6;
-  const isFormValid = isFullNameValid && isPasswordValid;
 
   return (
     <PageShell>
@@ -83,7 +70,7 @@ const ProfilePage = () => {
             title="Profile"
             subtitle={
               isEditing
-                ? 'Update your account details and credentials.'
+                ? 'Update your account details.'
                 : 'Your account information and credentials.'
             }
             actions={
@@ -94,16 +81,12 @@ const ProfilePage = () => {
                 onClick={() => {
                   if (isEditing) {
                     setIsEditing(false);
-                    setShowPassword(false);
-                    setDraftProfile({ fullName: '', password: '' });
+                    setDraftProfile({ fullName: '' });
                     return;
                   }
 
                   setIsEditing(true);
-                  setDraftProfile({
-                    fullName: user.fullname || '',
-                    password: '',
-                  });
+                  setDraftProfile({ fullName: user.fullname || '' });
                 }}
               >
                 <Pencil className="h-4 w-4" />
@@ -165,44 +148,6 @@ const ProfilePage = () => {
                   <p className="text-xs text-muted-foreground">Your email can’t be changed here.</p>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="profile-password">
-                    {isEditing ? 'New password (optional)' : 'Password'}
-                  </Label>
-                  {isEditing ? (
-                    <div className="relative">
-                      <Input
-                        id="profile-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Leave blank to keep current password"
-                        value={profile.password}
-                        onChange={(e) =>
-                          setDraftProfile((current) => ({ ...current, password: e.target.value }))
-                        }
-                        className="pr-12"
-                        data-test="profile-password-input"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((current) => !current)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        aria-label={showPassword ? 'Hide password' : 'Show password'}
-                        data-test="profile-password-toggle-button"
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">********</div>
-                  )}
-
-                  {isEditing && !isPasswordValid && (
-                    <p className="text-xs text-destructive">
-                      Password must be at least 6 characters long.
-                    </p>
-                  )}
-                </div>
-
                 {isEditing && updateUserMutation.isError && (
                   <div className="md:col-span-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                     {updateUserMutation.error?.response?.data?.message ||
@@ -219,8 +164,7 @@ const ProfilePage = () => {
                     className="sm:order-1"
                     onClick={() => {
                       setIsEditing(false);
-                      setShowPassword(false);
-                      setDraftProfile({ fullName: '', password: '' });
+                      setDraftProfile({ fullName: '' });
                     }}
                     data-test="profile-form-cancel-button"
                   >
@@ -228,7 +172,7 @@ const ProfilePage = () => {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={updateUserMutation.isPending || !isFormValid}
+                    disabled={updateUserMutation.isPending || !isFullNameValid}
                     data-test="profile-save-button"
                   >
                     {updateUserMutation.isPending ? 'Saving…' : 'Save changes'}
@@ -238,7 +182,11 @@ const ProfilePage = () => {
             </form>
           </PagePanel>
 
+          <ChangePasswordPanel />
+
           {isIntern(user?.role) && <InternSelfServicePanel />}
+
+          {isAdmin(user?.role) && <AttendanceLimitsPanel />}
         </div>
       </PageSection>
     </PageShell>
