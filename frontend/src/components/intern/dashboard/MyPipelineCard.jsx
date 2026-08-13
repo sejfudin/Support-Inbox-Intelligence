@@ -21,6 +21,13 @@ const RESULT_LABEL = {
   not_placed: 'Not placed this time',
 };
 
+// A `not_placed` caused by the demand ending, not by a decision about the
+// intern: the staffing request behind this process was closed, or the position
+// they were put forward for was changed. "Not placed this time" would read as a
+// rejection they never got. Fixed copy, no free text — the reason an admin
+// typed is internal and never reaches this card (`formatOwnRecommendation`).
+const DEMAND_ENDED_LABEL = 'This opportunity closed before a decision was made about you';
+
 const formatDay = (value) => (value ? format(new Date(value), 'MMM d') : null);
 
 /**
@@ -118,7 +125,8 @@ const stepDetail = (step, recommendation) => {
         : `${RESULT_LABEL.placed} · start date to be confirmed`;
     }
     const decided = formatDay(recommendation.result.decidedAt);
-    return decided ? `${RESULT_LABEL[outcome]} · ${decided}` : RESULT_LABEL[outcome];
+    const label = recommendation.result.demandEnded ? DEMAND_ENDED_LABEL : RESULT_LABEL[outcome];
+    return decided ? `${label} · ${decided}` : label;
   }
   return step.state === 'pending' ? 'Decision pending' : 'Awaiting result';
 };

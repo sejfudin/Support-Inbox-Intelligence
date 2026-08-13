@@ -203,6 +203,26 @@ const ICON_BY_SLUG = {
 export const getTechnologyIcon = (technology) => ICON_BY_SLUG[technology?.slug] || null;
 
 /**
+ * Name → technology record, built from the reference-data list (`useTechnologies`).
+ *
+ * Icons key off the stable slug, but several screens only ever carry technology
+ * *names* — a staffing request's rows, an intern's skill list — and a name cannot
+ * be turned into a slug by rule: `Vue.js` is `vue-js`, `C++` is `cpp`, `.NET` is
+ * `dotnet`. Looking the name back up against reference data is the only lossless
+ * route, and the query it comes from is shared and long-cached, so it costs
+ * nothing extra to ask.
+ *
+ * Matched case-insensitively: a name is display text, not an identifier. Unknown
+ * names simply miss, and <TechnologyIcon /> falls back to its neutral glyph.
+ */
+export const buildTechnologyIndex = (technologies = []) =>
+  new Map(
+    technologies
+      .filter((technology) => technology?.name)
+      .map((technology) => [technology.name.toLowerCase(), technology])
+  );
+
+/**
  * Renders a technology's brand logo, or a neutral fallback glyph for conceptual
  * technologies that have no single logo. `size` is in px.
  *

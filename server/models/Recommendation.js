@@ -106,6 +106,16 @@ const recommendationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // Set when this recommendation was created by fulfilling a staffing
+    // request; null for recommendations created the ordinary way. A requested
+    // position is identified by staffingRequest + position — there is no
+    // separate line id on the request itself.
+    staffingRequest: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'StaffingRequest',
+      default: null,
+      index: true,
+    },
     technologies: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -168,6 +178,23 @@ const recommendationSchema = new mongoose.Schema(
       // clears it.
       startDate: {
         type: Date,
+      },
+      // This `not_placed` was caused by the demand ending, not by a decision
+      // about the intern: their staffing request was closed, or the position
+      // they were offered for was changed or removed. Set ONLY by the
+      // close-out cascade in recommendationService — `applyResultPayload`
+      // ignores it on the way in, because an admin who could set it by hand
+      // could tell a genuinely rejected intern their opportunity was withdrawn.
+      //
+      // It is the one part of `result` besides the outcome that reaches the
+      // intern (`formatOwnRecommendation`), where it swaps the "not placed"
+      // copy for "this closed before a decision was made about you". The note
+      // itself stays internal, so without this flag the two cases are
+      // indistinguishable on the intern's dashboard. Any future
+      // placed-vs-not-placed metric must exclude these (ADR 0004).
+      demandEnded: {
+        type: Boolean,
+        default: false,
       },
     },
   },

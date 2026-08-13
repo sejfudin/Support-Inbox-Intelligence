@@ -147,6 +147,13 @@ const emitInternDataChanged = () =>
     scopes: [invalidationScopes.intern()],
   });
 
+// One event write can badge a viewer who is currently connected, so every
+// staffing-request history event fans this out (global, not workspace-scoped).
+const emitStaffingNewsChanged = () =>
+  broadcastToAll('CACHE_INVALIDATED', {
+    scopes: [invalidationScopes.staffingNews()],
+  });
+
 const emitDailyChanged = (workspaceId) => {
   const resolvedWorkspaceId = toSocketId(workspaceId);
   if (!resolvedWorkspaceId) return false;
@@ -161,5 +168,6 @@ module.exports = {
   emitTicketEvent,
   emitCommentEvent,
   emitInternDataChanged,
+  emitStaffingNewsChanged,
   emitDailyChanged,
 };

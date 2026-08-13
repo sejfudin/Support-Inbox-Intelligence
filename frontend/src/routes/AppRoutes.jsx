@@ -30,6 +30,7 @@ import LeadershipCandidatesPage from '@/pages/fep/LeadershipCandidatesPage';
 import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
 import LeadershipProjectsPage from '@/pages/fep/LeadershipProjectsPage';
 import LeadershipProjectPage from '@/pages/fep/LeadershipProjectPage';
+import LeadershipRequestsPage from '@/pages/fep/LeadershipRequestsPage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
@@ -39,6 +40,7 @@ import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
 import WorkspaceDailiesPage from '@/pages/WorkspaceDailiesPage';
 import AdminDailyInsightsPage from '@/pages/AdminDailyInsightsPage';
+import AdminStaffingRequestsPage from '@/pages/AdminStaffingRequestsPage';
 
 const WorkspaceGuard = () => {
   const { user } = useAuth();
@@ -141,6 +143,7 @@ export default function AppRoutes() {
             <Route path="/interns/:userId" element={<LeadershipCandidatePage />} />
             <Route path="/projects" element={<LeadershipProjectsPage />} />
             <Route path="/projects/:id" element={<LeadershipProjectPage />} />
+            <Route path="/requests" element={<LeadershipRequestsPage />} />
           </Route>
         </Route>
 
@@ -175,6 +178,7 @@ export default function AppRoutes() {
             <Route path="/admin/daily-insights" element={<AdminDailyInsightsPage />} />
             <Route path="/recommendations" element={<MentorRecommendationsPage />} />
             <Route path="/specialization" element={<SpecializationPage />} />
+            <Route path="/admin/staffing-requests" element={<AdminStaffingRequestsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
             <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />

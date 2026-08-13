@@ -81,6 +81,41 @@ const logEntityEvent = async ({ entityType, entityId, userId, action, statusKey,
 };
 
 /**
+ * Append a staffing-request event. Unlike logEntityEvent, this is awaited and
+ * rethrows on failure: for ticket/recommendation events a lost history row
+ * just costs a log line, but here the history write IS the news mechanism
+ * (see ticket 04) — a swallowed failure means leadership or admin silently
+ * never finds out, with nothing else to report it.
+ *
+ * @param {Object} opts
+ * @param {ObjectId} opts.entityId
+ * @param {ObjectId|null} opts.userId  actor (null for system events)
+ * @param {string} opts.action        human-readable description
+ * @param {string} opts.statusKey     namespaced status key, e.g. 'staffing:filed'
+ * @param {string} [opts.userName]    override actor label (else resolved from userId)
+ */
+const logStaffingRequestEvent = async ({ entityId, userId, action, statusKey, userName }) => {
+  let resolvedName = userName;
+  if (!resolvedName) {
+    if (userId) {
+      const user = await User.findById(userId).select('fullname').lean();
+      resolvedName = user?.fullname || 'Unknown User';
+    } else {
+      resolvedName = 'System';
+    }
+  }
+
+  await History.create({
+    entityType: 'staffingRequest',
+    entityId,
+    userId: userId || null,
+    userName: resolvedName,
+    action,
+    statusKey,
+  });
+};
+
+/**
  * Remove an entity's entire log — for when the entity itself is deleted and
  * its trail has no other consumer (e.g. deleting a recommendation).
  */
@@ -133,6 +168,7 @@ module.exports = {
   logEvent,
   logSystemEvent,
   logEntityEvent,
+  logStaffingRequestEvent,
   deleteEntityHistory,
   getLatestStatusDates,
   getLatestStatusDatesForEntities,
