@@ -309,14 +309,14 @@ export function AdminRequestDetail({
           button legible on its own down here: without it, an outlined red
           control under a list of seats has to be guessed at. */}
       {isOpen && (
-        <div className="-mx-5 -mb-5 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-b-[inherit] border-t border-border/60 bg-muted/30 px-5 py-4 md:-mx-6 md:-mb-6 md:px-6">
+        <div className="-mx-5 -mb-5 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-b-[inherit] px-5 py-4 md:-mx-6 md:-mb-6 md:px-6">
           <p className="text-sm text-muted-foreground">Can’t staff this one?</p>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={() => setCloseReason('declined')}
-            className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
             data-test="request-decline"
           >
             <Ban className="h-4 w-4" aria-hidden="true" />

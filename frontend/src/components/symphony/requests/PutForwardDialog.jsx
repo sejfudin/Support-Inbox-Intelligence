@@ -107,7 +107,7 @@ const CandidateRow = ({ candidate, staged, onToggle }) => {
         conflicted ? 'p-3' : 'flex items-center gap-3 px-3 py-2.5',
         staged
           ? 'border-[hsl(var(--symphony-brand)/0.6)] bg-[hsl(var(--symphony-brand)/0.07)]'
-          : 'border-border/50 bg-gradient-to-br from-card via-card to-[hsl(var(--symphony-brand)/0.05)] shadow-sm hover:shadow-elevated'
+          : 'border-border bg-muted/50 shadow-sm hover:bg-muted hover:shadow-elevated dark:bg-muted/80 dark:hover:bg-muted'
       )}
       data-test={`candidate-${candidate.internProfile}`}
     >
