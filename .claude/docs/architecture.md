@@ -23,7 +23,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 | Admin | `/dashboard` (admin dashboard) if they have an active workspace, else `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
 | Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
 | Leadership | `/programme` | Read-oriented stakeholder view, plus the one leadership write path (staffing requests). No ticket/workspace workflow — redirected to `/programme`. |
-| Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. |
+| Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. Reads — read-only, self only — their own evaluations (notes included), readiness and recommendations on `/my-progress`. |
 
 **Two authorization layers** — do not conflate:
 - **Platform role** (above) — `admin/mentor/intern/leadership`.
@@ -416,7 +416,9 @@ controllers/internDashboard.js}` + `GET /me` in `routes/dashboard.js`. Frontend:
   `recommendationService.listOwnRecommendations` / `evaluationService.listOwnEvaluations` — narrow
   self-only reads, separate from the admin list functions, returning **redacted** shapes that pick
   fields explicitly rather than deleting them. Withheld: `recommendationNote`,
-  `interviews[].feedback`, `result.note`, and evaluation `notes`. See `.claude/docs/security.md`.
+  `interviews[].feedback`, `result.note`. Evaluation `notes` are now shown (see "My Progress"
+  below); this card does not render them, but the payload carries them.
+  See `.claude/docs/security.md`.
 - **The "My Selection Process" card shows one recommendation at a time, out of all of them.**
   `loadPipeline` returns `current` (newest by `updatedAt`), `items` (the whole redacted list — same
   `formatOwnRecommendation` shapes, so nothing extra rides along) and `total`. The card renders a
@@ -466,6 +468,61 @@ controllers/internDashboard.js}` + `GET /me` in `routes/dashboard.js`. Frontend:
 - **Not implemented**: weekly hours on the hero (`Attendance` records a check-in and no check-out, so
   hours aren't derivable — the line shows the month's attendance rate and present days instead), and
   the "next review in N days" line on evaluations (no scheduled-review concept exists in the model).
+
+## My Progress (intern self-scoped, read-only)
+
+The intern's read-only mirror of everything the programme records **about** them, at
+`/my-progress` — the dashboard cards show the headline, this page is the record. Backend:
+`server/{services/internProgressService.js, controllers/internDashboard.js}` +
+`GET /me/progress` in `routes/dashboard.js`, with the arithmetic in
+`server/helpers/{evaluationTrend,readinessSummary}.js` (both unit-tested). Frontend:
+`frontend/src/pages/MyProgressPage.jsx`, `components/intern/progress/*`,
+`api/internProgress.js`, `queries/internProgress.js`.
+
+- **`GET /api/dashboard/me/progress` takes no parameters, ever** — same rule and reason as
+  `GET /api/dashboard/me`, and more load-bearing: this is the widest self-read on the platform. See
+  `security.md`. Four sections in one payload (`programme`, `evaluations`, `readiness`,
+  `recommendations`) so the page has one loading state and one cache key for the socket refresh to
+  land on — four endpoints would refresh three sections and leave the fourth stale.
+- **Nothing on it is workspace-scoped.** Every section is programme data, so unlike the dashboard
+  aggregate there is no `resolveActiveWorkspaceId` call in the service and the route sits outside
+  `WorkspaceGuard` — an intern between workspaces still has a review history.
+- **Read-only is a property of the data, not a UI convention.** Evaluations
+  (`evaluationService.createEvaluation`), readiness (`upsertReadinessFlag`) and recommendations
+  (`requireRole(ADMIN)` on `/api/recommendations`) are all admin-authored; the service only reads
+  and there is no mutation hook in the page's component tree.
+- **Evaluation `notes` are shown here** — the reversal of a previously documented decision, with the
+  reasoning on `formatOwnEvaluation` and in `security.md`. `MentorComment` stays invisible to
+  interns and must not be folded in; it has its own `visibleTo` recipient list and its existing rows
+  were written under an expectation of staying internal.
+- **Readiness is a join, not a list of flags.** `helpers/readinessSummary.js` drives the rows from
+  the intern's *declared* technologies and position, so a declared technology nobody has assessed
+  gets a "Not assessed" row (that gap is the actionable part of the section) and a position flag
+  left over from a previous role reads "Not assessed" rather than carrying a stale level forward —
+  the same rules `InternReadinessPanel` / `InternRoleReadinessPanel` apply for the admin.
+- **Only the newest evaluation carries movement chips**, computed server-side by
+  `helpers/evaluationTrend.js` from the two newest periods — the comparison the chip claims to be. A
+  `null` delta ("no earlier period") renders nothing; a `0` delta renders "Same", because held
+  steady and never-measured are different facts.
+- **Stage logic is shared with the dashboard card**, not copied:
+  `frontend/src/helpers/recommendationStages.js` holds the stage vocabulary, the
+  skipped-vs-pending rule and the "which interview comes next" pick, and both `MyPipelineCard` and
+  the progress page's recommendation section import it. Still deliberately separate from the admin's
+  `components/interns/recommendations/recommendationUi.jsx`, which carries that redesign's own
+  hardcoded palette and font stack.
+- **`emitInternDataChanged()` now fires on evaluation create and readiness upsert too** (it
+  previously fired only from `internService`, `recommendationService` and `specializationService`).
+  Without it an admin recording an evaluation left both this page and the dashboard's evaluations
+  card stale indefinitely for an intern sitting on them. The frontend's `invalidateInternScope`
+  refreshes `internProgressKeys.all` plus the `intern-readiness` / `intern-profile` keys that
+  `/my-technologies` reads.
+- **Attendance is deliberately not on it** — `/my-attendance` owns that surface and the dashboard
+  hero already reads `GET /api/attendance/me`; a third copy of the same month's numbers is a third
+  thing to keep in agreement. The programme panel links there instead.
+- The lifecycle status is printed **verbatim** (no label mapping, per the rule in
+  `frontend/src/helpers/internProfile.js`) with a plain-English sentence beside it from
+  `components/intern/progress/programmeStatus.js`. Keep those as sentences: the moment one becomes a
+  two-word noun it has turned into the label mapping the rest of the app avoids.
 
 ## Glossary
 
