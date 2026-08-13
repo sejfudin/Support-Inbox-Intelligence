@@ -140,6 +140,25 @@ export const getEditImpact = (request, { positionIds = [], projectId } = {}) => 
   };
 };
 
+// The positions of a request that can be neither changed nor removed, because
+// someone is already placed against them (server: planStaffingRequestEdit).
+// getEditImpact only reports the ones an edit is actually dropping — this is
+// every one of them, so the form can lock those rows up front instead of
+// letting the attempt fail on save.
+export const getPlacedPositionLocks = (request) =>
+  getPositionProgressRows(request)
+    .filter((row) => row.placed > 0)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      // `placed` is the count to show — it comes off `progress`, so it holds
+      // even when a placed recommendation carries no readable intern name.
+      placed: row.placed,
+      internNames: row.suggestions
+        .filter((suggestion) => suggestion.outcome === 'placed')
+        .map((suggestion) => suggestion.internName),
+    }));
+
 // "Ana", "Ana and Ben" — the refusal reads as a sentence, so the names in it do
 // too. Same wording as the server's, so the client-side stop and the 400 behind
 // it never contradict each other.

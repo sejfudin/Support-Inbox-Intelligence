@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Minus, Plus, X } from 'lucide-react';
+import { HelpCircle, Minus, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useProjects } from '@/queries/projects';
 import { usePositions } from '@/queries/positions';
 import { useTechnologies } from '@/queries/technologies';
@@ -37,7 +38,11 @@ import {
 } from '@/queries/staffingRequests';
 import { DuplicateRequestDialog } from './DuplicateRequestDialog';
 import { EditImpactDialog } from './EditImpactDialog';
-import { describePlacedRefusal, getEditImpact } from '@/helpers/staffingRequests';
+import {
+  describePlacedRefusal,
+  getEditImpact,
+  getPlacedPositionLocks,
+} from '@/helpers/staffingRequests';
 
 const requestedPositionSchema = z.object({
   position: z.string().min(1, 'Select a position'),
@@ -323,6 +328,18 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
 
   const positionOptions = useMemo(() => positions?.data ?? positions ?? [], [positions]);
 
+  // A position with someone placed against it can't be changed or removed. The
+  // refusal used to arrive as a toast on save, after the change had been made
+  // and the form looked willing — so the row says so instead, and its controls
+  // stop offering the edit that cannot happen. Seats stay editable: lowering a
+  // count closes out nobody, and it is the escape hatch for a shrinking ask.
+  const placedLocks = useMemo(
+    () => (isEditing ? getPlacedPositionLocks(request) : []),
+    [isEditing, request]
+  );
+  const lockFor = (positionId) =>
+    placedLocks.find((lock) => lock.id === String(positionId ?? '')) ?? null;
+
   // The technology list is active-only, but a request can carry one that was
   // deactivated after it was filed. Without merging those back in, the picker
   // renders no chip for them — the ask looks like it lost a technology it is
@@ -602,9 +619,11 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
 
               {/* Column headers instead of a per-row card: the rows read as one
                   table, so what each cell means is said once. */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
+                {/* px-3 matches the cards' padding below — without it the
+                    headers sit a card-padding's width off their columns. */}
                 <div
-                  className={`${positionGridClass} items-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground`}
+                  className={`${positionGridClass} items-center px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground`}
                 >
                   <span>Position</span>
                   <span>Seats</span>
@@ -614,105 +633,158 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
                   <span />
                 </div>
 
-                {fields.map((field, index) => (
-                  <div
-                    key={field.id}
-                    className="flex flex-col gap-2"
-                    data-test={`request-form-position-row-${index}`}
-                  >
-                    <div className={`${positionGridClass} items-start`}>
-                      <Controller
-                        name={`requestedPositions.${index}.position`}
-                        control={control}
-                        render={({ field: positionField }) => (
-                          <Select
-                            onValueChange={positionField.onChange}
-                            value={positionField.value}
-                          >
-                            <SelectTrigger
-                              className={`w-full ${rowControlClass}`}
-                              data-test={`request-form-position-select-${index}`}
+                {fields.map((field, index) => {
+                  const lock = lockFor(watchedPositions[index]?.position);
+                  return (
+                    // Each position is its own shaded card: a row can carry a
+                    // chip tray and a lock line under it, so at three positions
+                    // the flat list stops reading as one row per ask.
+                    <div
+                      key={field.id}
+                      className="flex flex-col gap-2 rounded-2xl border border-border/50 bg-muted/20 p-3"
+                      data-test={`request-form-position-row-${index}`}
+                    >
+                      <div className={`${positionGridClass} items-start`}>
+                        <Controller
+                          name={`requestedPositions.${index}.position`}
+                          control={control}
+                          render={({ field: positionField }) => (
+                            <Select
+                              onValueChange={positionField.onChange}
+                              value={positionField.value}
+                              disabled={Boolean(lock)}
                             >
-                              <SelectValue placeholder="Choose position…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {positionOptions.map((position) => (
-                                <SelectItem
-                                  key={position._id}
-                                  value={position._id}
-                                  disabled={usedPositionIds(index).includes(position._id)}
-                                >
-                                  {position.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      <Controller
-                        name={`requestedPositions.${index}.count`}
-                        control={control}
-                        render={({ field: countField }) => (
-                          <SeatStepper
-                            value={countField.value}
-                            onChange={countField.onChange}
-                            index={index}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name={`requestedPositions.${index}.technologies`}
-                        control={control}
-                        render={({ field: techField }) => (
-                          <TechnologyMultiSelect
-                            technologies={technologyOptions}
-                            selectedIds={techField.value}
-                            onChange={techField.onChange}
-                            placeholder="React, TypeScript…"
-                            showSelected={false}
-                          />
-                        )}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-11 w-8 text-muted-foreground"
-                        disabled={fields.length === 1}
-                        onClick={() => remove(index)}
-                        aria-label="Remove position"
-                        data-test={`request-form-position-remove-${index}`}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    {/* The picked chips get the full row width instead of the
-                        narrow technologies column, and say what they are — three
-                        of them wrapping inside the column read as an overflow. */}
-                    <Controller
-                      name={`requestedPositions.${index}.technologies`}
-                      control={control}
-                      render={({ field: techField }) =>
-                        (techField.value ?? []).length > 0 ? (
-                          <div
-                            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-muted/40 px-3 py-2.5"
-                            data-test={`request-form-position-technologies-${index}`}
-                          >
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                              Technologies picked
-                            </span>
-                            <SelectedTechnologyChips
+                              <SelectTrigger
+                                className={`w-full ${rowControlClass}`}
+                                data-test={`request-form-position-select-${index}`}
+                              >
+                                <SelectValue placeholder="Choose position…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {positionOptions.map((position) => (
+                                  <SelectItem
+                                    key={position._id}
+                                    value={position._id}
+                                    disabled={usedPositionIds(index).includes(position._id)}
+                                  >
+                                    {position.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        <Controller
+                          name={`requestedPositions.${index}.count`}
+                          control={control}
+                          render={({ field: countField }) => (
+                            <SeatStepper
+                              value={countField.value}
+                              onChange={countField.onChange}
+                              index={index}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name={`requestedPositions.${index}.technologies`}
+                          control={control}
+                          render={({ field: techField }) => (
+                            <TechnologyMultiSelect
                               technologies={technologyOptions}
                               selectedIds={techField.value}
                               onChange={techField.onChange}
+                              placeholder="React, TypeScript…"
+                              showSelected={false}
                             />
-                          </div>
-                        ) : null
-                      }
-                    />
-                  </div>
-                ))}
+                          )}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-11 w-8 text-muted-foreground"
+                          disabled={fields.length === 1 || Boolean(lock)}
+                          onClick={() => remove(index)}
+                          aria-label="Remove position"
+                          // A disabled control that says nothing reads as broken;
+                          // both reasons it can be disabled are worth a sentence.
+                          title={
+                            lock
+                              ? `${lock.name} can't be removed while someone is placed against it`
+                              : fields.length === 1
+                                ? 'A request needs at least one position'
+                                : undefined
+                          }
+                          data-test={`request-form-position-remove-${index}`}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {lock && (
+                        <div
+                          className="flex items-center gap-1.5"
+                          data-test={`request-form-position-locked-${index}`}
+                        >
+                          <span className="rounded-full bg-[hsl(var(--symphony-placed)/0.14)] px-2 py-0.5 text-xs font-semibold text-[hsl(var(--symphony-placed))]">
+                            {lock.placed} placed
+                          </span>
+                          {/* The reason sits behind the icon rather than on the
+                              row: it is the same sentence for every locked row,
+                              and naming each placed intern made the form louder
+                              than the ask it is meant to be showing. */}
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label={`Why ${lock.name} can't be changed`}
+                                  className="flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+                                  data-test={`request-form-position-locked-help-${index}`}
+                                >
+                                  <HelpCircle className="h-3.5 w-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                {lock.placed === 1 ? 'One intern is' : `${lock.placed} interns are`}{' '}
+                                already placed against {lock.name}, so the position can&apos;t be
+                                changed or removed. The seats and technologies are still yours to
+                                change, and a genuinely different ask is a new request.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      )}
+
+                      {/* The picked chips get the full row width instead of the
+                        narrow technologies column, and say what they are — three
+                        of them wrapping inside the column read as an overflow. */}
+                      <Controller
+                        name={`requestedPositions.${index}.technologies`}
+                        control={control}
+                        render={({ field: techField }) =>
+                          (techField.value ?? []).length > 0 ? (
+                            <div
+                              // Lighter than the card it sits in, not darker —
+                              // shade on shade would read as a third nesting level.
+                              className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border/50 bg-background/70 px-3 py-2.5"
+                              data-test={`request-form-position-technologies-${index}`}
+                            >
+                              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Technologies picked
+                              </span>
+                              <SelectedTechnologyChips
+                                technologies={technologyOptions}
+                                selectedIds={techField.value}
+                                onChange={techField.onChange}
+                              />
+                            </div>
+                          ) : null
+                        }
+                      />
+                    </div>
+                  );
+                })}
 
                 <button
                   type="button"

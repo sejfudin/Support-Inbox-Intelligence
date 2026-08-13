@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   countRequestsByGroup,
+  getPlacedPositionLocks,
   getPositionProgressRows,
   getRequestGroup,
   getStaffingRequestStatusLabel,
@@ -176,5 +177,45 @@ describe('getPositionProgressRows', () => {
     });
 
     expect(rows[0].suggestions).toEqual([{ position: 'fe' }]);
+  });
+});
+
+// Which rows the edit form has to lock. The refusal itself lives on the server
+// (planStaffingRequestEdit); this is what lets the form state it before the
+// attempt instead of turning a save into an error toast.
+describe('getPlacedPositionLocks', () => {
+  const locked = (overrides = {}) => ({
+    requestedPositions: [
+      { position: { _id: 'de', name: 'Data Engineer' }, count: 18 },
+      { position: { _id: 'fe', name: 'Frontend' }, count: 2 },
+    ],
+    progress: { positions: [progressRow('de', 18, 11, 6, 5), progressRow('fe', 2, 0, 0)] },
+    suggestions: [
+      { position: 'de', internName: 'Ana', outcome: 'placed' },
+      { position: 'de', internName: 'Ben', outcome: 'placed' },
+      { position: 'de', internName: 'Cleo' },
+    ],
+    ...overrides,
+  });
+
+  // The count comes off `progress`, not off the names: it is what the row shows,
+  // and it has to hold when a placed recommendation carries no readable name.
+  it('locks only the positions with someone placed, with the count and the names', () => {
+    expect(getPlacedPositionLocks(locked())).toEqual([
+      { id: 'de', name: 'Data Engineer', placed: 6, internNames: ['Ana', 'Ben'] },
+    ]);
+  });
+
+  // In selection is not placed: those candidates get closed out by the cascade,
+  // which is a warning, not a refusal.
+  it('leaves a position with candidates but nobody placed unlocked', () => {
+    const locks = getPlacedPositionLocks(
+      locked({
+        progress: { positions: [progressRow('de', 18, 11, 0, 11), progressRow('fe', 2, 0, 0)] },
+        suggestions: [{ position: 'de', internName: 'Cleo' }],
+      })
+    );
+
+    expect(locks).toEqual([]);
   });
 });
