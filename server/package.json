@@ -30,6 +30,8 @@
     "migrate:development-merge": "node seeder/mergeDevelopmentToMaster.js",
     "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
     "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js",
+    "cleanup:superseded-positions": "node seeder/retireSupersededPositions.js",
+    "cleanup:discipline-technologies": "node seeder/retireDisciplineTechnologies.js",
     "cleanup:stale-workspace-pointers": "node seeder/cleanupStaleWorkspacePointers.js"
   },
   "dependencies": {

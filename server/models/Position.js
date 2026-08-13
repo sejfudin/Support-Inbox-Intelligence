@@ -15,6 +15,10 @@ const positionSchema = new mongoose.Schema(
       trim: true,
       maxlength: 100,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );
