@@ -6,6 +6,7 @@ const { READINESS_LEVELS } = require('../models/ReadinessFlag');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess } = require('../helpers/internAccess');
 const internNotificationService = require('./internNotificationService');
+const { emitInternDataChanged } = require('../socket/events');
 
 const listReadinessFlags = async (user, internUserId) => {
   const profile = await assertInternAccess(user, internUserId);
@@ -75,6 +76,10 @@ const upsertReadinessFlag = async (user, internUserId, { technologyId, positionI
     label,
     level,
   });
+
+  // Same reason as `createEvaluation`: readiness is programme data the intern
+  // reads about themselves on "My progress", and no workspace scope reaches it.
+  emitInternDataChanged();
 
   const plain = flag.toObject();
   return { ...plain, id: plain._id };

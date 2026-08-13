@@ -138,8 +138,6 @@ const TECHNOLOGY_ALIASES = {
   xamarin: ['xamarin', '.net maui'],
 
   // —— Data & analytics ——
-  'data-engineering': ['data engineering', 'data engineer'],
-  'data-science': ['data science', 'data scientist'],
   pandas: ['pandas'],
   numpy: ['numpy'],
   // Bare "spark" is omitted on purpose — "sparked my interest in…" is common CV prose.
@@ -150,7 +148,6 @@ const TECHNOLOGY_ALIASES = {
   tableau: ['tableau'],
 
   // —— ML ——
-  'machine-learning': ['machine learning', 'ml', 'deep learning'],
   tensorflow: ['tensorflow', 'tensor flow', 'keras'],
   pytorch: ['pytorch', 'py torch'],
   'scikit-learn': ['scikit learn', 'scikit', 'sklearn'],
@@ -172,7 +169,6 @@ const TECHNOLOGY_ALIASES = {
   postman: ['postman'],
 
   // —— DevOps & cloud ——
-  devops: ['devops', 'dev ops'],
   docker: ['docker', 'dockerfile', 'docker compose'],
   kubernetes: ['kubernetes', 'k8s', 'kubectl'],
   aws: ['aws', 'amazon web services', 'amazon s3', 'ec2'],

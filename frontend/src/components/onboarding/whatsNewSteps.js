@@ -46,7 +46,11 @@ import { useEffect, useState } from 'react';
 // viewer who "saw" r1 saw a truncated walkthrough (steps whose card had not loaded
 // were silently dropped) and a button that is no longer where they left it, so this
 // is a genuine re-announcement rather than a nag.
-export const TOUR_VERSION = '2026-08-dashboards-r2';
+// Bumped for "My Progress": interns gain a page, and — the part worth announcing —
+// the written notes on their evaluations, which the previous tour explicitly told
+// them stayed with their mentor. Leaving the old string would ship a correction
+// that only first-time viewers ever see.
+export const TOUR_VERSION = '2026-08-my-progress';
 
 // Not exported: every read and write of it lives in this module now, and the two
 // consumers go through `useWhatsNewSeen` / `markWhatsNewSeen` instead. Keep it
@@ -282,13 +286,21 @@ export const WHATS_NEW_STEPS = [
     roles: ['intern'],
     target: '[data-tour="intern-dashboard-pipeline"]',
     title: 'You can now see your own progress',
-    body: 'Where your recommendation stands, and your evaluation scores below it. Both are new to you — the written notes behind them stay with your mentor. Put forward for more than one project? Use the arrows to switch between them.',
+    body: 'Where your recommendation stands, and your evaluation scores below it. Both are new to you. Put forward for more than one project? Use the arrows to switch between them.',
   },
 
   // The features that arrived alongside the boards, pointed at their sidebar row
   // rather than their page — the tour runs on the dashboard, and sending someone
   // away mid-walkthrough loses them. `nav-<slug>` anchors come from `NavItem`, so
   // any nav row can be targeted this way.
+  {
+    id: 'nav-my-progress',
+    roles: ['intern'],
+    target: '[data-tour="nav-my-progress"]',
+    title: 'My Progress: the full record about you',
+    body: 'Your evaluations with each score and your mentor’s written notes, how ready they consider you for your position and every technology you have declared, and every project you have been recommended for with all its dates. Read-only — it is their record, now shown to you.',
+    placement: 'right',
+  },
   {
     id: 'nav-attendance-intern',
     roles: ['intern'],

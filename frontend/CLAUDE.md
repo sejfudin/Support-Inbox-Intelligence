@@ -1,7 +1,9 @@
 # frontend/ — React 19 + Vite
 
 ESM. React 19, Vite 7, TailwindCSS 3, Radix UI + shadcn-style components, React Router 7,
-TanStack Query + Table, Socket.IO client, TipTap, Recharts, Framer Motion, RHF + Zod.
+TanStack Query + Table, Socket.IO client, TipTap, Recharts, Framer Motion, dnd-kit, RHF + Zod.
+Toasts are `sonner`; check `package.json` before adding a dependency — the common needs are
+already covered.
 
 Root rules and shared conventions apply — see ../CLAUDE.md and ../.claude/docs/conventions.md.
 
@@ -9,8 +11,9 @@ Root rules and shared conventions apply — see ../CLAUDE.md and ../.claude/docs
 
 - `api/` — axios client (`axios.js`) + one helper module per resource. Only place that talks HTTP.
 - `queries/` — TanStack Query hooks per resource. Components consume these, never `api/` directly.
-- `components/` — feature groups (`Tickets/`, `interns/`, `analytics/`, `symphony/`, `admin/`,
-  `Modals/`, `Skeletons/`, `columns/`, `reference-data/`, `register/`) + `ui/` (shadcn primitives).
+- `components/` — one subdirectory per feature area (tickets, interns, symphony, attendance,
+  dailies, projects, analytics, admin, …) plus shared `ui/` (shadcn primitives), `Modals/`,
+  `Skeletons/`, `columns/`. Loose `.jsx` files at the top level are cross-feature widgets.
 - `pages/` — route pages. `layouts/` — `SidebarLayout`, `SymphonyLayout`.
 - `routes/` — `AppRoutes`, `ProtectedRoutes`, `WorkspaceManagementRoute`. Add guarded routes here.
 - `context/` — `AuthContext`, `SocketContext`, `ThemeConfigContext`.

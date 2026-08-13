@@ -10,6 +10,7 @@ const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { escapeRegex } = require('../helpers/escapeRegex');
 const { placementExemptionDate } = require('../helpers/attendanceStats');
+const { selectCloseOutRecommendations } = require('../helpers/staffingRequestRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
@@ -127,6 +128,12 @@ const formatRecommendation = (recommendation, statusDates = {}) => {
       decidedBy: formatUser(plain.result?.decidedBy),
       // The intern's first day on the project; null while it is still unknown.
       startDate: plain.result?.startDate || null,
+      // Whether this `not_placed` came from demand ending rather than from a
+      // decision about the intern. The internal audience needs it at least as
+      // much as the intern does: without it, a record the close-out cascade
+      // wrote and a genuine rejection read identically here too, and the
+      // `result.note` beside it was written about the request, not the person.
+      demandEnded: Boolean(plain.result?.demandEnded),
     },
     // Date each tracked status was applied. The document's own statusDates are
     // authoritative (author-editable, support skipping interviewing); records
@@ -537,6 +544,58 @@ const createRecommendation = async (user, payload = {}) => {
   return formatRecommendation(recommendation, statusDates);
 };
 
+// Putting interns forward against a staffing request creates ordinary
+// recommendations — the whole point of the design is that there is no parallel
+// concept, so the existing pipeline, placement and attendance behaviour all
+// apply untouched. It lives here rather than in staffingRequestService because
+// what a freshly created recommendation needs (an initial status event, the
+// intern-data invalidation) is knowledge that belongs to this module.
+//
+// Two deliberate differences from `createRecommendation`:
+//   - `position` is forced to the requested position it is created against,
+//     never taken from a payload;
+//   - an already-placed intern is allowed through. `NON_RECOMMENDABLE_PROFILE_
+//     STATUSES` guards the ad-hoc flow, where offering a placed intern is
+//     almost always a slip. Here it is a deliberate act the admin was warned
+//     about, and refusing it would only push them to edit recommendations by
+//     hand. Discontinued and completed interns are still refused — that
+//     exclusion is enforced by the caller's picker rules.
+// Takes every requested position in one call rather than one call per position:
+// an admin submits their staged picks as a single act, so the recommendations
+// behind it are inserted in one write and either all appear or none do.
+const createRecommendationsForStaffingRequest = async (
+  user,
+  { groups = [], projectId, staffingRequestId }
+) => {
+  assertRecommendationWriteAccess(user);
+
+  const recommendedAt = new Date();
+  const created = await Recommendation.insertMany(
+    groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
+      internProfileIds.map((internProfileId) => ({
+        internProfile: internProfileId,
+        createdBy: user._id,
+        updatedBy: user._id,
+        position: positionId,
+        project: projectId,
+        staffingRequest: staffingRequestId,
+        technologies: technologyIds,
+        status: 'recommended',
+        statusDates: { recommended: recommendedAt },
+      }))
+    )
+  );
+
+  await Promise.all(
+    created.map((recommendation) =>
+      logStatusEvent(recommendation._id, user._id, recommendation.status)
+    )
+  );
+  emitInternDataChanged();
+
+  return created;
+};
+
 const applyResultPayload = (recommendation, payloadResult, user) => {
   if (!payloadResult || typeof payloadResult !== 'object') return;
 
@@ -571,6 +630,14 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
     decidedBy: outcome ? user._id : undefined,
     // Only a placement has a start date — reversing the outcome drops it.
     startDate: outcome === 'placed' ? startDate : undefined,
+    // `demandEnded` is never read off the payload, whatever it contains: an
+    // admin who could set it would be able to tell a rejected intern their
+    // opportunity was withdrawn, and only the close-out cascade knows that it
+    // was. The stored flag is carried over while the record stays `not_placed`
+    // — editing the note on a closed-out record must not silently turn it into
+    // an ordinary rejection — and dropped the moment the outcome changes, since
+    // whatever the new outcome is, it was decided by a person.
+    demandEnded: outcome === 'not_placed' ? Boolean(recommendation.result?.demandEnded) : false,
   };
 
   if (outcome) {
@@ -579,6 +646,61 @@ const applyResultPayload = (recommendation, payloadResult, user) => {
 };
 
 const ACTIVE_PIPELINE_STATUSES = ['recommended', 'interviewing'];
+
+// Resolve one live recommendation as `not_placed` on someone else's initiative
+// — a placement elsewhere, or the demand behind it ending. Written per document
+// rather than as a blind updateMany so each one also gets its append-only
+// history row and a complete set of statusDates: otherwise the table
+// (history-backed for legacy records) and the cards disagree on the Resulted
+// date, and the audit trail silently misses the close.
+//
+// `demandEnded` is the one thing that separates the two callers on the intern's
+// own dashboard, so it is passed in explicitly rather than inferred here.
+const resolveAsNotPlaced = async (recommendation, user, { note, demandEnded, action, now }) => {
+  const set = {
+    status: 'resulted',
+    result: {
+      outcome: 'not_placed',
+      note,
+      decidedAt: now,
+      decidedBy: user._id,
+      demandEnded,
+    },
+    updatedBy: user._id,
+  };
+
+  if (recommendation.statusDates?.recommended) {
+    // Stamp the stage date so the auto-close shows on the status timeline
+    // like any other resulted recommendation.
+    set['statusDates.resulted'] = now;
+  } else {
+    // Records that predate statusDates: seed the earlier stages from the
+    // history log (same as updateRecommendation) so the document carries a
+    // complete set, not just the resulted date.
+    const historyDates = await historyService.getLatestStatusDates(
+      'recommendation',
+      recommendation._id
+    );
+    const statusDates = {
+      recommended: historyDates.recommended || recommendation.createdAt,
+      resulted: now,
+    };
+    if (historyDates.interviewing) statusDates.interviewing = historyDates.interviewing;
+    set.statusDates = statusDates;
+  }
+
+  // updateOne (not save) so legacy documents missing the now-required
+  // position/project fields aren't blocked by model validation.
+  await Recommendation.updateOne({ _id: recommendation._id }, { $set: set });
+
+  await historyService.logEntityEvent({
+    entityType: 'recommendation',
+    entityId: recommendation._id,
+    userId: user._id,
+    statusKey: 'resulted',
+    action,
+  });
+};
 
 // A placed intern is out of the pipeline: any of their still-open
 // recommendations are moot, so resolve them as not_placed with an
@@ -595,57 +717,91 @@ const closeActiveRecommendationsForIntern = async (
   };
   if (excludeRecommendationId) filter._id = { $ne: excludeRecommendationId };
 
-  // Per-document (not a blind updateMany) so each auto-close also gets its
-  // append-only history row and complete statusDates — otherwise the table
-  // (history-backed for legacy records) and the cards disagree on the
-  // Resulted date, and the audit trail silently misses the close.
   const toClose = await Recommendation.find(filter).select('_id status statusDates createdAt');
   const now = new Date();
 
   for (const recommendation of toClose) {
-    const set = {
-      status: 'resulted',
-      result: {
-        outcome: 'not_placed',
-        note: 'Closed automatically because the intern was placed.',
-        decidedAt: now,
-        decidedBy: user._id,
-      },
-      updatedBy: user._id,
-    };
-
-    if (recommendation.statusDates?.recommended) {
-      // Stamp the stage date so the auto-close shows on the status timeline
-      // like any other resulted recommendation.
-      set['statusDates.resulted'] = now;
-    } else {
-      // Records that predate statusDates: seed the earlier stages from the
-      // history log (same as updateRecommendation) so the document carries a
-      // complete set, not just the resulted date.
-      const historyDates = await historyService.getLatestStatusDates(
-        'recommendation',
-        recommendation._id
-      );
-      const statusDates = {
-        recommended: historyDates.recommended || recommendation.createdAt,
-        resulted: now,
-      };
-      if (historyDates.interviewing) statusDates.interviewing = historyDates.interviewing;
-      set.statusDates = statusDates;
-    }
-
-    // updateOne (not save) so legacy documents missing the now-required
-    // position/project fields aren't blocked by model validation.
-    await Recommendation.updateOne({ _id: recommendation._id }, { $set: set });
-
-    await historyService.logEntityEvent({
-      entityType: 'recommendation',
-      entityId: recommendation._id,
-      userId: user._id,
-      statusKey: 'resulted',
+    await resolveAsNotPlaced(recommendation, user, {
+      note: 'Closed automatically because the intern was placed.',
+      // The intern was placed — that IS a decision about them, and the
+      // opportunity they lost was lost to their own better one.
+      demandEnded: false,
       action: 'Status set to Resulted (closed automatically because the intern was placed)',
+      now,
     });
   }
+};
+
+// The intern is no longer in a process, so they belong back on the ready bench
+// owing attendance again — the same reset `updateRecommendation` runs inline for
+// an admin's own not_placed decision.
+//
+// Scoped to `active` profiles, which is where that reset and this one differ, on
+// purpose: an admin resolving someone's own recommendation as not_placed is
+// undoing that person's placement, but this cascade only ever touches processes
+// the intern was still *in*. Someone already `placed` is placed on something
+// else, and demand ending elsewhere must not take that away — nor the
+// attendance exemption that rides on it.
+const returnInternsToBench = async (internProfileIds) => {
+  const profiles = await InternProfile.find({
+    _id: { $in: internProfileIds },
+    status: 'active',
+  });
+
+  for (const profile of profiles) {
+    profile.status = READY_STATUS;
+    profile.placedAt = null;
+    await profile.save();
+  }
+};
+
+/**
+ * The close-out cascade: everyone still in selection for demand that has ended
+ * is resolved as `not_placed`, marked `demandEnded`, with one shared reason.
+ *
+ * Called when a staffing request is closed for any of its three reasons, and
+ * (ticket 10) when a requested position is changed or removed — hence
+ * `positionIds`, which narrows the cascade to the positions whose demand
+ * actually went away. Placed interns are never touched, because placement is a
+ * fact about the intern rather than about the demand.
+ *
+ * The actor may be a leadership user, not only an admin: cancelling is
+ * leadership-only, and this is the one path on which a non-admin writes to
+ * recommendations. `result.decidedBy` records them, which is correct — they did
+ * decide it (see `.claude/docs/security.md`).
+ *
+ * Returns how many records were closed out, which is what the caller names in
+ * the request's history event.
+ */
+const closeOutRecommendationsForDemandEnd = async (
+  user,
+  { staffingRequestId, positionIds, reason, action }
+) => {
+  const tagged = await Recommendation.find({
+    staffingRequest: staffingRequestId,
+    status: { $in: ACTIVE_PIPELINE_STATUSES },
+  }).select('_id internProfile position status statusDates createdAt');
+
+  const toCloseOut = selectCloseOutRecommendations(tagged, positionIds);
+  if (toCloseOut.length === 0) return { closedOutCount: 0 };
+
+  const now = new Date();
+  for (const recommendation of toCloseOut) {
+    await resolveAsNotPlaced(recommendation, user, {
+      note: reason,
+      demandEnded: true,
+      action,
+      now,
+    });
+  }
+
+  await returnInternsToBench([
+    ...new Set(toCloseOut.map((recommendation) => String(recommendation.internProfile))),
+  ]);
+
+  emitInternDataChanged();
+
+  return { closedOutCount: toCloseOut.length };
 };
 
 const updateRecommendation = async (user, recommendationId, payload = {}) => {
@@ -902,6 +1058,12 @@ const formatOwnRecommendation = (recommendation, historyDates = {}) => {
       outcome: recommendation.result?.outcome || null,
       decidedAt: recommendation.result?.decidedAt || null,
       startDate: recommendation.result?.startDate || null,
+      // `result.note` stays withheld here, as it always has: the reason behind
+      // a close-out is written for admins, leadership and mentors. This boolean
+      // is what the intern gets instead, and it carries no free text — with it
+      // their card says the opportunity closed before a decision was made about
+      // them, without it "not placed" would claim they were turned down.
+      demandEnded: Boolean(recommendation.result?.demandEnded),
     },
     updatedAt: recommendation.updatedAt,
   };
@@ -953,8 +1115,10 @@ module.exports = {
   listRecommendations,
   getRecommendation,
   createRecommendation,
+  createRecommendationsForStaffingRequest,
   updateRecommendation,
   deleteRecommendation,
   closeActiveRecommendationsForIntern,
+  closeOutRecommendationsForDemandEnd,
   listOwnRecommendations,
 };

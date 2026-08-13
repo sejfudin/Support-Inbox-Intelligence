@@ -18,6 +18,7 @@ import {
   CalendarDays,
   CalendarClock,
   Target,
+  TrendingUp,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -48,6 +49,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLogoutUser } from '@/queries/auth';
 import { useMyInvitations } from '@/queries/invitations';
+import { useStaffingRequestNews } from '@/queries/staffingRequests';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
@@ -181,6 +183,10 @@ export default function AppSidebar() {
   const { setOpenMobile, isMobile, state, toggleSidebar } = useSidebar();
   const { data: invitations = [] } = useMyInvitations();
   const pendingCount = invitations.length;
+  // Admin-only route (`requireRole(ADMIN, LEADERSHIP)`); gate the query so a
+  // mentor/intern sidebar never fires a request that would 403.
+  const { data: staffingNews } = useStaffingRequestNews({ enabled: isAdmin(user?.role) });
+  const staffingRequestsBadge = staffingNews?.count > 0 ? staffingNews.count : undefined;
 
   // Tooltips replace labels only in the desktop rail — the mobile sheet always
   // shows the full-width sidebar, so it must keep its labels.
@@ -229,6 +235,10 @@ export default function AppSidebar() {
 
   const internNav = isIntern(user?.role)
     ? [
+        // First in the group: it is the read-only overview of everything the
+        // programme records about them, and the two rows below it are the parts they
+        // can act on (declare a technology, check in).
+        { label: 'My Progress', to: '/my-progress', icon: TrendingUp },
         { label: 'Position & Technologies', to: '/my-technologies', icon: Code2 },
         { label: 'Attendance', to: '/my-attendance', icon: CalendarCheck },
       ]
@@ -270,6 +280,12 @@ export default function AppSidebar() {
           label: 'Specialization',
           to: '/specialization',
           icon: Target,
+        },
+        {
+          label: 'Requests',
+          to: '/admin/staffing-requests',
+          icon: ClipboardList,
+          badge: staffingRequestsBadge,
         },
       ]
     : [];

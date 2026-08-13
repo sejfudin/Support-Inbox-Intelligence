@@ -17,6 +17,7 @@
     "seed:test": "node seeder/seedTestingData.js",
     "seed:demo": "node seeder/seedDemoData.js",
     "seed:recommendations": "node seeder/seedRecommendations.js",
+    "seed:staffing-requests": "node seeder/seedStaffingRequests.js",
     "seed:positions": "node seeder/seedPositions.js",
     "seed:technologies": "node seeder/seedTechnologies.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
@@ -29,6 +30,8 @@
     "migrate:development-merge": "node seeder/mergeDevelopmentToMaster.js",
     "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
     "cleanup:superseded-technologies": "node seeder/retireSupersededTechnologies.js",
+    "cleanup:superseded-positions": "node seeder/retireSupersededPositions.js",
+    "cleanup:discipline-technologies": "node seeder/retireDisciplineTechnologies.js",
     "cleanup:stale-workspace-pointers": "node seeder/cleanupStaleWorkspacePointers.js"
   },
   "dependencies": {
