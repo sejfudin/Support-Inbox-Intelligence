@@ -13,29 +13,42 @@ import {
 /**
  * Read-only per-intern attendance status for a single day (admin "By day" tab,
  * with a day picker so any weekday in the selected month can be inspected).
- * @param {{ roster: Array<object>, date: string }} props - date is 'yyyy-MM-dd'
+ * @param {{ roster: Array<object>, date: string, nonWorkingKeys?: Set<string> }} props
+ *   date is 'yyyy-MM-dd'. `nonWorkingKeys` must be passed, or a public holiday
+ *   reads as a cohort-wide absence here while the counts above the table — which
+ *   do get it — say otherwise.
  */
-export default function DailyAttendanceTable({ roster = [], date, onSelectIntern }) {
+const EMPTY_KEYS = new Set();
+
+export default function DailyAttendanceTable({
+  roster = [],
+  date,
+  onSelectIntern,
+  nonWorkingKeys = EMPTY_KEYS,
+}) {
   const day = useMemo(() => (date ? parseISO(date) : new Date()), [date]);
 
   const rows = useMemo(
     () =>
       roster
-        .map((row) => ({ ...row, day: internStatusOnDate(row, day) }))
+        .map((row) => ({ ...row, day: internStatusOnDate(row, day, nonWorkingKeys) }))
         .sort((a, b) => {
-          // Present first, then not-yet, then absent, then non-working.
+          // Present first, then remote, then not-yet, then absent, then non-working.
+          // Remote sits beside present because it is the same verdict — the day was
+          // worked — and an admin scanning the top of the list wants both together.
           const order = {
             [DAY_STATUS.PRESENT]: 0,
-            [DAY_STATUS.TODAY_PENDING]: 1,
-            [DAY_STATUS.ABSENT]: 2,
-            [DAY_STATUS.FUTURE]: 3,
-            [DAY_STATUS.WEEKEND]: 4,
+            [DAY_STATUS.REMOTE]: 1,
+            [DAY_STATUS.TODAY_PENDING]: 2,
+            [DAY_STATUS.ABSENT]: 3,
+            [DAY_STATUS.FUTURE]: 4,
+            [DAY_STATUS.WEEKEND]: 5,
           };
           const diff = (order[a.day.status] ?? 9) - (order[b.day.status] ?? 9);
           if (diff !== 0) return diff;
           return a.intern.fullname.localeCompare(b.intern.fullname);
         }),
-    [roster, day]
+    [roster, day, nonWorkingKeys]
   );
 
   return (
@@ -80,6 +93,8 @@ export default function DailyAttendanceTable({ roster = [], date, onSelectIntern
                   </Badge>
                 </td>
                 <td className="px-5 py-4 tabular-nums text-muted-foreground">
+                  {/* A remote day has no check-in time — its timestamp is when an
+                      admin approved it, which is not an arrival. */}
                   {row.day.status === DAY_STATUS.PRESENT
                     ? formatCheckInTime(row.day.checkInTime)
                     : '—'}

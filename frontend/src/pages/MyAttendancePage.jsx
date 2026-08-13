@@ -3,6 +3,7 @@ import PageHeading from '@/components/PageHeading';
 import CheckInCard from '@/components/attendance/CheckInCard';
 import AttendanceCalendar from '@/components/attendance/AttendanceCalendar';
 import AttendanceStat from '@/components/attendance/AttendanceStat';
+import RemoteWorkPanel from '@/components/attendance/RemoteWorkPanel';
 import { CalendarCheck, Flame, Percent, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMyAttendance, useCheckInToday, useCancelTodayCheckIn } from '@/queries/attendance';
@@ -24,6 +25,7 @@ export default function MyAttendancePage() {
   const placedAt = data?.placedAt ?? null;
   const nonWorkingDays = data?.nonWorkingDays ?? [];
   const startDate = data?.startDate ?? null;
+  const remoteDates = data?.remoteDates ?? [];
   // Current-month stats come from the server (start-date-prorated, and clamped at
   // `placedAt`); the calendar and streak are derived client-side from the full
   // record history. `attendanceRate` is null when nothing was owed — do NOT default
@@ -53,7 +55,10 @@ export default function MyAttendancePage() {
             subtitle={
               onProject
                 ? 'You are on a project, so you no longer record daily attendance. Your history up to that point is below.'
-                : 'Check in each day you come into the office. Your mentor and admins can see your attendance, but only you can record it.'
+                : // Admins only — mentors have no attendance view. Saying "your mentor"
+                  // here was untrue, and an intern who believed it would think a day
+                  // off had been seen by someone who cannot see it.
+                  'Check in each day you come into the office. Admins can see your attendance, but only you can record it.'
             }
             showMetaDivider
             meta={
@@ -134,12 +139,20 @@ export default function MyAttendancePage() {
                 />
               </div>
 
+              {/* Withdrawn once the intern is on a project: they no longer record
+                  attendance at all, so there is nothing to work remotely against.
+                  `recordedDates` are the days that already have attendance — the
+                  request calendar greys them out rather than letting the intern
+                  pick a day the server is bound to refuse. */}
+              {!onProject && <RemoteWorkPanel recordedDates={records.map((r) => r.date)} />}
+
               <AttendanceCalendar
                 records={records}
                 cancelledDates={cancelledDates}
                 placedAt={placedAt}
                 nonWorkingDays={nonWorkingDays}
                 startDate={startDate}
+                remoteDates={remoteDates}
               />
             </>
           )}

@@ -30,6 +30,7 @@ const recommendationRoutes = require('./routes/recommendations');
 const specializationRoutes = require('./routes/specializations');
 const dailyRoutes = require('./routes/dailies');
 const attendanceRoutes = require('./routes/attendance');
+const remoteWorkRoutes = require('./routes/remoteWork');
 const dashboardRoutes = require('./routes/dashboard');
 const { handleWebhook } = require('./controllers/github');
 
@@ -76,6 +77,7 @@ app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/specializations', specializationRoutes);
 app.use('/api/dailies', dailyRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/remote-work', remoteWorkRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 

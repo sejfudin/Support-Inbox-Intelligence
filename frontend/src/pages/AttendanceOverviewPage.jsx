@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'use-debounce';
 import { addDays, format, isWeekend, parseISO, startOfMonth, subMonths } from 'date-fns';
-import { Users, UserCheck, UserX, Percent, TriangleAlert, Star } from 'lucide-react';
+import { Users, UserCheck, UserX, Percent, TriangleAlert, Star, House } from 'lucide-react';
 import { PageShell, PageSection } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,9 @@ import AttendanceStat from '@/components/attendance/AttendanceStat';
 import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
 import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
 import InternAttendanceModal from '@/components/attendance/InternAttendanceModal';
+import RemoteWorkQueue from '@/components/attendance/RemoteWorkQueue';
 import { useAttendanceRoster } from '@/queries/attendance';
+import { useRemoteWorkRequests } from '@/queries/remoteWork';
 import { useHubs } from '@/queries/hubs';
 import {
   attendanceRateTextClass,
@@ -87,6 +89,11 @@ export default function AttendanceOverviewPage() {
   const { data: hubs = [] } = useHubs();
   const hubNames = hubs.map((h) => h.name);
 
+  // Shares its query key with RemoteWorkQueue's default fetch, so the two are one
+  // request — this only exists so the tab can carry the count without mounting it.
+  const { data: remoteWork } = useRemoteWorkRequests({ status: 'pending' });
+  const remotePendingCount = remoteWork?.pendingCount ?? 0;
+
   const roster = data?.roster ?? [];
   const nonWorkingKeys = useMemo(() => nonWorkingKeySet(data?.nonWorkingDays), [data]);
   const total = roster.length;
@@ -101,13 +108,17 @@ export default function AttendanceOverviewPage() {
     return { ...summarize(rates, rates.length), total };
   }, [roster, total]);
 
-  // Counts for the selected day (present / absent / not-yet).
+  // Counts for the selected day (present / remote / absent / not-yet). Remote is
+  // tracked apart from present rather than folded in: both worked the day, but an
+  // admin looking at a single day wants to know how many of them were in the
+  // office. The "Working" tile below adds the two back together.
   const dayCounts = useMemo(() => {
     const date = parseISO(day);
-    const acc = { present: 0, absent: 0, pending: 0 };
+    const acc = { present: 0, remote: 0, absent: 0, pending: 0 };
     roster.forEach((r) => {
       const { status } = internStatusOnDate(r, date, nonWorkingKeys);
       if (status === DAY_STATUS.PRESENT) acc.present += 1;
+      else if (status === DAY_STATUS.REMOTE) acc.remote += 1;
       else if (status === DAY_STATUS.ABSENT) acc.absent += 1;
       else if (status === DAY_STATUS.TODAY_PENDING) acc.pending += 1;
     });
@@ -122,8 +133,9 @@ export default function AttendanceOverviewPage() {
         <PageHeading
           kicker="Future Experts Program"
           title="Attendance"
-          subtitle="Office attendance across interns, by month. This view is read-only — only interns can record their own check-ins."
-          titleAdornment={<Badge variant="outline">Read-only</Badge>}
+          // No longer wholly read-only: approving a remote-work request writes that
+          // intern's attendance for the day. Check-ins are still theirs alone.
+          subtitle="Office attendance across interns, by month. Only interns record their own check-ins — the one day you can record for them is an approved remote day."
         />
 
         {isError && (
@@ -146,6 +158,16 @@ export default function AttendanceOverviewPage() {
               </TabsTrigger>
               <TabsTrigger value="day" data-test="attendance-tab-day">
                 By day
+              </TabsTrigger>
+              <TabsTrigger value="remote" data-test="attendance-tab-remote">
+                Remote work
+                {/* The count is the whole point of surfacing it on the tab: a
+                    request nobody notices goes stale on the day it was for. */}
+                {remotePendingCount > 0 && (
+                  <Badge variant="warning" className="ml-2">
+                    {remotePendingCount}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -255,12 +277,21 @@ export default function AttendanceOverviewPage() {
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <AttendanceStat
-                  label="Present"
+                  label="In the office"
                   value={`${dayCounts.present} / ${total}`}
                   hint={format(parseISO(day), 'EEE, MMM d')}
                   icon={UserCheck}
                   valueClassName="text-emerald-600 dark:text-emerald-400"
                 />
+                {dayCounts.remote > 0 && (
+                  <AttendanceStat
+                    label="Remote"
+                    value={dayCounts.remote}
+                    hint="Approved remote work"
+                    icon={House}
+                    valueClassName="text-fuchsia-600 dark:text-fuchsia-400"
+                  />
+                )}
                 {dayIsToday && (
                   <AttendanceStat
                     label="Not yet in"
@@ -284,7 +315,16 @@ export default function AttendanceOverviewPage() {
                 <AttendanceStat label="Interns" value={total} hint="Total" icon={Users} />
               </div>
 
-              <DailyAttendanceTable roster={roster} date={day} onSelectIntern={setSelectedIntern} />
+              <DailyAttendanceTable
+                roster={roster}
+                date={day}
+                onSelectIntern={setSelectedIntern}
+                nonWorkingKeys={nonWorkingKeys}
+              />
+            </TabsContent>
+
+            <TabsContent value="remote" className="space-y-6">
+              <RemoteWorkQueue />
             </TabsContent>
           </Tabs>
         )}

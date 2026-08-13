@@ -14,6 +14,25 @@ import {
 // Monday-first week header. Weekend columns (Sat/Sun) are rendered disabled.
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Two different things are drawn in this colour, deliberately: a cohort-wide
+// remote week (a NON_WORKING day whose `kind` is 'remote') and an intern's own
+// approved remote day (DAY_STATUS.REMOTE). To the eye both mean "worked, not from
+// the office". They differ in the arithmetic — a remote week is owed by nobody, a
+// personal remote day counts as attended — and the tooltip is what says which
+// one a given cell is.
+//
+// **Fuchsia, and not blue.** Today (TODAY_PENDING) is drawn in `--primary`, and
+// `--primary` is theme-dependent: `styles/themes.css` ships primaries at hue 241
+// (indigo), 213/215 (slate), 199 (sky) and 187 (cyan). Any blue-family remote
+// colour is therefore the same colour as "today" in at least one theme, and close
+// to it in several. Fuchsia (~292) is the one band no theme's primary occupies
+// and no other attendance status claims — emerald is Present, red Absent, amber
+// On-project, grey Weekend. Do not move this back into the blues.
+const REMOTE_STYLE =
+  'bg-fuchsia-500/15 text-fuchsia-700 ring-1 ring-inset ring-fuchsia-500/30 dark:text-fuchsia-300';
+
+const REMOTE_KIND = 'remote';
+
 const STATUS_STYLES = {
   [DAY_STATUS.PRESENT]:
     'bg-emerald-500/15 text-emerald-700 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300',
@@ -35,22 +54,17 @@ const STATUS_STYLES = {
   // Before the intern joined: faintest of all, and deliberately not a filled cell —
   // these days are not part of their record at all.
   [DAY_STATUS.BEFORE_START]: 'text-muted-foreground/30',
+  // An approved remote-work day. Blue where a normal attended day is green — it
+  // counts identically, it just did not happen in the office.
+  [DAY_STATUS.REMOTE]: REMOTE_STYLE,
 };
-
-// A remote week is a NON_WORKING day like any other — it leaves the denominator
-// the same way — but it is the one kind the intern was still expected to *work*,
-// so it reads as its own thing rather than as a holiday.
-const REMOTE_STYLE =
-  'bg-sky-500/15 text-sky-700 ring-1 ring-inset ring-sky-500/30 dark:text-sky-300';
-
-const REMOTE_KIND = 'remote';
 
 const STATUS_DOT = {
   [DAY_STATUS.PRESENT]: 'bg-emerald-500',
   [DAY_STATUS.ABSENT]: 'bg-red-500',
   [DAY_STATUS.TODAY_PENDING]: 'bg-primary',
   [DAY_STATUS.EXEMPT]: 'bg-amber-500',
-  [REMOTE_KIND]: 'bg-sky-500',
+  [REMOTE_KIND]: 'bg-fuchsia-500',
 };
 
 function LegendItem({ dotClass, label }) {
@@ -68,8 +82,11 @@ function LegendItem({ dotClass, label }) {
  *   placedAt?: string|null }} props
  *   initialMonth - 'YYYY-MM' to open on; defaults to the current month.
  *   placedAt - the intern's first day on a real project. Every day from it onward is
- *     tinted blue and inert: they are no longer obliged to record attendance, so those
+ *     tinted amber and inert: they are no longer obliged to record attendance, so those
  *     days are not absences.
+ *   remoteDates - days approved as remote work. They are already in `records` (they
+ *     count towards the rate); this list is what makes them render blue rather than
+ *     green.
  */
 export default function AttendanceCalendar({
   records = [],
@@ -78,14 +95,24 @@ export default function AttendanceCalendar({
   placedAt = null,
   nonWorkingDays = [],
   startDate = null,
+  remoteDates = [],
 }) {
   const [cursor, setCursor] = useState(() =>
     initialMonth ? parseISO(`${initialMonth}-01`) : new Date()
   );
   const nonWorkingKeys = useMemo(() => nonWorkingKeySet(nonWorkingDays), [nonWorkingDays]);
   const { weeks, monthLabel } = useMemo(
-    () => buildMonthGrid(cursor, records, cancelledDates, placedAt, nonWorkingKeys, startDate),
-    [cursor, records, cancelledDates, placedAt, nonWorkingKeys, startDate]
+    () =>
+      buildMonthGrid(
+        cursor,
+        records,
+        cancelledDates,
+        placedAt,
+        nonWorkingKeys,
+        startDate,
+        remoteDates
+      ),
+    [cursor, records, cancelledDates, placedAt, nonWorkingKeys, startDate, remoteDates]
   );
   const atCurrentMonth = isSameMonth(cursor, new Date());
   const showsExempt = weeks.some((week) => week.some((cell) => cell?.status === DAY_STATUS.EXEMPT));
@@ -95,7 +122,11 @@ export default function AttendanceCalendar({
     .flat()
     .filter((cell) => cell?.status === DAY_STATUS.NON_WORKING)
     .map((cell) => nonWorkingKind(nonWorkingDays, format(cell.date, 'yyyy-MM-dd')));
-  const showsRemote = nonWorkingCells.includes(REMOTE_KIND);
+  // Either sort of blue cell — a cohort remote week or this intern's own approved
+  // remote day — earns the one "Remote" swatch.
+  const showsRemote =
+    nonWorkingCells.includes(REMOTE_KIND) ||
+    weeks.some((week) => week.some((cell) => cell?.status === DAY_STATUS.REMOTE));
   const showsNonWorking = nonWorkingCells.some((kind) => kind !== REMOTE_KIND);
 
   return (
@@ -174,7 +205,9 @@ export default function AttendanceCalendar({
                       ? nonWorkingLabel(nonWorkingDays, dayKey) || 'not a working day'
                       : status === DAY_STATUS.BEFORE_START
                         ? 'before joining the programme'
-                        : status.replace('-', ' ')
+                        : status === DAY_STATUS.REMOTE
+                          ? 'remote work'
+                          : status.replace('-', ' ')
                 }`}
                 data-test={`attendance-day-${dayKey}`}
                 data-status={status}

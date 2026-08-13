@@ -38,11 +38,16 @@ const CELL_CLASS = {
   // thing. Softer than present/absent because it carries no verdict.
   [DAY_STATUS.EXEMPT]: 'bg-amber-400/60',
   // Holiday or programme break — same reasoning. A remote week is non-working too
-  // but gets REMOTE_CELL, matching the calendar's blue.
+  // but gets REMOTE_CELL, matching the calendar's fuchsia.
   [DAY_STATUS.NON_WORKING]: 'bg-black/10',
+  // An approved remote day. Full strength like present and absent, because it
+  // carries a verdict too: the day is worked and counted. Fuchsia rather than a
+  // blue for the reason spelled out in AttendanceCalendar's REMOTE_STYLE — every
+  // blue collides with `--primary`, and `--primary` is what "today" is drawn in.
+  [DAY_STATUS.REMOTE]: 'bg-fuchsia-500 shadow-sm shadow-fuchsia-950/30',
 };
 
-const REMOTE_CELL = 'bg-sky-400/60';
+const REMOTE_CELL = 'bg-fuchsia-400/60';
 
 // How long today's cell keeps its just-claimed emphasis. Long enough to be seen
 // if you were looking at the button you pressed, short enough that it is over
@@ -129,6 +134,10 @@ export function AttendanceHeroCard({
   // nagging them for days they are not expected in.
   placedAt = null,
   nonWorkingDays = [],
+  startDate = null,
+  // Days approved as remote work. Already inside `records`, so they count towards
+  // the week tally either way — this is what colours them sky rather than green.
+  remoteDates = [],
   onCheckIn,
   isCheckingIn,
   className,
@@ -148,7 +157,9 @@ export function AttendanceHeroCard({
     cancelledDates,
     now,
     placedAt,
-    nonWorkingKeySet(nonWorkingDays)
+    nonWorkingKeySet(nonWorkingDays),
+    startDate,
+    remoteDates
   );
   const { present: weekPresent, elapsed: weekElapsed } = weekAttendance(week);
 

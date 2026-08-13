@@ -9,6 +9,7 @@ import {
   formatCheckInDate,
   isCheckedInToday,
   isExemptToday,
+  isRemoteToday,
 } from '@/helpers/attendance';
 
 const columnsFor = (rateLabel) => [
@@ -174,7 +175,11 @@ export default function AttendanceRosterTable({
               </tr>
             )}
             {sorted.map((row) => {
-              const inToday = isCheckedInToday(row.records);
+              // Remote is checked first: an approved remote day is in `records`
+              // too, so `isCheckedInToday` is true for it as well and would
+              // report working-from-home as an office check-in.
+              const remoteToday = isRemoteToday(row.remoteDates);
+              const inToday = !remoteToday && isCheckedInToday(row.records);
               return (
                 <tr
                   key={row.intern.id}
@@ -202,7 +207,9 @@ export default function AttendanceRosterTable({
                   </td>
                   {showToday && (
                     <td className="px-5 py-4">
-                      {inToday ? (
+                      {remoteToday ? (
+                        <Badge variant="info">Remote work</Badge>
+                      ) : inToday ? (
                         <Badge variant="success">Checked in</Badge>
                       ) : (
                         <Badge variant="outline">Not yet</Badge>

@@ -289,11 +289,13 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
 `helpers/attendance.js`, `api/attendance.js`, `queries/attendance.js`.
 
 - **Sparse storage — one document per intern per acted-on day** (`Attendance`: `intern` →
-  `InternProfile`, `date` as office-local `'YYYY-MM-DD'` string, `status: present | cancelled`,
-  `checkedInAt`, `hub`, `checkInIp`). Absent days are **not** stored — absence is the lack of a
-  record, derived at read time. A unique `{ intern, date }` index makes double check-ins
-  idempotent (concurrent inserts race safely) and keeps a day to a single row that check-in and
-  cancel flip between.
+  `InternProfile`, `date` as office-local `'YYYY-MM-DD'` string,
+  `status: present | cancelled | remote`, `checkedInAt`, `hub`, `checkInIp`, `remoteRequest`).
+  Absent days are **not** stored — absence is the lack of a record, derived at read time. A unique
+  `{ intern, date }` index makes double check-ins idempotent (concurrent inserts race safely) and
+  keeps a day to a single row that check-in, cancel and remote-approval all flip between.
+  **Numerators come from `Attendance.ATTENDED_STATUSES` (`present` + `remote`), never from
+  `status === 'present'`** — the latter silently drops remote days out of every percentage.
 - **Cancel unchecks the day, it does not lock it**: the record is flipped to `cancelled` (not
   deleted) and reads as absent, but `checkIn()` flips that same row back to `present` (re-stamping
   `checkedInAt`/`hub`/`checkInIp`) for as long as the check-in window is open — the window closing
@@ -334,10 +336,11 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
 - **`NonWorkingDay`** is the cohort-wide calendar of weekdays nobody owed — `{ date, label, kind }`
   where `kind` is `holiday | break | remote` (default `holiday`). `kind` is **presentation only**:
   every kind leaves the denominator identically, and nothing in the maths branches on it. It exists
-  so the calendar can colour a remote week blue against a holiday's grey, which the free-text
+  so the calendar can colour a remote week apart from a holiday's grey, which the free-text
   `label` can't be relied on to do. **Cohort-wide only** — per-intern days off (an intern requesting
   remote, calling in sick, taking leave) need their own per-intern model with a requester and an
   approval state; widening `kind` for them would exempt the whole cohort for one person's day.
+  The first of those per-intern models is `RemoteWorkRequest`, below.
 - **`attendanceRate` is `null`, never `0`, when nothing was owed** (`workingDays === 0`: a placed
   intern, or a month before the start date). "No obligation" and "attended nothing" are different
   facts, and a fabricated `0%` reads exactly like a real one. Every consumer must handle null —
@@ -353,9 +356,51 @@ routes/attendance.js}` + `server/helpers/attendanceTime.js`. Frontend:
   entirely) and
   `GET /api/attendance/:internProfileId` (**admin-only**, one intern's full history for the
   calendar modal, no status filter). Response envelope is the standard
-  `{ success, message, data }`, with `data` holding `{ attendance }` / `{ month, roster }`.
+  `{ success, message, data }`, with `data` holding `{ attendance }` / `{ month, roster,
+  nonWorkingDays }`. All three read payloads carry `remoteDates` alongside `records` and
+  `cancelledDates`.
 - The office-network **IP allowlist** guard (per-hub CIDR + `trust proxy`) is a deferred, optional
   step — `Attendance.checkInIp` is already captured for it.
+- **Mentors cannot see attendance at all.** Every non-`/me` route is `requireRole(ROLES.ADMIN)` and
+  there is no mentor-facing attendance surface. If one is ever added it needs per-mentor scoping
+  via `helpers/internAccess.js` — and the intern-facing copy on `MyAttendancePage`, which says
+  *admins* can see their attendance, has to change back.
+
+### Remote work requests
+
+An intern asks to work from home; an admin decides it. `server/{models/RemoteWorkRequest.js,
+services/remoteWorkService.js, controllers/remoteWork.js, routes/remoteWork.js}` +
+`server/helpers/remoteWorkRules.js` (pure, unit-tested in `remoteWorkRules.test.js`). Frontend:
+`components/attendance/{RemoteWorkPanel,RemoteWorkQueue}.jsx`, `api/remoteWork.js`,
+`queries/remoteWork.js`.
+
+- **A request covers 1–3 days (`dates`, stored sorted) and is decided as a unit.** Three bounds a
+  *request*, not an intern: wanting a fourth day means another request, and there is **no limit on
+  how many requests** may be open. That pairing is deliberate — an intern with exams all week files
+  two requests rather than being refused. Days need not be consecutive.
+- **Approval writes the attendance itself** — one `Attendance` row per day with `status: 'remote'`
+  and `remoteRequest` pointing back at the request. No check-in happens and the 07:00–11:00 window
+  does not apply; there is no office to arrive at. Approval **re-runs the day rules first**, because
+  the intern may have been placed, or the day become a holiday, between asking and answering.
+- **A remote day counts as attended.** It is merged into the `records` list every numerator already
+  counts and surfaced separately as `remoteDates` purely so the client can colour it — which is what
+  lets `computeMonthStats` stay untouched and shared with the admin dashboard.
+- **Statuses**: `pending | approved | rejected | cancelled | revoked`. `pending` and `approved` are
+  *live* and hold their days against re-requesting; the rest release them, so a refused day can be
+  asked for again. Revoke is a state, never a delete — it removes the rows it wrote
+  (`deleteMany({ remoteRequest })`, never by `{ intern, date }`, so a real check-in can't be caught).
+- **Requestable days**: today or a future working day, not a weekend, not a `NonWorkingDay`, not
+  before `startDate`, not on/after `placedAt`, not already recorded, not already claimed by a live
+  request. Past days are refused outright — otherwise a recorded absence could be relabelled as
+  remote work after the fact.
+- Endpoints: `GET|POST /api/remote-work/me`, `DELETE /api/remote-work/me/:id` (intern-self);
+  `GET /api/remote-work?status=pending|all`, `PATCH /api/remote-work/:id` (approve/reject),
+  `DELETE /api/remote-work/:id` (revoke) — **admin-only**.
+- **Colour**: a remote day is **fuchsia**, and must not be moved into the blues. "Today" is drawn in
+  `--primary`, which `styles/themes.css` sets to sky (199) and cyan (187) in two shipped themes — any
+  blue remote colour *is* the today colour for those users. Emerald/red/amber/grey are Present /
+  Absent / On-project / Weekend. A pending request also raises a pulsing amber dot on the admin's
+  Attendance nav row (`item.dot` in `AppSidebar.jsx`).
 
 ## Admin dashboard (workspace-scoped)
 

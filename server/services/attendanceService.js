@@ -14,7 +14,7 @@ const {
 const { computeMonthStats, isExemptOn, loadNonWorkingDays } = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
 
-const { PRESENT, CANCELLED } = Attendance;
+const { PRESENT, CANCELLED, REMOTE } = Attendance;
 
 // Which interns appear on the admin roster. Attendance is only meaningful for
 // interns currently in the programme, so terminal states (placed/completed/
@@ -30,21 +30,36 @@ const loadMyProfile = async (user) => {
   return profile;
 };
 
-// Split a set of raw attendance rows into the { records, cancelledDates } shape
-// the frontend consumes, plus the latest check-in timestamp.
+// Split a set of raw attendance rows into the { records, cancelledDates,
+// remoteDates } shape the frontend consumes, plus the latest check-in timestamp.
+//
+// An approved remote day lands in BOTH `records` and `remoteDates`, on purpose:
+// `records` is the attended-days list every rate is computed from, so remote days
+// belong in it (working from home is work), while `remoteDates` exists only so the
+// client can paint those same days blue instead of green. Keeping the numerator in
+// one list is what lets `computeMonthStats` stay untouched — and it is shared with
+// the admin dashboard, which would otherwise have to learn about remote days too.
 const splitRows = (rows) => {
   const records = [];
   const cancelledDates = [];
+  const remoteDates = [];
   let lastCheckIn = null;
   for (const row of rows) {
     if (row.status === CANCELLED) {
       cancelledDates.push(row.date);
-    } else {
-      records.push({ date: row.date, checkedInAt: row.checkedInAt });
-      if (!lastCheckIn || row.checkedInAt > lastCheckIn) lastCheckIn = row.checkedInAt;
+      continue;
     }
+    records.push({ date: row.date, checkedInAt: row.checkedInAt });
+    if (row.status === REMOTE) {
+      remoteDates.push(row.date);
+      // Deliberately not a candidate for `lastCheckIn`: nobody checked in. The
+      // timestamp on a remote row is when an admin approved it, and surfacing
+      // that under "Last check-in" would misreport an approval as an arrival.
+      continue;
+    }
+    if (!lastCheckIn || row.checkedInAt > lastCheckIn) lastCheckIn = row.checkedInAt;
   }
-  return { records, cancelledDates, lastCheckIn };
+  return { records, cancelledDates, remoteDates, lastCheckIn };
 };
 
 // The intern's own summary returns their full history (the calendar pages
@@ -56,12 +71,13 @@ const splitRows = (rows) => {
 // it needs the boundary, not just this month's totals.
 const buildSummary = async (profile) => {
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
-  const { records, cancelledDates } = splitRows(rows);
+  const { records, cancelledDates, remoteDates } = splitRows(rows);
   const monthKey = officeMonthKey();
   const nonWorking = await loadNonWorkingDays();
   return {
     records,
     cancelledDates,
+    remoteDates,
     placedAt: profile.placedAt || null,
     // The calendar pages back through the intern's whole history client-side, so it
     // needs the start date too — without it every month before they joined renders
@@ -134,6 +150,11 @@ const checkIn = async (user, { ip } = {}) => {
   if (existing) {
     // Cancelled earlier today → this is a genuine new check-in, so re-stamp the
     // row. Already present → leave it exactly as it is (idempotent).
+    //
+    // Already REMOTE is the third case and also leaves the row alone: the day is
+    // approved remote and already counts, so a check-in has nothing to add.
+    // Flipping it to `present` here would look harmless and would quietly orphan
+    // the approval — the row's `remoteRequest` link is what revoke matches on.
     if (existing.status === CANCELLED) await markPresent(existing, { now, user, ip });
     return buildSummary(profile);
   }
@@ -190,11 +211,12 @@ const toInternSummary = (profile) => {
 };
 
 const buildRosterEntry = (profile, rows, monthKey, nonWorkingKeys) => {
-  const { records, cancelledDates, lastCheckIn } = splitRows(rows);
+  const { records, cancelledDates, remoteDates, lastCheckIn } = splitRows(rows);
   return {
     intern: toInternSummary(profile),
     records,
     cancelledDates,
+    remoteDates,
     placedAt: profile.placedAt || null,
     startDate: profile.startDate || null,
     ...computeMonthStats(records, monthKey, profile.startDate, profile.placedAt, nonWorkingKeys),
@@ -281,13 +303,14 @@ const getInternAttendance = async (internProfileId, month) => {
   if (!profile || !profile.user) throw httpError('Intern not found.', 404);
 
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
-  const { records, cancelledDates } = splitRows(rows);
+  const { records, cancelledDates, remoteDates } = splitRows(rows);
   const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
   const nonWorking = await loadNonWorkingDays();
   return {
     intern: toInternSummary(profile),
     records,
     cancelledDates,
+    remoteDates,
     placedAt: profile.placedAt || null,
     startDate: profile.startDate || null,
     nonWorkingDays: nonWorking.list,
@@ -304,4 +327,7 @@ module.exports = {
   cancelCheckIn,
   getRoster,
   getInternAttendance,
+  // Exported for remoteWorkService, which anchors requests on the same profile
+  // this module does. One-directional: nothing here reaches back into it.
+  loadMyProfile,
 };

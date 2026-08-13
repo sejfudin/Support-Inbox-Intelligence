@@ -22,6 +22,11 @@ export const DAY_STATUS = Object.freeze({
   WEEKEND: 'weekend',
   FUTURE: 'future',
   TODAY_PENDING: 'today-pending', // a working today with no check-in yet
+  // An approved remote-work day. Counts exactly like PRESENT in every rate — the
+  // server puts it in `records` alongside real check-ins — and exists as a status
+  // of its own purely so the day can be shown blue and named "remote work"
+  // instead of green and "Present".
+  REMOTE: 'remote',
   // On or after the intern's first day on a real project: they are no longer
   // obliged to record attendance, so the day is inert and greyed out like a
   // weekend — never an absence.
@@ -135,6 +140,7 @@ export const nonWorkingKind = (nonWorkingDays = [], key) => {
  * @param {Set<string>} [nonWorkingKeys] - 'yyyy-MM-dd' nobody was expected to attend
  * @param {string|Date|null} [startDate] - the intern's first day in the programme;
  *   anything before it was never owed
+ * @param {Set<string>} [remoteKeys] - 'yyyy-MM-dd' approved as remote work
  */
 export const classifyDay = (
   date,
@@ -143,7 +149,8 @@ export const classifyDay = (
   now = new Date(),
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
-  startDate = null
+  startDate = null,
+  remoteKeys = EMPTY_KEYS
 ) => {
   const key = toKey(date);
   // Checked ahead of everything else, including PRESENT: once an intern is on a
@@ -154,6 +161,11 @@ export const classifyDay = (
   // Also ahead of PRESENT: the day was not owed, so a check-in on it is not
   // attendance that counts — the server drops it from the rate for the same reason.
   if (nonWorkingKeys.has(key)) return DAY_STATUS.NON_WORKING;
+  // Above PRESENT because a remote day is in `records` too — the server keeps it
+  // there so the rate counts it — and whichever of the two is checked first is the
+  // one the cell shows. Below NON_WORKING because a cohort holiday outranks it:
+  // that day was owed by nobody, so it is not remote work, it is no work.
+  if (remoteKeys.has(key)) return DAY_STATUS.REMOTE;
   // After PRESENT would hide a genuine record; before ABSENT is the whole point.
   // A record cannot legitimately predate `startDate` (the importer pulls the start
   // back to the first attended day), so this ordering loses nothing.
@@ -192,10 +204,12 @@ export const buildMonthGrid = (
   cancelledDates = [],
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
-  startDate = null
+  startDate = null,
+  remoteDates = []
 ) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
+  const remoteKeys = new Set(remoteDates);
   const start = startOfMonth(monthDate);
   const end = endOfMonth(monthDate);
   const days = eachDayOfInterval({ start, end });
@@ -215,7 +229,8 @@ export const buildMonthGrid = (
         new Date(),
         placedAt,
         nonWorkingKeys,
-        startDate
+        startDate,
+        remoteKeys
       ),
     })
   );
@@ -267,10 +282,12 @@ export const buildWeekStrip = (
   now = new Date(),
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
-  startDate = null
+  startDate = null,
+  remoteDates = []
 ) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
+  const remoteKeys = new Set(remoteDates);
   // Anchored on the office calendar's today, not the browser's, so the strip shows
   // the week Sarajevo is in and its keys match the stored records.
   const monday = officeToday(now);
@@ -291,7 +308,8 @@ export const buildWeekStrip = (
         now,
         placedAt,
         nonWorkingKeys,
-        startDate
+        startDate,
+        remoteKeys
       ),
     };
   });
@@ -313,7 +331,12 @@ export const weekAttendance = (weekStrip = []) => {
   ];
   const working = weekStrip.filter((day) => !INERT.includes(day.status));
   return {
-    present: working.filter((day) => day.status === DAY_STATUS.PRESENT).length,
+    // Remote days count here for the same reason they count in the server's
+    // numerator: the intern worked. A remote week that read "0 of 5 days in"
+    // would contradict the 100% the same page shows.
+    present: working.filter(
+      (day) => day.status === DAY_STATUS.PRESENT || day.status === DAY_STATUS.REMOTE
+    ).length,
     elapsed: working.filter((day) => day.status !== DAY_STATUS.FUTURE).length,
     workingDays: working.length,
   };
@@ -356,6 +379,15 @@ export const isCheckedInToday = (records = []) => Boolean(todayRecord(records));
 
 /** Whether the intern cancelled today's check-in (may still re-check-in while open). */
 export const isCancelledToday = (cancelledDates = []) => cancelledDates.includes(officeDateKey());
+
+/**
+ * Whether today is an approved remote-work day.
+ *
+ * Note that `isCheckedInToday` is ALSO true on such a day — a remote day is in
+ * `records` so that it counts — so anywhere both are shown, check this first or
+ * the day reports as an ordinary office check-in.
+ */
+export const isRemoteToday = (remoteDates = []) => remoteDates.includes(officeDateKey());
 
 // Check-in is only open 07:00–11:00 office time (Europe/Sarajevo), regardless of
 // where the browser is. This mirrors server/helpers/attendanceTime.js for UX only
@@ -401,6 +433,7 @@ export const formatCheckInDate = (iso) => (iso ? format(new Date(iso), 'MMM d, H
 export const internStatusOnDate = (entry, date, nonWorkingKeys = EMPTY_KEYS) => {
   const presentKeys = new Set((entry.records || []).map((r) => r.date));
   const cancelledKeys = new Set(entry.cancelledDates || []);
+  const remoteKeys = new Set(entry.remoteDates || []);
   const status = classifyDay(
     date,
     presentKeys,
@@ -408,7 +441,8 @@ export const internStatusOnDate = (entry, date, nonWorkingKeys = EMPTY_KEYS) => 
     new Date(),
     entry.placedAt || null,
     nonWorkingKeys,
-    entry.startDate || null
+    entry.startDate || null,
+    remoteKeys
   );
   const rec = (entry.records || []).find((r) => r.date === toKey(date));
   return { status, checkInTime: rec?.checkedInAt || null };
@@ -424,6 +458,7 @@ export const dayStatusLabel = (status) =>
     [DAY_STATUS.EXEMPT]: 'On project',
     [DAY_STATUS.NON_WORKING]: 'Non-working',
     [DAY_STATUS.BEFORE_START]: 'Before joining',
+    [DAY_STATUS.REMOTE]: 'Remote work',
   })[status] || status;
 
 export const dayStatusBadgeVariant = (status) =>
@@ -436,4 +471,5 @@ export const dayStatusBadgeVariant = (status) =>
     [DAY_STATUS.EXEMPT]: 'outline',
     [DAY_STATUS.NON_WORKING]: 'outline',
     [DAY_STATUS.BEFORE_START]: 'outline',
+    [DAY_STATUS.REMOTE]: 'info',
   })[status] || 'secondary';

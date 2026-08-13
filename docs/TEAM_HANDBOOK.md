@@ -20,6 +20,7 @@
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth)
 - Only role that can set readiness (by technology or by position) for an intern
 - Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
+- Only role that approves remote work. An intern asks for 1–3 days at a time; approving records those days for them as remote (they don't check in), rejecting refuses the whole request, and an approval can be revoked later if it was a mistake. A remote day still counts as attendance — it shows in its own colour rather than green, and doesn't change the percentage. The Attendance sidebar item shows a pulsing dot while anything is waiting
 - Only role that can view the per-workspace Daily standup reporting dashboard (who reported today, calendar-month coverage grid, open blockers) — a read-only compliance view, not a data-entry surface
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
@@ -49,7 +50,7 @@
 - Can't see or set readiness (by technology or position) — admin-only now
 - Can't see or create recommendations, neither per-intern nor on the standalone "Recommendations" page — admin-only now
 - Can't see or manage the Specialization tab, but does get assigned-mentor access to an intern once paired as their specialization mentor
-- Can't see the attendance roster (intern attendance overview) — an intern's own check-in is untouched
+- Can't see the attendance roster (intern attendance overview) — an intern's own check-in is untouched. Mentors have no attendance view of any kind, so remote-work requests go to an admin, not to them
 - Can see the CV link on an intern's profile, but can't edit it — admin-only now
 - Can't change an intern's lifecycle status (active/ready/placed/completed/discontinued), even for their own assigned intern — admin-only now
 - Can manage documentation links on an intern profile
@@ -67,6 +68,7 @@
 - Sees no one else's recommendations or evaluations
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics
+- Can request remote work from the Attendance page: pick 1–3 days per request (they don't have to be consecutive), add an optional reason, and an admin approves or rejects the request as a whole. Need more than 3 days — an exam week, say — send another request; there's no limit on how many. A pending request can be withdrawn. An approved day counts as attendance without checking in, and shows in its own colour
 - Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then
 - No access to other interns', mentors', or admin/leadership data or functions
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
