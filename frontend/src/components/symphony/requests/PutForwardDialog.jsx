@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,18 +29,41 @@ const VISIBLE_TECHNOLOGY_CHIPS = 6;
 // already committed elsewhere is legitimate when a process falls through or a
 // stronger opportunity appears, and refusing it would only push an admin to
 // edit recommendations by hand.
+//
+// One project is named — it is short and it is the context an admin would
+// otherwise have to go look up. Two or more collapse to a count instead of a
+// comma-joined list, since a list of project names past the first stops being
+// something you read and starts being something you count anyway.
 const describeFlag = (flag) => {
-  const where = (flag.projects ?? []).join(', ');
-  if (flag.type === 'placed') {
-    return where ? `Placed on ${where}` : 'Already placed';
+  const projects = flag.projects ?? [];
+  const verb =
+    flag.type === 'placed' ? 'Placed on' : flag.type === 'in-selection' ? 'Put forward on' : null;
+  if (!verb) return null;
+  if (projects.length === 0) {
+    return { prefix: flag.type === 'placed' ? 'Already placed' : 'Put forward elsewhere' };
   }
-  if (flag.type === 'in-selection') {
-    return where ? `Put forward on ${where}` : 'Put forward elsewhere';
+  if (projects.length === 1) {
+    return { prefix: `${verb} ${projects[0]}` };
   }
-  return null;
+  return { prefix: `${verb} `, count: projects.length, suffix: ' other projects' };
 };
 
 const describeCandidate = (candidate) => (candidate.flags ?? []).map(describeFlag).filter(Boolean);
+
+// Rendered warning pieces, count bolded so the number an admin actually
+// weighs a conflict on doesn't read as flat as the project names beside it.
+const CandidateWarnings = ({ warnings }) => (
+  <>
+    {warnings.map((warning, index) => (
+      <span key={index}>
+        {index > 0 && ' · '}
+        {warning.prefix}
+        {warning.count != null && <strong className="font-bold">{warning.count}</strong>}
+        {warning.suffix}
+      </span>
+    ))}
+  </>
+);
 
 const toPick = (candidate) => ({
   id: candidate.internProfile,
@@ -99,7 +122,7 @@ const CandidateRow = ({ candidate, staged, onToggle }) => {
             <>
               {(meta || candidate.position || candidate.email) && ' · '}
               <span className="font-medium text-amber-700 dark:text-amber-300">
-                {warnings.join(' · ')}
+                <CandidateWarnings warnings={warnings} />
               </span>
             </>
           )}
@@ -136,7 +159,6 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
   const [search, setSearch] = useState('');
   const [technologyFilters, setTechnologyFilters] = useState([]);
   const [showAllTechnologies, setShowAllTechnologies] = useState(false);
-  const [showConflicts, setShowConflicts] = useState(false);
   // The shortlist being assembled — `{ [internProfileId]: pick }`, so a row can
   // answer "am I in?" without scanning an array on every render.
   const [draft, setDraft] = useState({});
@@ -164,7 +186,6 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
     setSearch('');
     setTechnologyFilters([]);
     setShowAllTechnologies(false);
-    setShowConflicts(false);
     setDraft(Object.fromEntries((cart[positionId] ?? []).map((pick) => [pick.id, pick])));
     // `cart` is read but deliberately not a dependency: it seeds the draft on
     // open, and re-running on every cart write would discard an edit in progress.
@@ -230,9 +251,20 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
 
   const hiddenTechnologyCount = technologyOptions.length - visibleTechnologies.length;
 
-  const { available, conflicted } = useMemo(() => {
+  // Unassigned interns are the point of this dialog — someone free to take the
+  // seat outright — so they lead the list. Anyone with a conflict still shows,
+  // right below, rather than behind a fold: it is a warning the admin can act
+  // past, not a reason to hide the person.
+  const candidates = useMemo(() => {
     let all = (data?.candidates ?? []).filter(
-      (candidate) => !stagedElsewhere.has(candidate.internProfile)
+      (candidate) =>
+        !stagedElsewhere.has(candidate.internProfile) &&
+        // Already placed on a project is a different thing than already put
+        // forward: put-forward is still open-ended, but a placed intern has a
+        // seat, and this dialog is for finding one, not for pulling someone off
+        // one. They stay pickable everywhere else in the app — just not surfaced
+        // as a suggestion here.
+        !(candidate.flags ?? []).some((flag) => flag.type === 'placed')
     );
 
     const term = search.trim().toLowerCase();
@@ -249,10 +281,9 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
       );
     }
 
-    return {
-      available: all.filter((candidate) => describeCandidate(candidate).length === 0),
-      conflicted: all.filter((candidate) => describeCandidate(candidate).length > 0),
-    };
+    const unassigned = all.filter((candidate) => describeCandidate(candidate).length === 0);
+    const conflicted = all.filter((candidate) => describeCandidate(candidate).length > 0);
+    return [...unassigned, ...conflicted];
   }, [data, search, technologyFilters, stagedElsewhere]);
 
   const toggleTechnology = (name) =>
@@ -443,23 +474,21 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
                   className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground"
                   data-test="picker-available-count"
                 >
-                  Available · {available.length}
+                  {candidates.length} {candidates.length === 1 ? 'intern' : 'interns'}
                 </p>
                 {/* Says what the server actually does (`staffingRequestService`
                     sorts clean candidates by name) — a "best match" label with
                     no scoring behind it would be a promise the list breaks. */}
-                <p className="text-xs text-muted-foreground">Sorted by name</p>
+                <p className="text-xs text-muted-foreground">Unassigned first, then by name</p>
               </div>
 
-              {available.length === 0 ? (
+              {candidates.length === 0 ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                  {hasFilters
-                    ? 'No intern matches those filters.'
-                    : 'No intern can be put forward without a conflict.'}
+                  {hasFilters ? 'No intern matches those filters.' : 'No interns to put forward.'}
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {available.map((candidate) => (
+                  {candidates.map((candidate) => (
                     <CandidateRow
                       key={candidate.internProfile}
                       candidate={candidate}
@@ -468,48 +497,6 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
                     />
                   ))}
                 </ul>
-              )}
-
-              {/* Conflicts are folded away rather than filtered out: they are
-                  warnings, not blocks, so the admin has to be able to reach
-                  them — but they used to outnumber the clean rows and drown
-                  the people who can simply be picked. */}
-              {conflicted.length > 0 && (
-                <div className="mt-4 overflow-hidden rounded-xl border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setShowConflicts((current) => !current)}
-                    aria-expanded={showConflicts}
-                    className="flex w-full items-center gap-2 bg-muted/40 px-3 py-2.5 text-left hover:bg-muted/60"
-                    data-test="picker-conflicts-toggle"
-                  >
-                    <ChevronDown
-                      className={cn(
-                        'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-                        showConflicts ? '' : '-rotate-90'
-                      )}
-                      aria-hidden="true"
-                    />
-                    <span className="text-sm font-semibold text-foreground">
-                      {conflicted.length} with conflicts
-                    </span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      already placed or put forward elsewhere
-                    </span>
-                  </button>
-                  {showConflicts && (
-                    <ul className="space-y-2 p-3">
-                      {conflicted.map((candidate) => (
-                        <CandidateRow
-                          key={candidate.internProfile}
-                          candidate={candidate}
-                          staged={stagedIds.has(candidate.internProfile)}
-                          onToggle={toggleCandidate}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                </div>
               )}
             </>
           )}
