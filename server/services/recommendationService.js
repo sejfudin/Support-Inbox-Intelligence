@@ -570,9 +570,9 @@ const createRecommendationsForStaffingRequest = async (
   assertRecommendationWriteAccess(user);
 
   const recommendedAt = new Date();
-  const created = await Recommendation.insertMany(
-    groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
-      internProfileIds.map((internProfileId) => ({
+  const pending = groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
+    internProfileIds.map((internProfileId) => ({
+      document: {
         internProfile: internProfileId,
         createdBy: user._id,
         updatedBy: user._id,
@@ -582,9 +582,12 @@ const createRecommendationsForStaffingRequest = async (
         technologies: technologyIds,
         status: 'recommended',
         statusDates: { recommended: recommendedAt },
-      }))
-    )
+      },
+      internProfileId,
+      positionId,
+    }))
   );
+  const created = await Recommendation.insertMany(pending.map(({ document }) => document));
 
   await Promise.all(
     created.map((recommendation) =>
@@ -592,6 +595,36 @@ const createRecommendationsForStaffingRequest = async (
     )
   );
   emitInternDataChanged();
+
+  // `insertMany` bypasses the populated document returned by the ad-hoc create
+  // path, so resolve the small label/recipient lookup in bulk and fan out the
+  // same notification explicitly. Keeping it here makes every recommendation
+  // creation path uphold the same user-facing contract.
+  try {
+    const [profiles, positions, project] = await Promise.all([
+      InternProfile.find({ _id: { $in: pending.map((item) => item.internProfileId) } })
+        .select('_id user')
+        .lean(),
+      Position.find({ _id: { $in: pending.map((item) => item.positionId) } })
+        .select('_id name')
+        .lean(),
+      Project.findById(projectId).select('name').lean(),
+    ]);
+    const profilesById = new Map(profiles.map((profile) => [String(profile._id), profile]));
+    const positionsById = new Map(positions.map((position) => [String(position._id), position]));
+    for (const item of pending) {
+      const profile = profilesById.get(String(item.internProfileId));
+      if (!profile?.user) continue;
+      internNotificationService.notifyRecommendationCreated({
+        internUserId: profile.user,
+        internProfileId: profile._id,
+        position: positionsById.get(String(item.positionId))?.name,
+        project: project?.name,
+      });
+    }
+  } catch (err) {
+    console.error('[recommendationService] bulk notification lookup failed:', err.message);
+  }
 
   return created;
 };
@@ -780,7 +813,7 @@ const closeOutRecommendationsForDemandEnd = async (
   const tagged = await Recommendation.find({
     staffingRequest: staffingRequestId,
     status: { $in: ACTIVE_PIPELINE_STATUSES },
-  }).select('_id internProfile position status statusDates createdAt');
+  }).select('_id internProfile position project status statusDates createdAt');
 
   const toCloseOut = selectCloseOutRecommendations(tagged, positionIds);
   if (toCloseOut.length === 0) return { closedOutCount: 0 };
@@ -800,6 +833,32 @@ const closeOutRecommendationsForDemandEnd = async (
   ]);
 
   emitInternDataChanged();
+
+  try {
+    const [profiles, projects] = await Promise.all([
+      InternProfile.find({
+        _id: { $in: toCloseOut.map((recommendation) => recommendation.internProfile) },
+      })
+        .select('_id user')
+        .lean(),
+      Project.find({ _id: { $in: toCloseOut.map((recommendation) => recommendation.project) } })
+        .select('_id name')
+        .lean(),
+    ]);
+    const profilesById = new Map(profiles.map((profile) => [String(profile._id), profile]));
+    const projectsById = new Map(projects.map((project) => [String(project._id), project]));
+    for (const recommendation of toCloseOut) {
+      const profile = profilesById.get(String(recommendation.internProfile));
+      if (!profile?.user) continue;
+      internNotificationService.notifyRecommendationNotPlaced({
+        internUserId: profile.user,
+        internProfileId: profile._id,
+        project: projectsById.get(String(recommendation.project))?.name,
+      });
+    }
+  } catch (err) {
+    console.error('[recommendationService] close-out notification lookup failed:', err.message);
+  }
 
   return { closedOutCount: toCloseOut.length };
 };

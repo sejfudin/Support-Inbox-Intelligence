@@ -3,12 +3,9 @@ const Project = require('../models/Project');
 const { PROJECT_STATUSES, PROJECT_TYPES } = require('../models/Project');
 const Technology = require('../models/Technology');
 const Recommendation = require('../models/Recommendation');
-const Position = require('../models/Position');
-const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { slugify } = require('../helpers/slugify');
 const { httpError } = require('../helpers/httpError');
-const internNotificationService = require('./internNotificationService');
 
 // Same two-role read gate as recommendations (recommendationService.js
 // READ_ROLES) — leadership is stakeholder-facing read access, everyone else
@@ -323,54 +320,6 @@ const getProjectsOverview = async (user) => {
   };
 };
 
-/**
- * A leadership user asking admins to staff interns onto a project — the
- * first (and so far only) leadership write path in this domain; every other
- * route here is admin-only. Deliberately notify-only: no request is
- * persisted anywhere. A fuller tracked-request workflow (a queue admins can
- * mark fulfilled/dismissed) is separate, larger, future work — this is just
- * the button + the notification, so it doesn't compete with that.
- */
-const requestInternsForProject = async (user, projectId, { positionId, count, note } = {}) => {
-  if (!mongoose.Types.ObjectId.isValid(projectId)) throw httpError('Project not found', 404);
-  const project = await Project.findById(projectId).select('name isSystem');
-  if (!project || project.isSystem) throw httpError('Project not found', 404);
-
-  const trimmedNote = String(note || '').trim();
-  if (!trimmedNote) throw httpError('Describe what you need in the note', 400);
-  if (trimmedNote.length > 500) throw httpError('Note is too long (max 500 characters)', 400);
-
-  const safeCount = count === undefined || count === null || count === '' ? null : Number(count);
-  if (safeCount !== null && (!Number.isInteger(safeCount) || safeCount < 1 || safeCount > 50)) {
-    throw httpError('Count must be a whole number between 1 and 50', 400);
-  }
-
-  let positionLabel = null;
-  if (positionId) {
-    if (!mongoose.Types.ObjectId.isValid(positionId)) throw httpError('Invalid position', 400);
-    const position = await Position.findById(positionId).select('name');
-    if (!position) throw httpError('Invalid position', 400);
-    positionLabel = position.name;
-  }
-
-  const admins = await User.find({ role: ROLES.ADMIN, active: true, status: 'active' }).select(
-    '_id'
-  );
-
-  for (const admin of admins) {
-    internNotificationService.notifyInternRequestFromLeadership({
-      adminUserId: admin._id,
-      projectName: project.name,
-      requesterName: user.fullname,
-      positionLabel,
-      count: safeCount,
-      note: trimmedNote,
-    });
-  }
-
-  return { notifiedAdmins: admins.length };
-};
-
 module.exports = {
   getAllProjects,
   createProject,
@@ -378,5 +327,4 @@ module.exports = {
   getProjectById,
   getProjectOverview,
   getProjectsOverview,
-  requestInternsForProject,
 };

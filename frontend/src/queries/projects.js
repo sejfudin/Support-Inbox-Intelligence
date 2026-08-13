@@ -5,7 +5,6 @@ import {
   fetchProjectOverview,
   fetchProjects,
   fetchProjectsOverview,
-  requestInternsForProject,
   updateProject,
 } from '@/api/projects';
 
@@ -67,9 +66,3 @@ export const useUpdateProject = () => {
     },
   });
 };
-
-// No cache to invalidate — this is notify-only, nothing persisted to re-fetch.
-export const useRequestInternsForProject = () =>
-  useMutation({
-    mutationFn: ({ id, data }) => requestInternsForProject(id, data),
-  });

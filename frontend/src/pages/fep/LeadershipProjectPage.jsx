@@ -6,7 +6,7 @@ import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
 import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge';
-import { RequestInternsModal } from '@/components/projects/RequestInternsModal';
+import { RequestFormModal } from '@/components/symphony/requests/RequestFormModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -145,12 +145,7 @@ export default function LeadershipProjectPage() {
         )}
       </SymphonyPageHeader>
 
-      <RequestInternsModal
-        projectId={id}
-        projectName={project.name}
-        open={requestOpen}
-        onClose={() => setRequestOpen(false)}
-      />
+      <RequestFormModal open={requestOpen} onOpenChange={setRequestOpen} initialProject={project} />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <SectionStatTile

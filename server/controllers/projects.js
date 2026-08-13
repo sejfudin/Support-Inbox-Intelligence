@@ -50,22 +50,6 @@ exports.getProjectOverview = async (req, res, next) => {
   }
 };
 
-exports.requestInternsForProject = async (req, res, next) => {
-  try {
-    const result = await projectService.requestInternsForProject(req.user, req.params.id, {
-      positionId: req.body.positionId,
-      count: req.body.count,
-      note: req.body.note,
-    });
-    res.status(201).json({ success: true, message: 'Request sent to admins', data: result });
-  } catch (error) {
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({ success: false, message: error.message });
-    }
-    next(error);
-  }
-};
-
 exports.createProject = async (req, res, next) => {
   try {
     const project = await projectService.createProject(req.body);

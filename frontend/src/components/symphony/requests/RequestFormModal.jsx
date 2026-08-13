@@ -274,7 +274,13 @@ const toEditPayload = (values) => ({
  * position someone is placed against) is stopped here with the same sentence
  * the server would answer with.
  */
-export function RequestFormModal({ open, onOpenChange, request = null, onViewExisting }) {
+export function RequestFormModal({
+  open,
+  onOpenChange,
+  request = null,
+  initialProject = null,
+  onViewExisting,
+}) {
   const isEditing = Boolean(request);
   const { data: projectsData } = useProjects();
   const projects = projectsData?.data ?? projectsData ?? [];
@@ -320,11 +326,13 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
 
   useEffect(() => {
     if (!open) return;
-    reset(isEditing ? toFormValues(request) : defaultValues);
-    setSelectedProject(isEditing ? request.project : null);
+    reset(
+      isEditing ? toFormValues(request) : { ...defaultValues, projectId: initialProject?._id ?? '' }
+    );
+    setSelectedProject(isEditing ? request.project : initialProject);
     setDuplicateWarn(null);
     setImpactWarn(null);
-  }, [open, isEditing, request, reset]);
+  }, [open, isEditing, request, initialProject, reset]);
 
   const positionOptions = useMemo(() => positions?.data ?? positions ?? [], [positions]);
 

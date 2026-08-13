@@ -88,11 +88,20 @@ const notificationSchema = new mongoose.Schema(
       maxlength: 300,
       default: '',
     },
+    // Optional producer-owned idempotency key. Scheduled jobs use this to
+    // guarantee one logical notification even after a restart or when more
+    // than one API instance is polling the same job window.
+    dedupeKey: {
+      type: String,
+      trim: true,
+      default: undefined,
+    },
   },
   { timestamps: true }
 );
 
 notificationSchema.index({ recipient: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, read: 1 });
+notificationSchema.index({ dedupeKey: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Notification', notificationSchema);

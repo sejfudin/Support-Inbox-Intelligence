@@ -77,6 +77,7 @@ const dispatch = async ({
   fallback,
   promptBuilder,
   promptArgs,
+  dedupeKey,
 }) => {
   const recipientId = toId(internUserId);
   if (!recipientId) return;
@@ -85,14 +86,23 @@ const dispatch = async ({
     ? await tryWarm(promptBuilder, promptArgs, fallback)
     : fallback;
 
-  const notification = await Notification.create({
-    recipient: recipientId,
-    type,
-    title,
-    body,
-    internProfile: internProfileId || null,
-    link: link || '',
-  });
+  let notification;
+  try {
+    notification = await Notification.create({
+      recipient: recipientId,
+      type,
+      title,
+      body,
+      internProfile: internProfileId || null,
+      link: link || '',
+      dedupeKey,
+    });
+  } catch (err) {
+    // A unique scheduled-event key means another process/restarted scheduler
+    // already delivered it. That is a successful no-op, not an error.
+    if (dedupeKey && err?.code === 11000) return;
+    throw err;
+  }
 
   sendToUser(recipientId, 'new_notification', {
     notification: notification.toObject(),
@@ -372,7 +382,7 @@ const notifyDocumentationLinksUpdated = safe(async ({ internUserId, internProfil
 });
 
 const notifyDailyReminder = safe(
-  async ({ internUserId, internProfileId, missingAttendance, missingDaily }) => {
+  async ({ internUserId, internProfileId, missingAttendance, missingDaily, dateKey }) => {
     const missing = [
       missingAttendance ? 'check in for the day' : '',
       missingDaily ? "file today's standup note" : '',
@@ -394,6 +404,7 @@ const notifyDailyReminder = safe(
           "A gentle same-day reminder — the intern hasn't done one or more of today's routine programme tasks yet.",
         details: `Still to do today: ${missing.join(', ')}.`,
       },
+      dedupeKey: dateKey ? `daily-reminder:${dateKey}:${toId(internUserId)}` : undefined,
     });
   }
 );
@@ -434,34 +445,6 @@ const notifyMentorNoteMention = safe(
   }
 );
 
-/** Staff-facing: a leadership user asked for interns on a project — deliberately notify-only, no persisted request record. */
-const notifyInternRequestFromLeadership = safe(
-  async ({ adminUserId, projectName, requesterName, positionLabel, count, note }) => {
-    const ask = [
-      count ? `${count} intern${count === 1 ? '' : 's'}` : 'interns',
-      positionLabel ? `(${positionLabel})` : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-
-    await dispatch({
-      internUserId: adminUserId,
-      internProfileId: null,
-      type: 'intern_request_from_leadership',
-      link: '/admin/platform-management',
-      fallback: {
-        title: 'Interns requested for a project',
-        body: `${requesterName} requested ${ask} for ${projectName}: "${note}"`,
-      },
-      promptBuilder: buildStaffUpdatePrompt,
-      promptArgs: {
-        summary: 'A leadership user requested interns be staffed onto a project.',
-        details: `Requested by: ${requesterName}. Project: ${projectName}. Asking for: ${ask}. Note: ${note}.`,
-      },
-    });
-  }
-);
-
 module.exports = {
   notifyRecommendationCreated,
   notifyRecommendationStatusChanged,
@@ -478,5 +461,4 @@ module.exports = {
   notifyDocumentationLinksUpdated,
   notifyDailyReminder,
   notifyMentorNoteMention,
-  notifyInternRequestFromLeadership,
 };

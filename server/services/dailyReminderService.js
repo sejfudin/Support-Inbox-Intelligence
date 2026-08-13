@@ -4,6 +4,7 @@ const Attendance = require('../models/Attendance');
 const NonWorkingDay = require('../models/NonWorkingDay');
 const Workspace = require('../models/Workspace');
 const Daily = require('../models/Daily');
+const User = require('../models/User');
 const {
   officeDateKey,
   officeHour,
@@ -52,9 +53,21 @@ const runDailyReminderCheck = async (now = new Date()) => {
     return entry;
   };
 
-  const profiles = await InternProfile.find({ status: { $in: IN_PROGRAMME_STATUSES } })
+  const programmeProfiles = await InternProfile.find({ status: { $in: IN_PROGRAMME_STATUSES } })
     .select('_id user placedAt')
     .lean();
+  const activeUserIds = new Set(
+    (
+      await User.find({
+        _id: { $in: programmeProfiles.map((profile) => profile.user) },
+        active: true,
+        status: 'active',
+      })
+        .select('_id')
+        .lean()
+    ).map((user) => String(user._id))
+  );
+  const profiles = programmeProfiles.filter((profile) => activeUserIds.has(String(profile.user)));
   const profileIdByUser = new Map(profiles.map((p) => [String(p.user), p._id]));
 
   const dueProfiles = profiles.filter((p) => !isExemptOn(p.placedAt, todayKey));
@@ -100,6 +113,7 @@ const runDailyReminderCheck = async (now = new Date()) => {
       internProfileId: flags.internProfileId,
       missingAttendance: flags.missingAttendance,
       missingDaily: flags.missingDaily,
+      dateKey: todayKey,
     });
     notified += 1;
   }
