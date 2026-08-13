@@ -207,6 +207,7 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
   if (!recommendation) {
     return (
       <DashboardCard
+        id="my-selection-process"
         className={className}
         title="My Selection Process"
         action={<PipelineHelp />}
@@ -228,6 +229,7 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
 
   return (
     <DashboardCard
+      id="my-selection-process"
       className={className}
       title="My Selection Process"
       action={

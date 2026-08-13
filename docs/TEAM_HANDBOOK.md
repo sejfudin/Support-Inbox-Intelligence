@@ -99,7 +99,8 @@
 - Sees programme-wide statistics, the funnel/"In Selection" dashboard
 - Sees a read-only "Projects" view (`/projects`): every client project with who's placed on it,
   who's currently in selection (recommended/interviewing), technology demand across projects, and
-  each project's full outcome history — no recommend/edit actions anywhere
+  each project's full outcome history — no recommend/edit actions, aside from the interns-request
+  above
 - Each project shows its type (client or internal) next to its status, on both the list and the project page
 - The Projects list opens on "With interns" (projects with someone placed or in selection);
   switching to "All projects" shows the empty ones too

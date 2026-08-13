@@ -15,6 +15,7 @@ const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
 const { httpError } = require('../helpers/httpError');
+const internNotificationService = require('./internNotificationService');
 
 // The status milestones tracked in the append-only history log — the status
 // lifecycle itself (recommended → interviewing → resulted). The placement
@@ -528,6 +529,14 @@ const createRecommendation = async (user, payload = {}) => {
 
   await recommendation.populate(RECOMMENDATION_POPULATE);
   emitInternDataChanged();
+
+  internNotificationService.notifyRecommendationCreated({
+    internUserId: profile.user,
+    internProfileId: profile._id,
+    position: recommendation.position?.name,
+    project: recommendation.project?.name,
+  });
+
   const statusDates = await historyService.getLatestStatusDates(
     'recommendation',
     recommendation._id
@@ -561,9 +570,9 @@ const createRecommendationsForStaffingRequest = async (
   assertRecommendationWriteAccess(user);
 
   const recommendedAt = new Date();
-  const created = await Recommendation.insertMany(
-    groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
-      internProfileIds.map((internProfileId) => ({
+  const pending = groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
+    internProfileIds.map((internProfileId) => ({
+      document: {
         internProfile: internProfileId,
         createdBy: user._id,
         updatedBy: user._id,
@@ -573,9 +582,12 @@ const createRecommendationsForStaffingRequest = async (
         technologies: technologyIds,
         status: 'recommended',
         statusDates: { recommended: recommendedAt },
-      }))
-    )
+      },
+      internProfileId,
+      positionId,
+    }))
   );
+  const created = await Recommendation.insertMany(pending.map(({ document }) => document));
 
   await Promise.all(
     created.map((recommendation) =>
@@ -583,6 +595,36 @@ const createRecommendationsForStaffingRequest = async (
     )
   );
   emitInternDataChanged();
+
+  // `insertMany` bypasses the populated document returned by the ad-hoc create
+  // path, so resolve the small label/recipient lookup in bulk and fan out the
+  // same notification explicitly. Keeping it here makes every recommendation
+  // creation path uphold the same user-facing contract.
+  try {
+    const [profiles, positions, project] = await Promise.all([
+      InternProfile.find({ _id: { $in: pending.map((item) => item.internProfileId) } })
+        .select('_id user')
+        .lean(),
+      Position.find({ _id: { $in: pending.map((item) => item.positionId) } })
+        .select('_id name')
+        .lean(),
+      Project.findById(projectId).select('name').lean(),
+    ]);
+    const profilesById = new Map(profiles.map((profile) => [String(profile._id), profile]));
+    const positionsById = new Map(positions.map((position) => [String(position._id), position]));
+    for (const item of pending) {
+      const profile = profilesById.get(String(item.internProfileId));
+      if (!profile?.user) continue;
+      internNotificationService.notifyRecommendationCreated({
+        internUserId: profile.user,
+        internProfileId: profile._id,
+        position: positionsById.get(String(item.positionId))?.name,
+        project: project?.name,
+      });
+    }
+  } catch (err) {
+    console.error('[recommendationService] bulk notification lookup failed:', err.message);
+  }
 
   return created;
 };
@@ -771,7 +813,7 @@ const closeOutRecommendationsForDemandEnd = async (
   const tagged = await Recommendation.find({
     staffingRequest: staffingRequestId,
     status: { $in: ACTIVE_PIPELINE_STATUSES },
-  }).select('_id internProfile position status statusDates createdAt');
+  }).select('_id internProfile position project status statusDates createdAt');
 
   const toCloseOut = selectCloseOutRecommendations(tagged, positionIds);
   if (toCloseOut.length === 0) return { closedOutCount: 0 };
@@ -792,6 +834,32 @@ const closeOutRecommendationsForDemandEnd = async (
 
   emitInternDataChanged();
 
+  try {
+    const [profiles, projects] = await Promise.all([
+      InternProfile.find({
+        _id: { $in: toCloseOut.map((recommendation) => recommendation.internProfile) },
+      })
+        .select('_id user')
+        .lean(),
+      Project.find({ _id: { $in: toCloseOut.map((recommendation) => recommendation.project) } })
+        .select('_id name')
+        .lean(),
+    ]);
+    const profilesById = new Map(profiles.map((profile) => [String(profile._id), profile]));
+    const projectsById = new Map(projects.map((project) => [String(project._id), project]));
+    for (const recommendation of toCloseOut) {
+      const profile = profilesById.get(String(recommendation.internProfile));
+      if (!profile?.user) continue;
+      internNotificationService.notifyRecommendationNotPlaced({
+        internUserId: profile.user,
+        internProfileId: profile._id,
+        project: projectsById.get(String(recommendation.project))?.name,
+      });
+    }
+  } catch (err) {
+    console.error('[recommendationService] close-out notification lookup failed:', err.message);
+  }
+
   return { closedOutCount: toCloseOut.length };
 };
 
@@ -806,8 +874,12 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   assertRecommendationWriteAccess(user);
 
   // Snapshot the status BEFORE mutating so we append a history record only on an
-  // actual status change (append-only — never overwrite an existing record).
+  // actual status change (append-only — never overwrite an existing record),
+  // and so the placement notification below fires only on the intern's actual
+  // transition into "placed", not on every subsequent edit to an already-
+  // placed recommendation (e.g. nudging the start date).
   const previousStatus = recommendation.status;
+  const wasPlacedBefore = profile.status === 'placed';
 
   if (payload.positionId !== undefined) {
     recommendation.position = await ensurePositionId(payload.positionId);
@@ -866,6 +938,8 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   // marks the profile placed; "not placed" puts the intern back on the bench
   // (ready for a new placement). Terminal statuses are never touched.
   const outcome = recommendation.result?.outcome;
+  const justPlaced = outcome === 'placed' && !wasPlacedBefore;
+  const justNotPlaced = outcome === 'not_placed' && ['active', 'placed'].includes(profile.status);
   if (outcome === 'placed') {
     let dirty = false;
     if (profile.status !== 'placed') {
@@ -915,6 +989,28 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   // Covers the direct update and any auto-closed sibling recommendations —
   // the invalidation is a single global "intern data changed" broadcast.
   emitInternDataChanged();
+
+  const recipient = { internUserId: profile.user, internProfileId: profile._id };
+  if (justPlaced) {
+    internNotificationService.notifyInternPlaced({
+      ...recipient,
+      position: recommendation.position?.name,
+      project: recommendation.project?.name,
+      startDate: recommendation.result?.startDate,
+    });
+  } else if (justNotPlaced) {
+    internNotificationService.notifyRecommendationNotPlaced({
+      ...recipient,
+      project: recommendation.project?.name,
+    });
+  } else if (recommendation.status !== previousStatus && recommendation.status === 'interviewing') {
+    internNotificationService.notifyRecommendationStatusChanged({
+      ...recipient,
+      project: recommendation.project?.name,
+      newStatus: recommendation.status,
+    });
+  }
+
   const statusDates = await historyService.getLatestStatusDates(
     'recommendation',
     recommendation._id
@@ -956,9 +1052,18 @@ const deleteRecommendation = async (user, recommendationId) => {
     // placement"). A stale exemption inflates their attendance rate silently.
     const nextPlacedAt = placementExemptionDate(latest?.result);
     if (profile.status !== nextStatus || !sameInstant(profile.placedAt, nextPlacedAt)) {
+      const previousStatus = profile.status;
       profile.status = nextStatus;
       profile.placedAt = nextPlacedAt;
       await profile.save();
+
+      if (nextStatus !== previousStatus) {
+        internNotificationService.notifyInternStatusChanged({
+          internUserId: profile.user,
+          internProfileId: profile._id,
+          newStatus: nextStatus,
+        });
+      }
     }
   }
 

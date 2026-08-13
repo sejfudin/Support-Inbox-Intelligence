@@ -23,6 +23,7 @@ const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
 const { closeActiveRecommendationsForIntern } = require('./recommendationService');
+const internNotificationService = require('./internNotificationService');
 
 const PROFILE_POPULATE = [
   {
@@ -282,6 +283,10 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   }
 
   const allowedStatuses = INTERN_STATUSES;
+  const previousStatus = profile.status;
+  const previousExpectedEndDateMs = profile.expectedEndDate
+    ? profile.expectedEndDate.getTime()
+    : null;
 
   if (payload.status !== undefined) {
     // Lifecycle status changes are admin-only — even the assigned mentor can't
@@ -313,12 +318,39 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   await profile.save();
 
   // Placement ends the intern's pipeline run — close any recommendations left
-  // open so they stop counting toward "In pipeline".
+  // open so they stop counting toward "In pipeline". Silent on purpose: it's
+  // a side effect of the placement below, not its own notification.
   if (payload.status === 'placed') {
     await closeActiveRecommendationsForIntern(profile._id, user);
   }
 
   emitInternDataChanged();
+
+  if (payload.status !== undefined && payload.status !== previousStatus) {
+    if (payload.status === 'placed') {
+      internNotificationService.notifyInternPlaced({ internUserId, internProfileId: profile._id });
+    } else {
+      internNotificationService.notifyInternStatusChanged({
+        internUserId,
+        internProfileId: profile._id,
+        newStatus: payload.status,
+      });
+    }
+  }
+
+  if (payload.expectedEndDate !== undefined) {
+    const nextExpectedEndDateMs = profile.expectedEndDate
+      ? profile.expectedEndDate.getTime()
+      : null;
+    if (nextExpectedEndDateMs !== previousExpectedEndDateMs) {
+      internNotificationService.notifyExpectedEndDateChanged({
+        internUserId,
+        internProfileId: profile._id,
+        expectedEndDate: profile.expectedEndDate,
+      });
+    }
+  }
+
   return getInternByUserId(user, internUserId);
 };
 
@@ -379,6 +411,12 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
   profile.documentationLinks = validateDocumentationLinks(links);
   await profile.save();
   await profile.populate(PROFILE_POPULATE);
+
+  internNotificationService.notifyDocumentationLinksUpdated({
+    internUserId,
+    internProfileId: profile._id,
+  });
+
   return formatProfile(profile, user);
 };
 

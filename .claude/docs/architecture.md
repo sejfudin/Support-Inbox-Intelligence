@@ -120,6 +120,70 @@ See `services/internCvService.js#syncTechnologiesFromCv`.
   their own alias), and `npm run seed:technologies` to backfill existing databases.
   `cvTechnologyMatcher.test.js` fails if a seeded slug has no alias entry.
 
+## Notifications
+
+`Notification` (`server/models/Notification.js`) covers two domains on one model: ticketing
+(`ticket_comment`/`ticket_assigned`/`ticket_mention` — `ticket`/`workspace` populated, `link`
+empty) and the intern-programme domain (`recommendation_created`, `recommendation_status_changed`,
+`recommendation_not_placed`, `intern_placed`, `evaluation_created`, `readiness_updated`, the four
+`specialization_*` types, `intern_status_changed`, `intern_expected_end_date_changed`,
+`intern_documentation_updated`, `daily_attendance_reminder`, `mentor_note_mention`,
+`intern_request_from_leadership` — `internProfile` set when the event is about one specific intern
+(null for a project-level staffing request), `ticket`/`workspace` null, `link` a frontend route the
+bell's action button navigates to). Both domains push through the same
+`sendToUser(..., 'new_notification', ...)` socket event and the same `user:<id>` invalidation
+scope (`socket/invalidationScopes.js`) — no new scope key was needed for the intern domain. The
+bell (`NavbarNotifications`) is mounted in both top-level shells — `SidebarLayout.jsx` (admin/
+mentor/intern) and `SymphonyNav.jsx` (leadership, a separate layout) — so every role that can
+receive a notification has somewhere to read it.
+
+- **Ticketing** notifications live in `server/services/notificationService.js`
+  (`notifyNewTicketComment`, `notifyTicketAssigned`, `notifyTicketMention`), `await`ed from
+  `commentService.js` / `ticketService.js` inside a try/catch that only logs on failure.
+- **Intern-programme** notifications live in `server/services/internNotificationService.js`, one
+  function per event (see `.claude/docs/security.md` for the writes that must never notify, or
+  must notify staff instead of the intern). Every exported function computes a deterministic
+  title/body first, then attempts a best-effort Groq rewrite for warmer phrasing — a JSON
+  `{"title","body"}` contract parsed via `groqAiClient.extractJsonObject` — the same contract style
+  as `ticketPrompts.js`'s JSON-returning prompts. Any AI failure at all — unconfigured key,
+  timeout, malformed output — silently falls back to the deterministic text; a notification is
+  always created either way, since this must never be the thing that makes an admin/mentor/
+  leadership action fail or wait.
+- **Two recipient axes, two prompt builders** (`server/prompts/internNotificationPrompts.js`).
+  Most events notify **the intern** about their own record — `buildProgrammeUpdatePrompt`, with a
+  distinctly celebratory `buildPlacementCelebrationPrompt` for `intern_placed`. A couple notify
+  **staff** (admin/mentor/leadership) about someone else's situation — `mentor_note_mention`,
+  `intern_request_from_leadership` — which use `buildStaffUpdatePrompt` instead: reusing the
+  intern-framed prompt for a staff recipient produced text like "your programme record was
+  updated" for a recipient reading about someone *else's* record, which is actively confusing.
+  Always match the builder to the recipient axis when adding a new event type.
+- **Called fire-and-forget** (no `await`) from the mutation services that trigger them
+  (`recommendationService.js`, `evaluationService.js`, `readinessFlagService.js`,
+  `specializationService.js`, `internService.js`, `mentorCommentService.js`, `projectService.js`,
+  and the scheduled `dailyReminderService.js`) — mirrors the existing non-awaited
+  `historyService.logEvent(...)` call in `commentService.js`. Every exported function catches its
+  own errors internally and never rejects, which is what makes the bare, unawaited call safe — an
+  unhandled rejection from a non-awaited async call is a process-level risk, so the safety net has
+  to live inside the module rather than at each call site.
+- **Placement dedup is structural, not a runtime lock.** `intern_placed` can be triggered from two
+  independent admin actions — a recommendation's outcome flipping to `placed`
+  (`recommendationService.js#updateRecommendation`) or a direct lifecycle status write
+  (`internService.js#updateInternProgramme`) — and each guards on its own "did the profile just
+  transition into placed" snapshot taken before the write, so it fires at most once per real
+  transition and never on a no-op re-save (e.g. nudging an already-placed recommendation's start
+  date). The two paths can't both fire for the same request.
+- **Scheduled reminder** (`server/services/dailyReminderService.js`): a 10:30 Europe/Sarajevo,
+  weekday-only nudge — "check in" and/or "file today's standup" — for whichever of the two an
+  intern hasn't done yet; nothing fires for one who's done both. Polled every 5 minutes via
+  `setInterval` (started from `index.js` after `connectDB()`), gated by an in-memory
+  `lastRunDateKey` so the check body runs once per office day. No new dependency — reuses
+  `attendanceTime.js`'s existing `Intl`-based, dependency-free timezone helpers (`officeHour`,
+  `officeMinute`, `officeDateKey`, `isOfficeWeekend`) and skips `NonWorkingDay` entries. Attendance
+  candidates mirror the roster `attendanceService.js#getRoster` already uses
+  (`IN_PROGRAMME_STATUSES`, minus anyone exempt today); daily candidates mirror the roster
+  `dailyService.js#getWorkspaceDailyOverview` already uses (`getActiveWorkspaceInterns`, per active
+  workspace) — two different existing scoping rules, deliberately not unified into one.
+
 ## Recommendations (placement pipeline)
 
 A recommendation is a mentor's placement proposal for an intern: a position + **project** (ref to

@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SymphonyWordmark } from './SymphonyWordmark';
+import NavbarNotifications from '@/components/NavbarNotifications';
 import { useAuth } from '@/context/AuthContext';
 import { useLogoutUser } from '@/queries/auth';
 import { useStaffingRequestNews } from '@/queries/staffingRequests';
@@ -75,6 +76,7 @@ export function SymphonyNav() {
         </nav>
 
         <div className="symphony-navbar-end">
+          <NavbarNotifications />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button

@@ -43,6 +43,9 @@ const officeDateKey = (date = new Date()) => {
 /** Office-local hour (0–23). */
 const officeHour = (date = new Date()) => Number(officeParts(date).hour);
 
+/** Office-local minute (0–59). */
+const officeMinute = (date = new Date()) => Number(officeParts(date).minute);
+
 /** True on Saturday/Sunday in office time. */
 const isOfficeWeekend = (date = new Date()) => {
   const { weekday } = officeParts(date);
@@ -129,6 +132,7 @@ module.exports = {
   CHECK_IN_WINDOW_LABEL,
   officeDateKey,
   officeHour,
+  officeMinute,
   isOfficeWeekend,
   checkInWindowState,
   isWithinCheckInWindow,

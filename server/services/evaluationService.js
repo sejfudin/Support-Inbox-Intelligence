@@ -2,6 +2,7 @@ const Evaluation = require('../models/Evaluation');
 const InternProfile = require('../models/InternProfile');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess } = require('../helpers/internAccess');
+const internNotificationService = require('./internNotificationService');
 const { EVALUATION_CRITERIA, averageScore } = require('../helpers/evaluationTrend');
 const { emitInternDataChanged } = require('../socket/events');
 
@@ -89,6 +90,13 @@ const createEvaluation = async (user, internUserId, payload) => {
   });
 
   await evaluation.populate('evaluator', 'fullname email role');
+
+  internNotificationService.notifyEvaluationCreated({
+    internUserId: profile.user,
+    internProfileId: profile._id,
+    periodStart: evaluation.periodStart,
+    periodEnd: evaluation.periodEnd,
+  });
 
   // The intern reads this about themselves on their own board and on "My
   // progress", and neither is reachable by any workspace scope — programme data
