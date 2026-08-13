@@ -16,7 +16,7 @@ const {
   partitionPickerCandidates,
   assertCanResolveProject,
   assertCanPutForward,
-  assertRequestedPositionsEditable,
+  planStaffingRequestEdit,
   assertCanClose,
   applyClose,
   selectCloseOutRecommendations,
@@ -28,7 +28,7 @@ const {
   createRecommendationsForStaffingRequest,
   closeOutRecommendationsForDemandEnd,
 } = require('./recommendationService');
-const { emitStaffingNewsChanged } = require('../socket/events');
+const { emitStaffingNewsChanged, emitInternDataChanged } = require('../socket/events');
 const InternProfile = require('../models/InternProfile');
 
 // This is the platform's first leadership write path: no existing route
@@ -133,15 +133,6 @@ const normalizeRequestedPositions = async (requestedPositions) => {
       };
     })
   );
-};
-
-// Position ids (as strings) among `requestedPositions` that currently have at
-// least one recommendation tagged to this request for that position.
-const loadPositionsWithRecommendations = async (requestId) => {
-  const tagged = await Recommendation.find({ staffingRequest: requestId })
-    .select('position')
-    .lean();
-  return [...new Set(tagged.map((recommendation) => String(recommendation.position)))];
 };
 
 // Recommendations tagged to a request, for the rules helper's progress/
@@ -313,40 +304,243 @@ const createStaffingRequest = async (user, payload = {}) => {
   return formatRequestWithLookup(request);
 };
 
-// Counts, technologies, needed-by only — per ticket 02. `note` belongs to the
-// admin who wrote it, so an author edit can never touch it. Moving the
-// project reference is "resolve project" (tickets 05/06/07's job, not this
-// one's) and is deliberately not accepted here.
+// The recommendation-side reason line for an edit that ends demand. Distinct
+// from CLOSE_OUT_EVENT_ACTION: the request is still open, only this position
+// stopped being asked for, and a candidate reading their own trail should be
+// able to tell those apart.
+const EDIT_CLOSE_OUT_EVENT_ACTION =
+  'Status set to Resulted (the staffing request no longer asks for this position)';
+
+const positionKey = (requestedPosition) =>
+  String(requestedPosition.position?._id ?? requestedPosition.position);
+
+const sameTechnologies = (before = [], after = []) => {
+  const ids = (list) => list.map((technology) => String(technology?._id ?? technology)).sort();
+  const [left, right] = [ids(before), ids(after)];
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+};
+
+const loadPositionNames = async (positionIds) => {
+  const ids = [...new Set(positionIds.map(String))];
+  if (ids.length === 0) return new Map();
+  const positions = await Position.find({ _id: { $in: ids } })
+    .select('name')
+    .lean();
+  return new Map(positions.map((position) => [String(position._id), position.name]));
+};
+
+// A history line that names the consequence, not just the field: "Frontend line
+// changed to Backend — 3 interns closed out" is the sentence the other side
+// needs, and it is the whole reason edits badge at all.
+const describePositionEdit = ({ removed, added, names, closedOutCount }) => {
+  const label = (positionId) => names.get(String(positionId)) ?? 'A position';
+  let action;
+  if (removed.length === 1 && added.length === 1) {
+    action = `${label(removed[0])} line changed to ${label(added[0])}`;
+  } else if (removed.length > 0 && added.length > 0) {
+    action = `Positions changed: ${removed.map(label).join(', ')} → ${added.map(label).join(', ')}`;
+  } else if (removed.length > 0) {
+    action = `${removed.map(label).join(', ')} ${removed.length === 1 ? 'line' : 'lines'} removed`;
+  } else {
+    action = `${added.map(label).join(', ')} ${added.length === 1 ? 'line' : 'lines'} added`;
+  }
+  if (closedOutCount > 0) {
+    action += ` — ${closedOutCount} ${closedOutCount === 1 ? 'intern' : 'interns'} closed out`;
+  }
+  return action;
+};
+
+// Counts, technologies, needed-by, the requested positions themselves, the
+// project reference, and the draft project's details. `note` is the one field
+// an edit can never touch — it belongs to the admin who wrote it (see
+// setStaffingRequestNote).
+//
+// Every legality question is the rules helper's (`planStaffingRequestEdit`);
+// this function carries out the consequences it reports: closing out the
+// candidates of a position that stopped being asked for, moving tagged
+// recommendations to a new project, and logging what happened so the other side
+// is badged. Naming the *first* project is still resolution, not an edit.
 const updateStaffingRequest = async (user, requestId, payload = {}) => {
   assertValidObjectId(requestId, 'Staffing request');
   const request = await StaffingRequest.findById(requestId);
   if (!request) throw httpError('Staffing request not found', 404);
 
   assertWriteAccess(user, request);
+  await request.populate([
+    { path: 'requestedPositions.position', select: 'name' },
+    { path: 'project', select: 'name' },
+  ]);
 
-  const positionsWithRecommendations = await loadPositionsWithRecommendations(request._id);
+  const tagged = (await loadTaggedRecommendations([request._id])).get(String(request._id)) ?? [];
+
+  const nextProjectId =
+    payload.projectId !== undefined && payload.projectId !== null
+      ? await ensureProjectId(payload.projectId)
+      : undefined;
   const nextRequestedPositions =
     payload.requestedPositions !== undefined
       ? await normalizeRequestedPositions(payload.requestedPositions)
-      : request.requestedPositions;
+      : undefined;
 
-  // The single source of truth for "is this request editable at all" —
-  // closed-request rejection lives in the rules helper, never re-implemented
-  // here, even for a note/needed-by-only edit that touches no position.
+  let plan;
   try {
-    assertRequestedPositionsEditable(request, nextRequestedPositions, positionsWithRecommendations);
+    plan = planStaffingRequestEdit(
+      request,
+      { requestedPositions: nextRequestedPositions, projectId: nextProjectId },
+      tagged
+    );
   } catch (error) {
     throw httpError(error.message, 400);
   }
 
-  request.requestedPositions = nextRequestedPositions;
+  const notPlacedReason = cleanText(payload.notPlacedReason);
+  if (plan.closeOutCount > 0 && !notPlacedReason) {
+    throw httpError('Closing out candidates requires a reason', 400);
+  }
+
+  const before = (request.requestedPositions ?? []).map((requestedPosition) => ({
+    key: positionKey(requestedPosition),
+    count: requestedPosition.count,
+    technologies: requestedPosition.technologies ?? [],
+  }));
+  const beforeByKey = new Map(before.map((entry) => [entry.key, entry]));
+  const after = nextRequestedPositions ?? request.requestedPositions ?? [];
+  // Keyed through positionKey on both sides: when the payload omits
+  // `requestedPositions`, `after` is the request's own array, whose positions
+  // are populated documents — comparing those as strings reads every existing
+  // line as newly added.
+  const addedPositionIds = after
+    .map((requestedPosition) => requestedPosition.position)
+    .filter((position) => !beforeByKey.has(String(position?._id ?? position)));
+
+  const detailsChanged = [];
+  if (
+    after.some((requestedPosition) => {
+      const previous = beforeByKey.get(positionKey(requestedPosition));
+      return previous && previous.count !== requestedPosition.count;
+    })
+  ) {
+    detailsChanged.push('counts');
+  }
+  if (
+    after.some((requestedPosition) => {
+      const previous = beforeByKey.get(positionKey(requestedPosition));
+      return previous && !sameTechnologies(previous.technologies, requestedPosition.technologies);
+    })
+  ) {
+    detailsChanged.push('technologies');
+  }
+
+  if (nextRequestedPositions !== undefined) {
+    request.requestedPositions = nextRequestedPositions;
+  }
 
   if (payload.neededBy !== undefined) {
-    request.neededBy = parseDate(payload.neededBy, 'Needed-by date');
+    const neededBy = parseDate(payload.neededBy, 'Needed-by date');
+    if (String(request.neededBy ?? '') !== String(neededBy ?? '')) {
+      detailsChanged.push('needed-by');
+    }
+    request.neededBy = neededBy;
+  }
+
+  // Editable before and after resolution: freezing them was meant to preserve
+  // what was originally asked for, and the history trail does that better by
+  // showing both versions rather than preventing the second one.
+  const draftEdits = [];
+  if (payload.draftProject !== undefined && payload.draftProject !== null) {
+    if (!request.draftProject) {
+      throw httpError('This request has no draft project details', 400);
+    }
+    for (const field of ['name', 'client', 'description']) {
+      if (payload.draftProject[field] === undefined) continue;
+      const value = cleanText(payload.draftProject[field]);
+      if (field === 'name' && !value) {
+        throw httpError('Draft project name is required', 400);
+      }
+      const previous = request.draftProject[field] ?? '';
+      if (previous !== value) draftEdits.push({ field, previous, value });
+      request.draftProject[field] = value;
+    }
+  }
+
+  if (plan.projectChanged) {
+    request.project = nextProjectId;
   }
 
   await request.save();
+
+  // After the save, so a request that failed validation never leaves resolved
+  // candidates or moved recommendations behind it.
+  if (plan.endingPositionIds.length > 0) {
+    await closeOutRecommendationsForDemandEnd(user, {
+      staffingRequestId: request._id,
+      positionIds: plan.endingPositionIds,
+      reason: notPlacedReason,
+      action: EDIT_CLOSE_OUT_EVENT_ACTION,
+    });
+  }
+
+  // Interview rows keep their own free-text `company` and `role` — deliberately
+  // un-rewritten, so a moved record carries a visible trace of where it came
+  // from.
+  if (plan.projectChanged) {
+    await Recommendation.updateMany(
+      { staffingRequest: request._id },
+      { $set: { project: nextProjectId, updatedBy: user._id } }
+    );
+    emitInternDataChanged();
+  }
+
   await request.populate(REQUEST_POPULATE);
+
+  const events = [];
+  if (plan.endingPositionIds.length > 0 || addedPositionIds.length > 0) {
+    const names = await loadPositionNames([...plan.endingPositionIds, ...addedPositionIds]);
+    events.push({
+      action: describePositionEdit({
+        removed: plan.endingPositionIds,
+        added: addedPositionIds,
+        names,
+        closedOutCount: plan.closeOutCount,
+      }),
+      statusKey: 'staffing:positions_changed',
+    });
+  }
+  if (plan.projectChanged) {
+    const moved = plan.movingCount;
+    events.push({
+      action:
+        `Project changed to ${request.project?.name ?? 'another project'}` +
+        (moved > 0
+          ? ` — ${moved} ${moved === 1 ? 'recommendation' : 'recommendations'} moved`
+          : ''),
+      statusKey: 'staffing:project_changed',
+    });
+  }
+  // Both versions, not just the fact of a change: the trail is what replaced
+  // freezing these fields after resolution, so it has to carry what they said.
+  if (draftEdits.length > 0) {
+    events.push({
+      action: `Draft project details edited — ${draftEdits
+        .map((edit) => `${edit.field} "${edit.previous}" → "${edit.value}"`)
+        .join(', ')}`,
+      statusKey: 'staffing:draft_edited',
+    });
+  }
+  if (detailsChanged.length > 0) {
+    events.push({
+      action: `Request edited — ${detailsChanged.join(', ')}`,
+      statusKey: 'staffing:edited',
+    });
+  }
+
+  // An edit is exactly what got lost in the informal channel this feature
+  // replaces, so each one badges the other side. The unread derivation already
+  // drops events the viewer caused, so no direction has to be worked out here.
+  for (const event of events) {
+    await logStaffingRequestEvent({ entityId: request._id, userId: user._id, ...event });
+  }
+  if (events.length > 0) emitStaffingNewsChanged();
 
   return formatRequestWithLookup(request);
 };

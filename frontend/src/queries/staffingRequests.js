@@ -50,11 +50,20 @@ export const useCreateStaffingRequest = () => {
   });
 };
 
+// An edit is no longer only about the request: dropping a position closes out
+// its candidates and moving the project repoints theirs, so it invalidates
+// everything a close does. It also appends history events of its own, hence
+// the trail.
 export const useUpdateStaffingRequest = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }) => updateStaffingRequest(id, data),
-    onSuccess: () => invalidateRequests(queryClient),
+    onSuccess: (_data, { id }) => {
+      invalidateRequests(queryClient);
+      queryClient.invalidateQueries({ queryKey: RECOMMENDATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['staffing-request-history', id] });
+    },
   });
 };
 

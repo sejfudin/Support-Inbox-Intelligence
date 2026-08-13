@@ -104,6 +104,57 @@ export const getPositionProgressRows = (request) => {
   });
 };
 
+// What an edit is about to cost, read off the same `progress` and
+// `suggestions` the detail pane renders. Mirrors the server's
+// planStaffingRequestEdit: dropping a position (or changing it, which is the
+// same event — there is no row identity) closes out whoever is still in
+// selection for it, and a position with someone placed can't be dropped at all.
+// The dialog needs those numbers before the write; the server refuses the same
+// edits after it.
+export const getEditImpact = (request, { positionIds = [], projectId } = {}) => {
+  const keep = new Set(positionIds.map(String));
+  const suggestions = request?.suggestions ?? [];
+  const endingPositions = getPositionProgressRows(request).filter((row) => !keep.has(row.id));
+
+  const blocked = endingPositions
+    .filter((row) => row.placed > 0)
+    .map((row) => ({
+      name: row.name,
+      internNames: row.suggestions
+        .filter((suggestion) => suggestion.outcome === 'placed')
+        .map((suggestion) => suggestion.internName),
+    }));
+
+  const currentProjectId = request?.project?._id ?? request?.project ?? null;
+  const projectChanged = Boolean(projectId) && String(projectId) !== String(currentProjectId ?? '');
+
+  return {
+    endingPositions,
+    blocked,
+    closeOutCount: endingPositions.reduce((total, row) => total + row.inSelection, 0),
+    projectChanged,
+    // Placed recommendations move too — repointing a request only ever means
+    // the wrong project was named, and that is exactly when the placed ones
+    // most need to follow.
+    movingCount: projectChanged ? suggestions.length : 0,
+  };
+};
+
+// "Ana", "Ana and Ben" — the refusal reads as a sentence, so the names in it do
+// too. Same wording as the server's, so the client-side stop and the 400 behind
+// it never contradict each other.
+export const describePlacedRefusal = (blocked = []) => {
+  if (blocked.length === 0) return '';
+  const { name, internNames } = blocked[0];
+  const names =
+    internNames.length <= 1
+      ? internNames.join('')
+      : `${internNames.slice(0, -1).join(', ')} and ${internNames[internNames.length - 1]}`;
+  return `${name} can't be changed, ${names || 'someone'} ${
+    internNames.length === 1 ? 'is' : 'are'
+  } already placed against it`;
+};
+
 // "DP" for Dario Perić — first letter of the first and last word, so a
 // three-part name doesn't produce three letters.
 export const getInitials = (fullname = '') => {

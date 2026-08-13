@@ -223,22 +223,48 @@ const assertCanResolveProject = (request) => {
   }
 };
 
-// Whether a proposed requestedPositions array may replace the current one.
-// `positionsWithRecommendations` are the position ids of requested positions
-// that currently have recommendations tagged against them — those cannot be
-// dropped, though their count may still fall below their placed count.
-const assertRequestedPositionsEditable = (
+// "Ana", "Ana and Ben", "Ana, Ben and Cara" — a refusal reads as a sentence, so
+// the names in it have to as well.
+const nameList = (names) => {
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+};
+
+const internName = (recommendation) =>
+  recommendation.internName ?? recommendation.internProfile?.user?.fullname ?? 'someone';
+
+// What an edit is allowed to do, and what it costs. One call answers both,
+// because the cost *is* what decides legality: a position nobody is placed
+// against may end, and ending it closes out whoever is still in selection for
+// it (ADR 0004's cascade, reused per position rather than per request).
+//
+// Everything the old lock refused on `putForward > 0` is permitted here.
+// Being considered is not a fact worth blocking an edit over — being placed is,
+// because the request's record of a placement it produced would go with the
+// line. A count may fall below what is already placed ("1 wanted, 2 placed" is
+// a truthful state), and lowering a count closes out nobody: nothing here can
+// pick which of three candidates to drop.
+//
+// A position "changing" and a position being "removed" are the same event —
+// `requestedPositions` has no per-row id, so a line is only ever identified by
+// its position — which is why both cascade identically.
+//
+// `recommendations` are the ones tagged to this request, in the same shape
+// `deriveProgress` takes. Returns the consequences the caller has to carry out
+// and warn about; throws when the edit is not permitted at all.
+const planStaffingRequestEdit = (
   request,
-  nextRequestedPositions,
-  positionsWithRecommendations = []
+  { requestedPositions, projectId } = {},
+  recommendations = []
 ) => {
   if (request.status === 'closed') {
     throw new Error('Cannot edit a closed staffing request');
   }
 
+  const next = requestedPositions ?? request.requestedPositions ?? [];
   const seen = new Set();
-  for (const requestedPosition of nextRequestedPositions) {
-    const key = String(requestedPosition.position);
+  for (const requestedPosition of next) {
+    const key = String(toId(requestedPosition.position));
     if (seen.has(key)) {
       throw new Error(`Duplicate position: ${key}`);
     }
@@ -248,11 +274,45 @@ const assertRequestedPositionsEditable = (
     }
   }
 
-  for (const positionId of positionsWithRecommendations) {
-    if (!seen.has(String(positionId))) {
-      throw new Error(`Cannot delete requested position with recommendations: ${positionId}`);
+  const ending = (request.requestedPositions ?? []).filter(
+    (requestedPosition) => !seen.has(String(toId(requestedPosition.position)))
+  );
+
+  for (const requestedPosition of ending) {
+    const placed = recommendations.filter(
+      (recommendation) =>
+        recommendation.result?.outcome === 'placed' &&
+        idEquals(recommendation.position, requestedPosition.position)
+    );
+    if (placed.length > 0) {
+      const label = requestedPosition.position?.name ?? String(toId(requestedPosition.position));
+      const who = nameList(placed.map(internName));
+      throw new Error(
+        `${label} can't be changed, ${who} ${placed.length === 1 ? 'is' : 'are'} already placed against it`
+      );
     }
   }
+
+  const endingPositionIds = ending.map((requestedPosition) => toId(requestedPosition.position));
+
+  // Repointing a request only ever means the wrong project was named, so the
+  // move is never refused — not even with someone placed, which is exactly when
+  // fixing the name matters most. Naming the *first* project is a different act
+  // with a different guard (`assertCanResolveProject`), so it is refused here.
+  let projectChanged = false;
+  if (projectId != null && !idEquals(request.project, projectId)) {
+    if (!request.project) {
+      throw new Error('Resolve the project before moving it');
+    }
+    projectChanged = true;
+  }
+
+  return {
+    endingPositionIds,
+    closeOutCount: selectCloseOutRecommendations(recommendations, endingPositionIds).length,
+    projectChanged,
+    movingCount: projectChanged ? recommendations.length : 0,
+  };
 };
 
 // Who may close a request with which reason, and under what conditions. One
@@ -363,7 +423,7 @@ module.exports = {
   partitionPickerCandidates,
   needsProject,
   assertCanResolveProject,
-  assertRequestedPositionsEditable,
+  planStaffingRequestEdit,
   assertCanPutForward,
   assertCanClose,
   applyClose,

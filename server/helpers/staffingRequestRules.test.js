@@ -4,7 +4,7 @@ const {
   partitionPickerCandidates,
   needsProject,
   assertCanResolveProject,
-  assertRequestedPositionsEditable,
+  planStaffingRequestEdit,
   assertCanPutForward,
   assertCanClose,
   applyClose,
@@ -29,10 +29,11 @@ const requestedPosition = (overrides = {}) => ({
 
 // A recommendation is `resulted` exactly when an outcome has been written, so
 // the default status follows the outcome unless a test overrides it.
-const recommendation = ({ position = FRONTEND, outcome, status } = {}) => ({
+const recommendation = ({ position = FRONTEND, outcome, status, internName } = {}) => ({
   position,
   status: status ?? (outcome ? 'resulted' : 'interviewing'),
   result: outcome ? { outcome } : {},
+  ...(internName ? { internProfile: { user: { fullname: internName } } } : {}),
 });
 
 const baseRequest = (overrides = {}) => ({
@@ -420,56 +421,198 @@ describe('assertCanResolveProject', () => {
   });
 });
 
-describe('assertRequestedPositionsEditable', () => {
-  it('allows a legal set of requested positions', () => {
+// The edit rules of ticket 10. The old lock — "any recommendation freezes this
+// position" — is gone: being considered is not a reason to refuse, being placed
+// is. Everything else the edit may do, it reports the consequence of.
+describe('planStaffingRequestEdit', () => {
+  // The current ask, with positions populated the way REQUEST_POPULATE leaves
+  // them, so a refusal can name the position rather than print an id.
+  const openRequest = (overrides = {}) =>
+    baseRequest({
+      requestedPositions: [
+        { position: { _id: FRONTEND, name: 'Frontend' }, count: 2, technologies: [] },
+        { position: { _id: QA, name: 'QA' }, count: 1, technologies: [] },
+      ],
+      ...overrides,
+    });
+
+  it('reports no consequence when nothing about the ask changes', () => {
+    expect(
+      planStaffingRequestEdit(
+        openRequest(),
+        {
+          requestedPositions: [
+            requestedPosition({ position: FRONTEND }),
+            requestedPosition({ position: QA, count: 1 }),
+          ],
+        },
+        [recommendation({ position: FRONTEND })]
+      )
+    ).toEqual({
+      endingPositionIds: [],
+      closeOutCount: 0,
+      projectChanged: false,
+      movingCount: 0,
+    });
+  });
+
+  it('permits removing a position whose candidates are only in selection, reporting how many close out', () => {
+    expect(
+      planStaffingRequestEdit(
+        openRequest(),
+        { requestedPositions: [requestedPosition({ position: QA, count: 1 })] },
+        [
+          recommendation({ position: FRONTEND }),
+          recommendation({ position: FRONTEND, status: 'recommended' }),
+          recommendation({ position: QA }),
+        ]
+      )
+    ).toMatchObject({ endingPositionIds: [FRONTEND], closeOutCount: 2 });
+  });
+
+  it('treats changing a position as ending the old one — there is no row identity to follow', () => {
+    expect(
+      planStaffingRequestEdit(
+        openRequest(),
+        {
+          requestedPositions: [
+            requestedPosition({ position: OTHER }),
+            requestedPosition({ position: QA, count: 1 }),
+          ],
+        },
+        [recommendation({ position: FRONTEND })]
+      )
+    ).toMatchObject({ endingPositionIds: [FRONTEND], closeOutCount: 1 });
+  });
+
+  it('counts nobody already resulted among the candidates an ending position closes out', () => {
+    expect(
+      planStaffingRequestEdit(
+        openRequest(),
+        { requestedPositions: [requestedPosition({ position: QA, count: 1 })] },
+        [recommendation({ position: FRONTEND, outcome: 'not_placed' })]
+      )
+    ).toMatchObject({ closeOutCount: 0 });
+  });
+
+  it('refuses to end a position someone is placed against, naming the intern', () => {
     expect(() =>
-      assertRequestedPositionsEditable(baseRequest(), [
-        requestedPosition({ position: FRONTEND }),
-        requestedPosition({ position: QA }),
-      ])
+      planStaffingRequestEdit(
+        openRequest(),
+        { requestedPositions: [requestedPosition({ position: QA, count: 1 })] },
+        [recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ana' })]
+      )
+    ).toThrow("Frontend can't be changed, Ana is already placed against it");
+  });
+
+  it('names every placed intern when a position has more than one', () => {
+    expect(() =>
+      planStaffingRequestEdit(
+        openRequest(),
+        { requestedPositions: [requestedPosition({ position: QA, count: 1 })] },
+        [
+          recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ana' }),
+          recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ben' }),
+        ]
+      )
+    ).toThrow("Frontend can't be changed, Ana and Ben are already placed against it");
+  });
+
+  it('keeps a position with a placed intern editable as long as it is still asked for', () => {
+    expect(() =>
+      planStaffingRequestEdit(
+        openRequest(),
+        {
+          requestedPositions: [
+            requestedPosition({ position: FRONTEND, count: 1 }),
+            requestedPosition({ position: QA, count: 1 }),
+          ],
+        },
+        [recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ana' })]
+      )
     ).not.toThrow();
   });
 
-  it('rejects a duplicate position', () => {
-    expect(() =>
-      assertRequestedPositionsEditable(baseRequest(), [
-        requestedPosition({ position: FRONTEND }),
-        requestedPosition({ position: FRONTEND }),
-      ])
-    ).toThrow();
+  it('lowers a count below what is already placed without closing anyone out', () => {
+    expect(
+      planStaffingRequestEdit(
+        openRequest(),
+        {
+          requestedPositions: [
+            requestedPosition({ position: FRONTEND, count: 1 }),
+            requestedPosition({ position: QA, count: 1 }),
+          ],
+        },
+        [
+          recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ana' }),
+          recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ben' }),
+        ]
+      )
+    ).toMatchObject({ endingPositionIds: [], closeOutCount: 0 });
   });
 
   it('rejects a count below 1', () => {
     expect(() =>
-      assertRequestedPositionsEditable(baseRequest(), [requestedPosition({ count: 0 })])
-    ).toThrow();
+      planStaffingRequestEdit(openRequest(), {
+        requestedPositions: [requestedPosition({ count: 0 })],
+      })
+    ).toThrow('Count must be an integer of at least 1');
   });
 
-  it('rejects deleting a requested position that has recommendations', () => {
+  it('rejects a duplicate position', () => {
     expect(() =>
-      assertRequestedPositionsEditable(
-        baseRequest(),
-        [requestedPosition({ position: QA })],
-        [FRONTEND]
-      )
-    ).toThrow();
+      planStaffingRequestEdit(openRequest(), {
+        requestedPositions: [
+          requestedPosition({ position: FRONTEND }),
+          requestedPosition({ position: FRONTEND }),
+        ],
+      })
+    ).toThrow(`Duplicate position: ${FRONTEND}`);
   });
 
-  it('allows lowering the count of a requested position with recommendations', () => {
+  it('reports how many recommendations a project move takes with it, placed ones included', () => {
+    expect(
+      planStaffingRequestEdit(openRequest(), { projectId: 'project-borealis' }, [
+        recommendation({ position: FRONTEND }),
+        recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ana' }),
+      ])
+    ).toMatchObject({ projectChanged: true, movingCount: 2 });
+  });
+
+  it('never refuses a project move, not even with someone placed', () => {
     expect(() =>
-      assertRequestedPositionsEditable(
-        baseRequest(),
-        [requestedPosition({ position: FRONTEND, count: 1 })],
-        [FRONTEND]
-      )
+      planStaffingRequestEdit(openRequest(), { projectId: 'project-borealis' }, [
+        recommendation({ position: FRONTEND, outcome: 'placed', internName: 'Ana' }),
+      ])
     ).not.toThrow();
   });
 
-  it('rejects every edit on a closed request', () => {
-    const request = baseRequest({ status: 'closed', reason: 'cancelled' });
+  it('reports no move when the project given is the one already set', () => {
+    expect(
+      planStaffingRequestEdit(openRequest(), { projectId: PROJECT }, [recommendation()])
+    ).toMatchObject({ projectChanged: false, movingCount: 0 });
+  });
+
+  it('refuses to set the first project through the edit path — that is resolution', () => {
     expect(() =>
-      assertRequestedPositionsEditable(request, [requestedPosition({ position: FRONTEND })])
-    ).toThrow();
+      planStaffingRequestEdit(openRequest({ project: null, draftProject: { name: 'Borealis' } }), {
+        projectId: 'project-borealis',
+      })
+    ).toThrow('Resolve the project before moving it');
+  });
+
+  it('rejects every edit on a closed request', () => {
+    expect(() =>
+      planStaffingRequestEdit(openRequest({ status: 'closed', reason: 'cancelled' }), {
+        requestedPositions: [requestedPosition({ position: FRONTEND })],
+      })
+    ).toThrow('Cannot edit a closed staffing request');
+  });
+
+  it('rejects a note-only edit on a closed request too — notes have their own path', () => {
+    expect(() =>
+      planStaffingRequestEdit(openRequest({ status: 'closed', reason: 'fulfilled' }), {})
+    ).toThrow('Cannot edit a closed staffing request');
   });
 });
 

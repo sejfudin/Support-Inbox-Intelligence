@@ -238,11 +238,17 @@ same exception as `Project`/`Recommendation` above).
 - **Update** (`PATCH /:id`): route-gated to `ADMIN`/`LEADERSHIP` (mentors/interns 403 before the
   resource even loads), then narrowed in `assertWriteAccess` to **the request's own author, or any
   admin** — a leadership user who didn't file it gets the same 403 a mentor would, one level later.
-  Edit legality (closed request rejects every edit, count floor, duplicate position, a position with
-  recommendations can't be deleted) is enforced by calling into `helpers/staffingRequestRules.js`,
-  never re-implemented in the service. Note there is **no project lock**: putting interns forward
-  does not freeze the project reference, and the `assertProjectEditable` helper that once said
-  otherwise is gone (see `docs/adr/0006`).
+  Edit legality is enforced by one call into `helpers/staffingRequestRules.js`
+  (`planStaffingRequestEdit`), never re-implemented in the service: a closed request rejects every
+  edit, count floor of 1, duplicate position rejected, and — the only refusal about other people's
+  records — **a requested position with a `placed` intern cannot be ended**, as a 400 naming them.
+  A position with candidates merely *in selection* may be changed or removed; doing so runs ticket
+  09's close-out cascade, so `PATCH /:id` is a second path on which a leadership author causes
+  writes to recommendations, under the same mandatory `notPlacedReason` (ticket 10). Note there is
+  **no project lock**: putting interns forward does not freeze the project reference, the author or
+  an admin may repoint it (which repoints every tagged recommendation), and the
+  `assertProjectEditable` helper that once said otherwise is gone (see `docs/adr/0006`). Setting the
+  *first* project is still admin-only resolution — `planStaffingRequestEdit` refuses it.
 - **Close** (`POST /:id/close`): route-gated to `ADMIN`/`LEADERSHIP`, then split **per reason** in
   `assertCanClose`. Deliberately **not** behind `assertWriteAccess`: cancelling belongs to any
   leadership user, not only the author, so the service asserts the read tier and lets the rules
@@ -274,9 +280,12 @@ same exception as `Project`/`Recommendation` above).
   the one part of `result` besides the outcome and dates that reaches the intern —
   `formatOwnRecommendation` still withholds `result.note`, so the reason typed at close time is read
   only by admins, leadership and mentors.
-- **`PATCH /:id` cannot close anything.** `updateStaffingRequest` only ever writes
-  `requestedPositions` and `neededBy` — `status` and `reason` are not accepted, so a close can never
-  ride in on a generic edit and bypass `assertCanClose`. Keep it that way.
+- **`PATCH /:id` cannot close anything.** `updateStaffingRequest` writes only
+  `requestedPositions`, `neededBy`, `project` and `draftProject` — `status`, `reason` and `note` are
+  not accepted, so neither a close nor an admin's remark can ride in on a generic edit and bypass
+  `assertCanClose` / the admin-only note route. Keep it that way. It *can* resolve candidates, but
+  only through the same cascade a close uses, and only for a position the request stopped asking
+  for.
 - **Where a close note lands depends on the reason**, and the two fields are not interchangeable:
   `cancelled` → `closeNote` (withdrawing an ask must never overwrite an admin's remark);
   `declined` → `note` + `noteBy` + `noteAt`, mandatory; `fulfilled` → `note` if one was supplied.

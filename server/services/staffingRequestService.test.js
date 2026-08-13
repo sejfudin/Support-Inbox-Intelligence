@@ -9,9 +9,13 @@
 // Mongo is mocked.
 
 jest.mock('../models/StaffingRequest', () => ({ findById: jest.fn() }));
-jest.mock('../models/Recommendation', () => ({ find: jest.fn() }));
+jest.mock('../models/Recommendation', () => ({ find: jest.fn(), updateMany: jest.fn() }));
 jest.mock('../models/Project', () => ({ findById: jest.fn() }));
-jest.mock('../models/Position', () => ({ findById: jest.fn() }));
+jest.mock('../models/Position', () => ({
+  findById: jest.fn(),
+  exists: jest.fn(),
+  find: jest.fn(),
+}));
 jest.mock('../models/Technology', () => ({ find: jest.fn() }));
 jest.mock('../models/InternProfile', () => ({ find: jest.fn() }));
 // Not just isolation: requiring the real recommendationService pulls in
@@ -21,10 +25,15 @@ jest.mock('./recommendationService', () => ({
   closeOutRecommendationsForDemandEnd: jest.fn().mockResolvedValue({ closedOutCount: 0 }),
 }));
 jest.mock('./historyService', () => ({ logStaffingRequestEvent: jest.fn().mockResolvedValue() }));
-jest.mock('../socket/events', () => ({ emitStaffingNewsChanged: jest.fn() }));
+jest.mock('../socket/events', () => ({
+  emitStaffingNewsChanged: jest.fn(),
+  emitInternDataChanged: jest.fn(),
+}));
 
 const StaffingRequest = require('../models/StaffingRequest');
 const Recommendation = require('../models/Recommendation');
+const Position = require('../models/Position');
+const Project = require('../models/Project');
 const InternProfile = require('../models/InternProfile');
 const {
   createRecommendationsForStaffingRequest,
@@ -37,6 +46,7 @@ const {
   closeStaffingRequest,
   setStaffingRequestNote,
   putInternsForward,
+  updateStaffingRequest,
 } = require('./staffingRequestService');
 
 const REQUEST_ID = '507f1f77bcf86cd799439011';
@@ -556,5 +566,248 @@ describe('setStaffingRequestNote', () => {
   it('rejects an empty note as 400', async () => {
     arrange(mockRequest());
     await expectHttpError(setStaffingRequestNote(admin, REQUEST_ID, { note: '   ' }), 400);
+  });
+});
+
+// The edit path (ticket 10). Legality is the rules helper's and tested there;
+// what matters here is that the service carries out the consequences the plan
+// reports — the close-out cascade for a position that stopped being asked for,
+// the recommendation move behind a project change — and names each of them in
+// the trail.
+describe('updateStaffingRequest', () => {
+  const OTHER_PROJECT_ID = '507f1f77bcf86cd79943901c';
+  const THIRD_POSITION_ID = '507f1f77bcf86cd79943901d';
+
+  // The update path reads recommendations through the populate chain, resolves
+  // the new project, and looks position names up for the trail line.
+  const arrangeEdit = (doc, taggedRecommendations = []) => {
+    StaffingRequest.findById.mockResolvedValue(doc);
+    Recommendation.find.mockReturnValue({
+      select: () => ({
+        lean: async () => taggedRecommendations,
+        populate: () => ({ populate: () => ({ lean: async () => taggedRecommendations }) }),
+      }),
+    });
+    Recommendation.updateMany.mockResolvedValue({ modifiedCount: taggedRecommendations.length });
+    Position.exists.mockResolvedValue(true);
+    Position.find.mockReturnValue({
+      select: () => ({
+        lean: async () => [
+          { _id: POSITION_ID, name: 'Frontend' },
+          { _id: OTHER_POSITION_ID, name: 'Backend' },
+          { _id: THIRD_POSITION_ID, name: 'QA' },
+        ],
+      }),
+    });
+    Project.findById.mockReturnValue({
+      select: async () => ({ _id: OTHER_PROJECT_ID, name: 'Borealis' }),
+    });
+    return doc;
+  };
+
+  const editable = (overrides = {}) =>
+    mockRequest({
+      requestedPositions: [
+        { position: { _id: POSITION_ID, name: 'Frontend' }, count: 2, technologies: [] },
+      ],
+      ...overrides,
+    });
+
+  const line = (position, count = 2, technologies = []) => ({ position, count, technologies });
+
+  // `staffingRequest` matters: loadTaggedRecommendations groups by it, so a
+  // recommendation without one never reaches the plan.
+  const inSelection = (position = POSITION_ID) => ({
+    staffingRequest: REQUEST_ID,
+    position,
+    status: 'interviewing',
+    result: {},
+  });
+  const placed = (name, position = POSITION_ID) => ({
+    staffingRequest: REQUEST_ID,
+    position,
+    status: 'resulted',
+    result: { outcome: 'placed' },
+    internProfile: { user: { fullname: name } },
+  });
+
+  it('closes out the candidates of a position that stopped being asked for', async () => {
+    closeOutRecommendationsForDemandEnd.mockResolvedValue({ closedOutCount: 1 });
+    arrangeEdit(editable(), [inSelection()]);
+
+    await updateStaffingRequest(author, REQUEST_ID, {
+      requestedPositions: [line(OTHER_POSITION_ID)],
+      notPlacedReason: 'The client moved the work to Backend',
+    });
+
+    expect(closeOutRecommendationsForDemandEnd).toHaveBeenCalledWith(
+      author,
+      expect.objectContaining({
+        staffingRequestId: REQUEST_ID,
+        positionIds: [POSITION_ID],
+        reason: 'The client moved the work to Backend',
+      })
+    );
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'Frontend line changed to Backend — 1 intern closed out',
+        statusKey: 'staffing:positions_changed',
+      })
+    );
+    expect(emitStaffingNewsChanged).toHaveBeenCalled();
+  });
+
+  it('refuses to close candidates out without a reason', async () => {
+    const doc = arrangeEdit(editable(), [inSelection()]);
+
+    await expectHttpError(
+      updateStaffingRequest(author, REQUEST_ID, { requestedPositions: [line(OTHER_POSITION_ID)] }),
+      400
+    );
+    expect(doc.save).not.toHaveBeenCalled();
+    expect(closeOutRecommendationsForDemandEnd).not.toHaveBeenCalled();
+  });
+
+  it('refuses to end a position someone is placed against, as a 400 naming the intern', async () => {
+    arrangeEdit(editable(), [placed('Ana')]);
+
+    await expect(
+      updateStaffingRequest(author, REQUEST_ID, { requestedPositions: [line(OTHER_POSITION_ID)] })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: "Frontend can't be changed, Ana is already placed against it",
+    });
+  });
+
+  it('runs no cascade when a count is merely lowered', async () => {
+    const doc = arrangeEdit(editable(), [inSelection(), inSelection()]);
+
+    await updateStaffingRequest(author, REQUEST_ID, {
+      requestedPositions: [line(POSITION_ID, 1)],
+    });
+
+    expect(closeOutRecommendationsForDemandEnd).not.toHaveBeenCalled();
+    expect(doc.save).toHaveBeenCalled();
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'Request edited — counts', statusKey: 'staffing:edited' })
+    );
+  });
+
+  it('moves every tagged recommendation with a project change and names the count', async () => {
+    const doc = arrangeEdit(editable({ project: { _id: PROJECT_ID, name: 'Atlas' } }), [
+      inSelection(),
+      placed('Ana'),
+    ]);
+    // Only the second populate is REQUEST_POPULATE — the first runs before the
+    // plan, and moving the project there would hide the change from it.
+    let populateCalls = 0;
+    doc.populate = jest.fn().mockImplementation(async () => {
+      populateCalls += 1;
+      if (populateCalls > 1) doc.project = { _id: OTHER_PROJECT_ID, name: 'Borealis' };
+    });
+
+    await updateStaffingRequest(author, REQUEST_ID, { projectId: OTHER_PROJECT_ID });
+
+    expect(Recommendation.updateMany).toHaveBeenCalledWith(
+      { staffingRequest: REQUEST_ID },
+      expect.objectContaining({ $set: expect.objectContaining({ project: OTHER_PROJECT_ID }) })
+    );
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'Project changed to Borealis — 2 recommendations moved',
+        statusKey: 'staffing:project_changed',
+      })
+    );
+  });
+
+  it('names no position change when the payload leaves the ask alone', async () => {
+    const doc = arrangeEdit(editable({ project: { _id: PROJECT_ID, name: 'Atlas' } }));
+    let populateCalls = 0;
+    doc.populate = jest.fn().mockImplementation(async () => {
+      populateCalls += 1;
+      if (populateCalls > 1) doc.project = { _id: OTHER_PROJECT_ID, name: 'Borealis' };
+    });
+
+    await updateStaffingRequest(author, REQUEST_ID, { projectId: OTHER_PROJECT_ID });
+
+    expect(logStaffingRequestEvent).toHaveBeenCalledTimes(1);
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ statusKey: 'staffing:project_changed' })
+    );
+  });
+
+  it('names both lines when an edit removes more than one position', async () => {
+    closeOutRecommendationsForDemandEnd.mockResolvedValue({ closedOutCount: 0 });
+    const doc = editable({
+      requestedPositions: [
+        { position: { _id: POSITION_ID, name: 'Frontend' }, count: 2, technologies: [] },
+        { position: { _id: OTHER_POSITION_ID, name: 'Backend' }, count: 1, technologies: [] },
+      ],
+    });
+    arrangeEdit(doc);
+
+    await updateStaffingRequest(author, REQUEST_ID, {
+      requestedPositions: [line(THIRD_POSITION_ID)],
+    });
+
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'Positions changed: Frontend, Backend → QA' })
+    );
+  });
+
+  it('records what the draft details said before and after', async () => {
+    arrangeEdit(editable({ draftProject: { name: 'Kestrel', client: '', description: '' } }));
+
+    await updateStaffingRequest(author, REQUEST_ID, {
+      draftProject: { name: 'Kestrel II' },
+    });
+
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'Draft project details edited — name "Kestrel" → "Kestrel II"',
+      })
+    );
+  });
+
+  it('lets an admin edit a request they did not file', async () => {
+    arrangeEdit(editable());
+    await expect(
+      updateStaffingRequest(admin, REQUEST_ID, { requestedPositions: [line(POSITION_ID, 3)] })
+    ).resolves.toBeDefined();
+  });
+
+  it('rejects a leadership user who is not the author as 403', async () => {
+    const doc = arrangeEdit(editable());
+    await expectHttpError(
+      updateStaffingRequest(otherLeader, REQUEST_ID, {
+        requestedPositions: [line(POSITION_ID, 3)],
+      }),
+      403
+    );
+    expect(doc.save).not.toHaveBeenCalled();
+  });
+
+  it('logs nothing when the edit changes nothing', async () => {
+    arrangeEdit(editable());
+
+    await updateStaffingRequest(author, REQUEST_ID, { requestedPositions: [line(POSITION_ID, 2)] });
+
+    expect(logStaffingRequestEvent).not.toHaveBeenCalled();
+    expect(emitStaffingNewsChanged).not.toHaveBeenCalled();
+  });
+
+  it('edits draft project details after resolution and logs it', async () => {
+    const doc = arrangeEdit(
+      editable({ draftProject: { name: 'Kestrel', client: '', description: '' } })
+    );
+
+    await updateStaffingRequest(author, REQUEST_ID, {
+      draftProject: { name: 'Kestrel II', client: 'Northwind' },
+    });
+
+    expect(doc.draftProject).toMatchObject({ name: 'Kestrel II', client: 'Northwind' });
+    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ statusKey: 'staffing:draft_edited' })
+    );
   });
 });

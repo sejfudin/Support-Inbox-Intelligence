@@ -354,6 +354,32 @@ the model and the pure rules module — no routes, no screens yet.
   - `CloseRequestDialog.jsx` carries both fields, close reason first, per-reason placeholders and
     never prefilled values, states that the close cannot be undone, and names how many interns will
     be closed out (counted client-side with `getLeftoverSuggestions`).
+- **Editing an open request** (ticket 10) — `PATCH /:id` accepts `requestedPositions`, `neededBy`,
+  `projectId` and `draftProject` (never `note`). Every legality question and every consequence comes
+  from one pure call, `staffingRequestRules.planStaffingRequestEdit(request, { requestedPositions,
+  projectId }, recommendations)`, returning `{ endingPositionIds, closeOutCount, projectChanged,
+  movingCount }`; the service only carries those out. It replaced
+  `assertRequestedPositionsEditable`, whose lock fired on *put forward*.
+  - **A position that stops being asked for closes out its candidates**, through ticket 09's
+    cascade with the same mandatory `notPlacedReason`. Changing a position and removing one are the
+    same event — `requestedPositions` has no per-row id.
+  - **The one refusal left: a position with someone `placed` against it**, as a 400 naming the
+    intern ("Frontend can't be changed, Ana is already placed against it"). Lowering a `count`
+    closes out nobody and may go below what is already placed — "1 wanted, 2 placed" is legal.
+  - **Changing the project moves every tagged recommendation with it** (`updateMany` + a
+    `emitInternDataChanged()`), with no refusal, including for placed interns: repointing only ever
+    means the wrong project was named. Interview rows keep their own free-text `company`/`role`,
+    deliberately un-rewritten. Naming the *first* project is still resolution
+    (`assertCanResolveProject`, admin-only), so the edit path refuses it.
+  - `draftProject.name/client/description` stay editable before **and after** resolution — the
+    trail records both versions, which protects the original ask better than freezing it did.
+  - Frontend: `RequestFormModal.jsx` no longer locks the project on edit (picker for a real one,
+    `DraftProjectFields` for draft details, no switching between the two — that is resolution), and
+    routes a costly edit through `EditImpactDialog.jsx` first. The counts and the placed-intern
+    refusal are derived client-side by `helpers/staffingRequests.js#getEditImpact` /
+    `describePlacedRefusal`, worded identically to the server's so the pre-flight stop and the 400
+    behind it never disagree. Editing is still author-only in the leadership shell; the admin pane
+    has no edit entry point, though the API admits an admin.
 
 **The admin Requests screen (ticket 08)** — admin and leadership no longer share a detail pane.
 Leadership keeps `RequestDetail.jsx`; the admin gets `AdminRequestDetail.jsx` plus
@@ -376,8 +402,10 @@ Deliberately doesn't use `Notification` (see
 
 - `History.entityType` gains `'staffingRequest'`. Filing a request and resolving its project both
   append an event via `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
-  (`staffing:filed`, `staffing:project_resolved`, `staffing:put_forward`, and from ticket 09
-  `staffing:closed` and `staffing:note`) — namespaced because `statusKey` is a string space shared
+  (`staffing:filed`, `staffing:project_resolved`, `staffing:put_forward`, from ticket 09
+  `staffing:closed` and `staffing:note`, and from ticket 10 the edit-path events
+  `staffing:positions_changed`, `staffing:project_changed`, `staffing:draft_edited` and
+  `staffing:edited`) — namespaced because `statusKey` is a string space shared
   with
   recommendation stage tracking, where bare `placed` already means something. Unlike every other
   history write, this one is **awaited and its errors surfaced**

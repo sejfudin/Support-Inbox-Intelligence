@@ -33,6 +33,8 @@ import {
   useUpdateStaffingRequest,
 } from '@/queries/staffingRequests';
 import { DuplicateRequestDialog } from './DuplicateRequestDialog';
+import { EditImpactDialog } from './EditImpactDialog';
+import { describePlacedRefusal, getEditImpact } from '@/helpers/staffingRequests';
 
 const requestedPositionSchema = z.object({
   position: z.string().min(1, 'Select a position'),
@@ -48,8 +50,9 @@ const draftProjectSchema = z.object({
 
 // A request needs a project either way — picked from the list, or described
 // as a draft when the project doesn't exist yet (see draftProject on the
-// server model). Editing never touches this: the project reference is locked
-// once a request exists, so only the filing form has to choose between them.
+// server model). An edit may repoint a request at a different project, but it
+// can never switch between the two modes: naming the *first* project is
+// resolution, which is the admin's (see ResolveProjectDialog).
 const requestSchema = z
   .object({
     projectMode: z.enum(['existing', 'draft']).default('existing'),
@@ -121,6 +124,80 @@ function SeatStepper({ value, onChange, index }) {
   );
 }
 
+/**
+ * The three fields describing a project the platform doesn't have yet. Rendered
+ * while filing in draft mode, and again on every edit of a request that carries
+ * them — including one already resolved to a real project, whose draft details
+ * remain the record of what was originally asked for.
+ */
+function DraftProjectFields({ control, errors }) {
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">
+            Name <span className="text-destructive">*</span>
+          </Label>
+          <Controller
+            name="draftProject.name"
+            control={control}
+            render={({ field }) => (
+              <input
+                {...field}
+                maxLength={160}
+                placeholder="Kestrel"
+                className="h-11 w-full rounded-xl border border-input/90 bg-transparent px-3.5 text-sm outline-none focus-visible:border-primary"
+                data-test="request-form-draft-name"
+              />
+            )}
+          />
+          {errors.draftProject?.name && (
+            <p className="text-xs text-destructive">{errors.draftProject.name.message}</p>
+          )}
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">
+            Client <span className="font-normal text-muted-foreground">· optional</span>
+          </Label>
+          <Controller
+            name="draftProject.client"
+            control={control}
+            render={({ field }) => (
+              <input
+                {...field}
+                maxLength={160}
+                placeholder="Kestrel Fintech"
+                className="h-11 w-full rounded-xl border border-input/90 bg-transparent px-3.5 text-sm outline-none focus-visible:border-primary"
+                data-test="request-form-draft-client"
+              />
+            )}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">
+          Description <span className="font-normal text-muted-foreground">· optional</span>
+        </Label>
+        <Controller
+          name="draftProject.description"
+          control={control}
+          render={({ field }) => (
+            <textarea
+              {...field}
+              maxLength={2000}
+              rows={3}
+              placeholder="What the team will be working on — helps mentors pick the right people."
+              className="w-full resize-none rounded-xl border border-input/90 bg-transparent px-3.5 py-2.5 text-sm outline-none focus-visible:border-primary"
+              data-test="request-form-draft-description"
+            />
+          )}
+        />
+      </div>
+    </>
+  );
+}
+
 const defaultValues = {
   projectMode: 'existing',
   projectId: '',
@@ -129,12 +206,13 @@ const defaultValues = {
   neededBy: null,
 };
 
-// Editing never changes the project (see the doc comment on the form below),
-// so this only has to read back whichever one the request already carries.
+// A resolved request keeps the draft details it was filed with, and they stay
+// editable: freezing them was meant to preserve what was originally asked for,
+// and the history trail does that better by showing both versions.
 const toFormValues = (request) => ({
   projectMode: request.project ? 'existing' : 'draft',
   projectId: request.project?._id ?? '',
-  draftProject: request.project ? null : (request.draftProject ?? null),
+  draftProject: request.draftProject ?? null,
   requestedPositions: request.requestedPositions.map((requestedPosition) => ({
     position: requestedPosition.position?._id ?? '',
     count: requestedPosition.count,
@@ -152,12 +230,34 @@ const toPayload = (values) => ({
   neededBy: values.neededBy || null,
 });
 
+const toDraftPayload = (draftProject) => ({
+  name: draftProject.name.trim(),
+  client: draftProject.client?.trim() || '',
+  description: draftProject.description?.trim() || '',
+});
+
+// An edit sends whichever halves of the project the request has: the real one
+// it may have been repointed to, the draft details it may have had corrected,
+// or — for a request resolved out of a draft — both.
+const toEditPayload = (values) => ({
+  ...toPayload(values),
+  ...(values.projectMode === 'existing' ? { projectId: values.projectId } : {}),
+  ...(values.draftProject ? { draftProject: toDraftPayload(values.draftProject) } : {}),
+});
+
 /**
- * Files a new staffing request or edits an open one — same fields, project
- * picker only rendered (and only required) on file. Filing offers a choice:
- * pick an existing project, or describe one that doesn't exist yet
- * (`draftProject`) — the admin resolves that later (see ResolveProjectDialog).
- * An edit never touches the project either way, so the toggle is filing-only.
+ * Files a new staffing request or edits an open one — same fields either way.
+ * Filing offers a choice: pick an existing project, or describe one that
+ * doesn't exist yet (`draftProject`) — the admin resolves that later (see
+ * ResolveProjectDialog). An edit keeps whichever half the request already has:
+ * the project may be repointed, the draft details corrected, but the toggle
+ * between them is filing-only.
+ *
+ * An edit that costs something — candidates closed out because a position
+ * stopped being asked for, recommendations moved because the project did —
+ * goes through EditImpactDialog first, and one that isn't legal at all (a
+ * position someone is placed against) is stopped here with the same sentence
+ * the server would answer with.
  */
 export function RequestFormModal({ open, onOpenChange, request = null, onViewExisting }) {
   const isEditing = Boolean(request);
@@ -171,10 +271,12 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
 
   const [selectedProject, setSelectedProject] = useState(null);
   const [duplicateWarn, setDuplicateWarn] = useState(null);
+  const [impactWarn, setImpactWarn] = useState(null);
 
-  // Open demand already recorded against the project being filed for. Only
-  // fetched while filing — an edit can't change the project, so it can't
-  // create a duplicate.
+  // Open demand already recorded against the project being filed for. Filing
+  // only: an edit may now repoint the project, but "someone already asked for
+  // this" is a question about a new ask, and answering it for a repoint would
+  // offer "view the existing one instead" for a request being corrected.
   const { data: openForProject = [] } = useStaffingRequests(
     { status: 'open', projectId: selectedProject?._id },
     { enabled: open && !isEditing && Boolean(selectedProject?._id) }
@@ -206,6 +308,7 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
     reset(isEditing ? toFormValues(request) : defaultValues);
     setSelectedProject(isEditing ? request.project : null);
     setDuplicateWarn(null);
+    setImpactWarn(null);
   }, [open, isEditing, request, reset]);
 
   const positionOptions = useMemo(() => positions?.data ?? positions ?? [], [positions]);
@@ -225,24 +328,51 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
     });
   };
 
+  const saveEdit = (payload) => {
+    updateMutation.mutate(
+      { id: request.id, data: payload },
+      {
+        onSuccess: () => {
+          toast.success('Request updated');
+          setImpactWarn(null);
+          onOpenChange(false);
+        },
+        onError: (error) => {
+          toast.error('Could not update request', {
+            description: error?.response?.data?.message,
+          });
+        },
+      }
+    );
+  };
+
   const onSubmit = (values) => {
     const payload = toPayload(values);
 
     if (isEditing) {
-      updateMutation.mutate(
-        { id: request.id, data: payload },
-        {
-          onSuccess: () => {
-            toast.success('Request updated');
-            onOpenChange(false);
-          },
-          onError: (error) => {
-            toast.error('Could not update request', {
-              description: error?.response?.data?.message,
-            });
-          },
-        }
-      );
+      const editPayload = toEditPayload(values);
+      const impact = getEditImpact(request, {
+        positionIds: values.requestedPositions.map(
+          (requestedPosition) => requestedPosition.position
+        ),
+        projectId: values.projectMode === 'existing' ? values.projectId : null,
+      });
+
+      // The one refusal left. Stopped here as well as on the server, because
+      // "you can't" is worth saying before the form is submitted, not after.
+      if (impact.blocked.length > 0) {
+        toast.error('That position is spoken for', {
+          description: describePlacedRefusal(impact.blocked),
+        });
+        return;
+      }
+
+      if (impact.closeOutCount > 0 || impact.projectChanged) {
+        setImpactWarn({ payload: editPayload, impact });
+        return;
+      }
+
+      saveEdit(editPayload);
       return;
     }
 
@@ -273,6 +403,7 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
 
   const watchedPositions = watch('requestedPositions') ?? [];
   const projectMode = watch('projectMode');
+  const watchedDraft = watch('draftProject');
 
   const usedPositionIds = (index) =>
     watchedPositions
@@ -296,10 +427,10 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
   const totalSeats = watchedPositions.reduce((sum, row) => sum + (Number(row?.count) || 0), 0);
   const filledRows = watchedPositions.filter((row) => row?.position).length;
   const footerHint = (() => {
-    if (!isEditing && projectMode === 'existing' && !watch('projectId')) {
+    if (projectMode === 'existing' && !watch('projectId')) {
       return 'Pick a project to continue';
     }
-    if (!isEditing && projectMode === 'draft' && !(watch('draftProject.name') || '').trim()) {
+    if (projectMode === 'draft' && !(watch('draftProject.name') || '').trim()) {
       return 'Name the project to continue';
     }
     if (!filledRows) return 'Choose a position to continue';
@@ -313,7 +444,7 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
       {/* The form steps aside rather than stacking a dialog on a dialog — the
           draft is still there behind it, and "Back to form" returns to it
           untouched. */}
-      <Dialog open={open && !duplicateWarn} onOpenChange={onOpenChange}>
+      <Dialog open={open && !duplicateWarn && !impactWarn} onOpenChange={onOpenChange}>
         <DialogContent className="gap-0 p-0 sm:max-w-2xl" data-test="request-form-modal">
           <DialogHeader className="gap-1 border-b border-border/60 px-6 py-5">
             <DialogTitle className="text-2xl font-bold">
@@ -328,17 +459,7 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-col">
             <div className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto px-6 py-5">
-              {isEditing ? (
-                <div className="flex flex-col gap-2">
-                  <Label className="text-base font-semibold">Project</Label>
-                  <div
-                    className="flex h-11 items-center rounded-xl border border-input bg-muted px-3.5 text-sm text-muted-foreground"
-                    data-test="request-form-project-locked"
-                  >
-                    {request.project?.name ?? 'Draft project'}
-                  </div>
-                </div>
-              ) : projectMode === 'draft' ? (
+              {projectMode === 'draft' ? (
                 <div
                   className="flex flex-col gap-4 rounded-2xl border border-border/60 p-4"
                   data-test="request-form-draft-project"
@@ -347,88 +468,31 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
                     <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Project details
                     </Label>
-                    <button
-                      type="button"
-                      onClick={switchToExisting}
-                      className="text-sm font-semibold text-primary hover:underline"
-                      data-test="request-form-search-existing"
+                    {/* Naming the first real project is resolution, not an
+                        edit — the admin's, through ResolveProjectDialog. */}
+                    {!isEditing && (
+                      <button
+                        type="button"
+                        onClick={switchToExisting}
+                        className="text-sm font-semibold text-primary hover:underline"
+                        data-test="request-form-search-existing"
+                      >
+                        Search existing instead
+                      </button>
+                    )}
+                  </div>
+
+                  <DraftProjectFields control={control} errors={errors} />
+
+                  {!isEditing && (
+                    <p
+                      className="rounded-xl bg-primary/10 px-3.5 py-2.5 text-sm text-foreground"
+                      data-test="request-form-draft-notice"
                     >
-                      Search existing instead
-                    </button>
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-semibold">
-                        Name <span className="text-destructive">*</span>
-                      </Label>
-                      <Controller
-                        name="draftProject.name"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            maxLength={160}
-                            placeholder="Kestrel"
-                            className="h-11 w-full rounded-xl border border-input/90 bg-transparent px-3.5 text-sm outline-none focus-visible:border-primary"
-                            data-test="request-form-draft-name"
-                          />
-                        )}
-                      />
-                      {errors.draftProject?.name && (
-                        <p className="text-xs text-destructive">
-                          {errors.draftProject.name.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-sm font-semibold">
-                        Client <span className="font-normal text-muted-foreground">· optional</span>
-                      </Label>
-                      <Controller
-                        name="draftProject.client"
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            maxLength={160}
-                            placeholder="Kestrel Fintech"
-                            className="h-11 w-full rounded-xl border border-input/90 bg-transparent px-3.5 text-sm outline-none focus-visible:border-primary"
-                            data-test="request-form-draft-client"
-                          />
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold">
-                      Description{' '}
-                      <span className="font-normal text-muted-foreground">· optional</span>
-                    </Label>
-                    <Controller
-                      name="draftProject.description"
-                      control={control}
-                      render={({ field }) => (
-                        <textarea
-                          {...field}
-                          maxLength={2000}
-                          rows={3}
-                          placeholder="What the team will be working on — helps mentors pick the right people."
-                          className="w-full resize-none rounded-xl border border-input/90 bg-transparent px-3.5 py-2.5 text-sm outline-none focus-visible:border-primary"
-                          data-test="request-form-draft-description"
-                        />
-                      )}
-                    />
-                  </div>
-
-                  <p
-                    className="rounded-xl bg-primary/10 px-3.5 py-2.5 text-sm text-foreground"
-                    data-test="request-form-draft-notice"
-                  >
-                    This files as <strong>Needs project</strong> — an admin will match it to an
-                    existing project or create it before anyone can be recommended.
-                  </p>
+                      This files as <strong>Needs project</strong> — an admin will match it to an
+                      existing project or create it before anyone can be recommended.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
@@ -472,14 +536,36 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
                   {errors.projectId && (
                     <p className="text-xs text-destructive">{errors.projectId.message}</p>
                   )}
-                  <button
-                    type="button"
-                    onClick={switchToDraft}
-                    className="self-start text-sm font-semibold text-primary hover:underline"
-                    data-test="request-form-describe-instead"
-                  >
-                    Don&apos;t see it? Describe the project instead
-                  </button>
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      onClick={switchToDraft}
+                      className="self-start text-sm font-semibold text-primary hover:underline"
+                      data-test="request-form-describe-instead"
+                    >
+                      Don&apos;t see it? Describe the project instead
+                    </button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Pointing this at a different project moves everyone put forward with it. A
+                      genuinely different ask is a new request.
+                    </p>
+                  )}
+
+                  {/* A request resolved out of a draft keeps the details it was
+                      filed with — still the record of what was asked for, and
+                      still editable, with both versions in the history trail. */}
+                  {isEditing && watchedDraft && (
+                    <div
+                      className="mt-2 flex flex-col gap-4 rounded-2xl border border-border/60 p-4"
+                      data-test="request-form-draft-project"
+                    >
+                      <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        As originally asked for
+                      </Label>
+                      <DraftProjectFields control={control} errors={errors} />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -632,6 +718,15 @@ export function RequestFormModal({ open, onOpenChange, request = null, onViewExi
           onOpenChange(false);
           onViewExisting?.(existingId);
         }}
+      />
+
+      <EditImpactDialog
+        open={Boolean(impactWarn)}
+        impact={impactWarn?.impact}
+        projectName={selectedProject?.name ?? 'the new project'}
+        isSaving={updateMutation.isPending}
+        onCancel={() => setImpactWarn(null)}
+        onConfirm={({ notPlacedReason }) => saveEdit({ ...impactWarn.payload, notPlacedReason })}
       />
     </>
   );
