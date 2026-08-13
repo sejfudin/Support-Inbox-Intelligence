@@ -17,6 +17,7 @@ Detail lives in the referenced docs below — read them when the task calls for 
 
 - **Designing a feature / touching data model, roles, auth, or sockets** → read `.claude/docs/architecture.md`
 - **Anything touching tickets, workspaces, rooms, or role guards** → read `.claude/docs/security.md` (authz is scoped per-workspace; get this wrong and you leak cross-tenant data)
+- **Staffing requests, putting interns forward, or the close-out cascade** → read `.claude/docs/staffing-requests.md` (architecture.md carries only the summary)
 - **Writing code** → follow `.claude/docs/conventions.md`
 - **Running, seeding, building, verifying** → `.claude/docs/workflows.md`
 
@@ -51,6 +52,8 @@ right wording is genuinely unclear, make your best edit and flag it in your summ
 than skipping it. Never let code and docs drift apart silently.
 
 - Data model, roles, auth flow, sockets, or an integration changes → update `.claude/docs/architecture.md`
+- Anything about staffing requests changes → update `.claude/docs/staffing-requests.md`. Only touch
+  architecture.md's summary of it if one of the four facts it states there stops being true.
 - An authz rule, guard, scoping behavior, or secret handling changes → update `.claude/docs/security.md`
 - A coding pattern, naming, layering, or the data-layer flow changes → update `.claude/docs/conventions.md`
 - A command, env var, seeding, or run/build step changes → update `.claude/docs/workflows.md`

@@ -224,6 +224,9 @@ Three things to preserve when touching `adminDashboardService.js`:
 
 ## Staffing requests — first leadership write path
 
+This section is the authority on who may do what to a staffing request. How the feature works —
+model, rules module, put-forward flow, close-out cascade — is `.claude/docs/staffing-requests.md`.
+
 `/api/staffing-requests` (`server/routes/staffingRequests.js`,
 `server/services/staffingRequestService.js`) is the **first route on the platform that admits
 `ROLES.LEADERSHIP` for a write** — no other feature's middleware default covers this, so every
