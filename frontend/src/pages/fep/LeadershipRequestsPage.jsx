@@ -18,10 +18,14 @@ import { RequestListItem } from '@/components/symphony/requests/RequestListItem'
 import { RequestDetail } from '@/components/symphony/requests/RequestDetail';
 import { RequestFormModal } from '@/components/symphony/requests/RequestFormModal';
 import { CloseRequestDialog } from '@/components/symphony/requests/CloseRequestDialog';
-import { getRequestTitle } from '@/components/symphony/requests/requestPresentation';
+import {
+  SINGLE_PANE_QUERY,
+  getRequestTitle,
+} from '@/components/symphony/requests/requestPresentation';
 import { useAuth } from '@/context/AuthContext';
 import { useStaffingRequests } from '@/queries/staffingRequests';
 import { useStaffingNewsMarkers } from '@/hooks/useStaffingNewsMarkers';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { getRequestGroup } from '@/helpers/staffingRequests';
 
 const SORTS = {
@@ -75,6 +79,8 @@ export default function LeadershipRequestsPage() {
   // Opening the tab clears the badge — read state is tab-level, stamped once
   // per mount rather than on every render.
   const unreadRequestIds = useStaffingNewsMarkers();
+  // Matches the `lg:` grid below — one column means list or detail, never both.
+  const isSinglePane = useMediaQuery(SINGLE_PANE_QUERY);
 
   const currentUserId = user?._id ?? user?.id;
   const canFile = user?.role === 'leadership';
@@ -112,12 +118,16 @@ export default function LeadershipRequestsPage() {
 
   // Land on something rather than an empty pane, and drop a stale id (a
   // bookmarked request that has since gone) instead of showing nothing.
+  //
+  // Only where both panes are on screen. Below `lg` the list and the detail
+  // are the same column, so auto-selecting would re-open the request the
+  // moment `All requests` cleared it and the back button would look dead.
   useEffect(() => {
-    if (isPending || visibleRequests.length === 0) return;
+    if (isSinglePane || isPending || visibleRequests.length === 0) return;
     if (selectedId && requests.some((request) => request.id === selectedId)) return;
     selectRequest(visibleRequests[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPending, selectedId, requests, visibleRequests]);
+  }, [isSinglePane, isPending, selectedId, requests, visibleRequests]);
 
   // Author-only, because this route is leadership-only (see AppRoutes) and an
   // admin never lands here — they answer requests from their own side of the

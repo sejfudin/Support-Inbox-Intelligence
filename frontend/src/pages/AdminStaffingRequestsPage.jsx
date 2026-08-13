@@ -13,6 +13,8 @@ import { AdminRequestDetail } from '@/components/symphony/requests/AdminRequestD
 import { PutForwardDialog } from '@/components/symphony/requests/PutForwardDialog';
 import { usePutInternsForward, useStaffingRequests } from '@/queries/staffingRequests';
 import { useStaffingNewsMarkers } from '@/hooks/useStaffingNewsMarkers';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { SINGLE_PANE_QUERY } from '@/components/symphony/requests/requestPresentation';
 import {
   EMPTY_CART,
   countStagedPicks,
@@ -76,6 +78,8 @@ export default function AdminStaffingRequestsPage() {
 
   const { data: requests = [], isPending, isError } = useStaffingRequests();
   const unreadRequestIds = useStaffingNewsMarkers();
+  // Matches the `lg:` grid below — one column means list or detail, never both.
+  const isSinglePane = useMediaQuery(SINGLE_PANE_QUERY);
 
   const { carts, togglePick, setPositionPicks, clearRequest } = useStagedPicks();
   const submitMutation = usePutInternsForward();
@@ -108,12 +112,15 @@ export default function AdminStaffingRequestsPage() {
     );
   };
 
+  // Only where both panes are on screen. Below `lg` the list and the detail
+  // are the same column, so auto-selecting would re-open the request the
+  // moment `All requests` cleared it and the back button would look dead.
   useEffect(() => {
-    if (isPending || visibleRequests.length === 0) return;
+    if (isSinglePane || isPending || visibleRequests.length === 0) return;
     if (selectedId && requests.some((request) => request.id === selectedId)) return;
     selectRequest(visibleRequests[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPending, selectedId, requests, visibleRequests]);
+  }, [isSinglePane, isPending, selectedId, requests, visibleRequests]);
 
   // Which seat is armed, and any refusals, belong to the request being looked
   // at. The cart does not — it survives the move, which is the whole point.

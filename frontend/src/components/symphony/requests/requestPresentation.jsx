@@ -3,6 +3,12 @@ import { AlertTriangle, CheckCircle2, Clock, FolderPlus, UserRoundX } from 'luci
 import { hasNobodyPutForward, isAwaitingProject, isDemandMet } from '@/helpers/staffingRequests';
 import { isActivePipelineRecommendation } from '@/helpers/recommendations';
 
+// Both requests pages lay the master list and the detail pane out as a `lg:`
+// two-column grid, so below that width only one of them is on screen. Kept
+// here rather than in either page because the two must agree: a page whose
+// query and grid disagree either strands the back button or blanks the pane.
+export const SINGLE_PANE_QUERY = '(max-width: 1023.98px)';
+
 // `client` is optional on a draft project and `project` may be absent
 // altogether, so the title has to survive every combination rather than
 // producing an orphaned em dash.
