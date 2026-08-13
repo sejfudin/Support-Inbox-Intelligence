@@ -1,4 +1,4 @@
-// Wiring-level cover for the close / note / put-forward paths. Who may do what
+// Wiring-level cover for the close / edit / put-forward paths. Who may do what
 // is decided by helpers/staffingRequestRules.js and tested there; what this
 // checks is what the service does around those decisions — which field the
 // supplied note lands in per reason (they are not interchangeable), that the
@@ -45,7 +45,6 @@ const { emitStaffingNewsChanged } = require('../socket/events');
 const { ROLES } = require('../constants/roles');
 const {
   closeStaffingRequest,
-  setStaffingRequestNote,
   putInternsForward,
   updateStaffingRequest,
 } = require('./staffingRequestService');
@@ -417,16 +416,30 @@ describe('closeStaffingRequest', () => {
   // request — the author may well have left by the time the client pulls out.
   it('lets a leadership member who is not the author cancel', async () => {
     const doc = arrange(mockRequest());
-    await closeStaffingRequest(otherLeader, REQUEST_ID, { reason: 'cancelled' });
+    await closeStaffingRequest(otherLeader, REQUEST_ID, {
+      reason: 'cancelled',
+      note: 'Client pulled out',
+    });
 
     expect(doc.status).toBe('closed');
     expect(doc.reason).toBe('cancelled');
   });
 
+  // Both closes that leave the ask unmet state why. Nothing on a closed request
+  // is writable afterwards, so a blank one would be permanent (ADR 0005).
   it('rejects a decline with no note as 400', async () => {
     const doc = arrange(mockRequest());
     await expectHttpError(
       closeStaffingRequest(admin, REQUEST_ID, { reason: 'declined', note: '   ' }),
+      400
+    );
+    expect(doc.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects a cancellation with no note as 400', async () => {
+    const doc = arrange(mockRequest());
+    await expectHttpError(
+      closeStaffingRequest(author, REQUEST_ID, { reason: 'cancelled', note: '   ' }),
       400
     );
     expect(doc.save).not.toHaveBeenCalled();
@@ -477,6 +490,7 @@ describe('closeStaffingRequest', () => {
     arrange(mockRequest(), [tagged()]);
     await closeStaffingRequest(otherLeader, REQUEST_ID, {
       reason: 'cancelled',
+      note: 'Client pulled out',
       notPlacedReason: '  The client withdrew the ask  ',
     });
 
@@ -495,6 +509,7 @@ describe('closeStaffingRequest', () => {
     arrange(mockRequest(), [tagged()]);
     await closeStaffingRequest(otherLeader, REQUEST_ID, {
       reason: 'cancelled',
+      note: 'Client pulled out',
       notPlacedReason: 'The client withdrew the ask',
     });
 
@@ -530,43 +545,6 @@ describe('closeStaffingRequest', () => {
     expect(logStaffingRequestEvent).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'Closed as fulfilled' })
     );
-  });
-});
-
-// Notes are the one write a closed request still accepts: with no reopen, this
-// is the only way to annotate a mis-close or cross-reference a refiling.
-describe('setStaffingRequestNote', () => {
-  it('writes a note onto a closed request', async () => {
-    const doc = arrange(mockRequest({ status: 'closed', reason: 'cancelled' }));
-    await setStaffingRequestNote(admin, REQUEST_ID, {
-      note: '  Cancelled in error, refiled as #52  ',
-    });
-
-    expect(doc.note).toBe('Cancelled in error, refiled as #52');
-    expect(String(doc.noteBy)).toBe(ADMIN_ID);
-    expect(doc.noteAt).toBeInstanceOf(Date);
-    expect(doc.save).toHaveBeenCalled();
-  });
-
-  it('appends a history event and badges the other side', async () => {
-    arrange(mockRequest());
-    await setStaffingRequestNote(admin, REQUEST_ID, { note: 'Two interviews booked' });
-
-    expect(logStaffingRequestEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'Note added', statusKey: 'staffing:note' })
-    );
-    expect(emitStaffingNewsChanged).toHaveBeenCalled();
-  });
-
-  it('rejects leadership writing a note as 403', async () => {
-    const doc = arrange(mockRequest());
-    await expectHttpError(setStaffingRequestNote(author, REQUEST_ID, { note: 'Mine now' }), 403);
-    expect(doc.save).not.toHaveBeenCalled();
-  });
-
-  it('rejects an empty note as 400', async () => {
-    arrange(mockRequest());
-    await expectHttpError(setStaffingRequestNote(admin, REQUEST_ID, { note: '   ' }), 400);
   });
 });
 

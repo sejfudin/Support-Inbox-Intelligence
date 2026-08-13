@@ -20,6 +20,11 @@ import { useCloseStaffingRequest } from '@/queries/staffingRequests';
 // admin's `note`. The copy has to say which, or an admin writes a decline reason
 // expecting leadership to read it somewhere else.
 //
+// Both closes that leave the ask unmet — cancel and decline — require the
+// reason; only a fulfil may skip it. Nothing on a closed request can be edited
+// afterwards (ADR 0005), so this dialog is the only chance anyone gets to say
+// why, and the copy says so.
+//
 // Every reason closes out whoever is still in selection, so the second field
 // below is shared by all three rather than being a cancellation special case.
 const REASON_COPY = {
@@ -48,12 +53,12 @@ const REASON_COPY = {
   cancelled: {
     title: 'Cancel this request?',
     description:
-      'The request stays on record, closed, so what was asked for and when is never lost. Cancelling is all-or-nothing — if the ask has only shrunk, lower the count instead and nobody is closed out.',
-    noteLabel: 'Reason (optional)',
+      'The request stays on record, closed, so what was asked for and when is never lost. Your reason is stored with it and cannot be changed afterwards. Cancelling is all-or-nothing — if the ask has only shrunk, lower the count instead and nobody is closed out.',
+    noteLabel: 'Reason',
     notePlaceholder: 'Why the opportunity evaporated…',
     confirm: 'Cancel request',
     variant: 'destructive',
-    noteRequired: false,
+    noteRequired: true,
     notPlacedPlaceholder: 'The client withdrew the ask…',
   },
 };
@@ -157,7 +162,7 @@ export function CloseRequestDialog({ open, onOpenChange, request, reason }) {
           />
           {copy.noteRequired && !trimmedNote && (
             <p className="text-xs text-muted-foreground">
-              A reason is required to decline — the server rejects a blank one.
+              A reason is required — the server rejects a blank one, and it can’t be added later.
             </p>
           )}
         </div>

@@ -209,19 +209,16 @@ the model and the pure rules module — no routes, no screens yet.
   (`fulfilled | declined | cancelled`), `closedBy`, `closedAt`, enforced together by a
   `pre('validate')` hook — `declined` additionally requires a non-empty `note`.
   `note` is **the admin's remark on the request, not the author's ask** — one note per request,
-  written when picking candidates for it, so leadership reads anything the suggestions themselves
+  written when the admin closes it, so leadership reads anything the suggestions themselves
   don't say. It carries `noteBy` + `noteAt`, and a `pre('validate')` hook requires all three
   together or none (a half-written note would render unattributed). Leadership never authors it:
   `createStaffingRequest`/`updateStaffingRequest` ignore `note` entirely. A cancellation reason
   goes to the separate `closeNote` field precisely so cancelling cannot overwrite an admin's note;
   a decline's mandatory reason is the admin's remark, so it writes `note` proper. Closing is
   `POST /:id/close` (reason in the body) — see `.claude/docs/security.md` for the per-reason
-  permission split and the 403-vs-400 mapping. **`closed` is terminal: there is no reopen and no
-  delete** (`docs/adr/0005`).
-  Until the fulfil flow (tickets 06/07) can save the note alongside the candidate picks, it has its
-  own write path, `PATCH /:id/note` → `setStaffingRequestNote`. That path is the one write a
-  **closed** request still accepts: with no reopen, the note is the entire remedy for a mis-close
-  ("cancelled in error, refiled as #52") and the cross-reference when demand returns.
+  permission split, which reasons require a stated one, and the 403-vs-400 mapping. **`closed` is
+  terminal: there is no reopen, no delete, and no write of any kind to a closed request**
+  (`docs/adr/0005`) — the close carries its own reason precisely because nothing can add one later.
 - **Formatted request payload** (`formatRequest` in `services/staffingRequestService.js`) — the one
   place a request document becomes a response: adds `progress` (straight from the rules helper) and
   `suggestions`. There is no derived status field — see the note under the rules module. `suggestions` is one entry per
@@ -404,7 +401,7 @@ Deliberately doesn't use `Notification` (see
 - `History.entityType` gains `'staffingRequest'`. Filing a request and resolving its project both
   append an event via `historyService.logStaffingRequestEvent` with a namespaced `statusKey`
   (`staffing:filed`, `staffing:project_resolved`, `staffing:put_forward`, from ticket 09
-  `staffing:closed` and `staffing:note`, and from ticket 10 the edit-path events
+  `staffing:closed`, and from ticket 10 the edit-path events
   `staffing:positions_changed`, `staffing:project_changed`, `staffing:draft_edited` and
   `staffing:edited`) — namespaced because `statusKey` is a string space shared
   with

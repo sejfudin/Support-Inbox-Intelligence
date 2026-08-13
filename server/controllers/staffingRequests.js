@@ -134,19 +134,6 @@ exports.closeStaffingRequest = async (req, res, next) => {
   }
 };
 
-exports.setStaffingRequestNote = async (req, res, next) => {
-  try {
-    const request = await staffingRequestService.setStaffingRequestNote(
-      req.user,
-      req.params.id,
-      req.body
-    );
-    res.json({ success: true, message: 'Note saved', data: request });
-  } catch (error) {
-    handleError(res, error, next);
-  }
-};
-
 exports.getStaffingRequestNews = async (req, res, next) => {
   try {
     const news = await staffingRequestService.getStaffingRequestNews(req.user);

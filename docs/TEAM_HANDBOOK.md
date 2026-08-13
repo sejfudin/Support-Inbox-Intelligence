@@ -25,16 +25,15 @@
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
 - Sets the start date on a placement — the day the intern actually begins on the project, which is often not the day the placement was decided. It is optional: leave it empty when nobody knows yet, and set it later once they do. From that day the intern no longer has to record attendance: those days show in their own colour instead of absent, and the month reads "—" instead of 0%. Until a start date is set the intern keeps recording attendance as normal, and moving the date moves the cut-off with it
-- Only role that can leave a note on a staffing request — one short remark per request, for
-  anything leadership should know that the suggested candidates don't say. Saving again replaces
-  it; there is no back-and-forth thread on a request. A note can still be added to a **closed**
-  request: since a close can't be undone, the note is how a mistake gets recorded ("cancelled in
-  error, refiled as #52")
+- Only role that can leave a note on a staffing request — one short remark, written when they close
+  it, for anything leadership should know that the suggested candidates don't say. It cannot be
+  edited or added afterwards: a closed request is a fixed record, so what was said at the time is
+  what stays
 - Only role that can close a staffing request as **fulfilled** (the seats are filled) or
   **declined** (the ask is being refused). Declining requires a reason, which becomes the note
-  leadership reads. Cannot cancel — that is leadership's, since only they speak to the outside
-  party. Nothing closes a request automatically — even when every seat is placed, an admin still
-  closes it
+  leadership reads; fulfilling doesn't — the placements say it. Cannot cancel — that is
+  leadership's, since only they speak to the outside party. Nothing closes a request automatically —
+  even when every seat is placed, an admin still closes it
 - Only role that can put interns forward against a staffing request — candidates are picked one
   seat at a time, so each intern is offered for the discipline that was actually asked for. Picks
   are **staged first and sent together**: nothing reaches leadership until "Submit to leadership",
@@ -92,7 +91,7 @@
 - Cannot close a request as fulfilled or declined — those are the admin's call. Cancelling is the
   only close available to leadership
 - Reads the admin's note on a request (see Admin) but cannot write or edit one, not even on their
-  own request. Can leave a reason when cancelling a request
+  own request. **Must** give a reason when cancelling a request — it can't be added or changed later
 - Sees all interns and all their profiles (not just assigned ones, unlike a mentor)
 - Sees all recommendations (created exclusively by admin), but can't create/edit them
 - Sees programme-wide statistics, the funnel/"In Selection" dashboard

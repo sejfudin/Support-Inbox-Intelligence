@@ -621,7 +621,12 @@ describe('planStaffingRequestEdit', () => {
 describe('assertCanClose', () => {
   it('allows any leadership user to cancel, author or not', () => {
     expect(() =>
-      assertCanClose(baseRequest(), { isAdmin: false, isLeadership: true, reason: 'cancelled' })
+      assertCanClose(baseRequest(), {
+        isAdmin: false,
+        isLeadership: true,
+        reason: 'cancelled',
+        note: 'Client pulled out',
+      })
     ).not.toThrow();
   });
 
@@ -682,6 +687,25 @@ describe('assertCanClose', () => {
     ).not.toThrow();
   });
 
+  // Cancelling leaves the ask unmet the same way declining does, and nothing on
+  // a closed request can be revised afterwards — so it states why, or it fails.
+  it('rejects cancelled with no note', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), {
+        isAdmin: false,
+        isLeadership: true,
+        reason: 'cancelled',
+        note: '  ',
+      })
+    ).toThrow(/reason/i);
+  });
+
+  it('needs no note to close as fulfilled — the placements are the explanation', () => {
+    expect(() =>
+      assertCanClose(baseRequest(), { isAdmin: true, isLeadership: false, reason: 'fulfilled' })
+    ).not.toThrow();
+  });
+
   it('rejects closing an already-closed request', () => {
     const request = baseRequest({ status: 'closed', reason: 'cancelled' });
     expect(() =>
@@ -705,7 +729,12 @@ describe('assertCanClose', () => {
   it('allows cancelling a request that still needs a project', () => {
     const request = baseRequest({ project: null, draftProject: { name: 'Kestrel' } });
     expect(() =>
-      assertCanClose(request, { isAdmin: false, isLeadership: true, reason: 'cancelled' })
+      assertCanClose(request, {
+        isAdmin: false,
+        isLeadership: true,
+        reason: 'cancelled',
+        note: 'Never signed',
+      })
     ).not.toThrow();
   });
 
@@ -717,6 +746,7 @@ describe('assertCanClose', () => {
         isAdmin: false,
         isLeadership: true,
         reason: 'cancelled',
+        note: 'Client pulled out',
         inSelectionCount: 3,
       })
     ).toThrow(/reason/i);

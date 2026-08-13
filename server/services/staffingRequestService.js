@@ -304,8 +304,8 @@ const createStaffingRequest = async (user, payload = {}) => {
     draftProject,
     requestedPositions,
     author: user._id,
-    // No `note` — it is the admin's remark on this request, and no admin has
-    // looked at it yet. See setStaffingRequestNote.
+    // No `note` — it is the admin's remark on this request, written when the
+    // admin answers it by fulfilling or declining. Nobody has looked yet.
     neededBy: parseDate(payload.neededBy, 'Needed-by date') || undefined,
     status: 'open',
   });
@@ -373,8 +373,8 @@ const describePositionEdit = ({ removed, added, names, closedOutCount }) => {
 
 // Counts, technologies, needed-by, the requested positions themselves, the
 // project reference, and the draft project's details. `note` is the one field
-// an edit can never touch — it belongs to the admin who wrote it (see
-// setStaffingRequestNote).
+// an edit can never touch — it belongs to the admin who wrote it when they
+// closed the request.
 //
 // Every legality question is the rules helper's (`planStaffingRequestEdit`);
 // this function carries out the consequences it reports: closing out the
@@ -997,7 +997,8 @@ const CLOSE_OUT_EVENT_ACTION =
 // other people's records and nothing unattended can author that.
 //
 // `assertCanClose` owns who may use which reason (cancel: leadership only;
-// fulfil/decline: admin only, and decline needs a note), so this function never
+// fulfil/decline: admin only) and which of them need a stated reason (cancel
+// and decline both — see there for why), so this function never
 // re-implements that split. It runs on the read tier rather than
 // `assertWriteAccess` for one reason: cancelling belongs to any leadership user,
 // not only to the author, and the author-or-admin check would refuse a
@@ -1005,8 +1006,8 @@ const CLOSE_OUT_EVENT_ACTION =
 //
 // Where the supplied note lands depends on the reason, and the two fields are
 // not interchangeable:
-//   cancelled → `closeNote`. Withdrawing an ask must never overwrite what an
-//               admin already said about it.
+//   cancelled → `closeNote`. Mandatory. Withdrawing an ask must never overwrite
+//               what an admin already said about it, so it gets its own field.
 //   declined  → `note` (+ `noteBy`/`noteAt`). Mandatory, and it IS the admin's
 //               remark — the model enforces both the non-empty text and the
 //               attribution triple.
@@ -1059,9 +1060,7 @@ const closeStaffingRequest = async (user, requestId, payload = {}) => {
   );
 
   if (payload.reason === 'cancelled') {
-    if (payload.note !== undefined) {
-      request.closeNote = note;
-    }
+    request.closeNote = note;
   } else if (note) {
     request.note = note;
     request.noteBy = user._id;
@@ -1107,47 +1106,6 @@ const closeStaffingRequest = async (user, requestId, payload = {}) => {
 };
 
 // The admin's remark on a request, attributed and stamped so leadership sees
-// who said it and when. Admin-only: leadership must not be able to write a
-// note onto its own ask. Saving again replaces the previous text — one note per
-// request, by design, not a thread. Eventually this is saved as part of picking
-// candidates (the fulfil flow); until that exists it has its own write path.
-//
-// Writable on a CLOSED request, and it is the only thing that is. With no
-// reopen, this note is the entire remedy for a mis-close — "cancelled in error,
-// refiled as #52" — and the cross-reference when demand comes back. Blocking it
-// would leave a wrong record with no way to say so (ADR 0005).
-const setStaffingRequestNote = async (user, requestId, payload = {}) => {
-  assertValidObjectId(requestId, 'Staffing request');
-  const request = await StaffingRequest.findById(requestId);
-  if (!request) throw httpError('Staffing request not found', 404);
-
-  assertReadAccess(user);
-  if (user.role !== ROLES.ADMIN) {
-    throw httpError('Only an admin may add a note to a staffing request', 403);
-  }
-
-  const note = cleanText(payload.note);
-  if (!note) throw httpError('Note text is required', 400);
-
-  request.note = note;
-  request.noteBy = user._id;
-  request.noteAt = new Date();
-
-  await request.save();
-
-  await logStaffingRequestEvent({
-    entityId: request._id,
-    userId: user._id,
-    action: 'Note added',
-    statusKey: 'staffing:note',
-  });
-  emitStaffingNewsChanged();
-
-  await request.populate(REQUEST_POPULATE);
-
-  return formatRequestWithLookup(request);
-};
-
 // Which requests carry news the viewer hasn't seen, and how many — drives the
 // Requests nav badge on both shells. Fetches raw staffing-request events
 // rather than aggregating in Mongo so the "unread" policy lives in one place
@@ -1197,7 +1155,6 @@ const getStaffingRequestHistory = async (user, requestId) => {
 };
 
 module.exports = {
-  setStaffingRequestNote,
   listStaffingRequests,
   getStaffingRequest,
   createStaffingRequest,

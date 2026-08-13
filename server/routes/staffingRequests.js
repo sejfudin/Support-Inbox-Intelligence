@@ -13,7 +13,6 @@ const {
   listPutForwardCandidates,
   putInternsForward,
   closeStaffingRequest,
-  setStaffingRequestNote,
   getStaffingRequestNews,
   markStaffingRequestsSeen,
   getStaffingRequestHistory,
@@ -24,17 +23,20 @@ const {
 // default. Reads: all leadership and all admins. Create: leadership only.
 // Update: role-gated here to admin+leadership, narrowed to author-or-admin in
 // the service. Close: role-gated here to admin+leadership, split per reason in
-// the service. Note: admin only — leadership must not write a note onto its own
-// ask. Mentors and interns get 403 from every route below. There is no delete
-// route, ever — closing as `cancelled` is the eraser, and there is no reopen
-// either: `closed` is terminal (ADR 0005).
+// the service. Mentors and interns get 403 from every route below. There is no
+// delete route, ever — closing as `cancelled` is the eraser, and there is no
+// reopen either: `closed` is terminal (ADR 0005).
+//
+// Nothing here writes to a closed request. A close states its own reason, and
+// that reason is the record; there is deliberately no route to revise it after
+// the fact (ADR 0005).
 //
 // `POST /:id/close` takes the reason in the body rather than being three
 // routes, because the per-reason permission split already lives in one place
 // (`assertCanClose`): cancel is leadership-only, fulfil and decline are
-// admin-only, and decline requires a note. A `requireRole(ADMIN)` on a
-// fulfil-only route would duplicate half that rule in the router and leave the
-// two copies free to drift.
+// admin-only, and cancel and decline both require a reason. A
+// `requireRole(ADMIN)` on a fulfil-only route would duplicate half that rule in
+// the router and leave the two copies free to drift.
 // `/news` and `/seen` are registered ahead of `/:id` so they aren't swallowed
 // by the id param route.
 router.get('/news', protect, requireRole(ROLES.ADMIN, ROLES.LEADERSHIP), getStaffingRequestNews);
@@ -49,7 +51,6 @@ router.get(
 );
 router.post('/', protect, requireRole(ROLES.LEADERSHIP), createStaffingRequest);
 router.patch('/:id', protect, requireRole(ROLES.LEADERSHIP), updateStaffingRequest);
-router.patch('/:id/note', protect, requireRole(ROLES.ADMIN), setStaffingRequestNote);
 // Resolving a draft project — link to an existing project, or create one from
 // leadership's draft details and link that instead. Admin-only: leadership
 // can describe a project, it can never create or link one (see

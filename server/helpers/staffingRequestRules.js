@@ -320,8 +320,13 @@ const planStaffingRequestEdit = (
 // is leadership-only — they are the ones who speak to the outside party, so
 // only they can state the demand is gone — and any leadership user qualifies,
 // not only the author, because the ask belongs to the side that made it rather
-// than to one person's account. `fulfilled` and `declined` are admin-only, and
-// `declined` requires a non-empty close reason.
+// than to one person's account. `fulfilled` and `declined` are admin-only.
+//
+// Ending a request that was never answered requires a non-empty reason —
+// `declined` and `cancelled` both. Those are the two closes that leave the ask
+// unmet, and the record is the only account anyone gets of why: there is no
+// reopen, and the note can no longer be changed afterwards. `fulfilled` needs
+// none, because the placements are the explanation.
 //
 // `inSelectionCount` is how many candidates the close will resolve (see
 // `selectCloseOutRecommendations`). Whenever that is above zero the close needs
@@ -354,8 +359,9 @@ const assertCanClose = (
   if (reason === 'fulfilled' && needsProject(request)) {
     throw new Error('Cannot close as fulfilled while the request needs a project');
   }
-  if (reason === 'declined' && !note?.trim()) {
-    throw new Error('Declining a staffing request requires a non-empty note');
+  if (reason !== 'fulfilled' && !note?.trim()) {
+    const verb = reason === 'declined' ? 'Declining' : 'Cancelling';
+    throw new Error(`${verb} a staffing request requires a non-empty reason`);
   }
   if (inSelectionCount > 0 && !notPlacedReason?.trim()) {
     throw new Error('Closing out candidates requires a reason');
@@ -395,8 +401,9 @@ const applyClose = (request, { reason, closedBy, closedAt }) => ({
 // There is no reopen: `closed` is terminal (ADR 0005). A close resolves
 // everyone still in selection, so a reopened request would come back with
 // nobody live on it — a fresh request wearing an old date, with notes
-// explaining why it was cancelled. A mis-close is corrected by filing again and
-// annotating the dead request, which is why notes stay writable once closed.
+// explaining why it was cancelled. A mis-close is corrected by filing the ask
+// again; the dead request keeps the reason it was closed with, and nothing on a
+// closed request is writable — which is why that reason is mandatory.
 
 // Which requests carry "news" a viewer hasn't seen yet, from their raw
 // history events (each `{ entityId, userId, timestamp }`). A viewer who has

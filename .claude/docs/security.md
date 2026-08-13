@@ -259,8 +259,10 @@ same exception as `Project`/`Recommendation` above).
 - **The close reason carries its own authorization**, and it lives in `assertCanClose`, not the
   router. One sentence: **leadership withdraws, admin answers**. `cancelled` is **leadership-only**
   (any leadership user; an admin gets a 403 — only leadership speaks to the outside party, so only
-  they can state the demand is gone); `fulfilled`/`declined` are **admin-only**, and `declined`
-  additionally requires a non-empty note. This is why closing is one route taking `reason` in the
+  they can state the demand is gone); `fulfilled`/`declined` are **admin-only**. `cancelled` and
+  `declined` both additionally require a non-empty note — they are the two closes that leave the ask
+  unmet, and nothing on a closed request can be revised afterwards, so a blank reason would be
+  permanent. `fulfilled` does not: the placements are the explanation. This is why closing is one route taking `reason` in the
   body rather than three routes — a `requireRole(ADMIN)` on a fulfil-only route would put half the
   rule in the router and leave the two copies free to drift. A leadership user asking to close a
   request as `fulfilled` gets a **403**, not a 400: the rules helper tags authorization refusals with
@@ -286,19 +288,19 @@ same exception as `Project`/`Recommendation` above).
 - **`PATCH /:id` cannot close anything.** `updateStaffingRequest` writes only
   `requestedPositions`, `neededBy`, `project` and `draftProject` — `status`, `reason` and `note` are
   not accepted, so neither a close nor an admin's remark can ride in on a generic edit and bypass
-  `assertCanClose` / the admin-only note route. Keep it that way. It *can* resolve candidates, but
+  `assertCanClose` — which is now the only writer of either. Keep it that way. It *can* resolve candidates, but
   only through the same cascade a close uses, and only for a position the request stopped asking
   for.
 - **Where a close note lands depends on the reason**, and the two fields are not interchangeable:
-  `cancelled` → `closeNote` (withdrawing an ask must never overwrite an admin's remark);
-  `declined` → `note` + `noteBy` + `noteAt`, mandatory; `fulfilled` → `note` if one was supplied.
+  `cancelled` → `closeNote`, mandatory (withdrawing an ask must never overwrite an admin's remark, so
+  it gets its own field); `declined` → `note` + `noteBy` + `noteAt`, mandatory; `fulfilled` → `note`
+  if one was supplied.
   The separate `notPlacedReason` never lands on the request at all — it goes to each closed-out
   recommendation's `result.note`.
-- **Note** (`PATCH /:id/note`): `requireRole(ADMIN)` only, re-asserted in the service. The note is
-  the admin's remark back to leadership, so a leadership user — including the request's own author —
-  gets a 403; nobody annotates their own ask. Saving replaces the previous text: one note per
-  request, deliberately not a thread. **Accepted on a closed request** — it is the only write that
-  is, and with no reopen it is the entire remedy for a mis-close (`docs/adr/0005`).
+- **A closed request is frozen.** No route writes to one — there is no note endpoint, no reopen, and
+  no delete. The reason given at close time is the record, which is why `cancelled` and `declined`
+  demand one (`docs/adr/0005`). A mis-close is corrected by filing the ask again, not by editing the
+  dead request.
 - **Putting interns forward** (`GET /:id/positions/:positionId/candidates`,
   `POST /:id/put-forward`) is **admin-only** at the route and re-asserted in
   `assertCanPutForward` — leadership files demand, admins answer it, and there is no author

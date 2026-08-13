@@ -9,8 +9,8 @@ accepted
 Reopening was originally specified so that a request whose demand came back would keep its original
 filing date and its whole trail, instead of pretending the demand was new. That reasoning stopped
 holding once closing began to **close out** everyone still in selection (ADR 0004): a reopened
-request comes back with nobody live, so it is a fresh request wearing an old date, while its notes
-still explain why it was cancelled.
+request comes back with nobody live, so it is a fresh request wearing an old date, while its close
+reason still explains why it was cancelled.
 
 Restoring the closed-out candidates alongside it was considered and rejected. It needs a per-record
 marker for "the cascade did this, not a human", it writes to each intern's record a second time
@@ -39,12 +39,20 @@ author-or-admin, so an admin could resurrect an ask leadership had deliberately 
   who-may-undo-which-close rule.
 - **The close dialog must state that it is permanent** and name the consequence — *"This can't be
   undone. 4 interns still in selection will be closed out."* This is the only warning a user gets.
-- **Notes stay writable on a closed request.** Previously blocked; now load-bearing. It is how a
-  mistake gets annotated (*"cancelled in error, refiled as #52"*) and how returning demand is
-  cross-referenced (*"client back in Q3, see #61"*).
+- **A closed request is frozen — nothing on it is writable, notes included.** An earlier version of
+  this decision kept the note editable after the close, so a mis-close could be annotated
+  (*"cancelled in error, refiled as #52"*). That was reversed: a record that can be rewritten after
+  the fact is not history, and an editable note invited exactly the ambiguity — was this what they
+  said at the time, or what they said later? — the trail exists to remove. In exchange, **the close
+  must state its own reason up front**: `cancelled` and `declined` both require a non-empty one
+  (`fulfilled` does not — the placements are the explanation). The close dialog is the only chance
+  anyone gets to say why, and it says so.
 
 ## Consequences
 
+- A mis-close is permanent and cannot even be annotated in place. The remedy is to file the ask
+  again; the bogus closed request stays in the list wearing the reason it was closed with, which is
+  honest history — someone really did close it, and really did give that reason.
 - A mis-close is permanent, and its cascade has already resolved the affected interns. Those interns
   end up with a `demandEnded` record plus a new live one when they are put forward again on the
   replacement request. Acceptable: the picker makes re-offering them one action, and their history is

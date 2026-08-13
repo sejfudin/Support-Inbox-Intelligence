@@ -5,10 +5,11 @@ import { formatDay } from './requestPresentation';
  * The admin's one remark on a request, for anything leadership should know that
  * the suggested candidates don't say.
  *
- * Read-only here, by design and not by omission: `PATCH /:id/note` is
- * `requireRole(ADMIN)` and leadership must not annotate its own ask — not even
- * the author. Admins write it from their own side of the app. It is one note,
- * overwritten on save, never a thread, so there is no reply affordance either.
+ * Read-only everywhere, by design and not by omission: the note is written once,
+ * by the admin who answers the request, as the reason they fulfilled or declined
+ * it. There is no route to revise it afterwards — a closed request is a fixed
+ * record (ADR 0005) — and it is one note, never a thread, so there is no edit
+ * and no reply affordance.
  */
 export function RequestNote({ request }) {
   const note = request.note?.trim();
