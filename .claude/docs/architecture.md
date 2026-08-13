@@ -207,7 +207,10 @@ the model and the pure rules module — no routes, no screens yet.
   `staffingRequest + position`, with no separate line id. `author`, optional `neededBy`
   (real `Date`, no free-text fallback). `status` is `open | closed`; closing sets `reason`
   (`fulfilled | declined | cancelled`), `closedBy`, `closedAt`, enforced together by a
-  `pre('validate')` hook — `declined` additionally requires a non-empty `note`.
+  `pre('validate')` hook. `declined` and `cancelled` both additionally require a non-empty
+  close note — they are the two closes that leave the ask unmet, and nothing on a closed
+  request can be revised afterwards, so a blank reason would be permanent. `fulfilled` does
+  not: the placements are the explanation.
   `note` is **the admin's remark on the request, not the author's ask** — one note per request,
   written when the admin closes it, so leadership reads anything the suggestions themselves
   don't say. It carries `noteBy` + `noteAt`, and a `pre('validate')` hook requires all three
@@ -264,8 +267,9 @@ the model and the pure rules module — no routes, no screens yet.
     cosmetic: `Recommendation.project` is a required reference.
   - `assertCanClose` / `applyClose` — close legality, one sentence: **leadership withdraws, admin
     answers**. `cancelled` is leadership-only (any leadership user, not just the author — the ask
-    belongs to the side that made it); `fulfilled`/`declined` are admin-only; `declined` requires a
-    non-empty close reason; `fulfilled` is refused while the request only has a draft project. It
+    belongs to the side that made it); `fulfilled`/`declined` are admin-only; `declined` and
+    `cancelled` both require a non-empty close note (`fulfilled` does not);
+    `fulfilled` is refused while the request only has a draft project. It
     also takes `inSelectionCount` and requires a `notPlacedReason` exactly when that is above zero.
     There is no `assertCanReopen`/`applyReopen` — `closed` is terminal (`docs/adr/0005`).
   - `selectCloseOutRecommendations(recommendations, positionIds)` — which candidates a close (or an
