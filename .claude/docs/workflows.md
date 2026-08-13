@@ -326,14 +326,16 @@ There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers pur
 (`services/internCvService.test.js`), for the CV re-upload → technology replacement wiring,
 `internService` (`services/internService.test.js`), for the CV-scan provenance prune on a manual
 technology save, and `staffingRequestService` (`services/staffingRequestService.test.js`), for the
-close / note / put-forward wiring around the rules helper — which note field each close reason
-writes, that closing runs the close-out cascade and names its consequence in the trail, that a
-closed request still accepts a note, and the 403-vs-400 split.
+close / edit / put-forward wiring around the rules helper — which note field each close reason
+writes, which reasons require one at all, that closing runs the close-out cascade and names its
+consequence in the trail, and the 403-vs-400 split.
 
 `npm test` in `frontend/` (vitest) is narrower still: pure helpers under `src/helpers/*.test.js`,
 including `staffingRequests.test.js` for the presentation predicates that read `progress`, plus
 `src/hooks/useStagedPicks.test.js` for the pure half of the staged-picks cart (its `sessionStorage`
-mirroring is not covered — drive the app for that). No component is rendered in a test anywhere.
+mirroring is not covered — drive the app for that) and a colocated `requestPresentation.test.js`
+next to the staffing-request components, for the pure predicates that live there. No component is
+rendered in a test anywhere.
 
 Run them when you touch any of those, but they still prove nothing about a route, a query or a
 screen. To confirm a change works, drive the real app:

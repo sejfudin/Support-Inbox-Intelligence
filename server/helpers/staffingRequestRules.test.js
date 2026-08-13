@@ -1,4 +1,6 @@
 const {
+  StaffingRequestForbiddenError,
+  StagedPickRejectionError,
   deriveProgress,
   isDemandMet,
   partitionPickerCandidates,
@@ -364,6 +366,41 @@ describe('partitionPickerCandidates', () => {
       }),
     ]);
     expect(clean).toHaveLength(1);
+  });
+});
+
+// The two refusals this module makes have to stay distinguishable without
+// reading message text — that is the whole reason the "not you" one is a typed
+// error carrying its own status.
+describe('refusal types', () => {
+  it('tags a "not you" refusal with 403', () => {
+    expect(() => assertCanPutForward(baseRequest(), { isAdmin: false })).toThrow(
+      StaffingRequestForbiddenError
+    );
+    try {
+      assertCanPutForward(baseRequest(), { isAdmin: false });
+    } catch (error) {
+      expect(error.statusCode).toBe(403);
+    }
+  });
+
+  it('leaves an illegal move as a plain Error with no status, so callers fall to 400', () => {
+    const closed = baseRequest({ status: 'closed', reason: 'cancelled' });
+    try {
+      assertCanPutForward(closed, { isAdmin: true });
+      throw new Error('expected a refusal');
+    } catch (error) {
+      expect(error).not.toBeInstanceOf(StaffingRequestForbiddenError);
+      expect(error.statusCode).toBeUndefined();
+    }
+  });
+
+  it('carries the per-pick reasons on a staged-pick refusal', () => {
+    const rejections = [{ internProfileId: 'profile-1', reason: 'Already put forward' }];
+    const error = new StagedPickRejectionError(rejections);
+
+    expect(error.statusCode).toBe(409);
+    expect(error.data).toEqual({ rejections });
   });
 });
 

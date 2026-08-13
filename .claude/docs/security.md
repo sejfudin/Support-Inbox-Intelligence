@@ -266,8 +266,9 @@ same exception as `Project`/`Recommendation` above).
   body rather than three routes — a `requireRole(ADMIN)` on a fulfil-only route would put half the
   rule in the router and leave the two copies free to drift. A leadership user asking to close a
   request as `fulfilled` gets a **403**, not a 400: the rules helper tags authorization refusals with
-  `code: 'FORBIDDEN'` (it stays HTTP-agnostic) and the service maps that code to 403 and everything
-  else to 400.
+  a `StaffingRequestForbiddenError`, which carries `statusCode: 403` the way `StatusValidationError`
+  does; an illegal *move* is a plain `Error`, which has no status and falls to 400. The service maps
+  by reading `statusCode`, never by matching message text.
 - **Closing writes other people's recommendations, and that is the one place a non-admin does.**
   Every close resolves each candidate still in selection as `not_placed` with `result.demandEnded`
   and one shared, mandatory `notPlacedReason`

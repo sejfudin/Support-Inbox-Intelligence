@@ -382,7 +382,10 @@ the model and the pure rules module — no routes, no screens yet.
 **The admin Requests screen (ticket 08)** — admin and leadership no longer share a detail pane.
 Leadership keeps `RequestDetail.jsx`; the admin gets `AdminRequestDetail.jsx` plus
 `AdminCandidateRail.jsx` and `AdminRequestSeatGroup.jsx`, laid out list / detail / rail in
-`pages/AdminStaffingRequestsPage.jsx`.
+`pages/AdminStaffingRequestsPage.jsx`. The two per-position cards — `AdminRequestSeatGroup.jsx` and
+leadership's `RequestPositionGroup.jsx` — share their chrome through `RequestPositionCard.jsx`,
+which owns the collapsible header, the marker, the seat meter and the chevron; each caller supplies
+its own summary wording, header action and roster, because those are what actually differ per side.
 
 Picks are **staged, not sent**. The cart lives in the page (`hooks/useStagedPicks.js`), keyed
 `requestId → positionId → [{ id, name, technologies, startDate }]`, mirrored to `sessionStorage`

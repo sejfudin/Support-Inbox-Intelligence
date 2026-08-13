@@ -46,14 +46,38 @@ const projectNames = (recommendations) => [
   ),
 ];
 
-// "You may not do this", as opposed to "this is not a legal thing to do".
-// Callers map the code to a 403 and everything else to a 400 — this module
-// stays free of HTTP knowledge, it just says which kind of refusal it is.
-const forbidden = (message) => {
-  const error = new Error(message);
-  error.code = 'FORBIDDEN';
-  return error;
-};
+// "You may not do this", as opposed to "this is not a legal thing to do" — the
+// two refusals this module makes, and they map to different statuses. A plain
+// `Error` means the move is illegal (400); this one means the caller is the
+// wrong person for a move that is otherwise fine (403).
+//
+// A class rather than a factory, per `.claude/docs/conventions.md`: an error
+// carrying more than a message follows `StatusValidationError`, which is also
+// where the `statusCode` field comes from. Carrying the status here rather than
+// a private code string means callers map it the same way they map every other
+// tagged error in the codebase, instead of knowing a protocol only this module
+// speaks.
+class StaffingRequestForbiddenError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'StaffingRequestForbiddenError';
+    this.statusCode = 403;
+  }
+}
+
+// A submit that was refused per pick rather than outright: legal request, legal
+// admin, but some of the staged picks went stale between staging and sending.
+// It carries the per-pick reasons in `data` so the client can mark the offending
+// rows and let the admin send the rest — the whole point of the refusal is that
+// it is addressable, which a bare message cannot be.
+class StagedPickRejectionError extends Error {
+  constructor(rejections) {
+    super('Some picks could not be sent');
+    this.name = 'StagedPickRejectionError';
+    this.statusCode = 409;
+    this.data = { rejections };
+  }
+}
 
 // Per requested position: how many are wanted, how many were put forward (any
 // recommendation tagged to this request for that position), how many of those
@@ -191,7 +215,9 @@ const partitionPickerCandidates = (
 // a recommendation against.
 const assertCanPutForward = (request, { isAdmin }) => {
   if (!isAdmin) {
-    throw forbidden('Only an admin may put interns forward against a staffing request');
+    throw new StaffingRequestForbiddenError(
+      'Only an admin may put interns forward against a staffing request'
+    );
   }
   if (request.status === 'closed') {
     throw new Error('Cannot put interns forward against a closed staffing request');
@@ -346,10 +372,12 @@ const assertCanClose = (
 
   if (reason === 'cancelled') {
     if (!isLeadership) {
-      throw forbidden('Only leadership may cancel a staffing request');
+      throw new StaffingRequestForbiddenError('Only leadership may cancel a staffing request');
     }
   } else if (!isAdmin) {
-    throw forbidden(`Only an admin may close a staffing request as ${reason}`);
+    throw new StaffingRequestForbiddenError(
+      `Only an admin may close a staffing request as ${reason}`
+    );
   }
 
   // A request that only names a draft project can never be marked fulfilled
@@ -423,6 +451,8 @@ const deriveUnreadStaffingRequestIds = (events, { lastSeenAt, viewerId }) => {
 };
 
 module.exports = {
+  StaffingRequestForbiddenError,
+  StagedPickRejectionError,
   IN_SELECTION_STATUSES,
   PICKER_EXCLUDED_INTERN_STATUSES,
   deriveProgress,

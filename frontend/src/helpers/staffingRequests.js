@@ -206,3 +206,16 @@ export const getRequestLockLabel = (request) => {
   if (request?.status !== 'closed') return '';
   return CLOSE_REASON_META[request.reason]?.label ?? 'Closed';
 };
+
+// The one placed intern's name, but only where naming them beats counting them:
+// at a single seat that is filled, "1 of 1 placed · Amina Delić" is the whole
+// story of that position and there is no list to truncate. Above one seat it
+// returns null and the caller counts instead.
+//
+// Shared because both sides of a requested position open their summary with it,
+// and it is the kind of edge (wanted === 1) that gets fixed in one copy only.
+export const getSolePlacedName = (row) => {
+  const isFilled = row.placed >= row.wanted && row.wanted > 0;
+  if (row.wanted !== 1 || !isFilled) return null;
+  return row.suggestions.find((suggestion) => suggestion.outcome === 'placed')?.internName ?? null;
+};

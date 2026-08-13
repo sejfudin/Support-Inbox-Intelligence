@@ -10,6 +10,7 @@ const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { httpError } = require('../helpers/httpError');
 const {
+  StagedPickRejectionError,
   IN_SELECTION_STATUSES,
   PICKER_EXCLUDED_INTERN_STATUSES,
   deriveProgress,
@@ -569,9 +570,11 @@ const updateStaffingRequest = async (user, requestId, payload = {}) => {
 };
 
 // A rules-helper refusal is a 403 when it means "not you" and a 400 when it
-// means "not a legal move" — the helper tags the former with FORBIDDEN so this
-// mapping never has to match on message text.
-const asHttpError = (error) => httpError(error.message, error.code === 'FORBIDDEN' ? 403 : 400);
+// means "not a legal move". The helper says which by throwing
+// `StaffingRequestForbiddenError`, which carries its own `statusCode`, so this
+// mapping never has to match on message text — and an illegal move is a plain
+// `Error`, which has no status and falls to 400.
+const asHttpError = (error) => httpError(error.message, error.statusCode ?? 400);
 
 const loadResolvableRequest = async (user, requestId) => {
   // Admin-only for both halves of resolution (link and create-then-link) —
@@ -942,9 +945,7 @@ const putInternsForward = async (user, requestId, payload = {}) => {
     }
   }
   if (rejections.length > 0) {
-    throw Object.assign(httpError('Some picks could not be sent', 409), {
-      data: { rejections },
-    });
+    throw new StagedPickRejectionError(rejections);
   }
 
   await createRecommendationsForStaffingRequest(user, {

@@ -4,6 +4,7 @@ import {
   getPlacedPositionLocks,
   getPositionProgressRows,
   getRequestGroup,
+  getSolePlacedName,
   getStaffingRequestStatusLabel,
   hasNobodyPutForward,
   isAwaitingProject,
@@ -217,5 +218,51 @@ describe('getPlacedPositionLocks', () => {
     );
 
     expect(locks).toEqual([]);
+  });
+});
+
+// Both sides of a requested position open their summary with this, and the edge
+// it encodes (name them at one seat, count them above one) is exactly the kind
+// that used to get fixed in one copy and not the other.
+describe('getSolePlacedName', () => {
+  const row = (overrides = {}) => ({
+    wanted: 1,
+    placed: 1,
+    suggestions: [{ outcome: 'placed', internName: 'Amina Delić' }],
+    ...overrides,
+  });
+
+  it('names the one placed intern at a single filled seat', () => {
+    expect(getSolePlacedName(row())).toBe('Amina Delić');
+  });
+
+  it('returns null above one seat, where a name would be one of a list', () => {
+    expect(
+      getSolePlacedName(
+        row({
+          wanted: 2,
+          placed: 2,
+          suggestions: [
+            { outcome: 'placed', internName: 'Amina Delić' },
+            { outcome: 'placed', internName: 'Ben Hodžić' },
+          ],
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('returns null at a single seat nobody has been placed on', () => {
+    expect(getSolePlacedName(row({ placed: 0, suggestions: [] }))).toBeNull();
+  });
+
+  // A request asking for nothing is not "filled" — the comparison would be
+  // vacuously true and it would name whoever happened to be attached.
+  it('returns null when no seats were asked for', () => {
+    expect(getSolePlacedName(row({ wanted: 0, placed: 0 }))).toBeNull();
+  });
+
+  // Filled by the count, but the placed recommendation carries no readable name.
+  it('returns null rather than undefined when the placed intern has no name', () => {
+    expect(getSolePlacedName(row({ suggestions: [{ outcome: 'placed' }] }))).toBeNull();
   });
 });
