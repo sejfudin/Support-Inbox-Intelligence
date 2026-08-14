@@ -264,7 +264,7 @@ export default function AttendanceCalendar({
       <div className="mt-4 flex flex-wrap items-center gap-3.5 border-t border-border/60 pt-3">
         <LegendItem dotClass={dayStatusDot(DAY_STATUS.PRESENT)} label="Present" />
         <LegendItem dotClass={dayStatusDot(DAY_STATUS.ABSENT)} label="Absent" />
-        <LegendItem dotClass="bg-muted-foreground/30" label="Weekend" />
+        <LegendItem dotClass={dayStatusDot(DAY_STATUS.WEEKEND)} label="Weekend" />
         {showsRemote && <LegendItem dotClass={STATUS_DOT[DAY_STATUS.REMOTE]} label="Remote" />}
         {shownLeave.map((status) => (
           <LegendItem key={status} dotClass={dayStatusDot(status)} label={dayStatusLabel(status)} />
@@ -272,7 +272,9 @@ export default function AttendanceCalendar({
         {showsExempt && (
           <LegendItem dotClass={dayStatusDot(DAY_STATUS.EXEMPT)} label="On project" />
         )}
-        {showsNonWorking && <LegendItem dotClass="bg-muted-foreground/20" label="Non-working" />}
+        {showsNonWorking && (
+          <LegendItem dotClass={dayStatusDot(DAY_STATUS.NON_WORKING)} label="Non-working" />
+        )}
       </div>
 
       {upcoming.length > 0 && (

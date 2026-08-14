@@ -113,7 +113,8 @@ const STATUS_DOT = {
   [DAY_STATUS.SICK]: 'bg-orange-500',
   [DAY_STATUS.ABSENT]: 'bg-red-500',
   [DAY_STATUS.EXEMPT]: 'bg-muted-foreground/50',
-  [DAY_STATUS.NON_WORKING]: 'bg-muted-foreground/30',
+  [DAY_STATUS.WEEKEND]: 'bg-muted-foreground/40',
+  [DAY_STATUS.NON_WORKING]: 'bg-muted-foreground/40',
 };
 
 /**
