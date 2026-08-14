@@ -303,7 +303,7 @@ export default function AttendanceOverviewPage() {
                     value={dayCounts.remote}
                     hint="Approved remote work"
                     icon={House}
-                    valueClassName="text-fuchsia-600 dark:text-fuchsia-400"
+                    valueClassName="text-cyan-600 dark:text-cyan-400"
                   />
                 )}
                 {dayCounts.away > 0 && (

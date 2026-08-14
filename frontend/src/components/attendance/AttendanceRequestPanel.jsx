@@ -31,7 +31,7 @@ const BAR_FILL = {
   vacation: 'bg-blue-500',
   religious: 'bg-violet-500',
   sick: 'bg-orange-500',
-  remote: 'bg-fuchsia-500',
+  remote: 'bg-cyan-500',
 };
 
 // One line per type explaining what it costs the intern. Everything numeric comes
@@ -42,6 +42,9 @@ const TYPE_BLURB = {
   religious: 'For an observance the shared calendar does not already cover.',
   sick: 'One day per request. File another if you are ill for longer.',
 };
+
+const REQUEST_BUDGET_STATUSES = new Set(['pending', 'approved']);
+const requestYear = (dateKey) => String(dateKey).slice(0, 4);
 
 /**
  * One row of the balance: what this kind of day has cost the intern this year.
@@ -103,9 +106,10 @@ function BalanceRow({ type, label, budget, used }) {
  * and is not what this card is for.
  *
  * Four types share one request form. Choosing a type reconfigures it from the
- * server's `types` payload — the ceiling, how much of the yearly allowance is left,
- * and which days the picker will even offer — so no limit is written twice.
- * `server/helpers/attendanceRequestRules.js` remains the only place the rules exist.
+ * server's `types` payload — the ceiling, the current-year balance, and the date
+ * bounds. The picker mirrors the server's per-year budget check only to keep
+ * impossible dates disabled; `server/helpers/attendanceRequestRules.js` remains
+ * the authority on submission.
  */
 export default function AttendanceRequestPanel({ recordedDates = [], className }) {
   const { data, isPending, isError } = useMyAttendanceRequests();
@@ -137,17 +141,51 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
   }, [requests]);
 
   const maxDays = active?.maxDaysPerRequest ?? 1;
-  const remaining = active?.budget ? active.budget.remaining : null;
-  // A budgeted type can never take more days in one request than it has left.
-  const effectiveMax = remaining === null ? maxDays : Math.min(maxDays, remaining);
-  const isLocked = remaining === 0;
-  const isFull = dates.length >= effectiveMax;
+  const currentYear = officeDateKey().slice(0, 4);
+  const currentYearSpent = Boolean(active?.budget && active.budget.remaining === 0);
+  const isFull = dates.length >= maxDays;
+
+  // `types[].budget` is intentionally current-year only. Rebuild the same
+  // spent-by-year map the server uses, otherwise a full 2026 allowance would
+  // incorrectly block a valid 2027 request in the date picker.
+  const usedByYear = useMemo(() => {
+    const used = new Map();
+    if (!active?.budget) return used;
+
+    for (const request of requests) {
+      if ((request.type || 'remote') !== active.type) continue;
+      if (!REQUEST_BUDGET_STATUSES.has(request.status)) continue;
+
+      for (const date of request.dates || []) {
+        const year = requestYear(date);
+        used.set(year, (used.get(year) || 0) + 1);
+      }
+    }
+
+    return used;
+  }, [active?.budget, active?.type, requests]);
+
+  const wouldExceedYearBudget = (nextDate, selectedDates) => {
+    if (!active?.budget) return false;
+
+    const wantedByYear = new Map();
+    for (const date of [...selectedDates, nextDate]) {
+      const year = requestYear(date);
+      wantedByYear.set(year, (wantedByYear.get(year) || 0) + 1);
+    }
+
+    for (const [year, wanted] of wantedByYear) {
+      if ((usedByYear.get(year) || 0) + wanted > active.budget.budget) return true;
+    }
+
+    return false;
+  };
 
   // Trim the selection when switching to a type with a smaller ceiling, so the form
   // can never submit more days than the type allows.
   useEffect(() => {
-    setDates((prev) => (prev.length > effectiveMax ? prev.slice(0, effectiveMax) : prev));
-  }, [effectiveMax]);
+    setDates((prev) => (prev.length > maxDays ? prev.slice(0, maxDays) : prev));
+  }, [maxDays]);
 
   // Days the server would refuse outright: already claimed by a request that is
   // still live, or already recorded as attendance. Offering them and then rejecting
@@ -183,7 +221,8 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
     if (!value) return;
     setDates((prev) => {
       if (prev.includes(value)) return prev.filter((d) => d !== value);
-      if (prev.length >= effectiveMax) return prev;
+      if (prev.length >= maxDays) return prev;
+      if (wouldExceedYearBudget(value, prev)) return prev;
       return [...prev, value].sort();
     });
   };
@@ -210,7 +249,9 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
     if (active?.latestDate && key > active.latestDate) return true;
     // At the ceiling, only the days already picked stay clickable — so they can
     // still be un-picked.
-    return isFull && !dates.includes(key);
+    if (dates.includes(key)) return false;
+    if (isFull) return true;
+    return wouldExceedYearBudget(key, dates);
   };
 
   const pendingCount = requests.filter((r) => r.status === 'pending').length;
@@ -307,7 +348,6 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
               <Label>What are you asking for?</Label>
               <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Request type">
                 {types.map((t) => {
-                  const locked = t.budget?.remaining === 0;
                   const selected = t.type === type;
                   return (
                     <button
@@ -315,15 +355,12 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      disabled={locked}
                       onClick={() => chooseType(t.type)}
-                      title={locked ? `No ${t.label.toLowerCase()} days left this year` : undefined}
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
                         selected
                           ? 'border-foreground/30 bg-muted text-foreground'
-                          : 'border-border/60 text-muted-foreground hover:bg-muted/50',
-                        locked && 'cursor-not-allowed opacity-45 hover:bg-transparent'
+                          : 'border-border/60 text-muted-foreground hover:bg-muted/50'
                       )}
                       data-test={`attendance-request-type-${t.type}`}
                     >
@@ -338,85 +375,80 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
               )}
             </div>
 
-            {isLocked ? (
+            {currentYearSpent && (
               <p
                 className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
-                data-test="attendance-request-locked"
+                data-test="attendance-request-current-year-spent"
               >
                 You have used all {active.budget.budget} of your {active.label.toLowerCase()} days
-                for this year. The allowance resets in January.
+                for {currentYear}. Future-year dates are still checked against that year&apos;s
+                allowance.
               </p>
-            ) : (
-              <>
-                <div className="space-y-1.5">
-                  <Label htmlFor="attendance-request-date">
-                    {effectiveMax === 1 ? 'Day' : `Days (${dates.length} of ${effectiveMax})`}
-                  </Label>
-                  <DatePicker
-                    id="attendance-request-date"
-                    value={draftDate}
-                    onChange={toggleDate}
-                    selectedDates={dates}
-                    closeOnSelect={false}
-                    triggerLabel={
-                      dates.length === 0
-                        ? undefined
-                        : `${dates.length} day${dates.length === 1 ? '' : 's'} selected`
-                    }
-                    placeholder={
-                      active?.latestDate ? 'Pick the day you were ill' : 'Pick working days'
-                    }
-                    isDateDisabled={isDateDisabled}
-                    data-test="attendance-request-date-picker"
-                  />
-                  {dates.length > 0 && (
-                    <ul
-                      className="flex flex-wrap gap-1.5 pt-1"
-                      data-test="attendance-request-selected-days"
-                    >
-                      {dates.map((date) => (
-                        <li key={date}>
-                          <button
-                            type="button"
-                            onClick={() => removeDate(date)}
-                            className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted px-2.5 py-0.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
-                            aria-label={`Remove ${formatDay(date)}`}
-                            data-test={`attendance-request-selected-${date}`}
-                          >
-                            {formatDay(date)}
-                            <X className="h-3 w-3" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {isFull && effectiveMax > 1 && (
-                    <p className="pt-1 text-xs text-muted-foreground">
-                      {remaining !== null && effectiveMax === remaining
-                        ? 'That is all you have left this year.'
-                        : 'That is the most one request can cover. Send this, then request the rest.'}
-                    </p>
-                  )}
-                </div>
+            )}
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="attendance-request-reason">Reason (optional)</Label>
-                  {/* `resize-none`: the box is two lines for a one-line reason, and a
+            <div className="space-y-1.5">
+              <Label htmlFor="attendance-request-date">
+                {maxDays === 1 ? 'Day' : `Days (${dates.length} of ${maxDays})`}
+              </Label>
+              <DatePicker
+                id="attendance-request-date"
+                value={draftDate}
+                onChange={toggleDate}
+                selectedDates={dates}
+                closeOnSelect={false}
+                triggerLabel={
+                  dates.length === 0
+                    ? undefined
+                    : `${dates.length} day${dates.length === 1 ? '' : 's'} selected`
+                }
+                placeholder={active?.latestDate ? 'Pick the day you were ill' : 'Pick working days'}
+                isDateDisabled={isDateDisabled}
+                data-test="attendance-request-date-picker"
+              />
+              {dates.length > 0 && (
+                <ul
+                  className="flex flex-wrap gap-1.5 pt-1"
+                  data-test="attendance-request-selected-days"
+                >
+                  {dates.map((date) => (
+                    <li key={date}>
+                      <button
+                        type="button"
+                        onClick={() => removeDate(date)}
+                        className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted px-2.5 py-0.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
+                        aria-label={`Remove ${formatDay(date)}`}
+                        data-test={`attendance-request-selected-${date}`}
+                      >
+                        {formatDay(date)}
+                        <X className="h-3 w-3" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {isFull && maxDays > 1 && (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  That is the most one request can cover. Send this, then request the rest.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="attendance-request-reason">Reason (optional)</Label>
+              {/* `resize-none`: the box is two lines for a one-line reason, and a
                       drag handle in the corner of a short optional field invites
                       fiddling with the layout instead of filling it in. */}
-                  <Textarea
-                    id="attendance-request-reason"
-                    rows={2}
-                    value={reason}
-                    maxLength={500}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Anything the admin should know"
-                    className="resize-none"
-                    data-test="attendance-request-reason-input"
-                  />
-                </div>
-              </>
-            )}
+              <Textarea
+                id="attendance-request-reason"
+                rows={2}
+                value={reason}
+                maxLength={500}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Anything the admin should know"
+                className="resize-none"
+                data-test="attendance-request-reason-input"
+              />
+            </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeForm}>
@@ -424,7 +456,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
               </Button>
               <Button
                 type="submit"
-                disabled={dates.length === 0 || isSubmitting || isLocked}
+                disabled={dates.length === 0 || isSubmitting}
                 data-test="attendance-request-submit-button"
               >
                 {isSubmitting ? 'Sending…' : 'Send request'}

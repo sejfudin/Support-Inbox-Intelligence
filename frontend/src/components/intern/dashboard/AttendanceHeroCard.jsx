@@ -41,7 +41,7 @@ const CELL_CLASS = {
   [DAY_STATUS.NON_WORKING]: 'bg-black/10',
   // An approved remote day. Full strength like present and absent, because it
   // carries a verdict too: the day is worked and counted.
-  [DAY_STATUS.REMOTE]: 'bg-fuchsia-500 shadow-sm shadow-fuchsia-950/30',
+  [DAY_STATUS.REMOTE]: 'bg-cyan-500 shadow-sm shadow-cyan-950/30',
   // Approved leave. Deliberately softer than present/absent/remote: these days
   // carry no verdict about the intern at all — they were never owed — so the strip
   // should not shout them. The hues match the calendar so the two surfaces agree.
@@ -50,7 +50,7 @@ const CELL_CLASS = {
   [DAY_STATUS.SICK]: 'bg-orange-400/70',
 };
 
-const REMOTE_CELL = 'bg-fuchsia-400/60';
+const REMOTE_CELL = 'bg-cyan-400/60';
 
 // How long today's cell keeps its just-claimed emphasis. Long enough to be seen
 // if you were looking at the button you pressed, short enough that it is over
@@ -373,7 +373,7 @@ export function AttendanceHeroCard({
                     }
                     transition={{ duration: 0.42, ease: 'easeOut', times: [0, 0.6, 1] }}
                     className={cn(
-                      'h-7 w-full rounded-lg transition-colors duration-300',
+                      'h-7 w-full rounded transition-colors duration-300',
                       day.status === DAY_STATUS.NON_WORKING &&
                         nonWorkingKind(nonWorkingDays, day.key) === 'remote'
                         ? REMOTE_CELL

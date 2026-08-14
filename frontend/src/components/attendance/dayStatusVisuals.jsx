@@ -55,11 +55,10 @@ const STATUS_STYLES = {
   // ── Attended ──
   [DAY_STATUS.PRESENT]:
     'bg-emerald-500/15 text-emerald-700 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300',
-  // Fuchsia, carried over from pt.1 and still the right call: it is the one band no
-  // theme's primary occupies, and it reads as clearly "not the office" next to the
-  // emerald of a real check-in while counting exactly the same.
+  // Cyan by requirement: remote work counts as attendance, but must read
+  // differently from an office check-in.
   [DAY_STATUS.REMOTE]:
-    'bg-fuchsia-500/15 text-fuchsia-700 ring-1 ring-inset ring-fuchsia-500/30 dark:text-fuchsia-300',
+    'bg-cyan-500/15 text-cyan-700 ring-1 ring-inset ring-cyan-500/30 dark:text-cyan-300',
 
   // ── Approved absence ──
   // Blue for vacation and orange for sick were both asked for by name. They are
@@ -108,7 +107,7 @@ const TODAY_RING = 'ring-2 ring-foreground/50 ring-offset-1 ring-offset-backgrou
 
 const STATUS_DOT = {
   [DAY_STATUS.PRESENT]: 'bg-emerald-500',
-  [DAY_STATUS.REMOTE]: 'bg-fuchsia-500',
+  [DAY_STATUS.REMOTE]: 'bg-cyan-500',
   [DAY_STATUS.VACATION]: 'bg-blue-500',
   [DAY_STATUS.RELIGIOUS]: 'bg-violet-500',
   [DAY_STATUS.SICK]: 'bg-orange-500',
