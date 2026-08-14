@@ -18,7 +18,7 @@ import { isMongoId } from '@/helpers/notificationUtils';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
-export default function NavbarNotifications({ size = 'default' }) {
+export default function NavbarNotifications({ size = 'default', align = 'end' }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -84,7 +84,7 @@ export default function NavbarNotifications({ size = 'default' }) {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-[min(100vw-2rem,22rem)] p-0">
+      <DropdownMenuContent align={align} className="w-[min(100vw-2rem,22rem)] p-0">
         <div className="flex items-center justify-between border-b px-3 py-2">
           <span className="text-sm font-semibold">Notifications</span>
           {unreadCount > 0 ? (

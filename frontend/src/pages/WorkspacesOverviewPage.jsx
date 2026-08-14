@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Ticket, Building2, Plus, CheckCircle2, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -42,7 +41,6 @@ import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 // Role-aware workspaces overview: admins see every workspace in the system,
 // mentors/members see the workspaces they belong to. Same cards + create dialog.
 export default function WorkspacesOverviewPage() {
-  const { setHeader } = useOutletContext() ?? {};
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, refetchUser } = useAuth();
@@ -78,14 +76,6 @@ export default function WorkspacesOverviewPage() {
     }
     return true;
   };
-
-  useEffect(() => {
-    if (!setHeader) return undefined;
-    setHeader(
-      <span className="font-semibold text-sm">{admin ? 'All Workspaces' : 'My Workspaces'}</span>
-    );
-    return () => setHeader(null);
-  }, [setHeader, admin]);
 
   const handleCreate = (e) => {
     e.preventDefault();

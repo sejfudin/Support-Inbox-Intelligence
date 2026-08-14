@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Building2,
@@ -57,7 +57,6 @@ export default function WorkspaceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, refetchUser } = useAuth();
-  const { setHeader } = useOutletContext() ?? {};
 
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState([]);
@@ -102,23 +101,6 @@ export default function WorkspaceDetailPage() {
     const platformUserId = platformUser._id?.toString();
     return platformUserId && !unavailableUserIds.has(platformUserId);
   });
-
-  useEffect(() => {
-    if (!setHeader) return undefined;
-
-    setHeader(
-      <button
-        type="button"
-        onClick={() => navigate(isPlatformAdmin(user) ? '/admin/workspaces' : '/dashboard')}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        data-test="workspace-detail-back-link"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {isPlatformAdmin(user) ? 'All Workspaces' : 'Dashboard'}
-      </button>
-    );
-    return () => setHeader(null);
-  }, [setHeader, navigate, user]);
 
   // Queue a picked user for invitation (default role member). No-op if already queued.
   const handleAddInvite = (platformUser) => {
@@ -275,6 +257,16 @@ export default function WorkspaceDetailPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
+        <button
+          type="button"
+          onClick={() => navigate(isPlatformAdmin(user) ? '/admin/workspaces' : '/dashboard')}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          data-test="workspace-detail-back-link"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {isPlatformAdmin(user) ? 'All Workspaces' : 'Dashboard'}
+        </button>
+
         <PageHeading
           kicker="Workspace management"
           title={
