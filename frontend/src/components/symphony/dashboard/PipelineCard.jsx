@@ -152,7 +152,7 @@ export function PipelineCard({
   recommendationOutcomes = {},
   showSummary = true,
 }) {
-  // Counts come from the same distinct-intern summary the "In pipeline" KPI uses,
+  // Counts come from the same distinct-intern summary the "In Selection" KPI uses,
   // so this card and the KPI card always agree. The rows below are one per intern
   // (deduped server-side) and may be truncated — see the "showing" note.
   const inFlight = summary.activeRecommendations ?? 0;
@@ -170,7 +170,7 @@ export function PipelineCard({
       <div className="border-b border-[hsl(var(--symphony-border)/0.6)] px-[26px] pb-5 pt-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-[19px] font-semibold text-foreground">Pipeline</h2>
+            <h2 className="text-[19px] font-semibold text-foreground">In Selection</h2>
             <p className="mt-1 text-[13.5px] text-muted-foreground">
               Interns put forward for a role — recommended or interviewing. One row per intern.
             </p>
@@ -215,7 +215,7 @@ export function PipelineCard({
       </div>
       <div>
         {isPending && (
-          <p className="px-4 py-6 text-sm text-muted-foreground sm:px-[26px]">Loading pipeline…</p>
+          <p className="px-4 py-6 text-sm text-muted-foreground sm:px-[26px]">Loading selection…</p>
         )}
         {!isPending && activePipeline.length === 0 && (
           <p className="px-4 py-8 text-sm text-muted-foreground sm:px-[26px]">

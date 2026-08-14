@@ -12,6 +12,18 @@ export const PROJECT_STATUSES = [
 export const getProjectStatusLabel = (status) =>
   PROJECT_STATUSES.find((option) => option.value === status)?.label ?? status;
 
+// Starting pair only — the full list is still being settled with the program
+// leads. The stored values are the server's enum slugs (server/models/Project.js
+// PROJECT_TYPES); these labels are display-only, so renaming what the team calls
+// a type never touches the database.
+export const PROJECT_TYPES = [
+  { value: 'client', label: 'Client' },
+  { value: 'internal', label: 'Internal' },
+];
+
+export const getProjectTypeLabel = (type) =>
+  PROJECT_TYPES.find((option) => option.value === type)?.label ?? type;
+
 // In-selection stage vocabulary is the same one recommendations already use
 // (Recommended / Interviewing) — reused rather than duplicated.
 export const getSelectionStageLabel = (stage) => getRecommendationStatusLabel(stage);

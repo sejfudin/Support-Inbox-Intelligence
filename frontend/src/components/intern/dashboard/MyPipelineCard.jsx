@@ -3,77 +3,24 @@ import { format } from 'date-fns';
 import { Bell, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DashboardCard, DashboardCardHelp } from '@/components/dashboard/DashboardCard';
+import {
+  DEMAND_ENDED_LABEL,
+  EMPTY_STAGE_STEPS as EMPTY_STEPS,
+  RESULT_LABEL,
+  buildStageSteps as buildSteps,
+  formatStageDay as formatDay,
+  nextInterview,
+} from '@/helpers/recommendationStages';
 import { ExampleChip } from './ExampleChip';
 
-// The recommendation lifecycle, in order. Mirrors RECOMMENDATION_STATUSES on the
-// server; the labels are the intern-facing wording rather than the admin table's.
-const STAGES = [
-  { key: 'recommended', label: 'Recommended' },
-  { key: 'interviewing', label: 'Interview' },
-  { key: 'resulted', label: 'Result' },
-];
+// The stage vocabulary, the skipped-vs-pending rule and the "which interview comes
+// next" pick all live in `helpers/recommendationStages.js` — shared with the full
+// history on /my-progress rather than copied, so the two intern-facing views can't
+// drift on which stage someone is at. Still deliberately separate from the admin's
+// `recommendationUi.jsx`, which carries its own hardcoded palette and font stack.
 
 /** Chips past this fold into a "+N", so a long stack can't crowd out the timeline. */
 const TECH_LIMIT = 4;
-
-const RESULT_LABEL = {
-  placed: 'Placed 🎉',
-  not_placed: 'Not placed this time',
-};
-
-const formatDay = (value) => (value ? format(new Date(value), 'MMM d') : null);
-
-/**
- * The state of each stage for this recommendation.
- *
- * Same rule as `buildTimelineSteps` in the admin recommendations UI — a stage
- * before the current one with no recorded date was skipped, not completed — but
- * kept separate rather than imported: that module carries the recommendations
- * redesign's own hardcoded palette and font stack, which would look foreign
- * dropped into a dashboard card.
- */
-const buildSteps = (recommendation) => {
-  const dates = recommendation.statusDates || {};
-  const currentIndex = STAGES.findIndex((stage) => stage.key === recommendation.status);
-
-  return STAGES.map((stage, index) => {
-    let state;
-    if (index === currentIndex) state = 'current';
-    else if (index < currentIndex) state = dates[stage.key] ? 'done' : 'skipped';
-    else state = 'pending';
-    return { ...stage, state, date: formatDay(dates[stage.key]) };
-  });
-};
-
-/**
- * The same three stages with nothing behind them, for an intern who has not been
- * put forward yet. Showing the row greyed out rather than hiding it is the point
- * of the empty state: it says what *will* happen, which the sentence alone can't.
- */
-const EMPTY_STEPS = STAGES.map((stage) => ({ ...stage, state: 'pending', date: null }));
-
-/**
- * The interview to put in front of the intern: the soonest one still ahead of them,
- * or failing that the latest one behind them.
- *
- * `upcoming` is returned rather than recomputed by the caller so the copy and the
- * choice can never disagree about which side of now a date falls on.
- */
-const nextInterview = (interviews = []) => {
-  const dated = (interviews || [])
-    .filter((interview) => interview?.scheduledAt)
-    .map((interview) => ({ ...interview, at: new Date(interview.scheduledAt).getTime() }))
-    .filter((interview) => !Number.isNaN(interview.at));
-
-  if (dated.length === 0) return null;
-
-  const now = Date.now();
-  const ahead = dated.filter((interview) => interview.at >= now);
-  if (ahead.length > 0) {
-    return { ...ahead.reduce((a, b) => (a.at <= b.at ? a : b)), upcoming: true };
-  }
-  return { ...dated.reduce((a, b) => (a.at >= b.at ? a : b)), upcoming: false };
-};
 
 /**
  * What the card says under each stage. Every line has to survive in a
@@ -118,7 +65,8 @@ const stepDetail = (step, recommendation) => {
         : `${RESULT_LABEL.placed} · start date to be confirmed`;
     }
     const decided = formatDay(recommendation.result.decidedAt);
-    return decided ? `${RESULT_LABEL[outcome]} · ${decided}` : RESULT_LABEL[outcome];
+    const label = recommendation.result.demandEnded ? DEMAND_ENDED_LABEL : RESULT_LABEL[outcome];
+    return decided ? `${label} · ${decided}` : label;
   }
   return step.state === 'pending' ? 'Decision pending' : 'Awaiting result';
 };
@@ -218,11 +166,11 @@ function StageRow({ steps, recommendation = null }) {
 /** Shared between the empty and populated card, so the "?" never disappears. */
 function PipelineHelp() {
   return (
-    <DashboardCardHelp label="About my pipeline">
+    <DashboardCardHelp label="About my selection process">
       <p>
-        Your pipeline is the recommendation your mentor put you forward with, and the stages it
-        moves through: recommended → interview → result. The <strong>pulsing</strong> stage is where
-        you are now.
+        Your selection process is the recommendation your mentor put you forward with, and the
+        stages it moves through: recommended → interview → result. The <strong>pulsing</strong>{' '}
+        stage is where you are now.
       </p>
       <p>
         Only your mentor and the admins can move it along. The recommendation note and any interview
@@ -233,7 +181,7 @@ function PipelineHelp() {
 }
 
 /**
- * "My pipeline" — where the intern's current recommendation stands.
+ * "My Selection Process" — where the intern's current recommendation stands.
  *
  * The payload is redacted server-side (`recommendationService.listOwnRecommendations`):
  * stages, dates, project and outcome, but never the admin's recommendation note,
@@ -259,8 +207,9 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
   if (!recommendation) {
     return (
       <DashboardCard
+        id="my-selection-process"
         className={className}
-        title="My pipeline"
+        title="My Selection Process"
         action={<PipelineHelp />}
         data-tour="intern-dashboard-pipeline"
       >
@@ -280,8 +229,9 @@ export function MyPipelineCard({ pipeline, className, isPreview = false }) {
 
   return (
     <DashboardCard
+      id="my-selection-process"
       className={className}
-      title="My pipeline"
+      title="My Selection Process"
       action={
         <div className="flex shrink-0 items-center gap-1.5">
           {isPreview && <ExampleChip />}

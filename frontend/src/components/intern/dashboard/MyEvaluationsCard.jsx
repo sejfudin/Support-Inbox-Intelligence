@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,9 +22,11 @@ const formatPeriod = (evaluation) =>
 /**
  * "My evaluations" — the intern's own score history.
  *
- * The payload is redacted server-side (`evaluationService.listOwnEvaluations`):
- * scores, periods and who wrote them, but never the evaluation `notes`, which
- * are written for an internal audience rather than addressed to the intern.
+ * The payload is redacted server-side (`evaluationService.listOwnEvaluations`). It
+ * now carries the mentor's written `notes` too, but this card deliberately does not
+ * render them: it is one of three cards in a row, so its height is the row's height
+ * (see `MyStandupCard` for the same constraint). The full history with the notes is
+ * `/my-progress`, which the footer links to.
  */
 /** Shared between the empty and populated card, so the "?" never disappears. */
 function EvaluationsHelp() {
@@ -34,8 +37,8 @@ function EvaluationsHelp() {
         latest; the rows below it are earlier periods, newest first.
       </p>
       <p>
-        The chip next to the title is the change since the previous period. The written notes behind
-        a score are not shown here — ask your mentor for those.
+        The chip next to the title is the change since the previous period. My Progress has the
+        per-criterion scores and your mentor&apos;s written notes for every period.
       </p>
     </DashboardCardHelp>
   );
@@ -49,6 +52,7 @@ export function MyEvaluationsCard({ evaluations, className, isPreview = false })
   if (!latest) {
     return (
       <DashboardCard
+        id="my-evaluations"
         className={className}
         title="My evaluations"
         action={<EvaluationsHelp />}
@@ -68,6 +72,7 @@ export function MyEvaluationsCard({ evaluations, className, isPreview = false })
 
   return (
     <DashboardCard
+      id="my-evaluations"
       className={className}
       title="My evaluations"
       action={
@@ -124,12 +129,19 @@ export function MyEvaluationsCard({ evaluations, className, isPreview = false })
         ))}
       </ul>
 
-      {items.length > VISIBLE_PERIODS && (
-        <p className="mt-auto pt-3 text-[11px] text-muted-foreground">
-          {items.length - VISIBLE_PERIODS} earlier period
-          {items.length - VISIBLE_PERIODS === 1 ? '' : 's'} not shown
-        </p>
-      )}
+      {/* Always present, not only when periods overflow: the card shows averages, and
+          the per-criterion scores and the mentor's notes are only on that page. */}
+      <p className="mt-auto pt-3 text-[11px] text-muted-foreground">
+        {items.length > VISIBLE_PERIODS && (
+          <>
+            {items.length - VISIBLE_PERIODS} earlier period
+            {items.length - VISIBLE_PERIODS === 1 ? '' : 's'} not shown ·{' '}
+          </>
+        )}
+        <Link to="/my-progress" className="font-semibold text-primary hover:underline">
+          Scores &amp; notes per period
+        </Link>
+      </p>
     </DashboardCard>
   );
 }

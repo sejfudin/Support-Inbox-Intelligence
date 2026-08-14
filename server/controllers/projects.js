@@ -58,6 +58,11 @@ exports.createProject = async (req, res, next) => {
     if (error.code === 11000) {
       return res.status(409).json({ message: 'A project with this name already exists' });
     }
+    // Errors the service raised via httpError already carry their status; the
+    // message allow-list below only exists for the older bare-Error throws.
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     if (
       error.message === 'Project name is required' ||
       error.message === 'This project name is reserved' ||
@@ -76,6 +81,10 @@ exports.updateProject = async (req, res, next) => {
   } catch (error) {
     if (error.message === 'Project not found') {
       return res.status(404).json({ message: error.message });
+    }
+    // See createProject: httpError-raised failures carry their own status.
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
     }
     if (
       error.message === 'This project cannot be edited' ||

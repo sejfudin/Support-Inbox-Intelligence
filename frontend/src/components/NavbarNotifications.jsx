@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Loader2, CalendarClock, ArrowRight } from 'lucide-react';
+import { Bell, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -16,7 +16,6 @@ import {
 import { NotificationRow } from '@/components/NotificationRow';
 import { isMongoId } from '@/helpers/notificationUtils';
 import { useAuth } from '@/context/AuthContext';
-import { useCheckInReminder } from '@/hooks/useCheckInReminder';
 import { cn } from '@/lib/utils';
 
 export default function NavbarNotifications({ size = 'default' }) {
@@ -29,12 +28,8 @@ export default function NavbarNotifications({ size = 'default' }) {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  // Client-side check-in reminder (interns only). Shown until they check in /
-  // cancel / the window closes. Adds to the unread indicator like a real one.
-  const reminder = useCheckInReminder();
-
   const items = data?.data ?? [];
-  const unreadCount = (data?.unreadCount ?? 0) + (reminder.active ? 1 : 0);
+  const unreadCount = data?.unreadCount ?? 0;
 
   useEffect(() => {
     if (open) {
@@ -55,6 +50,15 @@ export default function NavbarNotifications({ size = 'default' }) {
       params.set('focus', String(Date.now()));
 
       navigate(`/tickets?${params.toString()}`);
+    },
+    [navigate]
+  );
+
+  const goToLink = useCallback(
+    (link) => {
+      if (!link) return;
+      setOpen(false);
+      navigate(link);
     },
     [navigate]
   );
@@ -106,29 +110,6 @@ export default function NavbarNotifications({ size = 'default' }) {
         </div>
 
         <ScrollArea className="h-80">
-          {reminder.active ? (
-            <button
-              type="button"
-              data-test="navbar-notification-check-in-reminder"
-              onClick={() => {
-                setOpen(false);
-                navigate('/my-attendance');
-              }}
-              className="flex w-full items-start gap-2 border-b bg-amber-500/[0.06] px-3 py-2.5 text-left transition-colors hover:bg-amber-500/10"
-            >
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                <CalendarClock className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 text-sm font-medium text-foreground">
-                  {reminder.title}
-                  <ArrowRight className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                </span>
-                <span className="line-clamp-2 text-xs text-muted-foreground">{reminder.body}</span>
-              </span>
-            </button>
-          ) : null}
-
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -139,11 +120,9 @@ export default function NavbarNotifications({ size = 'default' }) {
               Could not load notifications.
             </p>
           ) : items.length === 0 ? (
-            reminder.active ? null : (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                No notifications yet.
-              </p>
-            )
+            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+              No notifications yet.
+            </p>
           ) : (
             <ul className="divide-y divide-separator">
               {items.map((n) => (
@@ -153,6 +132,7 @@ export default function NavbarNotifications({ size = 'default' }) {
                   markReadPending={markRead.isPending}
                   onMarkRead={(id) => markRead.mutate(id)}
                   onOpenTicket={goToTicket}
+                  onOpenLink={goToLink}
                 />
               ))}
             </ul>

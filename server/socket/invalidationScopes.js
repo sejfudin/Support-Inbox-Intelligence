@@ -8,6 +8,10 @@ const invalidationScopes = {
   // scope carries a fixed id and every subscribed client invalidates its
   // ['interns'] queries (directory + leadership stats).
   intern: () => 'intern:all',
+  // Staffing requests are also global (not workspace-scoped) — every
+  // history event on one fans out to every connected client, and the
+  // leadership/admin news badge is the only consumer.
+  staffingNews: () => 'staffing-news:all',
 };
 
 module.exports = {

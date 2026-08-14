@@ -11,9 +11,9 @@ and especially ../.claude/docs/security.md (authz is the top risk here).
 - `routes/` → `controllers/` → `services/` → `models/`. Thin controllers, logic in services.
 - `middleware/` — `auth.js` (`protect`), `requireWorkspaceManager.js`, `role` (file exporting
   `requireRole(...roles)`), `upload.js`.
-- `helpers/` — pure cross-cutting logic: `workspaceAuthz.js`, `internAccess.js`, `crypto.js`,
-  `statusValidation.js`, `statusSlugAliases.js`, `commentMention.js`, `aiValidationRules.js`,
-  `slugify.js`, `taskExtractor.js`.
+- `helpers/` — pure cross-cutting logic, unit-tested in place (`*.test.js` alongside). The
+  authz-critical ones are `workspaceAuthz.js` and `internAccess.js`; `htmlSanitize.js` and
+  `httpError.js` are the other two you'll reach for often. `ls` for the rest.
 - `socket/` — `socketServer.js`, `events.js`, `invalidationScopes.js`.
 - `config/` — `db.js` (Mongoose), `supabase.js`. `constants/` — `roles.js`.
 - `prompts/` — Groq AI prompt templates. `seeder/` — seed scripts (destructive; see workflows).
@@ -44,6 +44,8 @@ anything reading `NODE_ENV` after the load gets a misleading value; never branch
   fields (comments) are stored verbatim and made safe by React's text-node escaping at render; do
   **not** run them through an HTML sanitizer (it entity-encodes `&`/`<`/`>` into stored data).
 - **Never** run a destructive seeder (`seed`, `seed:demo`, `seed:test`) against a non-local DB. The
-  additive ones (`seed:recommendations`, `seed:technologies`) are safe anywhere. Never commit `.env`.
+  additive ones (`seed:recommendations`, `seed:technologies`) are safe anywhere.
+  `seed:staffing-requests` is destructive to staffing requests and their recommendations only —
+  safe elsewhere, fatal to that dataset. Never commit `.env`.
 - Emit Socket.IO invalidation via `socket/invalidationScopes.js` keys so the frontend cache updates.
 - Run `npm run format` before finishing.

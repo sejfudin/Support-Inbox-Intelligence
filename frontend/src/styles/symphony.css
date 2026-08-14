@@ -10,6 +10,11 @@
   --symphony-gold: 43 96% 52%;
   --symphony-cta: 24 95% 53%;
 
+  /* Status accents. `placed` is the one green in this surface — the seat meter
+     draws it as segments and as a bar, and they must not drift apart. */
+  --symphony-placed: 152 55% 42%;
+  --symphony-warning: 38 92% 50%;
+
   /* Surfaces */
   --symphony-surface: 0 0% 98%;
   --symphony-surface-elevated: 0 0% 100%;
@@ -49,6 +54,8 @@
   --symphony-card-shadow: 0 1px 0 hsl(0 0% 100% / 0.04), 0 8px 24px -8px hsl(0 0% 0% / 0.45);
   --symphony-brand-strong: 243 100% 76%;
   --symphony-brand-ink: 243 90% 82%;
+  --symphony-placed: 152 55% 52%;
+  --symphony-warning: 38 92% 62%;
 }
 
 [data-surface='symphony'] .symphony-shell {
@@ -106,14 +113,6 @@
   }
 }
 
-[data-surface='symphony'] .symphony-navbar-start {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  min-width: 0;
-  flex-shrink: 0;
-}
-
 [data-surface='symphony'] .symphony-logo-link {
   line-height: 0;
 }
@@ -146,43 +145,15 @@
   }
 }
 
-[data-surface='symphony'] .symphony-navbar-divider {
-  width: 1px;
-  align-self: stretch;
-  min-height: 2.5rem;
-  background: hsl(var(--symphony-border));
-}
-
-[data-surface='symphony'] .symphony-navbar-programme {
-  padding-block: 0.125rem;
-}
-
-[data-surface='symphony'] .symphony-navbar-kicker {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: hsl(var(--symphony-gold));
-  line-height: 1.3;
-}
-
-[data-surface='symphony'] .symphony-navbar-programme-title {
-  margin-top: 0.1875rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: hsl(var(--symphony-foreground));
-  line-height: 1.3;
-}
-
 [data-surface='symphony'] .symphony-navbar-nav {
   display: flex;
   order: 3;
   width: 100%;
   align-items: center;
   justify-content: stretch;
-  gap: 0.375rem;
+  gap: 0.25rem;
   padding: 0.3125rem;
-  border-radius: 0.875rem;
+  border-radius: 999px;
   border: 1px solid hsl(var(--symphony-border));
   background: hsl(var(--symphony-surface));
 }
@@ -191,8 +162,7 @@
   [data-surface='symphony'] .symphony-navbar-nav {
     order: 0;
     width: auto;
-    flex: none;
-    justify-content: center;
+    gap: 0.25rem;
     margin-inline: auto;
   }
 }
@@ -203,13 +173,16 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 0.625rem;
-  padding: 0.6875rem 1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.5625rem 1.125rem;
   font-size: 0.9375rem;
   font-weight: 600;
+  white-space: nowrap;
   color: hsl(var(--symphony-muted));
   transition:
     background-color 150ms ease,
+    border-color 150ms ease,
     color 150ms ease,
     transform 120ms ease;
 }
@@ -217,7 +190,6 @@
 @media (min-width: 768px) {
   [data-surface='symphony'] .symphony-nav-item {
     flex: none;
-    justify-content: flex-start;
   }
 }
 
@@ -235,63 +207,86 @@
   color: white;
 }
 
+[data-surface='symphony'] .symphony-nav-item-active:hover {
+  background: hsl(var(--symphony-brand-strong));
+  color: white;
+}
+
+[data-surface='symphony'] .symphony-nav-badge {
+  display: inline-flex;
+  height: 1.25rem;
+  min-width: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding-inline: 0.375rem;
+  background: hsl(var(--symphony-brand));
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: white;
+}
+
+[data-surface='symphony'] .symphony-nav-item-active .symphony-nav-badge {
+  background: white;
+  color: hsl(var(--symphony-brand-strong));
+}
+
 [data-surface='symphony'] .symphony-navbar-end {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
   flex-shrink: 0;
+  justify-content: flex-end;
 }
 
-[data-surface='symphony'] .symphony-navbar-user {
+[data-surface='symphony'] .symphony-navbar-account {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  padding-right: 1rem;
-  border-right: 1px solid hsl(var(--symphony-border));
+  gap: 0.375rem;
+  border-radius: 999px;
+  padding: 0.125rem;
+  color: hsl(var(--symphony-muted));
+  transition: color 150ms ease;
+}
+
+[data-surface='symphony'] .symphony-navbar-account:hover,
+[data-surface='symphony'] .symphony-navbar-account[data-state='open'] {
+  color: hsl(var(--symphony-foreground));
+}
+
+[data-surface='symphony'] .symphony-navbar-account-chevron {
+  height: 1rem;
+  width: 1rem;
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+}
+
+[data-surface='symphony']
+  .symphony-navbar-account[data-state='open']
+  .symphony-navbar-account-chevron {
+  transform: rotate(180deg);
 }
 
 [data-surface='symphony'] .symphony-navbar-avatar {
   display: inline-flex;
-  height: 2.5rem;
-  width: 2.5rem;
+  height: 2.25rem;
+  width: 2.25rem;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: hsl(var(--symphony-brand) / 0.12);
-  border: 1px solid hsl(var(--symphony-brand) / 0.25);
-  font-size: 0.75rem;
+  background: hsl(var(--symphony-brand));
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: hsl(var(--symphony-brand-strong));
+  color: white;
+  transition: background-color 150ms ease;
 }
 
-.dark [data-surface='symphony'] .symphony-navbar-avatar {
-  color: hsl(var(--symphony-brand));
-}
-
-[data-surface='symphony'] .symphony-navbar-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-[data-surface='symphony'] .symphony-navbar-icon-button {
-  height: 2.5rem;
-  width: 2.5rem;
-  border-radius: 0.75rem;
-  border-color: hsl(var(--symphony-border));
-  background: hsl(var(--symphony-surface));
-}
-
-[data-surface='symphony'] .symphony-navbar-logout {
-  border-radius: 0.75rem;
-  color: hsl(var(--symphony-muted));
-}
-
-[data-surface='symphony'] .symphony-navbar-logout:hover {
-  color: hsl(var(--symphony-foreground));
-  background: hsl(var(--symphony-brand) / 0.08);
+[data-surface='symphony'] .symphony-navbar-account:hover .symphony-navbar-avatar,
+[data-surface='symphony'] .symphony-navbar-account[data-state='open'] .symphony-navbar-avatar {
+  background: hsl(var(--symphony-brand-strong));
 }
 
 @media (max-width: 767px) {
@@ -516,6 +511,172 @@
   border-color: hsl(220 10% 18%);
   background: hsl(220 13% 9%);
   color: hsl(220 8% 62%);
+}
+
+.symphony-status-warning {
+  border-color: hsl(38 92% 50% / 0.35);
+  background: hsl(38 92% 50% / 0.12);
+  color: hsl(32 80% 38%);
+}
+
+.dark .symphony-status-warning {
+  color: hsl(38 92% 65%);
+}
+
+.symphony-status-danger {
+  border-color: hsl(0 72% 51% / 0.35);
+  background: hsl(0 72% 51% / 0.1);
+  color: hsl(0 65% 42%);
+}
+
+.dark .symphony-status-danger {
+  color: hsl(0 90% 72%);
+}
+
+/* ——— Progress meter (staffing-request fulfilment) ——— */
+
+.symphony-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(var(--symphony-border));
+}
+
+/* One segment per requested seat, in three states. `placed` is the outcome that
+   matters, so it alone gets a solid fill; `put forward` is a promise, not an
+   arrival, and reads as an outline. Anything else is an empty seat. Colour is
+   never the only signal — the meter always ships with a text label beside it. */
+
+.symphony-seats {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.symphony-seat {
+  height: 6px;
+  min-width: 6px;
+  flex: 1 1 0;
+  border-radius: 999px;
+  background: hsl(var(--symphony-border) / 0.55);
+  box-shadow: none;
+  transition:
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+
+/* Shared by the segment meter and the bar it falls back to above 14 seats —
+   one token, so the two can't disagree in either theme. */
+.symphony-seat-placed,
+.symphony-progress-placed {
+  background: hsl(var(--symphony-placed));
+}
+
+.symphony-seat-forward {
+  background: hsl(var(--symphony-brand) / 0.28);
+  box-shadow: inset 0 0 0 1px hsl(var(--symphony-brand) / 0.85);
+}
+
+/* Staged, admin-side only: picked but never sent. Lighter than `forward`
+   because it is not yet a promise to anyone — nobody outside this browser
+   knows about it. */
+.symphony-seat-staged {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px hsl(var(--symphony-brand) / 0.5);
+}
+
+/* A staged candidate's card, in the seat group and in the rail. Same footprint
+   as an ordinary suggestion so a seat with one of each reads as one row. */
+[data-surface='symphony'] .symphony-suggestion-staged {
+  border-style: dashed;
+  border-color: hsl(var(--symphony-brand) / 0.6);
+  background: hsl(var(--symphony-brand) / 0.06);
+}
+
+/* Suggested interns, one card per recommendation. */
+
+[data-surface='symphony'] .symphony-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--symphony-radius);
+  border: 1px solid hsl(var(--symphony-border));
+  background: hsl(var(--symphony-surface));
+  padding: 0.625rem 0.75rem;
+}
+
+[data-surface='symphony'] .symphony-suggestion-avatar {
+  display: grid;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: hsl(var(--symphony-brand) / 0.18);
+  color: hsl(var(--symphony-brand-ink));
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* An empty seat: same footprint as a suggestion card so a half-filled position
+   reads as a row with gaps, not as a shorter row. */
+[data-surface='symphony'] .symphony-seat-empty-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--symphony-radius);
+  border: 1px dashed hsl(var(--symphony-border));
+  background: transparent;
+  padding: 0.625rem 0.75rem;
+  color: hsl(var(--symphony-muted));
+}
+
+/* The derived-blocker banner. Not a status — a status is stored, this is a
+   comparison on the counts that leadership needs pushed at them. */
+[data-surface='symphony'] .symphony-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border-radius: var(--symphony-radius);
+  border: 1px solid transparent;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.35rem;
+}
+
+[data-surface='symphony'] .symphony-notice-warning {
+  border-color: hsl(38 92% 50% / 0.35);
+  background: hsl(38 92% 50% / 0.1);
+  color: hsl(32 74% 32%);
+}
+
+.dark [data-surface='symphony'] .symphony-notice-warning,
+[data-surface='symphony'] .dark .symphony-notice-warning {
+  color: hsl(38 92% 78%);
+}
+
+[data-surface='symphony'] .symphony-notice-info {
+  border-color: hsl(var(--symphony-brand) / 0.3);
+  background: hsl(var(--symphony-brand) / 0.08);
+  color: hsl(var(--symphony-brand-ink));
+}
+
+[data-surface='symphony'] .symphony-notice-success {
+  border-color: hsl(152 55% 42% / 0.35);
+  background: hsl(152 55% 42% / 0.1);
+  color: hsl(152 45% 26%);
+}
+
+.dark [data-surface='symphony'] .symphony-notice-success,
+[data-surface='symphony'] .dark .symphony-notice-success {
+  color: hsl(152 55% 70%);
+}
+
+/* Selected row in the master list. */
+[data-surface='symphony'] .symphony-list-item-active {
+  border-color: hsl(var(--symphony-brand) / 0.65);
+  background: hsl(var(--symphony-brand) / 0.08);
 }
 
 /* ——— Hero (solid brand panel, no gradient) ——— */

@@ -82,7 +82,16 @@ const seedUnspecifiedProject = async () => {
   await Project.updateOne(
     { slug: 'unspecified' },
     {
-      $setOnInsert: { name: 'Unspecified', slug: 'unspecified', isSystem: true, status: 'active' },
+      // `internal`: the sentinel is platform plumbing, not client work. It is
+      // hidden from every list, so the value is only there to satisfy the
+      // required `type`.
+      $setOnInsert: {
+        name: 'Unspecified',
+        slug: 'unspecified',
+        isSystem: true,
+        status: 'active',
+        type: 'internal',
+      },
     },
     { upsert: true }
   );

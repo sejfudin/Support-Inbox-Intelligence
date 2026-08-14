@@ -17,6 +17,7 @@ Detail lives in the referenced docs below — read them when the task calls for 
 
 - **Designing a feature / touching data model, roles, auth, or sockets** → read `.claude/docs/architecture.md`
 - **Anything touching tickets, workspaces, rooms, or role guards** → read `.claude/docs/security.md` (authz is scoped per-workspace; get this wrong and you leak cross-tenant data)
+- **Staffing requests, putting interns forward, or the close-out cascade** → read `.claude/docs/staffing-requests.md` (architecture.md carries only the summary)
 - **Writing code** → follow `.claude/docs/conventions.md`
 - **Running, seeding, building, verifying** → `.claude/docs/workflows.md`
 
@@ -24,10 +25,16 @@ Detail lives in the referenced docs below — read them when the task calls for 
 
 - **Never run a destructive seeder (`seed`, `seed:demo`, `seed:test`) against any non-local DB.**
   `npm run seed` wipes all collections. The additive, idempotent scripts (`seed:recommendations`,
-  `seed:technologies`) are fine against the shared dev DB — see `.claude/docs/workflows.md`.
+  `seed:technologies`) are fine against the shared dev DB. `seed:staffing-requests` sits between
+  the two: destructive, but only to staffing requests and the recommendations they produced —
+  see `.claude/docs/workflows.md`.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
 - **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
-- **There is no integration or E2E suite.** `npm test` in `server/` covers pure helpers (`helpers/*.test.js`) plus two services with Mongo/Supabase mocked (`services/internCvService.test.js`, `services/internService.test.js`) — nothing else. Never claim a route, query or screen is verified by tests — verify by driving the app (`/verify`, `/run`).
+- **There is no integration or E2E suite.** Tests are colocated `*.test.js` files, and they only
+  ever cover pure functions: helpers on both sides, plus a few `server/services/` modules with
+  Mongo and Supabase mocked. No component renders, no route or socket is exercised. Run
+  `npm test` to see the current set — never claim a route, query or screen is verified by tests.
+  Verify those by driving the app (`/verify`, `/run`).
 - Match surrounding code style. Prettier is the formatter; run `npm run format` in the package you changed.
 - Backend is CommonJS (`require`), frontend is ESM (`import`). Don't mix.
 
@@ -40,9 +47,13 @@ Detail lives in the referenced docs below — read them when the task calls for 
 ## Keep these docs in sync
 
 These files are only useful while they match the code. When a change alters something they
-describe, update the relevant doc **in the same change** — don't leave it for later.
+describe, update the relevant doc **in the same change** — don't leave it for later. If the
+right wording is genuinely unclear, make your best edit and flag it in your summary rather
+than skipping it. Never let code and docs drift apart silently.
 
 - Data model, roles, auth flow, sockets, or an integration changes → update `.claude/docs/architecture.md`
+- Anything about staffing requests changes → update `.claude/docs/staffing-requests.md`. Only touch
+  architecture.md's summary of it if one of the four facts it states there stops being true.
 - An authz rule, guard, scoping behavior, or secret handling changes → update `.claude/docs/security.md`
 - A coding pattern, naming, layering, or the data-layer flow changes → update `.claude/docs/conventions.md`
 - A command, env var, seeding, or run/build step changes → update `.claude/docs/workflows.md`
@@ -52,12 +63,13 @@ describe, update the relevant doc **in the same change** — don't leave it for 
   change. This is a plain-English, team-facing summary — keep entries short bullets, no workflow
   walkthroughs (see the file's own style).
 
-Reference these docs by plain (backticked) path, never with `@path` syntax — `@` eagerly
-imports the file into every context window and defeats the read-on-demand design.
+Two rules for writing these docs:
 
-Rule for Claude: if a task changes any of the above, update the matching doc as part of the work.
-If the correct wording is genuinely unclear, make your best edit and flag it to the developer in
-your summary rather than skipping it. Never let code and docs drift apart silently.
+- Reference them by plain (backticked) path, never `@path` — `@` eagerly imports the file into
+  every context window and defeats the read-on-demand design.
+- **Describe shape, not inventory.** Enumerated file lists go stale silently, because adding a
+  file doesn't feel like a change that "alters something the docs describe." Name a directory's
+  purpose and its two or three load-bearing files; let `ls` supply the rest.
 
 ## Agent skills
 

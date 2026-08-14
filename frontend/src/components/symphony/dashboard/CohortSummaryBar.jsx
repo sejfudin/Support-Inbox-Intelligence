@@ -1,11 +1,11 @@
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 
-// Colours mirror the KPI card dots (Available / In pipeline / Placed) so the bar
+// Colours mirror the KPI card dots (Available / In Selection / Placed) so the bar
 // and the cards read as one system; "Not project-ready" gets its own amber.
 const SEGMENTS = [
   { key: 'notReady', label: 'Not project-ready', color: '#E0A93B' },
   { key: 'available', label: 'Available', color: '#726BFF' },
-  { key: 'inPipeline', label: 'In pipeline', color: '#5B7CFA' },
+  { key: 'inPipeline', label: 'In Selection', color: '#5B7CFA' },
   { key: 'placed', label: 'Placed', color: '#E88AA6' },
 ];
 
@@ -16,7 +16,7 @@ export function CohortSummaryBar({ isPending, funnel, summary }) {
   // Everyone currently in the programme: onboarding + ready + placed (excludes
   // completed and discontinued). Onboarding is taken as the remainder so the
   // four segments always sum exactly to the total, even if an onboarding intern
-  // is somehow already in the pipeline.
+  // is somehow already in selection.
   const total = (funnel?.active ?? 0) + (funnel?.ready ?? 0) + placed;
   const notReady = Math.max(0, total - available - inPipeline - placed);
 

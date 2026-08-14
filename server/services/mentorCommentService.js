@@ -2,6 +2,7 @@ const User = require('../models/User');
 const MentorComment = require('../models/MentorComment');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
+const internNotificationService = require('./internNotificationService');
 
 const VIEWER_ROLES = [ROLES.ADMIN, ROLES.MENTOR, ROLES.LEADERSHIP];
 
@@ -77,6 +78,22 @@ const createComment = async (user, internUserId, { content, visibleTo = [] }) =>
     { path: 'author', select: 'fullname email role' },
     { path: 'visibleTo', select: 'fullname email role' },
   ]);
+
+  // Staff-facing only — never the intern. `visibleTo` recipients already have
+  // read access to this exact note, so this is just telling them it arrived.
+  if (comment.visibleTo.length > 0) {
+    const internUser = await User.findById(internUserId).select('fullname');
+    for (const recipient of comment.visibleTo) {
+      internNotificationService.notifyMentorNoteMention({
+        recipientUserId: recipient._id,
+        recipientRole: recipient.role,
+        internUserId,
+        internProfileId: profile._id,
+        internName: internUser?.fullname || 'an intern',
+        authorName: user.fullname,
+      });
+    }
+  }
 
   return formatComment(comment, user._id);
 };

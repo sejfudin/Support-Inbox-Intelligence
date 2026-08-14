@@ -18,6 +18,7 @@ import {
   CalendarDays,
   CalendarClock,
   Target,
+  TrendingUp,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -25,7 +26,6 @@ import {
   UserRound,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
-import NavbarNotifications from '@/components/NavbarNotifications';
 import { ThemeAppearanceSubmenu } from '@/components/ThemeSwitcher';
 import { WhatsNewButton } from '@/components/onboarding/WhatsNewButton';
 import {
@@ -50,6 +50,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { useLogoutUser } from '@/queries/auth';
 import { useMyInvitations } from '@/queries/invitations';
 import { useAttendanceRequests } from '@/queries/attendanceRequests';
+import { useStaffingRequestNews } from '@/queries/staffingRequests';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
@@ -209,6 +210,10 @@ export default function AppSidebar() {
   const { setOpenMobile, isMobile, state, toggleSidebar } = useSidebar();
   const { data: invitations = [] } = useMyInvitations();
   const pendingCount = invitations.length;
+  // Admin-only route (`requireRole(ADMIN, LEADERSHIP)`); gate the query so a
+  // mentor/intern sidebar never fires a request that would 403.
+  const { data: staffingNews } = useStaffingRequestNews({ enabled: isAdmin(user?.role) });
+  const staffingRequestsBadge = staffingNews?.count > 0 ? staffingNews.count : undefined;
 
   // Admin-only: the endpoint is admin-guarded, so asking as anyone else is a
   // guaranteed 403. Shares its query key with the Attendance page's own fetch, so
@@ -266,6 +271,10 @@ export default function AppSidebar() {
 
   const internNav = isIntern(user?.role)
     ? [
+        // First in the group: it is the read-only overview of everything the
+        // programme records about them, and the two rows below it are the parts they
+        // can act on (declare a technology, check in).
+        { label: 'My Progress', to: '/my-progress', icon: TrendingUp },
         { label: 'Position & Technologies', to: '/my-technologies', icon: Code2 },
         { label: 'Attendance', to: '/my-attendance', icon: CalendarCheck },
       ]
@@ -316,6 +325,12 @@ export default function AppSidebar() {
           label: 'Specialization',
           to: '/specialization',
           icon: Target,
+        },
+        {
+          label: 'Requests',
+          to: '/admin/staffing-requests',
+          icon: ClipboardList,
+          badge: staffingRequestsBadge,
         },
       ]
     : [];
@@ -401,11 +416,10 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-2 pt-1.5 group-data-[collapsible=icon]:p-2">
-        {/* Three peer icons next to the avatar left ~70px for the name at 16rem,
-            which truncated it to "Admi…". So profile, appearance and logout fold
-            into one menu on the identity row, and notifications stay the single
-            standalone icon — it is the only one whose state (unread) has to be
-            readable without opening anything.
+        {/* Peer icons next to the avatar left ~70px for the name at 16rem, which
+            truncated it to "Admi…". So profile, appearance and logout fold into
+            one menu on the identity row — notifications live in the top bar now
+            (see SidebarLayout/PageHeader), not here.
 
             Padding here is deliberately tight (footer p-2, row p-1.5, trigger
             px-1.5) and the avatar is `sm`: every pixel spent on chrome comes
@@ -484,12 +498,6 @@ export default function AppSidebar() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* 32px in the rail: the default 40px trigger overflows the 3rem
-                  rail, so ask NavbarNotifications for its small size directly. */}
-              <div className="shrink-0" data-tour="notifications">
-                <NavbarNotifications size="sm" />
-              </div>
             </>
           )}
         </div>

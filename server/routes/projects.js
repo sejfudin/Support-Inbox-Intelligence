@@ -20,5 +20,4 @@ router.get('/:id', protect, getProjectById);
 router.get('/:id/overview', protect, getProjectOverview);
 router.post('/', protect, requireRole(ROLES.ADMIN), createProject);
 router.patch('/:id', protect, requireRole(ROLES.ADMIN), updateProject);
-
 module.exports = router;

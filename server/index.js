@@ -6,6 +6,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const { initSocket } = require('./socket/socketServer');
+const { startDailyReminderScheduler } = require('./services/dailyReminderService');
 
 const authRoutes = require('./routes/auth');
 const ticketRoutes = require('./routes/ticket');
@@ -33,6 +34,7 @@ const attendanceRoutes = require('./routes/attendance');
 const attendanceRequestRoutes = require('./routes/attendanceRequest');
 const attendanceSettingsRoutes = require('./routes/attendanceSettings');
 const dashboardRoutes = require('./routes/dashboard');
+const staffingRequestRoutes = require('./routes/staffingRequests');
 const { handleWebhook } = require('./controllers/github');
 
 const PORT = process.env.PORT || 4000;
@@ -81,6 +83,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/attendance-requests', attendanceRequestRoutes);
 app.use('/api/attendance-request-settings', attendanceSettingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/staffing-requests', staffingRequestRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {
@@ -95,6 +98,7 @@ app.use((req, res, next) => {
     await connectDB();
     const server = http.createServer(app);
     initSocket(server);
+    startDailyReminderScheduler();
 
     server.listen(PORT, () => {
       console.log(`🟢 Server is running at port: ${PORT}`);

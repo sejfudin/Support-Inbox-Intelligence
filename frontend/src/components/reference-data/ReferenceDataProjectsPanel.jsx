@@ -14,9 +14,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   TechnologyMultiSelect,
   TechnologyViewChips,
 } from '@/components/ui/technology-multi-select';
+import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge';
+import { PROJECT_TYPES } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 import { useTechnologies } from '@/queries/technologies';
 import { useCreateProject, useProjects, useUpdateProject } from '@/queries/projects';
@@ -78,12 +87,49 @@ function StatusSegmentedSelect({ value, onChange }) {
   );
 }
 
-const emptyForm = { name: '', description: '', client: '', status: 'active', technologyIds: [] };
+/**
+ * Project type picker. A dropdown rather than a segmented control like Status:
+ * the type list is expected to grow past what a single row of buttons can hold,
+ * and swapping the control later would move the field under the admin twice.
+ *
+ * Starts empty on create — a pre-selected default is exactly how a project ends
+ * up mistyped, so there is no value until the admin picks one.
+ */
+function ProjectTypeSelect({ id, value, onChange }) {
+  return (
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectTrigger id={id} data-test="platform-management-projects-type-select">
+        <SelectValue placeholder="Select project type" />
+      </SelectTrigger>
+      <SelectContent>
+        {PROJECT_TYPES.map((option) => (
+          <SelectItem
+            key={option.value}
+            value={option.value}
+            data-test={`platform-management-projects-type-option-${option.value}`}
+          >
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+const emptyForm = {
+  name: '',
+  description: '',
+  client: '',
+  type: '',
+  status: 'active',
+  technologyIds: [],
+};
 
 const formFromProject = (project) => ({
   name: project.name || '',
   description: project.description || '',
   client: project.client || '',
+  type: project.type || '',
   status: project.status || 'active',
   technologyIds: (project.technologies || []).map((technology) => technology._id),
 });
@@ -100,7 +146,10 @@ function ProjectCard({ project, onOpen }) {
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <Briefcase className="h-5 w-5" />
         </div>
-        <StatusBadge status={project.status} />
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <ProjectTypeBadge type={project.type} />
+          <StatusBadge status={project.status} />
+        </div>
       </div>
       <div className="min-w-0">
         <h3 className="truncate font-semibold text-foreground">{project.name}</h3>
@@ -137,7 +186,10 @@ function ProjectDetail({ project, onBack }) {
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
           Status
         </p>
-        <StatusBadge status={project.status} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatusBadge status={project.status} />
+          <ProjectTypeBadge type={project.type} />
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -180,7 +232,9 @@ function ProjectEditForm({ project, technologies, onCancel, onSave, isSaving }) 
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isSaving}>
+          {/* Type is required server-side, so block the save rather than send an
+              empty value — reachable only on a project predating the field. */}
+          <Button type="submit" disabled={isSaving || !form.type}>
             {isSaving ? 'Saving…' : 'Save changes'}
           </Button>
         </div>
@@ -204,6 +258,15 @@ function ProjectEditForm({ project, technologies, onCancel, onSave, isSaving }) 
           value={form.client}
           onChange={(e) => setForm((prev) => ({ ...prev, client: e.target.value }))}
           data-test="platform-management-projects-edit-client-input"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="project-edit-type">Project type</Label>
+        <ProjectTypeSelect
+          id="project-edit-type"
+          value={form.type}
+          onChange={(type) => setForm((prev) => ({ ...prev, type }))}
         />
       </div>
 
@@ -362,6 +425,14 @@ export function ReferenceDataProjectsPanel() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="project-create-type">Project type</Label>
+              <ProjectTypeSelect
+                id="project-create-type"
+                value={createForm.type}
+                onChange={(type) => setCreateForm((prev) => ({ ...prev, type }))}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="project-create-description">Description</Label>
               <Textarea
                 id="project-create-description"
@@ -394,7 +465,13 @@ export function ReferenceDataProjectsPanel() {
               />
             </div>
             <DialogFooter>
-              <Button type="submit" data-test="platform-management-projects-save-button">
+              {/* The type dropdown starts empty on purpose (see ProjectTypeSelect),
+                  so the admin can reach here without having picked one. */}
+              <Button
+                type="submit"
+                disabled={!createForm.type}
+                data-test="platform-management-projects-save-button"
+              >
                 <Plus className="mr-1.5 h-4 w-4" />
                 Create project
               </Button>

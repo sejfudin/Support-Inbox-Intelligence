@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -110,10 +111,21 @@ export default function InternDashboardPage() {
   const { user } = useAuth();
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
+  const location = useLocation();
 
   const { data: realDashboard, isPending, isError, error } = useInternDashboard();
   const { data: attendance, isPending: attendancePending } = useMyAttendance();
   const { mutate: checkIn, isPending: isCheckingIn } = useCheckInToday();
+
+  // A notification (e.g. a placement) links here with a `#my-selection-process`
+  // style hash so the intern lands ON the relevant card, not just the page —
+  // the real cards (and their ids) only exist once loading finishes, so this
+  // waits on `isPending` rather than firing against the skeleton.
+  useEffect(() => {
+    if (isPending || !location.hash) return;
+    const target = document.getElementById(location.hash.slice(1));
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isPending, location.hash]);
 
   // While the what's-new tour is up, cards that are genuinely empty show example
   // data so the tour has something to point at — a first-day intern has no
