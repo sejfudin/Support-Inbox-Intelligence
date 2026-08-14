@@ -39,6 +39,20 @@ function buildCalendarDays(monthDate) {
   return days;
 }
 
+/**
+ * @param {object} props
+ * @param {string} props.value - the selected day as 'yyyy-MM-dd', or '' for none
+ * @param {(value: string) => void} props.onChange
+ * @param {(day: Date) => boolean} [props.isDateDisabled]
+ * @param {string[]} [props.selectedDates] - extra days to render as chosen. For
+ *   multi-select callers, which keep the real selection themselves: `value` holds
+ *   only one day, so without this every day but the last reads as unselected.
+ * @param {boolean} [props.closeOnSelect=true] - pass false when picking is
+ *   repeated (multi-select), so the calendar does not have to be re-opened
+ *   between clicks.
+ * @param {string} [props.triggerLabel] - overrides the trigger's text. Multi-select
+ *   callers show a count or their own summary there instead of one date.
+ */
 export function DatePicker({
   id,
   value,
@@ -46,9 +60,13 @@ export function DatePicker({
   placeholder = 'Pick a date',
   className,
   isDateDisabled,
+  selectedDates,
+  closeOnSelect = true,
+  triggerLabel,
   ...props
 }) {
   const selectedDate = value ? parseISO(value) : null;
+  const selectedKeys = React.useMemo(() => new Set(selectedDates || []), [selectedDates]);
   const [open, setOpen] = React.useState(false);
   const [month, setMonth] = React.useState(selectedDate || new Date());
   const days = buildCalendarDays(month);
@@ -72,7 +90,7 @@ export function DatePicker({
           {...props}
         >
           <CalendarDays className="h-4 w-4" aria-hidden="true" />
-          {selectedDate ? format(selectedDate, 'MMM d, yyyy') : placeholder}
+          {triggerLabel || (selectedDate ? format(selectedDate, 'MMM d, yyyy') : placeholder)}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-3" align="start">
@@ -107,27 +125,32 @@ export function DatePicker({
         <div className="mt-1 grid grid-cols-7 gap-1">
           {days.map((day, index) => {
             if (!day) return <div key={`empty-${index}`} className="h-8" />;
+            const key = toDateValue(day);
             const disabled = typeof isDateDisabled === 'function' && isDateDisabled(day);
+            const isSelected =
+              selectedKeys.has(key) || Boolean(selectedDate && isSameDay(day, selectedDate));
             return (
               <button
-                key={toDateValue(day)}
+                key={key}
                 type="button"
                 disabled={disabled}
                 aria-disabled={disabled || undefined}
+                aria-pressed={selectedKeys.size > 0 ? isSelected : undefined}
                 className={cn(
                   'flex h-8 items-center justify-center rounded-md text-sm transition-colors',
                   disabled
                     ? 'cursor-not-allowed text-muted-foreground/30'
                     : 'hover:bg-primary/10 hover:text-primary',
-                  !disabled &&
-                    selectedDate &&
-                    isSameDay(day, selectedDate) &&
+                  // A selected day still reads as selected when it is also disabled
+                  // — multi-select callers disable the rest once the cap is reached,
+                  // and greying out the user's own picks would be nonsense.
+                  isSelected &&
                     'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
                 )}
                 onClick={() => {
                   if (disabled) return;
-                  onChange(toDateValue(day));
-                  setOpen(false);
+                  onChange(key);
+                  if (closeOnSelect) setOpen(false);
                 }}
               >
                 {format(day, 'd')}

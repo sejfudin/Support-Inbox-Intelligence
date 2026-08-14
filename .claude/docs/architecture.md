@@ -349,15 +349,22 @@ Frontend: `pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/att
 `helpers/attendance.js`.
 
 - **Sparse storage — one document per intern per acted-on day** (`Attendance`: `intern` →
-  `InternProfile`, `date` as office-local `'YYYY-MM-DD'` string, `status: present | cancelled`,
-  `checkedInAt`, `hub`, `checkInIp`). Absent days are **not** stored — absence is the lack of a
-  record, derived at read time. A unique `{ intern, date }` index makes double check-ins idempotent
-  (concurrent inserts race safely) and keeps a day to a single row.
-- **Cancel unchecks the day, it does not lock it**: the record flips to `cancelled` (not deleted) and
-  reads as absent, but `checkIn()` flips that same row back to `present` for as long as the window is
-  open — the window closing is the only thing that settles a day. A repeat check-in on an already
-  `present` day is a no-op preserving the original `checkedInAt`. All app-level in
-  `attendanceService.js`; nothing schema-level constrains the transitions.
+  `InternProfile`, `date` as office-local `'YYYY-MM-DD'` string,
+  `status: present | cancelled | remote | vacation | religious | sick`, `checkedInAt`, `hub`,
+  `checkInIp`, `request`).
+  Absent days are **not** stored — absence is the lack of a record, derived at read time. A unique
+  `{ intern, date }` index makes double check-ins idempotent (concurrent inserts race safely) and
+  keeps a day to a single row that check-in, cancel and request approval all flip between.
+  **Numerators come from `Attendance.ATTENDED_STATUSES` (`present` + `remote`), never from
+  `status === 'present'`** — the latter silently drops remote days out of every percentage.
+  Vacation, religious and sick days are `EXEMPT_STATUSES`: they leave the denominator rather than
+  counting as attended or missed.
+- **Cancel unchecks the day, it does not lock it**: the record is flipped to `cancelled` (not
+  deleted) and reads as absent, but `checkIn()` flips that same row back to `present` (re-stamping
+  `checkedInAt`/`hub`/`checkInIp`) for as long as the check-in window is open — the window closing
+  is the only thing that settles a day. A repeat check-in on an already-`present` day is a no-op
+  that preserves the original `checkedInAt`. All of this is app-level in `attendanceService.js`;
+  nothing schema-level constrains the `present`↔`cancelled` transitions.
 - **Reporting is per calendar month, never cumulative** (no all-time rate). `presentDays` /
   `workingDays` (Mon–Fri) / `attendanceRate` are computed for one month at a time, clamped to
   `[max(monthStart, startDate), min(monthEnd, today, lastOwedDay)]` — so a mid-month joiner isn't
@@ -388,26 +395,191 @@ Frontend: `pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/att
   server. `Boolean(placedAt)` is the easy mistake and it makes the UI disagree with the denominator.
 - **`NonWorkingDay`** is the cohort-wide calendar of weekdays nobody owed — `{ date, label, kind }`
   where `kind` is `holiday | break | remote` (default `holiday`). `kind` is **presentation only**:
-  every kind leaves the denominator identically and nothing in the maths branches on it. It exists so
-  the calendar can colour a remote week against a holiday, which the free-text `label` can't be
-  relied on to do. **Cohort-wide only** — per-intern days off need their own model with a requester
-  and an approval state; widening `kind` for them would exempt the whole cohort for one person's day.
+  every kind leaves the denominator identically, and nothing in the maths branches on it. It exists
+  so the calendar can colour a remote week apart from a holiday's grey, which the free-text
+  `label` can't be relied on to do. **Cohort-wide only** — per-intern days off (an intern requesting
+  remote, calling in sick, taking leave) need their own per-intern model with a requester and an
+  approval state; widening `kind` for them would exempt the whole cohort for one person's day.
+  That per-intern model is `AttendanceRequest`, below. `Observance` is a third thing again — a
+  religious holiday marked on the calendar as a **notice only**, which changes nobody's denominator
+  and must never be merged into `NonWorkingDay`.
 - **`attendanceRate` is `null`, never `0`, when nothing was owed** (`workingDays === 0`: a placed
   intern, or a month before the start date). "No obligation" and "attended nothing" are different
   facts, and a fabricated `0%` reads exactly like a real one. Every consumer must handle null —
-  render `—` (`formatAttendanceRate` / `hasAttendanceRate`), exclude it from averages
-  (`averageAttendanceRate` skips nulls), and sort it last, not as zero.
-- **Check-in window** (`attendanceTime.js`): 07:00–11:00 `Europe/Sarajevo` on weekdays. The server is
-  authoritative; the client mirrors the rule for UX only.
-- Endpoints — `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat
-  block) and `POST|DELETE /api/attendance/me/check-in` are intern-self. `GET /api/attendance` is the
-  **admin-only** roster (`?month=&search=&hub=`, current month by default, records scoped to that
-  month so the payload stays bounded) and covers only `active`/`ready` interns
-  (`IN_PROGRAMME_STATUSES`) — a `placed`/`completed`/`discontinued` intern drops off entirely.
-  `GET /api/attendance/:internProfileId` is **admin-only**, one intern's full history for the
-  calendar modal, no status filter.
+  render `—` (`formatAttendanceRate` / `hasAttendanceRate` in `frontend/src/helpers/attendance.js`),
+  exclude it from averages (`averageAttendanceRate` skips nulls), and sort it last, not as zero.
+- **Check-in window** (`attendanceTime.js`): open 07:00–11:00 `Europe/Sarajevo` time on weekdays.
+  The server is authoritative; the client mirrors the rule for UX only.
+- Endpoints: `GET /api/attendance/me` (full history for the calendar/streak + a current-month stat
+  block), `POST|DELETE /api/attendance/me/check-in` (intern-self); `GET /api/attendance` (**admin-only**
+  roster, `?month=YYYY-MM&search=&hub=`, defaults to the current month, records scoped to that month
+  so the payload stays bounded, and only `active`/`ready` interns — `InternProfile`'s exported
+  `IN_PROGRAMME_STATUSES` — a `placed`/`completed`/`discontinued` intern drops off the roster
+  entirely) and
+  `GET /api/attendance/:internProfileId` (**admin-only**, one intern's full history for the
+  calendar modal, no status filter). Response envelope is the standard
+  `{ success, message, data }`, with `data` holding `{ attendance }` / `{ month, roster,
+  nonWorkingDays, observances }`. All three read payloads carry `requestedDays` (a flat
+  `'YYYY-MM-DD' → status` map of every day an approval wrote) alongside `records` and
+  `cancelledDates`.
+- **`splitRows` in `helpers/attendanceStats.js` is the one place raw rows become buckets**, and both
+  services that compute a rate use it. `adminDashboardService` used to partition rows itself, which
+  was harmless while `remote` was the only extra status and silently wrong the moment approved leave
+  could write one — a fortnight of holiday would have read as perfect attendance on the dashboard
+  and correctly everywhere else. Do not reintroduce a local split.
 - The office-network **IP allowlist** guard (per-hub CIDR + `trust proxy`) is a deferred, optional
   step — `Attendance.checkInIp` is already captured for it.
+- **Mentors cannot see attendance at all.** Every non-`/me` route is `requireRole(ROLES.ADMIN)` and
+  there is no mentor-facing attendance surface. If one is ever added it needs per-mentor scoping
+  via `helpers/internAccess.js` — and the intern-facing copy on `MyAttendancePage`, which says
+  *admins* can see their attendance, has to change back.
+
+### Attendance requests (remote work, vacation, religious holidays, sick days)
+
+An intern asks for days away from the usual office check-in; an admin decides them.
+`server/{models/AttendanceRequest.js, services/attendanceRequestService.js,
+controllers/attendanceRequest.js, routes/attendanceRequest.js}` +
+`server/constants/attendanceRequestTypes.js` (the per-type table) and
+`server/helpers/attendanceRequestRules.js` (pure, unit-tested in `attendanceRequestRules.test.js`).
+Frontend: `components/attendance/{AttendanceRequestPanel,AttendanceRequestQueue,dayStatusVisuals}.jsx`,
+`api/attendanceRequests.js`, `queries/attendanceRequests.js`.
+
+- **One model, four types.** `type` is `remote | vacation | religious | sick`. They share a
+  lifecycle, an admin queue and the approval-writes-attendance mechanic, so they share a collection.
+  Everything that differs lives in **`constants/attendanceRequestTypes.js`** — one row per type. A
+  fifth type should be a row there plus a colour on the client, and nothing else. Never branch on
+  the type in a service.
+
+  | Type | Days per request | Yearly budget | May be backdated | Counts as |
+  |---|---|---|---|---|
+  | `remote` | 3 | none | no | **attended** |
+  | `vacation` | 5 | 5 / calendar year | no | exempt |
+  | `religious` | 3 | 3 / calendar year | no | exempt |
+  | `sick` | 1 | none | 2 working days | exempt |
+
+  The first two columns are **defaults an admin can change** — see "Configurable limits" below.
+  Backdating and `attended` are fixed in code: neither is a quantity to weigh up, and `attended`
+  decides arithmetic the whole attendance module rests on.
+
+- **A request is decided as a unit.** Days need not be consecutive. Approving writes a row per day;
+  rejecting refuses all of them. There is no per-day verdict — the intern chose those days together.
+- **Ceilings bound a request, not an intern.** Wanting a fourth remote day means another request,
+  and nothing limits how many; an intern with exams all week files two rather than being refused.
+  The *budgeted* types are bounded by the yearly allowance instead, not by a request count.
+- **Approval writes the attendance itself** — one `Attendance` row per day whose `status` is the
+  request's own type, with `request` pointing back. No check-in happens and the 07:00–11:00 window
+  does not apply. Approval **re-runs the day rules first**, because the intern may have been placed,
+  or the day become a holiday, between asking and answering — but deliberately **not** the
+  backdating window, or a sick day filed legitimately on Wednesday would expire if the admin took
+  until Thursday to answer.
+- **Remote counts as attended; the other three are exempt.** Remote is merged into the `records`
+  list every numerator reads. Vacation, religious and sick leave the denominator instead, exactly as
+  a cohort-wide `NonWorkingDay` does — `computeMonthStats` takes a per-intern `exemptDates` as its
+  sixth argument and unions it with the cohort set. A day off is neither attended nor missed:
+  counting it as attended would read a month of holiday as 100%, counting it as absent would punish
+  leave an admin approved.
+- **Budgets are per calendar year, charged per day.** A request straddling New Year draws from both
+  years. `pending` **and** `approved` consume the allowance — if pending did not, five simultaneous
+  five-day requests would each pass the check and could all be approved. `rejected`, `cancelled` and
+  `revoked` release it.
+- **Statuses**: `pending | approved | rejected | cancelled | revoked`. `pending` and `approved` are
+  *live* and hold their days against re-requesting **across types** — one day cannot be two kinds of
+  away at once. Revoke is a state, never a delete — it removes the rows it wrote
+  (`deleteMany({ request })`, never by `{ intern, date }`, so a real check-in can't be caught).
+- **Requestable days**: a working day, not a weekend, not a `NonWorkingDay`, not before `startDate`,
+  not on/after `placedAt`, not already recorded, not already claimed by a live request. Everything
+  except sick is today-or-later, so a recorded absence can never be relabelled after the fact. Sick
+  is the deliberate exception in both directions: it reaches back two **working** days (you file a
+  sick day after being ill, not before) and cannot be booked ahead at all.
+- Endpoints: `GET|POST /api/attendance-requests/me`, `DELETE /api/attendance-requests/me/:id`
+  (intern-self); `GET /api/attendance-requests?status=pending|all&type=…`,
+  `PATCH /api/attendance-requests/:id` (approve/reject), `DELETE /api/attendance-requests/:id`
+  (revoke) — **admin-only**. The intern list also returns `types`, carrying each type's ceiling,
+  remaining allowance and requestable bounds, so **no limit is duplicated on the client**.
+  `pendingCount` on the admin list is deliberately unfiltered, so the nav dot and tab badge keep
+  meaning "anything waiting" while a type filter is applied.
+
+#### Configurable limits
+
+An admin sets the per-request ceiling and the yearly allowance per type, from their own profile.
+`server/{models/AttendanceRequestSettings.js, services/attendanceSettingsService.js,
+controllers/attendanceSettings.js, routes/attendanceSettings.js}`. Frontend:
+`components/profile/AttendanceLimitsPanel.jsx`, `api/attendanceRequestSettings.js`,
+`queries/attendanceRequestSettings.js`.
+
+- **One document, global.** `key: 'global'`, unique — a second row cannot be written, so the
+  effective configuration never depends on a sort order. Global rather than per-workspace on the
+  same grounds as `NonWorkingDay`: an `AttendanceRequest` carries no workspace at all.
+- **Only differences from the shipped table are stored.** An empty `limits` map is a system running
+  as shipped, which makes "reset to defaults" a deletion and lets a later change to
+  `constants/attendanceRequestTypes.js` still reach types nobody overrode. Saving a value equal to
+  the default therefore stores nothing — "unset" and "set to the default" mean the same thing.
+- **Unbudgeted stays unbudgeted.** `remote` and `sick` have no yearly allowance and an admin cannot
+  give them one — `yearlyBudgetFor` returns `null` for them whatever is stored. Read off the table
+  (`yearlyBudget: null`), so the fact is stated once. Their *ceilings* are configurable.
+- **The rules take limits as an argument.** `helpers/attendanceRequestRules.js` and
+  `constants/attendanceRequestTypes.js` stay Mongoose-free; `attendanceRequestService` loads the
+  limits (`getEffectiveLimits()`) and passes them down. Omit the argument and everything falls back
+  to the shipped defaults — which is what keeps the rules unit-testable without a database.
+- **The per-type ceiling is not a schema validator.** `AttendanceRequest.dates` is bounded by the
+  absolute `LIMIT_BOUNDS.maxDaysPerRequest.max` instead. A validator holding a number an admin can
+  lower would make an existing five-day request unsaveable the moment the ceiling dropped to
+  three — so approving one filed last week would fail validation on a document that was legal when
+  written.
+- **Lowering a limit binds only what comes next.** Nothing already filed is re-validated or
+  revoked, and `budgetStateFor` clamps `remaining` at zero: an intern who spent four when the
+  allowance drops to three is out of days, not owed minus one.
+- Endpoints: `GET|PUT|DELETE /api/attendance-request-settings` — **admin-only in both directions**.
+  Interns never call them; the numbers reach them already applied, in the `types` payload of their
+  own request list.
+
+### Religious observances
+
+`server/models/Observance.js` + `helpers/observanceCalendar.js` (pure, tested) +
+`seeder/{defaultObservances.js,seedObservances.js}`, `npm run seed:observances`.
+
+- **A notice and nothing more.** An observance marks a day on the calendar so an intern can see it
+  coming. It removes nothing from anyone's denominator and excuses nobody — the intern is the one
+  who decides it applies to them, by filing a religious-holiday request. It is **not** a
+  `NonWorkingDay`: writing Orthodox Christmas into that collection would exempt the entire cohort,
+  including everyone who does not observe it.
+- **Computed, not typed.** Twenty years (2026–2045, ~364 rows) generated from the Gregorian and
+  Julian computus and the Hebrew calendar's arithmetic, all pinned against published dates in
+  `observanceCalendar.test.js`. Hand-writing four hundred dates would be unreviewable and would rot.
+- **The Islamic dates are `provisional: true`.** In Bosnia they are announced by the Islamic
+  Community rather than calculated, and land within about a day of the tabular calendar. The UI says
+  "to be confirmed" on them, and `npm run seed:observances -- --replace` is how a corrected year
+  gets in. An intern planning leave around a date the app stated confidently and got wrong is the
+  exact failure this feature exists to prevent.
+
+### Attendance colours
+
+`frontend/src/components/attendance/dayStatusVisuals.jsx` is the single source; the calendar, both
+admin tables and the dashboard week strip all read from it.
+
+- **No hue is safe, because `--primary` moves.** `styles/themes.css` ships primaries at hue 241
+  (indigo), 215/213 (slate), 199 (sky), 187 (cyan), **152 (emerald)** and **24 (orange)**, plus a
+  desaturated grey in `mono`. Emerald is Present and orange is Sick, so in the `forest` and `sunset`
+  themes a status colour *is* somebody's primary.
+- So the system separates the axes: **fill says what happened** (a fixed hue per status, never
+  `--primary`), **a ring says when** (today is drawn as a ring over whatever the day actually is, so
+  it survives the intern checking in), and **a glyph says which** (every away-from-the-office state
+  carries a mark; Present and Absent carry none, which keeps an ordinary month quiet).
+- Five families: Attended (`present`, `remote`), Approved absence (`vacation`, `religious`, `sick`),
+  Not owed (`weekend`, `non-working`, `before-start`, `exempt`), Missed (`absent`), and Now.
+  On-project moved out of amber into the neutral family, where it belongs — it means "no
+  obligation", the same as a weekend — which is also what freed orange for a sick day.
+- The glyph, not the hue, is what actually separates the four away states: blue-vacation sits 27°
+  from violet-religious and orange-sick sits 30° from red-absent, and no shuffling fixes that.
+  Encoding the difference in shape as well is also the only version that works for a colour-blind
+  viewer. Religious leave uses a plain `Star`, and **the calendar draws no distinction between
+  faiths anywhere** — the same star marks every observance in the advance notice. The request
+  itself never records which faith it is for (`AttendanceRequest` holds a type and dates, nothing
+  else), and in the notice the label already names the holiday, so per-faith symbols would only
+  rank traditions by which ones happen to have an icon available. `Observance.tradition` is still
+  stored; it just isn't what draws the mark.
+- A pending request raises a pulsing dot on the admin's Attendance nav row (`item.dot` in
+  `AppSidebar.jsx`).
 
 ## Admin dashboard (workspace-scoped)
 

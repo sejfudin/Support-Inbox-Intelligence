@@ -49,6 +49,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLogoutUser } from '@/queries/auth';
 import { useMyInvitations } from '@/queries/invitations';
+import { useAttendanceRequests } from '@/queries/attendanceRequests';
 import { useStaffingRequestNews } from '@/queries/staffingRequests';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
@@ -119,7 +120,7 @@ function NavItem({ item, collapsed }) {
       // item so the two can never drift apart.
       data-tour={`nav-${navTestSlug(item.to)}`}
       className={cn(
-        `flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-300 ${RAIL_EASE}`,
+        `relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-300 ${RAIL_EASE}`,
         'group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0',
         isActive
           ? 'bg-primary text-primary-foreground shadow-elevated-sm'
@@ -130,6 +131,26 @@ function NavItem({ item, collapsed }) {
       <span className={cn('min-w-0 flex-1 truncate font-medium', collapsibleLabel)}>
         {item.label}
       </span>
+      {/* "Something here needs you", with no number attached — used where a count
+          would be noise (one pending remote-work request is as actionable as four).
+          Positioned absolutely rather than in the flow so it survives the rail:
+          `collapsibleLabel` crossfades the label to zero width when collapsed, and
+          an inline dot would go with it, which is exactly when the dot matters
+          most. Amber matches the `warning` badge the same pending state uses on
+          the Attendance page, so one signal reads as one thing. */}
+      {item.dot ? (
+        <span
+          // Vertically centred on the row, not pinned to its top edge — the row is
+          // a single line of text, so a top-aligned dot reads as misaligned rather
+          // than as a badge. In the collapsed rail it moves to the icon's top
+          // corner instead, where centring would sit it on top of the glyph.
+          className="pointer-events-none absolute right-2 top-1/2 flex h-2 w-2 -translate-y-1/2 group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:translate-y-0"
+          aria-hidden="true"
+        >
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+        </span>
+      ) : null}
       {item.badge ? (
         <span
           className={cn(
@@ -145,9 +166,15 @@ function NavItem({ item, collapsed }) {
 
   if (!collapsed) return link;
 
-  return (
-    <RailTooltip label={`${item.label}${item.badge ? ` (${item.badge})` : ''}`}>{link}</RailTooltip>
-  );
+  // The dot is the only cue in the rail, and a dot alone says nothing about what
+  // is waiting — so the tooltip is where it gets named.
+  const suffix = item.badge
+    ? ` (${item.badge})`
+    : item.dotLabel && item.dot
+      ? ` — ${item.dotLabel}`
+      : '';
+
+  return <RailTooltip label={`${item.label}${suffix}`}>{link}</RailTooltip>;
 }
 
 /**
@@ -187,6 +214,15 @@ export default function AppSidebar() {
   // mentor/intern sidebar never fires a request that would 403.
   const { data: staffingNews } = useStaffingRequestNews({ enabled: isAdmin(user?.role) });
   const staffingRequestsBadge = staffingNews?.count > 0 ? staffingNews.count : undefined;
+
+  // Admin-only: the endpoint is admin-guarded, so asking as anyone else is a
+  // guaranteed 403. Shares its query key with the Attendance page's own fetch, so
+  // opening that page costs no extra request.
+  const { data: attendanceRequests } = useAttendanceRequests(
+    { status: 'pending' },
+    { enabled: isAdmin(user?.role) }
+  );
+  const pendingRequests = attendanceRequests?.pendingCount ?? 0;
 
   // Tooltips replace labels only in the desktop rail — the mobile sheet always
   // shows the full-width sidebar, so it must keep its labels.
@@ -260,6 +296,15 @@ export default function AppSidebar() {
           label: 'Attendance',
           to: '/attendance',
           icon: CalendarCheck,
+          // Time-away requests are decided by admins (mentors have no attendance
+          // view at all), and a request nobody notices goes stale on the very day
+          // it was asked for — so the pending state has to be visible from
+          // anywhere in the app, not only once you are already on the page. A sick
+          // day makes that sharper still: it is always for today or the last couple
+          // of days, so an unanswered one is stale almost immediately.
+          dot: pendingRequests > 0,
+          dotLabel:
+            pendingRequests === 1 ? '1 time-away request' : `${pendingRequests} time-away requests`,
         },
         {
           label: 'Daily Insights',

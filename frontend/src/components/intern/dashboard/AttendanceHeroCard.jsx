@@ -32,17 +32,25 @@ const CELL_CLASS = {
   [DAY_STATUS.TODAY_PENDING]: 'border-2 border-dashed border-white/65 bg-white/[0.08]',
   [DAY_STATUS.FUTURE]: 'bg-black/20',
   [DAY_STATUS.WEEKEND]: 'bg-black/10',
-  // On a project: inert, but given its own amber rather than a weekend's grey —
-  // the calendar marks these days the same way, and an intern reading both should
-  // not have to work out that the blank cells and the amber ones are the same
-  // thing. Softer than present/absent because it carries no verdict.
-  [DAY_STATUS.EXEMPT]: 'bg-amber-400/60',
+  // On a project: inert, and now the same near-grey as the other days nobody owed.
+  // It used to be amber, which claimed a hue for a state that means "no
+  // obligation" — and left nothing for a sick day. See dayStatusVisuals.jsx.
+  [DAY_STATUS.EXEMPT]: 'bg-white/[0.14]',
   // Holiday or programme break — same reasoning. A remote week is non-working too
-  // but gets REMOTE_CELL, matching the calendar's blue.
+  // but gets REMOTE_CELL, matching the calendar.
   [DAY_STATUS.NON_WORKING]: 'bg-black/10',
+  // An approved remote day. Full strength like present and absent, because it
+  // carries a verdict too: the day is worked and counted.
+  [DAY_STATUS.REMOTE]: 'bg-cyan-500 shadow-sm shadow-cyan-950/30',
+  // Approved leave. Deliberately softer than present/absent/remote: these days
+  // carry no verdict about the intern at all — they were never owed — so the strip
+  // should not shout them. The hues match the calendar so the two surfaces agree.
+  [DAY_STATUS.VACATION]: 'bg-blue-400/70',
+  [DAY_STATUS.RELIGIOUS]: 'bg-violet-400/70',
+  [DAY_STATUS.SICK]: 'bg-orange-400/70',
 };
 
-const REMOTE_CELL = 'bg-sky-400/60';
+const REMOTE_CELL = 'bg-cyan-400/60';
 
 // How long today's cell keeps its just-claimed emphasis. Long enough to be seen
 // if you were looking at the button you pressed, short enough that it is over
@@ -129,6 +137,12 @@ export function AttendanceHeroCard({
   // nagging them for days they are not expected in.
   placedAt = null,
   nonWorkingDays = [],
+  startDate = null,
+  // 'YYYY-MM-DD' → the status an approved request wrote. Remote days are already
+  // inside `records`, so they count towards the week tally either way and this
+  // only colours them; the three leave statuses are not in `records` at all and
+  // drop out of the tally's denominator, which `weekAttendance` handles.
+  requestedDays = {},
   onCheckIn,
   isCheckingIn,
   className,
@@ -148,7 +162,9 @@ export function AttendanceHeroCard({
     cancelledDates,
     now,
     placedAt,
-    nonWorkingKeySet(nonWorkingDays)
+    nonWorkingKeySet(nonWorkingDays),
+    startDate,
+    requestedDays
   );
   const { present: weekPresent, elapsed: weekElapsed } = weekAttendance(week);
 
@@ -357,7 +373,7 @@ export function AttendanceHeroCard({
                     }
                     transition={{ duration: 0.42, ease: 'easeOut', times: [0, 0.6, 1] }}
                     className={cn(
-                      'h-7 w-full rounded-lg transition-colors duration-300',
+                      'h-7 w-full rounded transition-colors duration-300',
                       day.status === DAY_STATUS.NON_WORKING &&
                         nonWorkingKind(nonWorkingDays, day.key) === 'remote'
                         ? REMOTE_CELL

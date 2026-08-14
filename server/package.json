@@ -20,6 +20,7 @@
     "seed:staffing-requests": "node seeder/seedStaffingRequests.js",
     "seed:positions": "node seeder/seedPositions.js",
     "seed:technologies": "node seeder/seedTechnologies.js",
+    "seed:observances": "node seeder/seedObservances.js",
     "backfill:intern-positions": "node seeder/backfillInternPositions.js",
     "backfill:recommendation-fields": "node seeder/backfillRecommendationFields.js",
     "backfill:legacy-secondary-mentor": "node seeder/backfillLegacySecondaryMentor.js",

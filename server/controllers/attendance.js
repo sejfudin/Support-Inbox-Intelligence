@@ -44,8 +44,11 @@ exports.cancelCheckIn = async (req, res, next) => {
 
 exports.getRoster = async (req, res, next) => {
   try {
-    const { month, roster } = await attendanceService.getRoster(req.user, req.query);
-    res.json({ success: true, message: 'Roster retrieved', data: { month, roster } });
+    // Spread the service result rather than picking fields: `nonWorkingDays` was
+    // being dropped here while the page read `data.nonWorkingDays`, so the admin's
+    // "By day" tab counted every public holiday as a cohort-wide absence.
+    const roster = await attendanceService.getRoster(req.user, req.query);
+    res.json({ success: true, message: 'Roster retrieved', data: roster });
   } catch (error) {
     handleError(res, error, next);
   }

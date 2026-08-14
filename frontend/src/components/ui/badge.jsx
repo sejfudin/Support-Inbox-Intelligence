@@ -17,6 +17,8 @@ const badgeVariants = cva(
           'border-transparent bg-amber-500/15 text-amber-800 hover:bg-amber-500/20 dark:bg-amber-500/20 dark:text-amber-300 dark:hover:bg-amber-500/25',
         success:
           'border-transparent bg-emerald-500/15 text-emerald-800 hover:bg-emerald-500/20 dark:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-500/25',
+        // Cyan, matching the attendance calendar's remote-day cell.
+        info: 'border-transparent bg-cyan-500/15 text-cyan-800 hover:bg-cyan-500/20 dark:bg-cyan-500/20 dark:text-cyan-300 dark:hover:bg-cyan-500/25',
         outline: 'border-border/60 bg-card text-foreground',
       },
     },

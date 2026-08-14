@@ -23,6 +23,8 @@
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth) — note the intern now reads their own scores **and the written notes** on their My Progress page, so write them as feedback addressed to the intern
 - Only role that can set readiness (by technology or by position) for an intern — the intern now sees their own levels, and who set them, on My Progress
 - Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
+- Only role that approves time-away requests — remote work, vacation, religious holidays and sick days all land in one queue on the Attendance page. Approving records those days for the intern (they don't check in), rejecting refuses the whole request, and an approval can be revoked later if it was a mistake. Remote days still count as attendance; the other three take the day out of the percentage altogether, so approving leave never hurts an intern's number and never flatters it either. The Attendance sidebar item shows a pulsing dot while anything is waiting — worth watching, since a sick day is always for today or the last couple of days and goes stale fast
+- Only role that sets the limits on time-away requests — from their own profile, how many days one request of each kind may cover, and how many days a year vacation and religious holidays allow. Remote work and sick days deliberately have no yearly limit and can't be given one. Lowering a limit binds what's asked for next; requests already decided keep what they were granted
 - Only role that can view the per-workspace Daily standup reporting dashboard (who reported today, calendar-month coverage grid, open blockers) — a read-only compliance view, not a data-entry surface
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
@@ -114,7 +116,7 @@
 - Can't see or set readiness (by technology or position) — admin-only now
 - Can't see or create recommendations, neither per-intern nor on the standalone "Recommendations" page — admin-only now
 - Can't see or manage the Specialization tab, but does get assigned-mentor access to an intern once paired as their specialization mentor
-- Can't see the attendance roster (intern attendance overview) — an intern's own check-in is untouched
+- Can't see the attendance roster (intern attendance overview) — an intern's own check-in is untouched. Mentors have no attendance view of any kind, so remote-work requests go to an admin, not to them
 - Can see the CV link on an intern's profile, but can't edit it — admin-only now
 - Can't change an intern's lifecycle status (active/ready/placed/completed/discontinued), even for their own assigned intern — admin-only now
 - Can manage documentation links on an intern profile
@@ -138,9 +140,22 @@
 - Sees no one else's recommendations, evaluations, or readiness
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics
+- Can ask for time away from the Attendance page — four kinds, all decided by an admin as a whole request, all withdrawable while still pending:
+  - **Remote work** — up to 3 days per request, no yearly limit. Need more than 3 — an exam week, say — send another request; there's no cap on how many. An approved day **counts as attendance** without checking in
+  - **Vacation** — up to 5 days per request and **5 days a year**. Once the year's 5 are used the option locks until January
+  - **Religious holiday** — up to 3 days per request and **3 days a year**. The calendar shows when Bajram, Uskrs, Vaskrs, Rosh Hashanah and the rest fall, so they can plan ahead. Islamic dates are marked "to be confirmed" — they're announced rather than calculated, and can move by a day
+  - **Sick day** — **one day per request**, no yearly limit, and the only one that can be backdated: today or either of the last two working days, because you file a sick day after being ill, not before. Ill longer? Send another request
+- Those four numbers are the starting values, not fixed rules — an admin can raise or lower how many days one request may cover, and the yearly vacation and religious allowances, from their profile. Remote work and sick days have no yearly limit and won't be given one
+- Vacation, religious holidays and sick days are **not counted against attendance** — the day leaves the sum entirely, so a week off reads as nothing owed and nothing missed rather than as a week of absences. Remote work is different: it's still work, so it counts as an attended day. Each kind shows in its own colour with its own mark on the calendar
 - Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then
 - No access to other interns', mentors', or admin/leadership data or functions
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
+
+> **Note:** changing your own password now asks for your current one first, on every role. It's a
+> separate action on the Profile page rather than a field on the edit form. Changing it signs out
+> every other device you're signed in on — which is the point: if someone else has your session,
+> changing your password is how you get rid of them. An admin can still reset someone else's
+> password for them; that's the path for a locked-out account, where there's no old password to give.
 
 > **Note:** workspace access follows workspace *membership*, not a leftover setting. Mentors and
 > interns only see a workspace's tickets, board, statuses, categories, dailies and member list

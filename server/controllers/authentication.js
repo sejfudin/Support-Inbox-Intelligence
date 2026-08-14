@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
+const { ROLES } = require('../constants/roles');
 
 const register = async (req, res, next) => {
   try {
@@ -104,11 +105,30 @@ const logout = async (req, res, next) => {
   }
 };
 
+/**
+ * Change your own password. Always the caller's own account — the id comes from
+ * the token, never the URL — so there is no branch here that can skip the check.
+ */
+const changePassword = async (req, res, next) => {
+  try {
+    const result = await authService.changeOwnPassword(req.user._id, {
+      currentPassword: req.body.currentPassword,
+      newPassword: req.body.newPassword,
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    next(error);
+  }
+};
+
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (req.user.role !== 'admin' && req.user.id !== id) {
+    if (req.user.role !== ROLES.ADMIN && req.user.id !== id) {
       return res.status(403).json({
         message: 'You are not authorized to update this profile',
       });
@@ -117,9 +137,25 @@ const updateUser = async (req, res) => {
     const updateData = {};
 
     if (req.body.fullname) updateData.fullname = req.body.fullname;
-    if (req.body.password) updateData.password = req.body.password;
 
-    if (req.user.role === 'admin') {
+    // Changing your own password goes through PATCH /auth/me/password, which
+    // demands the current one. Accepting it here as well would leave the old
+    // unverified path open beside the new check — the guard would exist, and be
+    // trivially avoidable by posting to the other endpoint.
+    //
+    // An admin setting *another* user's password is a different act: a reset for
+    // someone locked out, who by definition cannot supply their old password.
+    // That stays.
+    if (req.body.password) {
+      if (req.user.id === id) {
+        return res.status(400).json({
+          message: 'To change your own password, use the change-password form.',
+        });
+      }
+      updateData.password = req.body.password;
+    }
+
+    if (req.user.role === ROLES.ADMIN) {
       if (req.body.email) updateData.email = req.body.email;
       if (req.body.role) updateData.role = req.body.role;
       if (req.body.hub) updateData.hub = req.body.hub;
@@ -193,6 +229,7 @@ module.exports = {
   refresh,
   getMe,
   logout,
+  changePassword,
   updateUser,
   verifyInvite,
   setPasswordFromInvite,

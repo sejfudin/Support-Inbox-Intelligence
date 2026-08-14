@@ -11,7 +11,13 @@ const {
   CHECK_IN_WINDOW,
   CHECK_IN_WINDOW_LABEL,
 } = require('../helpers/attendanceTime');
-const { computeMonthStats, isExemptOn, loadNonWorkingDays } = require('../helpers/attendanceStats');
+const {
+  splitRows,
+  computeMonthStats,
+  isExemptOn,
+  loadNonWorkingDays,
+  loadObservances,
+} = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
 
 const { PRESENT, CANCELLED } = Attendance;
@@ -30,23 +36,6 @@ const loadMyProfile = async (user) => {
   return profile;
 };
 
-// Split a set of raw attendance rows into the { records, cancelledDates } shape
-// the frontend consumes, plus the latest check-in timestamp.
-const splitRows = (rows) => {
-  const records = [];
-  const cancelledDates = [];
-  let lastCheckIn = null;
-  for (const row of rows) {
-    if (row.status === CANCELLED) {
-      cancelledDates.push(row.date);
-    } else {
-      records.push({ date: row.date, checkedInAt: row.checkedInAt });
-      if (!lastCheckIn || row.checkedInAt > lastCheckIn) lastCheckIn = row.checkedInAt;
-    }
-  }
-  return { records, cancelledDates, lastCheckIn };
-};
-
 // The intern's own summary returns their full history (the calendar pages
 // through months and the streak walks back across them, all client-side) plus a
 // server-computed stat block for the CURRENT month (start-date-prorated).
@@ -56,21 +45,33 @@ const splitRows = (rows) => {
 // it needs the boundary, not just this month's totals.
 const buildSummary = async (profile) => {
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
-  const { records, cancelledDates } = splitRows(rows);
+  const { records, cancelledDates, exemptDates, requestedDays } = splitRows(rows);
   const monthKey = officeMonthKey();
   const nonWorking = await loadNonWorkingDays();
+  const observances = await loadObservances();
   return {
     records,
     cancelledDates,
+    // Every day an approved request wrote, as date → status, so the calendar can
+    // colour remote apart from vacation apart from sick.
+    requestedDays,
     placedAt: profile.placedAt || null,
     // The calendar pages back through the intern's whole history client-side, so it
     // needs the start date too — without it every month before they joined renders
     // as a wall of absences for days they could not have attended.
     startDate: profile.startDate || null,
     nonWorkingDays: nonWorking.list,
+    observances,
     month: {
       key: monthKey,
-      ...computeMonthStats(records, monthKey, profile.startDate, profile.placedAt, nonWorking.keys),
+      ...computeMonthStats(
+        records,
+        monthKey,
+        profile.startDate,
+        profile.placedAt,
+        nonWorking.keys,
+        exemptDates
+      ),
     },
   };
 };
@@ -134,6 +135,14 @@ const checkIn = async (user, { ip } = {}) => {
   if (existing) {
     // Cancelled earlier today → this is a genuine new check-in, so re-stamp the
     // row. Already present → leave it exactly as it is (idempotent).
+    //
+    // Any request-written status (remote, vacation, religious, sick) is the third
+    // case and also leaves the row alone. Remote already counts, so a check-in adds
+    // nothing; the three exempt ones are days an admin agreed the intern is away,
+    // and the intern arguing otherwise by clicking a button is not how that gets
+    // undone — an admin revokes it. Either way, flipping the row to `present` here
+    // would look harmless and would quietly orphan the approval, since the row's
+    // `request` link is what revoke matches on.
     if (existing.status === CANCELLED) await markPresent(existing, { now, user, ip });
     return buildSummary(profile);
   }
@@ -190,14 +199,22 @@ const toInternSummary = (profile) => {
 };
 
 const buildRosterEntry = (profile, rows, monthKey, nonWorkingKeys) => {
-  const { records, cancelledDates, lastCheckIn } = splitRows(rows);
+  const { records, cancelledDates, exemptDates, requestedDays, lastCheckIn } = splitRows(rows);
   return {
     intern: toInternSummary(profile),
     records,
     cancelledDates,
+    requestedDays,
     placedAt: profile.placedAt || null,
     startDate: profile.startDate || null,
-    ...computeMonthStats(records, monthKey, profile.startDate, profile.placedAt, nonWorkingKeys),
+    ...computeMonthStats(
+      records,
+      monthKey,
+      profile.startDate,
+      profile.placedAt,
+      nonWorkingKeys,
+      exemptDates
+    ),
     lastCheckIn: lastCheckIn || null,
   };
 };
@@ -251,10 +268,11 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
   }
 
   const nonWorking = await loadNonWorkingDays();
+  const observances = await loadObservances();
   const roster = profiles.map((p) =>
     buildRosterEntry(p, byIntern.get(p._id.toString()) || [], monthKey, nonWorking.keys)
   );
-  return { month: monthKey, roster, nonWorkingDays: nonWorking.list };
+  return { month: monthKey, roster, nonWorkingDays: nonWorking.list, observances };
 };
 
 /**
@@ -281,19 +299,29 @@ const getInternAttendance = async (internProfileId, month) => {
   if (!profile || !profile.user) throw httpError('Intern not found.', 404);
 
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
-  const { records, cancelledDates } = splitRows(rows);
+  const { records, cancelledDates, exemptDates, requestedDays } = splitRows(rows);
   const monthKey = isValidMonthKey(month) ? month : officeMonthKey();
   const nonWorking = await loadNonWorkingDays();
+  const observances = await loadObservances();
   return {
     intern: toInternSummary(profile),
     records,
     cancelledDates,
+    requestedDays,
     placedAt: profile.placedAt || null,
     startDate: profile.startDate || null,
     nonWorkingDays: nonWorking.list,
+    observances,
     month: {
       key: monthKey,
-      ...computeMonthStats(records, monthKey, profile.startDate, profile.placedAt, nonWorking.keys),
+      ...computeMonthStats(
+        records,
+        monthKey,
+        profile.startDate,
+        profile.placedAt,
+        nonWorking.keys,
+        exemptDates
+      ),
     },
   };
 };
@@ -304,4 +332,7 @@ module.exports = {
   cancelCheckIn,
   getRoster,
   getInternAttendance,
+  // Exported for remoteWorkService, which anchors requests on the same profile
+  // this module does. One-directional: nothing here reaches back into it.
+  loadMyProfile,
 };

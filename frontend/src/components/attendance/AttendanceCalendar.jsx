@@ -6,57 +6,40 @@ import { cn } from '@/lib/utils';
 import {
   buildMonthGrid,
   DAY_STATUS,
+  LEAVE_STATUSES,
+  dayStatusLabel,
   nonWorkingKeySet,
   nonWorkingKind,
   nonWorkingLabel,
+  officeDateKey,
 } from '@/helpers/attendance';
+import {
+  dayStatusClass,
+  dayStatusDot,
+  DayStatusGlyph,
+  ObservanceGlyph,
+  STATUS_DOT,
+} from '@/components/attendance/dayStatusVisuals';
 
 // Monday-first week header. Weekend columns (Sat/Sun) are rendered disabled.
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const STATUS_STYLES = {
-  [DAY_STATUS.PRESENT]:
-    'bg-emerald-500/15 text-emerald-700 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300',
-  [DAY_STATUS.ABSENT]:
-    'bg-red-500/10 text-red-700 ring-1 ring-inset ring-red-500/25 dark:text-red-300',
-  [DAY_STATUS.TODAY_PENDING]:
-    'bg-primary/10 text-primary ring-1 ring-inset ring-primary/40 font-semibold',
-  [DAY_STATUS.WEEKEND]: 'bg-muted/30 text-muted-foreground/40',
-  [DAY_STATUS.FUTURE]: 'text-muted-foreground/40',
-  // On a project: never an absence, but not a grey nothing-day either. Amber so a
-  // placed intern's month reads as accounted for rather than blank, and so it
-  // stops being indistinguishable from a weekend or a holiday. Blue is spoken for
-  // by remote days below, emerald by Present, red by Absent, violet by Today.
-  [DAY_STATUS.EXEMPT]:
-    'bg-amber-500/15 text-amber-700 ring-1 ring-inset ring-amber-500/30 dark:text-amber-300',
-  // Holiday or programme break — nobody owed this day. Same grey as a weekend.
-  // A remote week is also non-working but gets REMOTE_STYLE instead; see below.
-  [DAY_STATUS.NON_WORKING]: 'bg-muted/30 text-muted-foreground/40',
-  // Before the intern joined: faintest of all, and deliberately not a filled cell —
-  // these days are not part of their record at all.
-  [DAY_STATUS.BEFORE_START]: 'text-muted-foreground/30',
-};
-
-// A remote week is a NON_WORKING day like any other — it leaves the denominator
-// the same way — but it is the one kind the intern was still expected to *work*,
-// so it reads as its own thing rather than as a holiday.
-const REMOTE_STYLE =
-  'bg-sky-500/15 text-sky-700 ring-1 ring-inset ring-sky-500/30 dark:text-sky-300';
-
 const REMOTE_KIND = 'remote';
 
-const STATUS_DOT = {
-  [DAY_STATUS.PRESENT]: 'bg-emerald-500',
-  [DAY_STATUS.ABSENT]: 'bg-red-500',
-  [DAY_STATUS.TODAY_PENDING]: 'bg-primary',
-  [DAY_STATUS.EXEMPT]: 'bg-amber-500',
-  [REMOTE_KIND]: 'bg-sky-500',
-};
+// How far ahead the "coming up" notice looks. A quarter is long enough that an
+// intern planning a religious holiday sees it before they need to ask, and short
+// enough that the line stays a line rather than becoming a second calendar.
+const NOTICE_WINDOW_DAYS = 90;
+const NOTICE_LIMIT = 3;
 
-function LegendItem({ dotClass, label }) {
+function LegendItem({ dotClass, label, Glyph }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className={cn('h-2 w-2 rounded-full', dotClass)} />
+      {Glyph ? (
+        <Glyph aria-hidden="true" className="h-3 w-3 text-muted-foreground" />
+      ) : (
+        <span className={cn('h-2 w-2 rounded-full', dotClass)} />
+      )}
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
@@ -64,42 +47,102 @@ function LegendItem({ dotClass, label }) {
 
 /**
  * Read-only month calendar visualizing an intern's attendance.
- * @param {{ records: Array<{date:string}>, cancelledDates?: string[], initialMonth?: string,
- *   placedAt?: string|null }} props
+ *
+ * @param {object} props
  *   initialMonth - 'YYYY-MM' to open on; defaults to the current month.
  *   placedAt - the intern's first day on a real project. Every day from it onward is
- *     tinted blue and inert: they are no longer obliged to record attendance, so those
- *     days are not absences.
+ *     inert: they are no longer obliged to record attendance, so those days are not
+ *     absences.
+ *   requestedDays - 'YYYY-MM-DD' → the status an approved request wrote
+ *     (remote | vacation | religious | sick). Remote days are already in `records`
+ *     because they count; the three leave statuses are not in `records` at all,
+ *     because they leave the denominator instead.
+ *   observances - religious holidays to mark. Notices only: they change nothing
+ *     about attendance, so they are drawn under the date rather than as a fill.
  */
 export default function AttendanceCalendar({
+  className,
   records = [],
   cancelledDates = [],
   initialMonth,
   placedAt = null,
   nonWorkingDays = [],
   startDate = null,
+  requestedDays = {},
+  observances = [],
 }) {
   const [cursor, setCursor] = useState(() =>
     initialMonth ? parseISO(`${initialMonth}-01`) : new Date()
   );
   const nonWorkingKeys = useMemo(() => nonWorkingKeySet(nonWorkingDays), [nonWorkingDays]);
   const { weeks, monthLabel } = useMemo(
-    () => buildMonthGrid(cursor, records, cancelledDates, placedAt, nonWorkingKeys, startDate),
-    [cursor, records, cancelledDates, placedAt, nonWorkingKeys, startDate]
+    () =>
+      buildMonthGrid(
+        cursor,
+        records,
+        cancelledDates,
+        placedAt,
+        nonWorkingKeys,
+        startDate,
+        requestedDays
+      ),
+    [cursor, records, cancelledDates, placedAt, nonWorkingKeys, startDate, requestedDays]
   );
+
+  // One date can carry more than one observance — the two Easters coincide some
+  // years, and different traditions share days — so the tooltip joins them.
+  const observanceByDate = useMemo(() => {
+    const map = new Map();
+    for (const item of observances) {
+      if (!map.has(item.date)) map.set(item.date, []);
+      map.get(item.date).push(item);
+    }
+    return map;
+  }, [observances]);
+
+  const upcoming = useMemo(() => {
+    const today = officeDateKey();
+    const horizon = new Date(Date.now() + NOTICE_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
+    return observances
+      .filter((item) => item.date >= today && item.date <= horizon)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, NOTICE_LIMIT);
+  }, [observances]);
+
+  const todayKey = officeDateKey();
   const atCurrentMonth = isSameMonth(cursor, new Date());
-  const showsExempt = weeks.some((week) => week.some((cell) => cell?.status === DAY_STATUS.EXEMPT));
+
+  const shownStatuses = useMemo(
+    () =>
+      new Set(
+        weeks
+          .flat()
+          .filter(Boolean)
+          .map((cell) => cell.status)
+      ),
+    [weeks]
+  );
+  const showsExempt = shownStatuses.has(DAY_STATUS.EXEMPT);
   // Split so the legend only offers the swatches actually on screen, and never
   // labels a remote week as a plain non-working day.
   const nonWorkingCells = weeks
     .flat()
     .filter((cell) => cell?.status === DAY_STATUS.NON_WORKING)
     .map((cell) => nonWorkingKind(nonWorkingDays, format(cell.date, 'yyyy-MM-dd')));
-  const showsRemote = nonWorkingCells.includes(REMOTE_KIND);
+  // Either sort of remote cell — a cohort-wide remote week or this intern's own
+  // approved remote day — earns the one "Remote" swatch.
+  const showsRemote = nonWorkingCells.includes(REMOTE_KIND) || shownStatuses.has(DAY_STATUS.REMOTE);
   const showsNonWorking = nonWorkingCells.some((kind) => kind !== REMOTE_KIND);
+  const shownLeave = LEAVE_STATUSES.filter((status) => shownStatuses.has(status));
 
   return (
-    <div className="app-panel p-4 md:p-5" data-test="attendance-calendar">
+    // `flex flex-col` + a growing grid is what lets the card fill whatever height
+    // the column beside it sets: the day cells stretch, the card does not float in
+    // a taller box with dead space under the last week.
+    <div
+      className={cn('app-panel flex flex-col p-4 md:p-5', className)}
+      data-test="attendance-calendar"
+    >
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">{monthLabel}</h3>
         <div className="flex items-center gap-0.5">
@@ -129,7 +172,10 @@ export default function AttendanceCalendar({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      {/* `auto-rows-fr` divides the leftover height evenly across the week rows, so
+          every cell grows by the same amount rather than the last one absorbing it.
+          `min-h-9` keeps the short-month case from collapsing. */}
+      <div className="grid flex-1 auto-rows-fr grid-cols-7 gap-1 [grid-template-rows:auto_repeat(auto-fill,minmax(0,1fr))]">
         {WEEKDAY_LABELS.map((label, i) => {
           const isWeekendCol = i >= 5; // Sat, Sun
           return (
@@ -147,39 +193,68 @@ export default function AttendanceCalendar({
 
         {weeks.map((week, wi) =>
           week.map((cell, di) => {
-            if (!cell) return <div key={`${wi}-${di}`} className="h-9" />;
+            if (!cell) return <div key={`${wi}-${di}`} className="min-h-9" />;
             const { date, status } = cell;
             const dayKey = format(date, 'yyyy-MM-dd');
-            const isRemote =
+            const isToday = dayKey === todayKey;
+            // A cohort-wide remote week is a NON_WORKING day, but it is the one kind
+            // that should not read as a grey nothing-day — it gets the remote fill
+            // while keeping its own label.
+            const isRemoteWeek =
               status === DAY_STATUS.NON_WORKING &&
               nonWorkingKind(nonWorkingDays, dayKey) === REMOTE_KIND;
+            const dayObservances = observanceByDate.get(dayKey) || [];
             const disabled =
               status === DAY_STATUS.WEEKEND ||
               status === DAY_STATUS.FUTURE ||
               status === DAY_STATUS.EXEMPT ||
               status === DAY_STATUS.NON_WORKING ||
               status === DAY_STATUS.BEFORE_START;
+
+            const reason =
+              status === DAY_STATUS.EXEMPT
+                ? 'on a project, attendance not required'
+                : status === DAY_STATUS.NON_WORKING
+                  ? nonWorkingLabel(nonWorkingDays, dayKey) || 'not a working day'
+                  : status === DAY_STATUS.BEFORE_START
+                    ? 'before joining the programme'
+                    : status === DAY_STATUS.REMOTE ||
+                        status === DAY_STATUS.VACATION ||
+                        status === DAY_STATUS.RELIGIOUS ||
+                        status === DAY_STATUS.SICK
+                      ? dayStatusLabel(status).toLowerCase()
+                      : status.replace('-', ' ');
+
+            const observanceNote = dayObservances.length
+              ? ` · ${dayObservances
+                  .map((o) => `${o.label}${o.provisional ? ' (date to be confirmed)' : ''}`)
+                  .join(', ')}`
+              : '';
+
             return (
               <div
                 key={`${wi}-${di}`}
                 aria-disabled={disabled || undefined}
                 className={cn(
-                  'flex h-9 items-center justify-center rounded-md text-xs font-medium',
-                  isRemote ? REMOTE_STYLE : STATUS_STYLES[status]
+                  'relative flex min-h-9 flex-col items-center justify-center rounded-md text-xs font-medium',
+                  dayStatusClass(isRemoteWeek ? DAY_STATUS.REMOTE : status, { isToday })
                 )}
-                title={`${format(date, 'EEE, MMM d')} — ${
-                  status === DAY_STATUS.EXEMPT
-                    ? 'on a project, attendance not required'
-                    : status === DAY_STATUS.NON_WORKING
-                      ? nonWorkingLabel(nonWorkingDays, dayKey) || 'not a working day'
-                      : status === DAY_STATUS.BEFORE_START
-                        ? 'before joining the programme'
-                        : status.replace('-', ' ')
-                }`}
+                title={`${format(date, 'EEE, MMM d')} — ${reason}${observanceNote}`}
                 data-test={`attendance-day-${dayKey}`}
                 data-status={status}
               >
-                {format(date, 'd')}
+                <span className="flex items-center gap-0.5 leading-none">
+                  {format(date, 'd')}
+                  <DayStatusGlyph status={isRemoteWeek ? DAY_STATUS.REMOTE : status} />
+                </span>
+                {dayObservances.length > 0 && (
+                  // A notice, not a status: a hairline under the date, never a fill,
+                  // so it cannot be mistaken for the day being off.
+                  <span
+                    aria-hidden="true"
+                    className="absolute bottom-1 h-px w-3 rounded-full bg-current opacity-40"
+                  />
+                )}
               </div>
             );
           })
@@ -187,14 +262,47 @@ export default function AttendanceCalendar({
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3.5 border-t border-border/60 pt-3">
-        <LegendItem dotClass={STATUS_DOT[DAY_STATUS.PRESENT]} label="Present" />
-        <LegendItem dotClass={STATUS_DOT[DAY_STATUS.ABSENT]} label="Absent" />
-        <LegendItem dotClass={STATUS_DOT[DAY_STATUS.TODAY_PENDING]} label="Today" />
+        <LegendItem dotClass={dayStatusDot(DAY_STATUS.PRESENT)} label="Present" />
+        <LegendItem dotClass={dayStatusDot(DAY_STATUS.ABSENT)} label="Absent" />
         <LegendItem dotClass="bg-muted-foreground/30" label="Weekend" />
-        {showsRemote && <LegendItem dotClass={STATUS_DOT[REMOTE_KIND]} label="Remote" />}
-        {showsExempt && <LegendItem dotClass={STATUS_DOT[DAY_STATUS.EXEMPT]} label="On project" />}
+        {showsRemote && <LegendItem dotClass={STATUS_DOT[DAY_STATUS.REMOTE]} label="Remote" />}
+        {shownLeave.map((status) => (
+          <LegendItem key={status} dotClass={dayStatusDot(status)} label={dayStatusLabel(status)} />
+        ))}
+        {showsExempt && (
+          <LegendItem dotClass={dayStatusDot(DAY_STATUS.EXEMPT)} label="On project" />
+        )}
         {showsNonWorking && <LegendItem dotClass="bg-muted-foreground/20" label="Non-working" />}
       </div>
+
+      {upcoming.length > 0 && (
+        <div
+          className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground"
+          data-test="attendance-observance-notice"
+        >
+          <span className="font-medium text-foreground/80">Coming up</span>
+          <ul className="mt-1.5 space-y-1">
+            {upcoming.map((item) => (
+              <li key={`${item.date}-${item.label}`} className="flex items-baseline gap-2">
+                {/* One star for every tradition — the label names the holiday, so
+                    the mark only has to say "observance". `items-baseline` on the
+                    row would drop the icon onto the text baseline, hence the nudge. */}
+                <ObservanceGlyph className="translate-y-0.5 text-muted-foreground/70" />
+                <span className="tabular-nums text-muted-foreground/80">
+                  {format(parseISO(item.date), 'EEE d MMM')}
+                </span>
+                <span>{item.label}</span>
+                {item.provisional && (
+                  // Bajram dates are announced rather than calculated. Saying so is
+                  // the point — an intern booking leave around a date the app got
+                  // wrong is the failure this notice exists to prevent.
+                  <span className="text-muted-foreground/60">· to be confirmed</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

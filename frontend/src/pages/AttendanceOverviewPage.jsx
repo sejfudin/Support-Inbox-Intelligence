@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'use-debounce';
 import { addDays, format, isWeekend, parseISO, startOfMonth, subMonths } from 'date-fns';
-import { Users, UserCheck, UserX, Percent, TriangleAlert, Star } from 'lucide-react';
+import {
+  Users,
+  UserCheck,
+  UserX,
+  Percent,
+  TriangleAlert,
+  Star,
+  House,
+  TreePalm,
+} from 'lucide-react';
 import { PageShell, PageSection } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
 import { Input } from '@/components/ui/input';
@@ -20,11 +29,14 @@ import AttendanceStat from '@/components/attendance/AttendanceStat';
 import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
 import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
 import InternAttendanceModal from '@/components/attendance/InternAttendanceModal';
+import AttendanceRequestQueue from '@/components/attendance/AttendanceRequestQueue';
 import { useAttendanceRoster } from '@/queries/attendance';
+import { useAttendanceRequests } from '@/queries/attendanceRequests';
 import { useHubs } from '@/queries/hubs';
 import {
   attendanceRateTextClass,
   internStatusOnDate,
+  isLeaveStatus,
   nonWorkingKeySet,
   DAY_STATUS,
 } from '@/helpers/attendance';
@@ -87,6 +99,11 @@ export default function AttendanceOverviewPage() {
   const { data: hubs = [] } = useHubs();
   const hubNames = hubs.map((h) => h.name);
 
+  // Shares its query key with AttendanceRequestQueue's default fetch, so the two are one
+  // request — this only exists so the tab can carry the count without mounting it.
+  const { data: attendanceRequests } = useAttendanceRequests({ status: 'pending' });
+  const pendingRequestCount = attendanceRequests?.pendingCount ?? 0;
+
   const roster = data?.roster ?? [];
   const nonWorkingKeys = useMemo(() => nonWorkingKeySet(data?.nonWorkingDays), [data]);
   const total = roster.length;
@@ -101,13 +118,21 @@ export default function AttendanceOverviewPage() {
     return { ...summarize(rates, rates.length), total };
   }, [roster, total]);
 
-  // Counts for the selected day (present / absent / not-yet).
+  // Counts for the selected day (present / remote / away / absent / not-yet).
+  //
+  // Remote is tracked apart from present rather than folded in: both worked the
+  // day, but an admin looking at a single day wants to know how many of them were
+  // in the office. `away` is the three approved-leave types together — they owed
+  // nothing, so they belong in neither the worked count nor the absent one, and
+  // lumping them into "absent" would invent a problem the admin already signed off.
   const dayCounts = useMemo(() => {
     const date = parseISO(day);
-    const acc = { present: 0, absent: 0, pending: 0 };
+    const acc = { present: 0, remote: 0, away: 0, absent: 0, pending: 0 };
     roster.forEach((r) => {
       const { status } = internStatusOnDate(r, date, nonWorkingKeys);
       if (status === DAY_STATUS.PRESENT) acc.present += 1;
+      else if (status === DAY_STATUS.REMOTE) acc.remote += 1;
+      else if (isLeaveStatus(status)) acc.away += 1;
       else if (status === DAY_STATUS.ABSENT) acc.absent += 1;
       else if (status === DAY_STATUS.TODAY_PENDING) acc.pending += 1;
     });
@@ -122,8 +147,9 @@ export default function AttendanceOverviewPage() {
         <PageHeading
           kicker="Future Experts Program"
           title="Attendance"
-          subtitle="Office attendance across interns, by month. This view is read-only — only interns can record their own check-ins."
-          titleAdornment={<Badge variant="outline">Read-only</Badge>}
+          // No longer wholly read-only: approving a remote-work request writes that
+          // intern's attendance for the day. Check-ins are still theirs alone.
+          subtitle="Office attendance across interns, by month. Only interns record their own check-ins — the one day you can record for them is an approved remote day."
         />
 
         {isError && (
@@ -146,6 +172,16 @@ export default function AttendanceOverviewPage() {
               </TabsTrigger>
               <TabsTrigger value="day" data-test="attendance-tab-day">
                 By day
+              </TabsTrigger>
+              <TabsTrigger value="requests" data-test="attendance-tab-requests">
+                Time away
+                {/* The count is the whole point of surfacing it on the tab: a
+                    request nobody notices goes stale on the day it was for. */}
+                {pendingRequestCount > 0 && (
+                  <Badge variant="warning" className="ml-2">
+                    {pendingRequestCount}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -255,12 +291,30 @@ export default function AttendanceOverviewPage() {
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <AttendanceStat
-                  label="Present"
+                  label="In the office"
                   value={`${dayCounts.present} / ${total}`}
                   hint={format(parseISO(day), 'EEE, MMM d')}
                   icon={UserCheck}
                   valueClassName="text-emerald-600 dark:text-emerald-400"
                 />
+                {dayCounts.remote > 0 && (
+                  <AttendanceStat
+                    label="Remote"
+                    value={dayCounts.remote}
+                    hint="Approved remote work"
+                    icon={House}
+                    valueClassName="text-cyan-600 dark:text-cyan-400"
+                  />
+                )}
+                {dayCounts.away > 0 && (
+                  <AttendanceStat
+                    label="Away"
+                    value={dayCounts.away}
+                    hint="Approved leave — not owed"
+                    icon={TreePalm}
+                    valueClassName="text-blue-600 dark:text-blue-400"
+                  />
+                )}
                 {dayIsToday && (
                   <AttendanceStat
                     label="Not yet in"
@@ -284,7 +338,16 @@ export default function AttendanceOverviewPage() {
                 <AttendanceStat label="Interns" value={total} hint="Total" icon={Users} />
               </div>
 
-              <DailyAttendanceTable roster={roster} date={day} onSelectIntern={setSelectedIntern} />
+              <DailyAttendanceTable
+                roster={roster}
+                date={day}
+                onSelectIntern={setSelectedIntern}
+                nonWorkingKeys={nonWorkingKeys}
+              />
+            </TabsContent>
+
+            <TabsContent value="requests" className="space-y-6">
+              <AttendanceRequestQueue />
             </TabsContent>
           </Tabs>
         )}

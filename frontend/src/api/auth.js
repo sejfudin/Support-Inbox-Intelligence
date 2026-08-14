@@ -24,3 +24,15 @@ export const updateUser = async (id, data) => {
   const response = await apiClient.patch(`/auth/${id}`, data);
   return response.data;
 };
+
+/**
+ * Change your own password. Takes no id — the server reads the account from the
+ * token, so this can only ever act on the caller's own credentials.
+ *
+ * Answers with a fresh `{ accessToken, refreshToken }`: the change invalidates
+ * every token issued under the old password, this session's included.
+ */
+export const changePassword = async ({ currentPassword, newPassword }) => {
+  const response = await apiClient.patch('/auth/me/password', { currentPassword, newPassword });
+  return response.data;
+};
