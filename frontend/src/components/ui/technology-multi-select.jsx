@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
 
 const DEFAULT_TRIGGER_CLASS =
-  'flex h-11 w-full items-center justify-between rounded-xl border border-input/90 bg-card px-3.5 py-2 text-left text-base text-muted-foreground shadow-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 md:text-sm';
+  'flex h-11 w-full items-center justify-between rounded-[var(--r-card)] border border-input/90 bg-card px-3.5 py-2 text-left text-base text-muted-foreground shadow-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 md:text-sm';
 
 const DEFAULT_CHIP_CLASS =
   'inline-flex items-center rounded-full bg-secondary px-3 py-[5px] text-xs font-medium text-secondary-foreground';
@@ -180,7 +180,7 @@ export function TechnologyMultiSelect({
   const dropdown = open && (
     <div
       ref={scrollDropdownIntoView}
-      className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
+      className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-[var(--r-card)] border border-border bg-popover shadow-lg"
     >
       <div className="flex items-center gap-2 border-b border-border px-3">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -210,7 +210,7 @@ export function TechnologyMultiSelect({
             onClick={() => add(technology._id)}
             onMouseEnter={() => setHighlightedIndex(index)}
             className={cn(
-              'flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-sm text-foreground transition',
+              'flex w-full items-center gap-2.5 rounded-[var(--r-control)] px-2.5 py-2 text-left text-sm text-foreground transition',
               index === highlightedIndex ? 'bg-secondary' : 'hover:bg-secondary'
             )}
             data-test={`technology-multi-select-option-${technology.slug}`}
@@ -231,7 +231,7 @@ export function TechnologyMultiSelect({
     const hiddenCount = selectedTechnologies.length - visible.length;
     return (
       <div ref={containerRef} className="relative">
-        <div className="rounded-xl border border-input/90 px-3.5 py-3">
+        <div className="rounded-[var(--r-card)] border border-input/90 px-3.5 py-3">
           <div className="flex flex-wrap items-center gap-2">
             {visible.map((technology) => (
               <RemovableChip

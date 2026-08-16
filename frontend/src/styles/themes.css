@@ -8,7 +8,7 @@
   --card-foreground: 228 28% 14%;
   --popover: 0 0% 100%;
   --popover-foreground: 228 28% 14%;
-  --primary: 241 100% 71%;
+  --primary: 239 84% 67%;
   --primary-foreground: 0 0% 98%;
   --secondary: 240 100% 98%;
   --secondary-foreground: 235 24% 19%;
@@ -20,18 +20,18 @@
   --destructive-foreground: 0 0% 98%;
   --border: 230 28% 90%;
   --input: 230 28% 90%;
-  --ring: 241 100% 71%;
+  --ring: 239 84% 67%;
   --surface: 0 0% 100%;
   --surface-elevated: 0 0% 100%;
   --surface-border: 230 28% 90%;
-  --glow-primary: 241 100% 71%;
+  --glow-primary: 239 84% 67%;
   --glow-secondary: 199 89% 58%;
   --page-gradient-end: 240 43% 98%;
   --grid-line: 148 163 184;
   --shadow-tint: 76 81 191;
   --sidebar-background: 0 0% 100%;
   --sidebar-foreground: 226 18% 27%;
-  --sidebar-primary: 241 100% 71%;
+  --sidebar-primary: 239 84% 67%;
   --sidebar-primary-foreground: 0 0% 98%;
   --sidebar-accent: 235 100% 97%;
   --sidebar-accent-foreground: 235 24% 19%;
@@ -47,7 +47,7 @@
   --card-foreground: 0 0% 98%;
   --popover: 240 6% 11%;
   --popover-foreground: 0 0% 98%;
-  --primary: 241 76% 65%;
+  --primary: 234 89% 74%;
   --primary-foreground: 240 5.9% 10%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
@@ -63,13 +63,13 @@
   --surface: 240 6% 11%;
   --surface-elevated: 240 5% 13%;
   --surface-border: 240 4% 20%;
-  --glow-primary: 241 76% 55%;
+  --glow-primary: 239 84% 67%;
   --glow-secondary: 199 70% 45%;
   --page-gradient-end: 240 10% 6%;
   --grid-line: 80 80 95;
   --sidebar-background: 240 6% 11%;
   --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-primary: 241 76% 58%;
+  --sidebar-primary: 234 89% 74%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 240 3.7% 15.9%;
   --sidebar-accent-foreground: 240 4.8% 95.9%;
@@ -450,4 +450,642 @@
   --sidebar-accent-foreground: 0 0% 90%;
   --sidebar-border: 0 0% 16%;
   --sidebar-ring: 0 0% 85%;
+}
+
+/* The four palettes added with the Settings overhaul. Their surfaces are one
+   shared neutral (Tailwind's slate scale, light and dark) and only the accent
+   hue differs — which is what keeps them reading as one family beside the six
+   older palettes, each of which carries its own tinted neutrals. Every accent is
+   a stock Tailwind step: the 600 in light, the 400 in dark, so the ink stays
+   legible on a dark card without hand-tuning per hue. */
+
+[data-theme='violet'] {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 262 83% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 270 100% 97%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 262 83% 58%;
+  --surface: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+  --surface-border: 214 32% 91%;
+  --glow-primary: 258 90% 66%;
+  --glow-secondary: 215 16% 65%;
+  --page-gradient-end: 210 20% 98%;
+  --grid-line: 148 163 184;
+  --shadow-tint: 109 40 217;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 19% 35%;
+  --sidebar-primary: 262 83% 58%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 270 100% 97%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 262 83% 58%;
+}
+
+.dark[data-theme='violet'] {
+  --background: 229 30% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 28% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 28% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 258 90% 76%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 25% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 25% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 25% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 22% 20%;
+  --input: 217 22% 20%;
+  --ring: 258 90% 76%;
+  --surface: 222 28% 11%;
+  --surface-elevated: 222 26% 13%;
+  --surface-border: 217 22% 22%;
+  --glow-primary: 258 90% 76%;
+  --glow-secondary: 215 20% 45%;
+  --page-gradient-end: 229 30% 9%;
+  --grid-line: 80 90 110;
+  --sidebar-background: 222 28% 11%;
+  --sidebar-foreground: 210 30% 92%;
+  --sidebar-primary: 258 90% 76%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 25% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 22% 20%;
+  --sidebar-ring: 258 90% 76%;
+}
+
+[data-theme='rose'] {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 347 77% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 356 100% 97%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 347 77% 50%;
+  --surface: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+  --surface-border: 214 32% 91%;
+  --glow-primary: 350 89% 60%;
+  --glow-secondary: 215 16% 65%;
+  --page-gradient-end: 210 20% 98%;
+  --grid-line: 148 163 184;
+  --shadow-tint: 190 18 60;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 19% 35%;
+  --sidebar-primary: 347 77% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 356 100% 97%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 347 77% 50%;
+}
+
+.dark[data-theme='rose'] {
+  --background: 229 30% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 28% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 28% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 351 95% 71%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 25% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 25% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 25% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 22% 20%;
+  --input: 217 22% 20%;
+  --ring: 351 95% 71%;
+  --surface: 222 28% 11%;
+  --surface-elevated: 222 26% 13%;
+  --surface-border: 217 22% 22%;
+  --glow-primary: 351 95% 71%;
+  --glow-secondary: 215 20% 45%;
+  --page-gradient-end: 229 30% 9%;
+  --grid-line: 80 90 110;
+  --sidebar-background: 222 28% 11%;
+  --sidebar-foreground: 210 30% 92%;
+  --sidebar-primary: 351 95% 71%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 25% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 22% 20%;
+  --sidebar-ring: 351 95% 71%;
+}
+
+/* The second batch of added palettes. Their surfaces are one
+   shared neutral (Tailwind's slate scale, light and dark) and only the accent
+   hue differs — which is what keeps them reading as one family beside the six
+   older palettes, each of which carries its own tinted neutrals. Every accent is
+   a stock Tailwind step: the 600 in light, the 400 in dark, so the ink stays
+   legible on a dark card without hand-tuning per hue. */
+
+[data-theme='azure'] {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 214 100% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --surface: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+  --surface-border: 214 32% 91%;
+  --glow-primary: 217 91% 60%;
+  --glow-secondary: 215 16% 65%;
+  --page-gradient-end: 210 20% 98%;
+  --grid-line: 148 163 184;
+  --shadow-tint: 29 78 216;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 19% 35%;
+  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 100% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 221 83% 53%;
+}
+
+.dark[data-theme='azure'] {
+  --background: 229 30% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 28% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 28% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 213 94% 68%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 25% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 25% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 25% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 22% 20%;
+  --input: 217 22% 20%;
+  --ring: 213 94% 68%;
+  --surface: 222 28% 11%;
+  --surface-elevated: 222 26% 13%;
+  --surface-border: 217 22% 22%;
+  --glow-primary: 213 94% 68%;
+  --glow-secondary: 215 20% 45%;
+  --page-gradient-end: 229 30% 9%;
+  --grid-line: 80 90 110;
+  --sidebar-background: 222 28% 11%;
+  --sidebar-foreground: 210 30% 92%;
+  --sidebar-primary: 213 94% 68%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 25% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 22% 20%;
+  --sidebar-ring: 213 94% 68%;
+}
+
+[data-theme='teal'] {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 173 80% 40%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 166 76% 95%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 173 80% 40%;
+  --surface: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+  --surface-border: 214 32% 91%;
+  --glow-primary: 173 80% 46%;
+  --glow-secondary: 215 16% 65%;
+  --page-gradient-end: 210 20% 98%;
+  --grid-line: 148 163 184;
+  --shadow-tint: 15 118 110;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 19% 35%;
+  --sidebar-primary: 173 80% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 166 76% 95%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 173 80% 40%;
+}
+
+.dark[data-theme='teal'] {
+  --background: 229 30% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 28% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 28% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 172 66% 50%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 25% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 25% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 25% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 22% 20%;
+  --input: 217 22% 20%;
+  --ring: 172 66% 50%;
+  --surface: 222 28% 11%;
+  --surface-elevated: 222 26% 13%;
+  --surface-border: 217 22% 22%;
+  --glow-primary: 172 66% 50%;
+  --glow-secondary: 215 20% 45%;
+  --page-gradient-end: 229 30% 9%;
+  --grid-line: 80 90 110;
+  --sidebar-background: 222 28% 11%;
+  --sidebar-foreground: 210 30% 92%;
+  --sidebar-primary: 172 66% 50%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 25% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 22% 20%;
+  --sidebar-ring: 172 66% 50%;
+}
+
+[data-theme='amber'] {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 38 92% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 48 100% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 38 92% 50%;
+  --surface: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+  --surface-border: 214 32% 91%;
+  --glow-primary: 38 92% 50%;
+  --glow-secondary: 215 16% 65%;
+  --page-gradient-end: 210 20% 98%;
+  --grid-line: 148 163 184;
+  --shadow-tint: 180 83 9;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 19% 35%;
+  --sidebar-primary: 38 92% 50%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 48 100% 96%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 38 92% 50%;
+}
+
+.dark[data-theme='amber'] {
+  --background: 229 30% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 28% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 28% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 43 96% 56%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 25% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 25% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 25% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 22% 20%;
+  --input: 217 22% 20%;
+  --ring: 43 96% 56%;
+  --surface: 222 28% 11%;
+  --surface-elevated: 222 26% 13%;
+  --surface-border: 217 22% 22%;
+  --glow-primary: 43 96% 56%;
+  --glow-secondary: 215 20% 45%;
+  --page-gradient-end: 229 30% 9%;
+  --grid-line: 80 90 110;
+  --sidebar-background: 222 28% 11%;
+  --sidebar-foreground: 210 30% 92%;
+  --sidebar-primary: 43 96% 56%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 25% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 22% 20%;
+  --sidebar-ring: 43 96% 56%;
+}
+
+[data-theme='magenta'] {
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 293 69% 49%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 289 100% 97%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 293 69% 49%;
+  --surface: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+  --surface-border: 214 32% 91%;
+  --glow-primary: 292 84% 61%;
+  --glow-secondary: 215 16% 65%;
+  --page-gradient-end: 210 20% 98%;
+  --grid-line: 148 163 184;
+  --shadow-tint: 162 28 175;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 19% 35%;
+  --sidebar-primary: 293 69% 49%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 289 100% 97%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 293 69% 49%;
+}
+
+.dark[data-theme='magenta'] {
+  --background: 229 30% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 28% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 28% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 289 96% 73%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 25% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 25% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 25% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 217 22% 20%;
+  --input: 217 22% 20%;
+  --ring: 289 96% 73%;
+  --surface: 222 28% 11%;
+  --surface-elevated: 222 26% 13%;
+  --surface-border: 217 22% 22%;
+  --glow-primary: 289 96% 73%;
+  --glow-secondary: 215 20% 45%;
+  --page-gradient-end: 229 30% 9%;
+  --grid-line: 80 90 110;
+  --sidebar-background: 222 28% 11%;
+  --sidebar-foreground: 210 30% 92%;
+  --sidebar-primary: 289 96% 73%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 25% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 22% 20%;
+  --sidebar-ring: 289 96% 73%;
+}
+
+/* Colour vision → Complete (achromatopsia). The status tones go grey in
+   `index.css`; this is the other half — the accent itself. Hue carries nothing
+   for this reader, and leaving an indigo sidebar beside grey chips reads as a
+   half-applied setting rather than a deliberate one, so whichever palette is
+   selected is neutralised while it is on.
+
+   Deliberately NOT inside `@layer base`: this file is imported ahead of
+   `@tailwind base`, so its rules are unlayered and would otherwise outrank a
+   layered override no matter how specific. `:root[data-colorblind]` (0,2,0)
+   beats `[data-theme='x']` (0,1,0); the dark pair ties on specificity and wins
+   on source order, which is why this block is last in the file.
+
+   The blunt alternative — `filter: grayscale(1)` on the root — was not used: it
+   would drain avatars, technology logos and uploaded images too, and a filter on
+   the root element breaks `position: fixed` for every overlay in the app. */
+:root[data-colorblind='grayscale'] {
+  --primary: 0 0% 25%;
+  --primary-foreground: 0 0% 98%;
+  --ring: 0 0% 25%;
+  --accent: 0 0% 94%;
+  --accent-foreground: 0 0% 12%;
+  --glow-primary: 0 0% 40%;
+  --glow-secondary: 0 0% 60%;
+  --sidebar-primary: 0 0% 25%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 0 0% 94%;
+  --sidebar-accent-foreground: 0 0% 12%;
+  --sidebar-ring: 0 0% 25%;
+}
+
+.dark[data-colorblind='grayscale'] {
+  --primary: 0 0% 92%;
+  --primary-foreground: 0 0% 10%;
+  --ring: 0 0% 85%;
+  --accent: 0 0% 16%;
+  --accent-foreground: 0 0% 92%;
+  --glow-primary: 0 0% 55%;
+  --glow-secondary: 0 0% 40%;
+  --sidebar-primary: 0 0% 88%;
+  --sidebar-primary-foreground: 0 0% 10%;
+  --sidebar-accent: 0 0% 16%;
+  --sidebar-accent-foreground: 0 0% 92%;
+  --sidebar-ring: 0 0% 85%;
+}
+
+/* Colour vision → Red–green and Blue–yellow, as full palettes.
+   
+   These are accessibility modes, not entries in the accent picker: choosing one
+   takes over whichever palette is selected, app-wide, and releases it again when
+   set back to Off. That is why they live here rather than in `THEMES` — there is
+   no `lib/themes.js` entry and no swatch for them.
+
+   Both are chosen so the colours stay separable AFTER the reader's own vision
+   transforms them. They are not simulations of what a colour-blind viewer sees;
+   painting the app in those simulated hues would apply the transform twice and
+   leave them worse off than the default.
+
+   Red–green (deuter-/protan-): the accent moves to Okabe–Ito blue #0072B2, which
+   is the one hue that survives both. Blue–yellow (tritan-): blue and yellow are
+   what collapse, so the accent moves onto the red–magenta axis these readers
+   keep. Surfaces stay neutral in both — a tinted background is one more thing to
+   discriminate against and buys nothing. */
+:root[data-colorblind='redgreen'] {
+  --primary: 201 78% 34%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 201 78% 34%;
+  --accent: 201 100% 95%;
+  --accent-foreground: 202 80% 18%;
+  --background: 210 20% 98%;
+  --muted: 210 30% 96%;
+  --muted-foreground: 210 12% 40%;
+  --border: 210 22% 89%;
+  --input: 210 22% 89%;
+  --separator: 210 22% 92%;
+  --destructive: 27 100% 42%;
+  --glow-primary: 210 10% 62%;
+  --glow-secondary: 210 8% 70%;
+  --sidebar-primary: 201 78% 34%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 201 100% 95%;
+  --sidebar-accent-foreground: 202 80% 18%;
+  --sidebar-ring: 201 78% 34%;
+}
+
+.dark[data-colorblind='redgreen'] {
+  --primary: 202 52% 60%;
+  --primary-foreground: 202 90% 12%;
+  --ring: 202 52% 60%;
+  --accent: 205 25% 18%;
+  --accent-foreground: 205 40% 92%;
+  --muted: 205 25% 18%;
+  --muted-foreground: 205 18% 68%;
+  --border: 205 20% 22%;
+  --input: 205 20% 22%;
+  --separator: 205 18% 18%;
+  --destructive: 27 95% 55%;
+  --glow-primary: 210 8% 42%;
+  --glow-secondary: 210 8% 36%;
+  --sidebar-primary: 202 52% 60%;
+  --sidebar-primary-foreground: 202 90% 12%;
+  --sidebar-accent: 205 25% 18%;
+  --sidebar-accent-foreground: 205 40% 92%;
+  --sidebar-ring: 202 52% 60%;
+}
+
+:root[data-colorblind='blueyellow'] {
+  --primary: 315 45% 40%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 315 45% 40%;
+  --accent: 315 70% 96%;
+  --accent-foreground: 315 60% 22%;
+  --background: 300 10% 98%;
+  --muted: 300 12% 96%;
+  --muted-foreground: 300 6% 40%;
+  --border: 300 12% 89%;
+  --input: 300 12% 89%;
+  --separator: 300 12% 92%;
+  --destructive: 0 78% 48%;
+  --glow-primary: 300 8% 62%;
+  --glow-secondary: 300 6% 70%;
+  --sidebar-primary: 315 45% 40%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 315 70% 96%;
+  --sidebar-accent-foreground: 315 60% 22%;
+  --sidebar-ring: 315 45% 40%;
+}
+
+.dark[data-colorblind='blueyellow'] {
+  --primary: 315 45% 64%;
+  --primary-foreground: 315 80% 12%;
+  --ring: 315 45% 64%;
+  --accent: 300 12% 18%;
+  --accent-foreground: 300 20% 92%;
+  --muted: 300 12% 18%;
+  --muted-foreground: 300 8% 68%;
+  --border: 300 10% 22%;
+  --input: 300 10% 22%;
+  --separator: 300 10% 18%;
+  --destructive: 0 90% 68%;
+  --glow-primary: 300 6% 42%;
+  --glow-secondary: 300 6% 36%;
+  --sidebar-primary: 315 45% 64%;
+  --sidebar-primary-foreground: 315 80% 12%;
+  --sidebar-accent: 300 12% 18%;
+  --sidebar-accent-foreground: 300 20% 92%;
+  --sidebar-ring: 315 45% 64%;
+}
+
+/* The two places the accent gets amplified rather than merely used, damped for
+   every colour vision mode.
+
+   `.dashboard-hero-surface` clamps `--primary` in OKLCH but passes chroma
+   through untouched — by design, so a saturated theme gets a saturated hero. In
+   an accessibility mode that is exactly backwards: the hero is decorative, and a
+   glowing magenta slab is the loudest thing on a page whose whole point is calm,
+   discriminable colour. Neutral dark in all three modes, white text unaffected.
+
+   Unlayered and specific on purpose: the version it replaces lives in an
+   `@supports` block inside `@layer base`, and layered rules always lose to
+   unlayered ones regardless of specificity. */
+:root[data-colorblind='redgreen'] .dashboard-hero-surface,
+:root[data-colorblind='blueyellow'] .dashboard-hero-surface,
+:root[data-colorblind='grayscale'] .dashboard-hero-surface {
+  --hero-accent: hsl(220 8% 26%);
+
+  background-image: linear-gradient(
+    140deg,
+    hsl(220 10% 16%) 0%,
+    hsl(220 8% 22%) 55%,
+    hsl(220 8% 27%) 100%
+  );
+  border: 1px solid hsl(220 8% 34%);
 }
