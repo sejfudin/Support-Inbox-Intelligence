@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils';
  */
 export default function AttendanceStat({ label, value, hint, icon: Icon, valueClassName }) {
   return (
-    <div className="app-panel-soft flex items-center gap-4 p-4 md:p-5">
+    <div className="app-card flex items-center gap-4 p-4 md:p-5">
       {Icon ? (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-card)] bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
         </div>
       ) : null}

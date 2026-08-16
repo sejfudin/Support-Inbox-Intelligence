@@ -28,10 +28,10 @@ const formatDay = (key) => format(new Date(`${key}T12:00:00`), 'EEE, d MMM');
 // The bar fill per type, matching the calendar's own colours so a row and a day
 // cell are recognisably the same thing.
 const BAR_FILL = {
-  vacation: 'bg-blue-500',
-  religious: 'bg-violet-500',
-  sick: 'bg-orange-500',
-  remote: 'bg-cyan-500',
+  vacation: 'bg-[hsl(var(--tone-info))]',
+  religious: 'bg-[hsl(var(--tone-violet))]',
+  sick: 'bg-[hsl(var(--tone-orange))]',
+  remote: 'bg-[hsl(var(--tone-cyan))]',
 };
 
 // One line per type explaining what it costs the intern. Everything numeric comes
@@ -258,7 +258,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
 
   return (
     <div
-      className={cn('app-panel flex flex-col p-4 md:p-5', className)}
+      className={cn('app-card flex flex-col p-4 md:p-5', className)}
       data-test="attendance-request-panel"
     >
       <div className="flex items-start justify-between gap-3">
@@ -276,7 +276,11 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
         </button>
       </div>
 
-      {isError && <p className="mt-4 text-sm text-destructive">Failed to load your balance.</p>}
+      {isError && (
+        <p className="mt-4 text-sm text-[hsl(var(--tone-danger-fg))]">
+          Failed to load your balance.
+        </p>
+      )}
       {isPending && <p className="mt-4 text-sm text-muted-foreground">Loading…</p>}
 
       {!isPending && !isError && (
@@ -357,7 +361,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
                       aria-checked={selected}
                       onClick={() => chooseType(t.type)}
                       className={cn(
-                        'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                        'inline-flex items-center gap-1.5 rounded-[var(--r-control)] border px-2.5 py-1.5 text-xs font-medium transition-colors',
                         selected
                           ? 'border-foreground/30 bg-muted text-foreground'
                           : 'border-border/60 text-muted-foreground hover:bg-muted/50'
@@ -377,7 +381,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
 
             {currentYearSpent && (
               <p
-                className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
+                className="rounded-[var(--r-control)] bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
                 data-test="attendance-request-current-year-spent"
               >
                 You have used all {active.budget.budget} of your {active.label.toLowerCase()} days
@@ -415,7 +419,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
                       <button
                         type="button"
                         onClick={() => removeDate(date)}
-                        className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted px-2.5 py-0.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
+                        className="inline-flex items-center gap-1 rounded-[var(--r-control)] border border-border/60 bg-muted px-2.5 py-0.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
                         aria-label={`Remove ${formatDay(date)}`}
                         data-test={`attendance-request-selected-${date}`}
                       >

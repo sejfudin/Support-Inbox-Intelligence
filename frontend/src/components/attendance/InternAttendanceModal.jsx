@@ -41,7 +41,9 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
     );
   } else if (isError) {
     content = (
-      <p className="py-10 text-center text-sm text-destructive">Failed to load attendance.</p>
+      <p className="py-10 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
+        Failed to load attendance.
+      </p>
     );
   } else {
     content = (

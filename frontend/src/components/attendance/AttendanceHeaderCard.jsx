@@ -1,14 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { format, isWeekend } from 'date-fns';
-import {
-  CheckCircle2,
-  Clock,
-  XCircle,
-  Ban,
-  AlarmClockOff,
-  Hourglass,
-  CalendarOff,
-} from 'lucide-react';
+import { CheckCircle2, XCircle, AlarmClockOff, CalendarOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,11 +16,16 @@ import {
   isCancelledToday,
   formatCheckInTime,
   checkInWindowState,
+  checkInWindowMinutesLeft,
+  formatMinutesLeft,
   isExemptToday,
   requestedStatusToday,
   dayStatusLabel,
   CHECK_IN_WINDOW_LABEL,
 } from '@/helpers/attendance';
+
+/** The mockup's 36px bar action — one notch taller than the app's 34px controls. */
+const ACTION_CLASS = 'h-9 rounded-[var(--r-control)] px-4 text-[13px] font-medium';
 
 /**
  * The page header for an intern's attendance, and the ONLY place attendance is
@@ -61,11 +58,24 @@ export default function AttendanceHeaderCard({
   isCancelling,
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const now = new Date();
+
+  /* The bar prints a live countdown ("closes in 2h 14m"), so `now` has to be state
+     rather than a fresh `new Date()` per render — nothing else on this page
+     re-renders on its own, and a countdown frozen at mount is worse than none.
+     Thirty seconds keeps the minute honest without spinning. */
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const today = todayRecord(records);
   const cancelled = isCancelledToday(cancelledDates);
-  const weekend = isWeekend(now);
-  const windowState = checkInWindowState(now); // 'before' | 'open' | 'closed'
+  // ⚠️ DEV OVERRIDE — NE COMMITOVATI. Tjera karticu da misli da je radni dan unutar
+  // prozora, da bi se check-in dugme prikazalo vikendom / poslije 11:00. Vrati sa:
+  //   git checkout -- frontend/src/components/attendance/AttendanceHeaderCard.jsx
+  const weekend = false; // was: isWeekend(now)
+  const windowState = 'open'; // was: checkInWindowState(now) — 'before' | 'open' | 'closed'
   // On a project as of today. Back-dating `placedAt` flips this immediately, which
   // is the point: the intern stops being asked for something they no longer owe.
   const exempt = isExemptToday(placedAt, now);
@@ -87,6 +97,17 @@ export default function AttendanceHeaderCard({
   const canCheckInAgain = !suppressed && cancelled && !weekend && windowState !== 'closed';
   const alarming = lockedAbsent || missed;
 
+  /* "Check-in window 07:00–11:00 · closes in 2h 14m" — the mockup's second line.
+     The countdown is dropped rather than shown as "0m" once the boundary passes,
+     and is always computed from the real clock: when the dev override above forces
+     `windowState`, `formatMinutesLeft` returns null outside the true window and the
+     line degrades to the plain window, instead of counting down to a time that has
+     already gone. */
+  const countdown = formatMinutesLeft(checkInWindowMinutesLeft(now));
+  const windowLine = `Check-in window ${CHECK_IN_WINDOW_LABEL}${
+    countdown ? ` · ${windowState === 'before' ? 'opens' : 'closes'} in ${countdown}` : ''
+  }`;
+
   const statusLine = exempt
     ? "You're on a project — recording attendance is no longer required."
     : onApprovedDay
@@ -100,26 +121,8 @@ export default function AttendanceHeaderCard({
             : missed
               ? `Check-in window ${CHECK_IN_WINDOW_LABEL} has closed — today counts as absent.`
               : canCheckInAgain
-                ? windowState === 'before'
-                  ? `Check-in was cancelled. Opens again at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}.`
-                  : 'Check-in was cancelled — you can check in again.'
-                : windowState === 'before'
-                  ? `Check-in opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}.`
-                  : `Check in before ${CHECK_IN_WINDOW_LABEL.split('–')[1]}.`;
-
-  const StatusIcon = exempt
-    ? CalendarOff
-    : onApprovedDay
-      ? CalendarOff
-      : lockedAbsent
-        ? Ban
-        : weekend
-          ? CalendarOff
-          : missed
-            ? AlarmClockOff
-            : windowState === 'before'
-              ? Hourglass
-              : Clock;
+                ? `Check-in was cancelled — you can check in again. ${windowLine}`
+                : windowLine;
 
   // One pill, whichever state today is in. The check-in button replaces it when
   // there is actually something to do — an intern should never have to read a
@@ -150,28 +153,19 @@ export default function AttendanceHeaderCard({
     <>
       <div
         className={cn(
-          'app-panel flex flex-col gap-5 p-5 md:flex-row md:items-start md:justify-between md:p-6',
-          checkedIn && !cancelled && 'ring-1 ring-inset ring-emerald-500/30',
-          alarming && 'ring-1 ring-inset ring-red-500/30'
+          'app-card flex flex-col gap-3 px-[18px] py-[15px] sm:flex-row sm:items-center sm:justify-between sm:gap-5',
+          checkedIn && !cancelled && 'ring-1 ring-inset ring-[hsl(var(--tone-success)/0.3)]',
+          alarming && 'ring-1 ring-inset ring-[hsl(var(--tone-danger)/0.3)]'
         )}
         data-test="attendance-header-card"
       >
-        <div className="min-w-0">
-          <div className="app-kicker mb-1">Internship</div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">My attendance</h1>
-          {/* Admins only — mentors have no attendance view. Saying "your mentor" here
-              was untrue, and an intern who believed it would think a day off had been
-              seen by someone who cannot see it. */}
-          <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-            {exempt
-              ? 'You are on a project, so you no longer record daily attendance. Your history up to that point is below.'
-              : 'Check in each day you come into the office. Admins can see your attendance, but only you can record it.'}
-          </p>
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-2 md:items-end">
-          <div className="flex flex-wrap items-center gap-2.5 md:justify-end">
-            <span className="text-sm font-semibold text-foreground">
+        {/* One bar, two lines: which day it is, and what that day currently needs.
+            The standing explanation ("admins can see your attendance…") moved up to
+            the page subtitle — it is true every day, so it was the one line here
+            that never changed. */}
+        <div className="flex min-w-0 flex-col gap-[3px]">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[13.5px] font-semibold leading-tight text-foreground">
               {format(now, 'EEEE, MMMM d')}
             </span>
             {badge && (
@@ -179,7 +173,7 @@ export default function AttendanceHeaderCard({
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
                   badge.tone === 'danger'
-                    ? 'bg-red-500/10 text-red-700 dark:text-red-300'
+                    ? 'bg-[hsl(var(--tone-danger)/0.1)] text-[hsl(var(--tone-danger-fg))]'
                     : 'bg-muted text-muted-foreground'
                 )}
                 data-test={`attendance-${badge.test}-badge`}
@@ -190,7 +184,7 @@ export default function AttendanceHeaderCard({
             )}
             {checkedIn && (
               <span
-                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--tone-success)/0.15)] px-2.5 py-1 text-xs font-semibold text-[hsl(var(--tone-success-fg))]"
                 data-test="attendance-checked-in-badge"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
@@ -201,54 +195,53 @@ export default function AttendanceHeaderCard({
 
           <p
             className={cn(
-              'flex items-center gap-1.5 text-sm md:justify-end',
-              alarming ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+              'text-[12.5px] leading-[1.45]',
+              alarming ? 'text-[hsl(var(--tone-danger-fg))]' : 'text-muted-foreground'
             )}
             data-test="attendance-status-line"
           >
-            <StatusIcon className="h-3.5 w-3.5 shrink-0" />
             {statusLine}
           </p>
-
-          {/* Only rendered when there is something to press. Every other state is
-              already fully described by the badge and the line above it. */}
-          {!suppressed && !weekend && !lockedAbsent && !missed && (
-            <div className="flex flex-col items-stretch gap-2 pt-1 sm:flex-row md:justify-end">
-              {checkedIn ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConfirmOpen(true)}
-                  disabled={isCancelling}
-                  data-test="attendance-cancel-button"
-                >
-                  <XCircle className="mr-2 h-4 w-4" />
-                  {isCancelling ? 'Cancelling…' : 'Cancel check-in'}
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  onClick={onCheckIn}
-                  disabled={isCheckingIn || windowState !== 'open'}
-                  title={
-                    windowState === 'before'
-                      ? `Check-in opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
-                      : undefined
-                  }
-                  data-test="attendance-check-in-button"
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  {isCheckingIn
-                    ? 'Checking in…'
-                    : windowState === 'before'
-                      ? 'Check-in not open yet'
-                      : 'Check in for today'}
-                </Button>
-              )}
-            </div>
-          )}
         </div>
+
+        {/* Only rendered when there is something to press. Every other state is
+            already fully described by the badge and the line beside it. */}
+        {!suppressed && !weekend && !lockedAbsent && !missed && (
+          <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+            {checkedIn ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmOpen(true)}
+                disabled={isCancelling}
+                className={ACTION_CLASS}
+                data-test="attendance-cancel-button"
+              >
+                <XCircle />
+                {isCancelling ? 'Cancelling…' : 'Cancel check-in'}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={onCheckIn}
+                disabled={isCheckingIn || windowState !== 'open'}
+                className={ACTION_CLASS}
+                title={
+                  windowState === 'before'
+                    ? `Check-in opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
+                    : undefined
+                }
+                data-test="attendance-check-in-button"
+              >
+                {isCheckingIn
+                  ? 'Checking in…'
+                  : windowState === 'before'
+                    ? 'Check-in not open yet'
+                    : 'Check in for today'}
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

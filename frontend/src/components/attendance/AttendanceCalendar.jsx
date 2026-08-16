@@ -140,7 +140,7 @@ export default function AttendanceCalendar({
     // the column beside it sets: the day cells stretch, the card does not float in
     // a taller box with dead space under the last week.
     <div
-      className={cn('app-panel flex flex-col p-4 md:p-5', className)}
+      className={cn('app-card flex flex-col p-4 md:p-5', className)}
       data-test="attendance-calendar"
     >
       <div className="mb-3 flex items-center justify-between">
@@ -236,7 +236,7 @@ export default function AttendanceCalendar({
                 key={`${wi}-${di}`}
                 aria-disabled={disabled || undefined}
                 className={cn(
-                  'relative flex min-h-9 flex-col items-center justify-center rounded-md text-xs font-medium',
+                  'relative flex min-h-9 flex-col items-center justify-center rounded-[var(--r-control)] text-xs font-medium',
                   dayStatusClass(isRemoteWeek ? DAY_STATUS.REMOTE : status, { isToday })
                 )}
                 title={`${format(date, 'EEE, MMM d')} — ${reason}${observanceNote}`}

@@ -61,7 +61,7 @@ export default function DailyAttendanceTable({
   );
 
   return (
-    <div className="app-panel overflow-hidden" data-test="attendance-daily-table">
+    <div className="app-card overflow-hidden" data-test="attendance-daily-table">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead className="border-b border-border/60 bg-muted/40">
