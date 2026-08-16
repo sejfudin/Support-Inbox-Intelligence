@@ -40,7 +40,7 @@ export function SortControl({
   return (
     <div
       className={cn(
-        'flex h-10 items-center rounded-xl border border-input bg-background transition focus-within:border-ring',
+        'flex h-10 items-center rounded-[var(--r-card)] border border-input bg-background transition focus-within:border-ring',
         className
       )}
     >

@@ -64,15 +64,15 @@ export function InternInternalCvPanel({
           href={internalCvUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3 text-sm transition-colors hover:bg-muted/30"
+          className="flex items-center gap-2.5 rounded-[var(--r-control)] border border-separator px-3 py-2.5 text-[12.5px] transition-colors hover:bg-accent/60"
           data-test="intern-internal-cv-link"
         >
-          <FileText className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+          <FileText className="h-4 w-4 shrink-0 accent-ink" aria-hidden="true" />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">
               {internName ? `${internName} — CV` : 'CV'}
             </span>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground/75">
               Opens in Google Drive
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </span>

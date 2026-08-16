@@ -113,11 +113,11 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between gap-3 rounded-xl border border-border/60 px-4 py-3 text-sm transition-colors hover:bg-muted/30"
+                className="flex items-center justify-between gap-3 rounded-[var(--r-control)] border border-separator px-3 py-2.5 text-[12.5px] transition-colors hover:bg-accent/60"
                 data-test={`intern-documentation-link-${link._id || link.label}`}
               >
                 <span className="flex min-w-0 items-center gap-2 font-medium">
-                  <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <Link2 className="h-4 w-4 shrink-0 accent-ink" aria-hidden="true" />
                   <span className="truncate">{link.label}</span>
                 </span>
                 <ExternalLink
@@ -134,7 +134,7 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
           {draftLinks.map((link, index) => (
             <div
               key={`draft-${index}`}
-              className="grid gap-3 rounded-xl border border-border/60 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]"
+              className="grid gap-3 rounded-[var(--r-card)] border border-border/60 p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]"
             >
               <div className="min-w-0 space-y-2">
                 <Label htmlFor={`intern-doc-label-${index}`}>Label</Label>
