@@ -15,7 +15,7 @@ const AiDescriptionPanel = ({
   if (!isVisible) return null;
 
   return (
-    <div className="mt-3 rounded-lg border border-border bg-muted/90 p-3">
+    <div className="mt-3 rounded-[var(--r-control)] border border-border bg-muted/90 p-3">
       <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-foreground">
         <span>AI prompt detected</span>
         <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">

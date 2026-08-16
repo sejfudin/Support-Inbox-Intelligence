@@ -15,7 +15,7 @@ export function TicketTrackingAccordion({ ticket, isArchived, statusTracksTime }
     <Accordion
       type="single"
       collapsible
-      className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
+      className="rounded-[var(--r-card)] border border-border bg-card shadow-md overflow-hidden"
     >
       <AccordionItem value="tracking" className="border-none">
         <AccordionTrigger

@@ -71,7 +71,11 @@ export default function TicketFiltersPanel({
     (ticketIdOrder !== TICKET_ID_ORDER_VALUES.NONE ? 1 : 0);
   const hasActiveSelections = activeFilterCount > 0 || activeSortCount > 0;
   const hasActiveChips = activeFilterChips.length > 0;
-  const CONTROL_BUTTON_CLASS = 'rounded-xl px-4 justify-between gap-2';
+  // The mockup's band control: 32px tall, 11px side padding, 8px radius, a
+  // hairline outline on a transparent fill. It was a 40px `rounded-[var(--r-card)]` button,
+  // which stood taller than the 32px tab pills it shares the band with.
+  const CONTROL_BUTTON_CLASS =
+    'h-8 justify-between gap-[7px] rounded-[var(--r-control)] border-separator px-[11px] text-[12.5px] font-medium text-foreground';
 
   return (
     <div className={cn('flex w-full flex-col gap-2 md:w-auto md:items-start', className)}>
@@ -83,16 +87,16 @@ export default function TicketFiltersPanel({
               className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}
               data-test="tickets-filter-trigger"
             >
-              <span className="inline-flex items-center gap-2">
-                <Filter className="h-4 w-4" />
+              <span className="inline-flex items-center gap-[7px]">
+                <Filter className="h-3.5 w-3.5" />
                 <span>Filter</span>
                 {activeFilterCount > 0 ? (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                  <span className="rounded-full bg-primary/10 px-1.5 py-px text-[11px] font-semibold text-primary">
                     {activeFilterCount}
                   </span>
                 ) : null}
               </span>
-              <ChevronDown className="h-4 w-4 opacity-70" />
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
             </Button>
           </DropdownMenuTrigger>
 
@@ -176,16 +180,16 @@ export default function TicketFiltersPanel({
               className={cn('w-full sm:w-auto', CONTROL_BUTTON_CLASS)}
               data-test="tickets-filter-sort-trigger"
             >
-              <span className="inline-flex items-center gap-2">
-                <ArrowUpDown className="h-4 w-4" />
+              <span className="inline-flex items-center gap-[7px]">
+                <ArrowUpDown className="h-3.5 w-3.5" />
                 <span>Sort</span>
                 {activeSortCount > 0 ? (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                  <span className="rounded-full bg-primary/10 px-1.5 py-px text-[11px] font-semibold text-primary">
                     {activeSortCount}
                   </span>
                 ) : null}
               </span>
-              <ChevronDown className="h-4 w-4 opacity-70" />
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
             </Button>
           </DropdownMenuTrigger>
 
