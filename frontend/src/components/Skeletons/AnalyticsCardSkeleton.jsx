@@ -3,13 +3,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function AnalyticsCardSkeleton() {
   return (
-    <Card className="app-panel">
+    <Card className="app-card">
       <CardHeader className="pb-3">
         <Skeleton className="h-4 w-28" />
         <Skeleton className="h-3 w-44" />
       </CardHeader>
       <CardContent>
-        <Skeleton className="h-[260px] w-full rounded-xl" />
+        <Skeleton className="h-[260px] w-full rounded-[var(--r-card)]" />
       </CardContent>
     </Card>
   );

@@ -29,7 +29,7 @@ export default function StatusDropdown({ status, onChange, className, statusOpti
           type="button"
           data-test="ticket-status-trigger"
           className={cn(
-            'flex items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 whitespace-nowrap bg-muted text-foreground hover:bg-muted',
+            'flex items-center gap-2 px-3 py-2.5 rounded-[var(--r-control)] text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 whitespace-nowrap bg-muted text-foreground hover:bg-muted',
             className
           )}
           style={

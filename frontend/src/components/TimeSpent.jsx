@@ -17,7 +17,7 @@ export const TimeSpent = ({ ticket, statusTracksTime }) => {
       <div className="flex min-h-[44px] items-center gap-2 px-1.5 py-2">
         {tracksTime && (
           <span
-            className="inline-flex h-2 w-2 rounded-full bg-blue-500 animate-pulse"
+            className="inline-flex h-2 w-2 rounded-full bg-[hsl(var(--tone-info))] animate-pulse"
             title="Timer active"
           />
         )}

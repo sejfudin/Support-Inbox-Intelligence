@@ -184,7 +184,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+          <div className="h-10 w-10 rounded-[var(--r-control)] bg-muted flex items-center justify-center">
             <Github className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
@@ -195,7 +195,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
           </div>
         </div>
 
-        <div className="rounded-lg border border-dashed border-border p-6 bg-muted/50/50">
+        <div className="rounded-[var(--r-control)] border border-dashed border-border p-6 bg-muted/50/50">
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
               <Github className="h-6 w-6 text-muted-foreground" />
@@ -228,8 +228,8 @@ export const IntegrationSettings = ({ workspaceId }) => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-500/30 bg-emerald-500/15 dark:border-emerald-500/35 dark:bg-emerald-500/20">
-            <Check className="h-5 w-5 text-green-600" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-[var(--r-control)] border border-[hsl(var(--tone-success)/0.3)] bg-[hsl(var(--tone-success)/0.15)] dark:border-[hsl(var(--tone-success)/0.35)] dark:bg-[hsl(var(--tone-success)/0.2)]">
+            <Check className="h-5 w-5 text-[hsl(var(--tone-success-fg))]" />
           </div>
           <div>
             <h3 className="font-medium text-foreground">GitHub Connected</h3>
@@ -245,7 +245,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
             <Button
               variant="outline"
               size="sm"
-              className="text-red-600 hover:bg-red-50"
+              className="text-[hsl(var(--tone-danger-fg))] hover:bg-[hsl(var(--tone-danger)/0.15)]"
               data-test="integration-disconnect-trigger"
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -311,7 +311,7 @@ export const IntegrationSettings = ({ workspaceId }) => {
                     </span>
                   )}
                   {!repo.isAvailable && (
-                    <span className="rounded border border-amber-500/30 bg-amber-500/15 px-1.5 py-0.5 text-xs text-amber-800 dark:border-amber-500/35 dark:bg-amber-500/20 dark:text-amber-300">
+                    <span className="rounded border border-[hsl(var(--tone-warning)/0.3)] bg-[hsl(var(--tone-warning)/0.15)] px-1.5 py-0.5 text-xs text-[hsl(var(--tone-warning-fg))] dark:border-[hsl(var(--tone-warning)/0.35)] dark:bg-[hsl(var(--tone-warning)/0.2)] dark:text-[hsl(var(--tone-warning-fg))]">
                       Linked to another workspace
                     </span>
                   )}
@@ -325,14 +325,14 @@ export const IntegrationSettings = ({ workspaceId }) => {
             href={`https://github.com/${selectedRepo}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"
+            className="text-xs text-[hsl(var(--tone-info-fg))] hover:underline flex items-center gap-1 mt-1"
             data-test="integration-repo-github-link"
           >
             View on GitHub <ExternalLink className="h-3 w-3" />
           </a>
         )}
         {!integration?.connectedRepo?.fullName && (
-          <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+          <p className="text-xs text-[hsl(var(--tone-warning-fg))] mt-2 flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
             Select a repository to enable automation features
           </p>
