@@ -12,7 +12,7 @@ export const PRIORITY_OPTIONS = [
 export const PRIORITY_CONFIG = {
   critical: {
     icon: AlertCircle,
-    className: 'text-red-600 dark:text-red-400',
+    className: 'text-[hsl(var(--tone-danger-fg))]',
     dot: dotTone('danger'),
     badge: badgeTone('danger'),
     label: 'Critical',
@@ -20,7 +20,7 @@ export const PRIORITY_CONFIG = {
   },
   high: {
     icon: ArrowUp,
-    className: 'text-orange-600 dark:text-orange-400',
+    className: 'text-[hsl(var(--tone-orange-fg))]',
     dot: dotTone('orange'),
     badge: badgeTone('orange'),
     label: 'High',
@@ -28,7 +28,7 @@ export const PRIORITY_CONFIG = {
   },
   medium: {
     icon: Minus,
-    className: 'text-blue-600 dark:text-blue-400',
+    className: 'text-[hsl(var(--tone-info-fg))]',
     dot: dotTone('info'),
     badge: badgeTone('info'),
     label: 'Medium',
