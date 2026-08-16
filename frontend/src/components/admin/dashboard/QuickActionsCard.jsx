@@ -28,7 +28,7 @@ const ROW_CLASS =
 
 function ActionIcon({ icon: Icon }) {
   return (
-    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[var(--r-control)] bg-primary/10 text-primary">
       <Icon className="h-3.5 w-3.5" />
     </span>
   );

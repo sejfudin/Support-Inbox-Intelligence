@@ -92,7 +92,7 @@ function StepMarker({ step, index }) {
       <span
         className={cn(
           'relative grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold',
-          step.state === 'done' && 'bg-emerald-500 text-white',
+          step.state === 'done' && 'bg-[hsl(var(--tone-success))] text-white',
           isCurrent && 'bg-primary text-primary-foreground ring-4 ring-primary/15',
           !active && 'border border-dashed border-border bg-muted/40 text-muted-foreground'
         )}

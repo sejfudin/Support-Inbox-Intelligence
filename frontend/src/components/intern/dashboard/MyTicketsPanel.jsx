@@ -10,21 +10,27 @@ import { ExampleChip } from './ExampleChip';
 // property of the ticket, where overdue/blocked/due-soon are states it is in,
 // and the bullet is what separates the two at a glance.
 const FLAG_CHIP = {
-  blocked: { label: 'Blocked', className: 'bg-red-500/15 text-red-700 dark:text-red-300' },
+  blocked: {
+    label: 'Blocked',
+    className: 'bg-[hsl(var(--tone-danger)/0.15)] text-[hsl(var(--tone-danger-fg))]',
+  },
   critical: {
     label: 'Critical',
-    className: 'bg-red-500/15 text-red-700 dark:text-red-300',
+    className: 'bg-[hsl(var(--tone-danger)/0.15)] text-[hsl(var(--tone-danger-fg))]',
     dot: true,
   },
   high: {
     label: 'High',
-    className: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
+    className: 'bg-[hsl(var(--tone-warning)/0.2)] text-[hsl(var(--tone-warning-fg))]',
     dot: true,
   },
-  overdue: { label: 'Overdue', className: 'bg-red-500/15 text-red-700 dark:text-red-300' },
+  overdue: {
+    label: 'Overdue',
+    className: 'bg-[hsl(var(--tone-danger)/0.15)] text-[hsl(var(--tone-danger-fg))]',
+  },
   'due-soon': {
     label: 'Due soon',
-    className: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
+    className: 'bg-[hsl(var(--tone-warning)/0.2)] text-[hsl(var(--tone-warning-fg))]',
   },
 };
 
@@ -75,7 +81,7 @@ function StartHereCard({ ticket, onOpen }) {
       className="w-full rounded-[1rem] border border-primary/25 bg-primary/[0.04] p-4 text-left transition-colors hover:bg-primary/[0.07] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary/40"
     >
       <div className="flex items-start justify-between gap-3">
-        <span className="inline-flex shrink-0 items-center rounded-md bg-primary/12 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
+        <span className="inline-flex shrink-0 items-center rounded-[var(--r-control)] bg-primary/12 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-primary">
           Start here
         </span>
         <span className="shrink-0 text-[11px] text-muted-foreground">{ticketMeta(ticket)}</span>
@@ -199,7 +205,7 @@ export function MyTicketsPanel({ tickets, onOpenTicket, isPreview = false }) {
                         className={cn(
                           'w-16 shrink-0 text-right text-[11px] tabular-nums',
                           ticket.overdue
-                            ? 'font-semibold text-red-600 dark:text-red-400'
+                            ? 'font-semibold text-[hsl(var(--tone-danger-fg))]'
                             : 'text-muted-foreground'
                         )}
                       >

@@ -34,9 +34,9 @@ const SUMMARY_CHAR_CAP = 320;
  * for done, primary for in-flight, red for blocked.
  */
 const SECTIONS = [
-  { key: 'done', label: 'Done', className: 'text-emerald-600 dark:text-emerald-400' },
+  { key: 'done', label: 'Done', className: 'text-[hsl(var(--tone-success-fg))]' },
   { key: 'todo', label: 'Today', className: 'text-primary' },
-  { key: 'blocked', label: 'Blocked', className: 'text-red-600 dark:text-red-400' },
+  { key: 'blocked', label: 'Blocked', className: 'text-[hsl(var(--tone-danger-fg))]' },
 ];
 
 /** Cut to `cap`, preferring the last word boundary so it doesn't end mid-word. */
@@ -171,7 +171,7 @@ export function MyStandupCard({ standup, isPreview = false }) {
           <ExampleChip />
         ) : (
           <CheckCircle2
-            className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+            className="h-4 w-4 shrink-0 text-[hsl(var(--tone-success-fg))]"
             aria-label="Submitted"
           />
         )

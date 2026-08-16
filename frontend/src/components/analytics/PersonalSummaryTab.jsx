@@ -1,28 +1,18 @@
 import PersonalAnalyticsSection from '@/components/PersonalAnalyticsSection';
-import AnalyticsPeriodSelect from '@/components/analytics/AnalyticsPeriodSelect';
 
-export default function PersonalSummaryTab({
-  userAnalytics,
-  isLoading,
-  isError,
-  days,
-  onDaysChange,
-}) {
+/**
+ * The period control now lives on the page's tab band (see `AnalyticsDashboard`),
+ * so this tab no longer carries a header card of its own — the mockup opens the
+ * tab straight onto the stat row.
+ */
+export default function PersonalSummaryTab({ userAnalytics, isLoading, isError, days }) {
   return (
     <PersonalAnalyticsSection
       userAnalytics={userAnalytics}
       isLoading={isLoading}
       isError={isError}
-      kicker="My Analytics"
-      title="Personal Summary"
-      description="Your ticket load and completion trend in the selected period."
-      headerAction={
-        <AnalyticsPeriodSelect
-          days={days}
-          onDaysChange={onDaysChange}
-          dataTestPrefix="analytics-personal"
-        />
-      }
+      days={days}
+      showHeader={false}
     />
   );
 }

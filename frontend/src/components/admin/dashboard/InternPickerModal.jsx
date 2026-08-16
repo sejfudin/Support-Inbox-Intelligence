@@ -108,7 +108,9 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
           {isPending && <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>}
 
           {isError && (
-            <p className="py-6 text-center text-xs text-destructive">Could not load interns.</p>
+            <p className="py-6 text-center text-xs text-[hsl(var(--tone-danger-fg))]">
+              Could not load interns.
+            </p>
           )}
 
           {!isPending && !isError && rows.length === 0 && (

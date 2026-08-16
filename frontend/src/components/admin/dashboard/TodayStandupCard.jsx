@@ -53,7 +53,7 @@ export function TodayStandupCard({ overview, isPending, workspaceId }) {
       </div>
 
       {!isPending && openBlockers > 0 && (
-        <p className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-500">
+        <p className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-[hsl(var(--tone-warning-fg))] dark:text-[hsl(var(--tone-warning))]">
           <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
           {openBlockers} open {openBlockers === 1 ? 'blocker' : 'blockers'}
         </p>

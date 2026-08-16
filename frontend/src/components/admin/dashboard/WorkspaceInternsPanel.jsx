@@ -135,7 +135,7 @@ export function WorkspaceInternsPanel({
            dashed border blown up to the panel's full height reads as a broken
            container instead of an empty state. */
         <div className="mt-4 flex min-h-0 flex-1 items-center justify-center">
-          <div className="w-full rounded-2xl border border-dashed border-border px-4 py-10 text-center">
+          <div className="w-full rounded-[var(--r-card)] border border-dashed border-border px-4 py-10 text-center">
             <p className="text-sm font-medium text-foreground">No interns in this workspace</p>
             <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-muted-foreground">
               Only interns who are active members here and still in the programme appear — interns
