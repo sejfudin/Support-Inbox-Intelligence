@@ -70,7 +70,7 @@ function FormField({ label, htmlFor, error, hint, children }) {
       </Label>
       {children}
       <div className="min-h-9">
-        {error && <p className="text-xs leading-5 text-destructive">{error}</p>}
+        {error && <p className="text-xs leading-5 text-[hsl(var(--tone-danger-fg))]">{error}</p>}
         {hint && !error && <p className="text-xs leading-5 text-muted-foreground">{hint}</p>}
       </div>
     </div>
@@ -90,7 +90,7 @@ function StepHeading({ step, stepIndex, stepCount }) {
 
 function RegisterStepNav({ steps, activeStepId, activeStepIndex, errors, onStepSelect }) {
   return (
-    <div className="rounded-xl bg-transparent">
+    <div className="rounded-[var(--r-card)] bg-transparent">
       <div className="grid gap-3 sm:auto-cols-fr sm:grid-flow-col">
         {steps.map((step, index) => {
           const Icon = step.icon;
@@ -103,13 +103,13 @@ function RegisterStepNav({ steps, activeStepId, activeStepIndex, errors, onStepS
               key={step.id}
               type="button"
               className={cn(
-                'group relative flex min-h-20 items-start gap-3 rounded-lg border border-transparent px-2.5 pb-4 pt-2.5 text-left transition-all',
+                'group relative flex min-h-20 items-start gap-3 rounded-[var(--r-tile)] border border-transparent px-2.5 pb-4 pt-2.5 text-left transition-all',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 isActive
                   ? 'text-foreground'
                   : 'text-muted-foreground hover:bg-muted/35 hover:text-foreground',
                 isComplete && 'text-primary/80',
-                hasError && 'text-destructive'
+                hasError && 'text-[hsl(var(--tone-danger-fg))]'
               )}
               aria-current={isActive ? 'step' : undefined}
               data-test={`register-step-${step.id}`}
@@ -123,11 +123,12 @@ function RegisterStepNav({ steps, activeStepId, activeStepIndex, errors, onStepS
               )}
               <span
                 className={cn(
-                  'relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors',
+                  'relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-control)] border transition-colors',
                   isActive
                     ? 'border-primary bg-primary text-primary-foreground shadow-sm'
                     : 'border-border bg-background text-muted-foreground',
-                  isComplete && 'border-emerald-200 bg-emerald-50 text-emerald-600',
+                  isComplete &&
+                    'border-[hsl(var(--tone-success)/0.3)] bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))]',
                   hasError && 'border-destructive bg-destructive text-destructive-foreground'
                 )}
               >
@@ -309,7 +310,7 @@ export function RegisterForm({ onSuccess, onError }) {
 
   const inputClass = (hasError) =>
     cn(
-      'h-11 rounded-lg bg-background placeholder:text-[#9AA2B1] data-[placeholder]:text-[#9AA2B1]',
+      'h-11 rounded-[var(--r-control)] bg-background placeholder:text-[#9AA2B1] data-[placeholder]:text-[#9AA2B1]',
       hasError ? 'border-destructive' : 'border-border'
     );
 
@@ -663,7 +664,8 @@ export function RegisterForm({ onSuccess, onError }) {
         <Button
           type="button"
           variant="outline"
-          className="h-11 w-full rounded-lg px-5 sm:w-auto"
+          size="lg"
+          className="w-full px-5 sm:w-auto"
           data-test="register-cancel-button"
           onClick={() => navigate('/admin/users')}
         >
@@ -674,7 +676,8 @@ export function RegisterForm({ onSuccess, onError }) {
             <Button
               type="button"
               variant="outline"
-              className="h-11 w-full rounded-lg px-5 sm:min-w-28"
+              size="lg"
+              className="w-full px-5 sm:min-w-28"
               data-test="register-previous-button"
               onClick={handlePreviousStep}
             >
@@ -685,7 +688,8 @@ export function RegisterForm({ onSuccess, onError }) {
           {!isLastStep && (
             <Button
               type="button"
-              className="h-11 w-full rounded-lg px-5 sm:min-w-28"
+              size="lg"
+              className="w-full px-5 sm:min-w-28"
               data-test="register-next-button"
               onClick={handleNextStep}
             >
@@ -697,7 +701,8 @@ export function RegisterForm({ onSuccess, onError }) {
             <Button
               type="submit"
               disabled={isPending}
-              className="h-11 w-full rounded-lg px-5 sm:min-w-32"
+              size="lg"
+              className="w-full px-5 sm:min-w-32"
               data-test="register-submit-button"
             >
               <Check className="h-4 w-4" />

@@ -111,9 +111,9 @@ export default function SetPassword() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
+              <div className="rounded-[var(--r-card)] border border-primary-foreground/10 bg-primary-foreground/5 p-4">
                 <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 h-5 w-5 text-blue-300" />
+                  <ShieldCheck className="mt-0.5 h-5 w-5 text-[hsl(var(--tone-info-fg))]" />
                   <div>
                     <p className="text-sm font-semibold text-background">Internal setup flow</p>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -144,7 +144,7 @@ export default function SetPassword() {
 
             <CardContent className="space-y-6 px-6 pb-12 pt-6 md:px-12">
               {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-center text-sm text-red-600">
+                <div className="rounded-[var(--r-control)] border border-[hsl(var(--tone-danger)/0.3)] bg-[hsl(var(--tone-danger)/0.15)] p-3 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
                   {error}
                 </div>
               )}
@@ -160,14 +160,16 @@ export default function SetPassword() {
                       data-test="setup-password-email-input"
                       placeholder="your@company.com"
                       className={`h-12 ${
-                        emailForm.formState.errors.email ? 'border-red-500' : 'border-border'
+                        emailForm.formState.errors.email
+                          ? 'border-[hsl(var(--tone-danger))]'
+                          : 'border-border'
                       }`}
                       {...emailForm.register('email', {
                         required: 'Email is required',
                       })}
                     />
                     {emailForm.formState.errors.email && (
-                      <p className="text-xs text-red-500">
+                      <p className="text-xs text-[hsl(var(--tone-danger))]">
                         {emailForm.formState.errors.email.message}
                       </p>
                     )}
@@ -184,9 +186,9 @@ export default function SetPassword() {
                 </form>
               ) : (
                 <>
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="rounded-[var(--r-card)] border border-[hsl(var(--tone-success)/0.3)] bg-[hsl(var(--tone-success)/0.15)] p-4">
                     <div className="flex items-start gap-3">
-                      <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 text-[hsl(var(--tone-success-fg))]" />
                       <div>
                         <p className="text-sm font-semibold text-foreground">
                           Account found for {inviteInfo.fullName}
@@ -212,7 +214,7 @@ export default function SetPassword() {
                         placeholder="••••••"
                         className={`h-12 ${
                           passwordForm.formState.errors.password
-                            ? 'border-red-500'
+                            ? 'border-[hsl(var(--tone-danger))]'
                             : 'border-border'
                         }`}
                         {...passwordForm.register('password', {
@@ -224,7 +226,7 @@ export default function SetPassword() {
                         })}
                       />
                       {passwordForm.formState.errors.password && (
-                        <p className="text-xs text-red-500">
+                        <p className="text-xs text-[hsl(var(--tone-danger))]">
                           {passwordForm.formState.errors.password.message}
                         </p>
                       )}
@@ -240,7 +242,7 @@ export default function SetPassword() {
                         placeholder="••••••"
                         className={`h-12 ${
                           passwordForm.formState.errors.confirmPassword
-                            ? 'border-red-500'
+                            ? 'border-[hsl(var(--tone-danger))]'
                             : 'border-border'
                         }`}
                         {...passwordForm.register('confirmPassword', {
@@ -249,7 +251,7 @@ export default function SetPassword() {
                         })}
                       />
                       {passwordForm.formState.errors.confirmPassword && (
-                        <p className="text-xs text-red-500">
+                        <p className="text-xs text-[hsl(var(--tone-danger))]">
                           {passwordForm.formState.errors.confirmPassword.message}
                         </p>
                       )}
