@@ -1,0 +1,127 @@
+const User = require('../models/User');
+const {
+  USER_PREFERENCE_DEFINITIONS,
+  MUTED_NOTIFICATION_GROUP_VALUES,
+  DEFAULT_USER_PREFERENCES,
+} = require('../constants/userPreferences');
+
+const badRequest = (message) => {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+};
+
+const notFound = (message) => {
+  const error = new Error(message);
+  error.statusCode = 404;
+  return error;
+};
+
+/**
+ * A stored document only carries the keys the user has actually chosen, so every
+ * read merges it onto the defaults. Callers therefore always get the complete
+ * set and never have to know which fields exist yet.
+ */
+const withDefaults = (stored = {}) => ({
+  ...DEFAULT_USER_PREFERENCES,
+  ...Object.fromEntries(
+    Object.entries(stored || {}).filter(([, value]) => value !== undefined && value !== null)
+  ),
+  mutedNotificationGroups: Array.isArray(stored?.mutedNotificationGroups)
+    ? [...stored.mutedNotificationGroups]
+    : [...DEFAULT_USER_PREFERENCES.mutedNotificationGroups],
+});
+
+/**
+ * Normalises one incoming patch into `{ 'preferences.<key>': value }` pairs.
+ *
+ * Unknown keys are ignored rather than rejected: an older client that still
+ * sends a preference we have retired should not have its whole save fail. A
+ * *known* key carrying an illegal value is a bug in the caller, so that does
+ * throw.
+ */
+const buildUpdate = (patch) => {
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+    throw badRequest('Preferences payload must be an object');
+  }
+
+  const update = {};
+
+  Object.entries(patch).forEach(([key, value]) => {
+    if (key === 'mutedNotificationGroups') {
+      if (!Array.isArray(value)) {
+        throw badRequest('mutedNotificationGroups must be an array of group keys');
+      }
+      const unknown = value.filter((group) => !MUTED_NOTIFICATION_GROUP_VALUES.includes(group));
+      if (unknown.length > 0) {
+        throw badRequest(`Unknown notification group: ${unknown.join(', ')}`);
+      }
+      // De-duplicated so the stored list is a set, whatever the client sent.
+      update['preferences.mutedNotificationGroups'] = [...new Set(value)];
+      return;
+    }
+
+    const definition = USER_PREFERENCE_DEFINITIONS[key];
+    if (!definition) return;
+
+    if (!definition.values.includes(value)) {
+      throw badRequest(`Invalid value for preference "${key}"`);
+    }
+
+    update[`preferences.${key}`] = value;
+  });
+
+  return update;
+};
+
+/**
+ * Whether this account has ever chosen anything, as opposed to simply reading
+ * back the defaults. The client needs the distinction: on the first load after
+ * these preferences became account-level, an untouched record must not reset a
+ * returning user's browser — it adopts what that browser already had and saves
+ * it as the account's first set. Once anything is stored, the record wins.
+ *
+ * Presence is the whole test: no field on the subdocument has a schema default
+ * (only the subdocument itself does, to `{}`), so a key is there only because
+ * the user put it there. An empty `mutedNotificationGroups` still counts — "I
+ * unmuted everything" is a choice.
+ */
+const hasAnyStored = (stored) =>
+  Boolean(stored && Object.values(stored).some((value) => value !== undefined && value !== null));
+
+const getPreferences = async (userId) => {
+  const user = await User.findById(userId).select('preferences').lean();
+  if (!user) throw notFound('User not found');
+  return {
+    preferences: withDefaults(user.preferences),
+    hasStoredPreferences: hasAnyStored(user.preferences),
+  };
+};
+
+/**
+ * Partial merge, not a whole-object replace: only the keys present in `patch`
+ * are written, via dot-notation `$set`, so two browsers changing two different
+ * preferences do not clobber each other. Two browsers changing the *same* one is
+ * last-write-wins, which is the intended behaviour.
+ */
+const updatePreferences = async (userId, patch) => {
+  const update = buildUpdate(patch);
+
+  if (Object.keys(update).length === 0) {
+    return getPreferences(userId);
+  }
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $set: update },
+    { new: true, runValidators: true, select: 'preferences' }
+  ).lean();
+
+  if (!user) throw notFound('User not found');
+  return {
+    preferences: withDefaults(user.preferences),
+    hasStoredPreferences: hasAnyStored(user.preferences),
+  };
+};
+
+module.exports = { getPreferences, updatePreferences, withDefaults, buildUpdate, hasAnyStored };

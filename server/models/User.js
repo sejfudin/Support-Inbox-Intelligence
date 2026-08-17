@@ -1,5 +1,34 @@
 const mongoose = require('mongoose');
 const { ROLE_VALUES } = require('../constants/roles');
+const {
+  USER_PREFERENCE_DEFINITIONS,
+  MUTED_NOTIFICATION_GROUP_VALUES,
+} = require('../constants/userPreferences');
+
+/**
+ * One subdocument rather than a field per checkbox: the list of UI preferences
+ * grows every time Settings gains a row, and `User` should not grow with it.
+ * Every field is optional — an absent one means "never chosen", and the service
+ * fills it from `DEFAULT_USER_PREFERENCES` on read.
+ *
+ * UI scale is intentionally not here; it stays per-device. See
+ * `server/constants/userPreferences.js`.
+ */
+const userPreferencesSchema = new mongoose.Schema(
+  {
+    ...Object.fromEntries(
+      Object.entries(USER_PREFERENCE_DEFINITIONS).map(([key, definition]) => [
+        key,
+        { type: String, enum: definition.values },
+      ])
+    ),
+    mutedNotificationGroups: {
+      type: [{ type: String, enum: MUTED_NOTIFICATION_GROUP_VALUES }],
+      default: undefined,
+    },
+  },
+  { _id: false }
+);
 
 const userSchema = new mongoose.Schema(
   {
@@ -85,6 +114,13 @@ const userSchema = new mongoose.Schema(
     // news badge (unset means "never opened", not "caught up").
     staffingRequestsLastSeenAt: {
       type: Date,
+    },
+    // Appearance / workspace-default / notification preferences that follow the
+    // account across browsers. Read and written through
+    // `GET|PATCH /api/users/me/preferences`.
+    preferences: {
+      type: userPreferencesSchema,
+      default: () => ({}),
     },
   },
   {
