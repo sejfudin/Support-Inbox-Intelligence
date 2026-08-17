@@ -58,6 +58,7 @@ import { useCanManageActiveWorkspace } from '@/hooks/useCanManageActiveWorkspace
 import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { TaskManagerBrand } from '@/components/TaskManagerBrand';
+import NavbarNotifications from '@/components/NavbarNotifications';
 
 // Shared easing for every rail affordance so the width slide, the label
 // crossfade, and the row reflow all move on the same curve. easeInOutCubic —
@@ -349,6 +350,10 @@ export default function AppSidebar() {
             <TaskManagerBrand size="sm" showWordmark={false} linkTo="/dashboard" />
           </div>
 
+          <div className="shrink-0" data-tour="notifications">
+            <NavbarNotifications size="sm" align="start" />
+          </div>
+
           <RailTooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <button
               type="button"
@@ -416,15 +421,15 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-2 pt-1.5 group-data-[collapsible=icon]:p-2">
-        {/* Peer icons next to the avatar left ~70px for the name at 16rem, which
+        {/* Peer icons next to the avatar left too little room for the name, which
             truncated it to "Admi…". So profile, appearance and logout fold into
-            one menu on the identity row — notifications live in the top bar now
-            (see SidebarLayout/PageHeader), not here.
+            one menu on the identity row — notifications live next to the logo in
+            the sidebar header (see above), not here.
 
             Padding here is deliberately tight (footer p-2, row p-1.5, trigger
             px-1.5) and the avatar is `sm`: every pixel spent on chrome comes
             straight out of the name, and a real full name like
-            "Sejfudin Duranović" needs all of it to survive at 16rem. */}
+            "Sejfudin Duranović" needs all of it to survive. */}
 
         {/* Directly above the account row: the tour explains the shell, so it has
             to be reachable from every page, not just a dashboard. Wrapped with a

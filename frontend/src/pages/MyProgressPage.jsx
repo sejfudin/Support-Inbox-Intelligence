@@ -49,46 +49,48 @@ export default function MyProgressPage() {
   return (
     <PageShell>
       <PageSection className="space-y-5">
-        <PageHeading
-          kicker="Internship"
-          title="My Progress"
-          subtitle="Where you stand in the programme, your evaluations, your placement readiness, and every project you have been recommended for. All of it is recorded by your mentors and admins — yours to read, not to edit."
-          titleAdornment={
-            <Badge variant="outline" className="gap-1.5">
-              <Eye className="h-3.5 w-3.5" />
-              Read-only
-            </Badge>
-          }
-        />
+        <div className="mx-auto w-full max-w-3xl space-y-5">
+          <PageHeading
+            kicker="Internship"
+            title="My Progress"
+            subtitle="Where you stand in the programme, your evaluations, your placement readiness, and every project you have been recommended for. All of it is recorded by your mentors and admins — yours to read, not to edit."
+            titleAdornment={
+              <Badge variant="outline" className="gap-1.5">
+                <Eye className="h-3.5 w-3.5" />
+                Read-only
+              </Badge>
+            }
+          />
 
-        {isError && (
-          <div className="app-panel px-6 py-8 text-center">
-            <p className="text-sm font-medium text-destructive">Could not load your progress.</p>
-            <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">
-              {/* A 404 here means the account has no intern profile yet, which is a
-                  real state with a real fix (an admin sets it up) rather than a
-                  transient failure — so the server's message is shown as-is. */}
-              {error?.response?.data?.message || 'Please try again.'}
-            </p>
-          </div>
-        )}
+          {isError && (
+            <div className="app-panel px-6 py-8 text-center">
+              <p className="text-sm font-medium text-destructive">Could not load your progress.</p>
+              <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">
+                {/* A 404 here means the account has no intern profile yet, which is a
+                    real state with a real fix (an admin sets it up) rather than a
+                    transient failure — so the server's message is shown as-is. */}
+                {error?.response?.data?.message || 'Please try again.'}
+              </p>
+            </div>
+          )}
 
-        {!isError && isPending && (
-          <>
-            <SectionSkeleton rows={2} />
-            <SectionSkeleton rows={3} />
-            <SectionSkeleton rows={2} />
-          </>
-        )}
+          {!isError && isPending && (
+            <>
+              <SectionSkeleton rows={2} />
+              <SectionSkeleton rows={3} />
+              <SectionSkeleton rows={2} />
+            </>
+          )}
 
-        {!isError && !isPending && (
-          <>
-            <ProgrammeSnapshot programme={data?.programme} />
-            <MyEvaluationsSection evaluations={data?.evaluations} />
-            <MyReadinessSection readiness={data?.readiness} />
-            <MyRecommendationsSection recommendations={data?.recommendations} />
-          </>
-        )}
+          {!isError && !isPending && (
+            <>
+              <ProgrammeSnapshot programme={data?.programme} />
+              <MyEvaluationsSection evaluations={data?.evaluations} />
+              <MyReadinessSection readiness={data?.readiness} />
+              <MyRecommendationsSection recommendations={data?.recommendations} />
+            </>
+          )}
+        </div>
       </PageSection>
     </PageShell>
   );
