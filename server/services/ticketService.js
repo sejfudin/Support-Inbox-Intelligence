@@ -1,4 +1,5 @@
 const Ticket = require('../models/Ticket');
+const Comment = require('../models/Comment');
 const Category = require('../models/Category');
 const Workspace = require('../models/Workspace');
 const mongoose = require('mongoose');
@@ -91,7 +92,35 @@ const sanitizeTicketSubject = (value) =>
     .replace(SUBJECT_PREFIX_RE, '')
     .trim();
 
-const ALLOWED_TICKET_SORT_FIELDS = new Set(['updatedAt', 'dueDate', 'taskNumber']);
+// Sorting is a server concern on every list here: the lists are paginated, so
+// ordering the 25 rows one page happens to hold is not a sort. Priority is not in
+// this set — it ranks through the separate `priorityOrder` parameter, because
+// low/medium/high/critical is an order, not an alphabet.
+const ALLOWED_TICKET_SORT_FIELDS = new Set([
+  'updatedAt',
+  'createdAt',
+  'dueDate',
+  'taskNumber',
+  'subject',
+  'storyPoints',
+  'archivedAt',
+]);
+const DEFAULT_TICKET_SORT_FIELD = 'dueDate';
+
+const normalizeTicketSortField = (sortBy) =>
+  ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : DEFAULT_TICKET_SORT_FIELD;
+
+// Subject is the one text sort. Without a collation Mongo compares raw bytes, so
+// every capitalised subject sorts ahead of every lowercase one; strength 2 makes
+// the column read the way the user spells it.
+const SUBJECT_SORT_COLLATION = { locale: 'en', strength: 2 };
+
+// Tickets archived before `archivedAt` existed have no value for it. Rather than
+// migrate them, the archive sort runs through the aggregate path, where `$ifNull`
+// falls back to `updatedAt` — archiving is a write, so that timestamp is the
+// closest proxy for when it happened, and those rows interleave instead of
+// clumping at one end of the list.
+const ARCHIVED_AT_SORT_FIELD = 'archivedAtSort';
 const ALLOWED_PERIOD_DAYS = new Set([7, 30]);
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -220,16 +249,13 @@ const castTicketQueryForAggregate = (query) => {
 // null, `updatedAt` ties across a bulk write), and Mongo's sort is not stable
 // for tied keys — so without a unique final key, skip/limit paging can show the
 // same ticket on two pages and never show another.
-const buildTicketListSort = (sortBy = 'dueDate', sortOrder = 'desc') => {
-  const field = ALLOWED_TICKET_SORT_FIELDS.has(sortBy) ? sortBy : 'dueDate';
+const buildTicketListSort = (sortBy = DEFAULT_TICKET_SORT_FIELD, sortOrder = 'desc') => {
+  const field = normalizeTicketSortField(sortBy);
   const dir = sortOrder === 'asc' ? 1 : -1;
-  if (field === 'dueDate') {
-    return { dueDate: dir, updatedAt: -1, _id: -1 };
+  if (field === 'updatedAt') {
+    return { updatedAt: dir, _id: -1 };
   }
-  if (field === 'taskNumber') {
-    return { taskNumber: dir, updatedAt: -1, _id: -1 };
-  }
-  return { updatedAt: dir, _id: -1 };
+  return { [field]: dir, updatedAt: -1, _id: -1 };
 };
 
 const ensureAssignableUsersBelongToWorkspace = async ({ workspaceId, assignedTo = [] }) => {
@@ -271,6 +297,33 @@ const ensureCategoryBelongsToWorkspace = async ({ workspaceId, categoryId }) => 
   if (!category) {
     throw new Error(INVALID_CATEGORY_ERROR);
   }
+};
+
+/**
+ * Adds `commentCount` to a page of tickets so the list can show the count
+ * without opening each one. Soft-deleted comments are excluded — the ticket list
+ * should agree with what the modal renders.
+ *
+ * Takes both hydrated documents (the `find()` path) and plain objects (the
+ * `aggregate()` path), and always returns plain objects.
+ */
+const attachCommentCounts = async (tickets = []) => {
+  if (!tickets.length) return tickets;
+
+  const ids = tickets.map((ticket) => ticket._id).filter(Boolean);
+  if (!ids.length) return tickets;
+
+  const counts = await Comment.aggregate([
+    { $match: { ticket: { $in: ids }, isDeleted: { $ne: true } } },
+    { $group: { _id: '$ticket', count: { $sum: 1 } } },
+  ]);
+
+  const countByTicket = new Map(counts.map((row) => [String(row._id), row.count]));
+
+  return tickets.map((ticket) => {
+    const plain = typeof ticket.toObject === 'function' ? ticket.toObject() : ticket;
+    return { ...plain, commentCount: countByTicket.get(String(plain._id)) || 0 };
+  });
 };
 
 const getAllTickets = async ({
@@ -375,50 +428,67 @@ const getAllTickets = async ({
   }
 
   const normalizedOrder = normalizePriorityOrder(priorityOrder);
+  const sortField = normalizeTicketSortField(sortBy);
+  const sortDirection = sortOrder === 'asc' ? 1 : -1;
+  // `priorityOrder` and `sortBy` are alternative orders for the same list, and
+  // `priorityOrder` is the explicit one, so it wins when a caller sends both.
+  const ranksByPriority = normalizedOrder !== 'none';
+  const sortsByArchivedAt = !ranksByPriority && sortField === 'archivedAt';
 
   let tickets;
   let total;
 
-  if (normalizedOrder === 'none') {
+  if (!ranksByPriority && !sortsByArchivedAt) {
     const sortSpec = buildTicketListSort(sortBy, sortOrder);
-    [tickets, total] = await Promise.all([
-      Ticket.find(query)
-        .sort(sortSpec)
-        .skip(skip)
-        .limit(safeLimit)
-        .populate('status', STATUS_POPULATE_SELECT)
-        .populate('creator', 'fullname email')
-        .populate('assignedTo', 'fullname email role')
-        .populate('category'),
-      Ticket.countDocuments(query),
-    ]);
+    const listQuery = Ticket.find(query)
+      .sort(sortSpec)
+      .skip(skip)
+      .limit(safeLimit)
+      .populate('status', STATUS_POPULATE_SELECT)
+      .populate('creator', 'fullname email')
+      .populate('assignedTo', 'fullname email role')
+      .populate('category');
+
+    if (sortField === 'subject') {
+      listQuery.collation(SUBJECT_SORT_COLLATION);
+    }
+
+    [tickets, total] = await Promise.all([listQuery, Ticket.countDocuments(query)]);
   } else {
-    const mongoSort = {
-      priorityRank: normalizedOrder === 'desc' ? -1 : 1,
-      updatedAt: -1,
-      _id: -1, // unique tiebreaker — see buildTicketListSort
-    };
+    const mongoSort = ranksByPriority
+      ? {
+          priorityRank: normalizedOrder === 'desc' ? -1 : 1,
+          updatedAt: -1,
+          _id: -1, // unique tiebreaker — see buildTicketListSort
+        }
+      : {
+          [ARCHIVED_AT_SORT_FIELD]: sortDirection,
+          updatedAt: -1,
+          _id: -1, // unique tiebreaker — see buildTicketListSort
+        };
+
+    const computedSortFields = ranksByPriority
+      ? {
+          priorityRank: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$priority', 'low'] }, then: PRIORITY_RANK.low },
+                { case: { $eq: ['$priority', 'medium'] }, then: PRIORITY_RANK.medium },
+                { case: { $eq: ['$priority', 'high'] }, then: PRIORITY_RANK.high },
+                { case: { $eq: ['$priority', 'critical'] }, then: PRIORITY_RANK.critical },
+              ],
+              default: PRIORITY_RANK.medium,
+            },
+          },
+        }
+      : { [ARCHIVED_AT_SORT_FIELD]: { $ifNull: ['$archivedAt', '$updatedAt'] } };
 
     const aggregateMatch = castTicketQueryForAggregate(query);
 
     [tickets, total] = await Promise.all([
       Ticket.aggregate([
         { $match: aggregateMatch },
-        {
-          $addFields: {
-            priorityRank: {
-              $switch: {
-                branches: [
-                  { case: { $eq: ['$priority', 'low'] }, then: PRIORITY_RANK.low },
-                  { case: { $eq: ['$priority', 'medium'] }, then: PRIORITY_RANK.medium },
-                  { case: { $eq: ['$priority', 'high'] }, then: PRIORITY_RANK.high },
-                  { case: { $eq: ['$priority', 'critical'] }, then: PRIORITY_RANK.critical },
-                ],
-                default: PRIORITY_RANK.medium,
-              },
-            },
-          },
-        },
+        { $addFields: computedSortFields },
         { $sort: mongoSort },
         { $skip: skip },
         { $limit: safeLimit },
@@ -451,14 +521,22 @@ const getAllTickets = async ({
         },
         { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
         ...statusLookupStages(),
-        { $project: { priorityRank: 0 } },
+        // Excluding a field the pipeline never added is a no-op, so one projection
+        // covers both branches.
+        { $project: { priorityRank: 0, [ARCHIVED_AT_SORT_FIELD]: 0 } },
       ]),
       Ticket.countDocuments(query),
     ]);
   }
 
+  // Comment counts for the page the caller actually gets, not the whole match —
+  // one grouped count over the returned ids. Done here rather than inside the two
+  // branches above because one is a `find()` and the other an `aggregate()`;
+  // attaching it once keeps the sort and pagination logic in each untouched.
+  const ticketsWithCounts = await attachCommentCounts(tickets);
+
   return {
-    tickets,
+    tickets: ticketsWithCounts,
     pagination: {
       total,
       page: safePage,
@@ -1023,6 +1101,10 @@ const getMyTickets = async ({
           ...statusLookupStages(),
           { $project: { priorityRank: 0 } },
         ]);
+
+  if (normalizedOrder === 'none' && normalizeTicketSortField(sortBy) === 'subject') {
+    ticketsQuery.collation(SUBJECT_SORT_COLLATION);
+  }
 
   const [tickets, total] = await Promise.all([ticketsQuery, Ticket.countDocuments(query)]);
 
