@@ -1,5 +1,6 @@
 const internService = require('../services/internService');
 const internCvService = require('../services/internCvService');
+const internCvSummaryService = require('../services/internCvSummaryService');
 const mentorCommentService = require('../services/mentorCommentService');
 const evaluationService = require('../services/evaluationService');
 const readinessFlagService = require('../services/readinessFlagService');
@@ -174,6 +175,24 @@ exports.deleteMyCv = async (req, res, next) => {
       return res.status(404).json({ message: error.message });
     }
     next(error);
+  }
+};
+
+exports.getCvSummary = async (req, res, next) => {
+  try {
+    const summary = await internCvSummaryService.getCvSummary(req.user, req.params.userId);
+    res.json(summary);
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+exports.generateCvSummary = async (req, res, next) => {
+  try {
+    const summary = await internCvSummaryService.generateCvSummary(req.user, req.params.userId);
+    res.json(summary);
+  } catch (error) {
+    handleError(res, error, next);
   }
 };
 

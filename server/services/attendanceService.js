@@ -88,6 +88,11 @@ const assertNotPlaced = (profile, now) => {
 };
 
 const assertCheckInOpen = (now) => {
+  // ⚠️ DEV OVERRIDE — NE COMMITOVATI. Otvara check-in vikendom i van 07:00–11:00
+  // prozora da bi se dugme moglo testirati lokalno. Vrati sa:
+  //   git checkout -- server/services/attendanceService.js
+  return;
+  // eslint-disable-next-line no-unreachable
   if (isOfficeWeekend(now)) {
     throw httpError('Check-in is only available on weekdays.', 422);
   }

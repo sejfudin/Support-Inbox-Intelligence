@@ -22,6 +22,7 @@ const REQUEST_TYPES = [REMOTE, VACATION, RELIGIOUS, SICK];
 /**
  * @typedef {object} RequestTypeRule
  * @property {string} label            - what the intern and admin see
+ * @property {string} description      - one line naming what the type is for
  * @property {number} maxDaysPerRequest - ceiling on ONE request; not a budget
  * @property {number|null} yearlyBudget - days per calendar year, or null for no limit
  * @property {number} backdateWorkingDays - how many working days before today may be requested
@@ -33,6 +34,7 @@ const TYPE_RULES = Object.freeze({
   // week files two rather than being refused.
   [REMOTE]: Object.freeze({
     label: 'Remote work',
+    description: 'Work from outside the office for a stretch of days.',
     maxDaysPerRequest: 3,
     yearlyBudget: null,
     backdateWorkingDays: 0,
@@ -43,6 +45,7 @@ const TYPE_RULES = Object.freeze({
   // case, and making them file five separate requests for it would be theatre.
   [VACATION]: Object.freeze({
     label: 'Vacation',
+    description: 'Planned time off, counted against the yearly allowance.',
     maxDaysPerRequest: 5,
     yearlyBudget: 5,
     backdateWorkingDays: 0,
@@ -52,6 +55,7 @@ const TYPE_RULES = Object.freeze({
   // multi-day observance, or three single days across different faiths' calendars.
   [RELIGIOUS]: Object.freeze({
     label: 'Religious holiday',
+    description: 'Observance days, counted against a separate yearly allowance.',
     maxDaysPerRequest: 3,
     yearlyBudget: 3,
     backdateWorkingDays: 0,
@@ -67,6 +71,7 @@ const TYPE_RULES = Object.freeze({
   // "ill Monday, back Wednesday" without opening the whole history to relabelling.
   [SICK]: Object.freeze({
     label: 'Sick day',
+    description: 'Filed after the fact — the only type that may look backwards.',
     maxDaysPerRequest: 1,
     yearlyBudget: null,
     backdateWorkingDays: 2,
@@ -92,9 +97,9 @@ const rulesFor = (type) => TYPE_RULES[type] || TYPE_RULES[REMOTE];
  * `services/attendanceSettingsService.js` and passed down from the service layer.
  *
  * Everything else on a row stays fixed in code, because none of it is a quantity
- * an admin can weigh up: `label` is copy, `backdateWorkingDays` encodes why sick
- * days may look backwards, and `attended` decides arithmetic that the whole
- * attendance module is built on.
+ * an admin can weigh up: `label` and `description` are copy, `backdateWorkingDays`
+ * encodes why sick days may look backwards, and `attended` decides arithmetic that
+ * the whole attendance module is built on.
  *
  * The readers take the override as an argument rather than reaching for it. This
  * file has no database access on purpose — `helpers/attendanceRequestRules.js`

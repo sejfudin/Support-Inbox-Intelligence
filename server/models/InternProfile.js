@@ -119,6 +119,29 @@ const internProfileSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // The AI read of the intern's own uploaded CV, shown to admins and mentors on
+    // the profile overview. Cached rather than generated per view: it costs a PDF
+    // download, a text extraction and a model call, and the input only changes when
+    // the intern re-uploads.
+    //
+    // `cvSummaryFor` is the `cvPath` the summary was generated from, and is what
+    // makes the cache honest — a re-upload writes a new path, so the stored summary
+    // is recognised as describing a CV that is no longer there rather than being
+    // served against the new one. Clearing it is how any code path invalidates the
+    // summary without having to blank the text itself.
+    cvSummary: {
+      type: String,
+      default: null,
+      maxlength: 4000,
+    },
+    cvSummaryFor: {
+      type: String,
+      default: null,
+    },
+    cvSummaryAt: {
+      type: Date,
+      default: null,
+    },
     // Mentor/admin-added CV link (e.g. Google Drive). Separate from the intern's
     // own uploaded CV (cvPath) and never exposed to the intern.
     internalCvUrl: {
