@@ -61,8 +61,23 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 - **Components**: `.jsx`. shadcn-style primitives in `src/components/ui/`. Feature components
   grouped by domain (`Tickets/`, `interns/`, `analytics/`, `symphony/`, `admin/`, `Modals/`).
 - **State/context**: `src/context/` (`AuthContext`, `SocketContext`, `ThemeConfigContext`).
+- **A user setting is a row in a table, not a new hook.** `ThemeConfigContext`'s
+  `DOM_PREFERENCES` / `VALUE_PREFERENCES` and `server/constants/userPreferences.js` are the only
+  two places that enumerate the preferences; a new one costs a row in each (plus a CSS block for
+  an `<html>` attribute). Read and write it through `hooks/useStoredPreference.js` so it caches,
+  syncs to the user record and reaches the other components holding the same key.
+  See architecture.md → "UI preferences" before adding one.
 - **Routing**: `src/routes/` — `AppRoutes.jsx`, `ProtectedRoutes.jsx`, `WorkspaceManagementRoute.jsx`.
   Add new guarded routes through these, not ad-hoc.
+- **Every route owns its browser-tab title.** `routes/RouteTitle.jsx` applies a baseline from the
+  path map in `helpers/pageTitle.js` on each navigation — add an entry there with the new route,
+  wording it like the nav label the user clicked. A page that shows one named record (ticket,
+  workspace, intern, project) overrides it with that record's name via `useDocumentTitle(name)`,
+  passing a falsy value while the data loads so the baseline stands instead of a flash of
+  "undefined". The hook is a passive effect and the baseline a layout effect, which is what makes
+  the page's title win regardless of mount order — don't switch either. A page that opens the
+  ticket details modal calls `useTicketModalTitle({ ticketId, isOpen })` instead: the modal is page
+  state, so nothing in the URL changes and the page has to restore its own title on close.
 - **Styling**: TailwindCSS 3 + `tailwind-merge` + `clsx`. Theming via `next-themes` (light/dark).
   **Colour must come from the semantic tokens** — `bg-card`, `bg-background`, `text-foreground`,
   `text-muted-foreground`, `border-border`, `border-input`, `bg-primary`, `bg-destructive`,
@@ -78,6 +93,28 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
     that is dark in both themes.
   - Need a high-contrast surface that flips with the theme (tooltips)? Use `bg-foreground` +
     `text-background` rather than a fixed near-black.
+- **Page chrome comes from the flat-shell classes** in `src/index.css`, not from ad-hoc Tailwind:
+  `.app-page-header` (the header band, bleeds out of `.app-page-content`'s gutter), `.app-crumb`,
+  `.app-title`, `.app-subtitle`, `.app-card` + `.app-card-head` + `.app-card-title`,
+  `.app-table-head`, `.app-table-scroll`, `.app-chip`, `.app-stat-value`. Constants (12px radii,
+  34px controls, 38px table headers, the 10.5–13.5px type steps) come from the UI-overhaul spec in
+  `Attendance page redesign/handoff/TOKENS.md`; the colours are this app's semantic tokens.
+  - **`.app-panel` / `.app-panel-soft` are the pre-overhaul rounded, shadowed surfaces and are now
+    used only by the three dashboards** (`AdminDashboardPage`, `InternDashboardPage`,
+    `UserDashboard` and their `components/*/dashboard/*`), which the overhaul deliberately left
+    alone. Anywhere else, a new surface is `.app-card`.
+- **Every page header is `<PageHeading crumb title subtitle actions />`** — one flat band, closed
+  by a hairline. There is no kicker badge any more: the eyebrow line is the breadcrumb, and it
+  names the sidebar group the page lives in (Workspace / Internship / Admin / Account / Mentoring /
+  Access), matching the mockup.
+- **A wide table carries its own `min-w-[…]` plus an `.app-table-scroll` wrapper**, so it scrolls
+  inside its card instead of pushing the page sideways — that is what keeps a name column from
+  being squeezed to nothing on a narrow window.
+- **A layout that has to respond to the sidebar rail reads `data-sidebar-state`**, which
+  `SidebarProvider` stamps (`expanded` / `collapsed`) on the shell wrapper above both the rail and
+  the content column. Override a token under it and let the cascade do the work — never a JS
+  resize listener or a measured width. The board's `--board-col-max` is the worked example: the
+  column ceiling lifts when the rail collapses so the freed width lands in the columns.
 - **Forms**: React Hook Form + Zod.
 
 ## Formatting
