@@ -74,7 +74,7 @@ export default function MentorRecommendationsPage() {
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="Placement flow"
+          crumb="Placement flow"
           title="Recommendations"
           subtitle="Manage recommendation attempts and placement results."
         />

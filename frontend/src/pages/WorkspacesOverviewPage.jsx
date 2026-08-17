@@ -146,7 +146,7 @@ export default function WorkspacesOverviewPage() {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker={admin ? 'Admin overview' : 'Workspace overview'}
+          crumb={admin ? 'Admin overview' : 'Workspace overview'}
           title={admin ? 'All Workspaces' : 'My Workspaces'}
           subtitle={
             admin

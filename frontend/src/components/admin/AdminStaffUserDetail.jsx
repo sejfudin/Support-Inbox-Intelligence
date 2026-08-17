@@ -148,10 +148,10 @@ export function AdminStaffUserDetail({ user, userId, backButton, editUserButton 
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="User profile"
+          crumb="User profile"
           title={userName}
           subtitle={user?.email}
-          beforeKicker={backButton}
+          beforeTitle={backButton}
           actions={editUserButton}
         >
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">

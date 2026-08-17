@@ -118,7 +118,7 @@ export default function AdminUsersExpandableTable({ data, pagination, onPageChan
             ))
           ) : (
             <TableRow className="hover:bg-transparent">
-              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+              <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                 No users found.
               </TableCell>
             </TableRow>

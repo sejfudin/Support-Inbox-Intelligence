@@ -226,7 +226,7 @@ export default function AdminStaffingRequestsPage() {
     <div data-surface="symphony" className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Future Experts Programme"
+          crumb="Future Experts Programme"
           title="Requests"
           subtitle="Every staffing request from every leadership user."
           actions={

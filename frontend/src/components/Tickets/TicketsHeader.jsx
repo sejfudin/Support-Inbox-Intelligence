@@ -15,14 +15,14 @@ export default function TicketsHeader({
   hideNewTicket = false,
   dataTestPrefix = 'tickets',
   title = 'Tickets',
-  kicker = 'Workspace overview',
+  crumb = 'Workspace overview',
   subtitle,
   afterNewTicketSlot = null,
 }) {
   return (
     <div className="app-page-content pb-0">
       <PageHeading
-        kicker={kicker}
+        crumb={crumb}
         title={title}
         subtitle={subtitle}
         actions={

@@ -39,14 +39,23 @@ export const scoreTrackClass = (value) =>
   })[scoreBand(value)];
 
 // Raw HSL for inline styles (the conic-gradient ring can't use Tailwind classes).
+//
+// Same tokens as the class helpers above, read through `var()` rather than
+// restated as literals. The literals they replaced happened to equal the default
+// `--tone-success` / `--tone-warning`, so nothing moves in the default theme —
+// but they did not follow an override. Under `data-colorblind='grayscale'`, where
+// `--tone-success` drops to `0 0% 45%`, the ring stayed green while every bar
+// beside it went grey, which is the one place the ring is read against them.
 export const scoreFillHsl = (value) =>
-  ({ high: 'hsl(160 84% 39%)', mid: 'hsl(var(--primary))', low: 'hsl(38 92% 50%)' })[
-    scoreBand(value)
-  ];
+  ({
+    high: 'hsl(var(--tone-success))',
+    mid: 'hsl(var(--primary))',
+    low: 'hsl(var(--tone-warning))',
+  })[scoreBand(value)];
 
 export const scoreTrackHsl = (value) =>
   ({
-    high: 'hsl(160 84% 39% / 0.16)',
+    high: 'hsl(var(--tone-success) / 0.16)',
     mid: 'hsl(var(--primary) / 0.16)',
-    low: 'hsl(38 92% 50% / 0.16)',
+    low: 'hsl(var(--tone-warning) / 0.16)',
   })[scoreBand(value)];

@@ -145,7 +145,7 @@ export default function AttendanceOverviewPage() {
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="Future Experts Program"
+          crumb="Future Experts Program"
           title="Attendance"
           // No longer wholly read-only: approving a remote-work request writes that
           // intern's attendance for the day. Check-ins are still theirs alone.

@@ -24,7 +24,7 @@ const WorkspaceSettingsPage = () => {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Workspace settings"
+          crumb="Workspace settings"
           title={workspace.name}
           subtitle={
             workspace.description || 'Configure settings and integrations for this workspace.'

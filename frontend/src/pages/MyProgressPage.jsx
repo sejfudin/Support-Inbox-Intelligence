@@ -51,7 +51,7 @@ export default function MyProgressPage() {
       <PageSection className="space-y-5">
         <div className="mx-auto w-full max-w-3xl space-y-5">
           <PageHeading
-            kicker="Internship"
+            crumb="Internship"
             title="My Progress"
             subtitle="Where you stand in the programme, your evaluations, your placement readiness, and every project you have been recommended for. All of it is recorded by your mentors and admins — yours to read, not to edit."
             titleAdornment={

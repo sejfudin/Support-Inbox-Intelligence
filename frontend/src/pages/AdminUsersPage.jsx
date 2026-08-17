@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Search, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import UserEditModal from '@/components/UserEditModal';
 import { useNavigate } from 'react-router-dom';
 import { useUsers } from '@/queries/users';
 import { useDebounce } from 'use-debounce';
@@ -21,7 +20,6 @@ export default function AdminUsersPage() {
     isPending,
     isError,
   } = useUsers({ page, limit, search: debouncedSearch });
-  const [editingUser, setEditingUser] = useState(null);
   const users =
     usersData?.users?.map((user) => ({
       id: user._id,
@@ -39,16 +37,13 @@ export default function AdminUsersPage() {
 
   const pagination = usersData?.pagination;
 
-  const handleEditUser = (user) => {
-    setEditingUser(user);
-  };
-
+  // Editing a user lives on their profile, not in the directory: a row click opens
+  // `/user/:userId`, whose header carries the Edit button and owns `UserEditModal`
+  // (`AdminUserAnalyticsPage` → `AdminStaffUserDetail`). This page used to hold a
+  // second copy of that state, wired to an `onEditUser` prop the table no longer
+  // accepts — so the modal it rendered was unreachable.
   const handleOpenUserAnalytics = (id) => {
     navigate(`/user/${id}`);
-  };
-
-  const handleCloseModal = () => {
-    setEditingUser(null);
   };
 
   if (isError) {
@@ -63,7 +58,7 @@ export default function AdminUsersPage() {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Admin directory"
+          crumb="Admin directory"
           title="All Users"
           subtitle="Global user directory across the entire TaskManager app."
           actions={
@@ -98,21 +93,19 @@ export default function AdminUsersPage() {
 
         <div className="app-panel overflow-hidden">
           {isPending ? (
-            <TableSkeleton columns={6} rows={6} minWidthClassName="min-w-[1000px]" />
+            // Four columns at the table's own 760px floor — a six-column skeleton
+            // over a wider table shifts the layout the moment the real rows land.
+            <TableSkeleton columns={4} rows={6} minWidthClassName="min-w-[760px]" />
           ) : (
             <AdminUsersExpandableTable
               data={users}
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
-              onEditUser={handleEditUser}
               onRowClick={handleOpenUserAnalytics}
-              isLoading={isPending}
             />
           )}
         </div>
       </div>
-
-      {editingUser && <UserEditModal user={editingUser} onClose={handleCloseModal} />}
     </div>
   );
 }
