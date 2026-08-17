@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useInternDashboard } from '@/queries/internDashboard';
 import { useMyAttendance, useCheckInToday } from '@/queries/attendance';
 import { useTicketModals } from '@/hooks/useTicketModals';
+import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { AttendanceSwitchNotice } from '@/components/intern/dashboard/AttendanceSwitchNotice';
@@ -111,6 +112,7 @@ export default function InternDashboardPage() {
   const { user } = useAuth();
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
+  useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
   const location = useLocation();
 
   const { data: realDashboard, isPending, isError, error } = useInternDashboard();
@@ -146,7 +148,9 @@ export default function InternDashboardPage() {
 
           {isError && (
             <div className="app-panel px-6 py-8 text-center">
-              <p className="text-sm font-medium text-destructive">Could not load your dashboard.</p>
+              <p className="text-sm font-medium text-[hsl(var(--tone-danger-fg))]">
+                Could not load your dashboard.
+              </p>
               <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">
                 {error?.response?.data?.message || 'Please try again.'}
               </p>

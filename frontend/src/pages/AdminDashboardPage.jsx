@@ -258,7 +258,7 @@ export default function AdminDashboardPage() {
 
           {isError && (
             <div className="app-panel px-6 py-8 text-center">
-              <p className="text-sm font-medium text-destructive">
+              <p className="text-sm font-medium text-[hsl(var(--tone-danger-fg))]">
                 Could not load this workspace&apos;s dashboard.
               </p>
               <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">

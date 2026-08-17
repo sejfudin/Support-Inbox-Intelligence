@@ -91,13 +91,13 @@ export default function AdminDailyInsightsPage() {
     <PageShell>
       <PageSection className="space-y-5">
         <PageHeading
-          kicker="Admin"
+          crumb="Admin"
           title="Daily Standup Insights"
           subtitle="Who reported today, and how a workspace's standup coverage looks over the month."
           titleAdornment={<Badge variant="outline">Read-only</Badge>}
         />
 
-        <div className="app-panel flex flex-wrap gap-3 p-4">
+        <div className="app-card flex flex-wrap gap-3 p-4">
           <Select value={workspaceId} onValueChange={setWorkspaceId}>
             <SelectTrigger
               className="w-full sm:w-[280px]"
@@ -133,18 +133,21 @@ export default function AdminDailyInsightsPage() {
         </div>
 
         {!workspaceId && (
-          <div className="app-panel p-6 text-sm text-muted-foreground">
+          <div className="app-card p-6 text-sm text-muted-foreground">
             No workspaces to show yet.
           </div>
         )}
 
         {workspaceId && isError && (
-          <div className="app-panel p-6 text-sm text-destructive" data-test="daily-insights-error">
+          <div
+            className="app-card p-6 text-sm text-[hsl(var(--tone-danger-fg))]"
+            data-test="daily-insights-error"
+          >
             Failed to load daily insights.
           </div>
         )}
         {workspaceId && isPending && (
-          <div className="app-panel p-6 text-sm text-muted-foreground">Loading daily insights…</div>
+          <div className="app-card p-6 text-sm text-muted-foreground">Loading daily insights…</div>
         )}
 
         {showContent && (
@@ -159,7 +162,7 @@ export default function AdminDailyInsightsPage() {
                     value={`${overview.stats.reportedToday}/${overview.stats.totalInterns}`}
                     hint="Members"
                     icon={UserCheck}
-                    valueClassName="text-emerald-600 dark:text-emerald-400"
+                    valueClassName="text-[hsl(var(--tone-success-fg))]"
                   />
                   <AttendanceStat
                     label="Not reported today"
@@ -168,7 +171,7 @@ export default function AdminDailyInsightsPage() {
                     icon={UserX}
                     valueClassName={
                       overview.stats.notReportedToday > 0
-                        ? 'text-red-600 dark:text-red-400'
+                        ? 'text-[hsl(var(--tone-danger-fg))]'
                         : undefined
                     }
                   />
@@ -188,7 +191,7 @@ export default function AdminDailyInsightsPage() {
                   icon={TriangleAlert}
                   valueClassName={
                     overview.stats.openBlockers > 0
-                      ? 'text-amber-600 dark:text-amber-400'
+                      ? 'text-[hsl(var(--tone-warning-fg))]'
                       : undefined
                   }
                 />
@@ -198,7 +201,7 @@ export default function AdminDailyInsightsPage() {
                   value={monthMissed}
                   hint={monthLabel}
                   icon={Users}
-                  valueClassName={monthMissed > 0 ? 'text-red-600 dark:text-red-400' : undefined}
+                  valueClassName={monthMissed > 0 ? 'text-[hsl(var(--tone-danger-fg))]' : undefined}
                 />
               )}
             </div>

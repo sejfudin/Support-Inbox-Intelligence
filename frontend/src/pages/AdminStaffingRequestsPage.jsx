@@ -4,12 +4,12 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollFade } from '@/components/ui/scroll-fade';
-import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import PageHeading from '@/components/PageHeading';
-import { RequestsFilterTabs } from '@/components/symphony/requests/RequestsFilterTabs';
-import { RequestListItem } from '@/components/symphony/requests/RequestListItem';
-import { AdminRequestDetail } from '@/components/symphony/requests/AdminRequestDetail';
+import { RequestGroupTabs } from '@/components/requests/RequestGroupTabs';
+import { RequestCard } from '@/components/requests/RequestCard';
+import { RequestDetailPane } from '@/components/requests/RequestDetailPane';
 import { PutForwardDialog } from '@/components/symphony/requests/PutForwardDialog';
 import { usePutInternsForward, useStaffingRequests } from '@/queries/staffingRequests';
 import { useStaffingNewsMarkers } from '@/hooks/useStaffingNewsMarkers';
@@ -47,19 +47,29 @@ const byNewest = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
 /**
  * The admin-side Requests view: a work surface, not a scorecard. Leadership
  * files demand and watches it; the admin fills seats and sends one answer, so
- * this page no longer renders leadership's `RequestDetail` — it has its own
- * (`AdminRequestDetail`) plus a candidate rail beside it.
+ * this page renders its own detail pane (`components/requests/`) rather than
+ * leadership's.
  *
  * Putting interns forward is staged, not immediate. Picks collect in a cart
  * held here — keyed by request id, mirrored to `sessionStorage`, deliberately
  * never persisted server-side (ticket 08) — and only `Submit to leadership`
  * writes anything. That is why the cart lives at page level rather than in the
- * rail: the list badges requests with unsent picks, the detail pane counts
- * them, and the rail reads them back as "already staged".
+ * detail pane: the list badges requests with unsent picks, the pane counts them,
+ * and the picker reads them back as "already staged".
  *
- * Wrapped in its own `data-surface="symphony"` scope since the `symphony-*`
- * styles are keyed off that attribute and this page lives in the sidebar shell,
- * not `SymphonyLayout`.
+ * ── Why this page is not on the symphony surface ─────────────────────────────
+ *
+ * It used to declare `data-surface="symphony"` and borrow leadership's
+ * components. That attribute switches on a whole second design system — its own
+ * font, palette, card shapes, radii and a `--primary` override — so this one
+ * route looked like a different product from Attendance and Platform Management
+ * either side of it in the same sidebar. Everything it draws now lives in
+ * `components/requests/` and uses the app's own tokens.
+ *
+ * `components/symphony/requests/` is untouched and still leadership's: the
+ * duplication is deliberate, because the two shells are genuinely different
+ * designs over the same data. What IS still shared is the logic — the
+ * presentation helpers, the staged-picks hook, and the three dialogs.
  */
 export default function AdminStaffingRequestsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -220,26 +230,35 @@ export default function AdminStaffingRequestsPage() {
   };
 
   return (
-    // `PageHeading` inside `app-page`, the same header every other route in the
-    // sidebar shell uses. `SymphonyPageHeader` is the leadership shell's, and
-    // this page only ever borrowed it because it renders leadership's data.
-    <div data-surface="symphony" className="app-page">
-      <div className="app-page-content space-y-6">
+    // No `data-surface="symphony"`. This page renders leadership's data but it
+    // lives in the sidebar shell next to Attendance and Platform Management, and
+    // the symphony surface is a whole second design system — its own font,
+    // palette, card shapes and `--primary` override — which made this one route
+    // look like a different product. It now draws with the app's own tokens; the
+    // leadership shell keeps symphony and its own copies of these components.
+    <div className="app-page">
+      {/* `pb-0`, never `py-0` — `.app-page-header` pulls itself up by 24px and
+          needs the section's top padding left in place to land flush instead of
+          being clipped. */}
+      <div className="app-page-content pb-0">
         <PageHeading
-          kicker="Future Experts Programme"
+          // `crumb`, not `kicker` — `kicker` is not a `PageHeading` prop, so this
+          // page has been rendering no eyebrow at all while every other admin
+          // route shows one.
+          crumb="Admin"
           title="Requests"
           subtitle="Every staffing request from every leadership user."
           actions={
-            <div className="relative w-full sm:w-72">
+            <div className="relative w-full md:w-[260px]">
               <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70"
                 aria-hidden="true"
               />
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search project, client or role…"
-                className="pl-9"
+                className="pl-[30px] text-[12.5px] md:text-[12.5px]"
                 aria-label="Search requests"
                 data-test="admin-requests-search"
               />
@@ -247,98 +266,133 @@ export default function AdminStaffingRequestsPage() {
           }
         />
 
-        <RequestsFilterTabs requests={requests} value={group} onChange={setGroup} />
-
-        {isError && (
-          <SymphonyCard>
-            <p className="text-sm text-destructive">Failed to load staffing requests.</p>
-          </SymphonyCard>
-        )}
-
-        {isPending && <p className="text-sm text-muted-foreground">Loading requests…</p>}
-
-        {!isPending && requests.length === 0 && (
-          <SymphonyCard className="py-12 text-center text-sm text-muted-foreground">
-            No staffing requests yet.
-          </SymphonyCard>
-        )}
-
-        {!isPending && requests.length > 0 && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
-            <div className={selected ? 'hidden lg:block' : 'block'}>
-              <ScrollFade
-                viewportClassName="space-y-3 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1"
-                fadeClassName="from-[hsl(var(--symphony-surface))]"
+        {/* The page's tab band — group tabs left, match count right, the same
+            strip every other admin route carries under its header. The count is
+            the search-narrowed one, which the tab counts (stored status only)
+            deliberately are not. */}
+        <RequestGroupTabs
+          requests={requests}
+          value={group}
+          onChange={setGroup}
+          rightSlot={
+            !isPending && (
+              <span
+                className="text-[12.5px] text-muted-foreground"
+                data-test="admin-requests-list-count"
               >
-                {visibleRequests.length === 0 ? (
-                  <SymphonyCard className="py-10 text-center text-sm text-muted-foreground">
-                    {query ? 'Nothing matches that search.' : 'Nothing in this group right now.'}
-                  </SymphonyCard>
-                ) : (
-                  visibleRequests.map((request) => (
-                    <RequestListItem
-                      key={request.id}
-                      request={request}
-                      selected={request.id === selectedId}
-                      onSelect={selectRequest}
-                      hasNews={unreadRequestIds.has(request.id)}
-                      stagedCount={countStagedPicks(carts[request.id])}
-                    />
-                  ))
+                {visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}
+              </span>
+            )
+          }
+        />
+
+        <div className="space-y-4 py-[18px]">
+          {isError && (
+            <div className="app-card p-5">
+              <p className="text-[12.5px] text-[hsl(var(--tone-danger-fg))]">
+                Failed to load staffing requests.
+              </p>
+            </div>
+          )}
+
+          {/* Shaped like the grid it replaces, so the two panes don't jump into
+            place — a single "Loading requests…" line left the page empty and
+            then rearranged it. */}
+          {isPending && (
+            <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+              <div className="space-y-3">
+                {[0, 1, 2, 3].map((row) => (
+                  <Skeleton key={row} className="h-[104px] w-full rounded-[var(--r-card)]" />
+                ))}
+              </div>
+              <Skeleton className="hidden h-[420px] w-full rounded-[var(--r-card)] lg:block" />
+            </div>
+          )}
+
+          {!isPending && requests.length === 0 && (
+            <div className="app-card py-12 text-center text-[12.5px] text-muted-foreground">
+              No staffing requests yet.
+            </div>
+          )}
+
+          {!isPending && requests.length > 0 && (
+            <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
+              <div className={selected ? 'hidden lg:block' : 'block'}>
+                <ScrollFade
+                  viewportClassName="space-y-2.5 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto lg:pr-1"
+                  fadeClassName="from-background"
+                >
+                  {visibleRequests.length === 0 ? (
+                    <div className="app-card py-10 text-center text-[12.5px] text-muted-foreground">
+                      {query ? 'Nothing matches that search.' : 'Nothing in this group right now.'}
+                    </div>
+                  ) : (
+                    visibleRequests.map((request) => (
+                      <RequestCard
+                        key={request.id}
+                        request={request}
+                        selected={request.id === selectedId}
+                        onSelect={selectRequest}
+                        hasNews={unreadRequestIds.has(request.id)}
+                        stagedCount={countStagedPicks(carts[request.id])}
+                      />
+                    ))
+                  )}
+                </ScrollFade>
+              </div>
+
+              <div className="min-w-0 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto lg:pr-1">
+                {selected && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mb-3 lg:hidden"
+                    onClick={() => selectRequest(null)}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    All requests
+                  </Button>
                 )}
-              </ScrollFade>
-              {visibleRequests.length > 0 && (
-                <p
-                  className="mt-2 text-xs text-muted-foreground lg:mt-3"
-                  data-test="admin-requests-list-count"
-                >
-                  {visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}
-                </p>
-              )}
-            </div>
 
-            <div className="min-w-0 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1">
-              {selected && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="mb-3 lg:hidden"
-                  onClick={() => selectRequest(null)}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  All requests
-                </Button>
-              )}
-
-              {selected ? (
-                <AdminRequestDetail
-                  request={selected}
-                  cart={cart}
-                  onArm={setPickerRow}
-                  onUnstage={onUnstage}
-                  onSubmit={onSubmit}
-                  isSubmitting={submitMutation.isPending}
-                  rejections={rejections}
-                />
-              ) : (
-                <SymphonyCard className="py-16 text-center text-sm text-muted-foreground">
-                  Pick a request to see its details.
-                </SymphonyCard>
-              )}
+                {selected ? (
+                  <RequestDetailPane
+                    request={selected}
+                    cart={cart}
+                    onArm={setPickerRow}
+                    onUnstage={onUnstage}
+                    onSubmit={onSubmit}
+                    isSubmitting={submitMutation.isPending}
+                    rejections={rejections}
+                  />
+                ) : (
+                  <div className="app-card py-16 text-center text-[12.5px] text-muted-foreground">
+                    Pick a request to see its details.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      <PutForwardDialog
-        open={Boolean(pickerRow)}
-        onOpenChange={(next) => !next && setPickerRow(null)}
-        request={selected}
-        row={pickerRow}
-        cart={cart}
-        onSave={onSavePicks}
-      />
+      {/* The candidate picker is still a symphony component — it is the biggest
+          surface in this feature and shares nothing with the panes around it, so
+          it is the one piece left to convert. It needs the attribute for two
+          reasons: every `--symphony-*` variable it paints with is scoped to this
+          selector, and it retargets its own Radix portal by querying for exactly
+          this node. `display: contents` gives it that host without putting a
+          box, a background or a min-height into the page's layout. */}
+      <div data-surface="symphony" className="contents">
+        <PutForwardDialog
+          open={Boolean(pickerRow)}
+          onOpenChange={(next) => !next && setPickerRow(null)}
+          request={selected}
+          row={pickerRow}
+          cart={cart}
+          onSave={onSavePicks}
+        />
+      </div>
     </div>
   );
 }
