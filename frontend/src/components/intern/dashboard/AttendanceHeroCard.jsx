@@ -8,7 +8,7 @@ import {
   DAY_STATUS,
   dayStatusLabel,
   buildWeekStrip,
-  weekAttendance,
+  stripAttendance,
   computeStreak,
   nonWorkingKeySet,
   nonWorkingKind,
@@ -141,7 +141,7 @@ export function AttendanceHeroCard({
   // 'YYYY-MM-DD' → the status an approved request wrote. Remote days are already
   // inside `records`, so they count towards the week tally either way and this
   // only colours them; the three leave statuses are not in `records` at all and
-  // drop out of the tally's denominator, which `weekAttendance` handles.
+  // drop out of the tally's denominator, which `stripAttendance` handles.
   requestedDays = {},
   onCheckIn,
   isCheckingIn,
@@ -166,7 +166,7 @@ export function AttendanceHeroCard({
     startDate,
     requestedDays
   );
-  const { present: weekPresent, elapsed: weekElapsed } = weekAttendance(week);
+  const { present: weekPresent, elapsed: weekElapsed } = stripAttendance(week);
 
   const todayStatus = week.find((day) => day.isToday)?.status;
   const weekend = todayStatus === DAY_STATUS.WEEKEND;
