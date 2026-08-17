@@ -93,12 +93,7 @@ export function useStoredPreference(storageKey, defaultValue, isValid) {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored && isValid(stored)) setValue(stored);
-    } catch {
-      /* ignore — private mode, disabled storage */
-    }
+    setValue(readStoredPreference(storageKey, defaultValue, isValid));
 
     // Another holder of this key changed it, or the server's copy just landed.
     // Without this, Settings and the control on the page it configures would
