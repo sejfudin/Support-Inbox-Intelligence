@@ -40,6 +40,9 @@ Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Rec
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
+- `User.preferences` — one optional subdocument (`_id: false`) holding the UI preferences that
+  follow the account. Every field is optional and **absent means "never chosen"**, which is what
+  the sync layer keys off; see "UI preferences" below.
 - Statuses are **per-workspace and customizable** (not a global enum). See `statusService` and
   `server/helpers/statusValidation.js` / `statusSlugAliases.js`.
 - **A status's `slug` is its identity, and a rename must never change it.** `updateStatus` writes
@@ -68,6 +71,29 @@ AI: `AISummary`.
   `decoded.tokenVersion !== user.tokenVersion` (logout-everywhere / rotation invalidation).
 - Refresh tokens persisted (`RefreshToken` model); `tokenVersion` on `User` gates validity.
   Logic in `server/services/authService.js`.
+
+## UI preferences (account-level)
+
+Appearance, workspace-default and notification-mute preferences follow the **user**, not the
+browser. `GET|PATCH /api/users/me/preferences` (`protect` only — the subject is always `req.user`,
+so there is no id to guard). The PATCH is a **partial merge** written with dot-notation `$set`, so
+two browsers changing two different preferences do not clobber each other.
+
+- The enum table is `server/constants/userPreferences.js` — model, validation and endpoint all read
+  it, and its frontend twin is the preference table in `src/context/ThemeConfigContext.jsx`. A new
+  preference costs a row in each.
+- Both responses carry `{ preferences, hasStoredPreferences, storedKeys }`. `storedKeys` names the
+  preferences this account has actually saved; **the client reconciles per key**, so a value only
+  set locally survives while the saved ones take the server's answer.
+- `localStorage` is a **write-through cache** in front of the record (the server cannot answer
+  before the first paint). Writes go through `src/lib/preferenceSync.js`, are debounced into one
+  PATCH by `src/components/UserPreferencesSync.jsx`, and are flushed on `pagehide` with a
+  `keepalive` request. `src/lib/preferenceCacheOwner.js` stamps who the cache belongs to — sign-out
+  keeps the cache (so the return is flash-free), so the one-time migration off browser-only
+  preferences must not adopt a stranger's values on a shared browser.
+- **UI scale stays per-device** and is deliberately absent from the server table — it is a function
+  of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
+  defaults so the auth screens never wear the last user's accent or accessibility settings.
 
 ## Real-time (Socket.IO, `server/socket/`)
 

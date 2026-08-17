@@ -1,9 +1,45 @@
 const User = require('../models/User');
 const {
   USER_PREFERENCE_DEFINITIONS,
+  USER_PREFERENCE_KEYS,
   MUTED_NOTIFICATION_GROUP_VALUES,
   DEFAULT_USER_PREFERENCES,
 } = require('../constants/userPreferences');
+
+/**
+ * Own, declared keys only. Reading straight off the table would let a payload
+ * key like `toString` or `constructor` resolve to something on
+ * `Object.prototype` — truthy, but with no `values` array behind it, so a junk
+ * key would throw where it should have been shrugged off.
+ */
+const definitionFor = (key) =>
+  Object.prototype.hasOwnProperty.call(USER_PREFERENCE_DEFINITIONS, key)
+    ? USER_PREFERENCE_DEFINITIONS[key]
+    : null;
+
+/** Same rule for a stored document: an inherited key is not a chosen one. */
+const isStored = (stored, key) =>
+  Boolean(stored) &&
+  Object.prototype.hasOwnProperty.call(stored, key) &&
+  stored[key] !== undefined &&
+  stored[key] !== null;
+
+/**
+ * The preferences this account has actually chosen — the keys present on the
+ * stored subdocument, in table order.
+ *
+ * The client needs this per key, not as one flag: a browser that has locally set
+ * a density the account never saved must keep it, while still taking the server's
+ * answer for the preferences the account *has* saved. A single all-or-nothing
+ * flag would let the first saved preference anywhere reset every other
+ * locally-set one on every other device.
+ *
+ * Presence is the whole test: no field on the subdocument has a schema default
+ * (only the subdocument itself does, to `{}`), so a key is there only because the
+ * user put it there. An empty `mutedNotificationGroups` still counts — "I unmuted
+ * everything" is a choice.
+ */
+const storedKeysOf = (stored) => USER_PREFERENCE_KEYS.filter((key) => isStored(stored, key));
 
 const badRequest = (message) => {
   const error = new Error(message);
@@ -24,9 +60,7 @@ const notFound = (message) => {
  */
 const withDefaults = (stored = {}) => ({
   ...DEFAULT_USER_PREFERENCES,
-  ...Object.fromEntries(
-    Object.entries(stored || {}).filter(([, value]) => value !== undefined && value !== null)
-  ),
+  ...Object.fromEntries(storedKeysOf(stored).map((key) => [key, stored[key]])),
   mutedNotificationGroups: Array.isArray(stored?.mutedNotificationGroups)
     ? [...stored.mutedNotificationGroups]
     : [...DEFAULT_USER_PREFERENCES.mutedNotificationGroups],
@@ -61,7 +95,7 @@ const buildUpdate = (patch) => {
       return;
     }
 
-    const definition = USER_PREFERENCE_DEFINITIONS[key];
+    const definition = definitionFor(key);
     if (!definition) return;
 
     if (!definition.values.includes(value)) {
@@ -75,27 +109,23 @@ const buildUpdate = (patch) => {
 };
 
 /**
- * Whether this account has ever chosen anything, as opposed to simply reading
- * back the defaults. The client needs the distinction: on the first load after
- * these preferences became account-level, an untouched record must not reset a
- * returning user's browser — it adopts what that browser already had and saves
- * it as the account's first set. Once anything is stored, the record wins.
- *
- * Presence is the whole test: no field on the subdocument has a schema default
- * (only the subdocument itself does, to `{}`), so a key is there only because
- * the user put it there. An empty `mutedNotificationGroups` still counts — "I
- * unmuted everything" is a choice.
+ * Whether this account has ever chosen anything at all. Kept as a convenience on
+ * top of `storedKeys` — the client reconciles per key, but a bare "this account
+ * is untouched" is still the clearer thing to read in a log or a test.
  */
-const hasAnyStored = (stored) =>
-  Boolean(stored && Object.values(stored).some((value) => value !== undefined && value !== null));
+const hasAnyStored = (stored) => storedKeysOf(stored).length > 0;
+
+/** The one answer shape both the read and the write reply with. */
+const present = (stored) => ({
+  preferences: withDefaults(stored),
+  hasStoredPreferences: hasAnyStored(stored),
+  storedKeys: storedKeysOf(stored),
+});
 
 const getPreferences = async (userId) => {
   const user = await User.findById(userId).select('preferences').lean();
   if (!user) throw notFound('User not found');
-  return {
-    preferences: withDefaults(user.preferences),
-    hasStoredPreferences: hasAnyStored(user.preferences),
-  };
+  return present(user.preferences);
 };
 
 /**
@@ -118,10 +148,14 @@ const updatePreferences = async (userId, patch) => {
   ).lean();
 
   if (!user) throw notFound('User not found');
-  return {
-    preferences: withDefaults(user.preferences),
-    hasStoredPreferences: hasAnyStored(user.preferences),
-  };
+  return present(user.preferences);
 };
 
-module.exports = { getPreferences, updatePreferences, withDefaults, buildUpdate, hasAnyStored };
+module.exports = {
+  getPreferences,
+  updatePreferences,
+  withDefaults,
+  buildUpdate,
+  hasAnyStored,
+  storedKeysOf,
+};

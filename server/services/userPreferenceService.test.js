@@ -8,7 +8,12 @@ jest.mock('../models/User', () => ({
   findByIdAndUpdate: jest.fn(),
 }));
 
-const { buildUpdate, withDefaults, hasAnyStored } = require('./userPreferenceService');
+const {
+  buildUpdate,
+  withDefaults,
+  hasAnyStored,
+  storedKeysOf,
+} = require('./userPreferenceService');
 const { DEFAULT_USER_PREFERENCES } = require('../constants/userPreferences');
 
 describe('buildUpdate', () => {
@@ -38,6 +43,15 @@ describe('buildUpdate', () => {
     expect(() => buildUpdate({ mutedNotificationGroups: 'mentions' })).toThrow(/must be an array/);
   });
 
+  it('ignores a key that only exists on Object.prototype', () => {
+    // These used to resolve to an inherited function, which then blew up on
+    // `definition.values` — a 500 for a payload that deserved a shrug.
+    expect(buildUpdate({ toString: 'x', constructor: 'x', hasOwnProperty: 'x' })).toEqual({});
+    expect(buildUpdate(JSON.parse('{"__proto__":"x","density":"compact"}'))).toEqual({
+      'preferences.density': 'compact',
+    });
+  });
+
   it('refuses a payload that is not an object', () => {
     expect(() => buildUpdate(['density'])).toThrow(/must be an object/);
     expect(() => buildUpdate(null)).toThrow(/must be an object/);
@@ -63,9 +77,38 @@ describe('withDefaults', () => {
   });
 });
 
+describe('withDefaults', () => {
+  it('ignores a stored key that is not a preference we ship', () => {
+    expect(withDefaults({ density: 'compact', retiredSetting: 'whatever' })).toEqual({
+      ...DEFAULT_USER_PREFERENCES,
+      density: 'compact',
+    });
+  });
+});
+
+describe('storedKeysOf', () => {
+  // Per key, not one flag: this is what lets a device keep a locally-set
+  // preference the account never saved while still taking the server's answer
+  // for the ones it did.
+  it('lists nothing for an account that has never chosen anything', () => {
+    expect(storedKeysOf(undefined)).toEqual([]);
+    expect(storedKeysOf({})).toEqual([]);
+  });
+
+  it('lists only the keys actually present, including an emptied muted list', () => {
+    expect(storedKeysOf({ density: 'comfortable', mutedNotificationGroups: [] })).toEqual([
+      'density',
+      'mutedNotificationGroups',
+    ]);
+  });
+
+  it('does not count an inherited key or an explicit null', () => {
+    expect(storedKeysOf({ density: null })).toEqual([]);
+    expect(storedKeysOf(Object.create({ density: 'compact' }))).toEqual([]);
+  });
+});
+
 describe('hasAnyStored', () => {
-  // This flag is what stops the first load after the move to account-level
-  // preferences from resetting everyone's browser to the defaults.
   it('is false for an account that has never chosen anything', () => {
     expect(hasAnyStored(undefined)).toBe(false);
     expect(hasAnyStored({})).toBe(false);
