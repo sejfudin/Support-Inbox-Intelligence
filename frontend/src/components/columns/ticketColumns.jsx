@@ -70,9 +70,7 @@ export function createTicketColumns({
       },
       cell: ({ row }) => {
         const statusColor = statusBadgeConfig[row.original.status]?.color;
-        const comments = Array.isArray(row.original.comments)
-          ? row.original.comments.length
-          : (row.original.commentCount ?? 0);
+        const comments = row.original.commentCount;
 
         return (
           <div className="flex min-w-0 items-center gap-[9px]">

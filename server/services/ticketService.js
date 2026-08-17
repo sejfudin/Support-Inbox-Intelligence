@@ -249,9 +249,9 @@ const castTicketQueryForAggregate = (query) => {
 // null, `updatedAt` ties across a bulk write), and Mongo's sort is not stable
 // for tied keys — so without a unique final key, skip/limit paging can show the
 // same ticket on two pages and never show another.
-const buildTicketListSort = (sortBy = DEFAULT_TICKET_SORT_FIELD, sortOrder = 'desc') => {
-  const field = normalizeTicketSortField(sortBy);
-  const dir = sortOrder === 'asc' ? 1 : -1;
+// Takes the field and direction already normalized, so a caller that needs them
+// for its own branching resolves them once and passes them on.
+const buildTicketListSort = (field = DEFAULT_TICKET_SORT_FIELD, dir = -1) => {
   if (field === 'updatedAt') {
     return { updatedAt: dir, _id: -1 };
   }
@@ -439,7 +439,7 @@ const getAllTickets = async ({
   let total;
 
   if (!ranksByPriority && !sortsByArchivedAt) {
-    const sortSpec = buildTicketListSort(sortBy, sortOrder);
+    const sortSpec = buildTicketListSort(sortField, sortDirection);
     const listQuery = Ticket.find(query)
       .sort(sortSpec)
       .skip(skip)
@@ -1038,7 +1038,8 @@ const getMyTickets = async ({
           _id: -1, // unique tiebreaker — see buildTicketListSort
         };
 
-  const sortSpec = buildTicketListSort(sortBy, sortOrder);
+  const sortField = normalizeTicketSortField(sortBy);
+  const sortSpec = buildTicketListSort(sortField, sortOrder === 'asc' ? 1 : -1);
 
   const ticketsQuery =
     normalizedOrder === 'none'
@@ -1102,7 +1103,7 @@ const getMyTickets = async ({
           { $project: { priorityRank: 0 } },
         ]);
 
-  if (normalizedOrder === 'none' && normalizeTicketSortField(sortBy) === 'subject') {
+  if (normalizedOrder === 'none' && sortField === 'subject') {
     ticketsQuery.collation(SUBJECT_SORT_COLLATION);
   }
 
