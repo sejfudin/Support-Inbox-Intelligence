@@ -173,6 +173,11 @@ ticketSchema.set('toObject', { virtuals: true });
 
 ticketSchema.index({ status: 1, updatedAt: -1 });
 ticketSchema.index({ isArchived: 1, updatedAt: -1 });
+// The Archive page's default order: one workspace's archived tickets, most
+// recently archived first. Tickets archived before `archivedAt` existed simply
+// have no value for it — the service sorts those through an `$ifNull` fallback
+// rather than a migration, so this index is a read optimisation, not a contract.
+ticketSchema.index({ workspace: 1, isArchived: 1, archivedAt: -1 });
 ticketSchema.index({ workspace: 1, taskNumber: 1 });
 ticketSchema.index({ 'linkedPullRequest.prNumber': 1, workspace: 1 });
 module.exports = mongoose.model('Ticket', ticketSchema);

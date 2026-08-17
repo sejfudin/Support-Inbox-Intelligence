@@ -1,6 +1,45 @@
 import { useCallback, useEffect, useState } from 'react';
 
 /**
+ * Read a stored preference, for callers that need the value before first paint.
+ *
+ * A route redirect or a `useState` initialiser cannot wait for an effect — by
+ * the time one runs the redirect has already gone to the default. Those callers
+ * read straight through instead, and accept that the first render differs
+ * between browser profiles.
+ *
+ * @param {string} storageKey
+ * @param {*} defaultValue returned when nothing is stored, when the stored value
+ *   fails `isValid`, or when storage throws
+ * @param {(value: string) => boolean} isValid
+ */
+export function readStoredPreference(storageKey, defaultValue, isValid) {
+  try {
+    const stored = localStorage.getItem(storageKey);
+    return stored && isValid(stored) ? stored : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+/**
+ * The matching write, for callers that hold the value in their own state.
+ *
+ * Unvalidated on purpose: the caller already knows the value is one of its own,
+ * and a guard here would need the predicate passed in for no gain.
+ *
+ * @param {string} storageKey
+ * @param {string} value
+ */
+export function writeStoredPreference(storageKey, value) {
+  try {
+    localStorage.setItem(storageKey, value);
+  } catch {
+    /* ignore — private mode, disabled storage */
+  }
+}
+
+/**
  * A small UI preference that survives reloads, stored in `localStorage`.
  *
  * Same shape as the colour theme (`context/ThemeConfigContext.jsx`): read once on
@@ -25,12 +64,7 @@ export function useStoredPreference(storageKey, defaultValue, isValid) {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored && isValid(stored)) setValue(stored);
-    } catch {
-      /* ignore — private mode, disabled storage */
-    }
+    setValue(readStoredPreference(storageKey, defaultValue, isValid));
     // `isValid` is a module-level predicate at every call site; re-reading
     // storage when it changes identity would fight a caller that inlines it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -40,11 +74,7 @@ export function useStoredPreference(storageKey, defaultValue, isValid) {
     (next) => {
       if (!isValid(next)) return;
       setValue(next);
-      try {
-        localStorage.setItem(storageKey, next);
-      } catch {
-        /* ignore */
-      }
+      writeStoredPreference(storageKey, next);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [storageKey]
