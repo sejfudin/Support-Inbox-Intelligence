@@ -15,6 +15,7 @@ import { Loader2, Plus } from 'lucide-react';
 import { PR_STATE_CONFIG } from '@/components/PRCard';
 import PriorityIndicator from '@/components/PriorityIndicator';
 import AssigneesAvatar from '@/components/Tickets/AssigneesAvatar';
+import BlockedByChip from '@/components/Tickets/BlockedByChip';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,7 @@ function buildBoardTaskView(ticket, boardHelpers) {
     storyPoints: normalized.storyPoints,
     categoryLabel,
     linkedPullRequest: ticket.linkedPullRequest || null,
+    blockingTicket: ticket.blockedBy?.ticket || null,
     columnId: colId,
     updatedAt: ticket.updatedAt ?? null,
   };
@@ -112,6 +114,9 @@ const BoardTaskCardBody = memo(function BoardTaskCardBody({
               {prLabel}
             </Badge>
           ) : null}
+          {/* `onOpen` is "open ticket details for this id", so the chip reuses it
+              to open the blocker. It stops the click reaching the card itself. */}
+          <BlockedByChip blocker={task.blockingTicket} onOpenTicket={onOpen} />
         </div>
 
         <p className="line-clamp-2 text-sm font-semibold leading-tight text-foreground">

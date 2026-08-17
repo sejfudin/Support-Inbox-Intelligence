@@ -31,12 +31,6 @@ export default function BacklogPage() {
     setPage,
   } = useTicketList({ activeTab, additionalFilters: { archived: false, status: backlogStatus } });
 
-  const columns = createTicketColumns({
-    statusBadgeConfig: helpers.statusBadgeConfig,
-    statusIsDone: helpers.statusIsDone,
-    statusTracksTime: helpers.statusTracksTime,
-  });
-
   const {
     isNewOpen,
     initialStatus,
@@ -47,6 +41,13 @@ export default function BacklogPage() {
     openTicketDetails,
     closeTicketDetails,
   } = useTicketModals();
+
+  const columns = createTicketColumns({
+    statusBadgeConfig: helpers.statusBadgeConfig,
+    statusIsDone: helpers.statusIsDone,
+    statusTracksTime: helpers.statusTracksTime,
+    onOpenTicket: openTicketDetails,
+  });
   const { data: me } = useGetMe();
   const canCreateTicket = isAdmin(me?.role) || isMentor(me?.role) || isIntern(me?.role);
 
@@ -96,6 +97,7 @@ export default function BacklogPage() {
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
+        onOpenTicket={openTicketDetails}
       />
     </PageShell>
   );

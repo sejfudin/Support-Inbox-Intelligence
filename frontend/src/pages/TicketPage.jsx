@@ -399,8 +399,9 @@ export default function TicketPage() {
         statusIsDone: helpers.statusIsDone,
         statusTracksTime: helpers.statusTracksTime,
         hiddenColumns: ['status', 'totalTimeSpent'],
+        onOpenTicket: openTicketDetails,
       }),
-    [helpers, timeSpentTick]
+    [helpers, timeSpentTick, openTicketDetails]
   );
 
   const runWithListReset =
@@ -707,6 +708,7 @@ export default function TicketPage() {
         focusCommentId={focusCommentId}
         focusRequestToken={focusRequestToken}
         onFocusConsumed={handleFocusConsumed}
+        onOpenTicket={openTicketDetails}
       />
     </PageShell>
   );

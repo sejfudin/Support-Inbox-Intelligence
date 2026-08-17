@@ -42,8 +42,9 @@ caller's workspace.
   contents back. Every workspace-scoped reference a caller can set must be validated against the
   ticket's own workspace: `resolveStatusForWorkspace` (status),
   `ensureAssignableUsersBelongToWorkspace` (assignees), `ensureCategoryBelongsToWorkspace`
-  (category) in `ticketService.js`, on both create and update. Add the equivalent check when you
-  add a new reference field.
+  (category), `resolveBlockingTicket` (`blockedBy.ticket` — a ticket pointing at another ticket,
+  so the same rule turns inward) in `ticketService.js`, on both create and update. Add the
+  equivalent check when you add a new reference field.
 
 ## Socket rooms follow the same rule as HTTP
 

@@ -8,6 +8,17 @@ const statusService = require('./statusService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
 const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
 const { escapeRegex } = require('../helpers/escapeRegex');
+const { httpError } = require('../helpers/httpError');
+const {
+  CIRCULAR_BLOCKER_ERROR,
+  INVALID_BLOCKER_ERROR,
+  SELF_BLOCKER_ERROR,
+  describeBlockerChange,
+  isBlockedStatusSlug,
+  parseBlockerInput,
+  readBlocker,
+  resolveBlockerUpdate,
+} = require('../helpers/ticketBlocker');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -107,6 +118,43 @@ const applyCreatedAtPeriodFilter = (query, periodDays) => {
 };
 
 const STATUS_POPULATE_SELECT = 'slug label color isBacklog tracksTime isDone sortOrder';
+
+// Enough to render the blocker as a clickable reference (number, subject) and to
+// tell the reader whether it is still in their way (status, archived).
+const BLOCKER_POPULATE = {
+  path: 'blockedBy.ticket',
+  select: 'subject taskNumber isArchived status',
+  populate: { path: 'status', select: 'slug label color isDone' },
+};
+
+// The list variant, deliberately thinner: the board card and the table row show a
+// "Blocked by #12" chip and nothing else, so they pay for a number and a tooltip
+// per row rather than the blocker's own status document.
+const BLOCKER_LIST_POPULATE = {
+  path: 'blockedBy.ticket',
+  select: 'subject taskNumber',
+};
+
+// Aggregate equivalent of BLOCKER_LIST_POPULATE — the priority-ordered list sorts
+// in Mongo, and `$match`/`$lookup` know nothing about Mongoose populate. `$ifNull`
+// keeps the shape identical to the populate path for a ticket with no blocker,
+// instead of leaving the key missing on some rows and null on others.
+const blockerLookupStages = () => [
+  {
+    $lookup: {
+      from: 'tickets',
+      localField: 'blockedBy.ticket',
+      foreignField: '_id',
+      as: 'blockedByTicket',
+      pipeline: [{ $project: { taskNumber: 1, subject: 1 } }],
+    },
+  },
+  {
+    $set: {
+      'blockedBy.ticket': { $ifNull: [{ $first: '$blockedByTicket' }, null] },
+    },
+  },
+];
 
 const TICKET_SOCKET_EVENTS = {
   created: 'ticket:created',
@@ -273,6 +321,60 @@ const ensureCategoryBelongsToWorkspace = async ({ workspaceId, categoryId }) => 
   }
 };
 
+// Follows the chain the candidate blocker itself waits on. Two tickets each
+// claiming the other blocks them is not an error the database can catch, and it
+// reads as a deadlock nobody put there — so the link is refused at write time.
+// The walk is short in practice and bounded by `seen` against pre-existing loops.
+const assertNoBlockerCycle = async ({ ticketId, blockerTicketId }) => {
+  if (!ticketId) return; // A ticket being created cannot yet be in anyone's chain.
+
+  const target = String(ticketId);
+  const seen = new Set();
+  let cursor = String(blockerTicketId);
+
+  while (cursor) {
+    // The one-hop case (blocking itself) is refused earlier with a clearer
+    // message, so anything the walk finds is a genuine multi-ticket loop.
+    if (cursor === target) throw httpError(CIRCULAR_BLOCKER_ERROR, 400);
+    if (seen.has(cursor)) return;
+    seen.add(cursor);
+
+    const next = await Ticket.findById(cursor).select('blockedBy.ticket').lean();
+    cursor = next?.blockedBy?.ticket ? String(next.blockedBy.ticket) : null;
+  }
+};
+
+// A blocker may only point at a ticket from the same workspace — the same rule
+// (and the same reason) as `ensureCategoryBelongsToWorkspace`: without it a
+// caller could attach a foreign ticket id and read that workspace's subject and
+// task number back through the populated blocker.
+const resolveBlockingTicket = async ({ workspaceId, blockerTicketId, ticketId }) => {
+  if (!blockerTicketId) return null;
+
+  if (!workspaceId || !mongoose.Types.ObjectId.isValid(blockerTicketId)) {
+    throw httpError(INVALID_BLOCKER_ERROR, 400);
+  }
+
+  if (ticketId && String(ticketId) === String(blockerTicketId)) {
+    throw httpError(SELF_BLOCKER_ERROR, 400);
+  }
+
+  const blocker = await Ticket.findOne({ _id: blockerTicketId, workspace: workspaceId })
+    .select('_id taskNumber subject')
+    .lean();
+
+  if (!blocker) {
+    throw httpError(INVALID_BLOCKER_ERROR, 400);
+  }
+
+  await assertNoBlockerCycle({ ticketId, blockerTicketId: blocker._id });
+
+  return blocker;
+};
+
+const ticketRefLabel = (ticket) =>
+  ticket?.taskNumber ? `Ticket ${ticket.taskNumber}` : 'another ticket';
+
 const getAllTickets = async ({
   page = 1,
   limit = 10,
@@ -389,7 +491,8 @@ const getAllTickets = async ({
         .populate('status', STATUS_POPULATE_SELECT)
         .populate('creator', 'fullname email')
         .populate('assignedTo', 'fullname email role')
-        .populate('category'),
+        .populate('category')
+        .populate(BLOCKER_LIST_POPULATE),
       Ticket.countDocuments(query),
     ]);
   } else {
@@ -451,7 +554,8 @@ const getAllTickets = async ({
         },
         { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
         ...statusLookupStages(),
-        { $project: { priorityRank: 0 } },
+        ...blockerLookupStages(),
+        { $project: { priorityRank: 0, blockedByTicket: 0 } },
       ]),
       Ticket.countDocuments(query),
     ]);
@@ -473,7 +577,8 @@ const getTicketById = async (ticketId) => {
     .populate('status', STATUS_POPULATE_SELECT)
     .populate('assignedTo', 'fullname email role')
     .populate('creator', 'fullname email')
-    .populate('category');
+    .populate('category')
+    .populate(BLOCKER_POPULATE);
 
   if (!ticket) {
     throw new Error('Ticket not found');
@@ -536,6 +641,22 @@ const createTicket = async (ticketData) => {
     throw new Error('Subject details are required');
   }
 
+  // A blocker is only meaningful on a Blocked ticket; anything sent alongside a
+  // different status is dropped rather than stored for a state it doesn't describe.
+  const requestedBlocker = parseBlockerInput(ticketData.blockedBy);
+  const blockedBy = resolveBlockerUpdate({
+    isBlocked: isBlockedStatusSlug(statusDoc.slug),
+    requested: requestedBlocker,
+    current: { ticketId: null, note: '' },
+  });
+
+  const blockingTicket = blockedBy?.ticket
+    ? await resolveBlockingTicket({
+        workspaceId: ticketData.workspaceId,
+        blockerTicketId: blockedBy.ticket,
+      })
+    : null;
+
   const ticket = new Ticket({
     subject: sanitizedSubject,
     description: sanitizeDescriptionHtml(ticketData.description),
@@ -550,11 +671,20 @@ const createTicket = async (ticketData) => {
     inProgressAt: statusFlags.tracksTime ? new Date() : undefined,
     doneAt: statusFlags.isDone ? new Date() : undefined,
     ...(dueDate !== undefined ? { dueDate } : {}),
+    ...(blockedBy ? { blockedBy } : {}),
   });
 
   await ticket.save();
 
   historyService.logEvent(ticket._id, ticketData.creatorId, 'Ticket Created');
+
+  if (blockingTicket) {
+    historyService.logEvent(
+      ticket._id,
+      ticketData.creatorId,
+      `Blocked by ${ticketRefLabel(blockingTicket)}`
+    );
+  }
 
   const newlyAssignedUserIds = normalizeAssignedUserIds(ticketData.assignedTo);
   if (newlyAssignedUserIds.length > 0) {
@@ -569,6 +699,7 @@ const createTicket = async (ticketData) => {
     { path: 'status', select: STATUS_POPULATE_SELECT },
     { path: 'creator', select: 'fullName email' },
     { path: 'assignedTo', select: 'fullName email' },
+    BLOCKER_POPULATE,
   ]);
 
   emitTicketWorkspaceEvent({
@@ -615,6 +746,15 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     let statusChanged = false;
     let assigneesChanged = false;
     let newlyAssignedUserIds = [];
+    let nextStatusDoc = null;
+    let statusHistoryEntry = null;
+    let blockerHistoryEntries = [];
+
+    // Parsed before the update object is written so a malformed blocker fails the
+    // whole request rather than half of it. Removed from `updateData` either way:
+    // what gets stored is decided below, against the status the ticket ends up in.
+    const requestedBlocker = parseBlockerInput(updateData.blockedBy);
+    delete updateData.blockedBy;
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
       await ensureAssignableUsersBelongToWorkspace({
@@ -650,11 +790,10 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
         oldTicket.workspace,
         statusInput
       );
-      const newStatusSlug = statusDoc.slug;
+      nextStatusDoc = statusDoc;
       // Single fetch for the old status doc — replaces separate slug/label/flags
       // lookups that each independently re-fetched the same document.
       const oldStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
-      const oldStatusSlug = oldStatusDoc?.slug ? String(oldStatusDoc.slug).toLowerCase() : '';
 
       if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
         statusChanged = true;
@@ -685,14 +824,57 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
           now,
         });
 
-        historyService.logEvent(
-          ticketId,
-          actorUserId,
-          `Status changed from "${oldLabel}" to "${newLabel}"`
-        );
+        // Held, not logged yet. Everything after this point can still reject the
+        // request — the blocker validation below routinely does — and a rejected
+        // update that left "Status changed from X to Y" in the history would have
+        // the log claiming a move the database never made.
+        statusHistoryEntry = `Status changed from "${oldLabel}" to "${newLabel}"`;
       } else {
         delete updateData.status;
         delete updateData.statusId;
+      }
+    }
+
+    // Resolved against the status the ticket ENDS UP in, not the one it had: a
+    // ticket moving into Blocked can carry its blocker in the same request, and a
+    // ticket moving out of it loses the blocker whether or not the client said so.
+    // Skipped entirely for the common edit that neither sends a blocker nor has one.
+    const currentBlocker = readBlocker(oldTicket);
+    if (requestedBlocker !== undefined || currentBlocker.ticketId || currentBlocker.note) {
+      const effectiveStatusDoc =
+        nextStatusDoc || (await statusService.getStatusDocFromTicketRef(oldTicket.status));
+
+      const blockedBy = resolveBlockerUpdate({
+        isBlocked: isBlockedStatusSlug(effectiveStatusDoc?.slug),
+        requested: requestedBlocker,
+        current: currentBlocker,
+      });
+
+      if (blockedBy) {
+        const labels = new Map();
+
+        if (blockedBy.ticket) {
+          const blockingTicket = await resolveBlockingTicket({
+            workspaceId: oldTicket.workspace,
+            blockerTicketId: blockedBy.ticket,
+            ticketId,
+          });
+          labels.set(String(blockingTicket._id), ticketRefLabel(blockingTicket));
+        }
+
+        if (currentBlocker.ticketId && !labels.has(currentBlocker.ticketId)) {
+          const previousTicket = await Ticket.findById(currentBlocker.ticketId)
+            .select('taskNumber')
+            .lean();
+          labels.set(currentBlocker.ticketId, ticketRefLabel(previousTicket));
+        }
+
+        updateData.blockedBy = blockedBy;
+        blockerHistoryEntries = describeBlockerChange({
+          previous: currentBlocker,
+          next: blockedBy,
+          labelFor: (id) => labels.get(String(id)) || 'another ticket',
+        });
       }
     }
 
@@ -706,11 +888,18 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     )
       .populate('status', STATUS_POPULATE_SELECT)
       .populate('assignedTo', 'fullname email role')
-      .populate('creator', 'fullName');
+      .populate('creator', 'fullName')
+      .populate(BLOCKER_POPULATE);
 
     if (!ticket) {
       throw new Error('Ticket not found');
     }
+
+    if (statusHistoryEntry) {
+      historyService.logEvent(ticketId, actorUserId, statusHistoryEntry);
+    }
+
+    blockerHistoryEntries.forEach((entry) => historyService.logEvent(ticketId, actorUserId, entry));
 
     if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
       newlyAssignedUserIds = getNewAssigneeIds({
@@ -972,6 +1161,7 @@ const getMyTickets = async ({
           .populate('creator', 'fullname email')
           .populate('assignedTo', 'fullname email role')
           .populate('category')
+          .populate(BLOCKER_LIST_POPULATE)
       : Ticket.aggregate([
           { $match: castTicketQueryForAggregate(query) },
           {
@@ -1021,7 +1211,8 @@ const getMyTickets = async ({
           },
           { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
           ...statusLookupStages(),
-          { $project: { priorityRank: 0 } },
+          ...blockerLookupStages(),
+          { $project: { priorityRank: 0, blockedByTicket: 0 } },
         ]);
 
   const [tickets, total] = await Promise.all([ticketsQuery, Ticket.countDocuments(query)]);

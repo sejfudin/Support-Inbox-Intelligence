@@ -78,8 +78,9 @@ export default function UserDashboard() {
         statusBadgeConfig: helpers.statusBadgeConfig,
         statusIsDone: helpers.statusIsDone,
         statusTracksTime: helpers.statusTracksTime,
+        onOpenTicket: openTicketDetails,
       }),
-    [helpers, timeSpentTick]
+    [helpers, timeSpentTick, openTicketDetails]
   );
 
   const handleStatusChange = (ticketId, columnId) => {
@@ -166,6 +167,7 @@ export default function UserDashboard() {
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
+        onOpenTicket={openTicketDetails}
       />
     </PageShell>
   );

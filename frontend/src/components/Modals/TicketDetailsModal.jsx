@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Archive, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTicket, useUpdateTicket } from '@/queries/tickets';
@@ -15,6 +15,8 @@ import { useTicketPrActions } from '@/hooks/useTicketPrActions';
 import { useDescriptionImages } from '@/hooks/useDescriptionImages';
 import { useTicketDetailsFormState } from '@/hooks/useTicketDetailsFormState';
 import { exportTicketToCsv } from '@/helpers/ticketCsvExport';
+import { isBlockedStatusId, toBlockerPayload } from '@/helpers/ticketBlocker';
+import BlockedByField from '@/components/Tickets/BlockedByField';
 import TicketComments from '@/components/Tickets/TicketComments';
 import TicketHistory from '@/components/Tickets/TicketHistory';
 import { DeleteConfirmModal } from './DeleteConfirmModal';
@@ -32,6 +34,7 @@ export const TicketDetailsModal = ({
   focusCommentId = null,
   focusRequestToken = null,
   onFocusConsumed = null,
+  onOpenTicket = null,
 }) => {
   const { user } = useAuth();
   const { socket, isConnected } = useSocket();
@@ -75,6 +78,8 @@ export const TicketDetailsModal = ({
     setDueDateInput,
     currentCategory,
     setCurrentCategory,
+    currentBlocker,
+    setCurrentBlocker,
     priorityLockedByUser,
     storyPointsLockedByUser,
     updateField,
@@ -143,6 +148,23 @@ export const TicketDetailsModal = ({
     [helpers, currentStatus]
   );
 
+  // Follows the status picker, not the saved ticket: moving a ticket to Blocked
+  // reveals the panel straight away so the reason is recorded in the same edit.
+  const isBlockedSelected = isBlockedStatusId(helpers.allStatusOptions, currentStatus);
+
+  // Following the blocker swaps this modal onto the other ticket, which re-seeds
+  // the form — so an edit in progress is confirmed away rather than dropped.
+  const [pendingBlockerTicketId, setPendingBlockerTicketId] = useState(null);
+
+  const handleOpenBlockingTicket = (blockingTicketId) => {
+    if (!onOpenTicket || !blockingTicketId) return;
+    if (hasChanges) {
+      setPendingBlockerTicketId(blockingTicketId);
+      return;
+    }
+    onOpenTicket(blockingTicketId);
+  };
+
   useModalBehavior(isOpen, onClose);
 
   const archiveActions = useTicketArchiveActions(ticketId, onClose);
@@ -182,6 +204,9 @@ export const TicketDetailsModal = ({
           assignedTo: selectedAgents,
           dueDate: dueDateInput ? new Date(`${dueDateInput}T12:00:00`).toISOString() : null,
           category: currentCategory,
+          // Sent only while Blocked is selected. The server clears the stored
+          // blocker on any move out of Blocked, so there is nothing to send there.
+          ...(isBlockedSelected ? { blockedBy: toBlockerPayload(currentBlocker) } : {}),
         },
       },
       {
@@ -326,6 +351,19 @@ export const TicketDetailsModal = ({
             loadingLabel="Unlinking..."
           />
 
+          <DeleteConfirmModal
+            isOpen={Boolean(pendingBlockerTicketId)}
+            onClose={() => setPendingBlockerTicketId(null)}
+            onConfirm={() => {
+              const nextTicketId = pendingBlockerTicketId;
+              setPendingBlockerTicketId(null);
+              onOpenTicket?.(nextTicketId);
+            }}
+            title="Unsaved changes"
+            description="Opening the blocking ticket will discard the changes you have not saved on this one."
+            confirmLabel="Discard & open"
+          />
+
           {isArchived && (
             <div
               className="mb-6 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
@@ -389,6 +427,18 @@ export const TicketDetailsModal = ({
             </div>
 
             <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
+              {isBlockedSelected && (
+                <BlockedByField
+                  value={currentBlocker}
+                  onChange={setCurrentBlocker}
+                  workspaceId={workspaceId}
+                  currentTicketId={ticketId}
+                  disabled={isArchived}
+                  onOpenTicket={onOpenTicket ? handleOpenBlockingTicket : null}
+                  idPrefix={`ticket-${ticketId}-blocker`}
+                />
+              )}
+
               <TicketDetailsAccordion
                 isArchived={isArchived}
                 dueDateInput={dueDateInput}

@@ -124,6 +124,24 @@ const ticketSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Why this ticket can't move, recorded while it sits in the Blocked status.
+    // Both halves are optional and independent: `ticket` is another ticket in the
+    // SAME workspace (enforced in `ticketService`, same rule as `category`), and
+    // `note` covers the case where nothing on the board is the blocker. Cleared
+    // when the ticket leaves Blocked — see `helpers/ticketBlocker.js`.
+    blockedBy: {
+      ticket: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Ticket',
+        default: null,
+      },
+      note: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Blocker note cannot be more than 500 characters'],
+        default: '',
+      },
+    },
     linkedPullRequest: {
       type: {
         prNumber: {

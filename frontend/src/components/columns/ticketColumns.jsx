@@ -9,6 +9,7 @@ import { getTicketTimeSpentSeconds, isTicketTrackingTime } from '../../helpers/t
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import StoryPointsIndicator from '../StoryPointsIndicator';
+import BlockedByChip from '../Tickets/BlockedByChip';
 
 const stripHtml = (html) => {
   if (!html) return '';
@@ -25,6 +26,7 @@ export function createTicketColumns({
   statusTracksTime,
   variant = 'default',
   onRestore,
+  onOpenTicket,
   hiddenColumns = [],
 } = {}) {
   const columns = [
@@ -64,6 +66,14 @@ export function createTicketColumns({
                 />
               ) : null}
               <span className="truncate">{row.original.title}</span>
+              {/* Sits with the title rather than in its own column: it is a fact
+                  about this ticket's title row, and a column would be blank for
+                  almost every ticket on the board. */}
+              <BlockedByChip
+                blocker={row.original.blockedBy?.ticket}
+                onOpenTicket={onOpenTicket}
+                className="shrink-0"
+              />
             </div>
             <div
               className="line-clamp-1 text-sm text-muted-foreground break-words"

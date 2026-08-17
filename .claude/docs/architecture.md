@@ -47,6 +47,9 @@ AI: `AISummary`.
   that genuinely wants a new key passes `updates.slug`, which goes through the duplicate check and
   integration sync (`applyStatusSlugChange`). The consumers this protects, and the silent breakage
   regenerating the slug caused, are listed at `statusService.js#updateStatus`.
+- **`Ticket.blockedBy`** — `{ ticket, note }`, why a ticket can't move while it is Blocked. Both
+  halves optional and independent; only meaningful in the Blocked status, and cleared on the way
+  out of it. See "Ticket blockers" below.
 - `Daily` — one standup record per `(workspace, date)` (unique compound index), with embedded
   `entries` (one per reporting intern: `done`/`todo` text lists + `blockers`, each blocker an
   optional `linkedTicket` ref scoped to the same workspace). Pure edit-window/derived-count logic
@@ -54,6 +57,56 @@ AI: `AISummary`.
   (`getWorkspaceDailyOverview`/`getMemberDailyEntry` in `dailyService.js`, routed at
   `/api/dailies/admin/*`) derives a calendar-month reporting-coverage grid and per-member entry
   detail from the same documents — no new schema. See ADR-0001.
+
+## Ticket blockers
+
+Why a ticket can't move, recorded on the ticket itself while it sits in the **Blocked** status.
+`Ticket.blockedBy` = `{ ticket, note }`; rules in `server/helpers/ticketBlocker.js` (pure,
+unit-tested), carried out by `ticketService`. Frontend: `helpers/ticketBlocker.js` (a deliberate
+mirror of the same slug and note cap, since the two are separate packages) over
+`components/Tickets/{BlockedByField,BlockingTicketPicker}.jsx`.
+
+- **Two optional, independent halves.** `ticket` is another ticket in the same workspace; `note`
+  (≤ 500 chars, plain text) covers the case where nothing on the board is the blocker — waiting on
+  a client, a credential, an external release. Neither is required: "Blocked, reason not yet known"
+  is a normal state and the field says so rather than demanding an answer.
+- **"Blocked" is a slug, never a label.** Statuses are per-workspace and renameable, and a rename
+  deliberately keeps the slug, so the field follows a workspace that renames Blocked to "Stuck" and
+  disappears for one that deletes the status. `isBlockedStatusSlug` is the only test on both sides;
+  nothing compares labels.
+- **Leaving Blocked clears the blocker**, whether or not the client sent the field. A ticket that is
+  In progress while still advertising "blocked by Ticket 12" is simply stating something false, and
+  nobody goes back to tidy it up. The corollary: `blockedBy` is resolved against the status the
+  ticket **ends up** in, not the one it had, so a move into Blocked can carry its blocker in the
+  same request.
+- **An absent `blockedBy` means "leave it alone", not "clear it"** (`parseBlockerInput` returns
+  `undefined` vs `{ticketId: null, note: ''}`) — otherwise editing a title would wipe the blocker.
+- **Refused at write time**: a ticket from another workspace (`resolveBlockingTicket`, see
+  `.claude/docs/security.md`), itself, and any link that would close a cycle
+  (`assertNoBlockerCycle` walks the chain the candidate blocker waits on). Two tickets each claiming
+  the other blocks them is not something the database can catch and reads as a deadlock nobody put
+  there. Link and note changes are logged to `History` separately, since they move independently.
+- **Populated at two widths.** `BLOCKER_POPULATE` (single-ticket reads: create / update /
+  `getTicketById`) carries the blocker's subject, number, archived flag and its own status, so the
+  panel can show whether it is still in the way. `BLOCKER_LIST_POPULATE` — number and subject only —
+  rides the list endpoints, where a `Blocked by #12` chip is all that renders. The
+  priority-ordered list sorts in Mongo and gets the same shape from `blockerLookupStages()`, because
+  `$lookup` knows nothing about Mongoose populate; keep the two in step or the chip vanishes as soon
+  as a user sorts by priority.
+- The frontend panel mounts **only while Blocked is the selected status**, so its appearance is the
+  whole explanation for why it appeared. Switching the status away keeps what was typed (a misclick
+  shouldn't lose it) and the form filters it out on submit instead. The linked ticket renders as a
+  clickable reference wherever the host page passes `onOpenTicket` — the detail modal swaps onto that
+  ticket, confirming first if the current one has unsaved edits.
+- **`BlockedByChip`** is the list/board form of the same reference (`Blocked by #12`, next to the
+  title in `ticketColumns` and in the badge row on a board card). It opens the **blocking** ticket,
+  so it stops the click reaching the row/card underneath — which opens the ticket it sits on — and
+  stops `pointerdown` reaching the board's dnd-kit drag listeners. It renders nothing without a task
+  number (`blockedByChipLabel`): a note-only blocker has no reference to offer, and the row already
+  carries a Blocked badge.
+- **History for a status change is written after the update commits, not when it is decided.**
+  The blocker validation sits between the two and rejects routinely (cross-workspace, cycle), and an
+  entry written earlier would have the log claiming a move the database never made.
 
 ## Auth flow
 
@@ -784,5 +837,6 @@ vocabulary. Get the two "admin" meanings right.
 | **Recommendation** | An admin's placement proposal for an intern on a `Project`, moving `recommended → interviewing → resulted` with a separate `placed`/`not_placed` outcome. Mentors have no access. Each is resolved individually — resolving one never touches the intern's others. Pipeline KPIs count distinct interns, not recommendation records. |
 | **Staffing request** | Leadership's record of demand from outside the platform: a project needing N interns placed on it. Demand only — who is on a project is read off the recommendations tagged to it. |
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. A status's `slug` is its identity; a rename changes the label only. |
+| **Blocker** (`Ticket.blockedBy`) | Why a ticket can't move while it is **Blocked** — an optional ticket from the same workspace it waits on, plus an optional free-text note for when nothing on the board is the reason. Either half may be empty; both are cleared when the ticket leaves Blocked. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
 | **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |
