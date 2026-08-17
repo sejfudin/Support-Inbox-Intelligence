@@ -44,7 +44,7 @@ export default function MentorInternsPage() {
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="Future Experts Program"
+          crumb="Future Experts Program"
           title="My interns"
           subtitle="Interns assigned to you as primary or secondary mentor."
         />

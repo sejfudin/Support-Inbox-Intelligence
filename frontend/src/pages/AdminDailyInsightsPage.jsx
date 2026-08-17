@@ -91,7 +91,7 @@ export default function AdminDailyInsightsPage() {
     <PageShell>
       <PageSection className="space-y-5">
         <PageHeading
-          kicker="Admin"
+          crumb="Admin"
           title="Daily Standup Insights"
           subtitle="Who reported today, and how a workspace's standup coverage looks over the month."
           titleAdornment={<Badge variant="outline">Read-only</Badge>}

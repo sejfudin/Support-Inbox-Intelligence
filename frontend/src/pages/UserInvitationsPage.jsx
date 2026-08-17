@@ -54,7 +54,7 @@ export default function UserInvitationsPage() {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Workspace"
+          crumb="Workspace"
           title="Invitations"
           subtitle="Review and respond to workspace invitations sent to you."
         />

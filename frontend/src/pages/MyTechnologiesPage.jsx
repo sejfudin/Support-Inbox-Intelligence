@@ -10,7 +10,7 @@ const MyTechnologiesPage = () => {
       <PageSection className="space-y-6">
         <div className="mx-auto w-full max-w-3xl space-y-6">
           <PageHeading
-            kicker="Internship"
+            crumb="Internship"
             title="Position & Technologies"
             subtitle="Declare your main position and the technologies you are working toward. Your mentor will assess your readiness for each technology."
           />

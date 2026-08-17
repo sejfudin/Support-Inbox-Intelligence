@@ -16,7 +16,7 @@ export default function AdminReferenceDataPage() {
       <PageShell>
         <PageSection className="space-y-6">
           <PageHeading
-            kicker="Administration"
+            crumb="Administration"
             title="Platform Management"
             subtitle="Manage hubs, internship types, positions, technologies, and projects used across the platform."
           />

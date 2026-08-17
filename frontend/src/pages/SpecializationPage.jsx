@@ -133,7 +133,7 @@ export default function SpecializationPage() {
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="Programme management"
+          crumb="Programme management"
           title="Specialization"
           subtitle="Confirm an intern's focus position and pair them with a dedicated mentor."
           actions={

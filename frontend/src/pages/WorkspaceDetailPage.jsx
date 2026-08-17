@@ -268,7 +268,7 @@ export default function WorkspaceDetailPage() {
         </button>
 
         <PageHeading
-          kicker="Workspace management"
+          crumb="Workspace management"
           title={
             <span className="inline-flex items-center gap-2">
               <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">

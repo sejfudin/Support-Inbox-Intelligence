@@ -71,13 +71,48 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   no `text-[#171b2b]`. A literal only renders correctly in one of the two themes, and it also
   opts the component out of the `data-theme` palette picker. This is not stylistic: the
   recommendations feature shipped as hardcoded hexes and rendered a white card on a dark page.
-  - Two exceptions. Semantic status tints (amber / emerald / red for interviewing / placed /
-    failed) have no tokens, so use the Tailwind palette **with an explicit `dark:` variant** —
-    `bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300`. Alpha overlays on a
-    coloured gradient (hero cards) may use `bg-white/10`, `text-white/80` — they sit on a fill
-    that is dark in both themes.
   - Need a high-contrast surface that flips with the theme (tooltips)? Use `bg-foreground` +
     `text-background` rather than a fixed near-black.
+  - Alpha overlays on a coloured gradient (hero cards) may use `bg-white/10`, `text-white/80` —
+    they sit on a fill that is dark in both themes.
+
+### The foundation tokens (`src/index.css`)
+
+Two token layers, and which file a token lives in tells you what it is for. **Palette** is
+`src/styles/themes.css`, mapped into Tailwind's theme by `tailwind.config.js` — that is what makes
+`bg-card` work. **Status tone, geometry, size and rhythm** are `src/index.css`, deliberately *not*
+mapped into `tailwind.config.js`: they are read through arbitrary-value syntax
+(`rounded-[var(--r-card)]`, `h-[var(--h-md)]`, `text-[length:var(--fs-control)]`,
+`bg-[hsl(var(--tone-success))]`) so one declaration can move every control at once.
+
+- **`--tone-{success,info,warning,danger,orange,cyan,violet,indigo}`** plus a `-fg` variant each —
+  the semantic status tints. **These now exist, so status colour goes through them**, not through
+  the raw Tailwind palette: `bg-[hsl(var(--tone-success))]`, `text-[hsl(var(--tone-warning-fg))]`.
+  Values are HSL channel triples, so `hsl(var(--tone-success) / 0.16)` gives you an alpha of the
+  same tone. Call sites written before the tones existed still use the raw palette with a `dark:`
+  variant (`bg-amber-50 … dark:bg-amber-500/15`); those are migrated as they are touched, not swept
+  — but do not add new ones.
+  - **This is what makes the accessibility switches work, and it is the reason to use them.**
+    `:root[data-colorblind='redgreen'|'blueyellow'|'grayscale']` in `index.css` redefines the whole
+    tone set; `data-contrast='high'` and `data-ui-scale` sit alongside. A hardcoded emerald stays
+    emerald under a grayscale palette while every token beside it goes grey — which is worse than
+    either choice on its own, because the one un-migrated element now reads as the meaningful one.
+    `helpers/scoreBand.js` is the reference for both forms (Tailwind classes and raw `hsl()` for a
+    conic-gradient, which cannot take a class).
+- **Geometry — `--r-badge|control|tile|card|pill`, `--h-sm|md|lg`, `--h-field`,
+  `--px-sm|md|lg`, `--card-pad`, `--row-pad`, `--stack-gap`, `--control-gap`.** A literal `h-8` or
+  `rounded-lg` on a shared control is a bug: `[data-density='compact']` implements the density
+  preference **entirely** by redefining these, so a control with baked-in numbers stays comfortable
+  height while its row goes compact. No `compact` prop is threaded anywhere and nothing is scaled
+  with a transform.
+- **Type — `--fs-badge|hint|control|row-title|card-title|page-title`.** These deliberately do **not**
+  move with density; compact must not drop text below 11px.
+- **Prefer the `.app-*` component classes over re-deriving a token stack.** `.app-panel`,
+  `.app-panel-soft`, `.app-card-head`, `.app-card-title`, `.app-table-{head,cell,row,scroll}`,
+  `.app-chip`, `.app-stat-value`, `.app-page-header`, `.app-crumb`, `.app-title`, `.app-subtitle`,
+  `.ui-focus-ring` (all in `index.css`'s `@layer components`). They exist so a panel, a table row or
+  a focus ring cannot drift between two features — `ui-focus-ring` in particular is one treatment for
+  every control in `components/ui/`.
 - **Forms**: React Hook Form + Zod.
 
 ## Formatting
