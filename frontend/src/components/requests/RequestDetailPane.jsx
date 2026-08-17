@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Ban, FolderPlus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
 import {
   getPositionProgressRows,
@@ -13,21 +12,31 @@ import {
 import { buildTechnologyIndex } from '@/helpers/technologyIcons';
 import { useTechnologies } from '@/queries/technologies';
 import { countStagedPicks } from '@/hooks/useStagedPicks';
-import { AdminRequestSeatGroup } from './AdminRequestSeatGroup';
-import { CloseRequestDialog } from './CloseRequestDialog';
-import { RequestClosure } from './RequestClosure';
-import { RequestNote } from './RequestNote';
-import { RequestStatusBadge } from './RequestStatusBadge';
-import { ResolveProjectDialog } from './ResolveProjectDialog';
-import { formatDay, getNeededBy, getRequestBlocker, getRequestTitle } from './requestPresentation';
+import { SeatGroup } from '@/components/requests/SeatGroup';
+import { RequestStatusChip } from '@/components/requests/RequestStatusChip';
+import { RequestClosurePanel, RequestNoteCard } from '@/components/requests/RequestNoteCard';
+import { CloseRequestDialog } from '@/components/symphony/requests/CloseRequestDialog';
+import { ResolveProjectDialog } from '@/components/symphony/requests/ResolveProjectDialog';
+import {
+  formatDay,
+  getNeededBy,
+  getRequestBlocker,
+  getRequestTitle,
+} from '@/components/symphony/requests/requestPresentation';
+
+const NOTICE_TONE = {
+  warning:
+    'border-[hsl(var(--tone-warning)/0.35)] bg-[hsl(var(--tone-warning)/0.1)] text-[hsl(var(--tone-warning-fg))]',
+  success:
+    'border-[hsl(var(--tone-success)/0.35)] bg-[hsl(var(--tone-success)/0.1)] text-[hsl(var(--tone-success-fg))]',
+  info: 'border-[hsl(var(--tone-info)/0.35)] bg-[hsl(var(--tone-info)/0.1)] text-[hsl(var(--tone-info-fg))]',
+};
 
 const Blocker = ({ blocker, action }) => (
   <div
     className={cn(
-      'symphony-notice',
-      blocker.tone === 'warning' && 'symphony-notice-warning',
-      blocker.tone === 'success' && 'symphony-notice-success',
-      blocker.tone === 'info' && 'symphony-notice-info'
+      'flex items-start gap-2.5 rounded-[var(--r-card)] border px-3.5 py-3 text-[12.5px]',
+      NOTICE_TONE[blocker.tone] ?? NOTICE_TONE.info
     )}
     data-test="request-blocker"
   >
@@ -41,9 +50,9 @@ const Blocker = ({ blocker, action }) => (
 
 /**
  * The admin's side of a staffing request. Leadership's detail pane asks and
- * watches; this one fills seats and sends an answer, so the two no longer share
- * a component — the shared one (`RequestDetail`) stays exactly as leadership
- * needs it.
+ * watches; this one fills seats and sends an answer, so the two do not share a
+ * component — leadership's (`symphony/requests/RequestDetail`) stays exactly as
+ * its own shell needs it.
  *
  * Picking writes nothing until `Submit to leadership`. Picks are staged into the
  * page's cart, and the submit sends the whole cart as one act: one insert, one
@@ -51,9 +60,13 @@ const Blocker = ({ blocker, action }) => (
  *
  * The two ways an admin ends a request live here too — close as fulfilled, and
  * decline — because both are admin-only. Cancelling is leadership's and is
- * absent from this screen (see `RequestActions`).
+ * absent from this screen.
+ *
+ * Drawn with app tokens (`app-card`, `--tone-*`, `--primary`), not the symphony
+ * surface: this page lives in the sidebar shell beside Attendance and Platform
+ * Management, and it should read as one of them.
  */
-export function AdminRequestDetail({
+export function RequestDetailPane({
   request,
   cart,
   onArm,
@@ -67,11 +80,12 @@ export function AdminRequestDetail({
   // admin owns both of those reasons; cancelling belongs to leadership and is
   // absent from this screen entirely.
   const [closeReason, setCloseReason] = useState(null);
-  // Which cards the admin has opened or closed by hand, `{ [positionId]: bool }`.
+  // Which cards the admin opened or closed by hand, `{ [positionId]: bool }`.
   // Absent means closed: every position starts compact, and the roster behind it
   // is opened on request. A request with four positions is then four readable
   // lines rather than a pane the admin has to scroll to see what it asked for.
   const [expandOverrides, setExpandOverrides] = useState({});
+
   const rows = getPositionProgressRows(request);
   const blocker = getRequestBlocker(request);
   const totals = getRequestTotals(request);
@@ -80,17 +94,6 @@ export function AdminRequestDetail({
   const isOpen = request.status !== 'closed';
   const needsProject = isAwaitingProject(request);
   const canStage = isOpen && !needsProject;
-
-  // One action slot, one action in it. A request that still names a project
-  // nobody created cannot be answered at all, so resolving it *is* the next
-  // step — offering both buttons made the admin choose between a live control
-  // and a dead one. The reason it is dead is not spelled out next to the button
-  // either: the blocker banner below already says it, in more words than a
-  // button caption has room for.
-  //
-  // Nor is the empty cart: a disabled "Submit to leadership" beside seat cards
-  // that each offer "Add candidates" is already the whole story, and a sentence
-  // repeating it just crowded the header.
 
   // Only for the technology logos on the position headers — rows carry names, and
   // the icon map keys off slugs. Shared, long-cached query.
@@ -125,25 +128,25 @@ export function AdminRequestDetail({
     setExpandOverrides(Object.fromEntries(rows.map((row) => [row.id, !anyExpanded])));
 
   return (
-    <SymphonyCard className="space-y-5">
-      {/* Title first, and the filing details demoted to the line above it. The
-          request is identified by its project, not by its status — the status is
-          one fact about it, so it rides along with who filed it and when. */}
+    <div className="app-card space-y-5 p-4 md:p-5">
+      {/* Title first, filing details demoted to the line above it. The request is
+          identified by its project, not by its status — the status is one fact
+          about it, so it rides along with who filed it and when. */}
       <div
         className="flex flex-wrap items-start justify-between gap-3"
         data-test={`request-detail-${request.id}`}
       >
         <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <RequestStatusBadge request={request} />
-            <p className="text-sm text-muted-foreground">
+            <RequestStatusChip request={request} />
+            <p className="text-[12.5px] text-muted-foreground">
               {`Filed ${formatDay(request.createdAt) ?? '—'}`}
               {request.author?.fullname && ` by ${request.author.fullname}`}
             </p>
             {request.project?._id && (
               <Link
                 to={`/projects/${request.project._id}`}
-                className="symphony-link inline-flex items-center gap-0.5 text-sm"
+                className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-primary hover:underline"
               >
                 View project
                 <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -158,7 +161,7 @@ export function AdminRequestDetail({
           {/* One line for where the request stands. `placed of wanted` leads
               because it is the only number that says whether the ask is answered
               — the rest are steps on the way there. */}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[12.5px] text-muted-foreground">
             <span className="font-semibold text-foreground">
               {totals.placed} of {totals.wanted}
             </span>
@@ -167,25 +170,28 @@ export function AdminRequestDetail({
             {stagedCount > 0 && (
               <>
                 {' · '}
-                <span className="font-semibold text-[hsl(var(--symphony-brand-ink))]">
-                  {stagedCount} staged
-                </span>
+                <span className="font-semibold text-primary">{stagedCount} staged</span>
               </>
             )}
             {' · '}
-            <span className={cn(neededBy.overdue && 'symphony-date-urgent')}>
+            <span
+              className={cn(neededBy.overdue && 'font-semibold text-[hsl(var(--tone-danger-fg))]')}
+            >
               {neededBy.missing ? 'no needed-by date' : `due ${neededBy.short}`}
               {neededBy.sub && ` · ${neededBy.sub}`}
             </span>
           </p>
         </div>
 
-        {/* `RequestActions` is leadership's — its edit / cancel / resolve set is
-            written around `canManage` and the viewer's role. The admin pane has
-            one primary action at a time, so it renders its own slot. */}
+        {/* One action slot, one action in it. A request that still names a project
+            nobody created cannot be answered at all, so resolving it *is* the next
+            step — offering both buttons made the admin choose between a live
+            control and a dead one. Why it is dead is not spelled out beside the
+            button either: the blocker banner below already says it, in more words
+            than a button caption has room for. */}
         <div className="flex flex-col items-end gap-1.5">
           {!isOpen ? (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[11.5px] text-muted-foreground">
               Locked · {getRequestLockLabel(request).toLowerCase()}
               {request.closedBy?.fullname && ` by ${request.closedBy.fullname}`}
             </span>
@@ -248,35 +254,31 @@ export function AdminRequestDetail({
         />
       )}
 
-      {/* See `RequestDetail` for why a decline's note is withheld here: the
-          closure panel at the foot of the card is already showing that text. */}
-      {(isOpen || request.reason === 'cancelled') && <RequestNote request={request} />}
+      {/* A decline's note is withheld here: the closure panel at the foot of the
+          card is already showing that same text. */}
+      {(isOpen || request.reason === 'cancelled') && <RequestNoteCard request={request} />}
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
-            Seats asked for
-          </p>
+          <p className="app-crumb">Seats asked for</p>
           {rows.length > 1 && (
             <button
               type="button"
               onClick={toggleAll}
-              className="text-xs font-medium text-[hsl(var(--symphony-brand-ink))] hover:underline"
+              className="text-[12px] font-medium text-primary hover:underline"
               data-test="toggle-all-positions"
             >
               {anyExpanded ? 'Collapse all' : 'Expand all'}
             </button>
           )}
         </div>
-        {/* One card per requested position, each opening and closing on its own.
-            A divided list read as a single long form; these are the units of the
-            work. */}
-        <div className="space-y-3">
+
+        <div className="space-y-2.5">
           {rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No positions on this request.</p>
+            <p className="text-[12.5px] text-muted-foreground">No positions on this request.</p>
           ) : (
             rows.map((row) => (
-              <AdminRequestSeatGroup
+              <SeatGroup
                 key={row.id}
                 row={row}
                 stagedPicks={cart[row.id] ?? []}
@@ -295,27 +297,24 @@ export function AdminRequestDetail({
 
       {/* How it ended, for a request that has. Replaces the history trail, which
           listed the close as one event among equals and never said why. */}
-      <RequestClosure request={request} />
+      <RequestClosurePanel request={request} />
 
       {/* Answering "no" lives in its own footer, past the seats, rather than
           beside the primary action. Two reasons: it applies whichever action is
           in the slot — including on a request that still needs a project, which
-          is exactly when an admin wants to decline and where the server allows
-          it (only `fulfilled` is refused on a draft project) — and a destructive
-          control directly beside "Submit 3 picks to leadership" is a misclick
-          waiting to happen.
-          Reached only after scrolling past what was asked for, which is the
-          right order for refusing it. The prompt on the left is what makes the
-          button legible on its own down here: without it, an outlined red
-          control under a list of seats has to be guessed at. */}
+          is exactly when an admin wants to decline and where the server allows it
+          — and a destructive control directly beside "Submit 3 picks to
+          leadership" is a misclick waiting to happen.
+          Reached only after scrolling past what was asked for, which is the right
+          order for refusing it. The prompt on the left is what makes the button
+          legible on its own down here. */}
       {isOpen && (
-        <div className="-mx-5 -mb-5 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-b-[inherit] border-t border-border/60 px-5 py-4 md:-mx-6 md:-mb-6 md:px-6">
-          <p className="text-sm text-muted-foreground">Can’t staff this one?</p>
+        <div className="-mx-4 -mb-4 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-b-[inherit] border-t border-separator px-4 py-3.5 md:-mx-5 md:-mb-5 md:px-5">
+          <p className="text-[12.5px] text-muted-foreground">Can’t staff this one?</p>
           {/* Outlined rather than red-on-white. It is destructive, but it sits
               alone in a footer with a prompt beside it — the weight it needed was
-              "deliberate", not "alarming", and a red control down here competed
-              with the overdue dates further up the pane. The destructive colour
-              arrives on hover, where the click is actually about to happen. */}
+              "deliberate", not "alarming". The destructive colour arrives on
+              hover, where the click is about to happen. */}
           <Button
             type="button"
             variant="outline"
@@ -329,6 +328,6 @@ export function AdminRequestDetail({
           </Button>
         </div>
       )}
-    </SymphonyCard>
+    </div>
   );
 }

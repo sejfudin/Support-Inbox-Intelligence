@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useProjectOverview } from '@/queries/projects';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { getInitials } from '@/helpers/initials';
 import {
   getOutcomeHistoryTone,
@@ -67,6 +68,7 @@ function PersonAvatar({ fullname, className }) {
 export default function LeadershipProjectPage() {
   const { id } = useParams();
   const { data, isPending, isError } = useProjectOverview(id);
+  useDocumentTitle(data?.project?.name);
   const [requestOpen, setRequestOpen] = useState(false);
 
   const placedRef = useRef(null);
@@ -82,7 +84,7 @@ export default function LeadershipProjectPage() {
   if (isError || !data?.project) {
     return (
       <SymphonyCard className="space-y-4">
-        <p className="text-sm text-destructive">Unable to load this project.</p>
+        <p className="text-sm text-[hsl(var(--tone-danger-fg))]">Unable to load this project.</p>
         <Link to="/projects" className="text-sm font-medium text-primary hover:underline">
           Back to projects
         </Link>

@@ -244,7 +244,7 @@ export function ResolveProjectDialog({ open, onOpenChange, request }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold">
-                    Name <span className="text-destructive">*</span>
+                    Name <span className="text-[hsl(var(--tone-danger-fg))]">*</span>
                   </Label>
                   <input
                     value={draft.name}
@@ -285,7 +285,7 @@ export function ResolveProjectDialog({ open, onOpenChange, request }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className="text-sm font-semibold">
-                    Type <span className="text-destructive">*</span>
+                    Type <span className="text-[hsl(var(--tone-danger-fg))]">*</span>
                   </Label>
                   <Select
                     value={draft.type}

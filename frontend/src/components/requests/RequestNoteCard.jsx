@@ -1,8 +1,52 @@
 import { Ban, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLES } from '@/helpers/roles';
+import { getAvatarColor } from '@/helpers/avatarColor';
 import { getInitials } from '@/helpers/staffingRequests';
-import { formatDay } from './requestPresentation';
+import { formatDay } from '@/components/symphony/requests/requestPresentation';
+
+const Avatar = ({ name }) => (
+  <span
+    className={cn(
+      'grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10.5px] font-bold',
+      getAvatarColor(name || '')
+    )}
+    aria-hidden="true"
+  >
+    {getInitials(name || '')}
+  </span>
+);
+
+/**
+ * The admin's one remark on a request, for anything leadership should know that
+ * the suggested candidates don't say.
+ *
+ * Read-only everywhere, by design and not by omission: the note is written once,
+ * by the admin who answers the request, as the reason they fulfilled or declined
+ * it. There is no route to revise it afterwards — a closed request is a fixed
+ * record (ADR 0005) — and it is one note, never a thread, so there is no edit
+ * and no reply affordance.
+ */
+export function RequestNoteCard({ request }) {
+  const note = request.note?.trim();
+  if (!note) return null;
+
+  return (
+    <section className="space-y-2" data-test="request-note">
+      <p className="app-crumb">Note from the admin</p>
+      <div className="flex gap-3 rounded-[var(--r-card)] border border-border bg-muted/30 p-3.5">
+        <Avatar name={request.noteBy?.fullname} />
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="whitespace-pre-wrap text-[13px] leading-6 text-foreground">{note}</p>
+          <p className="text-[11.5px] text-muted-foreground">
+            {request.noteBy?.fullname ?? 'An admin'}
+            {request.noteAt && ` · ${formatDay(request.noteAt)}`}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 // Which side ended the request, in the words each shell's readers use. Read off
 // `closedBy.role` rather than inferred from the reason: the rule is one-per-side
@@ -18,13 +62,12 @@ const actorSide = (request) => {
 
 // One entry per close reason: how it is announced, whose text explains it, and
 // how it reads. `cancelled` is the demand going away, `declined` is the
-// programme refusing it — different sides, different fields, and never the same
+// programme refusing it — different sides, different fields, never the same
 // sentence.
 const CLOSURE = {
   cancelled: {
     Icon: Ban,
     eyebrow: 'Cancelled',
-    // The ask was withdrawn from the outside in, so the actor is the subject.
     headline: (side) => (side ? `Withdrawn by ${side}` : 'The ask was withdrawn'),
     // A cancellation reason lives in `closeNote` precisely so withdrawing an ask
     // can never overwrite what an admin said about it.
@@ -36,7 +79,7 @@ const CLOSURE = {
     Icon: XCircle,
     eyebrow: 'Declined',
     headline: (side) => (side ? `Refused by ${side}` : 'The request was refused'),
-    // A decline's reason IS the admin's remark — mandatory, and stored as `note`.
+    // A decline's reason IS the admin's remark — mandatory, stored as `note`.
     text: (request) => request.note,
     missing: 'No reason was recorded for the refusal.',
     tone: 'danger',
@@ -57,9 +100,8 @@ const CLOSURE = {
  * This is what a closed request has left to say, and it replaced the history
  * trail at the bottom of both panes. The trail listed every event equally —
  * filed, project resolved, put forward, closed — which buried the one fact a
- * reader opens a closed request for. It also said *that* it was cancelled
- * without ever saying *why*, while the reason sat in a quiet two-line section
- * further up the card.
+ * reader opens a closed request for, and it said *that* it was cancelled without
+ * ever saying *why*.
  *
  * Naming the side matters more than naming the person: "withdrawn by leadership"
  * and "refused by the admin team" are different events with different
@@ -67,7 +109,7 @@ const CLOSURE = {
  * that exchange. The person is named underneath, because someone will need to go
  * and ask them.
  */
-export function RequestClosure({ request }) {
+export function RequestClosurePanel({ request }) {
   if (request?.status !== 'closed') return null;
 
   const closure = CLOSURE[request.reason];
@@ -76,51 +118,40 @@ export function RequestClosure({ request }) {
   const side = actorSide(request);
   const text = closure.text(request)?.trim();
   const closedOn = formatDay(request.closedAt);
+  const isDanger = closure.tone === 'danger';
+  const toneText = isDanger ? 'text-[hsl(var(--tone-danger-fg))]' : 'text-[hsl(var(--tone-success-fg))]';
 
   return (
     <section
       className={cn(
-        'space-y-3 rounded-xl border-l-4 p-4',
-        closure.tone === 'danger' && 'border-l-destructive bg-destructive/5',
-        closure.tone === 'success' &&
-          'border-l-emerald-600 bg-emerald-500/5 dark:border-l-emerald-400 dark:bg-emerald-400/10'
+        'space-y-3 rounded-[var(--r-card)] border-l-4 p-3.5',
+        isDanger
+          ? 'border-l-destructive bg-destructive/5'
+          : 'border-l-[hsl(var(--tone-success))] bg-[hsl(var(--tone-success)/0.07)]'
       )}
       data-test={`request-closure-${request.reason}`}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <closure.Icon
-          className={cn(
-            'h-4 w-4 shrink-0',
-            closure.tone === 'danger' && 'text-[hsl(var(--tone-danger-fg))]',
-            closure.tone === 'success' && 'text-emerald-600 dark:text-emerald-400'
-          )}
-          aria-hidden="true"
-        />
-        <p
-          className={cn(
-            'text-[0.6875rem] font-semibold uppercase tracking-wide',
-            closure.tone === 'danger' && 'text-[hsl(var(--tone-danger-fg))]',
-            closure.tone === 'success' && 'text-emerald-600 dark:text-emerald-400'
-          )}
-        >
+        <closure.Icon className={cn('h-4 w-4 shrink-0', toneText)} aria-hidden="true" />
+        <p className={cn('text-[11px] font-semibold uppercase tracking-wide', toneText)}>
           {closure.eyebrow}
         </p>
-        <p className="text-sm font-semibold text-foreground">{closure.headline(side)}</p>
-        {closedOn && <p className="text-xs text-muted-foreground">· {closedOn}</p>}
+        <p className="text-[13px] font-semibold text-foreground">{closure.headline(side)}</p>
+        {closedOn && <p className="text-[11.5px] text-muted-foreground">· {closedOn}</p>}
       </div>
 
       {text ? (
-        <p className="whitespace-pre-wrap text-base leading-7 text-foreground">{text}</p>
+        <p className="whitespace-pre-wrap text-[13.5px] leading-7 text-foreground">{text}</p>
       ) : (
-        closure.missing && <p className="text-sm italic text-muted-foreground">{closure.missing}</p>
+        closure.missing && (
+          <p className="text-[12.5px] italic text-muted-foreground">{closure.missing}</p>
+        )
       )}
 
       {request.closedBy?.fullname && (
         <div className="flex items-center gap-2">
-          <span className="symphony-suggestion-avatar" aria-hidden="true">
-            {getInitials(request.closedBy.fullname)}
-          </span>
-          <p className="text-xs text-muted-foreground">
+          <Avatar name={request.closedBy.fullname} />
+          <p className="text-[11.5px] text-muted-foreground">
             {request.closedBy.fullname}
             {request.closedBy.role && ` · ${request.closedBy.role}`}
           </p>
