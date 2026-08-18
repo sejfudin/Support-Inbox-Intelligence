@@ -1,25 +1,11 @@
 const userPreferenceService = require('../services/userPreferenceService');
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 /**
  * The signed-in user's own UI preferences. Scoped to `req.user` and nothing
  * else — there is no id in the path, so one account can never read or write
  * another's.
  */
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-
-  if (error.name === 'ValidationError') {
-    const message = Object.values(error.errors)
-      .map((err) => err.message)
-      .join(', ');
-    return res.status(400).json({ success: false, message });
-  }
-
-  next(error);
-};
 
 exports.getMyPreferences = async (req, res, next) => {
   try {

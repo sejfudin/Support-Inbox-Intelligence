@@ -48,6 +48,11 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   - An error with **no** `statusCode` is by definition unexpected (a `CastError`, a driver timeout)
     and must fall through to Express as a 500 — that fall-through is what keeps internal detail out
     of responses, so don't give every error a status just to be tidy.
+  - **The catch block itself** — `handleControllerError` from `helpers/controllerError.js`, imported
+    as `handleError`. It maps the three cases above and emits the documented envelope. Don't write a
+    local copy: there were eleven, in six shapes that disagreed on `success: false`, on whether a
+    Mongoose `ValidationError` answered 400 or 500, and on passing `error.data` through.
+    `attachmentImage.js` is the one deliberate exception — it serves image bytes and has no `next`.
 - **Constants** in `server/constants/` (e.g. `roles.js`). Don't hardcode role strings — import `ROLES`.
 
 ## Frontend

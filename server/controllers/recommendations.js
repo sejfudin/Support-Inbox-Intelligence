@@ -1,19 +1,5 @@
 const recommendationService = require('../services/recommendationService');
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-
-  if (error.name === 'ValidationError') {
-    const message = Object.values(error.errors)
-      .map((err) => err.message)
-      .join(', ');
-    return res.status(400).json({ message });
-  }
-
-  next(error);
-};
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 exports.listRecommendations = async (req, res, next) => {
   try {

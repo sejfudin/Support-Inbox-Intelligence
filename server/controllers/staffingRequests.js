@@ -1,23 +1,5 @@
 const staffingRequestService = require('../services/staffingRequestService');
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({
-      success: false,
-      message: error.message,
-      ...(error.data ? { data: error.data } : {}),
-    });
-  }
-
-  if (error.name === 'ValidationError') {
-    const message = Object.values(error.errors)
-      .map((err) => err.message)
-      .join(', ');
-    return res.status(400).json({ success: false, message });
-  }
-
-  next(error);
-};
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 exports.listStaffingRequests = async (req, res, next) => {
   try {

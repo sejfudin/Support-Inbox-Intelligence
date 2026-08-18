@@ -6,13 +6,7 @@ const evaluationService = require('../services/evaluationService');
 const readinessFlagService = require('../services/readinessFlagService');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-  next(error);
-};
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 exports.listInterns = async (req, res, next) => {
   try {
@@ -181,7 +175,7 @@ exports.deleteMyCv = async (req, res, next) => {
 exports.getCvSummary = async (req, res, next) => {
   try {
     const summary = await internCvSummaryService.getCvSummary(req.user, req.params.userId);
-    res.json(summary);
+    res.json({ success: true, message: 'CV summary retrieved', data: summary });
   } catch (error) {
     handleError(res, error, next);
   }
@@ -190,7 +184,7 @@ exports.getCvSummary = async (req, res, next) => {
 exports.generateCvSummary = async (req, res, next) => {
   try {
     const summary = await internCvSummaryService.generateCvSummary(req.user, req.params.userId);
-    res.json(summary);
+    res.json({ success: true, message: 'CV summary generated', data: summary });
   } catch (error) {
     handleError(res, error, next);
   }
