@@ -3,9 +3,7 @@ import { CalendarCheck, Code2, Eye, Lock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/helpers/date';
-import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { ProgressPanel, ProgressPanelBody } from './ProgressPanel';
-import { statusBadgeVariant, statusMeaning } from './programmeStatus';
 
 const ACTION_CLASS = 'h-[34px] rounded-[var(--r-control)] px-3.5 text-[12.5px]';
 
@@ -121,37 +119,26 @@ export function ProgrammeSnapshot({ programme }) {
   return (
     <ProgressPanel
       id="my-progress-programme"
-      title="Where I stand"
-      description="Your place in the programme, as your mentors and admins have it recorded."
+      title="Programme details"
+      description="Dates, position, mentors and hub, as your mentors and admins have them recorded."
       action={
-        <>
-          {/* The read-only note reads as state, not as a control, so it is plain
-              muted text rather than the outline badge it used to be up in the page
-              header — where, next to the H1, it looked like something to click. */}
-          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground">
-            <Eye className="h-3.5 w-3.5" />
-            Read-only
-          </span>
-          <Badge variant={statusBadgeVariant(programme.status)} className="rounded-full">
-            {capitalizeFirst(programme.status)}
-          </Badge>
-        </>
+        /* The read-only note reads as state, not as a control, so it is plain muted
+           text rather than a badge. It lives on this section, the one that lists
+           what is recorded about the intern — the status and its meaning moved up
+           to the page header, where they answer the question people arrive with. */
+        <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground">
+          <Eye className="h-3.5 w-3.5" />
+          Read-only
+        </span>
       }
       dataTour="my-progress-programme"
     >
       <ProgressPanelBody className="pt-[15px]">
-        {/* The status word on its own tells an intern nothing — `ready` in particular
-            is a placement milestone, not a mood. The stored value stays the label; this
-            is the sentence next to it. */}
-        <p className="text-[13px] font-medium leading-[1.5] text-foreground">
-          {statusMeaning(programme.status)}
-        </p>
-
         {/* Column flow, not row flow: read down one column and then down the next,
             so the facts the programme has actually recorded stay together instead of
             alternating with a column of em dashes across every row. */}
         <dl
-          className="mt-3 grid gap-x-9 sm:auto-cols-fr sm:grid-flow-col"
+          className="grid gap-x-9 sm:auto-cols-fr sm:grid-flow-col"
           style={{ gridTemplateRows: `repeat(${rows}, auto)` }}
         >
           {facts.map((fact) => (

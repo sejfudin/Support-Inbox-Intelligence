@@ -785,6 +785,11 @@ controllers/internDashboard.js}` + `GET /me` in `routes/dashboard.js`. Frontend:
 - **Shared with the admin board**: `components/dashboard/{DashboardCard, DashboardHeader,
   WorkloadSegments, AttendanceMeter}` and the `.dashboard-hero-surface` gradient (whose theme-accent
   and contrast constraints are documented at the rule in `frontend/src/index.css`).
+- **The hero's week strip is Mon–Fri, five cells** (`buildWeekStrip`). The weekend is not a state of
+  an intern's week — nobody is expected in and nothing is owed — and two inert cells took a seventh
+  of the strip each from the days that carry a verdict. Anything asking "is today a weekend?" calls
+  `isOfficeWeekend` rather than looking for a cell that is not there; the month calendar on
+  `/my-attendance` still draws weekends, where they are part of the shape of the month.
 - **Not implemented**: weekly hours on the hero (`Attendance` records a check-in and no check-out, so
   hours aren't derivable — the line shows the month's attendance rate and present days instead), and
   the "next review in N days" line on evaluations (no scheduled-review concept exists in the model).
@@ -801,9 +806,9 @@ The intern's read-only mirror of everything the programme records **about** them
 
 - **`GET /api/dashboard/me/progress` takes no parameters, ever** — same rule and reason as
   `GET /api/dashboard/me`, and more load-bearing: this is the widest self-read on the platform. See
-  `security.md`. Four sections in one payload (`programme`, `evaluations`, `readiness`,
-  `recommendations`) so the page has one loading state and one cache key for the socket refresh to
-  land on — four endpoints would refresh three sections and leave the fourth stale.
+  `security.md`. Every section in one payload (`programme`, `evaluations`, `readiness`,
+  `recommendations`, `mentorNotes`) so the page has one loading state and one cache key for the
+  socket refresh to land on — an endpoint each would refresh four sections and leave the fifth stale.
 - **Nothing on it is workspace-scoped.** Every section is programme data, so unlike the dashboard
   aggregate there is no `resolveActiveWorkspaceId` call in the service and the route sits outside
   `WorkspaceGuard` — an intern between workspaces still has a review history.
@@ -839,6 +844,14 @@ The intern's read-only mirror of everything the programme records **about** them
 - **Attendance is deliberately not on it** — `/my-attendance` owns that surface and the dashboard
   hero already reads `GET /api/attendance/me`; a third copy of the same month's numbers is a third
   thing to keep in agreement. The programme panel links there instead.
+- **The page is a summary band over collapsible cards**, in one column. The band
+  (`components/intern/progress/ProgressHeader.jsx`) answers "where do I stand?" outright — status
+  and its sentence, a *time-elapsed* meter (nothing in the payload measures attainment, and a bar
+  that implied it would be inventing a score), and three counts whose tiles open the section they
+  summarise. Every card below starts closed and states its own count on the band, so a shut page
+  still reads. Length inside a section is handled by condensing, not hiding: the newest evaluation
+  and the newest recommendation render in full, everything older is one line. There is no right-hand
+  rail — an index of a page is what you need when you cannot close it.
 - The lifecycle status is printed **verbatim** (no label mapping, per the rule in
   `frontend/src/helpers/internProfile.js`) with a plain-English sentence beside it from
   `components/intern/progress/programmeStatus.js`. Keep those as sentences: the moment one becomes a
