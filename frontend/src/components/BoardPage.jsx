@@ -534,6 +534,9 @@ export default function BoardPage({
 
   return (
     <div
+      // Anchor for the what's-new tour, which opens `/tickets?view=board` and
+      // spotlights the board. See `whatsNewSteps.js`.
+      data-tour="tickets-board"
       className={cn(
         'w-full',
         flush ? 'flex h-full min-h-0 flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'

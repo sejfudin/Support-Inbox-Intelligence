@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { THEMES } from '@/lib/themes';
+import { cn } from '@/lib/utils';
 import {
   TOUR_REPLAY_EVENT,
   WHATS_NEW_STEPS,
@@ -10,11 +13,14 @@ import {
 } from './whatsNewSteps';
 import { emitTourActive } from './tourPreview';
 
-const CARD_WIDTH = 340;
+// Kept in step with the `w-[26rem]` on the card itself. This is only the
+// first-frame guess — the real box is measured off `cardRef` — but a guess that
+// disagrees with the rendered width makes the card jump on the frame it opens.
+const CARD_WIDTH = 464;
 const GAP = 14; // between the highlighted element and the card
 const PAD = 8; // breathing room around the spotlight cut-out
 const EDGE = 12; // minimum distance from the viewport edge
-const MIN_TEXT_WIDTH = 240; // never squeeze the copy below this
+const MIN_TEXT_WIDTH = 300; // never squeeze the copy below this
 
 // How long a step waits for its target to appear before settling for a centred
 // card. Longer than a dashboard round-trip so a cold open still lights every
@@ -119,25 +125,44 @@ const placeCard = (rect, card, preferred) => {
   });
 
   const fitting = scored.filter((c) => c.room && c.overlap === 0);
-  const pool = fitting.length ? fitting : scored;
 
-  pool.sort((a, b) => {
-    if (a.overlap !== b.overlap) return a.overlap - b.overlap;
+  // Nothing fits beside the target: it spans nearly the whole viewport, which is the
+  // normal case for the ticket board and any full-width page region.
+  //
+  // This used to squeeze the card into whatever strip was left and floor the width
+  // at MIN_TEXT_WIDTH — "a sliver of a column is worse than a slight overhang", which
+  // was true when the card was 340px wide with a 20px title. It is not true now. With
+  // the board spotlit, the strip is the 258px sidebar, the floor forced the card to
+  // 300px, and the 42px it gained put white-on-dim text on top of the brightly lit
+  // board. Unreadable, and it clipped the headline mid-word.
+  //
+  // So: centre it at full width and tell the caller to put a scrim behind it. The
+  // card lands on the target either way — the scrim is what makes that legible
+  // instead of broken, and it is the only case that gets one.
+  if (!fitting.length) {
+    return {
+      left: Math.max(EDGE, vw / 2 - card.width / 2),
+      top: Math.max(EDGE, vh / 2 - card.height / 2),
+      overlapping: true,
+    };
+  }
+
+  fitting.sort((a, b) => {
     if (a.isPreferred !== b.isPreferred) return a.isPreferred ? -1 : 1;
     return 0;
   });
 
-  const chosen = pool[0];
+  const chosen = fitting[0];
   const { left, top } = chosen.box;
 
-  // Without a panel behind it the text is light-on-dark, so it must not spill off
-  // the dimmed area onto the brightly-lit spotlight — white on a light page is
-  // unreadable. On a left/right placement, cap the width at the dim available on
-  // that side. Floored, because a sliver of a column is worse than a slight
-  // overhang; in practice the sidebar gutter is wide enough.
+  // Without a panel behind it the text is light-on-dark, so it must not spill off the
+  // dimmed area onto the brightly-lit spotlight — white on a light page is
+  // unreadable. On a left/right placement, cap the width at the dim available on that
+  // side. No floor here any more: this branch only runs when a side genuinely fits,
+  // so the cap can never cut into the copy.
   let maxWidth;
-  if (chosen.side === 'right') maxWidth = Math.max(MIN_TEXT_WIDTH, vw - rect.right - GAP - EDGE);
-  else if (chosen.side === 'left') maxWidth = Math.max(MIN_TEXT_WIDTH, rect.left - GAP - EDGE);
+  if (chosen.side === 'right') maxWidth = vw - rect.right - GAP - EDGE;
+  else if (chosen.side === 'left') maxWidth = rect.left - GAP - EDGE;
 
   return { left, top, maxWidth };
 };
@@ -153,6 +178,14 @@ const placeCard = (rect, card, preferred) => {
  * - **Two ways in**: it opens itself once on the first load after a `TOUR_VERSION`
  *   bump, and the pulsing button in the sidebar footer reopens it any time. See
  *   `whatsNewSteps.js`.
+ * - **No Skip control.** There used to be one, and it made the tour opt-out on step
+ *   one — which for a release nobody has been told about is the same as not shipping
+ *   the announcement. The walkthrough is short enough to finish (8–13 steps by role),
+ *   the counter says how much is left, and Back covers moving too fast. Escape still
+ *   ends it, deliberately unadvertised: it keeps this from being a trap for someone
+ *   who cannot deal with it right now, without offering the bail-out as the obvious
+ *   first move. Escaping counts as seen, exactly as Skip did, so nobody is
+ *   interrupted twice.
  * - **No step is ever skipped.** The step count is exactly the number of entries in
  *   the script that apply to the viewer's role — so admin and intern legitimately
  *   see different totals, but neither ever loses a step they were entitled to. A
@@ -177,6 +210,8 @@ export function WhatsNewTour() {
   // must not measure anything until the shell has a user and has painted.
   const { user, loading } = useAuth();
   const seen = useWhatsNewSeen();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Starts closed and is opened by one of two things: the sidebar's what's-new
   // button, or the first-login effect below. It is never open before there is a
@@ -184,13 +219,20 @@ export function WhatsNewTour() {
   const [dismissed, setDismissed] = useState(true);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
-  const [cardBox, setCardBox] = useState({ width: CARD_WIDTH, height: 180 });
+  const [cardBox, setCardBox] = useState({ width: CARD_WIDTH, height: 250 });
   const cardRef = useRef(null);
   // One auto-open per mount. Without this, finishing the tour and then having
   // `seen` briefly disagree (or a refetch re-running the effect) would reopen it.
   const autoOpenedRef = useRef(false);
+  // The last route this tour tried to send the reader to. Keyed by route rather
+  // than by step so a guard that refuses the navigation is a single failed attempt
+  // instead of a redirect loop — see the effect below.
+  const attemptedRouteRef = useRef(null);
 
   const role = user?.role;
+  // The seen-state is keyed per account, so marking it needs to know whose it is.
+  // Same shape `UserPreferencesSync` uses for the id.
+  const userId = user?._id || user?.id || null;
 
   /**
    * The steps this viewer gets — filtered by role and by nothing else.
@@ -219,9 +261,9 @@ export function WhatsNewTour() {
   );
 
   const finish = useCallback(() => {
-    markWhatsNewSeen();
+    markWhatsNewSeen(userId);
     setDismissed(true);
-  }, []);
+  }, [userId]);
 
   // First login on a new design: show the tour unprompted, once. Gated on the
   // *versioned* seen-state, so bumping TOUR_VERSION re-announces to everyone
@@ -252,6 +294,7 @@ export function WhatsNewTour() {
   useEffect(() => {
     const onReplay = () => {
       setIndex(0);
+      attemptedRouteRef.current = null;
       setDismissed(false);
     };
     window.addEventListener(TOUR_REPLAY_EVENT, onReplay);
@@ -273,6 +316,35 @@ export function WhatsNewTour() {
     },
     [finish, index, steps.length]
   );
+
+  /**
+   * Steps that are about a whole page open it, rather than describing it from
+   * wherever the reader happens to be standing.
+   *
+   * A step whose subject is a page — Settings, the ticket list, the attendance page
+   * — reads as an instruction to go and look later, which nobody does. Navigating
+   * puts the thing itself under the dim while the card describes it. Every route
+   * used this way has to live inside `SidebarLayout`, which is what mounts this
+   * overlay: a route on any other layout would unmount the tour mid-walkthrough.
+   *
+   * Guarded on the *route* and not the step id, so a route a guard refuses (an
+   * intern with no workspace bounced off `/tickets`) is one failed attempt rather
+   * than a navigate/bounce loop. Cleared once we arrive, so stepping back and
+   * forward through the same step navigates again.
+   *
+   * The reader is deliberately left wherever the last step took them. They were
+   * just told the page exists; dropping them back on the dashboard would undo that.
+   */
+  useEffect(() => {
+    const route = step?.route;
+    if (!route || location.pathname === route) {
+      attemptedRouteRef.current = null;
+      return;
+    }
+    if (attemptedRouteRef.current === route) return;
+    attemptedRouteRef.current = route;
+    navigate(route);
+  }, [step, location.pathname, navigate]);
 
   // Keep the spotlight glued to its element.
   //
@@ -354,7 +426,7 @@ export function WhatsNewTour() {
 
   if (!step) return null;
 
-  const cardStyle = placeCard(rect, cardBox, step.placement);
+  const { overlapping, ...cardPosition } = placeCard(rect, cardBox, step.placement);
   const position = index + 1;
 
   return createPortal(
@@ -390,30 +462,81 @@ export function WhatsNewTour() {
           happens to be underneath it. */}
       <div
         ref={cardRef}
-        className="absolute w-[23rem] [text-shadow:0_1px_14px_rgba(2,6,23,0.95)]"
-        style={{ ...cardStyle, maxWidth: cardStyle.maxWidth ?? 'calc(100vw - 2rem)' }}
+        // `font-sans` is the Task Manager font, stated rather than inherited: this
+        // card is portaled to `document.body`, outside the React tree every other
+        // surface takes its typography from, so a wrapper with a font of its own
+        // would silently change what the tour reads in.
+        //
+        // It is deliberately NOT Poppins, despite the "Poppins throughout" comment
+        // on the type tokens in `index.css`. That comment is wrong about this app:
+        // Poppins is declared only under `[data-surface="symphony"]`, the Leadership
+        // surface, and Task Manager renders on Tailwind's preflight `html` stack —
+        // which is what `font-sans` resolves to. The tour only ever mounts inside
+        // `SidebarLayout`, never on the Symphony surface, so matching Task Manager
+        // is matching everything it will ever cover. Putting Poppins here would make
+        // the overlay the one thing on screen in a different typeface.
+        //
+        // Sized well above the app's body copy on purpose. This is a full-screen
+        // interruption read once, at a glance, from whatever distance the person
+        // happens to be sitting at — and it is white-on-dim with a shadow, which
+        // costs contrast that extra weight and size buy back.
+        className={cn(
+          'absolute w-[29rem] font-sans',
+          // Only when the card had to land on its own spotlight — see `placeCard`.
+          // Everywhere else the dim is the background the copy is read against, and a
+          // panel would be a second frame around text that does not need one.
+          overlapping && 'rounded-[var(--r-card)] bg-slate-950/85 p-5 ring-1 ring-white/10',
+          '[text-shadow:0_1px_14px_rgba(2,6,23,0.95)]'
+        )}
+        style={{ ...cardPosition, maxWidth: cardPosition.maxWidth ?? 'calc(100vw - 2rem)' }}
       >
         <div className="flex items-center gap-2 text-white/70">
-          <Sparkles className="h-4 w-4 shrink-0" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">
+          <Sparkles className="h-[18px] w-[18px] shrink-0" />
+          <span className="text-[13px] font-semibold uppercase tracking-[0.16em]">
             What&apos;s new
           </span>
-          <span className="text-[11px] font-medium tabular-nums text-white/50">
+          <span className="text-[13px] font-medium tabular-nums text-white/50">
             {position} / {steps.length}
           </span>
         </div>
 
-        <h2 id="whats-new-title" className="mt-2 text-xl font-semibold leading-7 text-white">
+        {/* Upper-cased in CSS rather than in the strings: the script stays readable
+            and a screen reader still gets sentence case, which it reads as words
+            instead of spelling out. Caps need the letter-spacing opened up — the
+            negative tracking that suits a mixed-case headline closes caps into a
+            block. */}
+        <h2
+          id="whats-new-title"
+          className="mt-3 text-[40px] font-extrabold uppercase leading-[1.05] tracking-[0.01em] text-white"
+        >
           {step.title}
         </h2>
-        <p className="mt-2 text-[13px] leading-5 text-white/75">{step.body}</p>
+        <p className="mt-3 text-[15.5px] leading-[1.55] text-white/75">{step.body}</p>
+
+        {/* Shown, not listed. "Twelve accent palettes" is a claim; the twelve
+            gradients are the thing itself, and they come straight from `THEMES`, so
+            a palette added or retuned there is reflected here with no edit.
+            `aria-hidden` because the copy above already says what they are — to a
+            screen reader these are twelve unlabelled decorations. */}
+        {step.swatches && (
+          <div className="mt-3.5 flex flex-wrap gap-1.5" aria-hidden="true">
+            {THEMES.map((theme) => (
+              <span
+                key={theme.id}
+                title={theme.label}
+                className="h-7 w-7 rounded-[var(--r-control)] ring-1 ring-inset ring-white/25"
+                style={{ background: theme.preview.gradient }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Said on the way out so nobody has to hunt for the way back in, so that
             closing this does not feel like a one-shot you might regret, and so the
             glow is understood as a standing signal rather than a one-off — people
             who know what it means are the ones who will click it next time. */}
         {isLast && (
-          <p className="mt-3 text-[11px] leading-4 text-white/60">
+          <p className="mt-3.5 text-[13px] leading-5 text-white/65">
             This is how we will show you what&apos;s new from now on. The{' '}
             <span className="font-medium text-white/90">Notice some changes?</span> button just
             above your name, at the bottom of the sidebar, reopens this any time — and whenever we
@@ -427,10 +550,10 @@ export function WhatsNewTour() {
             type="button"
             onClick={() => go(1)}
             data-test="whats-new-next"
-            className="inline-flex items-center gap-1.5 rounded-[var(--r-card)] bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="inline-flex items-center gap-1.5 rounded-[var(--r-card)] bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {isLast ? 'Got it' : 'Next'}
-            {!isLast && <ArrowRight className="h-3.5 w-3.5" />}
+            {!isLast && <ArrowRight className="h-4 w-4" />}
           </button>
 
           {position > 1 && (
@@ -438,22 +561,12 @@ export function WhatsNewTour() {
               type="button"
               onClick={() => go(-1)}
               data-test="whats-new-back"
-              className="inline-flex items-center gap-1.5 rounded-[var(--r-card)] px-2.5 py-2 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+              className="inline-flex items-center gap-1.5 rounded-[var(--r-card)] px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
+              <ArrowLeft className="h-4 w-4" />
               Back
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={finish}
-            data-test="whats-new-skip"
-            className="ml-auto inline-flex items-center gap-1.5 rounded-[var(--r-card)] px-2.5 py-2 text-xs font-medium text-white/55 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
-          >
-            <X className="h-3.5 w-3.5" />
-            Skip
-          </button>
         </div>
       </div>
     </div>,
