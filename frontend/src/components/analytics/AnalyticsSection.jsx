@@ -17,7 +17,10 @@ export default function AnalyticsSection({
 }) {
   return (
     <section
-      className={cn('rounded-[var(--r-card)] border border-border bg-card px-4 pb-3 pt-3.5', className)}
+      className={cn(
+        'rounded-[var(--r-card)] border border-border bg-card px-4 pb-3 pt-3.5',
+        className
+      )}
       data-test={dataTest}
     >
       {title || action ? (

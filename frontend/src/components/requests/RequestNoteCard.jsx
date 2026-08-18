@@ -119,7 +119,9 @@ export function RequestClosurePanel({ request }) {
   const text = closure.text(request)?.trim();
   const closedOn = formatDay(request.closedAt);
   const isDanger = closure.tone === 'danger';
-  const toneText = isDanger ? 'text-[hsl(var(--tone-danger-fg))]' : 'text-[hsl(var(--tone-success-fg))]';
+  const toneText = isDanger
+    ? 'text-[hsl(var(--tone-danger-fg))]'
+    : 'text-[hsl(var(--tone-success-fg))]';
 
   return (
     <section
