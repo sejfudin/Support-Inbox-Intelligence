@@ -118,6 +118,14 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 - **A wide table carries its own `min-w-[…]` plus an `.app-table-scroll` wrapper**, so it scrolls
   inside its card instead of pushing the page sideways — that is what keeps a name column from
   being squeezed to nothing on a narrow window.
+- **A pane that scrolls says so: wrap it in `ScrollFade`** (`components/ui/scroll-fade.jsx`) rather
+  than leaving a bare `overflow-y-auto`. It measures the viewport and fades the content at whichever
+  edge has more past it, so the fades stay off when nothing overflows. Overlay scrollbars (the macOS
+  default) are invisible until a scroll gesture starts, which leaves an overflowing pane reading as
+  merely cut off — the last row looks like the end of the list. Put the height cap and
+  `overflow-y-auto` on `viewportClassName`, and pass `fadeClassName` naming the surface the pane
+  actually sits on (`from-card` inside a modal or card); the default `from-background` shows as a
+  smudge anywhere else. Used by the staffing-request lists and the recommendation modals.
 - **A layout that has to respond to the sidebar rail reads `data-sidebar-state`**, which
   `SidebarProvider` stamps (`expanded` / `collapsed`) on the shell wrapper above both the rail and
   the content column. Override a token under it and let the cascade do the work — never a JS
