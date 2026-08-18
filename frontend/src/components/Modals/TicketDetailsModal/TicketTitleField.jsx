@@ -1,25 +1,44 @@
+import { cn } from '@/lib/utils';
+
+/**
+ * The mockup's modal title: 20px/600 at -0.015em, the same size as a page `h1`.
+ * It used to scale up to 36px (`lg:text-4xl`), which made the ticket subject the
+ * loudest thing on screen and pushed the description below the fold.
+ */
+const TITLE_CLASS =
+  'w-full min-w-0 text-[20px] font-semibold leading-[1.25] tracking-[-0.015em] text-pretty';
+
 export function TicketTitleField({ title, onTitleChange, isArchived }) {
   if (isArchived) {
     return (
-      <h1
+      <h2
         data-test="ticket-modal-title-heading"
-        className="w-full min-w-0 break-words px-2 py-1 text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-3xl lg:text-4xl"
+        className={cn(TITLE_CLASS, 'break-words text-foreground')}
       >
         {title}
-      </h1>
+      </h2>
     );
   }
 
   return (
-    <input
-      type="text"
-      value={title}
-      onChange={(e) => onTitleChange(e.target.value)}
-      data-test="ticket-modal-title-input"
-      className={`w-full min-w-0 rounded-lg border border-transparent bg-transparent px-2 py-1 text-xl font-bold tracking-tight outline-none transition sm:text-2xl md:text-3xl lg:text-4xl ${
-        !title.trim() ? 'text-destructive' : 'text-foreground'
-      } cursor-text hover:bg-muted/50 focus:bg-muted/50 focus:border-border focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background`}
-      placeholder="Enter ticket title..."
-    />
+    <div className="flex flex-col gap-1">
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        data-test="ticket-modal-title-input"
+        className={cn(
+          TITLE_CLASS,
+          '-mx-2 cursor-text rounded-[var(--r-control)] border border-transparent bg-transparent px-2 py-1 outline-none transition hover:bg-accent/50 focus:border-border focus:bg-accent/50',
+          title.trim() ? 'text-foreground' : 'text-[hsl(var(--tone-danger-fg))]'
+        )}
+        placeholder="Enter ticket title…"
+      />
+      {!title.trim() ? (
+        <span className="text-[11px] font-medium text-[hsl(var(--tone-danger-fg))]">
+          Title is required
+        </span>
+      ) : null}
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 const attendanceSettingsService = require('../services/attendanceSettingsService');
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 /**
  * The admin's attendance-request limits. Read and written by admins only — the
@@ -7,21 +8,6 @@ const attendanceSettingsService = require('../services/attendanceSettingsService
  * Interns never call these. They receive the numbers already applied to their own
  * position, inside the `types` payload of their own request list.
  */
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-
-  if (error.name === 'ValidationError') {
-    const message = Object.values(error.errors)
-      .map((err) => err.message)
-      .join(', ');
-    return res.status(400).json({ success: false, message });
-  }
-
-  next(error);
-};
 
 exports.getSettings = async (req, res, next) => {
   try {

@@ -47,7 +47,7 @@ export function WorkloadBar({ buckets = [] }) {
                 // A single-ticket segment of a large total would round to a
                 // hairline, so every present segment keeps a visible minimum and
                 // the rest of the width is shared out proportionally.
-                className="h-full min-w-[0.5rem] cursor-pointer rounded-sm transition-all hover:brightness-110"
+                className="h-full min-w-[0.5rem] cursor-pointer rounded-[var(--r-tile)] transition-all hover:brightness-110"
                 style={{
                   backgroundColor: bucket.color,
                   flexGrow: bucket.count,

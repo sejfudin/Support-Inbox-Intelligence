@@ -4,6 +4,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { getInitials } from '@/helpers/getInitials';
 import { getAvatarColor } from '@/helpers/avatarColor';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
+/**
+ * A stack of people, overlapped, with a tooltip each and a `+N` when it overflows.
+ *
+ * Sizes are the design's three — 24 in a table row, 30 in a list or card, 52 on a
+ * profile — matching `ui/initials-avatar`, which is the same circle for one
+ * person. They used to be 20/32/48, which is why an assignee stack never quite
+ * lined up with the single avatar in the row above it.
+ *
+ * Fixed rather than tokenised on purpose: an avatar is an identifier, not a
+ * control, and shrinking it under compact density costs recognition without
+ * buying back a useful amount of row height.
+ */
 export const Avatar = ({ users, size = 'md' }) => {
   const safeUsers = (users || []).filter(Boolean);
 
@@ -14,20 +26,27 @@ export const Avatar = ({ users, size = 'md' }) => {
   const displayUsers = safeUsers.slice(0, maxVisible);
   const remainingCount = safeUsers.length - maxVisible;
   const sizeClasses =
-    size === 'sm'
+    size === 'xs'
       ? {
-          item: 'h-5 w-5 text-[10px] border',
-          remaining: 'h-5 w-5 text-[10px] border',
+          // Alone at the end of a card-footer row rather than in a stack, so it
+          // carries no ring.
+          item: 'h-6 w-6 text-[9.5px] border-0',
+          remaining: 'h-6 w-6 text-[9.5px] border-0',
         }
-      : size === 'lg'
+      : size === 'sm'
         ? {
-            item: 'h-12 w-12 text-[16px] border-2',
-            remaining: 'h-12 w-12 text-[12px] border-2',
+            item: 'h-6 w-6 text-[9.5px] border',
+            remaining: 'h-6 w-6 text-[9.5px] border',
           }
-        : {
-            item: 'h-8 w-8 text-[14px] border-2',
-            remaining: 'h-8 w-8 text-[10px] border-2',
-          };
+        : size === 'lg'
+          ? {
+              item: 'h-[52px] w-[52px] text-[16px] border-2',
+              remaining: 'h-[52px] w-[52px] text-[12px] border-2',
+            }
+          : {
+              item: 'h-[30px] w-[30px] text-[10.5px] border-2',
+              remaining: 'h-[30px] w-[30px] text-[10px] border-2',
+            };
 
   return (
     <TooltipProvider delayDuration={200}>

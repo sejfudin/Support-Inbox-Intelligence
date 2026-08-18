@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Ticket, Building2, Plus, CheckCircle2, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -42,7 +41,6 @@ import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
 // Role-aware workspaces overview: admins see every workspace in the system,
 // mentors/members see the workspaces they belong to. Same cards + create dialog.
 export default function WorkspacesOverviewPage() {
-  const { setHeader } = useOutletContext() ?? {};
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, refetchUser } = useAuth();
@@ -78,14 +76,6 @@ export default function WorkspacesOverviewPage() {
     }
     return true;
   };
-
-  useEffect(() => {
-    if (!setHeader) return undefined;
-    setHeader(
-      <span className="font-semibold text-sm">{admin ? 'All Workspaces' : 'My Workspaces'}</span>
-    );
-    return () => setHeader(null);
-  }, [setHeader, admin]);
 
   const handleCreate = (e) => {
     e.preventDefault();
@@ -156,7 +146,7 @@ export default function WorkspacesOverviewPage() {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker={admin ? 'Admin overview' : 'Workspace overview'}
+          crumb={admin ? 'Admin' : 'Mentoring'}
           title={admin ? 'All Workspaces' : 'My Workspaces'}
           subtitle={
             admin
@@ -178,11 +168,11 @@ export default function WorkspacesOverviewPage() {
         {isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-44 rounded-xl" />
+              <Skeleton key={i} className="h-40 rounded-[var(--r-card)]" />
             ))}
           </div>
         ) : workspaces.length === 0 ? (
-          <div className="app-panel flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
+          <div className="app-card flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
             <Building2 className="h-10 w-10 opacity-30" />
             <p className="text-sm">
               {admin
@@ -226,12 +216,12 @@ export default function WorkspacesOverviewPage() {
                       handleSwitch(ws._id);
                     }
                   }}
-                  className={`group rounded-[1.5rem] border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 p-5 text-left shadow-elevated transition-all hover:-translate-y-1 hover:shadow-elevated ${
-                    isActive ? 'ring-2 ring-primary/40 border-primary/30' : ''
+                  className={`group app-card p-4 text-left transition-colors hover:border-primary/30 ${
+                    isActive ? 'border-primary/30 ring-1 ring-primary/30' : ''
                   } ${canSwitch && !isActive ? 'cursor-pointer' : ''}`}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary overflow-hidden">
+                    <div className="flex h-[34px] w-[34px] items-center justify-center overflow-hidden rounded-[var(--r-tile)] bg-primary/10 text-primary">
                       {ws.logoUrl ? (
                         <img
                           src={ws.logoUrl}
@@ -239,11 +229,11 @@ export default function WorkspacesOverviewPage() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <Building2 className="h-5 w-5" />
+                        <Building2 className="h-[17px] w-[17px]" />
                       )}
                     </div>
                     {isActive && (
-                      <span className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      <span className="app-chip bg-primary/10 text-primary">
                         <CheckCircle2 className="h-3 w-3" />
                         Active
                       </span>
@@ -251,15 +241,17 @@ export default function WorkspacesOverviewPage() {
                   </div>
 
                   <div className="mb-1">
-                    <h2 className="truncate font-semibold text-foreground">{ws.name}</h2>
+                    <h2 className="truncate text-[13.5px] font-semibold text-foreground">
+                      {ws.name}
+                    </h2>
                     {ws.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground">
                         {ws.description}
                       </p>
                     )}
                   </div>
 
-                  <p className="text-xs text-muted-foreground mb-4">
+                  <p className="mb-3.5 text-[12px] text-muted-foreground">
                     Owner: {ws.owner?.fullname || ws.owner?.email || '—'}
                   </p>
 
@@ -297,7 +289,7 @@ export default function WorkspacesOverviewPage() {
                             setDeleteError('');
                             setDeleteTargetId(ws._id);
                           }}
-                          className="text-xs font-medium text-red-500 hover:text-red-700 flex items-center gap-1"
+                          className="text-xs font-medium text-[hsl(var(--tone-danger))] hover:text-[hsl(var(--tone-danger-fg))] flex items-center gap-1"
                           data-test={`admin-workspaces-card-${ws._id}-delete-button`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -366,7 +358,7 @@ export default function WorkspacesOverviewPage() {
           >
             <div className="flex-1 space-y-8 overflow-y-auto px-6 py-5">
               {createError && (
-                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                <p className="rounded-[var(--r-card)] border border-[hsl(var(--tone-danger)/0.3)] bg-[hsl(var(--tone-danger)/0.15)] px-4 py-3 text-sm font-medium text-[hsl(var(--tone-danger-fg))]">
                   {createError}
                 </p>
               )}
@@ -442,7 +434,7 @@ export default function WorkspacesOverviewPage() {
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-border bg-muted/80 p-4 sm:p-5">
+                <div className="rounded-[var(--r-card)] border border-border bg-muted/80 p-4 sm:p-5">
                   <TicketStatusEditor
                     items={statusDrafts}
                     onChange={setStatusDrafts}

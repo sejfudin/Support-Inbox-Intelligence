@@ -7,10 +7,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { useWorkspace } from '@/queries/workspaces';
 import PageHeading from '@/components/PageHeading';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 const WorkspaceSettingsPage = () => {
   const { id } = useParams();
   const { data: workspace, isLoading } = useWorkspace(id);
+
+  useDocumentTitle(workspace?.name ? `${workspace.name} settings` : '');
 
   if (isLoading) {
     return (
@@ -24,7 +27,7 @@ const WorkspaceSettingsPage = () => {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Workspace settings"
+          crumb="Workspace"
           title={workspace.name}
           subtitle={
             workspace.description || 'Configure settings and integrations for this workspace.'

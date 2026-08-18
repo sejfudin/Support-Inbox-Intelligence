@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { Archive as ArchiveIcon } from 'lucide-react';
 import { createTicketColumns } from '@/components/columns/ticketColumns';
 import { useTicketList } from '@/hooks/useTicketList';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { useTicketModals } from '@/hooks/useTicketModals';
+import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import TicketsState from '@/components/Tickets/TicketsState';
 import TicketsHeader from '@/components/Tickets/TicketsHeader';
@@ -11,6 +13,7 @@ import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useAuth } from '@/context/AuthContext';
 import { useArchiveTicket, useUnarchiveTicket } from '@/queries/tickets';
+import { ARCHIVE_DEFAULT_SORT } from '@/helpers/ticketSort';
 import { toast } from 'sonner';
 
 export default function ArchivePage() {
@@ -52,7 +55,15 @@ export default function ArchivePage() {
     search,
     setSearch,
     setPage,
-  } = useTicketList({ activeTab, additionalFilters: { archived: true } });
+    sorting,
+    setSorting,
+  } = useTicketList({
+    activeTab,
+    additionalFilters: { archived: true },
+    // Archived date, newest first. The list is paginated, so `useTicketList`
+    // sends the order to the API rather than reordering the page in the browser.
+    defaultSort: ARCHIVE_DEFAULT_SORT,
+  });
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
@@ -65,6 +76,8 @@ export default function ArchivePage() {
     onRestore: handleRestore,
     onOpenTicket: openTicketDetails,
   });
+
+  useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
 
   return (
     <PageShell>
@@ -87,7 +100,9 @@ export default function ArchivePage() {
             isLoading={isLoading}
             isError={isError}
             isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
-            emptyMessage="No archived tickets found."
+            emptyIcon={ArchiveIcon}
+            emptyTitle="No archived tickets"
+            emptyDescription="Archived tickets stay here; restore any one to bring it back to the active board."
             loadingSlot={<TableSkeleton />}
           >
             <DataTable
@@ -96,8 +111,11 @@ export default function ArchivePage() {
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{ onRowClick: openTicketDetails }}
-              hideHeader
-              tableClassName="w-full"
+              sorting={sorting}
+              onSortingChange={setSorting}
+              // Six columns, ~677px of content: below this the panel scrolls
+              // inside itself rather than crushing the subject.
+              tableClassName="min-w-[720px] table-fixed"
             />
           </TicketsState>
         </PagePanel>

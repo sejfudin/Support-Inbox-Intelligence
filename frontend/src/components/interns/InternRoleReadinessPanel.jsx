@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { format } from 'date-fns';
 import { InternPanel } from '@/components/interns/InternPanel';
 import {
   Select,
@@ -42,58 +43,58 @@ export function InternRoleReadinessPanel({ userId, declaredPosition = null, read
   };
 
   return (
-    <InternPanel className="h-full overflow-hidden p-0 md:p-0">
-      <div className="border-b border-border/60 px-5 py-4 md:px-6">
-        <h3 className="text-lg font-semibold">Placement readiness by role</h3>
-        <p className="mt-1 truncate text-sm text-muted-foreground">
-          Mentor-assessed role readiness.
-        </p>
-      </div>
+    <InternPanel dense>
+      <h3 className="app-card-title">Readiness by role</h3>
+      <p className="mt-0.5 text-[12.5px] text-muted-foreground">Mentor-assessed role readiness.</p>
+
       {!declaredPosition && (
-        <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">
+        <p className="pt-3 text-[12.5px] text-muted-foreground">
           This intern hasn't declared a role yet.
         </p>
       )}
       {isPending && declaredPosition && (
-        <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">Loading readiness...</p>
+        <p className="pt-3 text-[12.5px] text-muted-foreground">Loading readiness...</p>
       )}
       {!isPending && declaredPosition && (
-        <div className="p-5 md:p-6">
-          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50/70 dark:border-border/60 dark:bg-card dark:hover:bg-muted/30">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h4 className="min-w-0 font-semibold leading-8 text-gray-900 dark:text-foreground">
-                {declaredPosition.name}
-              </h4>
-              {canWrite ? (
-                <Select value={level} onValueChange={handleLevelChange}>
-                  <SelectTrigger
-                    className={cn(
-                      'h-8 w-32 shrink-0 rounded-lg border px-2.5 text-xs font-semibold shadow-none',
-                      getReadinessBadgeClassName(level)
-                    )}
-                    data-test={`intern-role-readiness-${declaredPosition.slug}-select`}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {READINESS_LEVELS.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>
-                        {r.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <ReadinessLevelBadge level={level} />
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground/70">
-              Assessed by:{' '}
-              <span className="font-medium text-muted-foreground">
-                {positionFlag?.setBy?.fullname || '—'}
-              </span>
-            </p>
-          </div>
+        // Same tile as the technology grid, one wide — one role, so there is
+        // nothing to line it up against.
+        <div className="mt-3 flex items-center justify-between gap-2.5 rounded-[var(--r-tile)] border border-separator p-[11px] px-[13px] transition-colors hover:bg-accent/60">
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate text-[12.5px] font-medium text-foreground">
+              {declaredPosition.name}
+            </span>
+            <span className="truncate text-[11px] text-muted-foreground/75">
+              {positionFlag?.setBy?.fullname
+                ? `${positionFlag.setBy.fullname}${
+                    positionFlag.updatedAt
+                      ? ` · ${format(new Date(positionFlag.updatedAt), 'MMM d')}`
+                      : ''
+                  }`
+                : '—'}
+            </span>
+          </span>
+          {canWrite ? (
+            <Select value={level} onValueChange={handleLevelChange}>
+              <SelectTrigger
+                className={cn(
+                  'h-7 w-[116px] shrink-0 rounded-full border px-2.5 text-[11px] font-semibold shadow-none',
+                  getReadinessBadgeClassName(level)
+                )}
+                data-test={`intern-role-readiness-${declaredPosition.slug}-select`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {READINESS_LEVELS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>
+                    {r.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <ReadinessLevelBadge level={level} />
+          )}
         </div>
       )}
     </InternPanel>

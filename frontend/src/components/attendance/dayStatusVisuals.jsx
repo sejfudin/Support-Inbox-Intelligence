@@ -54,25 +54,25 @@ import { cn } from '@/lib/utils';
 const STATUS_STYLES = {
   // ── Attended ──
   [DAY_STATUS.PRESENT]:
-    'bg-emerald-500/15 text-emerald-700 ring-1 ring-inset ring-emerald-500/30 dark:text-emerald-300',
+    'bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))] ring-1 ring-inset ring-[hsl(var(--tone-success)/0.3)]',
   // Cyan by requirement: remote work counts as attendance, but must read
   // differently from an office check-in.
   [DAY_STATUS.REMOTE]:
-    'bg-cyan-500/15 text-cyan-700 ring-1 ring-inset ring-cyan-500/30 dark:text-cyan-300',
+    'bg-[hsl(var(--tone-cyan)/0.15)] text-[hsl(var(--tone-cyan-fg))] ring-1 ring-inset ring-[hsl(var(--tone-cyan)/0.3)]',
 
   // ── Approved absence ──
   // Blue for vacation and orange for sick were both asked for by name. They are
   // kept, and the glyphs are what stop them colliding with their neighbours.
   [DAY_STATUS.VACATION]:
-    'bg-blue-500/15 text-blue-700 ring-1 ring-inset ring-blue-500/30 dark:text-blue-300',
+    'bg-[hsl(var(--tone-info)/0.15)] text-[hsl(var(--tone-info-fg))] ring-1 ring-inset ring-[hsl(var(--tone-info)/0.3)]',
   [DAY_STATUS.RELIGIOUS]:
-    'bg-violet-500/15 text-violet-700 ring-1 ring-inset ring-violet-500/30 dark:text-violet-300',
+    'bg-[hsl(var(--tone-violet)/0.15)] text-[hsl(var(--tone-violet-fg))] ring-1 ring-inset ring-[hsl(var(--tone-violet)/0.3)]',
   [DAY_STATUS.SICK]:
-    'bg-orange-500/15 text-orange-700 ring-1 ring-inset ring-orange-500/30 dark:text-orange-300',
+    'bg-[hsl(var(--tone-orange)/0.15)] text-[hsl(var(--tone-orange-fg))] ring-1 ring-inset ring-[hsl(var(--tone-orange)/0.3)]',
 
   // ── Missed ──
   [DAY_STATUS.ABSENT]:
-    'bg-red-500/10 text-red-700 ring-1 ring-inset ring-red-500/25 dark:text-red-300',
+    'bg-[hsl(var(--tone-danger)/0.12)] text-[hsl(var(--tone-danger-fg))] ring-1 ring-inset ring-[hsl(var(--tone-danger)/0.3)]',
 
   // ── Not owed ──
   // All four recede together, because they are the same fact: nobody owed this day.
@@ -106,14 +106,15 @@ const STATUS_STYLES = {
 const TODAY_RING = 'ring-2 ring-foreground/50 ring-offset-1 ring-offset-background';
 
 const STATUS_DOT = {
-  [DAY_STATUS.PRESENT]: 'bg-emerald-500',
-  [DAY_STATUS.REMOTE]: 'bg-cyan-500',
-  [DAY_STATUS.VACATION]: 'bg-blue-500',
-  [DAY_STATUS.RELIGIOUS]: 'bg-violet-500',
-  [DAY_STATUS.SICK]: 'bg-orange-500',
-  [DAY_STATUS.ABSENT]: 'bg-red-500',
+  [DAY_STATUS.PRESENT]: 'bg-[hsl(var(--tone-success))]',
+  [DAY_STATUS.REMOTE]: 'bg-[hsl(var(--tone-cyan))]',
+  [DAY_STATUS.VACATION]: 'bg-[hsl(var(--tone-info))]',
+  [DAY_STATUS.RELIGIOUS]: 'bg-[hsl(var(--tone-violet))]',
+  [DAY_STATUS.SICK]: 'bg-[hsl(var(--tone-orange))]',
+  [DAY_STATUS.ABSENT]: 'bg-[hsl(var(--tone-danger))]',
   [DAY_STATUS.EXEMPT]: 'bg-muted-foreground/50',
-  [DAY_STATUS.NON_WORKING]: 'bg-muted-foreground/30',
+  [DAY_STATUS.WEEKEND]: 'bg-muted-foreground/40',
+  [DAY_STATUS.NON_WORKING]: 'bg-muted-foreground/40',
 };
 
 /**

@@ -140,7 +140,7 @@ export default function AttendanceCalendar({
     // the column beside it sets: the day cells stretch, the card does not float in
     // a taller box with dead space under the last week.
     <div
-      className={cn('app-panel flex flex-col p-4 md:p-5', className)}
+      className={cn('app-card flex flex-col p-4 md:p-5', className)}
       data-test="attendance-calendar"
     >
       <div className="mb-3 flex items-center justify-between">
@@ -236,7 +236,7 @@ export default function AttendanceCalendar({
                 key={`${wi}-${di}`}
                 aria-disabled={disabled || undefined}
                 className={cn(
-                  'relative flex min-h-9 flex-col items-center justify-center rounded-md text-xs font-medium',
+                  'relative flex min-h-9 flex-col items-center justify-center rounded-[var(--r-control)] text-xs font-medium',
                   dayStatusClass(isRemoteWeek ? DAY_STATUS.REMOTE : status, { isToday })
                 )}
                 title={`${format(date, 'EEE, MMM d')} — ${reason}${observanceNote}`}
@@ -264,7 +264,7 @@ export default function AttendanceCalendar({
       <div className="mt-4 flex flex-wrap items-center gap-3.5 border-t border-border/60 pt-3">
         <LegendItem dotClass={dayStatusDot(DAY_STATUS.PRESENT)} label="Present" />
         <LegendItem dotClass={dayStatusDot(DAY_STATUS.ABSENT)} label="Absent" />
-        <LegendItem dotClass="bg-muted-foreground/30" label="Weekend" />
+        <LegendItem dotClass={dayStatusDot(DAY_STATUS.WEEKEND)} label="Weekend" />
         {showsRemote && <LegendItem dotClass={STATUS_DOT[DAY_STATUS.REMOTE]} label="Remote" />}
         {shownLeave.map((status) => (
           <LegendItem key={status} dotClass={dayStatusDot(status)} label={dayStatusLabel(status)} />
@@ -272,7 +272,9 @@ export default function AttendanceCalendar({
         {showsExempt && (
           <LegendItem dotClass={dayStatusDot(DAY_STATUS.EXEMPT)} label="On project" />
         )}
-        {showsNonWorking && <LegendItem dotClass="bg-muted-foreground/20" label="Non-working" />}
+        {showsNonWorking && (
+          <LegendItem dotClass={dayStatusDot(DAY_STATUS.NON_WORKING)} label="Non-working" />
+        )}
       </div>
 
       {upcoming.length > 0 && (

@@ -166,7 +166,10 @@ export function AssignSpecializationModal({ open, onClose, initialInternUserId =
           </div>
 
           {error && (
-            <p className="text-sm text-destructive" data-test="specialization-form-error">
+            <p
+              className="text-sm text-[hsl(var(--tone-danger-fg))]"
+              data-test="specialization-form-error"
+            >
               {error}
             </p>
           )}

@@ -57,7 +57,7 @@ export const LoginPage = () => {
           </CardHeader>
           <CardContent className="px-6 md:px-12 pb-12">
             {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md text-sm font-medium text-center">
+              <div className="mb-4 p-3 bg-[hsl(var(--tone-danger)/0.15)] border border-[hsl(var(--tone-danger)/0.3)] text-[hsl(var(--tone-danger-fg))] rounded-[var(--r-control)] text-sm font-medium text-center">
                 {errorMessage}
               </div>
             )}
@@ -107,7 +107,7 @@ export const LoginPage = () => {
                 {loginMutation.isPending ? 'Signing in...' : 'Login'}
               </Button>
 
-              <div className="rounded-2xl border border-border bg-muted p-4 text-center">
+              <div className="rounded-[var(--r-card)] border border-border bg-muted p-4 text-center">
                 <p className="text-sm font-semibold text-foreground">First time here?</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   If your admin created your account, use your internal email to set your password.

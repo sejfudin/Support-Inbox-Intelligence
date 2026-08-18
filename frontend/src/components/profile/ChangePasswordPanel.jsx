@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PagePanel } from '@/components/PageShell';
 import { useChangePassword } from '@/queries/auth';
 
 const MIN_LENGTH = 6;
@@ -77,14 +76,11 @@ export function ChangePasswordPanel() {
   );
 
   return (
-    <PagePanel className="px-5 py-6 md:px-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <div className="flex items-center gap-2 text-base font-semibold leading-tight">
-            <KeyRound className="h-4 w-4 text-muted-foreground" />
-            Password
-          </div>
-          <p className="text-sm text-muted-foreground">
+    <section className="app-card px-[18px] py-[15px]">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+        <div className="min-w-0 space-y-0.5">
+          <h2 className="app-card-title">Password</h2>
+          <p className="text-[12.5px] leading-[1.45] text-muted-foreground">
             {isEditing
               ? 'Enter your current password, then the one you want to use.'
               : 'Changing it signs out every other device you are signed in on.'}
@@ -94,7 +90,7 @@ export function ChangePasswordPanel() {
         {!isEditing && (
           <Button
             variant="outline"
-            className="w-full gap-2 sm:w-auto"
+            className="w-full shrink-0 gap-2 sm:w-auto"
             onClick={() => setIsEditing(true)}
             data-test="profile-change-password-button"
           >
@@ -104,19 +100,22 @@ export function ChangePasswordPanel() {
       </div>
 
       {isEditing && (
-        <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
-          <div className="grid gap-6 md:grid-cols-2">
+        <form
+          className="mt-[15px] space-y-5 border-t border-separator pt-[15px]"
+          onSubmit={handleSubmit}
+        >
+          <div className="grid gap-4 md:grid-cols-2">
             {field('currentPassword', 'Current password', 'current-password')}
             {field('newPassword', 'New password', 'new-password')}
 
             <div className="space-y-1 md:col-span-2">
               {draft.newPassword.length > 0 && !isLongEnough && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-[hsl(var(--tone-danger-fg))]">
                   Password must be at least {MIN_LENGTH} characters long.
                 </p>
               )}
               {isLongEnough && !isDifferent && (
-                <p className="text-xs text-destructive">
+                <p className="text-xs text-[hsl(var(--tone-danger-fg))]">
                   Your new password must be different from your current one.
                 </p>
               )}
@@ -124,7 +123,7 @@ export function ChangePasswordPanel() {
 
             {changePassword.isError && (
               <div
-                className="md:col-span-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                className="md:col-span-2 rounded-[var(--r-control)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-[hsl(var(--tone-danger-fg))]"
                 data-test="profile-password-error"
               >
                 {changePassword.error?.response?.data?.message ||
@@ -153,6 +152,6 @@ export function ChangePasswordPanel() {
           </div>
         </form>
       )}
-    </PagePanel>
+    </section>
   );
 }

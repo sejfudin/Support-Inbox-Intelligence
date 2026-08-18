@@ -36,17 +36,26 @@ export function BlockedByChip({ blocker, onOpenTicket, className }) {
     );
   }
 
+  const open = (e) => {
+    // The row and the board card are both click targets that open THIS ticket.
+    // Letting the event through would open the wrong one.
+    e.stopPropagation();
+    e.preventDefault();
+    onOpenTicket(blockingId);
+  };
+
+  // A span with a button role rather than a real `<button>`: the redesigned board
+  // card is itself a `<button>`, and a nested one is invalid DOM. Keyboard
+  // activation is wired by hand to match what the element type would have given.
   return (
-    <button
-      type="button"
-      onClick={(e) => {
-        // The row and the board card are both click targets that open THIS
-        // ticket. Letting the event through would open the wrong one.
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => {
         e.stopPropagation();
-        e.preventDefault();
-        onOpenTicket(blockingId);
+        if (e.key === 'Enter' || e.key === ' ') open(e);
       }}
-      onKeyDown={(e) => e.stopPropagation()}
       // The board card is a dnd-kit draggable, and its drag listeners sit on an
       // ancestor. Its 8px activation distance already lets a plain click through,
       // but keeping pointerdown off the drag handle means the chip stays a button
@@ -63,7 +72,7 @@ export function BlockedByChip({ blocker, onOpenTicket, className }) {
       )}
     >
       {body}
-    </button>
+    </span>
   );
 }
 

@@ -151,7 +151,7 @@ function DraftProjectFields({ control, errors }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label className="text-sm font-semibold">
-            Name <span className="text-destructive">*</span>
+            Name <span className="text-[hsl(var(--tone-danger-fg))]">*</span>
           </Label>
           <Controller
             name="draftProject.name"
@@ -167,7 +167,9 @@ function DraftProjectFields({ control, errors }) {
             )}
           />
           {errors.draftProject?.name && (
-            <p className="text-xs text-destructive">{errors.draftProject.name.message}</p>
+            <p className="text-xs text-[hsl(var(--tone-danger-fg))]">
+              {errors.draftProject.name.message}
+            </p>
           )}
         </div>
         <div className="space-y-1.5">
@@ -590,7 +592,9 @@ export function RequestFormModal({
                     )}
                   />
                   {errors.projectId && (
-                    <p className="text-xs text-destructive">{errors.projectId.message}</p>
+                    <p className="text-xs text-[hsl(var(--tone-danger-fg))]">
+                      {errors.projectId.message}
+                    </p>
                   )}
                   {!isEditing ? (
                     <button
@@ -805,7 +809,7 @@ export function RequestFormModal({
                 </button>
 
                 {errors.requestedPositions && (
-                  <p className="text-xs text-destructive">
+                  <p className="text-xs text-[hsl(var(--tone-danger-fg))]">
                     {errors.requestedPositions.message ||
                       errors.requestedPositions.root?.message ||
                       'Check the requested positions'}

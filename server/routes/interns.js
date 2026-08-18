@@ -15,6 +15,8 @@ const {
   updateInternalCv,
   uploadMyCv,
   deleteMyCv,
+  getCvSummary,
+  generateCvSummary,
   listComments,
   createComment,
   listEvaluations,
@@ -41,6 +43,16 @@ router.get('/:userId', protect, getIntern);
 router.patch('/:userId', protect, updateIntern);
 router.put('/:userId/documentation-links', protect, updateDocumentationLinks);
 router.put('/:userId/internal-cv', protect, updateInternalCv);
+
+// Enforced in the service, not here, because the two verbs differ: reading is
+// admin, leadership, or the assigned mentor (`canReadMentorAssessment`), while
+// generating also needs write access (`canWriteMentorData`), which leadership
+// does not have. Deliberately not offered to the intern for their own profile
+// either way: it is a reader's aid for whoever is assessing them, and handing
+// someone a machine's description of their own CV invites it to be read as
+// feedback, which it is explicitly not (see prompts/internCvPrompts).
+router.get('/:userId/cv-summary', protect, getCvSummary);
+router.post('/:userId/cv-summary', protect, generateCvSummary);
 
 router.get('/:userId/comments', protect, listComments);
 router.post('/:userId/comments', protect, createComment);

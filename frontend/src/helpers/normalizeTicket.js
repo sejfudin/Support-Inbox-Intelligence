@@ -81,6 +81,7 @@ export const normalizeTicket = (ticket = {}) => {
   const inProgressAt = ticket.inProgressAt ?? null;
   const doneAt = ticket.doneAt ?? null;
   const archivedAt = ticket.archivedAt ?? null;
+  const createdAt = ticket.createdAt ?? null;
 
   return {
     id,
@@ -96,8 +97,12 @@ export const normalizeTicket = (ticket = {}) => {
     inProgressAt,
     doneAt,
     archivedAt,
+    createdAt,
     taskNumber,
     blockedBy,
+    // Comes from the list endpoint (see `attachCommentCounts`), so the table can
+    // show a thread's size without fetching its comments.
+    commentCount: ticket.commentCount ?? 0,
     raw: ticket,
   };
 };

@@ -72,7 +72,7 @@ export function AttendanceSwitchNotice({ className }) {
       // animated or brightly filled there becomes something to tune out, and the
       // board already spends its accent colour on the attendance card right below.
       className={cn(
-        'flex shrink-0 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-1.5 text-left transition-colors',
+        'flex shrink-0 items-center gap-2.5 rounded-[var(--r-control)] border border-border bg-card px-3 py-1.5 text-left transition-colors',
         'hover:border-primary/40 hover:bg-primary/[0.04]',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
       )}

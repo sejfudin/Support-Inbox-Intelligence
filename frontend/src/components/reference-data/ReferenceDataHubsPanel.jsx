@@ -20,12 +20,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
+import {
+  ReferenceDataPanel,
+  ReferenceDataTableMessage,
+  referenceDataActionClass,
+  referenceDataRowActionClass,
+} from '@/components/reference-data/ReferenceDataPanel';
 import { useCreateHub, useHubs, useUpdateHub } from '@/queries/hubs';
 import { toast } from 'sonner';
 
 const emptyForm = { name: '', city: '', country: '', isActive: true };
-const tableHeadClass =
-  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
 
 export function ReferenceDataHubsPanel() {
   const { data: hubs = [], isPending } = useHubs({ includeInactive: true });
@@ -72,64 +76,58 @@ export function ReferenceDataHubsPanel() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Company office locations used to assign every employee to a hub.
-        </p>
-        <Button
-          type="button"
-          onClick={openCreate}
-          className="gap-2"
-          data-test="platform-management-hubs-add-button"
-        >
-          <Plus className="h-4 w-4" />
-          Add Hub
-        </Button>
-      </div>
-
-      <div className="rounded-2xl border border-border/70 overflow-hidden">
-        <Table>
+    <>
+      <ReferenceDataPanel
+        description="Company office locations used to assign every employee to a hub."
+        action={
+          <Button
+            type="button"
+            onClick={openCreate}
+            className={referenceDataActionClass}
+            data-test="platform-management-hubs-add-button"
+          >
+            <Plus className="h-4 w-4" />
+            Add hub
+          </Button>
+        }
+      >
+        <Table className="min-w-[720px]">
           <TableHeader>
-            <TableRow className="bg-secondary/60">
-              <TableHead className={tableHeadClass}>Name</TableHead>
-              <TableHead className={tableHeadClass}>City</TableHead>
-              <TableHead className={tableHeadClass}>Country</TableHead>
-              <TableHead className={tableHeadClass}>Status</TableHead>
-              <TableHead className={`${tableHeadClass} w-[80px]`}>Actions</TableHead>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Name</TableHead>
+              <TableHead className="w-[180px]">City</TableHead>
+              <TableHead className="w-[200px]">Country</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[80px] text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isPending ? (
-              <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  Loading hubs...
-                </TableCell>
-              </TableRow>
+              <ReferenceDataTableMessage colSpan={5}>Loading hubs…</ReferenceDataTableMessage>
             ) : hubs.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  No hubs yet.
-                </TableCell>
-              </TableRow>
+              <ReferenceDataTableMessage colSpan={5}>No hubs yet.</ReferenceDataTableMessage>
             ) : (
               hubs.map((hub) => (
                 <TableRow key={hub._id}>
-                  <TableCell className="font-medium">{hub.name}</TableCell>
-                  <TableCell>{hub.city || '—'}</TableCell>
-                  <TableCell>{hub.country || '—'}</TableCell>
+                  <TableCell className="font-medium text-foreground">{hub.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{hub.city || '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{hub.country || '—'}</TableCell>
                   <TableCell>
                     <UserStatusBadge status={hub.isActive ? 'active' : 'inactive'} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => openEdit(hub)}
+                      className={referenceDataRowActionClass}
+                      aria-label={`Edit ${hub.name}`}
                       data-test={`platform-management-hubs-edit-button-${hub._id}`}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -137,12 +135,12 @@ export function ReferenceDataHubsPanel() {
             )}
           </TableBody>
         </Table>
-      </div>
+      </ReferenceDataPanel>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent data-test="platform-management-hubs-dialog">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Hub' : 'Add Hub'}</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit hub' : 'Add hub'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -174,7 +172,7 @@ export function ReferenceDataHubsPanel() {
               />
             </div>
             {editingId && (
-              <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
+              <div className="flex items-center gap-3 rounded-[var(--r-card)] border border-border px-4 py-3">
                 <Checkbox
                   id="hub-active"
                   checked={form.isActive}
@@ -186,12 +184,12 @@ export function ReferenceDataHubsPanel() {
             )}
             <DialogFooter>
               <Button type="submit" data-test="platform-management-hubs-save-button">
-                {editingId ? 'Save Changes' : 'Create Hub'}
+                {editingId ? 'Save changes' : 'Create hub'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

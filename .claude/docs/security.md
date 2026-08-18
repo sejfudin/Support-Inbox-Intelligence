@@ -176,9 +176,16 @@ branch:
 - **Lifecycle status** (`internService.js` `updateInternProgramme`, the `payload.status` branch)
   — admin-only, even for the assigned mentor. `expectedEndDate` in the same endpoint is not
   restricted this way and still follows plain `canWriteMentorData`.
+- **CV summary** (`internCvSummaryService.js`) — the read
+  (`GET /interns/:userId/cv-summary`) is `canReadMentorAssessment`: admin, leadership, or the
+  assigned mentor. Generating (`POST`) additionally requires `canWriteMentorData`, so leadership
+  reads a cached summary but never spends the model call. Neither verb is available to the intern
+  for their own profile — `assertInternAccess`'s default `canViewInternProfile` would admit them,
+  which is why both paths re-check with a narrower predicate.
 - **Attendance roster** — admin-only, and enforced at the service layer, not just in the UI:
-  `GET /api/attendance` / `GET /api/attendance/:internProfileId` are `requireRole(ADMIN)`. See the
-  Attendance paragraph below for the full surface.
+  `GET /api/attendance` is `requireRole(ADMIN)`. The per-intern
+  `GET /api/attendance/:internProfileId` also admits `MENTOR`, but scopes them to their own
+  interns in the service. See the Attendance paragraph below for the full surface.
 
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
@@ -213,8 +220,11 @@ reach these mutations for an unspecialized intern even with a crafted request.
 
 Attendance. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)` and always resolves the
 caller's **own** `InternProfile` — an intern can only ever read or write their own attendance. The
-roster `GET /api/attendance` and the per-intern `GET /api/attendance/:internProfileId` (calendar
-modal) are **admin-only** (`requireRole(ADMIN)`) — mentors have no attendance surface. Not
+roster `GET /api/attendance` is **admin-only** (`requireRole(ADMIN)`). The per-intern
+`GET /api/attendance/:internProfileId` (calendar modal, and the Attendance tab on the intern
+profile) is `requireRole(ADMIN, MENTOR)` — the role guard alone is not enough here, so
+`getInternAttendance` re-checks in the service: a non-admin must be `isAssignedMentor` for that
+profile or the read 403s. One mentor cannot read another mentor's intern. Not
 workspace-scoped (intern domain). The check-in time-window is enforced server-side
 (`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock.
 
@@ -468,6 +478,35 @@ same exception as `Project`/`Recommendation` above).
 - Not covered by any of this: `POST /api/auth/invite/set-password`, which is guarded by the
   single-use invite token instead — there is no old password at that point.
 
+## Self-only endpoints carry no id
+
+- `GET`/`PATCH /api/users/me/preferences` resolves the subject from the token
+  (`req.user.id`), never from the URL or the body. There is no id to guard and no
+  cross-user read path — do not add one. A future self-only endpoint should follow the
+  same shape: `/me`, subject from the token.
+- The patch is **key-validated against the enum table**
+  (`server/constants/userPreferences.js`), with own-property lookups only. An inherited
+  key (`toString`, `constructor`, `__proto__`) resolves to nothing rather than to a
+  function on `Object.prototype`, so a junk key is shrugged off instead of throwing a
+  500. Keep both properties if you touch the validator.
+- Preferences are UI taste, not authorization. Nothing may read them to decide what a
+  caller can see or do.
+
+## The preference cache is not a trust boundary
+
+- `localStorage` caches preferences, and **sign-out deliberately keeps the cache** so the
+  return is flash-free. On a shared browser the next person therefore sees the previous
+  person's cache. `frontend/src/lib/preferenceCacheOwner.js` stamps the owner, and the
+  one-time migration adopts a cache **only** when it can prove it is this user's.
+  Never adopt or upload an unstamped cache.
+- The cache holds no secret — do not put one there. The session tokens stay under their
+  own keys, owned by `api/axios.js` and `context/AuthContext.jsx`.
+- The access token is read outside the axios interceptor in exactly one place: the
+  `keepalive` unload flush in `frontend/src/api/userPreferences.js`, which must outlive
+  the document. It builds its header with `authorizationHeader()` from `api/axios.js`, so
+  the token is still read in one place. Do not add a second such caller without the same
+  hard reason.
+
 ## Input handling
 
 - **Sanitize user-supplied rich-text HTML** (TipTap ticket descriptions — anything rendered
@@ -493,3 +532,4 @@ same exception as `Project`/`Recommendation` above).
 5. Is user HTML sanitized?
 6. Does the response leak fields the caller shouldn't see (other workspaces, other interns)?
 7. If it writes a credential, does it re-prove the caller owns it? (see Credentials)
+8. If it is a `/me` endpoint, does the subject come from the token rather than the request?

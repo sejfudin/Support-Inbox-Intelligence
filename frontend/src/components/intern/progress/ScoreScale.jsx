@@ -25,8 +25,8 @@ export function ScoreDelta({ delta, className }) {
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
         delta === 0 && 'bg-muted text-muted-foreground',
-        delta > 0 && 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300',
-        delta < 0 && 'bg-red-500/12 text-red-700 dark:text-red-300',
+        delta > 0 && 'bg-[hsl(var(--tone-success)/0.12)] text-[hsl(var(--tone-success-fg))]',
+        delta < 0 && 'bg-[hsl(var(--tone-danger)/0.12)] text-[hsl(var(--tone-danger-fg))]',
         className
       )}
       title="Change since the previous review period"

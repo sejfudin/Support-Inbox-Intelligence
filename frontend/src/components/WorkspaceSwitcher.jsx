@@ -18,10 +18,10 @@ import { cn } from '@/lib/utils';
 function WorkspaceLogo({ workspace, size = 'md', className }) {
   const sizeClass =
     size === 'sm'
-      ? 'h-6 w-6 rounded-md'
+      ? 'h-6 w-6 rounded-[var(--r-control)]'
       : size === 'lg'
-        ? 'h-9 w-9 rounded-xl'
-        : 'h-7 w-7 rounded-lg';
+        ? 'h-9 w-9 rounded-[var(--r-card)]'
+        : 'h-7 w-7 rounded-[var(--r-control)]';
   const iconClass = size === 'sm' ? 'h-3 w-3' : size === 'lg' ? 'h-4 w-4' : 'h-3.5 w-3.5';
 
   return (
@@ -59,10 +59,10 @@ function WorkspaceLabel({ workspace, subtitle, compact }) {
 }
 
 const workspaceFaceClassName =
-  'flex h-auto w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 text-left shadow-none';
+  'flex h-auto w-full items-center justify-between gap-2 rounded-[var(--r-card)] border border-border/70 bg-card px-3 py-2 text-left shadow-none';
 
 const iconFaceClassName =
-  'flex size-8 items-center justify-center rounded-xl border border-border/70 bg-card p-0 shadow-none';
+  'flex size-8 items-center justify-center rounded-[var(--r-card)] border border-border/70 bg-card p-0 shadow-none';
 
 /**
  * Collapsed-rail workspace marker: the logo inside a static (non-interactive)

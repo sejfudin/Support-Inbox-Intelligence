@@ -9,5 +9,5 @@ export function PageSection({ children, className }) {
 }
 
 export function PagePanel({ children, className }) {
-  return <div className={cn('app-panel overflow-hidden', className)}>{children}</div>;
+  return <div className={cn('app-card overflow-hidden', className)}>{children}</div>;
 }

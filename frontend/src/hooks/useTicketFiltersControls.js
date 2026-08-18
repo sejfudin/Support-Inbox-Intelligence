@@ -12,6 +12,7 @@ import {
   TICKET_ID_ORDER_VALUES,
   buildTicketQueryParamsFromControls,
 } from '@/helpers/ticketFilters';
+import { badgeTone } from '@/helpers/badgeTones';
 import { PRIORITY_CONFIG } from '@/helpers/ticketPriority';
 
 export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
@@ -56,8 +57,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'priorityOrder',
         label: `Sort: ${selectedOrder?.label || controls.priorityOrder}`,
-        className:
-          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
+        className: badgeTone('info'),
       });
     }
 
@@ -68,8 +68,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'dueDateOrder',
         label: `Due date: ${selectedDue?.label || controls.dueDateOrder}`,
-        className:
-          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
+        className: badgeTone('info'),
       });
     }
 
@@ -80,8 +79,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'ticketIdOrder',
         label: `Ticket ID: ${selectedTicketIdOrder?.label || controls.ticketIdOrder}`,
-        className:
-          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
+        className: badgeTone('info'),
       });
     }
 

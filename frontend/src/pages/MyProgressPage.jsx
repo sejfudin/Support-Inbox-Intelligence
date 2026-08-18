@@ -1,25 +1,24 @@
-import { Eye } from 'lucide-react';
 import { PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInternProgress } from '@/queries/internProgress';
 import { ProgrammeSnapshot } from '@/components/intern/progress/ProgrammeSnapshot';
 import { MyEvaluationsSection } from '@/components/intern/progress/MyEvaluationsSection';
 import { MyReadinessSection } from '@/components/intern/progress/MyReadinessSection';
 import { MyRecommendationsSection } from '@/components/intern/progress/MyRecommendationsSection';
+import { ProgressRail } from '@/components/intern/progress/ProgressRail';
 
-/** Panel-shaped placeholder, so a loading section still reads as a section. */
+/** Card-shaped placeholder, so a loading section still reads as a section. */
 function SectionSkeleton({ rows = 3 }) {
   return (
-    <div className="app-panel overflow-hidden p-0">
-      <div className="border-b border-border/60 px-5 py-4 md:px-6">
-        <Skeleton className="h-5 w-40" />
+    <div className="app-card overflow-hidden">
+      <div className="app-card-head block">
+        <Skeleton className="h-4 w-40" />
         <Skeleton className="mt-2 h-3 w-72 max-w-full" />
       </div>
-      <div className="space-y-3 px-5 py-5 md:px-6">
+      <div className="space-y-2.5 p-[18px]">
         {Array.from({ length: rows }, (_, row) => (
-          <Skeleton key={row} className="h-12 w-full rounded-xl" />
+          <Skeleton key={row} className="h-11 w-full rounded-[var(--r-tile)]" />
         ))}
       </div>
     </div>
@@ -48,22 +47,21 @@ export default function MyProgressPage() {
 
   return (
     <PageShell>
-      <PageSection className="space-y-5">
+      <PageSection className="space-y-3.5">
+        {/* The "yours to read, not to edit" half of the old subtitle now sits in the
+            rail, on the card naming the mentors it is about. The subtitle says what
+            the page holds; the rail says who put it there. */}
         <PageHeading
-          kicker="Internship"
+          crumb="Internship"
           title="My Progress"
-          subtitle="Where you stand in the programme, your evaluations, your placement readiness, and every project you have been recommended for. All of it is recorded by your mentors and admins — yours to read, not to edit."
-          titleAdornment={
-            <Badge variant="outline" className="gap-1.5">
-              <Eye className="h-3.5 w-3.5" />
-              Read-only
-            </Badge>
-          }
+          subtitle="Where you stand in the programme, your evaluations, your placement readiness, and every project you have been recommended for."
         />
 
         {isError && (
-          <div className="app-panel px-6 py-8 text-center">
-            <p className="text-sm font-medium text-destructive">Could not load your progress.</p>
+          <div className="app-card px-6 py-8 text-center">
+            <p className="text-sm font-medium text-[hsl(var(--tone-danger-fg))]">
+              Could not load your progress.
+            </p>
             <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">
               {/* A 404 here means the account has no intern profile yet, which is a
                   real state with a real fix (an admin sets it up) rather than a
@@ -74,20 +72,43 @@ export default function MyProgressPage() {
         )}
 
         {!isError && isPending && (
-          <>
-            <SectionSkeleton rows={2} />
+          <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+            <div className="flex flex-col gap-3.5">
+              <SectionSkeleton rows={3} />
+              <SectionSkeleton rows={2} />
+            </div>
             <SectionSkeleton rows={3} />
-            <SectionSkeleton rows={2} />
-          </>
+          </div>
         )}
 
+        {/* Two columns: the four sections on the left, the page index and the people
+            behind it on the right. The rail is what fills the space beside a page
+            whose sections are mostly empty for a new intern — the same
+            1.55fr/1fr split `/my-technologies` one nav row away uses.
+
+            Evaluations and Recommendations pair up below the two full-width
+            sections. They are the two "a list, once someone records something"
+            blocks, so side by side they read as one row of the same kind of thing;
+            `xl` is where the left column is wide enough for a populated evaluation's
+            score bars to survive the halving. */}
         {!isError && !isPending && (
-          <>
-            <ProgrammeSnapshot programme={data?.programme} />
-            <MyEvaluationsSection evaluations={data?.evaluations} />
-            <MyReadinessSection readiness={data?.readiness} />
-            <MyRecommendationsSection recommendations={data?.recommendations} />
-          </>
+          <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+            <div className="flex flex-col gap-3.5">
+              <ProgrammeSnapshot programme={data?.programme} />
+              <MyReadinessSection readiness={data?.readiness} />
+              <div className="grid gap-3.5 xl:grid-cols-2">
+                <MyEvaluationsSection evaluations={data?.evaluations} />
+                <MyRecommendationsSection recommendations={data?.recommendations} />
+              </div>
+            </div>
+
+            <ProgressRail
+              programme={data?.programme}
+              readiness={data?.readiness}
+              evaluations={data?.evaluations}
+              recommendations={data?.recommendations}
+            />
+          </div>
         )}
       </PageSection>
     </PageShell>

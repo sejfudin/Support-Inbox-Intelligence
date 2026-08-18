@@ -370,7 +370,7 @@ export function WhatsNewTour() {
           until the tour ends. */}
       {rect ? (
         <div
-          className="pointer-events-auto absolute rounded-xl ring-2 ring-primary/70 transition-all duration-200 motion-reduce:transition-none"
+          className="pointer-events-auto absolute rounded-[var(--r-card)] ring-2 ring-primary/70 transition-all duration-200 motion-reduce:transition-none"
           style={{
             left: rect.left - PAD,
             top: rect.top - PAD,
@@ -427,7 +427,7 @@ export function WhatsNewTour() {
             type="button"
             onClick={() => go(1)}
             data-test="whats-new-next"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            className="inline-flex items-center gap-1.5 rounded-[var(--r-card)] bg-white px-3.5 py-2 text-xs font-semibold text-slate-900 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             {isLast ? 'Got it' : 'Next'}
             {!isLast && <ArrowRight className="h-3.5 w-3.5" />}
@@ -438,7 +438,7 @@ export function WhatsNewTour() {
               type="button"
               onClick={() => go(-1)}
               data-test="whats-new-back"
-              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+              className="inline-flex items-center gap-1.5 rounded-[var(--r-card)] px-2.5 py-2 text-xs font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back
@@ -449,7 +449,7 @@ export function WhatsNewTour() {
             type="button"
             onClick={finish}
             data-test="whats-new-skip"
-            className="ml-auto inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium text-white/55 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+            className="ml-auto inline-flex items-center gap-1.5 rounded-[var(--r-card)] px-2.5 py-2 text-xs font-medium text-white/55 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
           >
             <X className="h-3.5 w-3.5" />
             Skip

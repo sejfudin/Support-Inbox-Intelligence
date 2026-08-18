@@ -9,10 +9,18 @@ export const PRIORITY_OPTIONS = [
   { value: 'critical', label: 'Critical' },
 ];
 
+/**
+ * Sort weight per priority. The board's in-column sort and the priority-filter
+ * asc/desc toggle both order by this, so it lives here with the rest of the
+ * priority semantics rather than once per caller. Callers pick their own
+ * fallback for an unknown value — they do not agree on one.
+ */
+export const PRIORITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+
 export const PRIORITY_CONFIG = {
   critical: {
     icon: AlertCircle,
-    className: 'text-red-600 dark:text-red-400',
+    className: 'text-[hsl(var(--tone-danger-fg))]',
     dot: dotTone('danger'),
     badge: badgeTone('danger'),
     label: 'Critical',
@@ -20,7 +28,7 @@ export const PRIORITY_CONFIG = {
   },
   high: {
     icon: ArrowUp,
-    className: 'text-orange-600 dark:text-orange-400',
+    className: 'text-[hsl(var(--tone-orange-fg))]',
     dot: dotTone('orange'),
     badge: badgeTone('orange'),
     label: 'High',
@@ -28,7 +36,7 @@ export const PRIORITY_CONFIG = {
   },
   medium: {
     icon: Minus,
-    className: 'text-blue-600 dark:text-blue-400',
+    className: 'text-[hsl(var(--tone-info-fg))]',
     dot: dotTone('info'),
     badge: badgeTone('info'),
     label: 'Medium',

@@ -1,65 +1,80 @@
-/** Theme-aware class strings for badges, pills, chips, and indicators */
+/**
+ * Theme-aware class strings for badges, pills, chips, and indicators.
+ *
+ * Every colour here resolves through a `--tone-*` custom property rather than a
+ * literal Tailwind class (`bg-emerald-500/15`). The default values of those
+ * tokens ARE the Tailwind steps this file used to name, so nothing looks
+ * different — but Settings → Accessibility → Colour-blind safe can now repaint
+ * the whole status vocabulary by redefining eight variables in `index.css`,
+ * instead of us hunting utility strings through forty components.
+ *
+ * Only the ink flips between light and dark; the base hue stays put, which is
+ * why there is one `--tone-x` and one `--tone-x-fg` rather than a pair per mode.
+ *
+ * Every class below is written out in full. It is repetitive on purpose:
+ * Tailwind's JIT finds classes by scanning source text, so a name assembled at
+ * runtime (`bg-[hsl(var(--tone-${key})/0.15)]`) generates no CSS at all and the
+ * chips render unstyled. Do not refactor these strings into a template.
+ */
 
-const tone = (base) => ({
-  badge: `${base.badge} hover:opacity-90`,
-  indicator: base.indicator,
-  chip: base.chip || base.badge,
-});
+const withChip = (base) => ({ ...base, chip: base.chip || base.badge });
 
 export const BADGE_TONES = {
-  success: tone({
+  success: withChip({
     badge:
-      'bg-emerald-500/15 text-emerald-800 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/35',
+      'bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))] border-[hsl(var(--tone-success)/0.3)] dark:bg-[hsl(var(--tone-success)/0.2)] dark:border-[hsl(var(--tone-success)/0.35)] hover:opacity-90',
     indicator:
-      'bg-emerald-500/10 text-emerald-800 border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30',
+      'bg-[hsl(var(--tone-success)/0.1)] text-[hsl(var(--tone-success-fg))] border-[hsl(var(--tone-success)/0.25)] dark:bg-[hsl(var(--tone-success)/0.15)] dark:border-[hsl(var(--tone-success)/0.3)]',
   }),
-  info: tone({
+  info: withChip({
     badge:
-      'bg-blue-500/15 text-blue-800 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/35',
+      'bg-[hsl(var(--tone-info)/0.15)] text-[hsl(var(--tone-info-fg))] border-[hsl(var(--tone-info)/0.3)] dark:bg-[hsl(var(--tone-info)/0.2)] dark:border-[hsl(var(--tone-info)/0.35)] hover:opacity-90',
     indicator:
-      'bg-blue-500/10 text-blue-800 border-blue-500/25 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30',
+      'bg-[hsl(var(--tone-info)/0.1)] text-[hsl(var(--tone-info-fg))] border-[hsl(var(--tone-info)/0.25)] dark:bg-[hsl(var(--tone-info)/0.15)] dark:border-[hsl(var(--tone-info)/0.3)]',
   }),
-  warning: tone({
+  warning: withChip({
     badge:
-      'bg-amber-500/15 text-amber-800 border-amber-500/30 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/35',
+      'bg-[hsl(var(--tone-warning)/0.15)] text-[hsl(var(--tone-warning-fg))] border-[hsl(var(--tone-warning)/0.3)] dark:bg-[hsl(var(--tone-warning)/0.2)] dark:border-[hsl(var(--tone-warning)/0.35)] hover:opacity-90',
     indicator:
-      'bg-amber-500/10 text-amber-800 border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30',
+      'bg-[hsl(var(--tone-warning)/0.1)] text-[hsl(var(--tone-warning-fg))] border-[hsl(var(--tone-warning)/0.25)] dark:bg-[hsl(var(--tone-warning)/0.15)] dark:border-[hsl(var(--tone-warning)/0.3)]',
   }),
-  danger: tone({
+  danger: withChip({
     badge:
-      'bg-red-500/15 text-red-800 border-red-500/30 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/35',
+      'bg-[hsl(var(--tone-danger)/0.15)] text-[hsl(var(--tone-danger-fg))] border-[hsl(var(--tone-danger)/0.3)] dark:bg-[hsl(var(--tone-danger)/0.2)] dark:border-[hsl(var(--tone-danger)/0.35)] hover:opacity-90',
     indicator:
-      'bg-red-500/10 text-red-800 border-red-500/25 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30',
+      'bg-[hsl(var(--tone-danger)/0.1)] text-[hsl(var(--tone-danger-fg))] border-[hsl(var(--tone-danger)/0.25)] dark:bg-[hsl(var(--tone-danger)/0.15)] dark:border-[hsl(var(--tone-danger)/0.3)]',
   }),
-  orange: tone({
+  orange: withChip({
     badge:
-      'bg-orange-500/15 text-orange-800 border-orange-500/30 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/35',
+      'bg-[hsl(var(--tone-orange)/0.15)] text-[hsl(var(--tone-orange-fg))] border-[hsl(var(--tone-orange)/0.3)] dark:bg-[hsl(var(--tone-orange)/0.2)] dark:border-[hsl(var(--tone-orange)/0.35)] hover:opacity-90',
     indicator:
-      'bg-orange-500/10 text-orange-800 border-orange-500/25 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30',
+      'bg-[hsl(var(--tone-orange)/0.1)] text-[hsl(var(--tone-orange-fg))] border-[hsl(var(--tone-orange)/0.25)] dark:bg-[hsl(var(--tone-orange)/0.15)] dark:border-[hsl(var(--tone-orange)/0.3)]',
   }),
-  cyan: tone({
+  cyan: withChip({
     badge:
-      'bg-cyan-500/15 text-cyan-800 border-cyan-500/30 dark:bg-cyan-500/20 dark:text-cyan-300 dark:border-cyan-500/35',
+      'bg-[hsl(var(--tone-cyan)/0.15)] text-[hsl(var(--tone-cyan-fg))] border-[hsl(var(--tone-cyan)/0.3)] dark:bg-[hsl(var(--tone-cyan)/0.2)] dark:border-[hsl(var(--tone-cyan)/0.35)] hover:opacity-90',
     indicator:
-      'bg-cyan-500/10 text-cyan-800 border-cyan-500/25 dark:bg-cyan-500/15 dark:text-cyan-300 dark:border-cyan-500/30',
+      'bg-[hsl(var(--tone-cyan)/0.1)] text-[hsl(var(--tone-cyan-fg))] border-[hsl(var(--tone-cyan)/0.25)] dark:bg-[hsl(var(--tone-cyan)/0.15)] dark:border-[hsl(var(--tone-cyan)/0.3)]',
   }),
-  violet: tone({
+  violet: withChip({
     badge:
-      'bg-violet-500/15 text-violet-800 border-violet-500/30 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/35',
+      'bg-[hsl(var(--tone-violet)/0.15)] text-[hsl(var(--tone-violet-fg))] border-[hsl(var(--tone-violet)/0.3)] dark:bg-[hsl(var(--tone-violet)/0.2)] dark:border-[hsl(var(--tone-violet)/0.35)] hover:opacity-90',
     indicator:
-      'bg-violet-500/10 text-violet-800 border-violet-500/25 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30',
+      'bg-[hsl(var(--tone-violet)/0.1)] text-[hsl(var(--tone-violet-fg))] border-[hsl(var(--tone-violet)/0.25)] dark:bg-[hsl(var(--tone-violet)/0.15)] dark:border-[hsl(var(--tone-violet)/0.3)]',
   }),
-  indigo: tone({
+  indigo: withChip({
     badge:
-      'bg-indigo-500/15 text-indigo-800 border-indigo-500/30 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/35',
+      'bg-[hsl(var(--tone-indigo)/0.15)] text-[hsl(var(--tone-indigo-fg))] border-[hsl(var(--tone-indigo)/0.3)] dark:bg-[hsl(var(--tone-indigo)/0.2)] dark:border-[hsl(var(--tone-indigo)/0.35)] hover:opacity-90',
     indicator:
-      'bg-indigo-500/10 text-indigo-800 border-indigo-500/25 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30',
+      'bg-[hsl(var(--tone-indigo)/0.1)] text-[hsl(var(--tone-indigo-fg))] border-[hsl(var(--tone-indigo)/0.25)] dark:bg-[hsl(var(--tone-indigo)/0.15)] dark:border-[hsl(var(--tone-indigo)/0.3)]',
   }),
-  neutral: tone({
+  // Neutral and primary already run on theme tokens, so they follow the palette
+  // rather than the tone set and need no colour-blind treatment.
+  neutral: withChip({
     badge: 'bg-muted text-muted-foreground border-border hover:bg-muted/80',
     indicator: 'bg-muted/80 text-muted-foreground border-border',
   }),
-  primary: tone({
+  primary: withChip({
     badge:
       'bg-primary/15 text-primary border-primary/30 dark:bg-primary/20 dark:text-primary dark:border-primary/35',
     indicator:
@@ -68,15 +83,33 @@ export const BADGE_TONES = {
 };
 
 export const DOT_TONES = {
-  success: 'bg-emerald-500 dark:bg-emerald-400',
-  info: 'bg-blue-500 dark:bg-blue-400',
-  warning: 'bg-amber-500 dark:bg-amber-400',
-  danger: 'bg-red-500 dark:bg-red-400',
-  orange: 'bg-orange-500 dark:bg-orange-400',
-  cyan: 'bg-cyan-500 dark:bg-cyan-400',
-  violet: 'bg-violet-500 dark:bg-violet-400',
+  success: 'bg-[hsl(var(--tone-success))]',
+  info: 'bg-[hsl(var(--tone-info))]',
+  warning: 'bg-[hsl(var(--tone-warning))]',
+  danger: 'bg-[hsl(var(--tone-danger))]',
+  orange: 'bg-[hsl(var(--tone-orange))]',
+  cyan: 'bg-[hsl(var(--tone-cyan))]',
+  violet: 'bg-[hsl(var(--tone-violet))]',
   neutral: 'bg-muted-foreground',
 };
+
+/**
+ * The chip geometry, for the handful of badges that cannot go through
+ * `components/ui/badge` because their colour is data — a workspace's own status
+ * colour, stored as a hex on the status record. Pair with `badgeTone(...)` when
+ * the colour *is* one of ours.
+ *
+ * Identical to `Badge`'s base by construction: radius 6 (`--r-badge`), 10.5px/600,
+ * padding 3px 9px, no border, sentence case. If one of them changes, change both
+ * — a chip a pixel off the badge beside it is exactly what this file exists to
+ * prevent.
+ *
+ * It used to be the opt-in half of a pair, selected by a `flat` prop, with an
+ * uppercase bordered pill as the default. There is one look now; the prop is
+ * gone from every badge component.
+ */
+export const CHIP =
+  'inline-flex items-center whitespace-nowrap rounded-[var(--r-badge)] px-[9px] py-[3px] text-[10.5px] font-semibold leading-[1.5]';
 
 export const badgeTone = (key) => BADGE_TONES[key]?.badge ?? BADGE_TONES.neutral.badge;
 export const indicatorTone = (key) => BADGE_TONES[key]?.indicator ?? BADGE_TONES.neutral.indicator;

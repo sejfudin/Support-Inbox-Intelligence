@@ -229,7 +229,9 @@ export default function LeadershipRequestsPage() {
 
       {isError && (
         <SymphonyCard>
-          <p className="text-sm text-destructive">Failed to load staffing requests.</p>
+          <p className="text-sm text-[hsl(var(--tone-danger-fg))]">
+            Failed to load staffing requests.
+          </p>
         </SymphonyCard>
       )}
 

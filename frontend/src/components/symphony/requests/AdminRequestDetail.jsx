@@ -261,7 +261,7 @@ export function AdminRequestDetail({
             <button
               type="button"
               onClick={toggleAll}
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs font-medium text-[hsl(var(--symphony-brand-ink))] hover:underline"
               data-test="toggle-all-positions"
             >
               {anyExpanded ? 'Collapse all' : 'Expand all'}
@@ -309,14 +309,19 @@ export function AdminRequestDetail({
           button legible on its own down here: without it, an outlined red
           control under a list of seats has to be guessed at. */}
       {isOpen && (
-        <div className="-mx-5 -mb-5 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-b-[inherit] px-5 py-4 md:-mx-6 md:-mb-6 md:px-6">
+        <div className="-mx-5 -mb-5 mt-1 flex flex-wrap items-center justify-between gap-3 rounded-b-[inherit] border-t border-border/60 px-5 py-4 md:-mx-6 md:-mb-6 md:px-6">
           <p className="text-sm text-muted-foreground">Can’t staff this one?</p>
+          {/* Outlined rather than red-on-white. It is destructive, but it sits
+              alone in a footer with a prompt beside it — the weight it needed was
+              "deliberate", not "alarming", and a red control down here competed
+              with the overdue dates further up the pane. The destructive colour
+              arrives on hover, where the click is actually about to happen. */}
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => setCloseReason('declined')}
-            className="gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="gap-2 hover:border-destructive/40 hover:bg-destructive/10 hover:text-[hsl(var(--tone-danger-fg))]"
             data-test="request-decline"
           >
             <Ban className="h-4 w-4" aria-hidden="true" />

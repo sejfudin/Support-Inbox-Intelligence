@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils';
 // Thresholds mirror how the attendance roster reads a rate: healthy, slipping,
 // and needs attention. Tokenised colours so the meter stays legible in every theme.
 const rateTone = (rate) => {
-  if (rate >= 90) return 'bg-emerald-500';
-  if (rate >= 80) return 'bg-amber-500';
+  if (rate >= 90) return 'bg-[hsl(var(--tone-success))]';
+  if (rate >= 80) return 'bg-[hsl(var(--tone-warning))]';
   return 'bg-destructive';
 };
 

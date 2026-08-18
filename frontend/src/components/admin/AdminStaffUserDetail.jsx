@@ -25,7 +25,9 @@ function MentorInternsPanel({ mentorUserId }) {
   }
 
   if (isError) {
-    return <p className="text-sm text-destructive">Failed to load assigned interns.</p>;
+    return (
+      <p className="text-sm text-[hsl(var(--tone-danger-fg))]">Failed to load assigned interns.</p>
+    );
   }
 
   if (interns.length === 0) {
@@ -148,28 +150,28 @@ export function AdminStaffUserDetail({ user, userId, backButton, editUserButton 
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="User profile"
+          crumb="Admin"
           title={userName}
           subtitle={user?.email}
-          beforeKicker={backButton}
+          beforeTitle={backButton}
           actions={editUserButton}
         >
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Role</p>
               <p className="font-medium text-foreground">{getRoleLabel(user.role)}</p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Status</p>
               <p className="font-medium text-foreground">
                 {capitalizeFirst(user.status || 'active')}
               </p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Hub</p>
               <p className="font-medium text-foreground">{user?.hub?.name || '—'}</p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Active workspace</p>
               <p className="font-medium text-foreground">
                 {activeWorkspace?.name || (activeWorkspaceId ? 'Assigned workspace' : '—')}

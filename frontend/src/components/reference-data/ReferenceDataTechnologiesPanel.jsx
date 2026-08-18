@@ -20,20 +20,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
+import {
+  ReferenceDataPanel,
+  ReferenceDataSlugBadge,
+  ReferenceDataTableMessage,
+  referenceDataActionClass,
+  referenceDataRowActionClass,
+} from '@/components/reference-data/ReferenceDataPanel';
 import { useCreateTechnology, useTechnologies, useUpdateTechnology } from '@/queries/technologies';
 import { toast } from 'sonner';
 
 const emptyForm = { name: '', isActive: true };
-const tableHeadClass =
-  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
-
-function SlugBadge({ children }) {
-  return (
-    <span className="inline-flex rounded-md bg-secondary px-2 py-1 font-mono text-xs font-medium text-muted-foreground">
-      {children}
-    </span>
-  );
-}
 
 export function ReferenceDataTechnologiesPanel() {
   const { data: technologies = [], isPending } = useTechnologies({ includeInactive: true });
@@ -78,64 +75,62 @@ export function ReferenceDataTechnologiesPanel() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Skills and stacks used for intern profiles and readiness tracking.
-        </p>
-        <Button
-          type="button"
-          onClick={openCreate}
-          className="gap-2"
-          data-test="platform-management-technologies-add-button"
-        >
-          <Plus className="h-4 w-4" />
-          Add Technology
-        </Button>
-      </div>
-
-      <div className="rounded-2xl border border-border/70 overflow-hidden">
-        <Table>
+    <>
+      <ReferenceDataPanel
+        description="Skills and stacks used for intern profiles and readiness tracking."
+        action={
+          <Button
+            type="button"
+            onClick={openCreate}
+            className={referenceDataActionClass}
+            data-test="platform-management-technologies-add-button"
+          >
+            <Plus className="h-4 w-4" />
+            Add technology
+          </Button>
+        }
+      >
+        <Table className="min-w-[640px]">
           <TableHeader>
-            <TableRow className="bg-secondary/60">
-              <TableHead className={tableHeadClass}>Name</TableHead>
-              <TableHead className={tableHeadClass}>Slug</TableHead>
-              <TableHead className={tableHeadClass}>Status</TableHead>
-              <TableHead className={`${tableHeadClass} w-[80px]`}>Actions</TableHead>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Name</TableHead>
+              <TableHead className="w-[240px]">Slug</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[80px] text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isPending ? (
-              <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  Loading technologies...
-                </TableCell>
-              </TableRow>
+              <ReferenceDataTableMessage colSpan={4}>
+                Loading technologies…
+              </ReferenceDataTableMessage>
             ) : technologies.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  No technologies yet.
-                </TableCell>
-              </TableRow>
+              <ReferenceDataTableMessage colSpan={4}>
+                No technologies yet.
+              </ReferenceDataTableMessage>
             ) : (
               technologies.map((technology) => (
                 <TableRow key={technology._id}>
-                  <TableCell className="font-medium">{technology.name}</TableCell>
+                  <TableCell className="font-medium text-foreground">{technology.name}</TableCell>
                   <TableCell>
-                    <SlugBadge>{technology.slug}</SlugBadge>
+                    <ReferenceDataSlugBadge>{technology.slug}</ReferenceDataSlugBadge>
                   </TableCell>
                   <TableCell>
                     <UserStatusBadge status={technology.isActive ? 'active' : 'inactive'} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => openEdit(technology)}
+                      className={referenceDataRowActionClass}
+                      aria-label={`Edit ${technology.name}`}
                       data-test={`platform-management-technologies-edit-button-${technology._id}`}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -143,12 +138,12 @@ export function ReferenceDataTechnologiesPanel() {
             )}
           </TableBody>
         </Table>
-      </div>
+      </ReferenceDataPanel>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent data-test="platform-management-technologies-dialog">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Technology' : 'Add Technology'}</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit technology' : 'Add technology'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -162,7 +157,7 @@ export function ReferenceDataTechnologiesPanel() {
               />
             </div>
             {editingId && (
-              <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
+              <div className="flex items-center gap-3 rounded-[var(--r-card)] border border-border px-4 py-3">
                 <Checkbox
                   id="technology-active"
                   checked={form.isActive}
@@ -174,12 +169,12 @@ export function ReferenceDataTechnologiesPanel() {
             )}
             <DialogFooter>
               <Button type="submit" data-test="platform-management-technologies-save-button">
-                {editingId ? 'Save Changes' : 'Create Technology'}
+                {editingId ? 'Save changes' : 'Create technology'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

@@ -19,11 +19,11 @@ export default function DashboardCheckInReminder({ className }) {
   return (
     <div className={className}>
       <div
-        className="flex flex-col gap-3 overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+        className="flex flex-col gap-3 overflow-hidden rounded-[var(--r-card)] border border-[hsl(var(--tone-warning)/0.2)] bg-[hsl(var(--tone-warning)/0.06)] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
         data-test="dashboard-check-in-reminder"
       >
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--r-card)] bg-[hsl(var(--tone-warning)/0.15)] text-[hsl(var(--tone-warning-fg))]">
             <CalendarClock className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -35,7 +35,7 @@ export default function DashboardCheckInReminder({ className }) {
           type="button"
           size="sm"
           variant="outline"
-          className="shrink-0 self-start border-amber-500/40 text-amber-700 hover:bg-amber-500/10 hover:text-amber-800 sm:self-auto dark:text-amber-300 dark:hover:text-amber-200"
+          className="shrink-0 self-start border-[hsl(var(--tone-warning)/0.4)] text-[hsl(var(--tone-warning-fg))] hover:bg-[hsl(var(--tone-warning)/0.1)] hover:text-[hsl(var(--tone-warning-fg))] sm:self-auto dark:text-[hsl(var(--tone-warning-fg))] dark:hover:text-[hsl(var(--tone-warning-fg))]"
           onClick={() => navigate('/my-attendance')}
           data-test="dashboard-check-in-reminder-button"
         >

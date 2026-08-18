@@ -25,9 +25,9 @@ const ROLE_ICONS = {
 
 function GuideBlock({ icon: Icon, title, children }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm dark:border-surface-border dark:bg-background/30 dark:shadow-none">
+    <div className="rounded-[var(--r-card)] border border-border/60 bg-white/70 p-4 shadow-sm dark:border-surface-border dark:bg-background/30 dark:shadow-none">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/10 dark:border-primary/25 dark:bg-primary/15">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-control)] border border-primary/15 bg-primary/10 dark:border-primary/25 dark:bg-primary/15">
           <Icon className="h-4 w-4 text-primary" />
         </div>
         <div className="min-w-0">
@@ -131,7 +131,7 @@ export function RegisterRoleGuide({ role }) {
           </GuideBlock>
         )}
 
-        <div className="rounded-xl border border-border/60 bg-white/70 p-4 shadow-sm dark:border-surface-border dark:bg-background/30 dark:shadow-none">
+        <div className="rounded-[var(--r-card)] border border-border/60 bg-white/70 p-4 shadow-sm dark:border-surface-border dark:bg-background/30 dark:shadow-none">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Required at creation
           </p>

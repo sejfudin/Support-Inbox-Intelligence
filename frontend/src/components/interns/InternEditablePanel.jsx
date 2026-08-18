@@ -24,31 +24,37 @@ export function InternEditablePanel({
 }) {
   return (
     <div
-      className={cn('space-y-4 rounded-2xl border border-border/60 p-5', className)}
+      className={cn(
+        'space-y-2 rounded-[var(--r-tile)] border border-separator p-[13px] pt-3',
+        className
+      )}
       data-test={`${testIdPrefix}-panel`}
     >
-      <div className="space-y-1">
-        <div className="flex items-start justify-between gap-3">
-          <h4 className="text-sm font-semibold">{title}</h4>
+      <div className="space-y-0.5">
+        <div className="flex items-center justify-between gap-2.5">
+          <h4 className="text-[12.5px] font-semibold text-foreground">{title}</h4>
           {canEdit && !isEditing && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={onStartEditing}
-              className="shrink-0"
+              className="h-[26px] shrink-0 rounded-[var(--r-badge)] px-2.5 text-[11.5px]"
               data-test={`${testIdPrefix}-edit-button`}
             >
               {editButtonLabel}
             </Button>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        {/* Kept as a sub-line rather than dropped: the mockup's card is title +
+            button only, but this sentence is what tells an admin which kind of
+            link belongs here. Sized to read as a caption, not a paragraph. */}
+        <p className="text-[11.5px] text-muted-foreground/75">{description}</p>
       </div>
 
       {!isEditing && !hasContent && (
         <p
-          className="rounded-xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground"
+          className="rounded-[var(--r-control)] border border-dashed border-border px-2.5 py-[18px] text-center text-[11.5px] text-muted-foreground/75"
           data-test={`${testIdPrefix}-empty-state`}
         >
           {emptyMessage}

@@ -27,6 +27,34 @@ import PriorityDropdown from '@/components/PriorityDropdown';
 import StoryPointsField from '@/components/StoryPointsField';
 import AssigneesAvatar from '@/components/Tickets/AssigneesAvatar';
 import { Button } from '@/components/ui/button';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { CHIP } from '@/helpers/badgeTones';
+
+/**
+ * Category chip geometry, taken from `helpers/badgeTones` so these sit at the
+ * same radius-6 as every other badge. Identical to the migrated detail modal's
+ * `TicketCategoryField` — a workspace picks the colours itself, so they arrive
+ * as data and go through `style` while the geometry stays shared.
+ */
+const CHIP_BASE = cn(CHIP, 'cursor-pointer transition-colors');
+const CHIP_IDLE = 'border border-separator text-muted-foreground hover:text-foreground';
+
+/**
+ * The three dropdowns in the details panel are the app-wide shared triggers,
+ * which still carry the pre-library 40px bold-uppercase pill. This is the same
+ * override the migrated detail modal's meta rail uses: pin them to the
+ * library's 32px control, sentence case. Scoped by the `-trigger` data-test
+ * suffix so the category chips below keep the shared chip styling.
+ */
+const PANEL_TRIGGERS = cn(
+  '[&_[data-test$="-trigger"]]:h-[var(--h-md)] [&_[data-test$="-trigger"]]:rounded-[var(--r-control)]',
+  '[&_[data-test$="-trigger"]]:border [&_[data-test$="-trigger"]]:border-border',
+  '[&_[data-test$="-trigger"]]:bg-card [&_[data-test$="-trigger"]]:px-[var(--px-md)]',
+  '[&_[data-test$="-trigger"]]:py-0',
+  '[&_[data-test$="-trigger"]]:text-[length:var(--fs-control)] [&_[data-test$="-trigger"]]:font-medium',
+  '[&_[data-test$="-trigger"]]:normal-case'
+);
 
 const NewTickets = ({
   isOpen,
@@ -230,45 +258,51 @@ const NewTickets = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="flex h-[92vh] w-full max-w-[1040px] flex-col overflow-hidden rounded-[22px] bg-card p-0 shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[min(88vh,760px)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[28px] [&>button]:hidden">
+      <DialogContent className="flex h-[92vh] w-full max-w-[1040px] flex-col overflow-hidden rounded-[var(--r-card)] bg-card p-0 shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[min(88vh,760px)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[var(--r-card)] [&>button]:hidden">
         <DialogTitle className="sr-only">New Ticket</DialogTitle>
 
         <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-card px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-separator bg-card px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
             {/* `contextNote` names the target workspace when the modal is opened
                 from somewhere that is not the workspace's own ticket board — an
                 admin who manages several should not have to guess where this
-                ticket is about to land. */}
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                ticket is about to land. Sentence case: `contextNote` is a
+                sentence ("New ticket in Acme"), not an eyebrow. */}
+            <span className="text-[11.5px] font-semibold text-muted-foreground">
               {contextNote || 'New Ticket'}
             </span>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               type="button"
               tabIndex={-1}
               onClick={() => handleDialogOpenChange(false)}
-              className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-muted-foreground transition-colors"
               aria-label="Close new ticket modal"
               data-test="ticket-new-close-button"
             >
-              <X className="w-5 h-5" />
-            </button>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-            <div className="mb-6">
+            {/* The subject is this modal's title, so it takes the migrated
+                detail modal's `TicketTitleField` treatment: 20px/600 on no
+                chrome at rest, rather than its own card border and accent
+                ring at 24px. */}
+            <div className="mb-5">
               <input
                 type="text"
                 value={newTicket.subject}
                 onChange={(e) => updateField('subject', e.target.value)}
                 required
                 placeholder="Enter ticket subject…"
-                className="w-full min-w-0 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xl font-bold tracking-tight text-foreground outline-none transition sm:text-2xl placeholder:font-bold placeholder:text-muted-foreground hover:bg-muted focus:bg-card focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                className="-mx-2 w-full min-w-0 cursor-text text-pretty rounded-[var(--r-control)] border border-transparent bg-transparent px-2 py-1 text-[20px] font-semibold leading-[1.25] tracking-[-0.015em] text-foreground outline-none transition placeholder:text-muted-foreground/75 hover:bg-accent/50 focus:border-border focus:bg-accent/50"
                 data-test="ticket-new-subject-input"
               />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:flex-1 lg:min-h-0 lg:items-stretch lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
-              <section className="flex flex-col rounded-2xl border border-border bg-card shadow-md overflow-hidden min-h-[360px] sm:min-h-[440px] lg:h-full lg:min-h-0">
+              <section className="flex flex-col rounded-[var(--r-card)] border border-border bg-card shadow-md overflow-hidden min-h-[360px] sm:min-h-[440px] lg:h-full lg:min-h-0">
                 <RichTextEditor
                   key={descriptionEditorKey}
                   value={newTicket.description}
@@ -311,24 +345,21 @@ const NewTickets = ({
               </section>
 
               <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
-                <div className="rounded-2xl border border-border bg-card shadow-md overflow-hidden">
+                <div className="rounded-[var(--r-card)] border border-border bg-card shadow-md overflow-hidden">
                   <div className="border-b border-separator bg-muted/30 px-4 py-3">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       Details
                     </span>
                   </div>
 
-                  <div className="px-4 pb-5 pt-4 space-y-5">
+                  <div className={cn('space-y-4 px-4 pb-5 pt-4', PANEL_TRIGGERS)}>
                     <div
                       className={cn(
                         'grid gap-3 sm:gap-6',
                         hideStatus ? 'grid-cols-1' : 'grid-cols-2'
                       )}
                     >
-                      <div className="space-y-2 min-w-0">
-                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                          Assignees
-                        </div>
+                      <Field label="Assignees" className="min-w-0">
                         <Popover
                           open={assigneePopoverOpen}
                           onOpenChange={setAssigneePopoverOpen}
@@ -337,7 +368,7 @@ const NewTickets = ({
                           <PopoverTrigger asChild>
                             <button
                               type="button"
-                              className="flex w-full items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between"
+                              className="flex w-full items-center gap-2 px-3 py-2.5 rounded-[var(--r-control)] text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between"
                               aria-label="Change assignees"
                               data-test="ticket-new-assignees-trigger"
                             >
@@ -390,7 +421,7 @@ const NewTickets = ({
                                       e.preventDefault();
                                       updateField('assignedTo', []);
                                     }}
-                                    className="text-[10px] text-red-500 hover:underline font-bold"
+                                    className="text-[10px] text-[hsl(var(--tone-danger))] hover:underline font-bold"
                                     data-test="ticket-new-assignees-clear-button"
                                   >
                                     Clear all
@@ -405,7 +436,7 @@ const NewTickets = ({
                                       <div
                                         key={listUser._id}
                                         onClick={(e) => handleAgentToggle(listUser._id, e)}
-                                        className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                                        className="flex items-center gap-3 p-2 hover:bg-[hsl(var(--tone-info)/0.5)] rounded-[var(--r-control)] cursor-pointer transition-colors group"
                                         data-test={`ticket-new-assignee-option-${listUser._id}`}
                                       >
                                         <Checkbox
@@ -415,7 +446,7 @@ const NewTickets = ({
                                           data-test={`ticket-new-assignee-checkbox-${listUser._id}`}
                                         />
                                         <div className="flex flex-col min-w-0">
-                                          <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
+                                          <span className="text-sm font-semibold text-foreground truncate group-hover:text-[hsl(var(--tone-info-fg))]">
                                             {listUser.fullName ||
                                               listUser.fullname ||
                                               listUser.email}
@@ -436,45 +467,42 @@ const NewTickets = ({
                             </div>
                           </PopoverContent>
                         </Popover>
-                      </div>
+                      </Field>
 
                       {!hideStatus && (
-                        <div className="space-y-2 min-w-0">
-                          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                            Status
-                          </div>
+                        <Field label="Status" className="min-w-0">
                           <StatusDropdown
                             status={newTicket.status}
                             onChange={(val) => updateField('status', val)}
                             statusOptions={statusOptions}
                             className="w-full justify-between"
                           />
-                        </div>
+                        </Field>
                       )}
                     </div>
 
-                    <div>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    <div className="flex flex-col gap-1.5">
+                      {/* One combined label for the pair, so it cannot go
+                          through `Field` — the Suggest control sits in the same
+                          row, and a button inside a `<label>` is not a label.
+                          The caption is `Field`'s own type. */}
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11.5px] font-medium leading-none text-muted-foreground">
                           Priority & story points
                         </span>
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           type="button"
                           tabIndex={-1}
                           onClick={handleUseAiSuggestion}
                           disabled={!hasSuggestibleInput || isSuggesting}
                           title="AI suggest priority & story points"
                           data-test="ticket-new-ai-suggest-button"
-                          className={cn(
-                            'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition',
-                            !hasSuggestibleInput || isSuggesting
-                              ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                              : 'border-blue-500/30 bg-blue-500/15 text-blue-800 hover:bg-blue-500/20 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300 dark:hover:bg-blue-500/25'
-                          )}
                         >
-                          <Sparkles className={cn('h-3 w-3', isSuggesting && 'animate-pulse')} />
+                          <Sparkles className={cn(isSuggesting && 'animate-pulse')} />
                           Suggest
-                        </button>
+                        </Button>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 sm:gap-6 items-center">
@@ -501,70 +529,56 @@ const NewTickets = ({
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                        Due date
-                      </span>
-                      <input
+                    <Field label="Due date" htmlFor="ticket-new-due-date">
+                      <Input
+                        id="ticket-new-due-date"
                         type="date"
                         value={newTicket.dueDate}
                         onChange={(e) => updateField('dueDate', e.target.value)}
-                        className="h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
                         data-test="ticket-new-due-date-input"
                       />
-                    </div>
+                    </Field>
 
                     {categories.length > 0 && (
-                      <div className="space-y-3">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                          Category
-                        </span>
-                        <div className="flex flex-wrap gap-2">
+                      <Field label="Category">
+                        <div className="flex flex-wrap gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleCategoryChange(null)}
                             className={cn(
-                              'inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
+                              CHIP_BASE,
                               newTicket.category === null
-                                ? 'bg-foreground text-background border-foreground'
-                                : 'bg-muted text-muted-foreground border-border hover:bg-muted'
+                                ? 'border border-transparent bg-foreground text-background'
+                                : CHIP_IDLE
                             )}
                             data-test="ticket-new-category-option-none"
                           >
                             None
                           </button>
-                          {categories.map((cat) => (
-                            <button
-                              key={cat._id}
-                              type="button"
-                              onClick={() => handleCategoryChange(cat)}
-                              data-test={`ticket-new-category-option-${cat._id}`}
-                              className={cn(
-                                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors cursor-pointer',
-                                newTicket.category === cat._id
-                                  ? 'text-background border-transparent'
-                                  : 'bg-muted text-foreground border-border hover:bg-muted'
-                              )}
-                              style={
-                                newTicket.category === cat._id
-                                  ? { backgroundColor: cat.color, borderColor: cat.color }
-                                  : {}
-                              }
-                            >
-                              <span
-                                className="h-2 w-2 rounded-full shrink-0"
-                                style={{
-                                  backgroundColor:
-                                    newTicket.category === cat._id
-                                      ? 'rgba(255,255,255,0.7)'
-                                      : cat.color,
-                                }}
-                              />
-                              {cat.name}
-                            </button>
-                          ))}
+                          {categories.map((cat) => {
+                            const active = newTicket.category === cat._id;
+                            return (
+                              <button
+                                key={cat._id}
+                                type="button"
+                                onClick={() => handleCategoryChange(cat)}
+                                data-test={`ticket-new-category-option-${cat._id}`}
+                                className={cn(
+                                  CHIP_BASE,
+                                  active ? 'border border-transparent' : CHIP_IDLE
+                                )}
+                                style={
+                                  active
+                                    ? { color: cat.color, backgroundColor: `${cat.color}1f` }
+                                    : undefined
+                                }
+                              >
+                                {cat.name}
+                              </button>
+                            );
+                          })}
                         </div>
-                      </div>
+                      </Field>
                     )}
                   </div>
                 </div>
@@ -583,8 +597,10 @@ const NewTickets = ({
 
           <div className="shrink-0 border-t border-separator bg-card px-3 py-3 sm:px-6 sm:py-4 lg:px-8">
             <div className="flex w-full items-center justify-end gap-2">
+              {/* A modal confirm is the one place the library gives a button
+                  `lg`. One primary in the row; Cancel is the secondary. */}
               <Button
-                variant="outline"
+                variant="secondary"
                 size="lg"
                 type="button"
                 onClick={() => handleDialogOpenChange(false)}
@@ -593,7 +609,7 @@ const NewTickets = ({
                 Cancel
               </Button>
               <Button
-                variant="default"
+                variant="primary"
                 size="lg"
                 type="submit"
                 disabled={isSubmitting}

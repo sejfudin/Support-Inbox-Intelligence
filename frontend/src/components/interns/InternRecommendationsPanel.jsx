@@ -18,6 +18,7 @@ import { useIntern } from '@/queries/interns';
 import { usePositions } from '@/queries/positions';
 import { useProjects } from '@/queries/projects';
 import { useTechnologies } from '@/queries/technologies';
+import { readStoredPreference, writeStoredPreference } from '@/hooks/useStoredPreference';
 import {
   useCreateRecommendation,
   useDeleteRecommendation,
@@ -38,12 +39,21 @@ import {
   BTN_PRIMARY_CLASS,
   BTN_PRIMARY_DISABLED_CLASS,
   buildTimelineSteps,
-  DarkTooltip,
   REC_FONT,
 } from '@/components/interns/recommendations/recommendationUi';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Detailed / Compact list rendering, persisted so it survives reloads.
+//
+// Read and written through `helpers/storedPreference`, never `localStorage`
+// directly: the raw call in the `useState` initialiser threw during render in
+// any browser with storage blocked (private mode, a locked-down profile, an
+// embedded webview), which took the whole Recommendations panel down with it
+// rather than falling back to the default view. The write had the same problem
+// on click, one frame later.
 const VIEW_MODE_STORAGE_KEY = 'recommendations-view-mode';
+const VIEW_MODES = ['detailed', 'compact'];
+const isViewMode = (value) => VIEW_MODES.includes(value);
 
 const SORT_OPTIONS = [
   { key: 'updated', label: 'Updated' },
@@ -118,19 +128,44 @@ const formFromRecommendation = (recommendation) => {
 
 function ViewModeSwitcher({ value, onChange }) {
   return (
-    <div className="flex h-11 items-center gap-1 rounded-xl bg-muted p-1">
-      {['detailed', 'compact'].map((mode) => (
+    // A segmented control, not two buttons: the filled-primary "Detailed" it used
+    // to draw competed with the actual primary action beside it ("New
+    // recommendation"), so the view toggle read as the thing to click.
+    //
+    // `radiogroup`, not two `aria-pressed` toggles. These are mutually exclusive —
+    // one view is always on — and as toggles a screen reader announced both
+    // independently ("Detailed, pressed" / "Compact, not pressed") with nothing
+    // saying they are the same choice.
+    // The track is `bg-muted` in light and `bg-background` in dark, and that swap
+    // is the whole reason the control read as broken in dark mode. A segmented
+    // control says "selected" by making the active chip the RAISED surface — but
+    // every dark theme in `styles/themes.css` puts `--card` (≈11% lightness)
+    // BELOW `--muted` (≈16%), so `bg-card` on a `bg-muted` track was a chip
+    // darker than the thing it sits in: a hole, not a selection. Light mode hid
+    // it, because there card is 100% against muted's 97%.
+    // `bg-background` is under `--card` in every dark theme and over nothing in
+    // light, so the chip is lighter than its track in both.
+    <div
+      role="radiogroup"
+      aria-label="Recommendation list density"
+      className="flex h-8 items-center gap-0.5 rounded-[var(--r-tile)] border border-transparent bg-muted p-0.5 dark:border-border/60 dark:bg-background"
+    >
+      {VIEW_MODES.map((mode) => (
         <button
           key={mode}
           type="button"
+          role="radio"
           onClick={() => onChange(mode)}
+          // 8px inside a 10px track with 2px of padding — concentric. It was 6px
+          // inside `rounded-lg`, which is 16px under this theme's `--radius`, so
+          // the chip's corners read square against a visibly rounder track.
           className={cn(
-            'h-full rounded-[9px] px-[18px] text-[14px] font-semibold capitalize transition',
+            'h-full rounded-[var(--r-control)] px-2.5 text-[11.5px] font-semibold capitalize transition',
             value === mode
-              ? 'bg-primary text-white shadow-[0_2px_8px_hsl(var(--primary)/.35)]'
-              : 'text-foreground/80 hover:text-foreground'
+              ? 'bg-card text-foreground shadow-elevated-sm'
+              : 'text-muted-foreground hover:text-foreground'
           )}
-          aria-pressed={value === mode}
+          aria-checked={value === mode}
           data-test={`recommendation-view-${mode}`}
         >
           {mode}
@@ -164,7 +199,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const [sortKey, setSortKey] = useState('');
   const [sortDir, setSortDir] = useState('desc');
   const [viewMode, setViewMode] = useState(() =>
-    localStorage.getItem(VIEW_MODE_STORAGE_KEY) === 'compact' ? 'compact' : 'detailed'
+    readStoredPreference(VIEW_MODE_STORAGE_KEY, 'detailed', isViewMode)
   );
 
   const recommendations = data?.recommendations ?? [];
@@ -180,8 +215,9 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const positionName = (recommendation) => recommendation?.position?.name || 'Position not set';
 
   const changeViewMode = (mode) => {
+    if (!isViewMode(mode)) return;
     setViewMode(mode);
-    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+    writeStoredPreference(VIEW_MODE_STORAGE_KEY, mode);
   };
 
   // The edit form is seeded once from the record when the dialog opens
@@ -386,92 +422,104 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     );
 
   return (
-    <div className={cn('space-y-4 text-foreground', REC_FONT)}>
-      {/* Header card */}
-      <div className="rounded-[18px] border border-border bg-card px-6 py-5 shadow-elevated-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={cn('space-y-3.5 text-foreground', REC_FONT)}>
+      <section className="app-card overflow-hidden">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-separator px-[18px] py-3">
           <div className="min-w-0">
-            <h2 className="text-[22px] font-bold text-foreground">Recommendation history</h2>
-            <p className="text-[13.5px] text-muted-foreground">{subtitle}</p>
+            <h2 className="app-card-title">Recommendations</h2>
+            <p className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <SortControl
               sortKey={sortKey}
               sortDir={sortDir}
               options={SORT_OPTIONS}
               onSortKeyChange={handleSortKeyChange}
               onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-              className="h-11 border-input bg-card"
-              triggerClassName="text-[14px] font-semibold text-foreground/90"
+              className="h-8 rounded-[var(--r-control)] border-input bg-card"
+              triggerClassName="text-[12.5px]"
               dataTest="recommendation-history-sort"
             />
             <ViewModeSwitcher value={viewMode} onChange={changeViewMode} />
             {canWrite &&
               (recommendBlocked ? (
-                <DarkTooltip content={recommendBlockedReason(intern?.status)}>
-                  <span className="inline-flex">
-                    <button
-                      type="button"
-                      disabled
-                      aria-disabled="true"
-                      className={cn(
-                        'inline-flex h-11 items-center gap-1.5 px-[18px] text-[14px] font-semibold',
-                        BTN_PRIMARY_CLASS,
-                        BTN_PRIMARY_DISABLED_CLASS
-                      )}
-                      data-test="recommendation-history-new-button"
-                      title={recommendBlockedReason(intern?.status)}
-                    >
-                      <Plus className="h-4 w-4" />
-                      New recommendation
-                    </button>
-                  </span>
-                </DarkTooltip>
+                // A portal-based tooltip, not `DarkTooltip`: this button sits at the top
+                // of an `overflow-hidden` card, so a tooltip positioned above it (like
+                // DarkTooltip's) has no room to render and gets clipped invisibly —
+                // hovering showed nothing. Radix's renders into a portal, so it escapes
+                // the card's clipping entirely.
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <button
+                          type="button"
+                          disabled
+                          aria-disabled="true"
+                          className={cn(
+                            'inline-flex h-8 items-center gap-1.5 rounded-[var(--r-control)] px-3 text-[12.5px] font-medium',
+                            BTN_PRIMARY_CLASS,
+                            BTN_PRIMARY_DISABLED_CLASS
+                          )}
+                          data-test="recommendation-history-new-button"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          New recommendation
+                        </button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{recommendBlockedReason(intern?.status)}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ) : (
                 <button
                   type="button"
                   onClick={handleNew}
-                  className={cn('inline-flex h-11 items-center gap-1.5', BTN_PRIMARY_CLASS)}
+                  className={cn(
+                    'inline-flex h-8 items-center gap-1.5 rounded-[var(--r-control)] px-3 text-[12.5px] font-medium shadow-none',
+                    BTN_PRIMARY_CLASS
+                  )}
                   data-test="recommendation-history-new-button"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-3.5 w-3.5" />
                   New recommendation
                 </button>
               ))}
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* Cards */}
-      <div className={cn('flex flex-col', viewMode === 'compact' ? 'gap-3' : 'gap-4')}>
-        {isPending && (
-          <p className="py-8 text-center text-[13.5px] text-muted-foreground">Loading…</p>
-        )}
-        {!isPending && sorted.length === 0 && (
-          <p className="py-12 text-center text-[13.5px] text-muted-foreground">
-            {isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'}
-          </p>
-        )}
-        {!isPending &&
-          sorted.map((recommendation) => {
-            const shared = {
-              recommendation,
-              steps: timelineSteps(recommendation),
-              positionName: positionName(recommendation),
-              canWrite,
-              onOpen: () => setDetailRecommendation(recommendation),
-            };
-            return viewMode === 'compact' ? (
-              <RecommendationCompactRow key={recommendation._id} {...shared} />
-            ) : (
-              <RecommendationCard
-                key={recommendation._id}
-                {...shared}
-                onReadMore={() => setDetailRecommendation(recommendation)}
-              />
-            );
-          })}
-      </div>
+        <div>
+          {isPending && (
+            <p className="px-[18px] py-8 text-center text-[12.5px] text-muted-foreground">
+              Loading…
+            </p>
+          )}
+          {!isPending && sorted.length === 0 && (
+            <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">
+              {isError ? 'Failed to load recommendations.' : 'No recommendations recorded yet.'}
+            </p>
+          )}
+          {!isPending &&
+            sorted.map((recommendation) => {
+              const shared = {
+                recommendation,
+                steps: timelineSteps(recommendation),
+                positionName: positionName(recommendation),
+                canWrite,
+                onOpen: () => setDetailRecommendation(recommendation),
+              };
+              return viewMode === 'compact' ? (
+                <RecommendationCompactRow key={recommendation._id} {...shared} />
+              ) : (
+                <RecommendationCard
+                  key={recommendation._id}
+                  {...shared}
+                  onReadMore={() => setDetailRecommendation(recommendation)}
+                />
+              );
+            })}
+        </div>
+      </section>
 
       <RecommendationFormModal
         open={dialogOpen}

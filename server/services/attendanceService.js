@@ -19,6 +19,8 @@ const {
   loadObservances,
 } = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
+const { isAssignedMentor } = require('../helpers/internAccess');
+const { ROLES } = require('../constants/roles');
 
 const { PRESENT, CANCELLED } = Attendance;
 
@@ -276,13 +278,14 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
 };
 
 /**
- * One intern's full attendance history (admin-only), for the calendar modal on
- * the roster. Returns full records + cancelledDates (the calendar pages through
+ * One intern's full attendance history, for the admin calendar modal on the
+ * roster and the mentor-facing Attendance tab. Admin reads any intern; a mentor
+ * reads only their own (enforced below). Returns full records + cancelledDates (the calendar pages through
  * months client-side) plus a stat block for `month` (defaults to the current
  * office month — the roster passes the month it is currently showing), with the
  * intern's identity attached.
  */
-const getInternAttendance = async (internProfileId, month) => {
+const getInternAttendance = async (actor, internProfileId, month) => {
   let profile;
   try {
     profile = await InternProfile.findById(internProfileId)
@@ -297,6 +300,13 @@ const getInternAttendance = async (internProfileId, month) => {
     throw err;
   }
   if (!profile || !profile.user) throw httpError('Intern not found.', 404);
+
+  // Admin reads any intern; a mentor reads only theirs — the roster stays
+  // admin-only, but this per-intern route also serves the mentor-facing
+  // Attendance tab, and that tab must not leak another mentor's intern.
+  if (actor.role !== ROLES.ADMIN && !isAssignedMentor(profile, actor._id)) {
+    throw httpError("Not authorized to view this intern's attendance.", 403);
+  }
 
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates, exemptDates, requestedDays } = splitRows(rows);

@@ -1,4 +1,5 @@
 import { PageShell, PageSection } from '@/components/PageShell';
+import PageHeading from '@/components/PageHeading';
 import AttendanceHeaderCard from '@/components/attendance/AttendanceHeaderCard';
 import AttendanceCalendar from '@/components/attendance/AttendanceCalendar';
 import AttendanceSummaryCard from '@/components/attendance/AttendanceSummaryCard';
@@ -47,16 +48,28 @@ export default function MyAttendancePage() {
           use. This page used to narrow itself again on top of that, which left it
           floating in a column while every neighbouring page ran full width. */}
       <PageSection className="space-y-5">
+        <PageHeading
+          crumb="Internship"
+          title="My attendance"
+          // Admins only — mentors have no attendance view. Saying "your mentor" here
+          // would be untrue, and an intern who believed it would think a day off had
+          // been seen by someone who cannot see it. This sentence used to sit in the
+          // check-in card; the card is a compact bar now and this never changed
+          // day to day, so it belongs with the title.
+          subtitle="Check in each day you come into the office. Admins can see your attendance, but only you can record it."
+        />
+
         {isError && (
-          <div className="app-panel p-6 text-sm text-destructive" data-test="attendance-error">
+          <div
+            className="app-card p-6 text-sm text-[hsl(var(--tone-danger-fg))]"
+            data-test="attendance-error"
+          >
             Failed to load your attendance. Please try again.
           </div>
         )}
 
         {isPending && (
-          <div className="app-panel p-6 text-sm text-muted-foreground">
-            Loading your attendance…
-          </div>
+          <div className="app-card p-6 text-sm text-muted-foreground">Loading your attendance…</div>
         )}
 
         {!isPending && !isError && (
@@ -79,7 +92,7 @@ export default function MyAttendancePage() {
                 out. */}
             {onProject ? (
               <div
-                className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-3 text-sm text-muted-foreground"
+                className="flex items-start gap-2.5 rounded-[var(--r-card)] border border-border/60 bg-muted/40 px-3.5 py-3 text-sm text-muted-foreground"
                 data-test="attendance-on-project-notice"
               >
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -94,10 +107,10 @@ export default function MyAttendancePage() {
               </div>
             ) : (
               <div
-                className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] px-3.5 py-3 text-sm text-muted-foreground"
+                className="flex items-start gap-2.5 rounded-[var(--r-card)] border border-[hsl(var(--tone-warning)/0.2)] bg-[hsl(var(--tone-warning)/0.06)] px-3.5 py-3 text-sm text-muted-foreground"
                 data-test="attendance-performance-notice"
               >
-                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--tone-warning-fg))]" />
                 <p>
                   Your attendance is part of how your performance is assessed. Only be absent when
                   you've agreed it in advance with your mentor — unplanned absences count against

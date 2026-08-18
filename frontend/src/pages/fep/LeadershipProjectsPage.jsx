@@ -136,7 +136,7 @@ export default function LeadershipProjectsPage() {
 
       {isError && (
         <SymphonyCard>
-          <p className="text-sm text-destructive">Failed to load projects.</p>
+          <p className="text-sm text-[hsl(var(--tone-danger-fg))]">Failed to load projects.</p>
         </SymphonyCard>
       )}
 

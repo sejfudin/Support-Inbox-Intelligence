@@ -65,14 +65,14 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
   };
 
   return (
-    <div className={`flex gap-4 group/comment transition-all ${isDeleted ? 'opacity-60' : ''}`}>
+    <div className={`flex gap-2.5 group/comment transition-all ${isDeleted ? 'opacity-60' : ''}`}>
       <div className="flex-shrink-0">
-        <Avatar users={[comment.author]} className={`w-8 h-8 ${isDeleted ? 'grayscale' : ''}`} />
+        <Avatar users={[comment.author]} size="xs" className={isDeleted ? 'grayscale' : ''} />
       </div>
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold text-foreground leading-tight">
+            <span className="text-[12.5px] font-semibold text-foreground leading-tight">
               {comment.author?.fullname}
             </span>
 
@@ -85,7 +85,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                     <Tooltip delayDuration={200}>
                       <TooltipTrigger asChild>
                         <span
-                          className="italic cursor-pointer hover:text-blue-500 transition-colors"
+                          className="italic cursor-pointer hover:text-[hsl(var(--tone-info))] transition-colors"
                           data-test={`ticket-comment-edited-label-${comment._id}`}
                         >
                           (edited)
@@ -109,7 +109,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-blue-600"
+                  className="h-7 w-7 text-muted-foreground hover:text-[hsl(var(--tone-info-fg))]"
                   onClick={() => setIsEditing(true)}
                   data-test={`ticket-comment-edit-button-${comment._id}`}
                 >
@@ -120,7 +120,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-red-500"
+                  className="h-7 w-7 text-muted-foreground hover:text-[hsl(var(--tone-danger))]"
                   onClick={() => onOpenDelete(comment._id)}
                   data-test={`ticket-comment-delete-button-${comment._id}`}
                 >
@@ -136,7 +136,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
             <Textarea
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
-              className="min-h-[60px] text-sm focus-visible:ring-blue-500 w-full resize-none"
+              className="min-h-[60px] text-sm focus-visible:ring-[hsl(var(--tone-info))] w-full resize-none"
               data-test={`ticket-comment-edit-input-${comment._id}`}
             />
             <div className="flex justify-end gap-1">
@@ -154,13 +154,13 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 onClick={handleUpdate}
                 data-test={`ticket-comment-edit-save-button-${comment._id}`}
               >
-                <Check className="w-4 h-4 text-blue-600" />
+                <Check className="w-4 h-4 text-[hsl(var(--tone-info-fg))]" />
               </Button>
             </div>
           </div>
         ) : (
           <div
-            className={`mt-1 text-sm leading-relaxed whitespace-pre-wrap [word-break:break-word] break-words ${
+            className={`mt-0.5 text-[12.5px] leading-[1.55] whitespace-pre-wrap [word-break:break-word] break-words ${
               isDeleted ? 'text-muted-foreground italic font-medium py-1' : 'text-muted-foreground'
             }`}
           >
@@ -174,7 +174,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                 part.type === 'mention' ? (
                   <span
                     key={`${part.value}-${idx}`}
-                    className="inline-block rounded border border-blue-500/25 bg-blue-500/15 px-1 py-0.5 font-medium text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-300"
+                    className="inline-block rounded border border-[hsl(var(--tone-info)/0.25)] bg-[hsl(var(--tone-info)/0.15)] px-1 py-0.5 font-medium text-[hsl(var(--tone-info-fg))] dark:border-[hsl(var(--tone-info)/0.3)] dark:bg-[hsl(var(--tone-info)/0.2)] dark:text-[hsl(var(--tone-info-fg))]"
                   >
                     {part.value}
                   </span>
@@ -189,7 +189,10 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
         {!isDeleted && commentImages.length > 0 && (
           <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {commentImages.map((img) => (
-              <div key={img.id} className="relative rounded-md border overflow-hidden group">
+              <div
+                key={img.id}
+                className="relative rounded-[var(--r-tile)] border overflow-hidden group"
+              >
                 <img
                   src={img.image_url}
                   alt={img.original_file_name || 'Comment image'}
@@ -204,7 +207,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
                     className="absolute top-1 right-1 bg-card rounded p-1 opacity-0 group-hover:opacity-100"
                     data-test={`ticket-comment-image-delete-button-${comment._id}-${img.id}`}
                   >
-                    <Trash2 className="w-3 h-3 text-red-600" />
+                    <Trash2 className="w-3 h-3 text-[hsl(var(--tone-danger-fg))]" />
                   </button>
                 )}
               </div>
@@ -229,7 +232,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
             <img
               src={previewImageUrl}
               alt="Comment preview"
-              className="max-h-[90vh] max-w-[95vw] object-contain rounded-lg"
+              className="max-h-[90vh] max-w-[95vw] object-contain rounded-[var(--r-tile)]"
               onClick={(e) => e.stopPropagation()}
             />
           </div>

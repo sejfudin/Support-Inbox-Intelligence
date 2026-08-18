@@ -35,6 +35,7 @@ const attendanceRequestRoutes = require('./routes/attendanceRequest');
 const attendanceSettingsRoutes = require('./routes/attendanceSettings');
 const dashboardRoutes = require('./routes/dashboard');
 const staffingRequestRoutes = require('./routes/staffingRequests');
+const userRoutes = require('./routes/users');
 const { handleWebhook } = require('./controllers/github');
 
 const PORT = process.env.PORT || 4000;
@@ -84,6 +85,7 @@ app.use('/api/attendance-requests', attendanceRequestRoutes);
 app.use('/api/attendance-request-settings', attendanceSettingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/staffing-requests', staffingRequestRoutes);
+app.use('/api/users', userRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {

@@ -1,15 +1,16 @@
 import { format } from 'date-fns';
 
+/** Rail-sized date control: 30px on a hairline, matching the other rail inputs. */
 export function TicketDueDateField({ isArchived, dueDateInput, onDueDateChange }) {
   if (isArchived) {
     return (
-      <div className="flex min-h-[40px] items-center px-1 text-sm font-semibold text-foreground">
+      <span className="text-[12.5px] font-medium text-foreground">
         {dueDateInput ? (
           format(new Date(dueDateInput), 'MMM d, yyyy')
         ) : (
-          <span className="text-muted-foreground">—</span>
+          <span className="text-muted-foreground/75">—</span>
         )}
-      </div>
+      </span>
     );
   }
 
@@ -19,7 +20,7 @@ export function TicketDueDateField({ isArchived, dueDateInput, onDueDateChange }
       value={dueDateInput}
       onChange={(e) => onDueDateChange(e.target.value)}
       data-test="ticket-modal-due-date-input"
-      className="h-10 w-full rounded-md border border-transparent bg-muted px-3 text-sm font-semibold text-foreground shadow-sm outline-none transition focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+      className="h-[30px] w-full rounded-[var(--r-control)] border border-separator bg-card px-2 text-[12.5px] font-medium text-foreground outline-none transition focus:border-ring"
     />
   );
 }

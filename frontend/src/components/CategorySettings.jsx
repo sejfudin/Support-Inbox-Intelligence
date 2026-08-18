@@ -57,7 +57,7 @@ const TemplateEditor = ({ value, onChange, categoryId }) => (
     value={value}
     onChange={onChange}
     placeholder="Ticket description template"
-    className="min-h-44 overflow-hidden rounded-lg bg-card"
+    className="min-h-44 overflow-hidden rounded-[var(--r-control)] bg-card"
   >
     <div className="border-b border-border bg-muted/50/50 px-3 py-2">
       <RichTextEditorToolbar className="flex-wrap p-0" />
@@ -119,7 +119,7 @@ const CategoryRow = ({ category, workspaceId }) => {
 
   if (editing) {
     return (
-      <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
+      <div className="rounded-[var(--r-control)] border border-border bg-muted/50 p-3 space-y-3">
         <Input
           id={`workspace-category-${category._id}-name`}
           value={name}
@@ -167,7 +167,7 @@ const CategoryRow = ({ category, workspaceId }) => {
   }
 
   return (
-    <div className="flex items-start justify-between gap-3 rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 transition-colors">
+    <div className="flex items-start justify-between gap-3 rounded-[var(--r-control)] border border-border px-3 py-2.5 hover:bg-muted/50 transition-colors">
       <div className="min-w-0">
         <div className="flex items-center gap-2.5">
           <span
@@ -186,7 +186,7 @@ const CategoryRow = ({ category, workspaceId }) => {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          className="p-1.5 rounded-[var(--r-control)] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           aria-label="Edit category"
           data-test={`workspace-category-${category._id}-edit-button`}
         >
@@ -196,7 +196,7 @@ const CategoryRow = ({ category, workspaceId }) => {
           type="button"
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+          className="p-1.5 rounded-[var(--r-control)] text-muted-foreground hover:text-[hsl(var(--tone-danger-fg))] hover:bg-[hsl(var(--tone-danger)/0.15)] transition-colors"
           aria-label="Delete category"
           data-test={`workspace-category-${category._id}-delete-button`}
         >
@@ -252,7 +252,7 @@ const CategorySettings = ({ workspaceId }) => {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 rounded-lg bg-muted animate-pulse" />
+            <div key={i} className="h-10 rounded-[var(--r-control)] bg-muted animate-pulse" />
           ))}
         </div>
       ) : categories.length === 0 ? (
@@ -268,7 +268,7 @@ const CategorySettings = ({ workspaceId }) => {
       )}
 
       {showForm ? (
-        <div className="space-y-3 rounded-lg border border-border bg-muted/50 p-3">
+        <div className="space-y-3 rounded-[var(--r-control)] border border-border bg-muted/50 p-3">
           <Input
             id="workspace-category-new-name"
             placeholder="Category name"

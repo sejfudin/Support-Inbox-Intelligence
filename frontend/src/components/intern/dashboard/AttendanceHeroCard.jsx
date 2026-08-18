@@ -8,7 +8,7 @@ import {
   DAY_STATUS,
   dayStatusLabel,
   buildWeekStrip,
-  weekAttendance,
+  stripAttendance,
   computeStreak,
   nonWorkingKeySet,
   nonWorkingKind,
@@ -25,8 +25,8 @@ import {
 // strength on purpose: they are the only two cells carrying a verdict, and a
 // washed-out one is easy to skim past on a coloured background.
 const CELL_CLASS = {
-  [DAY_STATUS.PRESENT]: 'bg-emerald-500 shadow-sm shadow-emerald-950/30',
-  [DAY_STATUS.ABSENT]: 'bg-red-500 shadow-sm shadow-red-950/30',
+  [DAY_STATUS.PRESENT]: 'bg-[hsl(var(--tone-success))] shadow-sm shadow-black/30',
+  [DAY_STATUS.ABSENT]: 'bg-[hsl(var(--tone-danger))] shadow-sm shadow-black/30',
   // Today, still open: an outline rather than a fill, so the strip reads as
   // "this one is still yours to claim" instead of as an already-missed day.
   [DAY_STATUS.TODAY_PENDING]: 'border-2 border-dashed border-white/65 bg-white/[0.08]',
@@ -41,16 +41,16 @@ const CELL_CLASS = {
   [DAY_STATUS.NON_WORKING]: 'bg-black/10',
   // An approved remote day. Full strength like present and absent, because it
   // carries a verdict too: the day is worked and counted.
-  [DAY_STATUS.REMOTE]: 'bg-cyan-500 shadow-sm shadow-cyan-950/30',
+  [DAY_STATUS.REMOTE]: 'bg-[hsl(var(--tone-cyan))] shadow-sm shadow-cyan-950/30',
   // Approved leave. Deliberately softer than present/absent/remote: these days
   // carry no verdict about the intern at all — they were never owed — so the strip
   // should not shout them. The hues match the calendar so the two surfaces agree.
-  [DAY_STATUS.VACATION]: 'bg-blue-400/70',
-  [DAY_STATUS.RELIGIOUS]: 'bg-violet-400/70',
-  [DAY_STATUS.SICK]: 'bg-orange-400/70',
+  [DAY_STATUS.VACATION]: 'bg-[hsl(var(--tone-info)/0.7)]',
+  [DAY_STATUS.RELIGIOUS]: 'bg-[hsl(var(--tone-violet)/0.7)]',
+  [DAY_STATUS.SICK]: 'bg-[hsl(var(--tone-orange)/0.7)]',
 };
 
-const REMOTE_CELL = 'bg-cyan-400/60';
+const REMOTE_CELL = 'bg-[hsl(var(--tone-cyan)/0.6)]';
 
 // How long today's cell keeps its just-claimed emphasis. Long enough to be seen
 // if you were looking at the button you pressed, short enough that it is over
@@ -141,7 +141,7 @@ export function AttendanceHeroCard({
   // 'YYYY-MM-DD' → the status an approved request wrote. Remote days are already
   // inside `records`, so they count towards the week tally either way and this
   // only colours them; the three leave statuses are not in `records` at all and
-  // drop out of the tally's denominator, which `weekAttendance` handles.
+  // drop out of the tally's denominator, which `stripAttendance` handles.
   requestedDays = {},
   onCheckIn,
   isCheckingIn,
@@ -166,7 +166,7 @@ export function AttendanceHeroCard({
     startDate,
     requestedDays
   );
-  const { present: weekPresent, elapsed: weekElapsed } = weekAttendance(week);
+  const { present: weekPresent, elapsed: weekElapsed } = stripAttendance(week);
 
   const todayStatus = week.find((day) => day.isToday)?.status;
   const weekend = todayStatus === DAY_STATUS.WEEKEND;
@@ -232,10 +232,10 @@ export function AttendanceHeroCard({
               exempt
                 ? 'bg-white/40'
                 : checkedIn
-                  ? 'bg-emerald-400'
+                  ? 'bg-[hsl(var(--tone-success))]'
                   : missed
-                    ? 'bg-red-400'
-                    : 'bg-amber-400'
+                    ? 'bg-[hsl(var(--tone-danger))]'
+                    : 'bg-[hsl(var(--tone-warning))]'
             )}
             aria-hidden="true"
           />

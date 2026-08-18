@@ -174,7 +174,11 @@ export default function LeadershipCandidatesPage() {
       </SymphonyCard>
 
       <SymphonyCard className="overflow-hidden p-0">
-        {isError && <p className="p-6 text-sm text-destructive">Failed to load candidates.</p>}
+        {isError && (
+          <p className="p-6 text-sm text-[hsl(var(--tone-danger-fg))]">
+            Failed to load candidates.
+          </p>
+        )}
         {isPending && <p className="p-6 text-sm text-muted-foreground">Loading candidates...</p>}
         {!isPending && !isError && (
           <div className="overflow-x-auto">

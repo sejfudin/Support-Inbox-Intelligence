@@ -40,6 +40,9 @@ Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Rec
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
+- `User.preferences` — one optional subdocument (`_id: false`) holding the UI preferences that
+  follow the account. Every field is optional and **absent means "never chosen"**, which is what
+  the sync layer keys off; see "UI preferences" below.
 - Statuses are **per-workspace and customizable** (not a global enum). See `statusService` and
   `server/helpers/statusValidation.js` / `statusSlugAliases.js`.
 - **A status's `slug` is its identity, and a rename must never change it.** `updateStatus` writes
@@ -50,6 +53,14 @@ AI: `AISummary`.
 - **`Ticket.blockedBy`** — `{ ticket, note }`, why a ticket can't move while it is Blocked. Both
   halves optional and independent; only meaningful in the Blocked status, and cleared on the way
   out of it. See "Ticket blockers" below.
+- `User.preferences` — one optional subdocument holding the account's UI preferences (mode,
+  accent, density, contrast, colour-vision, motion, landing page, tickets view, default assignee,
+  board sort, muted notification groups). Its keys and legal values are declared once in
+  `server/constants/userPreferences.js`, which the schema and the service both build from.
+  Every field is optional: absent means "never chosen", and the read merges the defaults in.
+  Read/written by their owner only, at `GET|PATCH /api/users/me/preferences` — the PATCH is a
+  dot-notation partial merge, last-write-wins. **UI scale is deliberately not in it** and stays
+  per-device in the browser. See "UI preferences" below.
 - `Daily` — one standup record per `(workspace, date)` (unique compound index), with embedded
   `entries` (one per reporting intern: `done`/`todo` text lists + `blockers`, each blocker an
   optional `linkedTicket` ref scoped to the same workspace). Pure edit-window/derived-count logic
@@ -122,6 +133,40 @@ mirror of the same slug and note cap, since the two are separate packages) over
 - Refresh tokens persisted (`RefreshToken` model); `tokenVersion` on `User` gates validity.
   Logic in `server/services/authService.js`.
 
+## UI preferences (account-level)
+
+Appearance, workspace-default and notification-mute preferences follow the **user**, not the
+browser. `GET|PATCH /api/users/me/preferences` (`protect` only — the subject is always `req.user`,
+so there is no id to guard). The PATCH is a **partial merge** written with dot-notation `$set`, so
+two browsers changing two different preferences do not clobber each other.
+
+- The enum table is `server/constants/userPreferences.js` — model, validation and endpoint all read
+  it, and its frontend twin is the preference table in `src/context/ThemeConfigContext.jsx`
+  (`DOM_PREFERENCES` + `VALUE_PREFERENCES`, joined into the exported `ACCOUNT_PREFERENCES`). A new
+  preference costs a row in each; nothing else enumerates them.
+- Both responses carry `{ preferences, storedKeys }`. `storedKeys` names the
+  preferences this account has actually saved; **the client reconciles per key**, so a value only
+  set locally survives while the saved ones take the server's answer.
+- **`localStorage` is a write-through cache; `User.preferences` is the source of truth.** The cache
+  exists because the attributes on `<html>` are applied *before the first paint* — the pre-paint
+  IIFE in `frontend/src/main.jsx` plus the mount effect in `ThemeConfigProvider` — and a server
+  round trip cannot beat that. Break this and every page load flashes the default theme. Writes go
+  through `hooks/useStoredPreference.js` → `lib/preferenceSync.js`, are debounced into one PATCH by
+  `components/UserPreferencesSync.jsx`, and are flushed on `pagehide` with a `keepalive` request.
+- `components/UserPreferencesSync.jsx` is the bridge: it sits inside `AuthProvider` (which
+  `ThemeConfigProvider` is mounted above, so the first paint does not wait on React Query), installs
+  the pusher, batches writes into one PATCH, hydrates from the record, and reverts the palette on
+  sign-out. **Signed out, no pusher is installed and the query is disabled** — the auth screens
+  never fire a preferences call, and render the default palette regardless of `localStorage`.
+- `src/lib/preferenceCacheOwner.js` stamps who the cache belongs to — sign-out keeps the cache (so
+  the return is flash-free), so the one-time migration off browser-only preferences must not adopt
+  a stranger's values on a shared browser. When an account's record is still empty, that migration
+  adopts whatever the browser already had cached and saves it as the account's first set
+  (`hasStoredPreferences` on the GET) — moving to account-level preferences does not reset anyone.
+- **UI scale stays per-device** and is deliberately absent from the server table — it is a function
+  of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
+  defaults so the auth screens never wear the last user's accent or accessibility settings.
+
 ## Real-time (Socket.IO, `server/socket/`)
 
 - `socketServer.js` — server setup, authenticated handshake (same JWT + tokenVersion check),
@@ -137,7 +182,16 @@ mirror of the same slug and note cap, since the two are separate packages) over
 ## Integrations
 
 - **Groq AI** (`server/services/groqAiClient.js` + `aiSummaryService`, `ticketDescriptionGenerationService`,
-  `ticketMetadataSuggestionService`; prompts in `server/prompts/`). Optional — gated on env vars.
+  `ticketMetadataSuggestionService`, `internCvSummaryService`; prompts in `server/prompts/`).
+  Optional — gated on env vars.
+  - **Intern CV summary** — `GET|POST /api/interns/:userId/cv-summary`, admin/mentor only via
+    `assertInternAccess`. The POST downloads the intern's uploaded CV from Supabase, runs
+    `helpers/pdfText.js` over it and prompts Groq; the GET only reads the cache. Cached on
+    `InternProfile` as `cvSummary` / `cvSummaryFor` / `cvSummaryAt`, where **`cvSummaryFor` is the
+    `cvPath` the summary was generated from** — that is the whole staleness mechanism, so a
+    re-upload is recognised rather than silently re-labelled. Deleting a CV clears all three.
+    The prompt is deliberately descriptive, never evaluative — see the header of
+    `prompts/internCvPrompts.js` before changing it.
 - **GitHub App** (`server/services/githubService.js`, `autoLinkService.js`) — webhook-driven PR
   linking. RS256 JWT; installation tokens encrypted at rest (`server/helpers/crypto.js`).
 - **Supabase Storage** (`server/config/supabase.js`) — attachment images, workspace logos, intern CVs.
@@ -401,6 +455,14 @@ controllers/attendance.js, routes/attendance.js}` + `helpers/{attendanceTime,att
 Frontend: `pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/attendance/*`,
 `helpers/attendance.js`.
 
+- The **intern profile's Attendance tab** (`components/interns/InternAttendancePanel.jsx`, between
+  "Mentor notes" and "Analytics") is a second reader of the same admin endpoint the roster's
+  calendar modal uses — `GET /attendance/:internProfileId` via `useInternAttendance`. It is
+  rendered for **admins and mentors**: that one route is `requireRole(ADMIN, MENTOR)`, widened
+  deliberately because a mentor is the primary reader of their intern's attendance. Everything
+  else in the module is unchanged — the roster (`GET /attendance`) is still admin-only, and no
+  write verb admits a mentor.
+
 - **Sparse storage — one document per intern per acted-on day** (`Attendance`: `intern` →
   `InternProfile`, `date` as office-local `'YYYY-MM-DD'` string,
   `status: present | cancelled | remote | vacation | religious | sick`, `checkedInAt`, `hub`,
@@ -551,13 +613,18 @@ Frontend: `components/attendance/{AttendanceRequestPanel,AttendanceRequestQueue,
   remaining allowance and requestable bounds, so **no limit is duplicated on the client**.
   `pendingCount` on the admin list is deliberately unfiltered, so the nav dot and tab badge keep
   meaning "anything waiting" while a type filter is applied.
+- **The admin surface is `/admin/absence-requests`** (`pages/AdminAbsenceRequestsPage.jsx`) — three
+  tabs: Queue, History, Request limits. `AttendanceRequestQueue` renders the first two off a `mode`
+  prop; history asks for `status=all` and drops the pending rows, because the API filters on one
+  status at a time and "decided" is four of them. `/attendance` keeps only the reports.
 
 #### Configurable limits
 
-An admin sets the per-request ceiling and the yearly allowance per type, from their own profile.
+An admin sets the per-request ceiling and the yearly allowance per type, from the Request limits
+tab of `/admin/absence-requests`.
 `server/{models/AttendanceRequestSettings.js, services/attendanceSettingsService.js,
 controllers/attendanceSettings.js, routes/attendanceSettings.js}`. Frontend:
-`components/profile/AttendanceLimitsPanel.jsx`, `api/attendanceRequestSettings.js`,
+`components/attendance/AttendanceLimitsPanel.jsx`, `api/attendanceRequestSettings.js`,
 `queries/attendanceRequestSettings.js`.
 
 - **One document, global.** `key: 'global'`, unique — a second row cannot be written, so the
