@@ -12,6 +12,7 @@ import {
   computeStreak,
   nonWorkingKeySet,
   nonWorkingKind,
+  isOfficeWeekend,
   todayRecord,
   isCancelledToday,
   formatCheckInTime,
@@ -31,7 +32,8 @@ const CELL_CLASS = {
   // "this one is still yours to claim" instead of as an already-missed day.
   [DAY_STATUS.TODAY_PENDING]: 'border-2 border-dashed border-white/65 bg-white/[0.08]',
   [DAY_STATUS.FUTURE]: 'bg-black/20',
-  [DAY_STATUS.WEEKEND]: 'bg-black/10',
+  // No WEEKEND entry: the strip is Mon–Fri, so that status never reaches a cell
+  // here. The month calendar still renders it — see dayStatusVisuals.jsx.
   // On a project: inert, and now the same near-grey as the other days nobody owed.
   // It used to be amber, which claimed a hue for a state that means "no
   // obligation" — and left nothing for a sick day. See dayStatusVisuals.jsx.
@@ -169,7 +171,10 @@ export function AttendanceHeroCard({
   const { present: weekPresent, elapsed: weekElapsed } = stripAttendance(week);
 
   const todayStatus = week.find((day) => day.isToday)?.status;
-  const weekend = todayStatus === DAY_STATUS.WEEKEND;
+  // Read off the calendar, not off the strip: the strip is Mon–Fri now, so on a
+  // Saturday there is no cell for today at all and a missing one must not read as
+  // a working day nobody checked into.
+  const weekend = isOfficeWeekend(now);
   // On a project: today is inert, so nothing is "missed" and check-in is not offered.
   const exempt = todayStatus === DAY_STATUS.EXEMPT;
   const missed = !checkedIn && !weekend && !exempt && windowState === 'closed';
@@ -347,15 +352,17 @@ export function AttendanceHeroCard({
           </span>
         </div>
 
-        {/* Chunky cells, as in the mockup. At strip height the week is meant to
-            be read as a glance-able block of colour, not as a sparkline — a thin
-            bar makes a missed day easy to miss.
+        {/* Chunky cells, as in the mockup, and Mon–Fri only: the weekend is not
+            part of anyone's attendance, and dropping the two inert cells gives the
+            five that carry a verdict more width each. At strip height the week is
+            meant to be read as a glance-able block of colour, not as a sparkline —
+            a thin bar makes a missed day easy to miss.
 
             Full-bleed to the card's edges, so the width comes from the cells
             rather than from padding the strip out. They are kept short for that
             reason: at 2.5rem the stretched cells read as seven progress bars, and
             flattening them to 1.75rem is what keeps the row reading as a week. */}
-        <div className="mt-2 grid grid-cols-7 gap-2.5">
+        <div className="mt-2 grid grid-cols-5 gap-2.5">
           {week.map((day) => (
             <Tooltip key={day.key}>
               <TooltipTrigger asChild>
