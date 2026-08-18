@@ -20,6 +20,7 @@ import {
 import PageHeading from '@/components/PageHeading';
 import { PageSection, PageShell } from '@/components/PageShell';
 import SettingsSection, { SettingsRow } from '@/components/settings/SettingsSection';
+import DesktopNotificationsRow from '@/components/settings/DesktopNotificationsRow';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -468,7 +469,13 @@ export default function SettingsPage() {
           </div>
         </SettingsSection>
 
-        <SettingsSection icon={Bell} title="Notifications" description="What reaches your bell.">
+        <SettingsSection
+          icon={Bell}
+          title="Notifications"
+          description="What reaches you, and where."
+        >
+          <DesktopNotificationsRow />
+
           {NOTIFICATION_GROUPS.map((group) => {
             const enabled = !mutedGroups.includes(group.key);
             return (
