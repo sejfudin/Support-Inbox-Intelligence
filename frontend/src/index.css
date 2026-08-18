@@ -824,3 +824,46 @@
 .z-\[100\] [data-slot='rich-text-editor'] [data-radix-select-content] {
   z-index: 200 !important;
 }
+
+/* Always-visible scrollbar for a pane that scrolls inside a fixed-height surface
+   (modal bodies, capped lists). Overlay scrollbars — the macOS default — only
+   appear once a scroll gesture is already underway, so an overflowing pane reads
+   as merely cut off and nobody scrolls it. Declaring a width opts the element out
+   of overlay behaviour and pins the bar on screen, which is the only cue that
+   does not depend on content sitting under it: `ScrollFade`'s gradient fades the
+   content it overlaps, so it shows nothing at all when the cut lands in
+   whitespace (the empty half of a textarea, the gap between two sections).
+
+   Deliberately outside `@layer components`: `overflow-y-auto` is a utility, and a
+   component-layer rule would lose to it in the cascade on the same element. */
+.custom-scrollbar {
+  /* No `scrollbar-width` / `scrollbar-color` here on purpose. Chromium ignores the
+     `::-webkit-scrollbar` pseudo-elements outright once either standard property is
+     set, and `scrollbar-width: thin` still resolves to an overlay bar on macOS — so
+     declaring them costs the always-visible bar and gains nothing. Firefox has no
+     equivalent to the pseudo-elements and keeps its overlay bar; `ScrollFade`'s
+     gradient stays as the fallback cue there. */
+  scrollbar-gutter: stable;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  /* 2px inset keeps the thumb clear of the content without shaving it down to a
+     hairline: 10px track minus two 2px edges leaves a 6px thumb. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+  background-color: hsl(var(--muted-foreground) / 0.55);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.8);
+}

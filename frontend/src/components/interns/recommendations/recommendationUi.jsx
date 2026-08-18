@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import { Check, Lock, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { buttonVariants } from '@/components/ui/button';
+import { ScrollFade } from '@/components/ui/scroll-fade';
 import { cn } from '@/lib/utils';
 import { CHIP } from '@/helpers/badgeTones';
 import {
@@ -470,7 +471,10 @@ export function StatusSegmented({ statuses, value, onChange, lockedValues = [], 
 /**
  * Modal shell for the recommendation dialogs: 680px, radius 20, structured
  * header (title / aside pill / subline / 32px ✕), scrollable body and bordered
- * footer. An optional `strip` paints the 4px status-color bar across the top.
+ * footer. The body is a `ScrollFade`: these modals are tall enough to overflow
+ * the 90vh cap, and an overlay scrollbar stays hidden until you scroll, so the
+ * body looked cut off rather than scrollable. An optional `strip` paints the 4px
+ * status-color bar across the top.
  */
 export function RecModal({
   open,
@@ -516,9 +520,14 @@ export function RecModal({
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-[26px] overflow-y-auto px-8 py-[26px]">
+      <ScrollFade
+        className="flex min-h-0 flex-1 flex-col"
+        viewportClassName="custom-scrollbar flex h-full flex-col gap-[26px] overflow-y-auto px-8 py-[26px]"
+        fadeClassName="from-card"
+        data-test="rec-modal-body"
+      >
         {children}
-      </div>
+      </ScrollFade>
       {footer && (
         <div className="flex shrink-0 items-center gap-3 border-t border-border/60 px-8 py-[18px]">
           {footer}
