@@ -187,10 +187,10 @@ See `services/internCvService.js#syncTechnologiesFromCv`.
 empty) and the intern-programme domain (`recommendation_created`, `recommendation_status_changed`,
 `recommendation_not_placed`, `intern_placed`, `evaluation_created`, `readiness_updated`, the four
 `specialization_*` types, `intern_status_changed`, `intern_expected_end_date_changed`,
-`intern_documentation_updated`, `daily_attendance_reminder`, `mentor_note_mention`,
-`intern_request_from_leadership` — `internProfile` set when the event is about one specific intern
-(null for a project-level staffing request), `ticket`/`workspace` null, `link` a frontend route the
-bell's action button navigates to). Both domains push through the same
+`intern_documentation_updated`, `daily_attendance_reminder`, `intern_mentor_note_shared`,
+`mentor_note_mention`, `intern_request_from_leadership` — `internProfile` set when the event is
+about one specific intern (null for a project-level staffing request), `ticket`/`workspace` null,
+`link` a frontend route the bell's action button navigates to). Both domains push through the same
 `sendToUser(..., 'new_notification', ...)` socket event and the same `user:<id>` invalidation
 scope (`socket/invalidationScopes.js`) — no new scope key was needed for the intern domain. The
 bell (`NavbarNotifications`) is mounted in both top-level shells — `SidebarLayout.jsx` (admin/

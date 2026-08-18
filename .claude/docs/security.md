@@ -134,12 +134,26 @@ formatter, check first whether it is written *about* the intern rather than *to*
 **Evaluation `notes` used to be withheld and now are not** (`formatOwnEvaluation`). The reasoning:
 the notes are the mentor's written feedback *to* the intern that goes with the four scores, and a
 score with no explanation is not something anyone can act on — unlike the three recommendation
-fields above, which are written *about* the intern to support a placement decision. The channel
-that stays internal is `MentorComment`, which has its own `visibleTo` recipient list and remains
-completely invisible to interns (`listComments` 403s them). **Do not fold mentor notes into any
-intern-facing read**: existing ones were authored under an explicit expectation of staying
-internal, so exposing them would break that retroactively — that needs an author-side visibility
-choice at write time, not a read-side change.
+fields above, which are written *about* the intern to support a placement decision. `MentorComment`
+stays internal **by default**: its `visibleTo` recipient list is a staff-only sharing mechanism
+(admin/mentor/leadership), and a note is invisible to the intern it's about unless its author
+explicitly set the separate `visibleToIntern` flag *at write time* (`mentorCommentService.js`
+`createComment`) — the exact "author-side visibility choice, not a read-side change" this
+paragraph used to say didn't exist. `listComments` reflects that split: a staff caller still gets
+the `visibleTo`/authorship view via `canReadComment`, completely unaware of `visibleToIntern`; an
+`INTERN` caller gets a different, narrower query — only their own profile's comments where
+`visibleToIntern: true` — and never sees `visibleTo`, `visibleToIntern`, or `internProfile` in the
+response (`formatCommentForIntern` strips them). Keeping `visibleToIntern` a distinct field rather
+than allowing the intern's own id inside `visibleTo` matters: it means the staff-sharing list and
+its future bulk operations can never accidentally expose a note to its subject. Every note written
+before this field existed defaults to `false`, so nothing already on file became intern-visible
+retroactively.
+
+**The mentor-note audience picker (`InternCommentsPanel.jsx`) must never offer a whole-role
+shortcut.** Every `visibleTo` recipient is picked by name, one at a time — no "all mentors", "all
+admins", or "all leadership" button, because that would let one click hand a note to an entire
+role. The only bulk action is narrowing to "Admins only" (clearing the list). If you're re-adding
+convenience to this picker, a role-scoped multi-select is the one shape it must not take.
 
 **Readiness is now readable by the intern for themselves, and only by that path.**
 `listReadinessFlags` (the `:userId` route) stays admin-only, `upsertReadinessFlag` stays
@@ -198,14 +212,18 @@ three withheld from the intern in `formatOwnRecommendation`), or `Evaluation.not
 `formatOwnEvaluation`) into anything that could reach the intern. `internService.js
 #updateInternalCvLink` gets **no notification at all**, to anyone — `internalCvUrl` is modeled as
 never visible to the intern (`formatProfile`'s `canSeeInternalCv` excludes `INTERN`), and it has no
-other audience either. `mentorCommentService.js#createComment` (`MentorComment` has a `visibleTo`
-whitelist, never intern-readable via `canReadComment` — these are notes *about* the intern, not
-*to* them) is the one case with an **asymmetric** rule: the intern still gets nothing, but each
-`visibleTo` recipient (already-authorized admin/mentor/leadership) now gets a notification that a
-note arrived and who wrote it — never the note's content, since that isn't needed to justify
-"delivery" and keeps the AI prompt input minimal. If you add a new admin/mentor/leadership write to
-intern data, check this list before wiring a notification for it, and be explicit about which
-recipient axis (intern vs. staff) it belongs to.
+other audience either. `mentorCommentService.js#createComment` has **two independent notification
+axes now**, matching the two `MentorComment` audience fields: each `visibleTo` recipient
+(already-authorized admin/mentor/leadership) gets `notifyMentorNoteMention` — never the note's
+content, since that isn't needed to justify "delivery" and keeps the AI prompt input minimal — and,
+separately, if the author set `visibleToIntern`, the intern gets `notifyInternMentorNoteShared`.
+That second one is *not* a leak: it only fires for the one note the intern is now explicitly
+allowed to read in full (`listComments`' intern branch), so the notification revealing "a note was
+shared with you" tells them nothing they can't already open. An ordinary staff-only note
+(`visibleToIntern: false`, the default) still notifies zero interns — that asymmetry is unchanged
+and remains the point of this paragraph. If you add a new admin/mentor/leadership write to intern
+data, check this list before wiring a notification for it, and be explicit about which recipient
+axis (intern vs. staff) it belongs to.
 
 Specializations. `/api/specializations` (list/candidates/assign/reassign/change-mentor/clear, all
 `requireRole(ADMIN)` at the route) plus `specializationService#assertSpecializationAccess` at the

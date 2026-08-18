@@ -47,6 +47,7 @@ export const NOTIFICATION_GROUPS = [
       'intern_expected_end_date_changed',
       'intern_documentation_updated',
       'intern_request_from_leadership',
+      'intern_mentor_note_shared',
     ],
   },
   {
