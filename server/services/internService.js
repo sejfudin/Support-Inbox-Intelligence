@@ -282,6 +282,7 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   }
 
   const allowedStatuses = INTERN_STATUSES;
+  const previousStatus = profile.status;
 
   if (payload.status !== undefined) {
     // Lifecycle status changes are admin-only — even the assigned mentor can't
@@ -293,6 +294,17 @@ const updateInternProgramme = async (user, internUserId, payload) => {
       throw err;
     }
     if (!allowedStatuses.includes(payload.status)) throw new Error('Invalid status');
+    // Placed is set automatically when a recommendation's outcome is recorded
+    // as placed (recommendationService.updateRecommendation) — it is never a
+    // manual admin choice. Moving *out* of placed manually is still allowed
+    // (e.g. correcting a mistake), as is re-saving while already placed.
+    if (payload.status === 'placed' && previousStatus !== 'placed') {
+      const err = new Error(
+        'Placed is set automatically when a recommendation records the intern as placed — it can’t be set manually.'
+      );
+      err.statusCode = 400;
+      throw err;
+    }
     profile.status = payload.status;
   }
 

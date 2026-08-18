@@ -1,11 +1,16 @@
-// Cover for the CV-scan provenance prune in `updateSelfTechnologies`.
+// Two independent concerns, both exercised with Mongo/Supabase mocked — no DB or network.
 //
-// This is the rule that makes the ownership model in helpers/cvTechnologySync.js work from the
-// other direction: a technology the intern removes by hand stops being the scan's to manage, so
-// re-adding it later counts as their own declaration and a future CV can never take it away.
-// The reconciler itself is covered in helpers/cvTechnologySync.test.js and the upload wiring in
-// services/internCvService.test.js — neither exercises this path, because nothing here goes
-// through a CV at all. Mongo and Supabase are mocked; no DB or network.
+// 1. The CV-scan provenance prune in `updateSelfTechnologies`. This is the rule that makes the
+//    ownership model in helpers/cvTechnologySync.js work from the other direction: a technology
+//    the intern removes by hand stops being the scan's to manage, so re-adding it later counts
+//    as their own declaration and a future CV can never take it away. The reconciler itself is
+//    covered in helpers/cvTechnologySync.test.js and the upload wiring in
+//    services/internCvService.test.js — neither exercises this path, because nothing here goes
+//    through a CV at all.
+//
+// 2. The lifecycle-status transition rules in `updateInternProgramme` — who may change a
+//    status, and why "placed" specifically can't be picked by hand (it's the recommendation
+//    outcome's job; see recommendationService.updateRecommendation).
 
 jest.mock('../config/supabase', () => ({
   supabase: { storage: { from: () => ({}) } },
@@ -22,12 +27,18 @@ jest.mock('../models/InternProfile', () => {
 });
 jest.mock('../models/Technology', () => ({ countDocuments: jest.fn() }));
 jest.mock('../socket/events', () => ({ emitInternDataChanged: jest.fn() }));
+jest.mock('./recommendationService', () => ({
+  closeActiveRecommendationsForIntern: jest.fn().mockResolvedValue(undefined),
+}));
 
 const InternProfile = require('../models/InternProfile');
 const Technology = require('../models/Technology');
-const { updateSelfTechnologies } = require('./internService');
+const { closeActiveRecommendationsForIntern } = require('./recommendationService');
+const { updateInternProgramme, updateSelfTechnologies } = require('./internService');
 
 const INTERN = { _id: 'u1', role: 'intern' };
+const ADMIN = { _id: 'a1', role: 'admin' };
+const MENTOR = { _id: 'm1', role: 'mentor' };
 
 // `react` came from a CV scan, `python` the intern declared by hand.
 const mockProfile = (overrides = {}) => {
@@ -42,8 +53,35 @@ const mockProfile = (overrides = {}) => {
   };
 
   // First call is the mutable document `updateSelfTechnologies` works on; the second comes from
-  // the `getMyInternProfile` re-read it returns, which populates.
+  // the `getMyInternProfile` re-read it returns, which populates. `mockReset` first: a test that
+  // throws before the second call leaves it queued, and it would otherwise leak into whichever
+  // test runs next.
   InternProfile.findOne
+    .mockReset()
+    .mockReturnValueOnce(Promise.resolve(profile))
+    .mockReturnValueOnce({ populate: async () => ({ ...profile }) });
+
+  return profile;
+};
+
+// Same two-call shape and leak hazard as `mockProfile` above: the mutable document
+// `updateInternProgramme` works on, then the populated re-read `getInternByUserId` returns at
+// the end.
+const mockProgrammeProfile = (overrides = {}) => {
+  const profile = {
+    _id: 'p1',
+    user: { _id: 'u1' },
+    cvPath: null,
+    status: 'active',
+    expectedEndDate: null,
+    primaryMentor: 'm1',
+    secondaryMentor: null,
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+
+  InternProfile.findOne
+    .mockReset()
     .mockReturnValueOnce(Promise.resolve(profile))
     .mockReturnValueOnce({ populate: async () => ({ ...profile }) });
 
@@ -105,5 +143,73 @@ describe('updateSelfTechnologies — CV provenance prune', () => {
 
     expect(profile.save).not.toHaveBeenCalled();
     expect(profile.cvTechnologies).toEqual(['t-react']);
+  });
+});
+
+describe('updateInternProgramme — lifecycle status', () => {
+  it('refuses a non-admin changing status at all, even an assigned mentor', async () => {
+    const profile = mockProgrammeProfile({ status: 'active', primaryMentor: 'm1' });
+
+    await expect(updateInternProgramme(MENTOR, 'u1', { status: 'ready' })).rejects.toThrow(
+      'Only admins can change'
+    );
+
+    expect(profile.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown status value', async () => {
+    mockProgrammeProfile({ status: 'active' });
+
+    await expect(updateInternProgramme(ADMIN, 'u1', { status: 'on-leave' })).rejects.toThrow(
+      'Invalid status'
+    );
+  });
+
+  it('refuses to set "placed" by hand — that is the recommendation outcome\'s job', async () => {
+    const profile = mockProgrammeProfile({ status: 'ready' });
+
+    await expect(updateInternProgramme(ADMIN, 'u1', { status: 'placed' })).rejects.toThrow(
+      'set automatically'
+    );
+
+    expect(profile.status).toBe('ready');
+    expect(profile.save).not.toHaveBeenCalled();
+    expect(closeActiveRecommendationsForIntern).not.toHaveBeenCalled();
+  });
+
+  it('allows re-saving while already placed (no-op, not a transition)', async () => {
+    const profile = mockProgrammeProfile({ status: 'placed' });
+
+    await updateInternProgramme(ADMIN, 'u1', { status: 'placed' });
+
+    expect(profile.status).toBe('placed');
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    // Still fires — this cascade runs off the target status, not off whether it changed.
+    expect(closeActiveRecommendationsForIntern).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets an admin move an intern back out of placed manually', async () => {
+    const profile = mockProgrammeProfile({ status: 'placed' });
+
+    await updateInternProgramme(ADMIN, 'u1', { status: 'discontinued' });
+
+    expect(profile.status).toBe('discontinued');
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    expect(closeActiveRecommendationsForIntern).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['active', 'ready'],
+    ['ready', 'completed'],
+    ['active', 'discontinued'],
+    ['ready', 'active'],
+  ])('allows the manual transition %s -> %s', async (from, to) => {
+    const profile = mockProgrammeProfile({ status: from });
+
+    await updateInternProgramme(ADMIN, 'u1', { status: to });
+
+    expect(profile.status).toBe(to);
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    expect(closeActiveRecommendationsForIntern).not.toHaveBeenCalled();
   });
 });
