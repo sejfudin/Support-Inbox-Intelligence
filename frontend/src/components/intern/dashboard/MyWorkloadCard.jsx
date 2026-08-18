@@ -9,10 +9,13 @@ import { WorkloadBar } from './WorkloadBar';
 import { WorkloadDonut } from './WorkloadDonut';
 import { ticketsPathForStatus } from './workloadLink';
 
-// Which view the card opens on, remembered per browser profile the same way the
-// colour theme is (see `hooks/useStoredPreference.js`). The two answer different
-// questions — the bar reads "how loaded am I", the donut "what is the mix" — and
-// which one an intern prefers is stable, not a per-visit decision.
+// Which view the card opens on, remembered per browser profile (see
+// `hooks/useStoredPreference.js`). Not an account preference: it is one card's
+// toggle rather than a Settings row, so it is deliberately absent from the
+// tables in `context/ThemeConfigContext.jsx` and never reaches the server. The
+// two views answer different questions — the bar reads "how loaded am I", the
+// donut "what is the mix" — and which one an intern prefers is stable, not a
+// per-visit decision.
 const VIEW_STORAGE_KEY = 'intern-dashboard:workload-view';
 const VIEWS = [
   { id: 'bar', label: 'Bar', icon: AlignLeft },
@@ -25,7 +28,10 @@ function ViewToggle({ view, onChange }) {
   return (
     // relative z-10 lifts the toggle above the card's stretched link, so
     // switching views doesn't navigate to the ticket list.
-    <div className="relative z-10 inline-flex shrink-0 rounded-lg bg-muted/70 p-0.5" role="group">
+    <div
+      className="relative z-10 inline-flex shrink-0 rounded-[var(--r-control)] bg-muted/70 p-0.5"
+      role="group"
+    >
       {VIEWS.map(({ id, label, icon: Icon }) => (
         <Tooltip key={id}>
           <TooltipTrigger asChild>
@@ -120,7 +126,7 @@ export function MyWorkloadCard({ workload, isPreview = false }) {
                   to={ticketsPathForStatus(bucket.slug)}
                   aria-label={`${bucket.count} ${bucket.label} — open in my tickets`}
                   className={cn(
-                    'flex items-center gap-2 rounded-md px-1.5 py-0.5 text-[13px] transition-colors',
+                    'flex items-center gap-2 rounded-[var(--r-control)] px-1.5 py-0.5 text-[13px] transition-colors',
                     'hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
                     bucket.count === 0 && 'opacity-45'
                   )}
@@ -139,7 +145,7 @@ export function MyWorkloadCard({ workload, isPreview = false }) {
                       // Blocked is the one count that is bad news rather than just
                       // a number, so it carries its status colour into the total.
                       bucket.slug === 'blocked' && bucket.count > 0
-                        ? 'text-red-600 dark:text-red-400'
+                        ? 'text-[hsl(var(--tone-danger-fg))]'
                         : 'text-foreground'
                     )}
                   >
