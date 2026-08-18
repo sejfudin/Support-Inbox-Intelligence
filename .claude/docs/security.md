@@ -467,6 +467,35 @@ same exception as `Project`/`Recommendation` above).
 - Not covered by any of this: `POST /api/auth/invite/set-password`, which is guarded by the
   single-use invite token instead — there is no old password at that point.
 
+## Self-only endpoints carry no id
+
+- `GET`/`PATCH /api/users/me/preferences` resolves the subject from the token
+  (`req.user.id`), never from the URL or the body. There is no id to guard and no
+  cross-user read path — do not add one. A future self-only endpoint should follow the
+  same shape: `/me`, subject from the token.
+- The patch is **key-validated against the enum table**
+  (`server/constants/userPreferences.js`), with own-property lookups only. An inherited
+  key (`toString`, `constructor`, `__proto__`) resolves to nothing rather than to a
+  function on `Object.prototype`, so a junk key is shrugged off instead of throwing a
+  500. Keep both properties if you touch the validator.
+- Preferences are UI taste, not authorization. Nothing may read them to decide what a
+  caller can see or do.
+
+## The preference cache is not a trust boundary
+
+- `localStorage` caches preferences, and **sign-out deliberately keeps the cache** so the
+  return is flash-free. On a shared browser the next person therefore sees the previous
+  person's cache. `frontend/src/lib/preferenceCacheOwner.js` stamps the owner, and the
+  one-time migration adopts a cache **only** when it can prove it is this user's.
+  Never adopt or upload an unstamped cache.
+- The cache holds no secret — do not put one there. The session tokens stay under their
+  own keys, owned by `api/axios.js` and `context/AuthContext.jsx`.
+- The access token is read outside the axios interceptor in exactly one place: the
+  `keepalive` unload flush in `frontend/src/api/userPreferences.js`, which must outlive
+  the document. It builds its header with `authorizationHeader()` from `api/axios.js`, so
+  the token is still read in one place. Do not add a second such caller without the same
+  hard reason.
+
 ## Input handling
 
 - **Sanitize user-supplied rich-text HTML** (TipTap ticket descriptions — anything rendered
@@ -492,3 +521,4 @@ same exception as `Project`/`Recommendation` above).
 5. Is user HTML sanitized?
 6. Does the response leak fields the caller shouldn't see (other workspaces, other interns)?
 7. If it writes a credential, does it re-prove the caller owns it? (see Credentials)
+8. If it is a `/me` endpoint, does the subject come from the token rather than the request?

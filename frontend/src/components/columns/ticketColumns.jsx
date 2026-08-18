@@ -19,8 +19,6 @@ const stripHtml = (html) => {
   return text.replace(/\s+/g, ' ').trim();
 };
 
-const PRIORITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
-
 const formatDayLabel = (value) => {
   if (!value) return null;
   const parsed = new Date(value);
@@ -34,33 +32,6 @@ const DayCell = ({ value }) => {
     <span className="text-[12.5px] text-muted-foreground">{label || <span>&mdash;</span>}</span>
   );
 };
-
-// Sorting comparators for the columns whose raw value does not sort the way the
-// column reads: priority is an order, not an alphabet; an assignee cell holds an
-// array of users; a missing due date or SP always sinks rather than leading.
-const bySortWeight = (weight) => (rowA, rowB, columnId) => {
-  const a = weight(rowA.getValue(columnId), rowA.original);
-  const b = weight(rowB.getValue(columnId), rowB.original);
-  if (a == null && b == null) return 0;
-  if (a == null) return -1;
-  if (b == null) return 1;
-  if (typeof a === 'string' || typeof b === 'string') return String(a).localeCompare(String(b));
-  return a - b;
-};
-
-const priorityFn = bySortWeight(
-  (value) => PRIORITY_RANK[String(value || '').toLowerCase()] ?? null
-);
-const dateFn = bySortWeight((value) => {
-  if (!value) return null;
-  const parsed = new Date(value).getTime();
-  return Number.isNaN(parsed) ? null : parsed;
-});
-const assigneeFn = bySortWeight((value) => {
-  const first = Array.isArray(value) ? value[0] : value;
-  const name = first?.fullname || first?.name || first?.email || '';
-  return name || null;
-});
 
 export function createTicketColumns({
   statusBadgeConfig = {},
@@ -99,9 +70,7 @@ export function createTicketColumns({
       },
       cell: ({ row }) => {
         const statusColor = statusBadgeConfig[row.original.status]?.color;
-        const comments = Array.isArray(row.original.comments)
-          ? row.original.comments.length
-          : (row.original.commentCount ?? 0);
+        const comments = row.original.commentCount;
 
         return (
           <div className="flex min-w-0 items-center gap-[9px]">
@@ -136,16 +105,11 @@ export function createTicketColumns({
         cellClassName: 'w-[126px] whitespace-nowrap',
       },
       cell: ({ row }) => (
-        <TicketStatusBadge
-          status={row.original.status}
-          statusBadgeConfig={statusBadgeConfig}
-          flat
-        />
+        <TicketStatusBadge status={row.original.status} statusBadgeConfig={statusBadgeConfig} />
       ),
     },
     {
       accessorKey: 'priority',
-      sortingFn: priorityFn,
       header: 'PRIORITY',
       meta: {
         headerClassName: 'w-[110px]',
@@ -155,7 +119,6 @@ export function createTicketColumns({
     },
     {
       accessorKey: 'assignedTo',
-      sortingFn: assigneeFn,
       header: 'ASSIGNED TO',
       meta: {
         headerClassName: 'w-[160px]',
@@ -176,7 +139,6 @@ export function createTicketColumns({
     },
     {
       accessorKey: 'dueDate',
-      sortingFn: dateFn,
       header: 'DUE DATE',
       meta: {
         headerClassName: 'w-[121px]',
@@ -245,7 +207,6 @@ export function createTicketColumns({
 
   const createdAtColumn = {
     accessorKey: 'createdAt',
-    sortingFn: dateFn,
     sortDescFirst: true,
     header: 'CREATED',
     meta: {
@@ -289,7 +250,6 @@ export function createTicketColumns({
       baseColumn('storyPoints'),
       {
         accessorKey: 'archivedAt',
-        sortingFn: dateFn,
         sortDescFirst: true,
         header: 'ARCHIVED',
         meta: {

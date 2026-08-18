@@ -12,6 +12,7 @@ import { useTheme } from 'next-themes';
 import { flashThemeTransition } from '@/lib/themeTransition';
 import { hasStoredAccessToken } from '@/lib/authStorage';
 import { pushPreference } from '@/lib/preferenceSync';
+import { preferenceCacheIsOwnedBy, writePreferenceCacheOwner } from '@/lib/preferenceCacheOwner';
 import {
   COLOR_THEME_STORAGE_KEY,
   DEFAULT_COLOR_THEME,
@@ -60,7 +61,11 @@ import {
   isValidTicketsView,
   isValidUiScale,
 } from '@/helpers/uiPreferences';
-import { cacheStoredPreference, readStoredPreference } from '@/hooks/useStoredPreference';
+import {
+  cacheStoredPreference,
+  readStoredPreference,
+  writeStoredPreference,
+} from '@/hooks/useStoredPreference';
 
 const ThemeConfigContext = createContext(null);
 
@@ -201,26 +206,31 @@ const VALUE_PREFERENCES = [
  */
 export const ACCOUNT_PREFERENCES = [
   ...DOM_PREFERENCES.filter((preference) => preference.scope === PREFERENCE_SCOPE.ACCOUNT).map(
-    ({ key, storageKey, fallback, isValid }) => ({ key, storageKey, fallback, isValid })
+    // `attribute` rides along so the hydrate step can apply an incoming value the
+    // same way a local write does. The rest of the row (`options`, `scope`) is of
+    // no use outside this file.
+    ({ key, storageKey, fallback, isValid, attribute }) => ({
+      key,
+      storageKey,
+      fallback,
+      isValid,
+      attribute,
+    })
   ),
   ...VALUE_PREFERENCES,
 ];
+
+/** The account preferences that show up as an attribute on <html>. */
+const ACCOUNT_DOM_PREFERENCES = DOM_PREFERENCES.filter(
+  (preference) => preference.scope === PREFERENCE_SCOPE.ACCOUNT
+);
 
 const DEFAULT_DOM_PREFERENCES = Object.fromEntries(
   DOM_PREFERENCES.map((preference) => [preference.key, preference.fallback])
 );
 
-function readStoredColorTheme() {
-  try {
-    const stored = localStorage.getItem(COLOR_THEME_STORAGE_KEY);
-    if (stored && isValidColorTheme(stored)) {
-      return stored;
-    }
-  } catch {
-    /* ignore */
-  }
-  return DEFAULT_COLOR_THEME;
-}
+const readStoredColorTheme = () =>
+  readStoredPreference(COLOR_THEME_STORAGE_KEY, DEFAULT_COLOR_THEME, isValidColorTheme);
 
 function applyColorThemeToDom(themeId) {
   document.documentElement.setAttribute('data-theme', themeId);
@@ -246,28 +256,37 @@ export function ThemeConfigProvider({ children }) {
   const colorThemeRef = useRef(DEFAULT_COLOR_THEME);
   const hydratedRef = useRef(false);
   const lastPushedModeRef = useRef(null);
+  // Whether a session was already live when this tab loaded, captured before
+  // anything can sign in or out. The first-run migration needs it to tell a
+  // reload from a fresh sign-in on someone else's browser.
+  const sessionAtMountRef = useRef(false);
 
   useEffect(() => {
     // First paint has already happened — `main.jsx`'s IIFE set `data-theme`
     // synchronously. This reconciles React's copy with the cache and applies
     // the remaining attributes.
     //
-    // The palette follows the account, so a browser holding no session shows the
-    // house palette rather than whatever the last person to sign in here left
-    // behind. Same check and same key as the IIFE, or the two would disagree and
-    // the login screen would repaint on mount.
-    const storedTheme = hasStoredAccessToken() ? readStoredColorTheme() : DEFAULT_COLOR_THEME;
+    // The account preferences follow the person, so a browser holding no session
+    // shows the house defaults rather than whatever the last person to sign in
+    // here left behind — the accent, and equally the density and accessibility
+    // attributes. Same check and same key as the IIFE for the accent, or the two
+    // would disagree and the login screen would repaint on mount.
+    const signedIn = hasStoredAccessToken();
+    sessionAtMountRef.current = signedIn;
+
+    const storedTheme = signedIn ? readStoredColorTheme() : DEFAULT_COLOR_THEME;
     setColorThemeState(storedTheme);
     colorThemeRef.current = storedTheme;
     applyColorThemeToDom(storedTheme);
 
     const stored = {};
     DOM_PREFERENCES.forEach((preference) => {
-      const value = readStoredPreference(
-        preference.storageKey,
-        preference.fallback,
-        preference.isValid
-      );
+      // A device-scoped row (UI scale) is nobody's secret and is a property of
+      // this screen, so it is read either way.
+      const trustCache = signedIn || preference.scope === PREFERENCE_SCOPE.DEVICE;
+      const value = trustCache
+        ? readStoredPreference(preference.storageKey, preference.fallback, preference.isValid)
+        : preference.fallback;
       stored[preference.key] = value;
       document.documentElement.setAttribute(preference.attribute, value);
     });
@@ -299,12 +318,7 @@ export function ThemeConfigProvider({ children }) {
     setColorThemeState(themeId);
     colorThemeRef.current = themeId;
     applyColorThemeToDom(themeId);
-    try {
-      localStorage.setItem(COLOR_THEME_STORAGE_KEY, themeId);
-    } catch {
-      /* ignore */
-    }
-    pushPreference(COLOR_THEME_STORAGE_KEY, themeId);
+    writeStoredPreference(COLOR_THEME_STORAGE_KEY, themeId);
   }, []);
 
   const setPreference = useCallback((key, next) => {
@@ -312,14 +326,46 @@ export function ThemeConfigProvider({ children }) {
     if (!preference || !preference.isValid(next)) return;
     setPreferences((current) => ({ ...current, [key]: next }));
     document.documentElement.setAttribute(preference.attribute, next);
-    try {
-      localStorage.setItem(preference.storageKey, next);
-    } catch {
-      /* ignore */
-    }
     // A device-scoped row is not in `ACCOUNT_PREFERENCES`, so the pusher drops it.
-    pushPreference(preference.storageKey, next);
+    writeStoredPreference(preference.storageKey, next);
   }, []);
+
+  /**
+   * Apply one preference everywhere it shows: React state, the DOM, the cache,
+   * and — when this is a value of ours the account has not saved yet — the server.
+   *
+   * `nextDom` collects the attribute-backed ones so the caller can set state once
+   * instead of per row.
+   */
+  const applyPreference = useCallback(
+    (preference, value, { push, nextDom }) => {
+      if (preference.key === 'mode') {
+        // `next-themes` owns this storage key; going through `setTheme` keeps its
+        // state, the `class` on <html> and that key in step. Recording it as the
+        // last pushed value is what stops the observer effect below from echoing
+        // it straight back.
+        lastPushedModeRef.current = value;
+        setTheme(value);
+        if (push) pushPreference(MODE_STORAGE_KEY, value);
+        return;
+      }
+
+      if (preference.key === 'colorTheme' && colorThemeRef.current !== value) {
+        colorThemeRef.current = value;
+        setColorThemeState(value);
+        applyColorThemeToDom(value);
+      }
+
+      if (preference.attribute) {
+        document.documentElement.setAttribute(preference.attribute, value);
+        nextDom[preference.key] = value;
+      }
+
+      cacheStoredPreference(preference.storageKey, value);
+      if (push) pushPreference(preference.storageKey, value);
+    },
+    [setTheme]
+  );
 
   /**
    * Reconcile the cache against the user record, once, after sign-in or after a
@@ -327,89 +373,117 @@ export function ThemeConfigProvider({ children }) {
    * which is the only thing in the tree that can see both the auth state and the
    * query client.
    *
+   * Per key, not per account. For every account preference:
+   *
+   * - the account has saved it → the record wins, and the cache is corrected.
+   * - it has not, and this cache is ours → keep what this browser had, apply it,
+   *   and send it up as the account's first value for that key. This is the
+   *   one-time migration off browser-only preferences, and it runs key by key, so
+   *   saving one preference on a phone does not reset the others on a laptop.
+   * - it has not, and the cache is somebody else's → fall back to the default and
+   *   overwrite the leftover, so a shared browser never shows or uploads the
+   *   previous person's settings.
+   *
    * @param {object|null} serverPreferences the merged preferences document
-   * @param {boolean} hasStoredPreferences whether the account has ever saved any
+   * @param {{ storedKeys?: string[], userId?: string|null }} meta `storedKeys` is
+   *   the list of preferences this account has actually saved; `userId` decides
+   *   whether the cache may be adopted
    */
   const hydrateFromServer = useCallback(
-    (serverPreferences, hasStoredPreferences) => {
+    (serverPreferences, { storedKeys = [], userId = null } = {}) => {
       if (!serverPreferences) return;
       hydratedRef.current = true;
 
-      if (!hasStoredPreferences) {
-        // Nothing has ever been saved for this account, which is every account
-        // the first time it loads a build with this endpoint. Keep what this
-        // browser already had and send it up as the account's first saved set,
-        // rather than resetting a returning user to the defaults.
-        ACCOUNT_PREFERENCES.forEach((preference) => {
-          const cached = readStoredPreference(
-            preference.storageKey,
-            preference.fallback,
-            preference.isValid
-          );
-          if (cached === preference.fallback) return;
-          pushPreference(preference.storageKey, cached);
-        });
-        lastPushedModeRef.current = readStoredPreference(MODE_STORAGE_KEY, 'system', isValidMode);
-        return;
-      }
-
+      const savedOnAccount = new Set(storedKeys);
+      const cacheIsOurs = preferenceCacheIsOwnedBy(userId, sessionAtMountRef.current);
       const nextDom = {};
 
-      DOM_PREFERENCES.forEach((preference) => {
-        if (preference.scope !== PREFERENCE_SCOPE.ACCOUNT) return;
-        const value = serverValueFor(preference, serverPreferences);
-        if (value === undefined) return;
-        nextDom[preference.key] = value;
-        document.documentElement.setAttribute(preference.attribute, value);
-        cacheStoredPreference(preference.storageKey, value);
+      ACCOUNT_PREFERENCES.forEach((preference) => {
+        if (savedOnAccount.has(preference.key)) {
+          const value = serverValueFor(preference, serverPreferences);
+          if (value === undefined) return;
+          applyPreference(preference, value, { push: false, nextDom });
+          return;
+        }
+
+        const cached = readStoredPreference(
+          preference.storageKey,
+          preference.fallback,
+          preference.isValid
+        );
+        if (cached === preference.fallback) {
+          // Nothing to migrate and nothing to clean up — the cache already reads
+          // as the default. Still worth remembering for `mode`, whose writes this
+          // provider only observes.
+          if (preference.key === 'mode') lastPushedModeRef.current = cached;
+          return;
+        }
+
+        applyPreference(preference, cacheIsOurs ? cached : preference.fallback, {
+          push: cacheIsOurs,
+          nextDom,
+        });
       });
 
       if (Object.keys(nextDom).length > 0) {
         setPreferences((current) => ({ ...current, ...nextDom }));
       }
 
-      VALUE_PREFERENCES.forEach((preference) => {
-        const value = serverValueFor(preference, serverPreferences);
-        if (value === undefined) return;
-
-        if (preference.key === 'mode') {
-          lastPushedModeRef.current = value;
-          // `next-themes` writes its own storage key; going through `setTheme`
-          // keeps its state, the `class` on <html> and that key in step.
-          setTheme(value);
-          return;
-        }
-
-        if (preference.key === 'colorTheme') {
-          if (colorThemeRef.current === value) return;
-          colorThemeRef.current = value;
-          setColorThemeState(value);
-          applyColorThemeToDom(value);
-          return;
-        }
-
-        cacheStoredPreference(preference.storageKey, value);
-      });
+      // From here on the cache is unambiguously this account's, whichever branch
+      // each key took.
+      writePreferenceCacheOwner(userId);
     },
-    [setTheme]
+    [applyPreference]
   );
 
   /**
-   * Back to the house palette. The auth screens must never wear the previous
-   * user's accent — on a shared browser that is one person's choice leaking onto
-   * the next person's login screen.
+   * The preferences call failed and is not coming back this session.
+   *
+   * Everything already works — the cache is what the UI is running on. The one
+   * thing that would silently break is light/dark, which is the only preference
+   * this provider observes rather than writes, and which stays gated until
+   * hydration to avoid echoing the cached value back on the first render. So the
+   * gate opens here too, with the cached mode recorded as the baseline: a genuine
+   * change from now on still saves.
+   */
+  const markSyncUnavailable = useCallback(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    lastPushedModeRef.current = readStoredPreference(MODE_STORAGE_KEY, 'system', isValidMode);
+  }, []);
+
+  /**
+   * Back to the house appearance. The auth screens must never wear the previous
+   * user's accent, density or accessibility settings — on a shared browser that is
+   * one person's choices leaking onto the next person's login screen.
    *
    * The cache is left alone on purpose: it is still the right answer for the
    * moment that user signs back in, and re-reading it is what makes their reload
    * flash-free.
    */
-  const resetToDefaultPalette = useCallback(() => {
+  const resetToDefaultAppearance = useCallback(() => {
     hydratedRef.current = false;
     lastPushedModeRef.current = null;
-    if (colorThemeRef.current === DEFAULT_COLOR_THEME) return;
-    colorThemeRef.current = DEFAULT_COLOR_THEME;
-    setColorThemeState(DEFAULT_COLOR_THEME);
-    applyColorThemeToDom(DEFAULT_COLOR_THEME);
+
+    if (colorThemeRef.current !== DEFAULT_COLOR_THEME) {
+      colorThemeRef.current = DEFAULT_COLOR_THEME;
+      setColorThemeState(DEFAULT_COLOR_THEME);
+      applyColorThemeToDom(DEFAULT_COLOR_THEME);
+    }
+
+    ACCOUNT_DOM_PREFERENCES.forEach((preference) => {
+      document.documentElement.setAttribute(preference.attribute, preference.fallback);
+    });
+    setPreferences((current) => {
+      const reset = ACCOUNT_DOM_PREFERENCES.filter(
+        (preference) => current[preference.key] !== preference.fallback
+      );
+      if (reset.length === 0) return current;
+      return {
+        ...current,
+        ...Object.fromEntries(reset.map((preference) => [preference.key, preference.fallback])),
+      };
+    });
   }, []);
 
   const value = useMemo(
@@ -427,7 +501,8 @@ export function ThemeConfigProvider({ children }) {
       ready,
       flashThemeTransition,
       hydrateFromServer,
-      resetToDefaultPalette,
+      markSyncUnavailable,
+      resetToDefaultAppearance,
     }),
     [
       colorTheme,
@@ -436,7 +511,8 @@ export function ThemeConfigProvider({ children }) {
       setPreference,
       ready,
       hydrateFromServer,
-      resetToDefaultPalette,
+      markSyncUnavailable,
+      resetToDefaultAppearance,
     ]
   );
 

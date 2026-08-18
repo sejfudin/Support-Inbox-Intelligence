@@ -24,7 +24,10 @@ Root rules and shared conventions apply — see ../CLAUDE.md and ../.claude/docs
 - **Never call axios from a component.** Go component → `queries/` hook → `api/` helper.
 - **Both `accessToken` and `refreshToken` live in `localStorage`**; the axios interceptor
   attaches the access token and handles 401 refresh (single-flight, clears both on failure).
-  Don't reimplement auth headers or token storage.
+  Don't reimplement auth headers or token storage. A request that genuinely cannot go through
+  axios — today only the `keepalive` unload flush in `api/userPreferences.js`, which must
+  outlive the document — still builds its header with `authorizationHeader()` from
+  `api/axios.js` and reads the key names from `lib/authStorage.js`.
 - **Query keys must stay consistent per resource** — Socket.IO events invalidate by key
   (`user:`, `workspace:`, `workspace-tickets:`, `ticket:`). Breaking a key breaks live updates.
 - Use `src/components/ui/` primitives + Tailwind; theme via `next-themes` (support light + dark).
