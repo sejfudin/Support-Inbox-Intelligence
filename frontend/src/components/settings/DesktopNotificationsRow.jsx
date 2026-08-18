@@ -56,6 +56,17 @@ export default function DesktopNotificationsRow() {
     return () => window.removeEventListener('focus', sync);
   }, []);
 
+  // Permission lost since the switch was stored — revoked in site settings, or
+  // denied at the prompt. Clear our half too, so the stored value never says
+  // "on" for something that cannot draw. Without this, re-granting in the
+  // browser would silently resume banners the reader never re-consented to in
+  // the app.
+  useEffect(() => {
+    if (permission !== 'granted' && isDesktopNotificationsOn(stored)) {
+      setStored(desktopNotificationsValue(false));
+    }
+  }, [permission, stored, setStored]);
+
   // No API to drive: a row that could never do anything is worse than no row.
   if (!supported) return null;
 
