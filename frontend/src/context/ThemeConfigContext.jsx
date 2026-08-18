@@ -61,7 +61,11 @@ import {
   isValidTicketsView,
   isValidUiScale,
 } from '@/helpers/uiPreferences';
-import { cacheStoredPreference, readStoredPreference } from '@/hooks/useStoredPreference';
+import {
+  cacheStoredPreference,
+  readStoredPreference,
+  writeStoredPreference,
+} from '@/hooks/useStoredPreference';
 
 const ThemeConfigContext = createContext(null);
 
@@ -225,17 +229,8 @@ const DEFAULT_DOM_PREFERENCES = Object.fromEntries(
   DOM_PREFERENCES.map((preference) => [preference.key, preference.fallback])
 );
 
-function readStoredColorTheme() {
-  try {
-    const stored = localStorage.getItem(COLOR_THEME_STORAGE_KEY);
-    if (stored && isValidColorTheme(stored)) {
-      return stored;
-    }
-  } catch {
-    /* ignore */
-  }
-  return DEFAULT_COLOR_THEME;
-}
+const readStoredColorTheme = () =>
+  readStoredPreference(COLOR_THEME_STORAGE_KEY, DEFAULT_COLOR_THEME, isValidColorTheme);
 
 function applyColorThemeToDom(themeId) {
   document.documentElement.setAttribute('data-theme', themeId);
@@ -323,12 +318,7 @@ export function ThemeConfigProvider({ children }) {
     setColorThemeState(themeId);
     colorThemeRef.current = themeId;
     applyColorThemeToDom(themeId);
-    try {
-      localStorage.setItem(COLOR_THEME_STORAGE_KEY, themeId);
-    } catch {
-      /* ignore */
-    }
-    pushPreference(COLOR_THEME_STORAGE_KEY, themeId);
+    writeStoredPreference(COLOR_THEME_STORAGE_KEY, themeId);
   }, []);
 
   const setPreference = useCallback((key, next) => {
@@ -336,13 +326,8 @@ export function ThemeConfigProvider({ children }) {
     if (!preference || !preference.isValid(next)) return;
     setPreferences((current) => ({ ...current, [key]: next }));
     document.documentElement.setAttribute(preference.attribute, next);
-    try {
-      localStorage.setItem(preference.storageKey, next);
-    } catch {
-      /* ignore */
-    }
     // A device-scoped row is not in `ACCOUNT_PREFERENCES`, so the pusher drops it.
-    pushPreference(preference.storageKey, next);
+    writeStoredPreference(preference.storageKey, next);
   }, []);
 
   /**

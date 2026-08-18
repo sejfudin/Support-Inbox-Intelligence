@@ -82,7 +82,7 @@ two browsers changing two different preferences do not clobber each other.
 - The enum table is `server/constants/userPreferences.js` — model, validation and endpoint all read
   it, and its frontend twin is the preference table in `src/context/ThemeConfigContext.jsx`. A new
   preference costs a row in each.
-- Both responses carry `{ preferences, hasStoredPreferences, storedKeys }`. `storedKeys` names the
+- Both responses carry `{ preferences, storedKeys }`. `storedKeys` names the
   preferences this account has actually saved; **the client reconciles per key**, so a value only
   set locally survives while the saved ones take the server's answer.
 - `localStorage` is a **write-through cache** in front of the record (the server cannot answer

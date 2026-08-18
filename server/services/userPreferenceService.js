@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { httpError } = require('../helpers/httpError');
 const {
   USER_PREFERENCE_DEFINITIONS,
   USER_PREFERENCE_KEYS,
@@ -41,18 +42,6 @@ const isStored = (stored, key) =>
  */
 const storedKeysOf = (stored) => USER_PREFERENCE_KEYS.filter((key) => isStored(stored, key));
 
-const badRequest = (message) => {
-  const error = new Error(message);
-  error.statusCode = 400;
-  return error;
-};
-
-const notFound = (message) => {
-  const error = new Error(message);
-  error.statusCode = 404;
-  return error;
-};
-
 /**
  * A stored document only carries the keys the user has actually chosen, so every
  * read merges it onto the defaults. Callers therefore always get the complete
@@ -76,7 +65,7 @@ const withDefaults = (stored = {}) => ({
  */
 const buildUpdate = (patch) => {
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-    throw badRequest('Preferences payload must be an object');
+    throw httpError('Preferences payload must be an object', 400);
   }
 
   const update = {};
@@ -84,11 +73,11 @@ const buildUpdate = (patch) => {
   Object.entries(patch).forEach(([key, value]) => {
     if (key === 'mutedNotificationGroups') {
       if (!Array.isArray(value)) {
-        throw badRequest('mutedNotificationGroups must be an array of group keys');
+        throw httpError('mutedNotificationGroups must be an array of group keys', 400);
       }
       const unknown = value.filter((group) => !MUTED_NOTIFICATION_GROUP_VALUES.includes(group));
       if (unknown.length > 0) {
-        throw badRequest(`Unknown notification group: ${unknown.join(', ')}`);
+        throw httpError(`Unknown notification group: ${unknown.join(', ')}`, 400);
       }
       // De-duplicated so the stored list is a set, whatever the client sent.
       update['preferences.mutedNotificationGroups'] = [...new Set(value)];
@@ -99,7 +88,7 @@ const buildUpdate = (patch) => {
     if (!definition) return;
 
     if (!definition.values.includes(value)) {
-      throw badRequest(`Invalid value for preference "${key}"`);
+      throw httpError(`Invalid value for preference "${key}"`, 400);
     }
 
     update[`preferences.${key}`] = value;
@@ -108,24 +97,16 @@ const buildUpdate = (patch) => {
   return update;
 };
 
-/**
- * Whether this account has ever chosen anything at all. Kept as a convenience on
- * top of `storedKeys` — the client reconciles per key, but a bare "this account
- * is untouched" is still the clearer thing to read in a log or a test.
- */
-const hasAnyStored = (stored) => storedKeysOf(stored).length > 0;
-
 /** The one answer shape both the read and the write reply with. */
-const present = (stored) => ({
+const preferencesResponse = (stored) => ({
   preferences: withDefaults(stored),
-  hasStoredPreferences: hasAnyStored(stored),
   storedKeys: storedKeysOf(stored),
 });
 
 const getPreferences = async (userId) => {
   const user = await User.findById(userId).select('preferences').lean();
-  if (!user) throw notFound('User not found');
-  return present(user.preferences);
+  if (!user) throw httpError('User not found', 404);
+  return preferencesResponse(user.preferences);
 };
 
 /**
@@ -147,8 +128,8 @@ const updatePreferences = async (userId, patch) => {
     { new: true, runValidators: true, select: 'preferences' }
   ).lean();
 
-  if (!user) throw notFound('User not found');
-  return present(user.preferences);
+  if (!user) throw httpError('User not found', 404);
+  return preferencesResponse(user.preferences);
 };
 
 module.exports = {
@@ -156,6 +137,5 @@ module.exports = {
   updatePreferences,
   withDefaults,
   buildUpdate,
-  hasAnyStored,
   storedKeysOf,
 };

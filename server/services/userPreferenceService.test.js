@@ -8,12 +8,7 @@ jest.mock('../models/User', () => ({
   findByIdAndUpdate: jest.fn(),
 }));
 
-const {
-  buildUpdate,
-  withDefaults,
-  hasAnyStored,
-  storedKeysOf,
-} = require('./userPreferenceService');
+const { buildUpdate, withDefaults, storedKeysOf } = require('./userPreferenceService');
 const { DEFAULT_USER_PREFERENCES } = require('../constants/userPreferences');
 
 describe('buildUpdate', () => {
@@ -105,17 +100,5 @@ describe('storedKeysOf', () => {
   it('does not count an inherited key or an explicit null', () => {
     expect(storedKeysOf({ density: null })).toEqual([]);
     expect(storedKeysOf(Object.create({ density: 'compact' }))).toEqual([]);
-  });
-});
-
-describe('hasAnyStored', () => {
-  it('is false for an account that has never chosen anything', () => {
-    expect(hasAnyStored(undefined)).toBe(false);
-    expect(hasAnyStored({})).toBe(false);
-  });
-
-  it('is true once any key is present, including an emptied muted list', () => {
-    expect(hasAnyStored({ density: 'comfortable' })).toBe(true);
-    expect(hasAnyStored({ mutedNotificationGroups: [] })).toBe(true);
   });
 });
