@@ -30,6 +30,8 @@ Root rules and shared conventions apply — see ../CLAUDE.md and ../.claude/docs
   `api/axios.js` and reads the key names from `lib/authStorage.js`.
 - **Query keys must stay consistent per resource** — Socket.IO events invalidate by key
   (`user:`, `workspace:`, `workspace-tickets:`, `ticket:`). Breaking a key breaks live updates.
+- **A new route needs a tab title** — add it to the map in `helpers/pageTitle.js`; if the page
+  shows one named record, also call `useDocumentTitle(name)`. See conventions.md.
 - Use `src/components/ui/` primitives + Tailwind; theme via `next-themes` (support light + dark).
 - Forms: React Hook Form + Zod schemas.
 - Run `npm run format` before finishing.
