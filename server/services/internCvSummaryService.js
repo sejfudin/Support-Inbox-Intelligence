@@ -2,7 +2,11 @@ const { supabase, supabaseCvBucket } = require('../config/supabase');
 const { extractPdfText } = require('../helpers/pdfText');
 const { buildCvSummaryPrompt } = require('../prompts/internCvPrompts');
 const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
-const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
+const {
+  assertInternAccess,
+  canWriteMentorData,
+  canReadMentorAssessment,
+} = require('../helpers/internAccess');
 const { httpError } = require('../helpers/httpError');
 
 /**
@@ -17,12 +21,15 @@ const { httpError } = require('../helpers/httpError');
  * new path, so the stored summary is recognised as stale rather than served
  * against a CV it never read.
  *
- * Visibility is admin-or-assigned-mentor only (`canWriteMentorData`), not the
- * broader `canViewInternProfile` that `assertInternAccess` grants by default —
- * that default includes the intern viewing their own profile, which is exactly
- * who this must NOT be shown to (see the route). `assertInternAccess` itself is
- * still called first, for the 404-on-missing-profile behaviour every other
- * intern-scoped endpoint gets.
+ * Reading and generating are gated differently. Reading is
+ * `canReadMentorAssessment` — admin, leadership, or the assigned mentor; not the
+ * broader `canViewInternProfile` that `assertInternAccess` grants by default,
+ * because that default includes the intern viewing their own profile, which is
+ * exactly who this must NOT be shown to (see the route). Generating additionally
+ * requires `canWriteMentorData`, so leadership reads a summary but never spends
+ * the model call: it is a write to the profile, and leadership writes nothing
+ * here. `assertInternAccess` is still called first either way, for the
+ * 404-on-missing-profile behaviour every other intern-scoped endpoint gets.
  */
 
 // Enough of a CV to summarise, bounded so a pathological PDF cannot push an
@@ -41,9 +48,15 @@ const sanitizeSummary = (value) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-const assertCvSummaryAccess = (actor, profile) => {
-  if (!canWriteMentorData(actor, profile)) {
+const assertCanReadCvSummary = (actor, profile) => {
+  if (!canReadMentorAssessment(actor, profile)) {
     throw httpError("Not authorized to access this intern's CV summary", 403);
+  }
+};
+
+const assertCanGenerateCvSummary = (actor, profile) => {
+  if (!canWriteMentorData(actor, profile)) {
+    throw httpError("Not authorized to generate this intern's CV summary", 403);
   }
 };
 
@@ -66,7 +79,7 @@ const toSummaryPayload = (profile) => ({
 /** The cached summary, or an empty payload. Never calls the model. */
 const getCvSummary = async (actor, internUserId) => {
   const profile = await assertInternAccess(actor, internUserId);
-  assertCvSummaryAccess(actor, profile);
+  assertCanReadCvSummary(actor, profile);
   return toSummaryPayload(profile);
 };
 
@@ -80,13 +93,17 @@ const getCvSummary = async (actor, internUserId) => {
  */
 const generateCvSummary = async (actor, internUserId) => {
   const profile = await assertInternAccess(actor, internUserId);
-  assertCvSummaryAccess(actor, profile);
+  assertCanGenerateCvSummary(actor, profile);
 
   if (!profile.cvPath) {
     throw httpError('This intern has not uploaded a CV.', 400);
   }
 
-  const buffer = await downloadCv(profile.cvPath);
+  // Captured before the download so the stamp below records the path actually
+  // read: a CV replaced mid-generation must not leave the new path pointing at a
+  // summary of the old document.
+  const readCvPath = profile.cvPath;
+  const buffer = await downloadCv(readCvPath);
   const text = await extractPdfText(buffer);
 
   if (!text.trim()) {
@@ -108,10 +125,7 @@ const generateCvSummary = async (actor, internUserId) => {
   if (!summary) throw createAiServiceError('AI returned an empty summary.', 502);
 
   profile.cvSummary = summary;
-  // Stamped with the path that was actually read, not `profile.cvPath` as it may
-  // be by the time this saves — a CV replaced mid-generation must not leave the
-  // new path pointing at a summary of the old document.
-  profile.cvSummaryFor = profile.cvPath;
+  profile.cvSummaryFor = readCvPath;
   profile.cvSummaryAt = new Date();
   await profile.save();
 

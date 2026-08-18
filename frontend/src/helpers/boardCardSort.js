@@ -1,3 +1,5 @@
+import { PRIORITY_RANK } from '@/helpers/ticketPriority';
+
 /**
  * How the board orders the cards *inside* every column. Separate from
  * `sortBoardTasksByPriorityOrder` in `boardTicketsQuery.js`: that one implements
@@ -5,8 +7,6 @@
  * is the board-wide sort control from the UI overhaul (Priority / Points / Due /
  * Newest) and applies to whatever the column already fetched.
  */
-const PRIORITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
-
 export const BOARD_SORT_OPTIONS = [
   { value: 'priority', label: 'Priority' },
   { value: 'points', label: 'Points' },

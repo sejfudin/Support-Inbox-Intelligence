@@ -73,6 +73,8 @@
 
 **Leadership**
 - Otherwise read-only; the one exception is staffing requests (below)
+- Can read a candidate's uploaded CV and its AI summary, but can't generate one — if no summary
+  exists yet, the panel says so and an admin or the intern's mentor has to make it
 - Only role that can file a staffing request (recorded demand for interns on a project); can edit a
   request they filed themselves — not a colleague's. Sees every staffing request from every author,
   same as admin. Nobody else can edit it, admins included
@@ -118,7 +120,7 @@
 - Can't see or set readiness (by technology or position) — admin-only now
 - Can't see or create recommendations, neither per-intern nor on the standalone "Recommendations" page — admin-only now
 - Can't see or manage the Specialization tab, but does get assigned-mentor access to an intern once paired as their specialization mentor
-- Can't see the attendance roster (intern attendance overview) — an intern's own check-in is untouched. Mentors have no attendance view of any kind, so remote-work requests go to an admin, not to them
+- Can't see the attendance roster (the all-interns overview) — admin-only. Can see the Attendance tab on their own intern's profile, and only their own. Remote-work requests still go to an admin, not to them
 - Can see the CV link on an intern's profile, but can't edit it — admin-only now
 - Can open their own intern's uploaded CV and its AI summary, same as an admin (see the admin entry for what that summary is and isn't)
 - Can't change an intern's lifecycle status (active/ready/placed/completed/discontinued), even for their own assigned intern — admin-only now

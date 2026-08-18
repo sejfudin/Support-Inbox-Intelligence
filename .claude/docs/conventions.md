@@ -88,9 +88,12 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   recommendations feature shipped as hardcoded hexes and rendered a white card on a dark page.
   - Two exceptions. Semantic status tints (amber / emerald / red for interviewing / placed /
     failed) have no tokens, so use the Tailwind palette **with an explicit `dark:` variant** —
-    `bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300`. Alpha overlays on a
-    coloured gradient (hero cards) may use `bg-white/10`, `text-white/80` — they sit on a fill
-    that is dark in both themes.
+    `bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300`. Content on a fill that
+    is dark in **both** themes (hero cards, the What's New tour panel) may use literal white —
+    alpha overlays like `bg-white/10`, `text-white/80`, and also a solid `bg-white` +
+    `text-slate-900` for a button that must stay light on that fill. A token would be wrong here,
+    not merely unnecessary: `bg-foreground` flips to near-black in the dark theme and would render
+    a dark button on a dark panel.
   - Need a high-contrast surface that flips with the theme (tooltips)? Use `bg-foreground` +
     `text-background` rather than a fixed near-black.
 - **Page chrome comes from the flat-shell classes** in `src/index.css`, not from ad-hoc Tailwind:

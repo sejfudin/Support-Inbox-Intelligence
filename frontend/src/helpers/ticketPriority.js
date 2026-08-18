@@ -9,6 +9,14 @@ export const PRIORITY_OPTIONS = [
   { value: 'critical', label: 'Critical' },
 ];
 
+/**
+ * Sort weight per priority. The board's in-column sort and the priority-filter
+ * asc/desc toggle both order by this, so it lives here with the rest of the
+ * priority semantics rather than once per caller. Callers pick their own
+ * fallback for an unknown value — they do not agree on one.
+ */
+export const PRIORITY_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
+
 export const PRIORITY_CONFIG = {
   critical: {
     icon: AlertCircle,

@@ -175,9 +175,16 @@ branch:
 - **Lifecycle status** (`internService.js` `updateInternProgramme`, the `payload.status` branch)
   — admin-only, even for the assigned mentor. `expectedEndDate` in the same endpoint is not
   restricted this way and still follows plain `canWriteMentorData`.
+- **CV summary** (`internCvSummaryService.js`) — the read
+  (`GET /interns/:userId/cv-summary`) is `canReadMentorAssessment`: admin, leadership, or the
+  assigned mentor. Generating (`POST`) additionally requires `canWriteMentorData`, so leadership
+  reads a cached summary but never spends the model call. Neither verb is available to the intern
+  for their own profile — `assertInternAccess`'s default `canViewInternProfile` would admit them,
+  which is why both paths re-check with a narrower predicate.
 - **Attendance roster** — admin-only, and enforced at the service layer, not just in the UI:
-  `GET /api/attendance` / `GET /api/attendance/:internProfileId` are `requireRole(ADMIN)`. See the
-  Attendance paragraph below for the full surface.
+  `GET /api/attendance` is `requireRole(ADMIN)`. The per-intern
+  `GET /api/attendance/:internProfileId` also admits `MENTOR`, but scopes them to their own
+  interns in the service. See the Attendance paragraph below for the full surface.
 
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
@@ -212,8 +219,11 @@ reach these mutations for an unspecialized intern even with a crafted request.
 
 Attendance. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)` and always resolves the
 caller's **own** `InternProfile` — an intern can only ever read or write their own attendance. The
-roster `GET /api/attendance` and the per-intern `GET /api/attendance/:internProfileId` (calendar
-modal) are **admin-only** (`requireRole(ADMIN)`) — mentors have no attendance surface. Not
+roster `GET /api/attendance` is **admin-only** (`requireRole(ADMIN)`). The per-intern
+`GET /api/attendance/:internProfileId` (calendar modal, and the Attendance tab on the intern
+profile) is `requireRole(ADMIN, MENTOR)` — the role guard alone is not enough here, so
+`getInternAttendance` re-checks in the service: a non-admin must be `isAssignedMentor` for that
+profile or the read 403s. One mentor cannot read another mentor's intern. Not
 workspace-scoped (intern domain). The check-in time-window is enforced server-side
 (`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock.
 

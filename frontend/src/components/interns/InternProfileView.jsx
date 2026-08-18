@@ -47,6 +47,12 @@ export function InternProfileView({
   // Editing the internal CV link is admin-only; mentors keep read access to
   // whatever link is already on the profile (see canSeeInternalCv, backend).
   const canEditInternalCv = !readOnly && user?.role === ROLES.ADMIN;
+  // Generating a CV summary is a write (it caches on the profile and spends a
+  // model call), so leadership reads but never generates. The mentor case is a
+  // role check only — the service re-checks that they are actually this intern's
+  // assigned mentor, same as every other mentor write here.
+  const canGenerateCvSummary =
+    !readOnly && (user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR);
   const showComments = canViewComments(user?.role);
   const showEvaluations = user?.role === ROLES.ADMIN;
   const showReadiness = user?.role === ROLES.ADMIN;
@@ -240,6 +246,7 @@ export function InternProfileView({
                     userId={userId}
                     canEditDocumentation={canEditDocumentation}
                     canEditInternalCv={canEditInternalCv}
+                    canGenerateCvSummary={canGenerateCvSummary}
                   />
                 </InternPanel>
 

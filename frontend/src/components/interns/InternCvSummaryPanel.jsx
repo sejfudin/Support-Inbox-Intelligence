@@ -28,8 +28,14 @@ import { useInternCvSummary, useGenerateInternCvSummary } from '@/queries/intern
  * extraction and a model call. The button is the consent, and the result is
  * cached server-side against the CV it read, so it is generated once per CV
  * rather than once per viewer.
+ *
+ * `canGenerate` is narrower than who may read this panel: leadership reads a
+ * summary but cannot spend the model call (see `internCvSummaryService`). Without
+ * the prop the button would render for them and 403 on click, so a reader who
+ * cannot generate is told the summary is not there yet rather than handed a
+ * button that only fails.
  */
-export function InternCvSummaryPanel({ userId, cvUrl }) {
+export function InternCvSummaryPanel({ userId, cvUrl, canGenerate = false }) {
   const { data, isPending, isError } = useInternCvSummary(userId);
   const generate = useGenerateInternCvSummary(userId);
 
@@ -45,9 +51,7 @@ export function InternCvSummaryPanel({ userId, cvUrl }) {
     <section className="space-y-3" data-test="intern-cv-summary">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="app-card-title flex items-center gap-1.5">
-            Uploaded CV
-          </h3>
+          <h3 className="app-card-title flex items-center gap-1.5">Uploaded CV</h3>
           <p className="mt-0.5 text-[12.5px] text-muted-foreground">
             The candidate’s own CV file, with an AI summary of what it says — a description of the
             document, not an assessment of them.
@@ -69,7 +73,7 @@ export function InternCvSummaryPanel({ userId, cvUrl }) {
               </a>
             </Button>
           )}
-          {cvOnFile && (
+          {cvOnFile && canGenerate && (
             <Button
               type="button"
               size="sm"
@@ -92,7 +96,9 @@ export function InternCvSummaryPanel({ userId, cvUrl }) {
       {isPending ? (
         <p className="text-[12.5px] text-muted-foreground">Loading…</p>
       ) : isError ? (
-        <p className="text-[12.5px] text-[hsl(var(--tone-danger-fg))]">Could not load the CV summary.</p>
+        <p className="text-[12.5px] text-[hsl(var(--tone-danger-fg))]">
+          Could not load the CV summary.
+        </p>
       ) : !cvOnFile ? (
         <p className="rounded-[var(--r-control)] border border-dashed border-border/70 px-4 py-6 text-center text-[12.5px] text-muted-foreground">
           No CV uploaded yet — nothing to summarise.
@@ -118,7 +124,9 @@ export function InternCvSummaryPanel({ userId, cvUrl }) {
         </div>
       ) : (
         <p className="rounded-[var(--r-control)] border border-dashed border-border/70 px-4 py-6 text-center text-[12.5px] text-muted-foreground">
-          Not summarised yet.
+          {canGenerate
+            ? 'Not summarised yet.'
+            : 'Not summarised yet — an admin or their mentor can generate it.'}
         </p>
       )}
     </section>

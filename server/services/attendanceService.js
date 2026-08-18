@@ -278,8 +278,9 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
 };
 
 /**
- * One intern's full attendance history (admin-only), for the calendar modal on
- * the roster. Returns full records + cancelledDates (the calendar pages through
+ * One intern's full attendance history, for the admin calendar modal on the
+ * roster and the mentor-facing Attendance tab. Admin reads any intern; a mentor
+ * reads only their own (enforced below). Returns full records + cancelledDates (the calendar pages through
  * months client-side) plus a stat block for `month` (defaults to the current
  * office month — the roster passes the month it is currently showing), with the
  * intern's identity attached.

@@ -21,10 +21,11 @@ router.delete('/me/check-in', protect, requireRole(ROLES.INTERN), cancelCheckIn)
 // mentor-facing Attendance tab on the intern profile — a mentor is the primary
 // reader of their intern's attendance, so ADMIN alone was too narrow.
 //
-// This widens *who may read*, nothing else: no write verb is added, the response
-// shape is unchanged, and the route has never scoped by mentor — `getRoster` is
-// still admin-only, and any mentor may read any intern here, exactly as any
-// mentor may already open any intern profile.
+// This widens *who may read*, nothing else: no write verb is added and the
+// response shape is unchanged. `getRoster` stays admin-only. The role guard here
+// is deliberately the coarse half of the check — `getInternAttendance` scopes a
+// mentor to their own interns in the service, so one mentor cannot read
+// another's intern through this route.
 // The `/:id` route is declared last so it can't shadow `/me`.
 router.get('/', protect, requireRole(ROLES.ADMIN), getRoster);
 router.get(

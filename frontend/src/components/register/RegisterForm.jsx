@@ -310,7 +310,7 @@ export function RegisterForm({ onSuccess, onError }) {
 
   const inputClass = (hasError) =>
     cn(
-      'h-11 rounded-[var(--r-control)] bg-background placeholder:text-[#9AA2B1] data-[placeholder]:text-[#9AA2B1]',
+      'h-11 rounded-[var(--r-control)] bg-background placeholder:text-muted-foreground/75 data-[placeholder]:text-muted-foreground/75',
       hasError ? 'border-destructive' : 'border-border'
     );
 

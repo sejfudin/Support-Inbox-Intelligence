@@ -26,6 +26,7 @@ export function InternCandidateOverview({
   userId,
   canEditDocumentation = false,
   canEditInternalCv = false,
+  canGenerateCvSummary = false,
   className,
 }) {
   return (
@@ -43,7 +44,11 @@ export function InternCandidateOverview({
       {/* Above the link panels rather than beside them: it is prose that runs the
           width of the card, and the two link panels are a matched pair that
           should not be split up to make room for it. */}
-      <InternCvSummaryPanel userId={userId} cvUrl={intern.cvUrl} />
+      <InternCvSummaryPanel
+        userId={userId}
+        cvUrl={intern.cvUrl}
+        canGenerate={canGenerateCvSummary}
+      />
 
       <div className="border-t border-separator" />
 

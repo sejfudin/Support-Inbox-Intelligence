@@ -20,9 +20,8 @@ Detail lives in the referenced docs below — read them when the task calls for 
 - **Staffing requests, putting interns forward, or the close-out cascade** → read `.claude/docs/staffing-requests.md` (architecture.md carries only the summary)
 - **Writing code** → follow `.claude/docs/conventions.md`
 - **Running, seeding, building, verifying** → `.claude/docs/workflows.md`
-- **Building a feature end-to-end** → the active spec is `context/current-feature.md`; queued specs
-  live in `context/features/`; how we work together is `context/ai-interaction.md`. Driven by the
-  `/feature` skill — see `context/README.md`.
+- **Reviewing a change** → run the `/code-review` skill (Standards + Spec, in parallel sub-agents)
+- **Confirming a change works in the app** → run the `verify` skill (`.claude/skills/verify/`)
 
 ## Hard rules
 
@@ -84,8 +83,8 @@ Issues tracked as local markdown files under `.scratch/`. See `docs/agents/issue
 
 Single-context: `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.
 
-### Feature lifecycle (AI Workflow Kit)
+### Verify
 
-`/feature load|start|review|explain|test|complete` over `context/`, plus `/cleanup`,
-`/list-components`, `/research`. Review subagents in `.claude/agents/`: `code-scanner`,
-`refactor-scanner`, `ui-reviewer`, `auth-auditor`.
+Launching and driving the app to check a change: `.claude/skills/verify/` (ports, demo logins,
+API drive recipe). This repo defines no custom subagents — `.claude/agents/` does not exist, so
+review and search run on the built-in agents.
