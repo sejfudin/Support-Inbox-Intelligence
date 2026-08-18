@@ -42,6 +42,8 @@ export function InternProgrammeControls({ intern, className }) {
       <h3 className="app-card-title">Programme controls</h3>
       <p className="mt-0.5 text-[12.5px] leading-[1.5] text-muted-foreground">
         Update the lifecycle status for this intern. Ready marks them as available for placement.
+        Placed is set automatically when a recommendation records them as placed — it can’t be
+        picked here.
       </p>
       <div className="mt-3 space-y-3">
         <div className="space-y-1.5">
@@ -61,6 +63,7 @@ export function InternProgrammeControls({ intern, className }) {
                 <SelectItem
                   key={s}
                   value={s}
+                  disabled={s === 'placed'}
                   className="capitalize"
                   data-test={`intern-status-${s}`}
                 >
