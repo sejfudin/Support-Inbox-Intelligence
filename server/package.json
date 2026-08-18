@@ -17,6 +17,7 @@
     "seed:test": "node seeder/seedTestingData.js",
     "seed:demo": "node seeder/seedDemoData.js",
     "seed:recommendations": "node seeder/seedRecommendations.js",
+    "seed:test-accounts": "node seeder/seedTestAccounts.js",
     "seed:staffing-requests": "node seeder/seedStaffingRequests.js",
     "seed:positions": "node seeder/seedPositions.js",
     "seed:technologies": "node seeder/seedTechnologies.js",

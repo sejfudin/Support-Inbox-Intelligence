@@ -502,6 +502,38 @@ same exception as `Project`/`Recommendation` above).
 - Not covered by any of this: `POST /api/auth/invite/set-password`, which is guarded by the
   single-use invite token instead — there is no old password at that point.
 
+## Test accounts
+
+`User.isTestAccount` marks an internal QA account (created by `server/seeder/seedTestAccounts.js`,
+safe to run against production — see `.claude/docs/workflows.md`) that must log in and work
+exactly like a real one, but never appear in a listing meant for real users.
+
+- **The exclusion lives at the query, not the role or a read-side filter** — `{ isTestAccount:
+  { $ne: true } }` added directly into the filter object, same idiom as `Project.isSystem`
+  (`projectService.js`). `adminService.getUsers` is the one choke point almost every
+  mentor/leadership-surfacing listing already shares (mentor-assignment picker, specialization
+  picker, ticket-assignee/workspace-member picker, the unscoped platform-wide list) — the
+  exclusion there covers all of them at once. `server/controllers/interns.js#listCommentViewers`
+  (the mentor-notes "Share with" audience picker) now calls `adminService.getUsers` too rather
+  than keeping its own copy of the query, so there is nowhere left with a second filter to fall
+  out of sync.
+- **`includeTestAccounts: true` is the one deliberate bypass**, and it is admin-gated at the
+  controller (`server/controllers/admin.js#getUsers`: `isAdmin && includeTestAccounts === 'true'`
+  — a non-admin passing the query param is silently ignored, not honored), not just left to the
+  frontend to not ask for it. Platform Management's "All Users" screen is the only caller that
+  passes it, because an admin still needs to find and manage these two accounts. **Do not add
+  this param to any other `useUsers`/`getUsers` call site** — every mentor/leadership picker must
+  keep getting the exclusion for free by doing nothing.
+- **A test account is otherwise a completely ordinary user** — same role, same `canWriteMentorData`
+  /`canViewInternProfile`/etc. checks, same login flow, no additional restriction anywhere. If it
+  genuinely does something (writes a mentor note, files a staffing request), that record's
+  authorship is real and stays visible on the record itself — the exclusion is about *listings of
+  who mentors/leadership are*, not about hiding evidence that the account acted.
+- If you add a new listing of mentors or leadership-role users, route it through
+  `adminService.getUsers` rather than a fresh `User.find`. If that is genuinely not possible, add
+  `isTestAccount: { $ne: true }` to the new query directly — do not add a role-based or
+  name-based heuristic instead.
+
 ## Self-only endpoints carry no id
 
 - `GET`/`PATCH /api/users/me/preferences` resolves the subject from the token
