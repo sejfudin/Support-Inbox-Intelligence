@@ -96,12 +96,23 @@ export const shouldShowDesktopNotification = ({
  *
  * `tag` replaces an earlier banner with the same tag instead of stacking a
  * second one, which matters for a reminder that can re-fire.
+ *
+ * `requireInteraction` asks for a banner that waits to be dismissed rather than
+ * timing out. Chrome honours it on Windows and Linux; **macOS ignores it**,
+ * because there the system owns how long a notification shows — Banners (a few
+ * seconds) versus Alerts (until dismissed), set per application in System
+ * Settings. Nothing a page does can override that choice, and it should not:
+ * how loudly notifications interrupt is the reader's to decide.
  */
 export const showDesktopNotification = ({ title, body, tag, onClick }) => {
   if (!isDesktopNotificationSupported()) return null;
 
   try {
-    const notification = new window.Notification(title, { body, tag });
+    const notification = new window.Notification(title, {
+      body,
+      tag,
+      requireInteraction: true,
+    });
 
     notification.onclick = () => {
       window.focus();
