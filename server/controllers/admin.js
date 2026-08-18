@@ -14,6 +14,7 @@ exports.getUsers = async (req, res, next) => {
       roles: rolesParam,
       status,
       hubId,
+      includeTestAccounts,
     } = req.query;
     const isAdmin = req.user?.role === ROLES.ADMIN;
     // Admins may scope to any workspace (or none, for a platform-wide list);
@@ -40,6 +41,11 @@ exports.getUsers = async (req, res, next) => {
       roles,
       status,
       hubId,
+      // Only an admin may ever unmask a test account, and only by asking for it
+      // explicitly — a non-admin passing this query param is silently ignored,
+      // not honored, so a workspace-member/ticket-assignee picker can never leak
+      // one even if it started forwarding arbitrary query params.
+      includeTestAccounts: isAdmin && includeTestAccounts === 'true',
     });
 
     res.json(result);

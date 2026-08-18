@@ -20,7 +20,11 @@ export default function AdminUsersPage() {
     data: usersData,
     isPending,
     isError,
-  } = useUsers({ page, limit, search: debouncedSearch });
+    // Only this screen ever asks for test accounts back — every other picker in
+    // the app (mentor assignment, specialization, ticket assignee, mentor-notes
+    // audience) calls `useUsers`/`useMentorCandidates` without this flag and gets
+    // them excluded by default. See `adminService.getUsers`.
+  } = useUsers({ page, limit, search: debouncedSearch, includeTestAccounts: true });
   const [editingUser, setEditingUser] = useState(null);
   const users =
     usersData?.users?.map((user) => ({
@@ -37,6 +41,7 @@ export default function AdminUsersPage() {
       // is not the same row as one an admin switched off. `UserStatusBadge` owns
       // the labels ("Deactivated" for `disabled`).
       status: user.status,
+      isTestAccount: Boolean(user.isTestAccount),
       workspaceCount: user.workspaceCount || 0,
       workspaces: user.workspaces || [],
     })) ?? [];

@@ -4,7 +4,7 @@ const internCvSummaryService = require('../services/internCvSummaryService');
 const mentorCommentService = require('../services/mentorCommentService');
 const evaluationService = require('../services/evaluationService');
 const readinessFlagService = require('../services/readinessFlagService');
-const User = require('../models/User');
+const adminService = require('../services/adminService');
 const { ROLES } = require('../constants/roles');
 const { handleControllerError: handleError } = require('../helpers/controllerError');
 
@@ -281,16 +281,18 @@ exports.upsertReadiness = async (req, res, next) => {
 
 exports.listCommentViewers = async (req, res, next) => {
   try {
-    const users = await User.find({
+    // Reuses `adminService.getUsers` rather than its own `User.find` — same
+    // active-staff-by-role query the mentor/specialization pickers already run,
+    // so it inherits the test-account exclusion (and any future change to that
+    // rule) for free instead of keeping a second copy in sync.
+    const { users } = await adminService.getUsers({
+      pagination: false,
+      roles: [ROLES.ADMIN, ROLES.MENTOR, ROLES.LEADERSHIP],
       status: 'active',
-      role: { $in: [ROLES.ADMIN, ROLES.MENTOR, ROLES.LEADERSHIP] },
-    })
-      .select('fullname email role')
-      .sort({ fullname: 1 })
-      .lean();
+    });
 
     res.json({
-      users: users.map((u) => ({ ...u, id: u._id })),
+      users: users.map((u) => ({ ...u.toObject(), id: u._id })),
     });
   } catch (error) {
     next(error);

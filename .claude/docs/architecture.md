@@ -58,6 +58,9 @@ AI: `AISummary`.
   Read/written by their owner only, at `GET|PATCH /api/users/me/preferences` — the PATCH is a
   dot-notation partial merge, last-write-wins. **UI scale is deliberately not in it** and stays
   per-device in the browser. See "UI preferences" below.
+- `User.isTestAccount` — marks an internal QA login (seeded by `seedTestAccounts.js`, safe on
+  production) that must work exactly like a real account but is excluded, at the query, from
+  every listing that surfaces mentors/leadership. See `.claude/docs/security.md` § Test accounts.
 - `Daily` — one standup record per `(workspace, date)` (unique compound index), with embedded
   `entries` (one per reporting intern: `done`/`todo` text lists + `blockers`, each blocker an
   optional `linkedTicket` ref scoped to the same workspace). Pure edit-window/derived-count logic

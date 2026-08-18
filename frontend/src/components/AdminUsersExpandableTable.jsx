@@ -89,8 +89,18 @@ export default function AdminUsersExpandableTable({ data, pagination, onPageChan
                         {getInitials(user.fullName)}
                       </span>
                       <div className="flex min-w-0 flex-col leading-[1.35]">
-                        <span className="truncate text-[13px] font-medium text-foreground">
-                          {user.fullName}
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate text-[13px] font-medium text-foreground">
+                            {user.fullName}
+                          </span>
+                          {user.isTestAccount && (
+                            <span
+                              className={cn(CHIP, 'shrink-0 border-0', badgeTone('warning'))}
+                              title="Internal QA account — excluded from mentor/leadership pickers and every other user-facing listing"
+                            >
+                              Test account
+                            </span>
+                          )}
                         </span>
                         <span className="truncate text-[11.5px] text-muted-foreground/75">
                           {user.email}

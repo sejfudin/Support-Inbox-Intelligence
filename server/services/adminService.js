@@ -70,6 +70,7 @@ const getUsers = async ({
   roles,
   status,
   hubId,
+  includeTestAccounts = false,
 }) => {
   if (requireWorkspaceScope && !workspaceId) {
     return emptyUserResult({ pagination, page, limit });
@@ -107,6 +108,16 @@ const getUsers = async ({
 
   if (hubId) {
     query.hub = hubId;
+  }
+
+  // Excluded by default from every listing this function backs (mentor/
+  // specialization pickers, workspace-member/ticket-assignee pickers, the
+  // unscoped platform-wide list) — same idiom as `Project`'s `isSystem` sentinel.
+  // `includeTestAccounts` exists for exactly one caller, Platform Management's
+  // "All Users" screen, where an admin needs to find and manage the account
+  // itself; every other call site gets the exclusion for free by doing nothing.
+  if (!includeTestAccounts) {
+    query.isTestAccount = { $ne: true };
   }
 
   if (pagination === 'false' || pagination === false) {

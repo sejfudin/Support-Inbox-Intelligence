@@ -110,6 +110,19 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Hub',
     },
+    // An internal QA account (mentor/leadership, usually) that must log in and
+    // work exactly like a real one, but never appear in a listing meant for real
+    // users — mentor pickers, the mentor-notes audience picker, staffing-request
+    // resolvers, and so on. Same idiom as `Project.isSystem`: a boolean excluded
+    // with `{ $ne: true }` at each listing query, not a separate role or a
+    // read-side post-filter. `adminService.getUsers` is the one choke point most
+    // of those listings already share; see its `includeTestAccounts` param for
+    // the one deliberate exception (Platform Management's "All Users", where an
+    // admin manages the account itself).
+    isTestAccount: {
+      type: Boolean,
+      default: false,
+    },
     // When this viewer last opened the staffing-requests area — drives the
     // news badge (unset means "never opened", not "caught up").
     staffingRequestsLastSeenAt: {

@@ -53,6 +53,12 @@ rows with `$setOnInsert` and are safe to run anywhere. `seed:recommendations` an
 `seed:fep-cohort` are additive and idempotent — they are the dataset scripts that are safe to
 point at a shared dev database.
 
+`seed:test-accounts` is additive/idempotent too, but in a different category from the other two:
+it is meant to run against **production** (creates the two QA login accounts real testing needs
+there) and deliberately has no `/prod|production|_live/` refusal guard — see its own section
+below before assuming every seeder in this file treats a prod-looking database name as a stop
+sign.
+
 `seed:staffing-requests` is a fourth destructive one, but **narrowly** so: it deletes every
 `StaffingRequest` and only those `Recommendation`s carrying a `staffingRequest` reference.
 Interns, projects, users, ordinary recommendations and reference data are untouched, so unlike
@@ -65,6 +71,8 @@ npm run seed:demo   # RECOMMENDED — coherent demo dataset (see below)
 npm run seed        # destructive reset + demo workspace + admin@test.com / mentor@test.com
 npm run seed:test   # richer dataset (Symphony staff + interns, password: "password")
 npm run seed:recommendations            # ADDITIVE: top up the placement pipeline, see below
+npm run seed:test-accounts              # ADDITIVE: 2 QA login accounts (mentor/leadership),
+                                        # meant for production too — see below
 npm run seed:staffing-requests          # NARROWLY DESTRUCTIVE: staffing requests + their recommendations only
 npm run seed:staffing-requests -- --dry-run  # inspect the target, change nothing
 npm run seed:fep-cohort                 # ADDITIVE: 21-person FEP cohort across Heap / 5-Stack /
@@ -234,6 +242,34 @@ database-name assertion, refuses `/prod|production|_live/`). Three things make r
 The spec→document mapping is shared with the demo seeder (`demo/recommendationDocs.js`), so both
 paths produce identical records. It ends with a per-intern coverage table and an explicit check that
 no intern profile is left without a recommendation.
+
+### `npm run seed:test-accounts` — the one seeder meant for production
+
+Creates exactly two accounts — one `mentor`, one `leadership` — flagged `isTestAccount: true`
+(`server/models/User.js`), real and login-capable (active, hashed password), for internal QA.
+That flag is what keeps them out of every user-facing listing that surfaces mentors/leadership
+(mentor pickers, the mentor-notes audience picker, the specialization picker, Platform
+Management's own "All Users" screen by default — see `adminService.getUsers`'s
+`includeTestAccounts` param) regardless of which database they live in. Matched by **email**;
+an account that already exists is left untouched and reported as present. Nothing else is
+touched — no deletes, no updates to any other user.
+
+**No `/prod|production|_live/` refusal guard, unlike every other seeder in this file** — the
+whole point is that these accounts need to exist in production. The safety gate is the same
+typed-database-name confirmation the other seeders use; nothing is written until a human reads
+the banner and types the target database's name back.
+
+The password is never hardcoded in the script — required via `TEST_ACCOUNT_PASSWORD` in the
+environment, so no credential (however low-stakes) sits in git history.
+
+```bash
+TEST_ACCOUNT_PASSWORD=... npm run seed:test-accounts -- --dry-run
+TEST_ACCOUNT_PASSWORD=... npm run seed:test-accounts                    # interactive: type the DATABASE NAME to confirm
+TEST_ACCOUNT_PASSWORD=... npm run seed:test-accounts -- --yes=<dbname>  # non-interactive; the flag must assert the db name
+```
+
+Requires at least one `Hub` to already exist in the target database (picks the alphabetically
+first one) — run reference-data seeding first on a database that has none.
 
 ### `npm run seed:technologies` — safe on any environment
 
