@@ -7,6 +7,20 @@ import NewTickets from '@/components/Tickets/LazyNewTickets';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import TicketsState from '@/components/Tickets/TicketsState';
 import TicketsHeader from '@/components/Tickets/TicketsHeader';
+import { readStoredPreference, useStoredPreference } from '@/hooks/useStoredPreference';
+import {
+  ASSIGNEE_DEFAULT_STORAGE_KEY,
+  DEFAULT_ASSIGNEE_DEFAULT,
+  DEFAULT_TICKETS_VIEW,
+  TICKETS_VIEW_STORAGE_KEY,
+  isValidAssigneeDefault,
+  isValidTicketsView,
+} from '@/helpers/uiPreferences';
+import {
+  BOARD_SORT_STORAGE_KEY,
+  DEFAULT_BOARD_SORT,
+  isValidBoardSort,
+} from '@/helpers/boardCardSort';
 import TicketsTabs from '@/components/Tickets/TicketsTabs';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
@@ -15,10 +29,12 @@ import { useTicketModals } from '@/hooks/useTicketModals';
 import { useTicketList } from '@/hooks/useTicketList';
 import { useWorkspace } from '@/queries/workspaces';
 import { ArrowLeft, Building2 } from 'lucide-react';
-import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
+import { PageSection, PageShell } from '@/components/PageShell';
+import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTickets, useUpdateTicket } from '@/queries/tickets';
+import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
 import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 import { getAllTickets as getAllTicketsApi } from '@/api/tickets';
 import { useUsers } from '@/queries/users';
@@ -102,7 +118,14 @@ export default function TicketPage() {
   const initialTab = decodeTabParam(searchParams.get('tab'));
   const initialSearch = searchParams.get('search') || '';
   const initialPage = Math.max(parseInt(searchParams.get('page') || '1', 10) || 1, 1);
-  const initialView = searchParams.get('view') === 'board' ? 'board' : 'list';
+  // A `?view=` param wins — a shared link means the view it names. Without one,
+  // the page opens in whichever surface was last chosen, read synchronously from
+  // the preference cache so the board never flashes as a list on the way in.
+  const viewParam = searchParams.get('view');
+  const initialView =
+    viewParam === 'board' || viewParam === 'list'
+      ? viewParam
+      : readStoredPreference(TICKETS_VIEW_STORAGE_KEY, DEFAULT_TICKETS_VIEW, isValidTicketsView);
   const initialTicketIdSortRaw = String(
     searchParams.get(URL_TICKET_ID_SORT_PARAM) || ''
   ).toLowerCase();
@@ -114,9 +137,42 @@ export default function TicketPage() {
   // `?assignee=` seeds the assignee filter, comma-separated. `me` is an alias for
   // the caller's own id so the intern dashboard can link here without embedding a
   // user id in the URL, and so the link means the same thing for whoever opens it.
-  const initialAssigneeRaw = searchParams.get(URL_ASSIGNEE_PARAM) || '';
+  // No `?assignee=` in the link falls back to Settings → Default assignee
+  // filter, which seeds the same `me` alias the intern dashboard links with.
+  const initialAssigneeRaw =
+    searchParams.get(URL_ASSIGNEE_PARAM) ||
+    (readStoredPreference(
+      ASSIGNEE_DEFAULT_STORAGE_KEY,
+      DEFAULT_ASSIGNEE_DEFAULT,
+      isValidAssigneeDefault
+    ) === 'me'
+      ? ASSIGNEE_SELF
+      : '');
   const [activeTab, setActiveTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState(initialView);
+  const [, storeTicketsView] = useStoredPreference(
+    TICKETS_VIEW_STORAGE_KEY,
+    DEFAULT_TICKETS_VIEW,
+    isValidTicketsView
+  );
+
+  // Only the header's own toggle writes the preference. Arriving on `?view=board`
+  // from someone else's link is not a statement about how you like to work, so
+  // hydrating from the URL deliberately does not go through here.
+  const changeViewMode = useCallback(
+    (next) => {
+      setViewMode(next);
+      storeTicketsView(next);
+    },
+    [storeTicketsView]
+  );
+  // Which sort you read the board in is a habit, not something to re-pick on
+  // every visit — so it follows the account, cached here for the first paint.
+  const [boardSort, setBoardSort] = useStoredPreference(
+    BOARD_SORT_STORAGE_KEY,
+    DEFAULT_BOARD_SORT,
+    isValidBoardSort
+  );
   const [exportPeriod, setExportPeriod] = useState(DEFAULT_EXPORT_PERIOD);
 
   const isMobile = useIsMobile();
@@ -235,6 +291,8 @@ export default function TicketPage() {
     next.set('ticket', selectedTicketId);
     setSearchParams(next, { replace: true });
   }, [isDetailsOpen, selectedTicketId, searchParams, setSearchParams]);
+
+  useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
 
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -398,7 +456,7 @@ export default function TicketPage() {
         statusBadgeConfig: helpers.statusBadgeConfig,
         statusIsDone: helpers.statusIsDone,
         statusTracksTime: helpers.statusTracksTime,
-        hiddenColumns: ['status', 'totalTimeSpent'],
+        hiddenColumns: ['totalTimeSpent'],
       }),
     [helpers, timeSpentTick]
   );
@@ -601,14 +659,14 @@ export default function TicketPage() {
     <PageShell>
       {overrideWorkspaceId && (
         <PageSection className="pb-0">
-          <div className="app-panel-soft flex items-center gap-3 px-5 py-3 text-sm text-blue-800">
+          <div className="app-card flex items-center gap-3 px-5 py-3 text-sm text-[hsl(var(--tone-info-fg))]">
             <Building2 className="h-4 w-4 shrink-0" />
             <span>
               Viewing workspace: <strong>{overrideWorkspace?.name ?? overrideWorkspaceId}</strong>
             </span>
             <button
               onClick={() => navigate(`/admin/workspaces/${overrideWorkspaceId}`)}
-              className="ml-auto flex items-center gap-1 text-xs text-blue-600 hover:underline"
+              className="ml-auto flex items-center gap-1 text-xs text-[hsl(var(--tone-info-fg))] hover:underline"
               data-test="ticket-workspace-back-link"
             >
               <ArrowLeft className="h-3 w-3" />
@@ -630,7 +688,7 @@ export default function TicketPage() {
         title="Tickets"
         subtitle="Track every ticket across statuses, assignees, and priorities."
         viewMode={effectiveViewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={changeViewMode}
         search={currentSearch}
         onSearch={handleSearchChange}
         onNewTicket={openNewTicket}
@@ -638,7 +696,7 @@ export default function TicketPage() {
         hideViewMode={isMobile}
       />
 
-      {!isBoard && !statusesLoading ? (
+      {!statusesLoading ? (
         <TicketsTabs
           activeTab={activeTab}
           statusTabs={statusTabsWithCounts}
@@ -646,41 +704,56 @@ export default function TicketPage() {
             setActiveTab(tabKey);
             listData.setPage(1);
           }}
-          panelClassName="bg-transparent border-none shadow-none px-0"
+          // The board filters by column, so the status tabs there only restated
+          // the columns while squeezing the controls out of the band. The list
+          // keeps them — they are its only status filter.
+          showTabs={!isBoard}
           rightSlot={
             <div className="flex items-center gap-2" data-test="ticket-tabs-controls">
               <TicketFiltersPanel {...ticketFiltersPanelProps} activeFilterChips={[]} />
-              <TicketExportMenu
-                exportPeriod={exportPeriod}
-                onExportPeriodChange={setExportPeriod}
-                onExportCsv={handleExportCsv}
-                isExporting={isExporting}
-              />
+              {!isBoard ? (
+                <TicketExportMenu
+                  exportPeriod={exportPeriod}
+                  onExportPeriodChange={setExportPeriod}
+                  onExportCsv={handleExportCsv}
+                  isExporting={isExporting}
+                />
+              ) : null}
             </div>
           }
         />
       ) : null}
 
       {isBoard ? (
-        <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-4">
-          <Suspense fallback={<TableSkeleton />}>
-            <BoardPage
-              fetchMode="all"
-              workspaceId={effectiveWorkspaceId}
-              search={debouncedSearch}
-              queryFilters={queryFilters}
-              enabled={isBoard && !!effectiveWorkspaceId}
-              statusesLoading={statusesLoading}
-              onNewTicket={openNewTicket}
-              onOpenTicket={openTicketDetails}
-              onStatusChange={handleStatusChange}
-              boardHelpers={helpers}
-            />
-          </Suspense>
+        // Bleeds to the band's 24px gutter so the columns line up with the tab
+        // band and the page header above them, as in the mockup.
+        <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden py-0">
+          {/* The mockup's board grid padding: 14px 24px 20px. */}
+          <div className="-mx-6 flex min-h-0 flex-1 flex-col px-6 pt-3.5">
+            <Suspense fallback={<TableSkeleton />}>
+              <BoardPage
+                fetchMode="all"
+                workspaceId={effectiveWorkspaceId}
+                search={debouncedSearch}
+                queryFilters={queryFilters}
+                enabled={isBoard && !!effectiveWorkspaceId}
+                statusesLoading={statusesLoading}
+                onNewTicket={openNewTicket}
+                onOpenTicket={openTicketDetails}
+                onStatusChange={handleStatusChange}
+                boardHelpers={helpers}
+                sortKey={boardSort}
+              />
+            </Suspense>
+          </div>
         </PageSection>
       ) : (
-        <PageSection className="flex-1 pt-2">
-          <PagePanel className={isPlaceholderData ? 'opacity-60' : ''}>
+        // Flush, not a card. In the mockup the rows run the full width of the
+        // content column under the tab band — a rounded panel around them put a
+        // second frame inside the page's own, and pulled the row gutter off the
+        // 24px the header and band both use.
+        <PageSection className="flex-1 py-0">
+          <div className={cn('-mx-6 bg-card', isPlaceholderData && 'opacity-60')}>
             <TicketsState
               isLoading={isLoading}
               isError={isError}
@@ -696,7 +769,7 @@ export default function TicketPage() {
                 meta={{ onRowClick: openTicketDetails }}
               />
             </TicketsState>
-          </PagePanel>
+          </div>
         </PageSection>
       )}
 

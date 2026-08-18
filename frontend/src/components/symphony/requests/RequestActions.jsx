@@ -78,7 +78,7 @@ export function RequestActions({ request, canManage, onEdit, onClose }) {
           variant="outline"
           size="sm"
           onClick={() => onClose('cancelled')}
-          className="gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          className="gap-2 border-destructive/40 text-[hsl(var(--tone-danger-fg))] hover:bg-destructive/10 hover:text-[hsl(var(--tone-danger-fg))]"
           data-test="request-cancel"
         >
           <Ban className="h-4 w-4" aria-hidden="true" />

@@ -43,7 +43,7 @@ export default function StoryPointsField({
             type="button"
             data-test="ticket-story-points-trigger"
             className={cn(
-              'flex w-full items-center justify-between gap-2 px-3 py-3 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted',
+              'flex w-full items-center justify-between gap-2 px-3 py-3 rounded-[var(--r-control)] text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted',
               disabled && 'cursor-not-allowed opacity-60'
             )}
             aria-label={`Change story points (current: ${currentLabel})`}

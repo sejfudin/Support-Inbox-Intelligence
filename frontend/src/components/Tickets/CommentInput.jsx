@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Check, AlertCircle, ImagePlus, X } from 'lucide-react';
+import { AlertCircle, ImagePlus, X } from 'lucide-react';
 import { useCreateComment } from '@/queries/comments';
 import { uploadCommentImages as uploadCommentImagesApi } from '@/api/comments';
 import { useQueryClient } from '@tanstack/react-query';
@@ -111,7 +111,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
   };
 
   return (
-    <div className="border-t border-separator bg-card p-5">
+    <div className="rounded-[var(--r-tile)] border border-separator bg-card p-2.5">
       <div className="relative z-20 group/input">
         <Textarea
           value={newComment}
@@ -120,8 +120,9 @@ export const CommentInput = ({ ticketId, users = [] }) => {
           disabled={createMutation.isPending}
           maxLength={MAX_CHARS}
           className={cn(
-            'min-h-[80px] bg-muted/50/50 border-border focus-visible:ring-blue-500 resize-none pr-12 transition-all',
-            isAtLimit && 'border-orange-400 focus-visible:ring-orange-400'
+            'min-h-[52px] bg-muted/50 border-border focus-visible:ring-[hsl(var(--tone-info))] resize-none pr-12 transition-all',
+            isAtLimit &&
+              'border-[hsl(var(--tone-orange))] focus-visible:ring-[hsl(var(--tone-orange))]'
           )}
           ref={textareaRef}
           onChange={handleMentionChange}
@@ -129,7 +130,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
         />
 
         {mentionOpen && (
-          <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-[120] rounded-md border bg-card shadow-lg">
+          <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-[120] rounded-[var(--r-tile)] border bg-card shadow-lg">
             {mentionItems.length === 0 ? (
               <div className="px-3 py-2 text-xs text-muted-foreground">No users found</div>
             ) : (
@@ -140,7 +141,8 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                       type="button"
                       className={cn(
                         'w-full px-3 py-2 text-left text-sm hover:bg-muted/50',
-                        idx === mentionActiveIndex && 'bg-blue-500/15 dark:bg-blue-500/20'
+                        idx === mentionActiveIndex &&
+                          'bg-[hsl(var(--tone-info)/0.15)] dark:bg-[hsl(var(--tone-info)/0.2)]'
                       )}
                       onMouseDown={(evt) => evt.preventDefault()}
                       onClick={() => applyMention(item)}
@@ -168,17 +170,56 @@ export const CommentInput = ({ ticketId, users = [] }) => {
           data-test="ticket-comment-image-file-input"
         />
 
-        <div className="mt-2 flex items-center justify-between">
+        {/* One action row inside the composer box: attach on the left, the
+            character count and send on the right. The count and the send button
+            used to be absolutely positioned *outside* the box (`-top-5`,
+            `-bottom-1`), so once the composer got its own border they sat on top
+            of it and of the comment above. */}
+        <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={createMutation.isPending || selectedImages.length >= 3}
-            className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-semibold disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-[var(--r-badge)] border border-separator px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             data-test="ticket-comment-add-images-button"
           >
-            <ImagePlus className="w-3.5 h-3.5" />
-            Add Images ({selectedImages.length}/3)
+            <ImagePlus className="h-3 w-3" />
+            Images ({selectedImages.length}/3)
           </button>
+
+          <span className="flex-1" />
+
+          <span
+            className={cn(
+              'flex items-center gap-1 text-[11px] font-medium tabular-nums transition-colors',
+              isAtLimit
+                ? 'text-[hsl(var(--tone-danger-fg))]'
+                : isNearLimit
+                  ? 'text-[hsl(var(--tone-warning))]'
+                  : 'text-muted-foreground/75'
+            )}
+          >
+            {isAtLimit && <AlertCircle className="h-3 w-3" />}
+            {newComment.length} / {MAX_CHARS}
+          </span>
+
+          <Button
+            size="sm"
+            disabled={
+              (!newComment.trim() && selectedImages.length === 0) ||
+              isAtLimit ||
+              createMutation.isPending
+            }
+            onClick={handleSend}
+            data-test="ticket-comment-send-button"
+            className="h-7 rounded-[var(--r-badge)] px-3 text-[12px] font-medium"
+          >
+            {createMutation.isPending ? (
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            ) : (
+              'Send'
+            )}
+          </Button>
         </div>
 
         {selectedImages.length > 0 && (
@@ -186,7 +227,7 @@ export const CommentInput = ({ ticketId, users = [] }) => {
             {selectedImages.map((file, idx) => (
               <div
                 key={`${file.name}-${idx}`}
-                className="relative rounded-md border overflow-hidden"
+                className="relative rounded-[var(--r-tile)] border overflow-hidden"
               >
                 <img
                   src={URL.createObjectURL(file)}
@@ -199,48 +240,15 @@ export const CommentInput = ({ ticketId, users = [] }) => {
                   className="absolute top-1 right-1 rounded bg-card p-1"
                   data-test={`ticket-comment-remove-image-button-${idx}`}
                 >
-                  <X className="w-3 h-3 text-red-600" />
+                  <X className="w-3 h-3 text-[hsl(var(--tone-danger-fg))]" />
                 </button>
               </div>
             ))}
           </div>
         )}
-
-        <div
-          className={cn(
-            'absolute -top-5 right-1 text-[11px] font-semibold transition-colors flex items-center gap-1',
-            isAtLimit ? 'text-orange-600' : isNearLimit ? 'text-amber-500' : 'text-muted-foreground'
-          )}
-        >
-          {isAtLimit && <AlertCircle className="w-3 h-3" />}
-          {newComment.length} / {MAX_CHARS}
-        </div>
-
-        <div className="absolute -bottom-1 right-1  flex items-center gap-2">
-          <Button
-            size="icon"
-            disabled={
-              (!newComment.trim() && selectedImages.length === 0) ||
-              isAtLimit ||
-              createMutation.isPending
-            }
-            onClick={handleSend}
-            data-test="ticket-comment-send-button"
-            className={cn(
-              'h-8 w-8 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-all active:scale-95',
-              isAtLimit && 'bg-orange-500 hover:bg-orange-600'
-            )}
-          >
-            {createMutation.isPending ? (
-              <div className="h-3 w-3 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-            ) : (
-              <Check className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
       </div>
       {isAtLimit && (
-        <p className="text-[10px] text-orange-600 mt-1.5 ml-1 font-medium animate-in fade-in slide-in-from-top-1">
+        <p className="ml-1 mt-1.5 text-[11px] font-medium text-[hsl(var(--tone-danger-fg))]">
           You've reached maximum comment length.
         </p>
       )}

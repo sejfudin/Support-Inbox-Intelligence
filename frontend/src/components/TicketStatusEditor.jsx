@@ -25,6 +25,11 @@ import {
   toggleStatusBehaviorFlag,
 } from '@/helpers/statusBehaviorFlags';
 
+// Literal hexes on purpose: these are the swatches an admin picks a status colour
+// *from*, and the chosen value is persisted on the status record and rendered
+// through `style`. They are data, not the app's styling — a status colour has to
+// stay the colour that was chosen, in both themes and under the colour-blind
+// palette, or every workspace's board would silently repaint.
 const PRESET_COLORS = [
   '#ef4444',
   '#f97316',
@@ -46,9 +51,12 @@ const ColorPicker = ({ value, onChange, dataTestPrefix = 'ticket-status' }) => (
         type="button"
         onClick={() => onChange(color)}
         className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+        // The selection ring, unlike the swatches, is chrome — it was a literal
+        // slate `#1e293b`, which is all but invisible against a dark-mode card,
+        // so the picker gave no indication of which colour was chosen.
         style={{
           backgroundColor: color,
-          borderColor: value === color ? '#1e293b' : 'transparent',
+          borderColor: value === color ? 'hsl(var(--foreground))' : 'transparent',
         }}
         aria-label={color}
         data-test={`${dataTestPrefix}-color-option-${color.replace('#', '')}`}
@@ -150,7 +158,7 @@ function SortableStatusRow({
       <div
         ref={setNodeRef}
         style={style}
-        className="rounded-lg border border-border bg-muted/50 p-3 space-y-3"
+        className="rounded-[var(--r-control)] border border-border bg-muted/50 p-3 space-y-3"
       >
         <Input
           value={draft.label}
@@ -201,7 +209,7 @@ function SortableStatusRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 transition-colors"
+      className="flex items-center justify-between rounded-[var(--r-control)] border border-border px-3 py-2.5 hover:bg-muted/50 transition-colors"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <button
@@ -231,7 +239,7 @@ function SortableStatusRow({
             setDraft(item);
             setEditing(true);
           }}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+          className="p-1.5 rounded-[var(--r-control)] text-muted-foreground hover:text-foreground hover:bg-muted"
           aria-label="Edit status"
           data-test={`${dataTestPrefix}-edit-trigger-button-${id}`}
         >
@@ -241,7 +249,7 @@ function SortableStatusRow({
           <button
             type="button"
             onClick={() => onRemove(index)}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50"
+            className="p-1.5 rounded-[var(--r-control)] text-muted-foreground hover:text-[hsl(var(--tone-danger-fg))] hover:bg-[hsl(var(--tone-danger)/0.15)]"
             aria-label="Remove status"
             data-test={`${dataTestPrefix}-remove-button-${id}`}
           >
@@ -344,7 +352,7 @@ export default function TicketStatusEditor({
       </DndContext>
 
       {showAdd ? (
-        <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-3">
+        <div className="rounded-[var(--r-control)] border border-border bg-muted/50 p-3 space-y-3">
           <Input
             placeholder="Status name"
             value={newItem.label}

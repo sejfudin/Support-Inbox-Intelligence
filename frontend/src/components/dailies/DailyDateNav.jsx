@@ -1,22 +1,33 @@
 import { format, isToday } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 // A dot on an arrow means the history endpoint (GET /api/dailies/history) has a
 // recorded daily for that neighboring date — a hint for where browsing will land.
-const NavButton = ({ hasRecord, children, ...props }) => (
+const NavButton = ({ hasRecord, children, className, ...props }) => (
   <div className="relative">
-    <Button variant="outline" size="icon" {...props}>
+    <button
+      type="button"
+      className={cn(
+        'flex h-[30px] w-[30px] items-center justify-center rounded-[var(--r-control)] border border-separator text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40',
+        className
+      )}
+      {...props}
+    >
       {children}
-    </Button>
+    </button>
     {hasRecord && (
-      <span className="pointer-events-none absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
+      <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
     )}
   </div>
 );
 
+/**
+ * The mockup's daily header row: the date and its scribe on the left, the day
+ * stepper on the right. The page heading already says "Dailies", so this dropped
+ * the second `<h1>Daily standup</h1>` and the Today/date badge that restated the
+ * date sitting right beside them.
+ */
 export const DailyDateNav = ({
   date,
   scribeName,
@@ -30,55 +41,43 @@ export const DailyDateNav = ({
   const today = isToday(date);
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Daily standup</h1>
-          <Badge
-            variant={today ? 'success' : 'outline'}
-            className={cn(!today && 'text-muted-foreground')}
-          >
-            {today ? 'Today' : format(date, 'MMM d')}
-          </Badge>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {format(date, 'EEEE, MMMM d, yyyy')}
-          {scribeName && (
-            <>
-              {' · '}Scribe: <span className="font-medium text-foreground">{scribeName}</span>
-            </>
-          )}
-        </p>
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+        <span className="text-[13.5px] font-semibold text-foreground">
+          {format(date, 'EEEE, MMMM d')}
+        </span>
+        {scribeName ? (
+          <span className="text-[11.5px] text-muted-foreground/75">Scribe · {scribeName}</span>
+        ) : null}
       </div>
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1">
-          <NavButton
-            hasRecord={hasPrevRecord}
-            onClick={onPrev}
-            aria-label="Previous day"
-            data-test="daily-nav-prev"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </NavButton>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onToday}
-            disabled={today}
-            data-test="daily-nav-today"
-          >
-            Today
-          </Button>
-          <NavButton
-            hasRecord={hasNextRecord}
-            onClick={onNext}
-            disabled={today}
-            aria-label="Next day"
-            data-test="daily-nav-next"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </NavButton>
-        </div>
+
+      <div className="flex items-center gap-1.5">
+        <NavButton
+          hasRecord={hasPrevRecord}
+          onClick={onPrev}
+          aria-label="Previous day"
+          data-test="daily-nav-prev"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </NavButton>
+        <button
+          type="button"
+          onClick={onToday}
+          disabled={today}
+          data-test="daily-nav-today"
+          className="h-[30px] rounded-[var(--r-control)] border border-separator px-3 text-[12px] text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+        >
+          Today
+        </button>
+        <NavButton
+          hasRecord={hasNextRecord}
+          onClick={onNext}
+          disabled={today}
+          aria-label="Next day"
+          data-test="daily-nav-next"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </NavButton>
         {actions}
       </div>
     </div>

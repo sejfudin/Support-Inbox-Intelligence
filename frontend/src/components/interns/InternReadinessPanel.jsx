@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { format } from 'date-fns';
 import { InternPanel } from '@/components/interns/InternPanel';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,85 +71,89 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
   };
 
   return (
-    <div className="h-full">
-      <InternPanel className="h-full overflow-hidden p-0 md:p-0">
-        <div className="border-b border-border/60 px-5 py-4 md:px-6">
-          <h3 className="text-lg font-semibold">Placement readiness by technology</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Mentor-assessed readiness for client placement tracks.
-          </p>
-        </div>
-        {declaredTechnologies.length === 0 && (
-          <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">
-            This intern hasn't declared any technologies yet.
-          </p>
-        )}
-        {isPending && declaredTechnologies.length > 0 && (
-          <p className="px-5 py-6 text-sm text-muted-foreground md:px-6">Loading readiness...</p>
-        )}
-        {!isPending && declaredTechnologies.length > 0 && (
-          <>
-            <div className="grid gap-4 p-5 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))] md:p-6">
-              {visibleTechnologies.map((tech) => {
-                const flag = flagMap[tech._id];
-                const level = flag?.level || 'none';
+    <InternPanel dense>
+      <h3 className="app-card-title">Readiness by technology</h3>
+      <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+        Mentor-assessed readiness for client placement tracks.
+      </p>
 
-                return (
-                  <div
-                    key={tech._id}
-                    className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm transition-colors hover:bg-gray-50/70 dark:border-border/60 dark:bg-card dark:hover:bg-muted/30"
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h4 className="min-w-0 truncate font-semibold text-gray-900 dark:text-foreground">
-                        {tech.name}
-                      </h4>
-                      {canWrite ? (
-                        <Select value={level} onValueChange={(v) => handleLevelChange(tech._id, v)}>
-                          <SelectTrigger
-                            className={cn(
-                              'h-8 w-32 shrink-0 rounded-lg border px-2.5 text-xs font-semibold shadow-none',
-                              getReadinessBadgeClassName(level)
-                            )}
-                            data-test={`intern-readiness-${tech.slug}-select`}
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {READINESS_LEVELS.map((r) => (
-                              <SelectItem key={r.value} value={r.value}>
-                                {r.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <ReadinessLevelBadge level={level} />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground/70">
-                      Assessed by:{' '}
-                      <span className="font-medium text-muted-foreground">
-                        {flag?.setBy?.fullname || '—'}
-                      </span>
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-            {hasMoreTechnologies && (
-              <div className="border-t border-border/60 px-5 py-4 text-center md:px-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setVisibleCount((count) => count + READINESS_PAGE_SIZE)}
+      {declaredTechnologies.length === 0 && (
+        <p className="pt-3 text-[12.5px] text-muted-foreground">
+          This intern hasn't declared any technologies yet.
+        </p>
+      )}
+      {isPending && declaredTechnologies.length > 0 && (
+        <p className="pt-3 text-[12.5px] text-muted-foreground">Loading readiness...</p>
+      )}
+      {!isPending && declaredTechnologies.length > 0 && (
+        <>
+          {/* Two per row, not auto-fill: the tile is a label and a chip, so it has
+              no reason to grow past half the card, and a fixed pair keeps the chips
+              on two predictable columns you can scan down. */}
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            {visibleTechnologies.map((tech) => {
+              const flag = flagMap[tech._id];
+              const level = flag?.level || 'none';
+              const assessedOn = flag?.updatedAt ? format(new Date(flag.updatedAt), 'MMM d') : null;
+              const assessor = flag?.setBy?.fullname;
+
+              return (
+                <div
+                  key={tech._id}
+                  className="flex items-center justify-between gap-2.5 rounded-[var(--r-tile)] border border-separator p-[11px] px-[13px] transition-colors hover:bg-accent/60"
                 >
-                  Load more
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </InternPanel>
-    </div>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate text-[12.5px] font-medium text-foreground">
+                      {tech.name}
+                    </span>
+                    {/* Who assessed it and when, on one line — an unassessed tile
+                        shows an em dash so the row keeps its height and the chips
+                        stay aligned down the column. */}
+                    <span className="truncate text-[11px] text-muted-foreground/75">
+                      {assessor ? `${assessor}${assessedOn ? ` · ${assessedOn}` : ''}` : '—'}
+                    </span>
+                  </span>
+                  {canWrite ? (
+                    <Select value={level} onValueChange={(v) => handleLevelChange(tech._id, v)}>
+                      <SelectTrigger
+                        className={cn(
+                          'h-7 w-[116px] shrink-0 rounded-full border px-2.5 text-[11px] font-semibold shadow-none',
+                          getReadinessBadgeClassName(level)
+                        )}
+                        data-test={`intern-readiness-${tech.slug}-select`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {READINESS_LEVELS.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>
+                            {r.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <ReadinessLevelBadge level={level} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {hasMoreTechnologies && (
+            <div className="mt-3 border-t border-separator pt-3 text-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-[26px] rounded-[var(--r-badge)] px-2.5 text-[11.5px]"
+                onClick={() => setVisibleCount((count) => count + READINESS_PAGE_SIZE)}
+              >
+                Load more
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </InternPanel>
   );
 }

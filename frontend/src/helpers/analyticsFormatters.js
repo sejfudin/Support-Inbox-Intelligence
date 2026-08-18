@@ -17,20 +17,20 @@ export const formatTooltipDate = (value) => {
 export const throughputChartConfig = {
   completed: {
     label: 'Completed',
-    color: 'hsl(220 90% 56%)',
+    color: 'hsl(var(--tone-info))',
   },
 };
 
 export const creationChartConfig = {
   created: {
     label: 'Created',
-    color: 'hsl(152 70% 35%)',
+    color: 'hsl(var(--tone-success))',
   },
 };
 
 export const cycleChartConfig = {
   avgDays: {
     label: 'Avg Days',
-    color: 'hsl(39 92% 50%)',
+    color: 'hsl(var(--tone-warning))',
   },
 };

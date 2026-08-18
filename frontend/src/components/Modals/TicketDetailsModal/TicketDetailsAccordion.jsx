@@ -23,7 +23,7 @@ export function TicketDetailsAccordion({
     <Accordion
       type="single"
       collapsible
-      className="rounded-2xl border border-border bg-card shadow-md overflow-hidden"
+      className="rounded-[var(--r-card)] border border-border bg-card shadow-md overflow-hidden"
     >
       <AccordionItem value="details" className="border-none">
         <AccordionTrigger

@@ -1,14 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { InternPanel } from '@/components/interns/InternPanel';
+import { Button } from '@/components/ui/button';
 import { SortControl } from '@/components/interns/SortControl';
-import {
-  scoreFillClass,
-  scoreFillHsl,
-  scoreTextClass,
-  scoreTrackClass,
-  scoreTrackHsl,
-} from '@/helpers/scoreBand';
+import { CHIP, badgeTone } from '@/helpers/badgeTones';
+import { scoreFillClass, scoreTextClass, scoreTrackClass } from '@/helpers/scoreBand';
 import { cn } from '@/lib/utils';
 
 const dataTestId = (title) =>
@@ -19,102 +14,84 @@ const dataTestId = (title) =>
 /**
  * @typedef {Object} HistoryCard
  * @property {string} id
- * @property {boolean} [featured] Latest item — indigo-tinted card.
- * @property {{label:string,color:'green'|'indigo'|'slate'}} [tag]
- * @property {string} title
- * @property {{value:number,label?:string,trend?:{kind:'up'|'flat',delta?:number}}} [ring]
+ * @property {{label:string,tone:'success'|'primary'|'neutral'}} [tag] e.g. LATEST
+ * @property {string} title            the period, beside the tag
+ * @property {{value:number,label?:string,hint?:string}} [score] square score badge
  * @property {{initials:string,name:string}} [avatar]
  * @property {string} [metaSub]
- * @property {Array<Object>} blocks  bars | chips | pill blocks (see renderBlock)
+ * @property {Array<Object>} blocks    meters | chips | pill (see renderBlock)
  * @property {string} [note]
  * @property {Record<string, string|number>} [sortVals]
  */
 
-// ---- color maps (theme-aware: primary token for indigo, muted for neutral,
-// and the same emerald/amber/red tints the app's Badge uses for semantics) ----
-const TAG_COLORS = {
-  green: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
-  indigo: 'bg-primary/20 text-primary',
-  slate: 'bg-muted text-muted-foreground',
+const TAG_TONE = {
+  success: 'bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))]',
+  primary: 'bg-primary/15 accent-ink',
+  neutral: 'bg-muted text-muted-foreground',
 };
 
-const PILL_COLORS = {
-  green: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
-  indigo: 'bg-primary/20 text-primary',
-  amber: 'bg-amber-500/20 text-amber-700 dark:text-amber-300',
-  red: 'bg-red-500/20 text-red-700 dark:text-red-300',
-  slate: 'bg-muted text-muted-foreground',
-};
-
-function Ring({ value, label = 'Overall', trend }) {
-  const pct = Math.max(0, Math.min(1, value / 5)) * 100;
-  const fill = scoreFillHsl(value);
-  const track = scoreTrackHsl(value);
+/**
+ * The row's headline number: a square tinted by its own band, the label beside it,
+ * and one line of context under that ("of 5 · On track").
+ *
+ * A square rather than the conic-gradient ring this used to draw: the ring encoded
+ * the score twice (arc length and the digits) and cost a 56px circle plus a shadow
+ * to do it, which is the "oversized" the overhaul is removing. The tint carries the
+ * band; the digits carry the value.
+ */
+function ScoreBadge({ value, label = 'Overall', hint }) {
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className="grid h-14 w-14 place-items-center rounded-full"
-        style={{
-          background: `conic-gradient(${fill} ${pct}%, ${track} 0)`,
-          boxShadow: `0 0 0 1px ${track}, 0 6px 16px -6px ${fill}`,
-        }}
+    <div className="flex items-center gap-2.5">
+      <span
+        className={cn(
+          'grid h-12 w-12 shrink-0 place-items-center rounded-[var(--r-tile)] text-[15px] font-bold tabular-nums',
+          scoreTrackClass(value),
+          scoreTextClass(value)
+        )}
       >
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-card text-sm font-extrabold text-foreground">
-          {Number(value).toFixed(1)}
-        </div>
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        {trend?.kind === 'up' && (
-          <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-            ▲ +{Number(trend.delta ?? 0).toFixed(1)}
-          </p>
-        )}
-        {trend?.kind === 'down' && (
-          <p className="text-sm font-semibold text-amber-600 dark:text-amber-500">
-            ▼ {Number(trend.delta ?? 0).toFixed(1)}
-          </p>
-        )}
-        {(!trend || trend.kind === 'flat') && (
-          <p className="text-sm text-muted-foreground">baseline</p>
-        )}
-      </div>
+        {Number(value).toFixed(1)}
+      </span>
+      <span className="flex min-w-0 flex-col leading-[1.35]">
+        <span className="text-[12.5px] font-semibold text-foreground">{label}</span>
+        <span className="truncate text-[11.5px] text-muted-foreground/75">
+          of 5{hint ? ` · ${hint}` : ''}
+        </span>
+      </span>
     </div>
   );
 }
 
-function Avatar({ initials, name, metaSub }) {
+function AuthorRow({ initials, name, metaSub }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">
+      <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-primary/15 text-[10.5px] font-bold accent-ink">
         {initials}
       </span>
-      <div className="min-w-0">
-        <p className="truncate text-sm text-muted-foreground">{name}</p>
-        {metaSub && <p className="truncate text-xs text-muted-foreground/80">{metaSub}</p>}
+      <div className="min-w-0 leading-[1.35]">
+        <p className="truncate text-[12.5px] text-foreground">{name}</p>
+        {metaSub && <p className="truncate text-[11px] text-muted-foreground/75">{metaSub}</p>}
       </div>
     </div>
   );
 }
 
 function renderBlock(block, index) {
-  if (block.kind === 'bars') {
+  if (block.kind === 'meters') {
     return (
-      <div key={index} className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+      <div key={index} className="grid gap-x-5 gap-y-2.5 sm:grid-cols-2">
         {block.items.map((item) => {
           const pct = Math.max(0, Math.min(1, item.score / 5)) * 100;
           return (
             <div key={item.label}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{item.label}</span>
-                <span className="text-sm font-bold tabular-nums">
-                  <span className={scoreTextClass(item.score)}>{item.score}</span>
-                  <span className="text-muted-foreground">/5</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="truncate text-[12.5px] text-muted-foreground">{item.label}</span>
+                <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-foreground">
+                  {item.score}/5
                 </span>
               </div>
               <div
                 className={cn(
-                  'mt-1.5 h-2.5 overflow-hidden rounded-full',
+                  'mt-1.5 h-[5px] overflow-hidden rounded-full',
                   scoreTrackClass(item.score)
                 )}
               >
@@ -133,15 +110,17 @@ function renderBlock(block, index) {
   if (block.kind === 'chips') {
     return (
       <div key={index}>
-        <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-          {block.label}
-        </p>
+        <p className="app-crumb mb-1.5">{block.label}</p>
         <div className="flex flex-wrap gap-1.5">
-          {block.items.length === 0 && <span className="text-sm text-muted-foreground">—</span>}
+          {block.items.length === 0 && (
+            // Italic prose rather than a bare dash: a dash in a list of chips reads
+            // as a chip whose label failed to load.
+            <span className="text-[12px] italic text-muted-foreground/75">None recorded.</span>
+          )}
           {block.items.map((chip, i) => (
             <span
               key={`${chip}-${i}`}
-              className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
+              className="rounded-full border border-separator px-[11px] py-[5px] text-[12px] font-medium text-foreground"
             >
               {chip}
             </span>
@@ -154,17 +133,8 @@ function renderBlock(block, index) {
   if (block.kind === 'pill') {
     return (
       <div key={index}>
-        <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-          {block.label}
-        </p>
-        <span
-          className={cn(
-            'inline-flex rounded-md px-2 py-1 text-xs font-semibold',
-            PILL_COLORS[block.color] || PILL_COLORS.slate
-          )}
-        >
-          {block.value}
-        </span>
+        <p className="app-crumb mb-1.5">{block.label}</p>
+        <span className={cn(CHIP, badgeTone(block.tone))}>{block.value}</span>
       </div>
     );
   }
@@ -172,22 +142,21 @@ function renderBlock(block, index) {
   return null;
 }
 
-function HistoryCardView({ card, onReadMore, onCardClick }) {
+function HistoryRow({ card, onReadMore, onCardClick }) {
+  const interactive = Boolean(onCardClick);
+
   return (
     <div
       className={cn(
-        'rounded-[18px] p-5 transition sm:p-6',
-        onCardClick &&
-          'cursor-pointer hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-        card.featured
-          ? 'border border-primary/30 bg-primary/[0.07] shadow-lg shadow-primary/15'
-          : 'border border-border bg-card'
+        'grid gap-x-5 gap-y-3 border-b border-separator px-[18px] py-3 last:border-b-0 lg:grid-cols-[280px_minmax(0,1fr)]',
+        interactive &&
+          'cursor-pointer transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
       )}
-      onClick={onCardClick ? () => onCardClick(card) : undefined}
-      role={onCardClick ? 'button' : undefined}
-      tabIndex={onCardClick ? 0 : undefined}
+      onClick={interactive ? () => onCardClick(card) : undefined}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
       onKeyDown={
-        onCardClick
+        interactive
           ? (event) => {
               if (event.key === 'Enter' || event.key === ' ') {
                 event.preventDefault();
@@ -198,70 +167,71 @@ function HistoryCardView({ card, onReadMore, onCardClick }) {
       }
       data-test={`history-card-${card.id}`}
     >
-      <div className="flex flex-col gap-5 sm:flex-row sm:gap-0 sm:divide-x sm:divide-border">
-        {/* Left column */}
-        <div className="flex shrink-0 flex-col gap-3.5 sm:w-52 sm:pr-6">
+      <div className="flex min-w-0 flex-col gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {card.tag && (
             <span
               className={cn(
-                'inline-flex w-fit rounded-md px-2 py-1 text-[10.5px] font-bold uppercase tracking-wide',
-                TAG_COLORS[card.tag.color] || TAG_COLORS.slate
+                CHIP,
+                'text-[10px] uppercase tracking-[0.06em]',
+                TAG_TONE[card.tag.tone] || TAG_TONE.neutral
               )}
             >
               {card.tag.label}
             </span>
           )}
-          <p className="text-base font-bold text-foreground">{card.title}</p>
-          {card.ring && (
-            <Ring value={card.ring.value} label={card.ring.label} trend={card.ring.trend} />
-          )}
-          {card.avatar && (
-            <Avatar
-              initials={card.avatar.initials}
-              name={card.avatar.name}
-              metaSub={card.metaSub}
-            />
-          )}
-          {!card.avatar && card.metaSub && (
-            <p className="text-xs text-muted-foreground">{card.metaSub}</p>
-          )}
+          <span className="text-[12.5px] text-muted-foreground">{card.title}</span>
         </div>
 
-        {/* Right column */}
-        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:pl-7">
-          {(card.blocks || []).map((block, index) => renderBlock(block, index))}
+        {card.score && (
+          <ScoreBadge value={card.score.value} label={card.score.label} hint={card.score.hint} />
+        )}
 
-          {card.note && (
-            <div className="mt-1 border-t border-border pt-3.5">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                <span className="line-clamp-2 align-top [overflow-wrap:anywhere]">{card.note}</span>
-                {onReadMore && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onReadMore(card.id);
-                    }}
-                    className="mt-1 font-semibold text-primary hover:text-primary/80"
-                  >
-                    Read more
-                  </button>
-                )}
-              </p>
-            </div>
-          )}
-        </div>
+        {card.avatar && (
+          <AuthorRow
+            initials={card.avatar.initials}
+            name={card.avatar.name}
+            metaSub={card.metaSub}
+          />
+        )}
+        {!card.avatar && card.metaSub && (
+          <p className="text-[11.5px] text-muted-foreground/75">{card.metaSub}</p>
+        )}
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-3">
+        {(card.blocks || []).map((block, index) => renderBlock(block, index))}
+
+        {card.note && (
+          <div className="border-t border-separator pt-2.5">
+            <p className="text-[12.5px] leading-[1.5] text-foreground/90">
+              <span className="line-clamp-2 align-top [overflow-wrap:anywhere]">{card.note}</span>
+              {onReadMore && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onReadMore(card.id);
+                  }}
+                  className="mt-0.5 font-semibold accent-ink hover:underline"
+                >
+                  Read more
+                </button>
+              )}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 /**
- * Reusable, data-driven history panel: header (title/subtitle + sort + create
- * button) and a vertical list of cards. All visual logic (colors, ring %, bar
- * thresholds) lives here; sections differ only by config. Each consuming panel
- * owns its own create/edit + detail dialogs and drives them via onNew /
- * onCardClick / onReadMore.
+ * Reusable, data-driven history list: one card with a header (title/subtitle +
+ * sort + create button) and rows separated by hairlines. All visual logic (score
+ * bands, meter widths, chip shapes) lives here; sections differ only by config.
+ * Each consuming panel owns its own create/edit + detail dialogs and drives them
+ * via onNew / onCardClick / onReadMore.
  */
 export function HistoryPanel({
   title,
@@ -302,11 +272,11 @@ export function HistoryPanel({
   }, [cards, sortKey, sortDir]);
 
   return (
-    <InternPanel className="p-5 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="app-card overflow-hidden">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-separator px-[18px] py-3">
         <div className="min-w-0">
-          <h2 className="text-xl font-bold text-foreground">{title}</h2>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+          <h2 className="app-card-title">{title}</h2>
+          {subtitle && <p className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</p>}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -317,31 +287,37 @@ export function HistoryPanel({
               options={sortOptions}
               onSortKeyChange={handleSortKeyChange}
               onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              className="h-8 rounded-[var(--r-control)]"
+              triggerClassName="text-[12.5px]"
               dataTest={`${dataTestId(title)}-sort`}
             />
           )}
           {canWrite && (
-            <button
+            <Button
               type="button"
               onClick={onNew}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition hover:bg-primary/90"
+              className="px-3 text-[12.5px]"
               data-test={`${dataTestId(title)}-new-button`}
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
               {buttonLabel}
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="mt-6 flex flex-col gap-4">
-        {isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>}
+      <div>
+        {isLoading && (
+          <p className="px-[18px] py-8 text-center text-[12.5px] text-muted-foreground">Loading…</p>
+        )}
         {!isLoading && sortedCards.length === 0 && (
-          <p className="py-12 text-center text-sm text-muted-foreground">{emptyMessage}</p>
+          <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">
+            {emptyMessage}
+          </p>
         )}
         {!isLoading &&
           sortedCards.map((card) => (
-            <HistoryCardView
+            <HistoryRow
               key={card.id}
               card={card}
               onReadMore={onReadMore}
@@ -349,6 +325,6 @@ export function HistoryPanel({
             />
           ))}
       </div>
-    </InternPanel>
+    </section>
   );
 }

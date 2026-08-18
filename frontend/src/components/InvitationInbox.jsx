@@ -66,7 +66,7 @@ export default function InvitationInbox({
             <CardHeader className="space-y-3 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-[var(--r-card)] bg-primary/10 text-primary">
                     <Building2 className="h-5 w-5" />
                   </div>
                   <div>
@@ -79,7 +79,7 @@ export default function InvitationInbox({
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-500/35 dark:bg-amber-500/20 dark:text-amber-300">
+                <span className="rounded-full border border-[hsl(var(--tone-warning)/0.3)] bg-[hsl(var(--tone-warning)/0.15)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--tone-warning-fg))] dark:border-[hsl(var(--tone-warning)/0.35)] dark:bg-[hsl(var(--tone-warning)/0.2)] dark:text-[hsl(var(--tone-warning-fg))]">
                   Pending
                 </span>
               </div>
@@ -87,7 +87,7 @@ export default function InvitationInbox({
 
             <CardContent className="space-y-4">
               {invitation.workspace?.description && (
-                <p className="rounded-xl border border-border/70 bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">
+                <p className="rounded-[var(--r-card)] border border-border/70 bg-secondary/70 px-4 py-3 text-sm text-muted-foreground">
                   {invitation.workspace.description}
                 </p>
               )}

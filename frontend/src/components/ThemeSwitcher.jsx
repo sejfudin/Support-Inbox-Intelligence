@@ -39,7 +39,10 @@ function ModeToggle({ className, size = 'sm' }) {
   if (!mounted || !ready) {
     return (
       <div
-        className={cn('h-9 rounded-lg border border-border/70 bg-muted/50', className)}
+        className={cn(
+          'h-9 rounded-[var(--r-control)] border border-border/70 bg-muted/50',
+          className
+        )}
         aria-hidden
       />
     );
@@ -57,7 +60,7 @@ function ModeToggle({ className, size = 'sm' }) {
         setTheme(value);
       }}
       className={cn(
-        'grid w-full grid-cols-3 gap-1 rounded-lg border border-border/70 p-1',
+        'grid w-full grid-cols-3 gap-1 rounded-[var(--r-control)] border border-border/70 p-1',
         className
       )}
       size={size}
@@ -68,7 +71,7 @@ function ModeToggle({ className, size = 'sm' }) {
           value={value}
           data-test={`theme-mode-${value}-button`}
           aria-label={label}
-          className="flex flex-1 items-center justify-center gap-2.5 rounded-md px-2 py-1.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+          className="flex flex-1 items-center justify-center gap-2.5 rounded-[var(--r-control)] px-2 py-1.5 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
         >
           <Icon className="size-3.5 shrink-0" />
           <span className="hidden sm:inline">{label}</span>
@@ -82,7 +85,9 @@ function PaletteGrid({ className }) {
   const { colorTheme, setColorTheme, themes, ready } = useThemeConfig();
 
   if (!ready) {
-    return <div className={cn('h-24 rounded-lg bg-muted/50', className)} aria-hidden />;
+    return (
+      <div className={cn('h-24 rounded-[var(--r-control)] bg-muted/50', className)} aria-hidden />
+    );
   }
 
   return (
@@ -96,7 +101,7 @@ function PaletteGrid({ className }) {
             data-test={`theme-palette-${theme.id}-button`}
             onClick={() => setColorTheme(theme.id)}
             className={cn(
-              'relative flex flex-col items-start gap-1 rounded-xl border p-2 text-left transition-colors',
+              'relative flex flex-col items-start gap-1 rounded-[var(--r-card)] border p-2 text-left transition-colors',
               isActive
                 ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
                 : 'border-border/70 bg-card hover:border-primary/30 hover:bg-muted/50'
@@ -172,7 +177,17 @@ function ThemeAppearanceItems({ showHeading = true }) {
             value={t.id}
             data-test={`theme-appearance-palette-${t.id}-radio`}
           >
-            {t.label}
+            {/* The palette's own gradient beside its name — twelve names in a
+                list is a vocabulary test otherwise, and the swatch is what the
+                reader is actually choosing between. */}
+            <span className="flex items-center gap-2.5">
+              <span
+                className="size-3.5 shrink-0 rounded-full border border-border/50"
+                style={{ backgroundImage: t.preview.gradient }}
+                aria-hidden="true"
+              />
+              {t.label}
+            </span>
           </DropdownMenuRadioItem>
         ))}
       </DropdownMenuRadioGroup>
@@ -309,8 +324,8 @@ export function ThemeSwitcherPanel({ className }) {
     return (
       <div className={cn('app-elevated space-y-4 rounded-[1.25rem] p-4', className)}>
         <div className="h-5 w-32 rounded bg-muted" />
-        <div className="h-9 rounded-lg bg-muted/50" />
-        <div className="h-24 rounded-lg bg-muted/50" />
+        <div className="h-9 rounded-[var(--r-control)] bg-muted/50" />
+        <div className="h-24 rounded-[var(--r-control)] bg-muted/50" />
       </div>
     );
   }

@@ -1,13 +1,7 @@
 const internDashboardService = require('../services/internDashboardService');
 const internProgressService = require('../services/internProgressService');
 const standupSummaryService = require('../services/standupSummaryService');
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 exports.getInternDashboard = async (req, res, next) => {
   try {

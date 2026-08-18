@@ -51,7 +51,7 @@ const AddItemLink = ({ onClick, tone = 'primary', children, ...props }) => (
     onClick={onClick}
     className={cn(
       'flex items-center gap-1 self-start text-sm font-medium hover:underline',
-      tone === 'destructive' ? 'text-red-600 dark:text-red-400' : 'text-primary'
+      tone === 'destructive' ? 'text-[hsl(var(--tone-danger-fg))]' : 'text-primary'
     )}
     {...props}
   >
@@ -100,7 +100,7 @@ const BlockersField = ({ control, register, workspaceId }) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <SectionLabel dotColor="bg-red-500">Blockers</SectionLabel>
+      <SectionLabel dotColor="bg-[hsl(var(--tone-danger))]">Blockers</SectionLabel>
       {fields.map((field, index) => (
         <div key={field.id} className="flex items-center gap-2">
           <Input
@@ -241,11 +241,11 @@ export const AddEntryModal = ({
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <Label htmlFor="daily-entry-member">
-              Team member <span className="text-red-500">*</span>
+              Team member <span className="text-[hsl(var(--tone-danger))]">*</span>
             </Label>
             {isEditing ? (
               <div
-                className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
+                className="flex h-10 items-center rounded-[var(--r-control)] border border-input bg-muted px-3 text-sm text-muted-foreground"
                 data-test="daily-entry-member-locked"
               >
                 {entry.member?.fullname}
@@ -274,12 +274,14 @@ export const AddEntryModal = ({
                 )}
               />
             )}
-            {errors.member && <p className="text-xs text-destructive">{errors.member.message}</p>}
+            {errors.member && (
+              <p className="text-xs text-[hsl(var(--tone-danger-fg))]">{errors.member.message}</p>
+            )}
           </div>
 
           <RepeatableList
             label="Done"
-            dotColor="bg-emerald-500"
+            dotColor="bg-[hsl(var(--tone-success))]"
             name="done"
             control={control}
             register={register}
@@ -288,7 +290,7 @@ export const AddEntryModal = ({
           />
           <RepeatableList
             label="To do"
-            dotColor="bg-blue-500"
+            dotColor="bg-[hsl(var(--tone-info))]"
             name="todo"
             control={control}
             register={register}

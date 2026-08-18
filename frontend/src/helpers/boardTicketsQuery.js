@@ -1,13 +1,7 @@
 import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
+import { PRIORITY_RANK } from '@/helpers/ticketPriority';
 
 export const BOARD_COLUMN_PAGE_SIZE = 20;
-
-const PRIORITY_RANK = {
-  low: 1,
-  medium: 2,
-  high: 3,
-  critical: 4,
-};
 
 export const serializeBoardQueryFilters = (queryFilters = {}) =>
   JSON.stringify({

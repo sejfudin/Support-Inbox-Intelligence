@@ -13,6 +13,7 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
+  differenceInCalendarDays,
   getDay,
 } from 'date-fns';
 
@@ -376,11 +377,16 @@ export const buildWeekStrip = (
 };
 
 /**
- * Present vs elapsed working days within the current week — the hero's
- * "4 of 5 days in" line. Future days are excluded from the denominator so a
+ * Present vs elapsed working days across any strip of classified days — the
+ * hero's "4 of 5 days in" line for a week, and the per-month rate on the intern
+ * profile's six-month heatmap. Future days are excluded from the denominator so a
  * Monday morning doesn't read as "1 of 5" and look like a bad week.
+ *
+ * Strip-shaped rather than week-shaped on purpose: the INERT list below is what
+ * makes a derived rate agree with the server's, so every rate computed on the
+ * client has to come through here rather than re-deriving the rule.
  */
-export const weekAttendance = (weekStrip = []) => {
+export const stripAttendance = (strip = []) => {
   // Exempt days are as inert as weekends — they were never owed, so they must not
   // enter the denominator. Approved leave joins them for exactly the same reason,
   // and this has to match the server: `computeMonthStats` subtracts those days from
@@ -393,7 +399,7 @@ export const weekAttendance = (weekStrip = []) => {
     DAY_STATUS.BEFORE_START,
     ...LEAVE_STATUSES,
   ];
-  const working = weekStrip.filter((day) => !INERT.includes(day.status));
+  const working = strip.filter((day) => !INERT.includes(day.status));
   return {
     // Remote days count here for the same reason they count in the server's
     // numerator: the intern worked. A remote week that read "0 of 5 days in"
@@ -428,10 +434,24 @@ export const attendanceRateTone = (rate) => {
 /** Tailwind text color class for an attendance rate (for non-badge contexts). */
 export const attendanceRateTextClass = (rate) => {
   if (!hasAttendanceRate(rate)) return 'text-muted-foreground';
-  if (rate >= 90) return 'text-emerald-600 dark:text-emerald-400';
+  if (rate >= 90) return 'text-[hsl(var(--tone-success-fg))]';
   if (rate >= 75) return 'text-foreground';
-  if (rate >= 60) return 'text-amber-600 dark:text-amber-400';
-  return 'text-red-600 dark:text-red-400';
+  if (rate >= 60) return 'text-[hsl(var(--tone-warning-fg))]';
+  return 'text-[hsl(var(--tone-danger-fg))]';
+};
+
+/**
+ * Bar fill for an attendance rate — the same four bands as
+ * `attendanceRateTextClass`, so a bar and the number beside it can never
+ * disagree about whether a month was good. (They used to: the roster table
+ * carried its own copy of the thresholds.)
+ */
+export const attendanceRateFillClass = (rate) => {
+  if (!hasAttendanceRate(rate)) return 'bg-muted-foreground/30';
+  if (rate >= 90) return 'bg-[hsl(var(--tone-success))]';
+  if (rate >= 75) return 'bg-foreground/70';
+  if (rate >= 60) return 'bg-[hsl(var(--tone-warning))]';
+  return 'bg-[hsl(var(--tone-danger))]';
 };
 
 export const todayRecord = (records = []) => {
@@ -495,6 +515,42 @@ export const checkInWindowState = (now = new Date()) => {
   return 'closed';
 };
 
+/** Office-local minute (0–59) for `date`. */
+const officeMinute = (date = new Date()) => {
+  const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: OFFICE_TIMEZONE, minute: '2-digit' });
+  return Number(fmt.format(date));
+};
+
+/**
+ * Minutes until the check-in window's next boundary — until it opens while
+ * 'before', until it closes while 'open', and `null` once it has closed, because
+ * there is nothing left to count down to.
+ *
+ * Computed in office time, like everything else about the window: an intern
+ * travelling with a laptop still on Sarajevo's clock should see Sarajevo's
+ * countdown, not their browser's.
+ */
+export const checkInWindowMinutesLeft = (now = new Date()) => {
+  const state = checkInWindowState(now);
+  if (state === 'closed') return null;
+  const boundaryHour = state === 'before' ? CHECK_IN_WINDOW.startHour : CHECK_IN_WINDOW.endHour;
+  return boundaryHour * 60 - (officeHour(now) * 60 + officeMinute(now));
+};
+
+/**
+ * "2h 14m" / "14m", or `null` when there is nothing to show.
+ *
+ * Null rather than "0m" at the boundary: a countdown that has run out is not a
+ * countdown, and the caller drops the clause entirely instead of printing
+ * "closes in 0m" for a minute.
+ */
+export const formatMinutesLeft = (minutes) => {
+  if (minutes === null || minutes <= 0) return null;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours > 0 ? `${hours}h ${rest}m` : `${rest}m`;
+};
+
 export const formatCheckInTime = (iso) => (iso ? format(new Date(iso), 'HH:mm') : '—');
 export const formatCheckInDate = (iso) => (iso ? format(new Date(iso), 'MMM d, HH:mm') : '—');
 
@@ -541,6 +597,37 @@ export const formatRequestDates = (dates = []) => {
   const day = (key) => format(parseKey(key), 'd MMM');
   if (sorted.length === 1) return format(parseKey(sorted[0]), 'EEE, d MMM');
   return `${day(sorted[0])} — ${day(sorted[sorted.length - 1])}`;
+};
+
+/**
+ * The dates of one request as runs: consecutive days collapse into a span, and
+ * separate runs are listed side by side.
+ *
+ *   Mon–Fri            → "Mon, 20 Aug — Fri, 24 Aug"
+ *   Mon and the next Mon → "Mon, 16 Aug · Mon, 23 Aug"
+ *
+ * The admin queue used to print every day of a week off, which pushed the row's
+ * decision buttons off the line and made a five-day holiday look like five
+ * separate asks. `formatRequestDates` above stays as it is: it answers a
+ * different question — the outer span of a request in a fixed-width column.
+ */
+export const formatRequestDayRuns = (dates = []) => {
+  const sorted = [...dates].filter(Boolean).sort();
+  if (sorted.length === 0) return '—';
+
+  const runs = [];
+  for (const key of sorted) {
+    const previous = runs[runs.length - 1];
+    const isNextDay =
+      previous && differenceInCalendarDays(parseKey(key), parseKey(previous.to)) === 1;
+    if (isNextDay) previous.to = key;
+    else runs.push({ from: key, to: key });
+  }
+
+  const label = (key) => format(parseKey(key), 'EEE, d MMM');
+  return runs
+    .map((run) => (run.from === run.to ? label(run.from) : `${label(run.from)} — ${label(run.to)}`))
+    .join(' · ');
 };
 
 /**

@@ -5,12 +5,12 @@ export default function GlobalSkeleton() {
     <div className="flex h-screen w-full overflow-hidden bg-card">
       <div className="hidden w-64 border-r bg-muted/50 p-4 md:flex flex-col gap-6">
         <div className="flex items-center gap-2 px-2">
-          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="h-8 w-8 rounded-[var(--r-control)]" />
           <Skeleton className="h-5 w-24" />
         </div>
         <div className="space-y-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-9 w-full rounded-md" />
+            <Skeleton key={i} className="h-9 w-full rounded-[var(--r-control)]" />
           ))}
         </div>
       </div>
@@ -24,9 +24,9 @@ export default function GlobalSkeleton() {
         </header>
 
         <main className="flex-1 p-6 space-y-6 bg-muted/50/50">
-          <div className="bg-card border rounded-lg p-4 space-y-4">
+          <div className="bg-card border rounded-[var(--r-control)] p-4 space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-md" />
+              <Skeleton key={i} className="h-12 w-full rounded-[var(--r-control)]" />
             ))}
           </div>
         </main>

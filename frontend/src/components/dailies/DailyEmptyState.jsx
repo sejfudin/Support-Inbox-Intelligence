@@ -1,19 +1,27 @@
 import { CalendarDays } from 'lucide-react';
+
+import EmptyState from '@/components/EmptyState';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 
 export const DailyEmptyState = ({ canStart, onStart, isStarting }) => (
-  <Card>
-    <CardContent className="flex flex-col items-center gap-3 p-12 text-center">
-      <CalendarDays className="h-8 w-8 text-muted-foreground" />
-      <p className="text-sm text-muted-foreground">
-        {canStart ? 'No daily yet for today.' : 'No daily for this date.'}
-      </p>
-      {canStart && (
-        <Button onClick={onStart} disabled={isStarting}>
+  <EmptyState
+    icon={CalendarDays}
+    title={canStart ? 'No daily yet for today' : 'No daily for this date'}
+    description={
+      canStart
+        ? 'Start it and everyone in the workspace can add what they worked on, what is next, and anything blocking them.'
+        : 'Nothing was recorded on this date. Use the arrows above to move to a day that has a standup.'
+    }
+    action={
+      canStart ? (
+        <Button
+          onClick={onStart}
+          disabled={isStarting}
+          className="h-[34px] rounded-[var(--r-control)] px-3.5 text-[12.5px]"
+        >
           {isStarting ? 'Starting…' : "Start today's daily"}
         </Button>
-      )}
-    </CardContent>
-  </Card>
+      ) : null
+    }
+  />
 );

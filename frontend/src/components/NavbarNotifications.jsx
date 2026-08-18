@@ -15,6 +15,13 @@ import {
 } from '@/queries/notifications';
 import { NotificationRow } from '@/components/NotificationRow';
 import { isMongoId } from '@/helpers/notificationUtils';
+import {
+  NOTIFICATION_MUTED_STORAGE_KEY,
+  filterNotifications,
+  isValidMutedGroups,
+  parseMutedGroups,
+} from '@/helpers/notificationPreferences';
+import { useStoredPreference } from '@/hooks/useStoredPreference';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 
@@ -28,8 +35,15 @@ export default function NavbarNotifications({ size = 'default', align = 'end' })
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  const items = data?.data ?? [];
-  const unreadCount = data?.unreadCount ?? 0;
+  const [mutedRaw] = useStoredPreference(NOTIFICATION_MUTED_STORAGE_KEY, '', isValidMutedGroups);
+  const mutedGroups = parseMutedGroups(mutedRaw);
+
+  const items = filterNotifications(data?.data ?? [], mutedGroups);
+  // With a group muted, the server's count still includes what we just hid — so
+  // the dot is recomputed from what the reader can actually see. Without one, the
+  // server's number is the better answer: it counts past the page we fetched.
+  const unreadCount =
+    mutedGroups.length > 0 ? items.filter((item) => !item?.read).length : (data?.unreadCount ?? 0);
 
   useEffect(() => {
     if (open) {
@@ -116,7 +130,7 @@ export default function NavbarNotifications({ size = 'default', align = 'end' })
               Loading…
             </div>
           ) : isError ? (
-            <p className="px-3 py-6 text-center text-sm text-destructive">
+            <p className="px-3 py-6 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
               Could not load notifications.
             </p>
           ) : items.length === 0 ? (

@@ -71,12 +71,12 @@ export function NotificationRow({
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium leading-snug text-foreground">{notification.title}</p>
           {isMention ? (
-            <span className="rounded-full border border-blue-500/30 bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300">
+            <span className="rounded-full border border-[hsl(var(--tone-info)/0.3)] bg-[hsl(var(--tone-info)/0.15)] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--tone-info-fg))] dark:border-[hsl(var(--tone-info)/0.35)] dark:bg-[hsl(var(--tone-info)/0.2)] dark:text-[hsl(var(--tone-info-fg))]">
               Mention
             </span>
           ) : null}
           {isPlacement ? (
-            <span className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-500/35 dark:bg-emerald-500/15 dark:text-emerald-300">
+            <span className="flex items-center gap-1 rounded-full border border-[hsl(var(--tone-success)/0.3)] bg-[hsl(var(--tone-success)/0.15)] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--tone-success-fg))] dark:border-[hsl(var(--tone-success)/0.35)] dark:bg-[hsl(var(--tone-success)/0.15)] dark:text-[hsl(var(--tone-success-fg))]">
               <PartyPopper className="h-2.5 w-2.5" />
               Placed
             </span>

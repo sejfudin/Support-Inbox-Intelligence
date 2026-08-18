@@ -1,22 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Building2,
-  Crown,
-  Mail,
-  Settings,
-  Ticket,
-  Trash2,
-  UserMinus,
-  UserPlus,
-  Users,
-  X,
-} from 'lucide-react';
+import { ArrowLeft, Crown, Settings, Ticket, Trash2, UserPlus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/ui/button';
+import { AnalyticsStatCard } from '@/components/analytics/AnalyticsStatCard';
 import {
   Dialog,
   DialogContent,
@@ -35,9 +23,12 @@ import {
 } from '@/components/ui/select';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { RoleBadge } from '@/components/RoleBadge';
-import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { useAuth } from '@/context/AuthContext';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
+import { getInitials } from '@/helpers/getInitials';
+import { getAvatarColor } from '@/helpers/avatarColor';
+import { CHIP } from '@/helpers/badgeTones';
+import { cn } from '@/lib/utils';
 import { canDeleteWorkspace, isPlatformAdmin } from '@/helpers/workspacePermissions';
 import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
 import { useTickets } from '@/queries/tickets';
@@ -52,6 +43,7 @@ import {
   useWorkspace,
 } from '@/queries/workspaces';
 import PageHeading from '@/components/PageHeading';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function WorkspaceDetailPage() {
   const { id } = useParams();
@@ -68,6 +60,7 @@ export default function WorkspaceDetailPage() {
   const [deleteError, setDeleteError] = useState('');
 
   const { data: workspace, isLoading: loadingWorkspace } = useWorkspace(id);
+  useDocumentTitle(workspace?.name);
   const { data: usersData, isLoading: loadingUsers } = useUsers({ pagination: false });
   const { data: ticketsData } = useTickets({ workspaceId: id, limit: 5 }, { enabled: !!id });
 
@@ -91,6 +84,10 @@ export default function WorkspaceDetailPage() {
   const canSwitchToWorkspace = activeMembers.some(
     (member) => (member.user?._id || member.user)?.toString() === currentUserId?.toString()
   );
+  // Only the owner can hand ownership on, and only when there is somebody to hand
+  // it to — otherwise the Owner tile offers an action that always fails.
+  const canTransferOwnership =
+    workspace?.owner?._id?.toString() === currentUserId?.toString() && activeMembers.length > 1;
   const unavailableUserIds = new Set([
     ...members.map((member) => (member.user?._id || member.user)?.toString()),
     ...pendingInvitations.map((invitation) => invitation.user?._id?.toString()),
@@ -101,6 +98,21 @@ export default function WorkspaceDetailPage() {
     const platformUserId = platformUser._id?.toString();
     return platformUserId && !unavailableUserIds.has(platformUserId);
   });
+
+  // The back-link used to be injected into the top header bar. That bar is gone
+  // (the bell moved into the sidebar header), so it renders inline above the
+  // title instead — see `backLink` below.
+  const backLink = (
+    <button
+      type="button"
+      onClick={() => navigate(isPlatformAdmin(user) ? '/admin/workspaces' : '/dashboard')}
+      className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
+      data-test="workspace-detail-back-link"
+    >
+      <ArrowLeft className="h-3.5 w-3.5" />
+      {isPlatformAdmin(user) ? 'All Workspaces' : 'Dashboard'}
+    </button>
+  );
 
   // Queue a picked user for invitation (default role member). No-op if already queued.
   const handleAddInvite = (platformUser) => {
@@ -242,8 +254,8 @@ export default function WorkspaceDetailPage() {
     return (
       <div className="app-page-content space-y-4">
         <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-32 w-full rounded-xl" />
-        <Skeleton className="h-80 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-[var(--r-card)]" />
+        <Skeleton className="h-80 w-full rounded-[var(--r-card)]" />
       </div>
     );
   }
@@ -257,38 +269,20 @@ export default function WorkspaceDetailPage() {
   return (
     <div className="app-page">
       <div className="app-page-content space-y-6">
-        <button
-          type="button"
-          onClick={() => navigate(isPlatformAdmin(user) ? '/admin/workspaces' : '/dashboard')}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          data-test="workspace-detail-back-link"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {isPlatformAdmin(user) ? 'All Workspaces' : 'Dashboard'}
-        </button>
-
+        {/* The workspace name moves into the subtitle: the page is the same job
+            whichever workspace you are in, and a title that changed per workspace
+            made the heading answer "where am I" twice — the sidebar's workspace
+            switcher already says that. */}
         <PageHeading
-          kicker="Workspace management"
-          title={
-            <span className="inline-flex items-center gap-2">
-              <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-primary/10">
-                {workspace?.logoUrl ? (
-                  <img
-                    src={workspace.logoUrl}
-                    alt={`${workspace.name} logo`}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <Building2 className="h-4 w-4 text-primary" />
-                )}
-              </span>
-              <span>{workspace.name}</span>
-            </span>
+          crumb="Workspace"
+          beforeTitle={backLink}
+          title="Workspace management"
+          subtitle={`Members, invitations and settings for ${workspace.name}.`}
+          titleAdornment={
+            isActiveWorkspace ? (
+              <span className={cn(CHIP, 'bg-primary/10 accent-ink')}>Current workspace</span>
+            ) : null
           }
-          subtitle={
-            workspace.description || 'Manage members, invitations, and access for this workspace.'
-          }
-          titleAdornment={isActiveWorkspace ? <UserStatusBadge status="active" /> : null}
           actions={
             <>
               {!isActiveWorkspace && canSwitchToWorkspace && (
@@ -298,18 +292,9 @@ export default function WorkspaceDetailPage() {
                   disabled={switchWorkspace.isPending}
                   data-test="workspace-detail-switch-button"
                 >
-                  {switchWorkspace.isPending ? 'Switching...' : 'Switch Workspace'}
+                  {switchWorkspace.isPending ? 'Switching...' : 'Switch workspace'}
                 </Button>
               )}
-              <Button
-                variant="outline"
-                onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
-                className="gap-2"
-                data-test="workspace-detail-settings-button"
-              >
-                <Settings className="h-4 w-4" />
-                Workspace Settings
-              </Button>
               <Button
                 variant="outline"
                 onClick={() => navigate(`/tickets?workspaceId=${id}`)}
@@ -317,7 +302,16 @@ export default function WorkspaceDetailPage() {
                 data-test="workspace-detail-view-tickets-button"
               >
                 <Ticket className="h-4 w-4" />
-                View Tickets
+                View tickets
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/admin/workspaces/${id}/settings`)}
+                className="gap-2"
+                data-test="workspace-detail-settings-button"
+              >
+                <Settings className="h-4 w-4" />
+                Workspace settings
               </Button>
               <Button
                 onClick={() => setIsInviteOpen(true)}
@@ -325,59 +319,69 @@ export default function WorkspaceDetailPage() {
                 data-test="workspace-detail-invite-button"
               >
                 <UserPlus className="h-4 w-4" />
-                Add Existing User
+                Add existing user
               </Button>
             </>
           }
         />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="app-panel-soft p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Active Members</p>
-            <p className="mt-1 text-2xl font-bold">{activeMembers.length}</p>
-          </div>
-          <div className="app-panel-soft p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending Invites</p>
-            <p className="mt-1 text-2xl font-bold">{pendingInvitations.length}</p>
-          </div>
-          <div className="app-panel-soft p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Open Tickets</p>
-            <p className="mt-1 text-2xl font-bold">{ticketsData?.pagination?.total ?? 0}</p>
-          </div>
-          <div className="app-panel-soft p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Owner</p>
-              {workspace.owner?._id?.toString() === currentUserId?.toString() &&
-                activeMembers.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setIsTransferOpen(true)}
-                    className="text-xs font-medium text-blue-600 hover:underline"
-                    data-test="workspace-detail-transfer-ownership-button"
-                  >
-                    Transfer
-                  </button>
-                )}
-            </div>
-            <p className="mt-1 truncate text-sm font-semibold">
-              {workspace.owner?.fullname || workspace.owner?.email || '—'}
-            </p>
-          </div>
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <AnalyticsStatCard
+            label="Active members"
+            value={activeMembers.length}
+            hint="With access today"
+          />
+          <AnalyticsStatCard
+            label="Pending invites"
+            value={pendingInvitations.length}
+            hint="Awaiting acceptance"
+          />
+          <AnalyticsStatCard
+            label="Tickets"
+            // Not "open": this count is the workspace's whole ticket list, and
+            // labelling it "open" would understate it by every closed ticket.
+            value={ticketsData?.pagination?.total ?? 0}
+            hint="In this workspace"
+          />
+          <AnalyticsStatCard
+            label="Owner"
+            value={
+              <span className="block truncate">
+                {workspace.owner?.fullname || workspace.owner?.email || '—'}
+              </span>
+            }
+            hint={
+              canTransferOwnership ? (
+                <button
+                  type="button"
+                  onClick={() => setIsTransferOpen(true)}
+                  className="font-semibold accent-ink hover:underline"
+                  data-test="workspace-detail-transfer-ownership-button"
+                >
+                  Transfer available
+                </button>
+              ) : (
+                'Workspace owner'
+              )
+            }
+          />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <section className="app-panel overflow-hidden">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Workspace Members</h2>
-              </div>
-              <p className="text-xs text-muted-foreground">People with active access</p>
-            </div>
+        {/* Members takes the wide column because it is the list you came to act
+            on; invitations and the danger zone are a narrow rail beside it, which
+            also puts "delete" as far from the member rows as the layout allows. */}
+        <div className="grid items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <section className="app-card overflow-hidden">
+            <header className="flex items-center justify-between gap-3 border-b border-separator px-[18px] py-3">
+              <h2 className="app-card-title">Members</h2>
+              <p className="text-[12.5px] text-muted-foreground">People with active access</p>
+            </header>
 
-            <ul className="divide-y divide-separator">
+            <ul>
               {activeMembers.length === 0 ? (
-                <li className="px-5 py-4 text-sm text-muted-foreground">No active members yet.</li>
+                <li className="px-[18px] py-8 text-center text-[12.5px] text-muted-foreground">
+                  No active members yet.
+                </li>
               ) : (
                 activeMembers.map((member) => {
                   const memberUser = member.user;
@@ -388,31 +392,40 @@ export default function WorkspaceDetailPage() {
                   return (
                     <li
                       key={member._id}
-                      className="flex flex-wrap items-center gap-3 px-5 py-4 sm:flex-nowrap"
+                      className="flex flex-wrap items-center gap-3 border-b border-separator px-[18px] py-2.5 transition-colors last:border-b-0 hover:bg-accent/60 sm:flex-nowrap"
                     >
-                      <Avatar users={[memberUser]} />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <span
+                        className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold ${getAvatarColor(
+                          memberUser?.fullname || memberUser?.email || ''
+                        )}`}
+                        aria-hidden="true"
+                      >
+                        {getInitials(memberUser?.fullname || memberUser?.email || '')}
+                      </span>
+                      <div className="min-w-0 flex-1 leading-[1.35]">
+                        <div className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
                           <span className="truncate">{memberUser?.fullname || 'Unnamed user'}</span>
-                          {isOwner && <Crown className="h-3.5 w-3.5 text-yellow-500" />}
+                          {isOwner && (
+                            <Crown
+                              className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--tone-warning))]"
+                              aria-label="Workspace owner"
+                            />
+                          )}
                         </div>
-                        <div className="truncate text-xs text-muted-foreground">
+                        <div className="truncate text-[11.5px] text-muted-foreground/75">
                           {memberUser?.email}
                         </div>
                       </div>
-                      <div className="hidden shrink-0 md:block">
-                        <RoleBadge role={capitalizeFirst(member.role)} />
-                      </div>
+                      <RoleBadge role={capitalizeFirst(member.role)} />
                       {!isOwner && !isCurrentUser && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveMember(member)}
                           disabled={removeMember.isPending}
-                          className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
+                          className="h-7 shrink-0 rounded-[var(--r-control)] px-2 text-[12px] text-[hsl(var(--tone-danger-fg))] hover:bg-destructive/10 hover:text-[hsl(var(--tone-danger-fg))]"
                           data-test={`workspace-detail-member-${memberId}-remove-button`}
                         >
-                          <UserMinus className="h-4 w-4" />
                           Remove
                         </Button>
                       )}
@@ -423,79 +436,86 @@ export default function WorkspaceDetailPage() {
             </ul>
           </section>
 
-          <section className="app-panel overflow-hidden">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-sm font-semibold">Pending Invitations</h2>
-              </div>
-              <p className="text-xs text-muted-foreground">Users who still need to accept</p>
-            </div>
+          <div className="flex flex-col gap-3.5">
+            <section className="app-card overflow-hidden">
+              <header className="border-b border-separator px-[18px] py-3">
+                <h2 className="app-card-title">Pending invitations</h2>
+                <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                  Users who still need to accept.
+                </p>
+              </header>
 
-            <ul className="divide-y divide-separator">
               {pendingInvitations.length === 0 ? (
-                <li className="px-5 py-4 text-sm text-muted-foreground">No pending invites.</li>
+                <p className="m-[18px] rounded-[var(--r-control)] border border-dashed border-border px-3 py-6 text-center text-[11.5px] text-muted-foreground/75">
+                  No pending invites.
+                </p>
               ) : (
-                pendingInvitations.map((invitation) => (
-                  <li key={invitation._id} className="flex items-center gap-3 px-5 py-4">
-                    <Avatar users={[invitation.user]} />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-foreground">
-                        {invitation.user?.fullname || 'Pending user'}
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {invitation.user?.email}
-                      </div>
-                    </div>
-                    <div className="hidden shrink-0 md:block">
-                      <RoleBadge role={capitalizeFirst(invitation.workspaceRole)} />
-                    </div>
-                    <div className="hidden shrink-0 md:block">
-                      <UserStatusBadge status="invited" />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCancelInvitation(invitation)}
-                      disabled={cancelInvitation.isPending}
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                      data-test={`workspace-detail-invitation-${invitation._id}-cancel-button`}
+                <ul>
+                  {pendingInvitations.map((invitation) => (
+                    <li
+                      key={invitation._id}
+                      className="flex items-center gap-2.5 border-b border-separator px-[18px] py-2.5 last:border-b-0"
                     >
-                      <UserMinus className="h-4 w-4" />
-                      Cancel
-                    </Button>
-                  </li>
-                ))
+                      <span
+                        className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold ${getAvatarColor(
+                          invitation.user?.fullname || invitation.user?.email || ''
+                        )}`}
+                        aria-hidden="true"
+                      >
+                        {getInitials(invitation.user?.fullname || invitation.user?.email || '')}
+                      </span>
+                      <div className="min-w-0 flex-1 leading-[1.35]">
+                        <div className="truncate text-[13px] font-medium text-foreground">
+                          {invitation.user?.fullname || 'Pending user'}
+                        </div>
+                        <div className="truncate text-[11.5px] text-muted-foreground/75">
+                          {capitalizeFirst(invitation.workspaceRole)}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCancelInvitation(invitation)}
+                        disabled={cancelInvitation.isPending}
+                        className="h-7 shrink-0 rounded-[var(--r-control)] px-2 text-[12px] text-[hsl(var(--tone-danger-fg))] hover:bg-destructive/10 hover:text-[hsl(var(--tone-danger-fg))]"
+                        data-test={`workspace-detail-invitation-${invitation._id}-cancel-button`}
+                      >
+                        Cancel
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
-            </ul>
-          </section>
-        </div>
+            </section>
 
-        {canDeleteWorkspace(user, workspace) && (
-          <section className="app-panel p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold text-red-600">Danger zone</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+            {canDeleteWorkspace(user, workspace) && (
+              // Tinted and outlined in destructive, not a plain card: it is the one
+              // irreversible control on the page and it should not look like the
+              // panels around it.
+              <section className="rounded-[var(--r-card)] border border-destructive/30 bg-destructive/[0.04] p-[18px] pt-[15px]">
+                <h2 className="text-[13.5px] font-semibold leading-tight text-[hsl(var(--tone-danger-fg))]">
+                  Danger zone
+                </h2>
+                <p className="mt-1 text-[12.5px] leading-[1.5] text-muted-foreground">
                   Deleting removes access for all members. Workspaces with tickets are archived
                   instead of permanently removed.
                 </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDeleteError('');
-                  setIsDeleteOpen(true);
-                }}
-                className="gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                data-test="workspace-detail-delete-button"
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Workspace
-              </Button>
-            </div>
-          </section>
-        )}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDeleteError('');
+                    setIsDeleteOpen(true);
+                  }}
+                  className="mt-3 gap-1.5 border-destructive/40 px-3 text-[12.5px] text-[hsl(var(--tone-danger-fg))] hover:bg-destructive/10 hover:text-[hsl(var(--tone-danger-fg))]"
+                  data-test="workspace-detail-delete-button"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete workspace
+                </Button>
+              </section>
+            )}
+          </div>
+        </div>
       </div>
 
       <DeleteConfirmModal
@@ -530,7 +550,7 @@ export default function WorkspaceDetailPage() {
 
           <form onSubmit={handleInviteSubmit} className="space-y-4">
             {inviteError && (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              <p className="rounded-[var(--r-control)] border border-[hsl(var(--tone-danger)/0.3)] bg-[hsl(var(--tone-danger)/0.15)] px-3 py-2 text-sm text-[hsl(var(--tone-danger-fg))]">
                 {inviteError}
               </p>
             )}
@@ -569,7 +589,7 @@ export default function WorkspaceDetailPage() {
                 {inviteForm.map(({ user: invitee, role }) => (
                   <li
                     key={invitee._id}
-                    className="flex items-center gap-3 rounded-lg border border-border bg-muted px-3 py-2"
+                    className="flex items-center gap-3 rounded-[var(--r-control)] border border-border bg-muted px-3 py-2"
                     data-test={`workspace-detail-invite-selected-${invitee._id}`}
                   >
                     <div className="min-w-0 flex-1">
@@ -583,7 +603,7 @@ export default function WorkspaceDetailPage() {
                       onValueChange={(value) => handleInviteRoleChange(invitee._id, value)}
                     >
                       <SelectTrigger
-                        className="h-8 w-28"
+                        className="w-28"
                         data-test={`workspace-detail-invite-selected-${invitee._id}-role`}
                       >
                         <SelectValue />
@@ -596,7 +616,7 @@ export default function WorkspaceDetailPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveInvite(invitee._id)}
-                      className="text-muted-foreground transition-colors hover:text-destructive"
+                      className="text-muted-foreground transition-colors hover:text-[hsl(var(--tone-danger-fg))]"
                       aria-label={`Remove ${invitee.fullname}`}
                       data-test={`workspace-detail-invite-selected-${invitee._id}-remove`}
                     >
@@ -700,7 +720,7 @@ export default function WorkspaceDetailPage() {
             className="space-y-4"
           >
             {transferError && (
-              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              <p className="rounded-[var(--r-control)] border border-[hsl(var(--tone-danger)/0.3)] bg-[hsl(var(--tone-danger)/0.15)] px-3 py-2 text-sm text-[hsl(var(--tone-danger-fg))]">
                 {transferError}
               </p>
             )}
@@ -755,7 +775,7 @@ export default function WorkspaceDetailPage() {
               </Select>
             </div>
 
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <div className="rounded-[var(--r-control)] border border-[hsl(var(--tone-warning)/0.3)] bg-[hsl(var(--tone-warning)/0.15)] px-3 py-2 text-sm text-[hsl(var(--tone-warning-fg))]">
               <p className="font-medium">Warning</p>
               <p className="mt-1">
                 Transferring ownership will give full control of this workspace to the selected

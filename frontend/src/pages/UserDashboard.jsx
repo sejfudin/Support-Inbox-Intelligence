@@ -1,13 +1,16 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { DataTable } from '@/components/Tickets/TicketsTable';
-import { createTicketColumns } from '@/components/columns/ticketColumns';
+import { LegacyDataTable } from '@/components/dashboard/legacy/LegacyTicketsTable';
+import { createLegacyTicketColumns } from '@/components/dashboard/legacy/legacyTicketColumns';
 import { useMyTickets } from '@/queries/tickets';
 import { normalizeTicket } from '@/helpers/normalizeTicket';
-import TicketsState from '@/components/Tickets/TicketsState';
+import LegacyTicketsState from '@/components/dashboard/legacy/LegacyTicketsState';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
-import TicketsHeader from '@/components/Tickets/TicketsHeader';
+// The dashboard keeps the pre-overhaul header and table verbatim — see
+// components/dashboard/legacy/. Nothing here follows the overhauled Tickets list.
+import LegacyTicketsHeader from '@/components/dashboard/legacy/LegacyTicketsHeader';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import { useTicketModals } from '@/hooks/useTicketModals';
+import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
 import { useDebounce } from 'use-debounce';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useUpdateTicket } from '@/queries/tickets';
@@ -38,6 +41,7 @@ export default function UserDashboard() {
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
+  useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
 
   const isBoard = viewMode === 'board';
 
@@ -74,7 +78,7 @@ export default function UserDashboard() {
 
   const columns = useMemo(
     () =>
-      createTicketColumns({
+      createLegacyTicketColumns({
         statusBadgeConfig: helpers.statusBadgeConfig,
         statusIsDone: helpers.statusIsDone,
         statusTracksTime: helpers.statusTracksTime,
@@ -107,7 +111,7 @@ export default function UserDashboard() {
   return (
     <PageShell>
       <div className="shrink-0">
-        <TicketsHeader
+        <LegacyTicketsHeader
           title="Dashboard"
           subtitle="Track your assigned tickets"
           hideNewTicket={true}
@@ -143,21 +147,21 @@ export default function UserDashboard() {
       ) : (
         <PageSection className="flex-1 pt-4">
           <div className="app-panel overflow-hidden">
-            <TicketsState
+            <LegacyTicketsState
               isLoading={isLoading}
               isError={isError}
               isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
               emptyMessage="No tickets assigned to you found."
               loadingSlot={<TableSkeleton />}
             >
-              <DataTable
+              <LegacyDataTable
                 columns={columns}
                 data={normalizedTickets}
                 pagination={pagination}
                 onPageChange={(newPage) => setPage(newPage)}
                 meta={{ onRowClick: openTicketDetails }}
               />
-            </TicketsState>
+            </LegacyTicketsState>
           </div>
         </PageSection>
       )}

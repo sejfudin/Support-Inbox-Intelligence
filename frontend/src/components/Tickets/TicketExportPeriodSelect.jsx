@@ -11,7 +11,7 @@ export default function TicketExportPeriodSelect({ value, onValueChange }) {
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
-        className="w-full rounded-xl md:w-[160px]"
+        className="w-full rounded-[var(--r-card)] md:w-[160px]"
         data-test="ticket-export-period-select"
         aria-label="Export time period"
       >

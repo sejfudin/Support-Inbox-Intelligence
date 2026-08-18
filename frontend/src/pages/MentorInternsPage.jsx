@@ -44,12 +44,12 @@ export default function MentorInternsPage() {
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="Future Experts Program"
+          crumb="Mentoring"
           title="My interns"
           subtitle="Interns assigned to you as primary or secondary mentor."
         />
 
-        <div className="app-panel space-y-4 p-5 md:p-6">
+        <div className="app-card space-y-4 p-5 md:p-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Input
               placeholder="Search by name or email..."
@@ -120,9 +120,12 @@ export default function MentorInternsPage() {
           </div>
         </div>
 
-        <div className="app-panel overflow-hidden">
+        <div className="app-card overflow-hidden">
           {isError && (
-            <p className="p-6 text-sm text-destructive" data-test="mentor-interns-error">
+            <p
+              className="p-6 text-sm text-[hsl(var(--tone-danger-fg))]"
+              data-test="mentor-interns-error"
+            >
               Failed to load interns.
             </p>
           )}

@@ -33,14 +33,14 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
   const StateIcon = stateConfig.icon;
 
   return (
-    <div className="group relative rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-border">
+    <div className="group relative rounded-[var(--r-card)] border border-border bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-border">
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <a
             href={pr.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-blue-600 transition-colors overflow-hidden"
+            className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-[hsl(var(--tone-info-fg))] transition-colors overflow-hidden"
             data-test={`pr-card-${pr.prNumber}-title-link`}
           >
             <span className="text-muted-foreground">#{pr.prNumber}</span>
@@ -109,7 +109,7 @@ export function PRCard({ pr, onRefresh, isRefreshing, onUnlink, isUnlinking }) {
                 size="sm"
                 onClick={onUnlink}
                 disabled={isUnlinking || isRefreshing}
-                className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                className="h-7 w-7 p-0 text-[hsl(var(--tone-danger))] hover:text-[hsl(var(--tone-danger-fg))] hover:bg-[hsl(var(--tone-danger)/0.15)]"
                 title="Unlink PR"
                 data-test={`pr-card-${pr.prNumber}-unlink-button`}
               >

@@ -141,7 +141,7 @@ export function WorkloadDonut({ buckets = [] }) {
               onBlur={() => setActive(null)}
               aria-label={`${bucket.count} ${bucket.label} — open in my tickets`}
               className={cn(
-                'flex items-center gap-2 rounded-md px-1.5 py-0.5 text-[13px] transition-colors',
+                'flex items-center gap-2 rounded-[var(--r-control)] px-1.5 py-0.5 text-[13px] transition-colors',
                 'hover:bg-muted/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
                 active === bucket.slug && 'bg-muted/60',
                 bucket.count === 0 && 'opacity-45'

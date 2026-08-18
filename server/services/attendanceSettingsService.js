@@ -80,6 +80,7 @@ const getSettings = async () => {
     types: REQUEST_TYPES.map((type) => ({
       type,
       label: TYPE_RULES[type].label,
+      description: TYPE_RULES[type].description,
       // Whether the yearly field is offered at all. The client must not infer
       // this from `yearlyBudget === null` and offer to fill it in — it is null
       // because the type is unbudgeted by design, not because nobody has set it.

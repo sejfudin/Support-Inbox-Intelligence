@@ -489,7 +489,9 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
           {isPending ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Loading interns…</p>
           ) : isError ? (
-            <p className="py-8 text-center text-sm text-destructive">Could not load interns.</p>
+            <p className="py-8 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
+              Could not load interns.
+            </p>
           ) : (
             <>
               <div className="flex items-baseline justify-between gap-3 pb-2">

@@ -26,19 +26,16 @@ import {
   useUpdateInternshipType,
 } from '@/queries/internshipTypes';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
+import {
+  ReferenceDataPanel,
+  ReferenceDataSlugBadge,
+  ReferenceDataTableMessage,
+  referenceDataActionClass,
+  referenceDataRowActionClass,
+} from '@/components/reference-data/ReferenceDataPanel';
 import { toast } from 'sonner';
 
 const emptyForm = { name: '', description: '', isActive: true };
-const tableHeadClass =
-  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
-
-function SlugBadge({ children }) {
-  return (
-    <span className="inline-flex rounded-md bg-secondary px-2 py-1 font-mono text-xs font-medium text-muted-foreground">
-      {children}
-    </span>
-  );
-}
 
 export function ReferenceDataInternshipTypesPanel() {
   const { data: types = [], isPending } = useInternshipTypes({ includeInactive: true });
@@ -84,66 +81,66 @@ export function ReferenceDataInternshipTypesPanel() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Program tracks such as FEP, Shadow, Industrial, and 1-on-1.
-        </p>
-        <Button
-          type="button"
-          onClick={openCreate}
-          className="gap-2"
-          data-test="platform-management-internship-types-add-button"
-        >
-          <Plus className="h-4 w-4" />
-          Add Type
-        </Button>
-      </div>
-
-      <div className="rounded-2xl border border-border/70 overflow-hidden">
-        <Table>
+    <>
+      <ReferenceDataPanel
+        description="Program tracks such as FEP, Shadow, Industrial, and 1-on-1."
+        action={
+          <Button
+            type="button"
+            onClick={openCreate}
+            className={referenceDataActionClass}
+            data-test="platform-management-internship-types-add-button"
+          >
+            <Plus className="h-4 w-4" />
+            Add type
+          </Button>
+        }
+      >
+        <Table className="min-w-[840px]">
           <TableHeader>
-            <TableRow className="bg-secondary/60">
-              <TableHead className={tableHeadClass}>Name</TableHead>
-              <TableHead className={tableHeadClass}>Slug</TableHead>
-              <TableHead className={tableHeadClass}>Description</TableHead>
-              <TableHead className={tableHeadClass}>Status</TableHead>
-              <TableHead className={`${tableHeadClass} w-[80px]`}>Actions</TableHead>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[200px]">Name</TableHead>
+              <TableHead className="w-[180px]">Slug</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="w-[120px]">Status</TableHead>
+              <TableHead className="w-[80px] text-right">
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isPending ? (
-              <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  Loading internship types...
-                </TableCell>
-              </TableRow>
+              <ReferenceDataTableMessage colSpan={5}>
+                Loading internship types…
+              </ReferenceDataTableMessage>
             ) : types.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  No internship types yet.
-                </TableCell>
-              </TableRow>
+              <ReferenceDataTableMessage colSpan={5}>
+                No internship types yet.
+              </ReferenceDataTableMessage>
             ) : (
               types.map((type) => (
                 <TableRow key={type._id}>
-                  <TableCell className="font-medium">{type.name}</TableCell>
+                  <TableCell className="font-medium text-foreground">{type.name}</TableCell>
                   <TableCell>
-                    <SlugBadge>{type.slug}</SlugBadge>
+                    <ReferenceDataSlugBadge>{type.slug}</ReferenceDataSlugBadge>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate">{type.description || '—'}</TableCell>
+                  <TableCell className="max-w-0 truncate text-muted-foreground">
+                    {type.description || '—'}
+                  </TableCell>
                   <TableCell>
                     <UserStatusBadge status={type.isActive ? 'active' : 'inactive'} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-right">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => openEdit(type)}
+                      className={referenceDataRowActionClass}
+                      aria-label={`Edit ${type.name}`}
                       data-test={`platform-management-internship-types-edit-button-${type._id}`}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -151,12 +148,12 @@ export function ReferenceDataInternshipTypesPanel() {
             )}
           </TableBody>
         </Table>
-      </div>
+      </ReferenceDataPanel>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent data-test="platform-management-internship-types-dialog">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Edit Internship Type' : 'Add Internship Type'}</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit internship type' : 'Add internship type'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
@@ -179,7 +176,7 @@ export function ReferenceDataInternshipTypesPanel() {
               />
             </div>
             {editingId && (
-              <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
+              <div className="flex items-center gap-3 rounded-[var(--r-card)] border border-border px-4 py-3">
                 <Checkbox
                   id="internship-type-active"
                   checked={form.isActive}
@@ -191,12 +188,12 @@ export function ReferenceDataInternshipTypesPanel() {
             )}
             <DialogFooter>
               <Button type="submit" data-test="platform-management-internship-types-save-button">
-                {editingId ? 'Save Changes' : 'Create Type'}
+                {editingId ? 'Save changes' : 'Create type'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

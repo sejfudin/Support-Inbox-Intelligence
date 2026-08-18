@@ -39,7 +39,7 @@ import {
 } from './recommendationUi';
 
 const SELECT_TRIGGER_CLASS =
-  'h-auto w-full rounded-xl border-input bg-card px-[14px] py-[11px] text-[14px] text-foreground shadow-none focus:ring-0 focus:ring-offset-0 data-[placeholder]:text-muted-foreground/80';
+  'h-auto w-full rounded-[var(--r-card)] border-input bg-card px-[14px] py-[11px] text-[14px] text-foreground shadow-none focus:ring-0 focus:ring-offset-0 data-[placeholder]:text-muted-foreground/80';
 
 /**
  * Read-only view modal: status strip + pill, timeline with CURRENT tag,
@@ -125,7 +125,7 @@ export function RecommendationViewModal({
       )}
 
       {recommendation.result?.outcome && (
-        <div className="rounded-[14px] border border-border bg-muted/30 px-5 py-4">
+        <div className="rounded-[var(--r-card)] border border-border bg-muted/30 px-5 py-4">
           <SectionLabel className="mb-2">Placement outcome</SectionLabel>
           <p className="text-[14px] text-muted-foreground">
             <span className="text-[15px] font-bold text-foreground">
@@ -454,7 +454,7 @@ export function RecommendationFormModal({
       </div>
 
       {showOutcomeSection && (
-        <div className="rounded-[14px] border border-border bg-muted/30 px-5 py-[18px]">
+        <div className="rounded-[var(--r-card)] border border-border bg-muted/30 px-5 py-[18px]">
           <SectionLabel className="mb-3.5">Placement outcome</SectionLabel>
           {form.status === 'resulted' ? (
             <>
@@ -594,13 +594,13 @@ export function RecommendationDeleteDialog({
       <DialogContent
         hideCloseButton
         className={cn(
-          'block max-w-[430px] gap-0 rounded-[20px] border-0 bg-card p-7 shadow-elevated sm:rounded-[20px] sm:p-7',
+          'block max-w-[430px] gap-0 rounded-[var(--r-card)] border-0 bg-card p-7 shadow-elevated sm:rounded-[var(--r-card)] sm:p-7',
           REC_FONT
         )}
         data-test="recommendation-delete-dialog"
       >
         <div className="grid h-11 w-11 place-items-center rounded-full bg-destructive/10">
-          <Trash2 className="h-5 w-5 text-destructive" />
+          <Trash2 className="h-5 w-5 text-[hsl(var(--tone-danger-fg))]" />
         </div>
         <DialogTitle className="mt-4 text-[18px] font-bold text-foreground">
           Delete recommendation?
@@ -615,7 +615,7 @@ export function RecommendationDeleteDialog({
         </DialogDescription>
         {recommendation.result?.outcome === 'placed' && (
           <p
-            className="mt-3 rounded-[10px] bg-amber-50 dark:bg-amber-500/15 px-3 py-2.5 text-[12.5px] font-medium leading-relaxed text-amber-700 dark:text-amber-300"
+            className="mt-3 rounded-[var(--r-tile)] bg-[hsl(var(--tone-warning)/0.15)] px-3 py-2.5 text-[12.5px] font-medium leading-relaxed text-[hsl(var(--tone-warning-fg))]"
             data-test="recommendation-delete-placed-warning"
           >
             This recommendation marked the intern as Placed — deleting it will set them back to
@@ -670,13 +670,13 @@ export function RecommendationDuplicateWarnDialog({
       <DialogContent
         hideCloseButton
         className={cn(
-          'block max-w-[460px] gap-0 rounded-[20px] border-0 bg-card p-7 shadow-elevated sm:rounded-[20px] sm:p-7',
+          'block max-w-[460px] gap-0 rounded-[var(--r-card)] border-0 bg-card p-7 shadow-elevated sm:rounded-[var(--r-card)] sm:p-7',
           REC_FONT
         )}
         data-test="recommendation-duplicate-warn-dialog"
       >
-        <div className="grid h-11 w-11 place-items-center rounded-full bg-amber-50 dark:bg-amber-500/15">
-          <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+        <div className="grid h-11 w-11 place-items-center rounded-full bg-[hsl(var(--tone-warning)/0.15)]">
+          <AlertTriangle className="h-5 w-5 text-[hsl(var(--tone-warning-fg))]" />
         </div>
         <DialogTitle className="mt-4 text-[18px] font-bold text-foreground">
           Already recommended elsewhere

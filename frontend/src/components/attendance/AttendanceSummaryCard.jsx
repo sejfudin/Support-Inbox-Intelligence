@@ -35,7 +35,10 @@ export default function AttendanceSummaryCard({
   onProject = false,
 }) {
   return (
-    <div className="app-panel divide-y divide-border/60 px-4 py-1 md:px-5" data-test="attendance-summary-card">
+    <div
+      className="app-card divide-y divide-border/60 px-4 py-1 md:px-5"
+      data-test="attendance-summary-card"
+    >
       <SummaryRow
         label="Attendance"
         hint={onProject ? 'not required' : `${monthLabel} so far`}

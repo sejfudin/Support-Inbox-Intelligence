@@ -91,7 +91,7 @@ export function RequestClosure({ request }) {
         <closure.Icon
           className={cn(
             'h-4 w-4 shrink-0',
-            closure.tone === 'danger' && 'text-destructive',
+            closure.tone === 'danger' && 'text-[hsl(var(--tone-danger-fg))]',
             closure.tone === 'success' && 'text-emerald-600 dark:text-emerald-400'
           )}
           aria-hidden="true"
@@ -99,7 +99,7 @@ export function RequestClosure({ request }) {
         <p
           className={cn(
             'text-[0.6875rem] font-semibold uppercase tracking-wide',
-            closure.tone === 'danger' && 'text-destructive',
+            closure.tone === 'danger' && 'text-[hsl(var(--tone-danger-fg))]',
             closure.tone === 'success' && 'text-emerald-600 dark:text-emerald-400'
           )}
         >

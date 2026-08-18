@@ -1,69 +1,62 @@
+import { cn } from '@/lib/utils';
+import { CHIP } from '@/helpers/badgeTones';
+
+/**
+ * Category chips. The selected one fills with a tint of its own colour and drops
+ * its border; the rest are outlined in the hairline. A workspace picks these
+ * colours itself, so they arrive as data and go through `style` — the geometry
+ * is the shared chip's, which is what stops them drifting from every other badge
+ * in the rail.
+ */
+const CHIP_BASE = cn(CHIP, 'cursor-pointer transition-colors');
+
+const IDLE = 'border border-separator text-muted-foreground hover:text-foreground';
+
 export function TicketCategoryField({ isArchived, categories, currentCategory, onCategoryChange }) {
   if (isArchived) {
     const selected = categories.find((c) => String(c._id) === String(currentCategory));
-    if (!selected) {
-      return (
-        <div className="mt-2">
-          <span className="text-sm text-muted-foreground">None</span>
-        </div>
-      );
-    }
+    if (!selected) return <span className="text-[12.5px] text-muted-foreground/75">None</span>;
+
     return (
-      <div className="mt-2">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold text-background"
-          style={{ backgroundColor: selected.color, borderColor: selected.color }}
-        >
-          <span
-            className="h-2 w-2 rounded-full shrink-0"
-            style={{ backgroundColor: 'rgba(255,255,255,0.7)' }}
-          />
-          {selected.name}
-        </span>
-      </div>
+      <span
+        className={cn(CHIP_BASE, 'border border-transparent')}
+        style={{ color: selected.color, backgroundColor: `${selected.color}1f` }}
+      >
+        {selected.name}
+      </span>
     );
   }
 
   return (
-    <div className="flex flex-wrap gap-2 mt-2">
+    <div className="flex flex-wrap gap-1.5">
       <button
         type="button"
         onClick={() => onCategoryChange(null)}
         data-test="ticket-modal-category-option-none"
-        className={`inline-flex cursor-pointer items-center rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+        className={cn(
+          CHIP_BASE,
           currentCategory === null
-            ? 'bg-foreground text-background border-foreground'
-            : 'bg-muted text-muted-foreground border-border hover:bg-muted'
-        }`}
+            ? 'border border-transparent bg-foreground text-background'
+            : IDLE
+        )}
       >
         None
       </button>
-      {categories.map((cat) => (
-        <button
-          key={cat._id}
-          type="button"
-          onClick={() => onCategoryChange(cat._id)}
-          data-test={`ticket-modal-category-option-${cat._id}`}
-          className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
-            currentCategory === cat._id
-              ? 'text-background border-transparent'
-              : 'bg-muted text-foreground border-border hover:bg-muted'
-          }`}
-          style={
-            currentCategory === cat._id
-              ? { backgroundColor: cat.color, borderColor: cat.color }
-              : {}
-          }
-        >
-          <span
-            className="h-2 w-2 rounded-full shrink-0"
-            style={{
-              backgroundColor: currentCategory === cat._id ? 'rgba(255,255,255,0.7)' : cat.color,
-            }}
-          />
-          {cat.name}
-        </button>
-      ))}
+      {categories.map((cat) => {
+        const active = currentCategory === cat._id;
+        return (
+          <button
+            key={cat._id}
+            type="button"
+            onClick={() => onCategoryChange(cat._id)}
+            data-test={`ticket-modal-category-option-${cat._id}`}
+            className={cn(CHIP_BASE, active ? 'border border-transparent' : IDLE)}
+            style={active ? { color: cat.color, backgroundColor: `${cat.color}1f` } : undefined}
+          >
+            {cat.name}
+          </button>
+        );
+      })}
     </div>
   );
 }

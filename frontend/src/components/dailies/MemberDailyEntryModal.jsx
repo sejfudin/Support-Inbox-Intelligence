@@ -28,7 +28,9 @@ export default function MemberDailyEntryModal({ workspaceId, selection, onClose 
     content = <p className="py-10 text-center text-sm text-muted-foreground">Loading standup…</p>;
   } else if (isError) {
     content = (
-      <p className="py-10 text-center text-sm text-destructive">Failed to load this standup.</p>
+      <p className="py-10 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
+        Failed to load this standup.
+      </p>
     );
   } else if (!entry?.reported) {
     content = (
@@ -48,27 +50,27 @@ export default function MemberDailyEntryModal({ workspaceId, selection, onClose 
       <div className="space-y-4">
         <ItemColumn
           title="Done"
-          dotColor="bg-emerald-500"
+          dotColor="bg-[hsl(var(--tone-success))]"
           items={entry.done ?? []}
           emptyLabel="Nothing yet"
-          marker={
-            <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          }
+          marker={<Check className="mt-1 h-4 w-4 shrink-0 text-[hsl(var(--tone-success-fg))]" />}
         />
         <ItemColumn
           title="To do"
-          dotColor="bg-blue-500"
+          dotColor="bg-[hsl(var(--tone-info))]"
           items={entry.todo ?? []}
           emptyLabel="Nothing planned"
-          marker={<Circle className="mt-1 h-4 w-4 shrink-0 text-blue-500" />}
+          marker={<Circle className="mt-1 h-4 w-4 shrink-0 text-[hsl(var(--tone-info))]" />}
         />
         <ItemColumn
           title="Blockers"
-          dotColor="bg-red-500"
+          dotColor="bg-[hsl(var(--tone-danger))]"
           items={entry.blockers ?? []}
           emptyLabel="No blockers"
           emptyIsPositive
-          marker={<span className="mt-2 h-2 w-2 shrink-0 rounded-[2px] bg-red-500" />}
+          marker={
+            <span className="mt-2 h-2 w-2 shrink-0 rounded-[2px] bg-[hsl(var(--tone-danger))]" />
+          }
           renderItem={(blocker) => <BlockerItem blocker={blocker} />}
           tinted={blockerCount > 0}
         />

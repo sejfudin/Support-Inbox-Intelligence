@@ -103,3 +103,13 @@ export const upsertInternReadiness = async (userId, payload) => {
   const { data } = await apiClient.put(`/interns/${userId}/readiness`, payload);
   return data.flag;
 };
+
+export const fetchInternCvSummary = async (userId) => {
+  const { data } = await apiClient.get(`/interns/${userId}/cv-summary`);
+  return data.data;
+};
+
+export const generateInternCvSummary = async (userId) => {
+  const { data } = await apiClient.post(`/interns/${userId}/cv-summary`);
+  return data.data;
+};

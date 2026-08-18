@@ -1,23 +1,37 @@
+import { Inbox } from 'lucide-react';
+
+import EmptyState from '@/components/EmptyState';
+
+/**
+ * Loading / error / empty for every ticket list. The empty branch is the mockup's
+ * Backlog treatment via `EmptyState` — pass `emptyTitle` + `emptyDescription` (and
+ * optionally one `emptyAction`); `emptyMessage` stays as the one-line fallback for
+ * callers that have not been given real copy yet.
+ */
 export default function TicketsState({
   isLoading,
   isError,
   isEmpty,
   emptyMessage = 'No results.',
+  emptyTitle,
+  emptyDescription,
+  emptyIcon = Inbox,
+  emptyAction = null,
   loadingSlot = null,
   children,
 }) {
   if (isLoading) {
     if (loadingSlot) return loadingSlot;
     return (
-      <div className="flex items-center justify-center h-64 font-medium text-muted-foreground">
-        Loading tickets...
+      <div className="flex h-64 items-center justify-center text-[12.5px] font-medium text-muted-foreground">
+        Loading tickets…
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center h-64 text-red-500">
+      <div className="flex h-64 items-center justify-center text-[12.5px] text-[hsl(var(--tone-danger-fg))]">
         Something went wrong.
       </div>
     );
@@ -25,12 +39,12 @@ export default function TicketsState({
 
   if (isEmpty) {
     return (
-      <div className="app-panel flex h-64 items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="h-10 w-10 rounded-xl border border-border bg-muted" />
-          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-        </div>
-      </div>
+      <EmptyState
+        icon={emptyIcon}
+        title={emptyTitle || emptyMessage}
+        description={emptyDescription}
+        action={emptyAction}
+      />
     );
   }
 

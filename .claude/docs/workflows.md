@@ -49,8 +49,9 @@ npm run format:check # check
 The three dataset seeders (`seed:demo`, `seed`, `seed:test`) destroy or overwrite data. Never
 run one against a non-local database without knowing exactly which one you are pointed at.
 The reference-data scripts (`seed:positions`, `seed:technologies`) only upsert missing catalog
-rows with `$setOnInsert` and are safe to run anywhere. `seed:recommendations` is additive and
-idempotent — it is the one dataset script that is safe to point at a shared dev database.
+rows with `$setOnInsert` and are safe to run anywhere. `seed:recommendations` and
+`seed:fep-cohort` are additive and idempotent — they are the dataset scripts that are safe to
+point at a shared dev database.
 
 `seed:staffing-requests` is a fourth destructive one, but **narrowly** so: it deletes every
 `StaffingRequest` and only those `Recommendation`s carrying a `staffingRequest` reference.
@@ -66,6 +67,12 @@ npm run seed:test   # richer dataset (Symphony staff + interns, password: "passw
 npm run seed:recommendations            # ADDITIVE: top up the placement pipeline, see below
 npm run seed:staffing-requests          # NARROWLY DESTRUCTIVE: staffing requests + their recommendations only
 npm run seed:staffing-requests -- --dry-run  # inspect the target, change nothing
+npm run seed:fep-cohort                 # ADDITIVE: 21-person FEP cohort across Heap / 5-Stack /
+                                        # METAH + positions, workload, attendance, placements.
+                                        # Idempotent; --dry-run / --skip-activity / --adopt-existing
+npm run import:attendance               # attendance from the mentor's CSVs, see below
+npm run cleanup:fep-attendance          # DELETES the seeded cohort's attendance, see below
+npm run cleanup:fep-placements          # undoes the placements seed:fep-cohort invented
 npm run seed:positions
 npm run seed:technologies               # NON-destructive: adds missing technologies, see below
 npm run seed:observances                # NON-destructive: 20 years of religious observances,
@@ -144,6 +151,51 @@ Demo accounts (after seeding): full table in `README.md` ("Demo accounts").
 - `admin@`, `mentor@`, `intern@`, `leadership@symphony.is` / `password` (from `seed:demo`).
 - `admin@test.com` / `admin123`, `mentor@test.com` / `mentor123` (from `seed`).
 - `*@symphony.is` accounts / `password` (from `seed:test`).
+
+### `npm run import:attendance` — real attendance from the mentor's spreadsheets
+
+Imports the Google Sheets attendance log (`Evidencija dolazaka …`) into `Attendance`. One CSV per
+month tab, UTF-8; **do not open the export in Excel first** — that re-encodes it and destroys the
+Bosnian diacritics.
+
+```bash
+node seeder/importAttendanceCsv.js ~/Downloads/Evidencija*.csv                  # dry run (default)
+node seeder/importAttendanceCsv.js ~/Downloads/Evidencija*.csv --apply --yes=<dbname>
+```
+
+Call `node` directly when the filenames contain spaces — `npm run … --` word-splits them.
+
+Built to be safe against production: **dry run is the default**, writing needs `--apply` plus the
+`--yes=<dbname>` target assertion, and it is **insert-only** (upsert on the unique `{ intern, date }`
+index, so a re-run inserts nothing and can never double-count or overwrite a genuine check-in).
+
+Things worth knowing:
+
+- **`TRUE` creates a row; `FALSE`/blank create nothing** — which is exactly how the model encodes
+  absence, so nothing is lost. The sheet's excused-vs-absent nuance is *not* preserved: there is no
+  field for it.
+- **Interns are matched by diacritic-folded full name against accounts in the database**, never a
+  hardcoded roster. An ambiguous fold or an unmatched name aborts the whole import
+  (`--allow-unmatched` to accept the gap) — a silently skipped person reads as total absence.
+- Header cells are `d/m` with no year; the **year comes from the filename** (`… June 2026.csv`).
+  `A1` and any trailing `%` column are ignored, because the sheet is hand-edited and `A1` has held
+  `Datum`, a stray intern name, and nothing at all across months.
+- **It also repairs `InternProfile.startDate`, by default.** `computeMonthStats` clamps a month to
+  `max(monthStart, profile.startDate)`, so a `startDate` later than the imported history makes that
+  history read `0 / 0` and 0% even though the rows are there. The rule is
+  `min(existing, firstAttendedDay)` — only ever earlier, so a correct date can never be lost, which
+  is what makes it safe on by default. It matters because production's database was reset by
+  accident and every intern carries a recent date instead of the real March programme start.
+  `--keep-start-dates` opts out. This is the one thing the importer writes outside `Attendance`.
+
+### `cleanup:fep-attendance` / `cleanup:fep-placements` — undo the seeder's fabrications
+
+`seed:fep-cohort` can invent attendance and placements. Both are **off by default**
+(`--fake-attendance`, `--fake-placements`) because they corrupt real data: invented check-ins fill
+the gaps the real sheet records as absences, and a fabricated placement flips the profile to
+`placed`, which removes that intern from the attendance roster and the interns table entirely.
+These two scripts undo what earlier runs already wrote — the placement one matches only on the
+seeder's own marker note, so genuine placements are untouched. Both take `--dry-run`.
 
 ### `npm run seed:recommendations` — additive, safe on a shared dev DB
 

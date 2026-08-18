@@ -17,6 +17,7 @@ import { InternProfileView } from '@/components/interns/InternProfileView';
 import { AdminStaffUserDetail } from '@/components/admin/AdminStaffUserDetail';
 import UserEditModal from '@/components/UserEditModal';
 import { ROLES } from '@/helpers/roles';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 function WorkspaceAnalyticsControls({
   analyticsWorkspaces,
@@ -86,7 +87,7 @@ function WorkspaceAnalyticsSection({
 }) {
   if (analyticsWorkspaces.length === 0) {
     return (
-      <div className="app-panel flex min-h-[180px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
+      <div className="app-card flex min-h-[180px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
         Ticket analytics appear once this intern joins an active workspace and starts working on
         assigned tickets.
       </div>
@@ -94,7 +95,7 @@ function WorkspaceAnalyticsSection({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       <WorkspaceAnalyticsControls
         analyticsWorkspaces={analyticsWorkspaces}
         selectedWorkspace={selectedWorkspace}
@@ -107,8 +108,12 @@ function WorkspaceAnalyticsSection({
         userAnalytics={userAnalytics}
         isLoading={isAnalyticsLoading}
         isError={isAnalyticsError}
-        activityTitle="Activity Trend"
-        workloadTitle="Workload Distribution"
+        // `days` was missing here: the query already varied with the period
+        // selector above, but the tiles kept claiming "Last 30 days" whatever it
+        // was set to.
+        days={days}
+        activityTitle="Activity trend"
+        workloadTitle="Workload distribution"
         showHeader={false}
       />
     </div>
@@ -124,6 +129,7 @@ export default function AdminUserAnalyticsPage() {
 
   const { data: loadedUser, isLoading, isError } = useUser(userId);
   const user = loadedUser || location.state?.user;
+  useDocumentTitle(user?.fullname || user?.fullName);
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
 
@@ -238,7 +244,7 @@ export default function AdminUserAnalyticsPage() {
     return (
       <div className="app-page">
         <div className="app-page-content">
-          <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-center text-sm text-destructive">
+          <div className="app-card flex min-h-[220px] items-center justify-center px-6 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
             Failed to load user details.
           </div>
         </div>
@@ -250,7 +256,7 @@ export default function AdminUserAnalyticsPage() {
     return (
       <div className="app-page">
         <div className="app-page-content space-y-6">
-          <div className="app-panel flex min-h-[220px] items-center justify-center px-6 text-sm text-muted-foreground">
+          <div className="app-card flex min-h-[220px] items-center justify-center px-6 text-sm text-muted-foreground">
             Loading user details...
           </div>
         </div>
@@ -265,7 +271,6 @@ export default function AdminUserAnalyticsPage() {
           userId={userId}
           backTo="/admin/users"
           backLabel="Back to users"
-          kicker="Intern profile"
           analyticsSection={analyticsSection}
           headingActions={editUserButton}
         />

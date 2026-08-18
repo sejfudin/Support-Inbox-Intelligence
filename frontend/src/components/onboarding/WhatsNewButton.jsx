@@ -37,7 +37,7 @@ export function WhatsNewButton({ collapsed = false }) {
         // Kept deliberately compact: it sits in the footer above the account row, so
         // every pixel of height here is taken from the nav list above it, and the
         // admin nav is already the longest one in the app.
-        'flex w-full items-center gap-2 rounded-xl border px-2.5 py-1 text-[11px] leading-5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        'flex w-full items-center gap-2 rounded-[var(--r-card)] border px-2.5 py-1 text-[11px] leading-5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         // Collapsed rail: square, centred, no label — matching the account row's
         // own icon-mode footprint so the two sit flush.
         'group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0',

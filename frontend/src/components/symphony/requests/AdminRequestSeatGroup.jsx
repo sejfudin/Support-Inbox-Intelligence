@@ -42,7 +42,7 @@ const StagedCard = ({ pick, rejection, onRemove }) => (
           submits the rest, rather than being told the whole cart was wrong. */}
       {rejection && (
         <p
-          className="mt-1 flex items-start gap-1.5 text-xs font-medium leading-snug text-destructive"
+          className="mt-1 flex items-start gap-1.5 text-xs font-medium leading-snug text-[hsl(var(--tone-danger-fg))]"
           data-test={`staged-pick-rejection-${pick.id}`}
         >
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -92,7 +92,6 @@ export function AdminRequestSeatGroup({
   canStage,
   technologyIndex,
 }) {
-  const isFilled = row.placed >= row.wanted && row.wanted > 0;
   const technologies = row.technologies ?? [];
   const emptySeats = Math.max(0, row.wanted - row.suggestions.length - stagedPicks.length);
   const hasRejection = stagedPicks.some((pick) => rejections[pick.id]);
@@ -124,10 +123,15 @@ export function AdminRequestSeatGroup({
       className={cn('transition-colors', hasRejection && 'border-destructive/60')}
       action={
         canStage && (
+          // Outlined whether or not the seat is filled. There is one primary
+          // action on this pane — `Submit to leadership` — and a request with four
+          // positions used to put four solid brand buttons above it, none of which
+          // sends anything. Staging is the step before the action, so it wears the
+          // secondary weight.
           <Button
             type="button"
             size="sm"
-            variant={isFilled ? 'outline' : 'default'}
+            variant="outline"
             className="h-8 shrink-0 gap-1.5 px-3 text-xs font-semibold"
             onClick={() => onArm(row)}
             data-test={`arm-seat-${row.id}`}

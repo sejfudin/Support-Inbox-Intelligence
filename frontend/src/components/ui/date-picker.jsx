@@ -137,7 +137,7 @@ export function DatePicker({
                 aria-disabled={disabled || undefined}
                 aria-pressed={selectedKeys.size > 0 ? isSelected : undefined}
                 className={cn(
-                  'flex h-8 items-center justify-center rounded-md text-sm transition-colors',
+                  'flex h-8 items-center justify-center rounded-[var(--r-control)] text-sm transition-colors',
                   disabled
                     ? 'cursor-not-allowed text-muted-foreground/30'
                     : 'hover:bg-primary/10 hover:text-primary',

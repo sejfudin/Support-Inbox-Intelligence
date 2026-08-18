@@ -1,20 +1,25 @@
 import StoryPointsField from '@/components/StoryPointsField';
 
-export function TicketStoryPointsField({ isArchived, currentStoryPoints, onStoryPointsChange }) {
+/**
+ * `bare` drops the component's own caption — inside the meta rail the field sits
+ * under a `RailField` label already, and two "Story points" headings stacked on
+ * top of each other is what the accordion layout used to produce.
+ */
+export function TicketStoryPointsField({
+  isArchived,
+  currentStoryPoints,
+  onStoryPointsChange,
+  bare = false,
+}) {
   if (isArchived) {
     return (
-      <div className="space-y-3">
-        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-          Story Points
-        </span>
-        <div className="flex min-h-[40px] items-center px-1 text-sm font-semibold text-foreground">
-          {currentStoryPoints ? (
-            `SP ${currentStoryPoints}`
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
-        </div>
-      </div>
+      <span className="text-[12.5px] font-medium text-foreground">
+        {currentStoryPoints ? (
+          `SP ${currentStoryPoints}`
+        ) : (
+          <span className="text-muted-foreground/75">—</span>
+        )}
+      </span>
     );
   }
 
@@ -22,7 +27,8 @@ export function TicketStoryPointsField({ isArchived, currentStoryPoints, onStory
     <StoryPointsField
       value={currentStoryPoints}
       onChange={onStoryPointsChange}
-      className="space-y-3"
+      hideLabel={bare}
+      className={bare ? undefined : 'space-y-3'}
     />
   );
 }

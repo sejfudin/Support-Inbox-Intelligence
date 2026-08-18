@@ -23,7 +23,9 @@ export default function LeadershipDashboardPage() {
 
       {isError && (
         <SymphonyCard>
-          <p className="text-sm text-destructive">Failed to load programme statistics.</p>
+          <p className="text-sm text-[hsl(var(--tone-danger-fg))]">
+            Failed to load programme statistics.
+          </p>
         </SymphonyCard>
       )}
 

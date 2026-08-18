@@ -8,7 +8,9 @@ import AdminUsersPage from '@/pages/AdminUsersPage';
 import ArchivePage from '@/pages/Archive';
 import BacklogPage from '@/pages/Backlog';
 import ProfilePage from '@/pages/ProfilePage';
+import SettingsPage from '@/pages/SettingsPage';
 import ProtectedRoute from '@/routes/ProtectedRoutes';
+import RouteTitle from '@/routes/RouteTitle';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, isAdmin, isIntern } from '@/helpers/roles';
 import UserDashboard from '@/pages/UserDashboard';
@@ -24,6 +26,13 @@ import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import AdminUserAnalyticsPage from '@/pages/AdminUserAnalyticsPage';
 import AdminReferenceDataPage from '@/pages/AdminReferenceDataPage';
 import WorkspaceManagementRoute from '@/routes/WorkspaceManagementRoute';
+import { readStoredPreference } from '@/hooks/useStoredPreference';
+import {
+  DEFAULT_LANDING_PAGE,
+  LANDING_PAGE_STORAGE_KEY,
+  isValidLandingPage,
+  landingPageEntry,
+} from '@/helpers/uiPreferences';
 import SymphonyLayout from '@/layouts/SymphonyLayout';
 import LeadershipDashboardPage from '@/pages/fep/LeadershipDashboardPage';
 import LeadershipCandidatesPage from '@/pages/fep/LeadershipCandidatesPage';
@@ -39,6 +48,7 @@ import MyTechnologiesPage from '@/pages/MyTechnologiesPage';
 import MyProgressPage from '@/pages/MyProgressPage';
 import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
+import AdminAbsenceRequestsPage from '@/pages/AdminAbsenceRequestsPage';
 import WorkspaceDailiesPage from '@/pages/WorkspaceDailiesPage';
 import AdminDailyInsightsPage from '@/pages/AdminDailyInsightsPage';
 import AdminStaffingRequestsPage from '@/pages/AdminStaffingRequestsPage';
@@ -97,7 +107,14 @@ const HomeRedirect = () => {
   }
 
   if (user?.workspaceId) {
-    return <Navigate to="/dashboard" replace />;
+    // Settings → Workspace defaults → Landing page. Read here rather than at
+    // sign-in so it also applies to a bookmark on `/`. Leadership never reaches
+    // this line, and the workspace-scoped targets are gated by the branch above,
+    // so a stored preference can never redirect someone somewhere they cannot go.
+    const landing = landingPageEntry(
+      readStoredPreference(LANDING_PAGE_STORAGE_KEY, DEFAULT_LANDING_PAGE, isValidLandingPage)
+    );
+    return <Navigate to={landing.path} replace />;
   }
 
   if (user?.role === ROLES.ADMIN) {
@@ -111,114 +128,122 @@ export default function AppRoutes() {
   const { isAuthenticated, user } = useAuth();
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
-      />
-
-      <Route path="/set-password" element={<SetupPasswordWrapper />} />
-
-      <Route element={<ProtectedRoute />}>
+    <>
+      <RouteTitle />
+      <Routes>
         <Route
-          path="/create-workspace"
-          element={
-            user?.role === ROLES.LEADERSHIP ? (
-              <Navigate to="/programme" replace />
-            ) : user?.role === ROLES.MENTOR ? (
-              <CreateWorkspacePage />
-            ) : user?.workspaceId ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <CreateWorkspacePage />
-            )
-          }
+          path="/login"
+          element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
         />
 
-        <Route path="/my-internship" element={<Navigate to="/create-workspace" replace />} />
+        <Route path="/set-password" element={<SetupPasswordWrapper />} />
 
-        <Route element={<SymphonyLayout />}>
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.LEADERSHIP]} />}>
-            <Route path="/programme" element={<LeadershipDashboardPage />} />
-            <Route path="/interns" element={<LeadershipCandidatesPage />} />
-            <Route path="/interns/:userId" element={<LeadershipCandidatePage />} />
-            <Route path="/projects" element={<LeadershipProjectsPage />} />
-            <Route path="/projects/:id" element={<LeadershipProjectPage />} />
-            <Route path="/requests" element={<LeadershipRequestsPage />} />
-          </Route>
-        </Route>
-
-        <Route element={<SidebarLayout />}>
-          <Route path="/" element={<HomeRedirect />} />
+        <Route element={<ProtectedRoute />}>
           <Route
-            path="/profile"
+            path="/create-workspace"
             element={
               user?.role === ROLES.LEADERSHIP ? (
                 <Navigate to="/programme" replace />
+              ) : user?.role === ROLES.MENTOR ? (
+                <CreateWorkspacePage />
+              ) : user?.workspaceId ? (
+                <Navigate to="/dashboard" replace />
               ) : (
-                <ProfilePage />
+                <CreateWorkspacePage />
               )
             }
           />
 
-          <Route path="/invitations" element={<UserInvitationsPage />} />
+          <Route path="/my-internship" element={<Navigate to="/create-workspace" replace />} />
 
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.INTERN]} />}>
-            <Route path="/my-technologies" element={<MyTechnologiesPage />} />
-            {/* Programme data, not workspace data — so it sits with the other
+          <Route element={<SymphonyLayout />}>
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.LEADERSHIP]} />}>
+              <Route path="/programme" element={<LeadershipDashboardPage />} />
+              <Route path="/interns" element={<LeadershipCandidatesPage />} />
+              <Route path="/interns/:userId" element={<LeadershipCandidatePage />} />
+              <Route path="/projects" element={<LeadershipProjectsPage />} />
+              <Route path="/projects/:id" element={<LeadershipProjectPage />} />
+              <Route path="/requests" element={<LeadershipRequestsPage />} />
+            </Route>
+          </Route>
+
+          <Route element={<SidebarLayout />}>
+            <Route path="/" element={<HomeRedirect />} />
+            <Route
+              path="/profile"
+              element={
+                user?.role === ROLES.LEADERSHIP ? (
+                  <Navigate to="/programme" replace />
+                ) : (
+                  <ProfilePage />
+                )
+              }
+            />
+
+            {/* Reached from the account menu in the sidebar footer, not from a nav
+              row — settings are per-person, not a place in the workspace. */}
+            <Route path="/settings" element={<SettingsPage />} />
+
+            <Route path="/invitations" element={<UserInvitationsPage />} />
+
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.INTERN]} />}>
+              <Route path="/my-technologies" element={<MyTechnologiesPage />} />
+              {/* Programme data, not workspace data — so it sits with the other
                 intern-only routes outside `WorkspaceGuard`. An intern between
                 workspaces still has evaluations, readiness and recommendations,
                 and bouncing them to /create-workspace to read their own review
                 history would be nonsense. */}
-            <Route path="/my-progress" element={<MyProgressPage />} />
-            <Route path="/my-attendance" element={<MyAttendancePage />} />
-          </Route>
+              <Route path="/my-progress" element={<MyProgressPage />} />
+              <Route path="/my-attendance" element={<MyAttendancePage />} />
+            </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
-            <Route path="/my-interns" element={<MentorInternsPage />} />
-            <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
-            <Route path="/workspaces" element={<WorkspacesOverviewPage />} />
-          </Route>
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.MENTOR]} />}>
+              <Route path="/my-interns" element={<MentorInternsPage />} />
+              <Route path="/my-interns/:userId" element={<MentorInternProfilePage />} />
+              <Route path="/workspaces" element={<WorkspacesOverviewPage />} />
+            </Route>
 
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
-            <Route path="/attendance" element={<AttendanceOverviewPage />} />
-            <Route path="/admin/daily-insights" element={<AdminDailyInsightsPage />} />
-            <Route path="/recommendations" element={<MentorRecommendationsPage />} />
-            <Route path="/specialization" element={<SpecializationPage />} />
-            <Route path="/admin/staffing-requests" element={<AdminStaffingRequestsPage />} />
-            <Route path="/admin/users" element={<AdminUsersPage />} />
-            <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
-            <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />
-            <Route path="/admin/platform-management" element={<AdminReferenceDataPage />} />
-            <Route
-              path="/admin/reference-data"
-              element={<Navigate to="/admin/platform-management" replace />}
-            />
-            <Route path="/register" element={<Register />} />
-          </Route>
+            <Route element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}>
+              <Route path="/attendance" element={<AttendanceOverviewPage />} />
+              <Route path="/admin/absence-requests" element={<AdminAbsenceRequestsPage />} />
+              <Route path="/admin/daily-insights" element={<AdminDailyInsightsPage />} />
+              <Route path="/recommendations" element={<MentorRecommendationsPage />} />
+              <Route path="/specialization" element={<SpecializationPage />} />
+              <Route path="/admin/staffing-requests" element={<AdminStaffingRequestsPage />} />
+              <Route path="/admin/users" element={<AdminUsersPage />} />
+              <Route path="/user/:userId" element={<AdminUserAnalyticsPage />} />
+              <Route path="/admin/workspaces" element={<WorkspacesOverviewPage />} />
+              <Route path="/admin/platform-management" element={<AdminReferenceDataPage />} />
+              <Route
+                path="/admin/reference-data"
+                element={<Navigate to="/admin/platform-management" replace />}
+              />
+              <Route path="/register" element={<Register />} />
+            </Route>
 
-          <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/dashboard" element={<DashboardRoute />} />
 
-          <Route element={<WorkspaceGuard />}>
-            {/* The intern board's "View all" and its workload card link here as
+            <Route element={<WorkspaceGuard />}>
+              {/* The intern board's "View all" and its workload card link here as
                 `/tickets?assignee=me` — the same table everyone else uses with the
                 assignee filter pre-applied, rather than a second list page to keep
                 in sync. */}
-            <Route path="/tickets" element={<TicketPage />} />
-            <Route path="/archive" element={<ArchivePage />} />
-            <Route path="/analytics" element={<AnalyticsDashboard />} />
-            <Route path="/backlog" element={<BacklogPage />} />
-            <Route path="/dailies" element={<WorkspaceDailiesPage />} />
+              <Route path="/tickets" element={<TicketPage />} />
+              <Route path="/archive" element={<ArchivePage />} />
+              <Route path="/analytics" element={<AnalyticsDashboard />} />
+              <Route path="/backlog" element={<BacklogPage />} />
+              <Route path="/dailies" element={<WorkspaceDailiesPage />} />
 
-            <Route element={<WorkspaceManagementRoute />}>
-              <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
-              <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
+              <Route element={<WorkspaceManagementRoute />}>
+                <Route path="/admin/workspaces/:id" element={<WorkspaceDetailPage />} />
+                <Route path="/admin/workspaces/:id/settings" element={<WorkspaceSettingsPage />} />
+              </Route>
             </Route>
           </Route>
         </Route>
-      </Route>
 
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </>
   );
 }

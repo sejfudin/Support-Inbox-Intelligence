@@ -1,11 +1,5 @@
 const specializationService = require('../services/specializationService');
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({ message: error.message });
-  }
-  next(error);
-};
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 exports.listSpecializations = async (req, res, next) => {
   try {
