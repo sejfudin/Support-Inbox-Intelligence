@@ -15,7 +15,23 @@ const formatComment = (comment, viewerId) => {
   };
 };
 
-const canReadComment = (comment, viewerId) => {
+// The intern-facing shape deliberately withholds `visibleTo` (the staff audience
+// this note also went to — not the intern's concern) and `visibleToIntern` itself
+// (every note in this list has it true; a per-note flag with only one value is
+// noise, not information).
+const formatCommentForIntern = (comment) => {
+  const plain = comment.toObject ? comment.toObject() : comment;
+  const { visibleTo, visibleToIntern, internProfile, ...rest } = plain;
+  return { ...rest, id: plain._id };
+};
+
+// Admins always read every note — the UI's "Admins only" label for an empty
+// `visibleTo` (see `audienceOf` in InternCommentsPanel.jsx) is a promise about who
+// the *narrowest* audience still includes, not just the author. Without this
+// bypass a mentor's note with nobody added to `visibleTo` was readable by no admin
+// at all — silently the opposite of what "Admins only" says.
+const canReadComment = (comment, viewerId, viewerRole) => {
+  if (viewerRole === ROLES.ADMIN) return true;
   const viewer = viewerId.toString();
   if (comment.author?._id?.toString() === viewer || comment.author?.toString() === viewer) {
     return true;
@@ -28,10 +44,19 @@ const canReadComment = (comment, viewerId) => {
 const listComments = async (user, internUserId) => {
   const profile = await assertInternAccess(user, internUserId);
 
+  // An intern can only ever reach their own profile here — `assertInternAccess`
+  // already rejected any other one via `canViewInternProfile`. What they see is a
+  // completely different filter from the staff view below: never author/`visibleTo`
+  // (that's a staff-sharing concept that doesn't apply to them), only the notes
+  // whose author explicitly marked them `visibleToIntern` at write time.
   if (user.role === ROLES.INTERN) {
-    const err = new Error('Not authorized');
-    err.statusCode = 403;
-    throw err;
+    const comments = await MentorComment.find({
+      internProfile: profile._id,
+      visibleToIntern: true,
+    })
+      .populate('author', 'fullname role')
+      .sort({ createdAt: -1 });
+    return comments.map(formatCommentForIntern);
   }
 
   const comments = await MentorComment.find({ internProfile: profile._id })
@@ -39,10 +64,16 @@ const listComments = async (user, internUserId) => {
     .populate('visibleTo', 'fullname email role')
     .sort({ createdAt: -1 });
 
-  return comments.filter((c) => canReadComment(c, user._id)).map((c) => formatComment(c, user._id));
+  return comments
+    .filter((c) => canReadComment(c, user._id, user.role))
+    .map((c) => formatComment(c, user._id));
 };
 
-const createComment = async (user, internUserId, { content, visibleTo = [] }) => {
+const createComment = async (
+  user,
+  internUserId,
+  { content, visibleTo = [], visibleToIntern = false }
+) => {
   const profile = await assertInternAccess(user, internUserId, { write: true });
 
   if (!canWriteMentorData(user, profile)) {
@@ -72,6 +103,7 @@ const createComment = async (user, internUserId, { content, visibleTo = [] }) =>
     author: user._id,
     content: content.trim(),
     visibleTo: visibleIds,
+    visibleToIntern: Boolean(visibleToIntern),
   });
 
   await comment.populate([
@@ -93,6 +125,17 @@ const createComment = async (user, internUserId, { content, visibleTo = [] }) =>
         authorName: user.fullname,
       });
     }
+  }
+
+  // The one case that IS intern-facing: the author explicitly chose to share this
+  // exact note with the intern it's about, so tell them it arrived — same shape as
+  // the staff notification above, just the other recipient axis.
+  if (comment.visibleToIntern) {
+    internNotificationService.notifyInternMentorNoteShared({
+      internUserId,
+      internProfileId: profile._id,
+      authorName: user.fullname,
+    });
   }
 
   return formatComment(comment, user._id);

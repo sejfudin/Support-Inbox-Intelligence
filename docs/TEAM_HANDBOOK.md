@@ -30,6 +30,7 @@
 - Only role that can edit the internal CV link on an intern profile (a mentor can still view it, just not edit it)
 - Can open the intern's own uploaded CV from their profile Overview, and generate an AI summary of it. The summary describes what the CV says — education, past roles, technologies, projects, languages — and is deliberately never an assessment: it doesn't score, rank, or say whether someone is a good fit. Readiness, evaluations and mentor notes are the assessments, and those are written by people. It's generated on request, cached, and flagged as out of date if the intern uploads a new CV. The intern never sees it
 - Only role that can change an intern's lifecycle status (active/ready/placed/completed/discontinued) — even for an intern with an assigned mentor
+- Writes mentor notes for any intern (a mentor is limited to their own assigned interns — see Mentor). When writing one, can optionally share that specific note with the intern it's about — off by default; every other note stays completely invisible to them, same as before
 - Sets the start date on a placement — the day the intern actually begins on the project, which is often not the day the placement was decided. It is optional: leave it empty when nobody knows yet, and set it later once they do. From that day the intern no longer has to record attendance: those days show in their own colour instead of absent, and the month reads "—" instead of 0%. Until a start date is set the intern keeps recording attendance as normal, and moving the date moves the cut-off with it
 - Only role that can leave a note on a staffing request — one short remark, written when they close
   it, for anything leadership should know that the suggested candidates don't say. It cannot be
@@ -115,7 +116,7 @@
 
 **Mentor**
 - Sees only their assigned interns (primary or secondary mentor) — and only Overview, mentor notes, and documentation links
-- Adds mentor notes (free text, picks who can see it) only for their own interns
+- Adds mentor notes (free text, picks who else on staff can see it) only for their own interns — and can optionally share a given note directly with the intern it's about, same opt-in as admin
 - Can't see or add evaluations (periodic progress assessment) — admin-only now
 - Can't see or set readiness (by technology or position) — admin-only now
 - Can't see or create recommendations, neither per-intern nor on the standalone "Recommendations" page — admin-only now
@@ -136,7 +137,7 @@
 - Has a read-only "My Progress" page with everything the programme records about them: where they stand in the programme (status, dates, mentors, hub), every evaluation, their readiness, and every recommendation. Read-only throughout — nothing there is theirs to add, change, or delete
 - Sees their own readiness, both by position and per declared technology, including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
 - Sees their own evaluations in full: the four scores per review period, the movement since the previous period, **and their mentor's written notes** (new — the notes used to be hidden from them)
-- Still doesn't see mentor notes (the separate free-text notes a mentor writes with their own "who can see this" list) — those remain invisible to interns
+- Still doesn't see most mentor notes (the separate free-text notes admin/mentor write with their own "who else on staff can see this" list) — those stay invisible by default. The one exception: a note its author explicitly chose to share directly with them shows up on My Progress, and they get notified when one arrives
 - Sees their own recommendations: which project and position, the technologies, which stage it reached and every date along the way, the interviews, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? All of them are listed on My Progress, and arrows on the dashboard card switch between them
 - When the opportunity itself ends — the staffing request behind it was closed, or the position they
   were put forward for changed — both the dashboard card and My Progress say the opportunity closed

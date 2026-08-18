@@ -415,6 +415,30 @@ const STAFF_INTERN_LINK = {
   mentor: (internUserId) => `/my-interns/${internUserId}`,
 };
 
+/**
+ * Intern-facing: an admin or mentor wrote a note and explicitly marked it visible
+ * to the intern it's about (`visibleToIntern`) — the one mentor-note path that
+ * *is* sent to the intern, distinct from `notifyMentorNoteMention` below. Never
+ * fires for an ordinary staff-only note; see `mentorCommentService.createComment`.
+ */
+const notifyInternMentorNoteShared = safe(async ({ internUserId, internProfileId, authorName }) => {
+  await dispatch({
+    internUserId,
+    internProfileId,
+    type: 'intern_mentor_note_shared',
+    link: '/my-progress',
+    fallback: {
+      title: 'A note was shared with you',
+      body: `${authorName} added a note for you on your profile.`,
+    },
+    promptBuilder: buildProgrammeUpdatePrompt,
+    promptArgs: {
+      summary: 'A mentor or admin wrote a note and chose to share it directly with the intern.',
+      details: `Note author: ${authorName}.`,
+    },
+  });
+});
+
 /** Staff-facing: someone was named in a mentor note's visibility list — never sent to the intern. */
 const notifyMentorNoteMention = safe(
   async ({
@@ -461,4 +485,5 @@ module.exports = {
   notifyDocumentationLinksUpdated,
   notifyDailyReminder,
   notifyMentorNoteMention,
+  notifyInternMentorNoteShared,
 };

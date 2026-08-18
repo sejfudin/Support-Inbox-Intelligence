@@ -2,6 +2,7 @@ const internService = require('./internService');
 const evaluationService = require('./evaluationService');
 const recommendationService = require('./recommendationService');
 const readinessFlagService = require('./readinessFlagService');
+const mentorCommentService = require('./mentorCommentService');
 const { averageDelta, criterionTrends } = require('../helpers/evaluationTrend');
 const {
   buildTechnologyReadiness,
@@ -25,12 +26,15 @@ const {
  * one of the narrow self-only functions that resolves the intern from the
  * authenticated user. See `.claude/docs/security.md`.
  *
- * **`MentorComment` is deliberately not here.** Mentor notes carry their own
- * `visibleTo` list of admin/mentor/leadership recipients — they were written under
- * an explicit expectation of staying internal, so surfacing the existing ones to
- * the intern would break that retroactively. If mentor notes should reach interns,
- * that needs an author-side visibility choice at write time, not a read-side
- * change here.
+ * **`MentorComment` is here, but only the subset an author explicitly chose to
+ * share.** A mentor note's default audience is still `visibleTo` — admin/mentor/
+ * leadership recipients — and stays completely invisible to the intern. The one
+ * exception is a note whose author set `visibleToIntern: true` at write time, a
+ * separate field from `visibleTo` chosen deliberately per note; those are the only
+ * ones `mentorCommentService.listComments` returns for an INTERN caller (it
+ * ignores `visibleTo`/authorship entirely for that role — see the comment there).
+ * This is exactly the "author-side visibility choice at write time" this comment
+ * used to say didn't exist yet.
  */
 
 /** `{ name, slug }` off a populated `Position`, or null. */
@@ -131,6 +135,18 @@ const buildRecommendations = async (user) => {
 };
 
 /**
+ * Notes an admin or mentor chose, at write time, to share directly with the
+ * intern they're about. Reuses `mentorCommentService.listComments` rather than
+ * querying `MentorComment` here — that function is the one place that decides
+ * what an intern is allowed to see of it, and this stays in agreement with it by
+ * construction rather than by two implementations happening to match.
+ */
+const buildMentorNotes = async (user) => {
+  const items = await mentorCommentService.listComments(user, user._id);
+  return { total: items.length, items };
+};
+
+/**
  * The whole page in one payload.
  *
  * One endpoint rather than four so the page has one loading state, one error
@@ -148,10 +164,11 @@ const getInternProgress = async (user) => {
   // renders the message rather than four empty panels that read as "no progress".
   const profile = await internService.getMyInternProfile(user);
 
-  const [evaluations, readiness, recommendations] = await Promise.all([
+  const [evaluations, readiness, recommendations, mentorNotes] = await Promise.all([
     buildEvaluations(user),
     buildReadiness(user, profile),
     buildRecommendations(user),
+    buildMentorNotes(user),
   ]);
 
   return {
@@ -159,6 +176,7 @@ const getInternProgress = async (user) => {
     evaluations,
     readiness,
     recommendations,
+    mentorNotes,
   };
 };
 

@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useInternProgress } from '@/queries/internProgress';
 import { ProgrammeSnapshot } from '@/components/intern/progress/ProgrammeSnapshot';
 import { MyEvaluationsSection } from '@/components/intern/progress/MyEvaluationsSection';
+import { MyMentorNotesSection } from '@/components/intern/progress/MyMentorNotesSection';
 import { MyReadinessSection } from '@/components/intern/progress/MyReadinessSection';
 import { MyRecommendationsSection } from '@/components/intern/progress/MyRecommendationsSection';
 import { ProgressRail } from '@/components/intern/progress/ProgressRail';
@@ -28,7 +29,10 @@ function SectionSkeleton({ rows = 3 }) {
 /**
  * "My progress" — the read-only mirror of everything the programme records about
  * the signed-in intern: where they stand, their evaluations (scores and their
- * mentor's notes), their readiness, and every recommendation they have been part of.
+ * mentor's notes), their readiness, every recommendation they have been part of,
+ * and any mentor/admin note whose author chose to share it with them directly
+ * (most mentor notes stay staff-only and never reach this page — see
+ * `server/services/internProgressService.js`).
  *
  * One query. The endpoint is a single self-scoped aggregate that takes no
  * parameters (`GET /api/dashboard/me/progress`), so the page has one loading state,
@@ -100,6 +104,7 @@ export default function MyProgressPage() {
                 <MyEvaluationsSection evaluations={data?.evaluations} />
                 <MyRecommendationsSection recommendations={data?.recommendations} />
               </div>
+              <MyMentorNotesSection mentorNotes={data?.mentorNotes} />
             </div>
 
             <ProgressRail
@@ -107,6 +112,7 @@ export default function MyProgressPage() {
               readiness={data?.readiness}
               evaluations={data?.evaluations}
               recommendations={data?.recommendations}
+              mentorNotes={data?.mentorNotes}
             />
           </div>
         )}

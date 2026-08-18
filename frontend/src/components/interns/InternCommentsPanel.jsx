@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
@@ -60,19 +60,30 @@ function NoteAvatar({ name }) {
 
 /**
  * The composer's audience control. Select-shaped, but a menu of checkboxes
- * underneath: the audience is a list of specific people, not one of three
- * presets, and collapsing it to a preset would quietly remove the ability to
- * share a note with one named mentor.
+ * underneath: the audience is a list of specific people, not a preset, and a
+ * bulk "everyone with this role" shortcut would let a note reach an entire role
+ * — every mentor, every admin — in one click, which is exactly the mistake this
+ * menu exists to prevent. Every entry is one named person, chosen one at a time;
+ * the only bulk action left is "Admins only" (clear to empty), which narrows the
+ * audience rather than widening it to a role.
+ *
+ * The intern themselves is a separate, pinned toggle above the staff list, not
+ * one more checkbox in it: picking them isn't "share with a colleague", it's the
+ * author's write-time choice to let the note's subject read this specific note
+ * (`visibleToIntern` on the model) — a different field from `visibleTo`, kept
+ * that way so a future "select all" on the staff list can never touch it.
  */
-function SharedWithMenu({ viewers, visibleTo, onToggle, onSetAll, onClear }) {
-  const mentorIds = viewers.filter((v) => v.role === 'mentor').map(viewerId);
-  const allMentors =
-    mentorIds.length > 0 &&
-    visibleTo.length === mentorIds.length &&
-    mentorIds.every((id) => visibleTo.includes(id));
-
-  const label = allMentors
-    ? 'Shared with mentors'
+function SharedWithMenu({
+  viewers,
+  visibleTo,
+  onToggle,
+  onClear,
+  internName,
+  visibleToIntern,
+  onToggleIntern,
+}) {
+  const label = visibleToIntern
+    ? `Visible to ${internName || 'the intern'}`
     : visibleTo.length === 0
       ? 'Admins only'
       : `Shared with ${visibleTo.length} ${visibleTo.length === 1 ? 'person' : 'people'}`;
@@ -89,7 +100,25 @@ function SharedWithMenu({ viewers, visibleTo, onToggle, onSetAll, onClear }) {
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-60">
+      <DropdownMenuContent align="start" className="w-64">
+        {internName && (
+          <>
+            <DropdownMenuCheckboxItem
+              checked={visibleToIntern}
+              onCheckedChange={onToggleIntern}
+              onSelect={(event) => event.preventDefault()}
+              className="text-[12.5px] font-medium"
+              data-test="intern-comment-visible-to-intern-checkbox"
+            >
+              <Eye className="mr-1 inline h-3.5 w-3.5 -translate-y-px" aria-hidden />
+              Share with {internName}
+            </DropdownMenuCheckboxItem>
+            <p className="px-2 pb-1.5 pt-0.5 text-[11px] leading-[1.4] text-muted-foreground">
+              They&apos;ll see this exact note on their own profile and get notified.
+            </p>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuLabel className="text-[11.5px]">Who else can read this</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {viewers.map((viewer) => {
@@ -108,17 +137,10 @@ function SharedWithMenu({ viewers, visibleTo, onToggle, onSetAll, onClear }) {
             </DropdownMenuCheckboxItem>
           );
         })}
-        {mentorIds.length > 0 && (
+        {visibleTo.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <div className="flex items-center gap-2 px-2 py-1.5">
-              <button
-                type="button"
-                onClick={onSetAll}
-                className="text-[11.5px] font-semibold accent-ink hover:underline"
-              >
-                All mentors
-              </button>
+            <div className="px-2 py-1.5">
               <button
                 type="button"
                 onClick={onClear}
@@ -134,7 +156,7 @@ function SharedWithMenu({ viewers, visibleTo, onToggle, onSetAll, onClear }) {
   );
 }
 
-export function InternCommentsPanel({ userId, readOnly = false }) {
+export function InternCommentsPanel({ userId, internName, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && canWriteInternMentorData(user?.role);
   const { data: comments = [], isPending } = useInternComments(userId);
@@ -144,6 +166,7 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
   const [detailComment, setDetailComment] = useState(null);
   const [content, setContent] = useState('');
   const [visibleTo, setVisibleTo] = useState([]);
+  const [visibleToIntern, setVisibleToIntern] = useState(false);
   const [sortKey, setSortKey] = useState('');
   const [sortDir, setSortDir] = useState('desc');
 
@@ -162,11 +185,12 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
     if (!content.trim()) return;
 
     mutate(
-      { userId, payload: { content: content.trim(), visibleTo } },
+      { userId, payload: { content: content.trim(), visibleTo, visibleToIntern } },
       {
         onSuccess: () => {
           setContent('');
           setVisibleTo([]);
+          setVisibleToIntern(false);
           toast.success('Note posted');
         },
         onError: (err) => toast.error(err?.response?.data?.message || 'Failed to add comment'),
@@ -236,10 +260,10 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
                 viewers={viewers}
                 visibleTo={visibleTo}
                 onToggle={toggleViewer}
-                onSetAll={() =>
-                  setVisibleTo(viewers.filter((v) => v.role === 'mentor').map(viewerId))
-                }
                 onClear={() => setVisibleTo([])}
+                internName={internName}
+                visibleToIntern={visibleToIntern}
+                onToggleIntern={() => setVisibleToIntern((prev) => !prev)}
               />
               <Button
                 type="submit"
@@ -286,11 +310,22 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
                         </span>
                       </p>
                     </div>
-                    <span
-                      className={cn(CHIP, 'shrink-0 border-0', badgeTone(audience.tone))}
-                      title={audience.names?.join(', ')}
-                    >
-                      {audience.label}
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {comment.visibleToIntern && (
+                        <span
+                          className={cn(CHIP, 'border-0', badgeTone('success'))}
+                          title={`${internName || 'The intern'} can see this note`}
+                        >
+                          <Eye className="mr-1 inline h-3 w-3 -translate-y-px" aria-hidden />
+                          Visible to intern
+                        </span>
+                      )}
+                      <span
+                        className={cn(CHIP, 'border-0', badgeTone(audience.tone))}
+                        title={audience.names?.join(', ')}
+                      >
+                        {audience.label}
+                      </span>
                     </span>
                   </div>
 
@@ -328,7 +363,7 @@ export function InternCommentsPanel({ userId, readOnly = false }) {
         <aside className="app-card p-[18px] pt-[15px]">
           <h3 className="app-card-title">Who can read these</h3>
           <p className="mt-0.5 text-[12.5px] leading-[1.5] text-muted-foreground">
-            Notes never appear on the intern&apos;s own profile.
+            Notes stay off the intern&apos;s own profile unless you explicitly share one with them.
           </p>
           <div className="mt-3 flex flex-col gap-2.5">
             {viewers.map((viewer) => (

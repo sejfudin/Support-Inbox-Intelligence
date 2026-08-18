@@ -295,7 +295,11 @@ export function InternProfileView({
 
             {showComments && (
               <TabsContent value="notes">
-                <InternCommentsPanel userId={userId} readOnly={readOnly} />
+                <InternCommentsPanel
+                  userId={userId}
+                  internName={intern?.user?.fullname}
+                  readOnly={readOnly}
+                />
               </TabsContent>
             )}
           </div>

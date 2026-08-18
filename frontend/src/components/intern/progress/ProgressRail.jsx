@@ -56,7 +56,7 @@ function RailRow({ href, label, value }) {
  * page is deliberately one query with one loading state — see `MyProgressPage` —
  * and a second profile fetch just to render two initials would break that.
  */
-export function ProgressRail({ programme, readiness, evaluations, recommendations }) {
+export function ProgressRail({ programme, readiness, evaluations, recommendations, mentorNotes }) {
   const specialization = programme?.specialization;
 
   const mentors = [
@@ -87,6 +87,11 @@ export function ProgressRail({ programme, readiness, evaluations, recommendation
             href="#my-progress-recommendations"
             label="Recommendations"
             value={countLabel(recommendations?.items)}
+          />
+          <RailRow
+            href="#my-progress-mentor-notes"
+            label="Notes from your mentor"
+            value={countLabel(mentorNotes?.items)}
           />
         </ul>
       </PagePanel>
