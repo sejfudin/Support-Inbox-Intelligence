@@ -78,11 +78,11 @@ describe('listComments', () => {
     expect(MentorComment.find).not.toHaveBeenCalled();
   });
 
-  it('gives staff the existing author-or-visibleTo view, untouched by the intern flag', async () => {
+  it('gives a non-admin staff caller the author-or-visibleTo view, untouched by the intern flag', async () => {
     InternProfile.findOne.mockResolvedValue(mockProfile());
     const authored = {
       _id: 'c1',
-      author: { _id: 'admin1', fullname: 'Ana Admin', role: 'admin' },
+      author: { _id: 'mentor1', fullname: 'Mo Mentor', role: 'mentor' },
       visibleTo: [],
       visibleToIntern: false,
       content: 'Internal-only note.',
@@ -90,18 +90,45 @@ describe('listComments', () => {
     };
     const notMine = {
       _id: 'c2',
-      author: { _id: 'mentor1', fullname: 'Mo Mentor', role: 'mentor' },
+      author: { _id: 'admin1', fullname: 'Ana Admin', role: 'admin' },
       visibleTo: [],
-      visibleToIntern: true, // shared with the intern, but that doesn't add admin as a reader
+      visibleToIntern: true, // shared with the intern, but that doesn't add this mentor as a reader
       content: 'Someone else’s note, shared with the intern only.',
       createdAt: new Date(),
     };
     MentorComment.find.mockReturnValue(chainableFind([authored, notMine]));
 
-    const result = await listComments(ADMIN, 'intern1');
+    const result = await listComments(MENTOR, 'intern1');
 
     expect(result).toHaveLength(1);
     expect(result[0].content).toBe('Internal-only note.');
+  });
+
+  it('gives an admin every note regardless of authorship or visibleTo — the "Admins only" floor', async () => {
+    InternProfile.findOne.mockResolvedValue(mockProfile());
+    const byMentorNoAudience = {
+      _id: 'c1',
+      author: { _id: 'mentor1', fullname: 'Mo Mentor', role: 'mentor' },
+      visibleTo: [], // "Admins only" in the UI — must actually reach an admin
+      visibleToIntern: false,
+      content: 'Mentor wrote this with nobody added to the audience.',
+      createdAt: new Date(),
+    };
+    const byMentorSharedWithSomeoneElse = {
+      _id: 'c2',
+      author: { _id: 'mentor1', fullname: 'Mo Mentor', role: 'mentor' },
+      visibleTo: [{ _id: 'leader1', fullname: 'Lea Leadership', role: 'leadership' }],
+      visibleToIntern: false,
+      content: 'Mentor shared this with leadership, not with any admin by name.',
+      createdAt: new Date(),
+    };
+    MentorComment.find.mockReturnValue(
+      chainableFind([byMentorNoAudience, byMentorSharedWithSomeoneElse])
+    );
+
+    const result = await listComments(ADMIN, 'intern1');
+
+    expect(result).toHaveLength(2);
   });
 });
 

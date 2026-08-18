@@ -140,8 +140,15 @@ stays internal **by default**: its `visibleTo` recipient list is a staff-only sh
 explicitly set the separate `visibleToIntern` flag *at write time* (`mentorCommentService.js`
 `createComment`) — the exact "author-side visibility choice, not a read-side change" this
 paragraph used to say didn't exist. `listComments` reflects that split: a staff caller still gets
-the `visibleTo`/authorship view via `canReadComment`, completely unaware of `visibleToIntern`; an
-`INTERN` caller gets a different, narrower query — only their own profile's comments where
+the `visibleTo`/authorship view via `canReadComment`, completely unaware of `visibleToIntern` —
+**except an admin, who bypasses `visibleTo`/authorship entirely and reads every note on the
+intern regardless of who wrote it or who they shared it with.** That bypass is required, not just
+generous: the UI labels an empty `visibleTo` "Admins only" (`audienceOf` in
+`InternCommentsPanel.jsx`), which is a promise that admins are the *floor* of every note's
+audience — without the bypass, a mentor's note with nobody added to `visibleTo` was readable by no
+admin at all, silently the opposite of what the label said. `MENTOR` and `LEADERSHIP` viewers get
+no such bypass; they still need to be the author or named in `visibleTo`. An `INTERN` caller gets a
+different, narrower query still — only their own profile's comments where
 `visibleToIntern: true` — and never sees `visibleTo`, `visibleToIntern`, or `internProfile` in the
 response (`formatCommentForIntern` strips them). Keeping `visibleToIntern` a distinct field rather
 than allowing the intern's own id inside `visibleTo` matters: it means the staff-sharing list and

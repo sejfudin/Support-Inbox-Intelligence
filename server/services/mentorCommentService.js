@@ -25,7 +25,13 @@ const formatCommentForIntern = (comment) => {
   return { ...rest, id: plain._id };
 };
 
-const canReadComment = (comment, viewerId) => {
+// Admins always read every note — the UI's "Admins only" label for an empty
+// `visibleTo` (see `audienceOf` in InternCommentsPanel.jsx) is a promise about who
+// the *narrowest* audience still includes, not just the author. Without this
+// bypass a mentor's note with nobody added to `visibleTo` was readable by no admin
+// at all — silently the opposite of what "Admins only" says.
+const canReadComment = (comment, viewerId, viewerRole) => {
+  if (viewerRole === ROLES.ADMIN) return true;
   const viewer = viewerId.toString();
   if (comment.author?._id?.toString() === viewer || comment.author?.toString() === viewer) {
     return true;
@@ -58,7 +64,9 @@ const listComments = async (user, internUserId) => {
     .populate('visibleTo', 'fullname email role')
     .sort({ createdAt: -1 });
 
-  return comments.filter((c) => canReadComment(c, user._id)).map((c) => formatComment(c, user._id));
+  return comments
+    .filter((c) => canReadComment(c, user._id, user.role))
+    .map((c) => formatComment(c, user._id));
 };
 
 const createComment = async (
