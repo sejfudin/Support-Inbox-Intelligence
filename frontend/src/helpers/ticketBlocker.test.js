@@ -9,6 +9,7 @@ import {
   isBlockedStatusId,
   isBlockedStatusSlug,
   isBlockerEmpty,
+  isDoneBlockerCandidate,
   ticketRefLabel,
   toBlockerPayload,
 } from './ticketBlocker';
@@ -121,5 +122,19 @@ describe('blockedByChipLabel', () => {
 describe('BLOCKER_NOTE_MAX_LENGTH', () => {
   it('matches the server cap in server/helpers/ticketBlocker.js', () => {
     expect(BLOCKER_NOTE_MAX_LENGTH).toBe(500);
+  });
+});
+
+describe('isDoneBlockerCandidate', () => {
+  // Mirrors `blockerIsDone` on the server, which refuses the link outright.
+  it('reads the status behaviour flag, not the label', () => {
+    expect(isDoneBlockerCandidate({ status: { label: 'Shipped', isDone: true } })).toBe(true);
+    expect(isDoneBlockerCandidate({ status: { label: 'Done', isDone: false } })).toBe(false);
+  });
+
+  it('is false when the status is missing or unpopulated', () => {
+    expect(isDoneBlockerCandidate({ status: '651f2c0f9e1a4b0012ab34cd' })).toBe(false);
+    expect(isDoneBlockerCandidate({})).toBe(false);
+    expect(isDoneBlockerCandidate(null)).toBe(false);
   });
 });

@@ -26,6 +26,16 @@ export const isBlockedStatusId = (statusOptions = [], statusId) =>
 
 export const emptyBlocker = () => ({ ticket: null, note: '' });
 
+/**
+ * Whether a candidate blocker is finished. Mirrors `blockerIsDone` on the server,
+ * which refuses the link — this is what keeps the picker from offering a choice
+ * the save would only reject.
+ *
+ * Reads the status's `isDone` behaviour flag rather than its slug or label: a
+ * workspace is free to call its done column "Shipped".
+ */
+export const isDoneBlockerCandidate = (ticket) => Boolean(ticket?.status?.isDone);
+
 /** Blocker as the form holds it — `ticket` kept as the populated doc so it renders. */
 export const blockerFromTicket = (ticket) => ({
   ticket: ticket?.blockedBy?.ticket || null,

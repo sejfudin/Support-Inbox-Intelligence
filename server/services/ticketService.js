@@ -12,8 +12,10 @@ const { escapeRegex } = require('../helpers/escapeRegex');
 const { httpError } = require('../helpers/httpError');
 const {
   CIRCULAR_BLOCKER_ERROR,
+  DONE_BLOCKER_ERROR,
   INVALID_BLOCKER_ERROR,
   SELF_BLOCKER_ERROR,
+  blockerIsDone,
   describeBlockerChange,
   isBlockedStatusSlug,
   parseBlockerInput,
@@ -374,7 +376,12 @@ const assertNoBlockerCycle = async ({ ticketId, blockerTicketId }) => {
 // (and the same reason) as `ensureCategoryBelongsToWorkspace`: without it a
 // caller could attach a foreign ticket id and read that workspace's subject and
 // task number back through the populated blocker.
-const resolveBlockingTicket = async ({ workspaceId, blockerTicketId, ticketId }) => {
+const resolveBlockingTicket = async ({
+  workspaceId,
+  blockerTicketId,
+  ticketId,
+  previousBlockerId = null,
+}) => {
   if (!blockerTicketId) return null;
 
   if (!workspaceId || !mongoose.Types.ObjectId.isValid(blockerTicketId)) {
@@ -386,11 +393,21 @@ const resolveBlockingTicket = async ({ workspaceId, blockerTicketId, ticketId })
   }
 
   const blocker = await Ticket.findOne({ _id: blockerTicketId, workspace: workspaceId })
-    .select('_id taskNumber subject')
+    .select('_id taskNumber subject status')
+    .populate('status', 'slug label isDone')
     .lean();
 
   if (!blocker) {
     throw httpError(INVALID_BLOCKER_ERROR, 400);
+  }
+
+  // A finished ticket is not something anyone is waiting for, so it cannot be
+  // picked as a blocker. Only a *new* link is refused: a blocker that gets
+  // finished later leaves the link behind, and refusing it here would turn a
+  // rule about that link into a wall in front of every other edit to the ticket.
+  const isNewLink = String(previousBlockerId || '') !== String(blocker._id);
+  if (isNewLink && blockerIsDone(blocker)) {
+    throw httpError(DONE_BLOCKER_ERROR, 400);
   }
 
   await assertNoBlockerCycle({ ticketId, blockerTicketId: blocker._id });
@@ -936,6 +953,7 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
             workspaceId: oldTicket.workspace,
             blockerTicketId: blockedBy.ticket,
             ticketId,
+            previousBlockerId: currentBlocker.ticketId,
           });
           labels.set(String(blockingTicket._id), ticketRefLabel(blockingTicket));
         }

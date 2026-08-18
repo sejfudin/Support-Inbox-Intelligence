@@ -24,6 +24,7 @@ const BLOCKER_NOTE_MAX_LENGTH = 500;
 const INVALID_BLOCKER_ERROR = 'Blocking ticket is not valid for this workspace';
 const SELF_BLOCKER_ERROR = 'A ticket cannot be blocked by itself';
 const CIRCULAR_BLOCKER_ERROR = 'That link would create a circular block';
+const DONE_BLOCKER_ERROR = 'A ticket that is already done cannot block another ticket';
 const BLOCKER_NOTE_TOO_LONG_ERROR = `Blocker note cannot be more than ${BLOCKER_NOTE_MAX_LENGTH} characters`;
 
 const EMPTY_BLOCKER = Object.freeze({ ticket: null, note: '' });
@@ -32,6 +33,19 @@ const isBlockedStatusSlug = (slug) =>
   String(slug || '')
     .trim()
     .toLowerCase() === BLOCKED_STATUS_SLUG;
+
+/**
+ * Whether a candidate blocker is finished, and so cannot be what a ticket waits
+ * for. Reads the status's `isDone` flag rather than its slug or label: "done" is
+ * a per-workspace behaviour flag on `TicketStatus`, and a workspace is free to
+ * call that column "Shipped".
+ *
+ * Only a *new* link is refused. A blocker that gets finished later leaves a stale
+ * link behind, and the caller passes the previous id so that editing anything
+ * else on the ticket is not blocked by a rule about a link it is not touching —
+ * the ticket leaving Blocked is what clears it.
+ */
+const blockerIsDone = (blockerTicket) => Boolean(blockerTicket?.status?.isDone);
 
 /** Ids arrive as strings, ObjectIds or populated docs depending on the caller. */
 const extractBlockerTicketId = (value) => {
@@ -136,9 +150,11 @@ module.exports = {
   BLOCKER_NOTE_MAX_LENGTH,
   BLOCKER_NOTE_TOO_LONG_ERROR,
   CIRCULAR_BLOCKER_ERROR,
+  DONE_BLOCKER_ERROR,
   EMPTY_BLOCKER,
   INVALID_BLOCKER_ERROR,
   SELF_BLOCKER_ERROR,
+  blockerIsDone,
   describeBlockerChange,
   extractBlockerTicketId,
   isBlockedStatusSlug,

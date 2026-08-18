@@ -436,19 +436,21 @@ export const TicketDetailsModal = ({
               currentCategory={currentCategory}
               onCategoryChange={setCurrentCategory}
               statusTracksTime={helpers.statusTracksTime}
+              lead={
+                isBlockedSelected ? (
+                  <BlockedByField
+                    value={currentBlocker}
+                    onChange={setCurrentBlocker}
+                    workspaceId={workspaceId}
+                    currentTicketId={ticketId}
+                    disabled={isArchived}
+                    onOpenTicket={onOpenTicket ? handleOpenBlockingTicket : null}
+                    idPrefix={`ticket-${ticketId}-blocker`}
+                    variant="rail"
+                  />
+                ) : null
+              }
             >
-              {isBlockedSelected && (
-                <BlockedByField
-                  value={currentBlocker}
-                  onChange={setCurrentBlocker}
-                  workspaceId={workspaceId}
-                  currentTicketId={ticketId}
-                  disabled={isArchived}
-                  onOpenTicket={onOpenTicket ? handleOpenBlockingTicket : null}
-                  idPrefix={`ticket-${ticketId}-blocker`}
-                />
-              )}
-
               {ticket?.linkedPullRequest && (
                 <TicketPrAccordion
                   linkedPullRequest={ticket.linkedPullRequest}

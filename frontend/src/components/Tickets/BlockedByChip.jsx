@@ -1,10 +1,17 @@
 import { CircleSlash } from 'lucide-react';
-import { cn } from '@/lib/utils';
+
+import { CHIP, chipTone } from '@/helpers/badgeTones';
 import { blockedByChipLabel, blockerTicketId } from '@/helpers/ticketBlocker';
+import { cn } from '@/lib/utils';
 
 /**
- * "Blocked by #12" next to a ticket in a list or on a board card — the at-a-glance
- * version of the blocker panel in the ticket details.
+ * "Blocked by #12" next to a ticket in a list or on a board card — the
+ * at-a-glance version of the blocker section in the ticket details.
+ *
+ * Geometry and colour both come from the shared chip vocabulary (`CHIP` +
+ * `chipTone('danger')`), so it sits at exactly the size of the category and PR
+ * chips beside it, and it follows the colour-blind-safe palette instead of
+ * hard-coding red.
  *
  * Clicking it opens the BLOCKING ticket, not the row it sits on, so it stops the
  * click from reaching the row/card handler underneath. Without `onOpenTicket` it
@@ -18,19 +25,18 @@ export function BlockedByChip({ blocker, onOpenTicket, className }) {
 
   if (!label) return null;
 
-  const tone =
-    'inline-flex max-w-full items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide border-red-500/30 bg-red-500/10 text-red-700 dark:border-red-500/35 dark:bg-red-500/15 dark:text-red-300';
+  const tone = cn(CHIP, 'max-w-full gap-1', chipTone('danger'), className);
 
   const body = (
     <>
-      <CircleSlash className="h-2.5 w-2.5 shrink-0" aria-hidden="true" />
+      <CircleSlash className="h-3 w-3 shrink-0" strokeWidth={1.8} aria-hidden="true" />
       <span className="truncate">{label}</span>
     </>
   );
 
   if (!onOpenTicket || !blockingId) {
     return (
-      <span className={cn(tone, className)} title={blocker?.subject || undefined}>
+      <span className={tone} title={blocker?.subject || undefined}>
         {body}
       </span>
     );
@@ -65,11 +71,7 @@ export function BlockedByChip({ blocker, onOpenTicket, className }) {
         blocker?.subject ? `${label} — ${blocker.subject}. Open it.` : `${label}. Open that ticket.`
       }
       data-test={`ticket-blocked-by-chip-${blockingId}`}
-      className={cn(
-        tone,
-        'cursor-pointer transition-colors outline-none hover:bg-red-500/20 hover:underline focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-red-500/25',
-        className
-      )}
+      className={cn(tone, 'ui-focus-ring cursor-pointer transition-opacity hover:underline')}
     >
       {body}
     </span>

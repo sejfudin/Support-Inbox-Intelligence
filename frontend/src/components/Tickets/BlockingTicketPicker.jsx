@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Loader2, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Loader2 } from 'lucide-react';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { SearchField } from '@/components/ui/search-field';
 import { useTickets } from '@/queries/tickets';
 import { extractStatusMeta } from '@/helpers/normalizeTicket';
+import { isDoneBlockerCandidate } from '@/helpers/ticketBlocker';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const RESULT_LIMIT = 8;
@@ -16,8 +17,15 @@ const RESULT_LIMIT = 8;
  * and "the one I'm blocked by" is a thing people know by number. A workspace with
  * a few thousand tickets would also make a preloaded list a bad trade.
  *
- * Archived tickets are left out: they are a read-only record and nothing is
- * waiting on one. An already-linked archived ticket still renders in the field.
+ * Archived tickets are left out of the query: they are a read-only record and
+ * nothing is waiting on one. An already-linked archived ticket still renders in
+ * the field.
+ *
+ * Finished tickets are dropped from the results for the same reason — nothing is
+ * waiting on a done ticket, and the server refuses the link anyway
+ * (`blockerIsDone`). They are filtered here rather than in the query because
+ * "done" is a per-workspace status flag, not something `GET /tickets` can filter
+ * on; the trade is that a page of results can come back short.
  */
 export function BlockingTicketPicker({
   workspaceId,
@@ -56,7 +64,10 @@ export function BlockingTicketPicker({
   );
 
   const results = useMemo(
-    () => (query.data?.data || []).filter((ticket) => !excluded.has(String(ticket._id))),
+    () =>
+      (query.data?.data || []).filter(
+        (ticket) => !excluded.has(String(ticket._id)) && !isDoneBlockerCandidate(ticket)
+      ),
     [query.data, excluded]
   );
 
@@ -93,11 +104,12 @@ export function BlockingTicketPicker({
       }}
     >
       <PopoverAnchor asChild>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <div>
+          <SearchField
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            width="block"
+            clearable={false}
             onKeyDown={(e) => {
               if (e.key !== 'ArrowDown') return;
               e.preventDefault();
@@ -105,7 +117,6 @@ export function BlockingTicketPicker({
             }}
             disabled={disabled}
             placeholder={placeholder}
-            className="h-9 pl-8 text-sm"
             data-test={dataTest}
           />
         </div>
@@ -115,17 +126,17 @@ export function BlockingTicketPicker({
         align="start"
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="z-[210] max-h-72 w-[var(--radix-popper-anchor-width)] overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-md"
+        className="z-[210] max-h-72 w-[var(--radix-popper-anchor-width)] overflow-y-auto rounded-[var(--r-card)] border border-separator bg-card p-0 shadow-elevated-sm"
       >
         {isLoading && (
-          <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 px-3 py-2.5 text-[12.5px] text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Searching…
           </div>
         )}
 
         {!isLoading && results.length === 0 && (
-          <div className="px-4 py-3 text-sm text-muted-foreground">No matching ticket.</div>
+          <div className="px-3 py-2.5 text-[12.5px] text-muted-foreground">No matching ticket.</div>
         )}
 
         {!isLoading && results.length > 0 && (
@@ -140,21 +151,21 @@ export function BlockingTicketPicker({
                   data-ticket-id={String(ticket._id)}
                   data-test={`blocker-option-${ticket._id}`}
                   onClick={() => pick(ticket)}
-                  className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm outline-none first:rounded-t-xl last:rounded-b-xl hover:bg-muted/50 focus:bg-muted/50"
+                  className="flex cursor-pointer items-center gap-2 border-b border-separator px-3 py-2 outline-none transition-colors last:border-b-0 hover:bg-accent/60 focus:bg-accent/60"
                 >
                   <span
-                    className="h-2 w-2 shrink-0 rounded-full"
+                    className="h-[7px] w-[7px] shrink-0 rounded-full"
                     style={{ backgroundColor: status?.color || 'currentColor' }}
                     aria-hidden="true"
                   />
-                  <span className="shrink-0 font-bold tabular-nums text-muted-foreground">
+                  <span className="shrink-0 text-[12.5px] font-semibold tabular-nums text-muted-foreground">
                     {ticket.taskNumber ? `#${ticket.taskNumber}` : '—'}
                   </span>
-                  <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-foreground">
                     {ticket.subject}
                   </span>
                   {status?.label && (
-                    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    <span className="shrink-0 text-[10.5px] font-medium text-muted-foreground/75">
                       {status.label}
                     </span>
                   )}

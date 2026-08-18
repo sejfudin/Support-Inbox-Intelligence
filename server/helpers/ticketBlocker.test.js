@@ -1,5 +1,6 @@
 const {
   BLOCKER_NOTE_MAX_LENGTH,
+  blockerIsDone,
   describeBlockerChange,
   isBlockedStatusSlug,
   isBlockerEmpty,
@@ -26,6 +27,20 @@ describe('isBlockedStatusSlug', () => {
     // to "Stuck" keeps slug `blocked`, and must keep the blocker field with it.
     const relabelled = { slug: 'blocked', label: 'Stuck' };
     expect(isBlockedStatusSlug(relabelled.slug)).toBe(true);
+  });
+});
+
+describe('blockerIsDone', () => {
+  // Nothing is waiting on a finished ticket, so it cannot be picked as a blocker.
+  it('reads the status behaviour flag, not the label', () => {
+    expect(blockerIsDone({ status: { slug: 'done', label: 'Shipped', isDone: true } })).toBe(true);
+    expect(blockerIsDone({ status: { slug: 'done', label: 'Done', isDone: false } })).toBe(false);
+  });
+
+  it('is false when the status is missing or unpopulated', () => {
+    expect(blockerIsDone({ status: '651f2c0f9e1a4b0012ab34cd' })).toBe(false);
+    expect(blockerIsDone({})).toBe(false);
+    expect(blockerIsDone(null)).toBe(false);
   });
 });
 

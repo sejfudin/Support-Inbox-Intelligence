@@ -93,10 +93,20 @@ mirror of the same slug and note cap, since the two are separate packages) over
 - **An absent `blockedBy` means "leave it alone", not "clear it"** (`parseBlockerInput` returns
   `undefined` vs `{ticketId: null, note: ''}`) — otherwise editing a title would wipe the blocker.
 - **Refused at write time**: a ticket from another workspace (`resolveBlockingTicket`, see
-  `.claude/docs/security.md`), itself, and any link that would close a cycle
-  (`assertNoBlockerCycle` walks the chain the candidate blocker waits on). Two tickets each claiming
-  the other blocks them is not something the database can catch and reads as a deadlock nobody put
-  there. Link and note changes are logged to `History` separately, since they move independently.
+  `.claude/docs/security.md`), itself, any link that would close a cycle (`assertNoBlockerCycle`
+  walks the chain the candidate blocker waits on), and a blocker that is already **done**
+  (`blockerIsDone`, read off the status's `isDone` behaviour flag — never its label, which a
+  workspace may have renamed to "Shipped"). Two tickets each claiming the other blocks them is not
+  something the database can catch and reads as a deadlock nobody put there; a finished ticket is
+  simply not something anyone is waiting for.
+- **The done rule applies to a *new* link only.** `resolveBlockingTicket` takes `previousBlockerId`
+  and skips the check when the link is unchanged, so a blocker that gets finished *after* it was
+  linked leaves a stale link rather than a wall in front of every other edit to the ticket — leaving
+  Blocked is what clears it. The picker drops done tickets from its results
+  (`isDoneBlockerCandidate`, the client mirror) — filtered client-side, because "done" is a
+  per-workspace status flag rather than something `GET /tickets` can filter on, so a page of
+  results can come back short. Link and note changes are logged to `History` separately, since
+  they move independently.
 - **Populated at two widths.** `BLOCKER_POPULATE` (single-ticket reads: create / update /
   `getTicketById`) carries the blocker's subject, number, archived flag and its own status, so the
   panel can show whether it is still in the way. `BLOCKER_LIST_POPULATE` — number and subject only —
@@ -104,13 +114,23 @@ mirror of the same slug and note cap, since the two are separate packages) over
   priority-ordered list sorts in Mongo and gets the same shape from `blockerLookupStages()`, because
   `$lookup` knows nothing about Mongoose populate; keep the two in step or the chip vanishes as soon
   as a user sorts by priority.
-- The frontend panel mounts **only while Blocked is the selected status**, so its appearance is the
+- The frontend field mounts **only while Blocked is the selected status**, so its appearance is the
   whole explanation for why it appeared. Switching the status away keeps what was typed (a misclick
   shouldn't lose it) and the form filters it out on submit instead. The linked ticket renders as a
   clickable reference wherever the host page passes `onOpenTicket` — the detail modal swaps onto that
   ticket, confirming first if the current one has unsaved edits.
+- **It carries no card of its own**, and takes the shape of the column it is dropped into:
+  `variant="rail"` is the lead section of the details modal's `TicketMetaRail` (rail captions,
+  controls on `bg-card`, a rule under it), `variant="form"` is plain `Field` rows in the create
+  modal's aside. The danger tone is one icon on the caption — the status is already called Blocked
+  and already wears the colour. The picker uses the shared `SearchField`, so it is the same search
+  control as everywhere else.
 - **`BlockedByChip`** is the list/board form of the same reference (`Blocked by #12`, next to the
-  title in `ticketColumns` and in the badge row on a board card). It opens the **blocking** ticket,
+  title in `ticketColumns` and in the meta row of a board card). Geometry and colour come from the
+  shared chip vocabulary (`CHIP` + `chipTone('danger')` in `helpers/badgeTones.js`), so it matches
+  the category and PR chips beside it and follows the colour-blind-safe palette. It renders as a
+  `role="button"` span rather than a `<button>`, because the board card it sits on is itself a
+  button. It opens the **blocking** ticket,
   so it stops the click reaching the row/card underneath — which opens the ticket it sits on — and
   stops `pointerdown` reaching the board's dnd-kit drag listeners. It renders nothing without a task
   number (`blockedByChipLabel`): a note-only blocker has no reference to offer, and the row already
