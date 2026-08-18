@@ -91,6 +91,11 @@ two browsers changing two different preferences do not clobber each other.
   it, and its frontend twin is the preference table in `src/context/ThemeConfigContext.jsx`
   (`DOM_PREFERENCES` + `VALUE_PREFERENCES`, joined into the exported `ACCOUNT_PREFERENCES`). A new
   preference costs a row in each; nothing else enumerates them.
+- **Not every preference is account-level.** The desktop-notification switch
+  (`notify-desktop`, `helpers/desktopNotifications.js`) uses `useStoredPreference` like the rest
+  but is deliberately absent from `ACCOUNT_PREFERENCES`, which makes `pushPreference` a no-op for
+  it. Browser notification permission is granted per browser per device, so a synced switch would
+  read "on" on a machine that had never granted anything. UI scale is the other one.
 - Both responses carry `{ preferences, storedKeys }`. `storedKeys` names the
   preferences this account has actually saved; **the client reconciles per key**, so a value only
   set locally survives while the saved ones take the server's answer.
@@ -190,6 +195,17 @@ scope (`socket/invalidationScopes.js`) — no new scope key was needed for the i
 bell (`NavbarNotifications`) is mounted in both top-level shells — `SidebarLayout.jsx` (admin/
 mentor/intern) and `SymphonyNav.jsx` (leadership, a separate layout) — so every role that can
 receive a notification has somewhere to read it.
+
+The same socket event optionally also draws an **OS desktop banner** — the browser's Notification
+API, no service worker and no push subscription, so it needs the tab open. `SocketContext`'s
+`new_notification` handler calls `maybeShowDesktopNotification`
+(`frontend/src/helpers/desktopNotifications.js`), which reads every gate at call time rather than
+from React state (a socket handler would otherwise hold whatever was true when it connected):
+the reader's switch, browser permission, the mute groups, and whether the app is in the
+background — `visibilityState` **or** `hasFocus()`, since a tab stays `visible` with the whole
+browser behind another app. It is best-effort throughout: a failure never costs the cache
+invalidation beside it, and the bell entry is the real record. The switch itself is per-device,
+see "UI preferences" below.
 
 - **Ticketing** notifications live in `server/services/notificationService.js`
   (`notifyNewTicketComment`, `notifyTicketAssigned`, `notifyTicketMention`), `await`ed from
