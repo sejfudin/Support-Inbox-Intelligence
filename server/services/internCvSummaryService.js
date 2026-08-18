@@ -2,7 +2,7 @@ const { supabase, supabaseCvBucket } = require('../config/supabase');
 const { extractPdfText } = require('../helpers/pdfText');
 const { buildCvSummaryPrompt } = require('../prompts/internCvPrompts');
 const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
-const { assertInternAccess } = require('../helpers/internAccess');
+const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
 const { httpError } = require('../helpers/httpError');
 
 /**
@@ -17,9 +17,12 @@ const { httpError } = require('../helpers/httpError');
  * new path, so the stored summary is recognised as stale rather than served
  * against a CV it never read.
  *
- * Visibility follows the profile: `assertInternAccess` admits admins and the
- * intern's own mentors, which is the same rule that guards the CV file itself.
- * The intern is deliberately NOT shown their own summary — see the route.
+ * Visibility is admin-or-assigned-mentor only (`canWriteMentorData`), not the
+ * broader `canViewInternProfile` that `assertInternAccess` grants by default —
+ * that default includes the intern viewing their own profile, which is exactly
+ * who this must NOT be shown to (see the route). `assertInternAccess` itself is
+ * still called first, for the 404-on-missing-profile behaviour every other
+ * intern-scoped endpoint gets.
  */
 
 // Enough of a CV to summarise, bounded so a pathological PDF cannot push an
@@ -37,6 +40,12 @@ const sanitizeSummary = (value) =>
     .replace(/^\s*summary\s*:\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
+
+const assertCvSummaryAccess = (actor, profile) => {
+  if (!canWriteMentorData(actor, profile)) {
+    throw httpError("Not authorized to access this intern's CV summary", 403);
+  }
+};
 
 const downloadCv = async (cvPath) => {
   const { data, error } = await supabase.storage.from(supabaseCvBucket).download(cvPath);
@@ -57,6 +66,7 @@ const toSummaryPayload = (profile) => ({
 /** The cached summary, or an empty payload. Never calls the model. */
 const getCvSummary = async (actor, internUserId) => {
   const profile = await assertInternAccess(actor, internUserId);
+  assertCvSummaryAccess(actor, profile);
   return toSummaryPayload(profile);
 };
 
@@ -70,6 +80,7 @@ const getCvSummary = async (actor, internUserId) => {
  */
 const generateCvSummary = async (actor, internUserId) => {
   const profile = await assertInternAccess(actor, internUserId);
+  assertCvSummaryAccess(actor, profile);
 
   if (!profile.cvPath) {
     throw httpError('This intern has not uploaded a CV.', 400);

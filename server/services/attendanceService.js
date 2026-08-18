@@ -19,6 +19,8 @@ const {
   loadObservances,
 } = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
+const { isAssignedMentor } = require('../helpers/internAccess');
+const { ROLES } = require('../constants/roles');
 
 const { PRESENT, CANCELLED } = Attendance;
 
@@ -88,11 +90,6 @@ const assertNotPlaced = (profile, now) => {
 };
 
 const assertCheckInOpen = (now) => {
-  // ⚠️ DEV OVERRIDE — NE COMMITOVATI. Otvara check-in vikendom i van 07:00–11:00
-  // prozora da bi se dugme moglo testirati lokalno. Vrati sa:
-  //   git checkout -- server/services/attendanceService.js
-  return;
-  // eslint-disable-next-line no-unreachable
   if (isOfficeWeekend(now)) {
     throw httpError('Check-in is only available on weekdays.', 422);
   }
@@ -287,7 +284,7 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
  * office month — the roster passes the month it is currently showing), with the
  * intern's identity attached.
  */
-const getInternAttendance = async (internProfileId, month) => {
+const getInternAttendance = async (actor, internProfileId, month) => {
   let profile;
   try {
     profile = await InternProfile.findById(internProfileId)
@@ -302,6 +299,13 @@ const getInternAttendance = async (internProfileId, month) => {
     throw err;
   }
   if (!profile || !profile.user) throw httpError('Intern not found.', 404);
+
+  // Admin reads any intern; a mentor reads only theirs — the roster stays
+  // admin-only, but this per-intern route also serves the mentor-facing
+  // Attendance tab, and that tab must not leak another mentor's intern.
+  if (actor.role !== ROLES.ADMIN && !isAssignedMentor(profile, actor._id)) {
+    throw httpError("Not authorized to view this intern's attendance.", 403);
+  }
 
   const rows = await Attendance.find({ intern: profile._id }).sort({ date: 1 }).lean();
   const { records, cancelledDates, exemptDates, requestedDays } = splitRows(rows);
