@@ -39,9 +39,9 @@ import {
   BTN_PRIMARY_CLASS,
   BTN_PRIMARY_DISABLED_CLASS,
   buildTimelineSteps,
-  DarkTooltip,
   REC_FONT,
 } from '@/components/interns/recommendations/recommendationUi';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 // Detailed / Compact list rendering, persisted so it survives reloads.
 //
@@ -443,25 +443,34 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
             <ViewModeSwitcher value={viewMode} onChange={changeViewMode} />
             {canWrite &&
               (recommendBlocked ? (
-                <DarkTooltip content={recommendBlockedReason(intern?.status)}>
-                  <span className="inline-flex">
-                    <button
-                      type="button"
-                      disabled
-                      aria-disabled="true"
-                      className={cn(
-                        'inline-flex h-8 items-center gap-1.5 rounded-[var(--r-control)] px-3 text-[12.5px] font-medium',
-                        BTN_PRIMARY_CLASS,
-                        BTN_PRIMARY_DISABLED_CLASS
-                      )}
-                      data-test="recommendation-history-new-button"
-                      title={recommendBlockedReason(intern?.status)}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      New recommendation
-                    </button>
-                  </span>
-                </DarkTooltip>
+                // A portal-based tooltip, not `DarkTooltip`: this button sits at the top
+                // of an `overflow-hidden` card, so a tooltip positioned above it (like
+                // DarkTooltip's) has no room to render and gets clipped invisibly —
+                // hovering showed nothing. Radix's renders into a portal, so it escapes
+                // the card's clipping entirely.
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <button
+                          type="button"
+                          disabled
+                          aria-disabled="true"
+                          className={cn(
+                            'inline-flex h-8 items-center gap-1.5 rounded-[var(--r-control)] px-3 text-[12.5px] font-medium',
+                            BTN_PRIMARY_CLASS,
+                            BTN_PRIMARY_DISABLED_CLASS
+                          )}
+                          data-test="recommendation-history-new-button"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          New recommendation
+                        </button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{recommendBlockedReason(intern?.status)}</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ) : (
                 <button
                   type="button"
