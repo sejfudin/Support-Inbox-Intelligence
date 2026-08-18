@@ -12,11 +12,12 @@ import {
  * API only — no service worker, no push subscription — so a banner needs the
  * tab to still be open somewhere in the browser.
  *
- * Deliberately NOT an account preference (`ACCOUNT_PREFERENCES` in
- * `context/ThemeConfigContext.jsx`): browser permission is granted per browser,
- * per device. Syncing the switch would claim the reader opted in on a machine
- * where they never granted anything, and there it would silently do nothing.
- * This is `PREFERENCE_SCOPE.DEVICE` behaviour, cached locally and never pushed.
+ * The switch is declared like every other preference — a row in
+ * `VALUE_PREFERENCES` (`context/ThemeConfigContext.jsx`) — but carries
+ * `PREFERENCE_SCOPE.DEVICE`, so `ACCOUNT_PREFERENCES` filters it out and the
+ * sync layer never pushes it. Browser permission is granted per browser, per
+ * device; a synced switch would claim the reader opted in on a machine where
+ * they never granted anything, and there it would silently do nothing.
  *
  * The mute groups still apply. A reader who muted a group turned it off
  * everywhere, not only in the bell.

@@ -71,6 +71,11 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   two places that enumerate the preferences; a new one costs a row in each (plus a CSS block for
   an `<html>` attribute). Read and write it through `hooks/useStoredPreference.js` so it caches,
   syncs to the user record and reaches the other components holding the same key.
+  A per-device setting is still a row — it carries `scope: PREFERENCE_SCOPE.DEVICE`, which
+  `ACCOUNT_PREFERENCES` filters out, and costs no row on the server. Reach for it only when the
+  right answer genuinely differs per machine (`uiScale` follows screen size; `desktopNotifications`
+  follows a browser permission granted per browser). Skipping the table instead is the thing to
+  avoid: a key enumerated nowhere is a key the next reader cannot find.
   See architecture.md → "UI preferences" before adding one.
 - **Routing**: `src/routes/` — `AppRoutes.jsx`, `ProtectedRoutes.jsx`, `WorkspaceManagementRoute.jsx`.
   Add new guarded routes through these, not ad-hoc.

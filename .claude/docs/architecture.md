@@ -91,11 +91,12 @@ two browsers changing two different preferences do not clobber each other.
   it, and its frontend twin is the preference table in `src/context/ThemeConfigContext.jsx`
   (`DOM_PREFERENCES` + `VALUE_PREFERENCES`, joined into the exported `ACCOUNT_PREFERENCES`). A new
   preference costs a row in each; nothing else enumerates them.
-- **Not every preference is account-level.** The desktop-notification switch
-  (`notify-desktop`, `helpers/desktopNotifications.js`) uses `useStoredPreference` like the rest
-  but is deliberately absent from `ACCOUNT_PREFERENCES`, which makes `pushPreference` a no-op for
-  it. Browser notification permission is granted per browser per device, so a synced switch would
-  read "on" on a machine that had never granted anything. UI scale is the other one.
+- **Not every preference is account-level.** `PREFERENCE_SCOPE.DEVICE` marks the rows that stay in
+  the browser: UI scale (a function of screen size, not taste) and the desktop-notification switch
+  (`notify-desktop` — browser notification permission is granted per browser per device, so a
+  synced switch would read "on" where nothing could ever draw). Both tables are filtered to
+  `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like any other and
+  simply never pushed. Scope is what excludes it, not omission from the table.
 - Both responses carry `{ preferences, storedKeys }`. `storedKeys` names the
   preferences this account has actually saved; **the client reconciles per key**, so a value only
   set locally survives while the saved ones take the server's answer.

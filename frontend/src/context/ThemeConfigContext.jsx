@@ -31,6 +31,11 @@ import {
   serializeMutedGroups,
 } from '@/helpers/notificationPreferences';
 import {
+  DESKTOP_NOTIFICATIONS_DEFAULT,
+  DESKTOP_NOTIFICATIONS_STORAGE_KEY,
+  isValidDesktopNotifications,
+} from '@/helpers/desktopNotifications';
+import {
   ASSIGNEE_DEFAULT_STORAGE_KEY,
   COLORBLIND_OPTIONS,
   COLORBLIND_STORAGE_KEY,
@@ -156,53 +161,81 @@ const isValidMode = (value) => MODE_VALUES.includes(value);
  * whose stored form is not its wire form.
  */
 const VALUE_PREFERENCES = [
-  { key: 'mode', storageKey: MODE_STORAGE_KEY, fallback: 'system', isValid: isValidMode },
+  {
+    key: 'mode',
+    storageKey: MODE_STORAGE_KEY,
+    fallback: 'system',
+    isValid: isValidMode,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
+  },
   {
     key: 'colorTheme',
     storageKey: COLOR_THEME_STORAGE_KEY,
     fallback: DEFAULT_COLOR_THEME,
     isValid: isValidColorTheme,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
   },
   {
     key: 'landingPage',
     storageKey: LANDING_PAGE_STORAGE_KEY,
     fallback: DEFAULT_LANDING_PAGE,
     isValid: isValidLandingPage,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
   },
   {
     key: 'ticketsView',
     storageKey: TICKETS_VIEW_STORAGE_KEY,
     fallback: DEFAULT_TICKETS_VIEW,
     isValid: isValidTicketsView,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
   },
   {
     key: 'assigneeDefault',
     storageKey: ASSIGNEE_DEFAULT_STORAGE_KEY,
     fallback: DEFAULT_ASSIGNEE_DEFAULT,
     isValid: isValidAssigneeDefault,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
   },
   {
     key: 'boardSort',
     storageKey: BOARD_SORT_STORAGE_KEY,
     fallback: DEFAULT_BOARD_SORT,
     isValid: isValidBoardSort,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
   },
   {
     key: 'mutedNotificationGroups',
     storageKey: NOTIFICATION_MUTED_STORAGE_KEY,
     fallback: '',
     isValid: isValidMutedGroups,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
     // Cached as one comma-separated string, stored on the user as a real array.
     toServer: parseMutedGroups,
     fromServer: (value) => serializeMutedGroups(Array.isArray(value) ? value : []),
+  },
+  {
+    key: 'desktopNotifications',
+    storageKey: DESKTOP_NOTIFICATIONS_STORAGE_KEY,
+    fallback: DESKTOP_NOTIFICATIONS_DEFAULT,
+    isValid: isValidDesktopNotifications,
+    // The second per-device row, for the same reason as `uiScale`: the browser
+    // grants notification permission per browser, per device, so a synced switch
+    // would read "on" where nothing could ever draw. It sits in the table
+    // anyway — the table is where a preference is declared, whether or not the
+    // sync layer ends up carrying it.
+    scope: PREFERENCE_SCOPE.DEVICE,
   },
 ];
 
 /**
  * The single list the sync layer works from: every preference that belongs to
  * the account, whatever shape it takes on screen. `components/UserPreferencesSync.jsx`
- * reads this to turn a `localStorage` write into a PATCH, and nothing else
- * anywhere enumerates the preferences.
+ * reads this to turn a `localStorage` write into a PATCH.
+ *
+ * Both tables above are filtered to `ACCOUNT` here, so a `DEVICE` row is
+ * declared like any other but never pushed — `pushPreference` simply finds no
+ * entry for its key. That is the whole mechanism: scope, not omission, is what
+ * keeps a per-device preference off the user record.
  */
 export const ACCOUNT_PREFERENCES = [
   ...DOM_PREFERENCES.filter((preference) => preference.scope === PREFERENCE_SCOPE.ACCOUNT).map(
@@ -217,7 +250,7 @@ export const ACCOUNT_PREFERENCES = [
       attribute,
     })
   ),
-  ...VALUE_PREFERENCES,
+  ...VALUE_PREFERENCES.filter((preference) => preference.scope === PREFERENCE_SCOPE.ACCOUNT),
 ];
 
 /** The account preferences that show up as an attribute on <html>. */
