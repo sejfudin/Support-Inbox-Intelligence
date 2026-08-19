@@ -246,7 +246,7 @@ function RecommendationRow({ recommendation, isLatest }) {
               {[recommendation.position, recommendation.project].filter(Boolean).join(' · ') ||
                 'Project to be confirmed'}
               {isLatest && (
-                <Badge variant="outline" className="font-semibold">
+                <Badge as="span" variant="outline" className="font-semibold">
                   Most recent
                 </Badge>
               )}
@@ -256,7 +256,9 @@ function RecommendationRow({ recommendation, isLatest }) {
             </span>
           </span>
 
-          <Badge variant={badgeVariant}>{badgeLabel}</Badge>
+          <Badge as="span" variant={badgeVariant}>
+            {badgeLabel}
+          </Badge>
         </span>
       </AccordionTrigger>
 

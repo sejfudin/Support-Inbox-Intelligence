@@ -143,7 +143,7 @@ export default function MyProgressPage() {
 
         {!isError && !isPending && (
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList data-test="my-progress-tabs">
+            <TabsList className="w-full justify-start overflow-x-auto" data-test="my-progress-tabs">
               <TabsTrigger value="overview" data-test="my-progress-tab-overview">
                 Overview
               </TabsTrigger>

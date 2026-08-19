@@ -46,7 +46,7 @@ function EvaluationRow({ evaluation, trends, isLatest }) {
           <span className="flex min-w-0 items-center gap-2 text-[12.5px] font-medium text-foreground">
             {formatPeriod(evaluation)}
             {isLatest && (
-              <Badge variant="outline" className="font-semibold">
+              <Badge as="span" variant="outline" className="font-semibold">
                 Latest
               </Badge>
             )}
