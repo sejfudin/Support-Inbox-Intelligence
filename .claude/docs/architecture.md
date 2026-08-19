@@ -43,6 +43,8 @@ AI: `AISummary`.
 - `User.preferences` — one optional subdocument (`_id: false`) holding the UI preferences that
   follow the account. Every field is optional and **absent means "never chosen"**, which is what
   the sync layer keys off; see "UI preferences" below.
+- `User.avatarUrl` / `User.avatarPath` — the profile picture; see "Profile pictures" below. Two
+  fields on purpose, and `avatarPath` is `select: false`.
 - Statuses are **per-workspace and customizable** (not a global enum). See `statusService` and
   `server/helpers/statusValidation.js` / `statusSlugAliases.js`.
 - **A status's `slug` is its identity, and a rename must never change it.** `updateStatus` writes
@@ -218,6 +220,53 @@ independent `prUrl`).
 - Refresh tokens persisted (`RefreshToken` model); `tokenVersion` on `User` gates validity.
   Logic in `server/services/authService.js`.
 
+## Profile pictures
+
+One picture per account, for every role — admin, mentor, leadership and intern alike, because every
+human on the platform is a `User` row (an intern is a `User` plus an `InternProfile`, not a separate
+identity). An account without one renders initials, tinted by `getAvatarColor`, exactly as the whole
+app did before this existed.
+
+**Write path.** `POST /api/auth/me/avatar` (multipart, field `avatar`) and
+`DELETE /api/auth/me/avatar`, in `services/userAvatarService.js`. Self-serve only: the account comes
+from the token, never from the URL, the same shape `PATCH /auth/me/password` settled on. There is
+deliberately **no admin-sets-another-user's-picture endpoint** — unlike a password, nobody is ever
+locked out of a photo, so the admin-override that justifies `PATCH /auth/:id` for passwords has no
+equivalent. `PATCH /auth/:id` builds its update from an explicit allow-list, so neither field can be
+written through it.
+
+**Two fields, not one.** `avatarUrl` holds the public URL and rides along in the ordinary user
+projection; `avatarPath` holds the storage key, is `select: false`, and exists so replacing a picture
+can delete the object it replaced. A Mongoose virtual would have been tidier but does not survive
+`.lean()`, and roughly forty-six of the queries that populate a user are lean — the avatar would have
+appeared on some screens and silently vanished on others. If `SUPABASE_URL` or the bucket ever
+changes, the stored URLs go stale and `avatarPath` is what makes re-deriving them a one-line script.
+
+**Read path — `server/constants/userSelect.js`.** `userSelect(...extras)` is the projection every
+query returning *a person to look at* uses:
+
+```js
+populate('creator', userSelect())            // fullname email avatarUrl
+populate('assignedTo', userSelect('role'))
+{ path: 'user', select: userSelect('role', 'status', 'hub') }
+```
+
+Before it, ~60 sites each carried their own literal (`'fullname email role'` and a dozen variants).
+Mongoose returns only what a projection names, so any site not updated would keep serving initials —
+and a colleague with a photo on the board and a monogram in the ticket rail reads as a bug, not as a
+missing field. The next field that has to appear beside a name is one edit there. Hand-built DTOs
+that reshape a user (`formatUser`, `toInternSummary`, `internSummary`, the `$project` stages in
+`ticketService`) name `avatarUrl` themselves — a projection constant cannot reach inside those.
+
+One deliberate exception: the intern-facing view of a mentor note projects
+`'fullname role avatarUrl'` by hand, because that view does not carry the author's email and
+`userSelect()` includes it.
+
+**Bucket.** `SUPABASE_PROFILE_BUCKET`, public-read, permitting `image/jpeg`, `image/png`,
+`image/webp`. Required rather than defaulted to the workspace-logo bucket: that bucket caps objects
+at 1MB and disallows WEBP, so valid uploads came back as 502s from storage. See `security.md` for
+the public-read and no-SVG decisions.
+
 ## UI preferences (account-level)
 
 Appearance, workspace-default and notification-mute preferences follow the **user**, not the
@@ -285,8 +334,9 @@ two browsers changing two different preferences do not clobber each other.
     `prompts/internCvPrompts.js` before changing it.
 - **GitHub App** (`server/services/githubService.js`, `autoLinkService.js`) — webhook-driven PR
   linking. RS256 JWT; installation tokens encrypted at rest (`server/helpers/crypto.js`).
-- **Supabase Storage** (`server/config/supabase.js`) — attachment images, workspace logos, intern CVs.
-  Server throws on startup if Supabase env vars missing.
+- **Supabase Storage** (`server/config/supabase.js`) — attachment images, workspace logos, intern
+  CVs, profile pictures. Server throws on startup if Supabase env vars missing, `SUPABASE_PROFILE_BUCKET`
+  included — see "Profile pictures" for why that one is required rather than defaulted.
 
 ### CV technology auto-detection
 

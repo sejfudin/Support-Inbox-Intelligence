@@ -25,6 +25,7 @@ const { loadMyProfile } = require('./attendanceService');
 const { getEffectiveLimits, getPrimaryAdminId } = require('./absenceSettingsService');
 const adminService = require('./adminService');
 const internNotificationService = require('./internNotificationService');
+const { userSelect } = require('../constants/userSelect');
 
 const { PENDING, APPROVED, REJECTED, CANCELLED, REVOKED, LIVE_STATUSES } = AbsenceRequest;
 
@@ -282,6 +283,7 @@ const toInternSummary = (profile) => ({
   id: profile._id,
   fullname: profile.user?.fullname || '',
   email: profile.user?.email || '',
+  avatarUrl: profile.user?.avatarUrl || null,
   hub: profile.user?.hub?.name || '',
 });
 
@@ -301,7 +303,7 @@ const listRequests = async (_user, { status = PENDING, type } = {}) => {
       select: 'user',
       populate: {
         path: 'user',
-        select: 'fullname email hub',
+        select: userSelect('hub'),
         populate: { path: 'hub', select: 'name' },
       },
     })

@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { cn } from '@/lib/utils';
 import { formatSuggestionMeta } from '@/helpers/staffingRequests';
 import { getSuggestionState } from '@/components/symphony/requests/requestPresentation';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Where an intern stands, as a pill rather than the tail of the meta line. It is
 // the one thing on the row that decides whether this person is actually coming,
@@ -48,7 +48,9 @@ export function CandidateRow({ suggestion }) {
 
   return (
     <Shell data-test={`suggestion-${suggestion.id}`}>
-      <InitialsAvatar name={suggestion.internName} />
+      <UserAvatar
+        user={{ fullname: suggestion.internName, avatarUrl: suggestion.internAvatarUrl }}
+      />
       <div className="min-w-0 flex-1">
         {suggestion.internProfile ? (
           <Link
@@ -86,7 +88,7 @@ export function StagedCandidateRow({ pick, rejection, onRemove }) {
       )}
       data-test={`staged-pick-${pick.id}`}
     >
-      <InitialsAvatar name={pick.name} />
+      <UserAvatar user={{ fullname: pick.name, avatarUrl: pick.avatarUrl }} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-semibold text-foreground">{pick.name}</p>
         <p className="truncate text-[11.5px] leading-snug text-muted-foreground">

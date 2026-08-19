@@ -16,6 +16,7 @@ const {
   MS_PER_DAY,
 } = require('../helpers/dailyRules');
 const { emitDailyChanged } = require('../socket/events');
+const { userSelect } = require('../constants/userSelect');
 
 class DailyValidationError extends Error {
   constructor(message, statusCode = 400) {
@@ -25,7 +26,7 @@ class DailyValidationError extends Error {
   }
 }
 
-const ENTRY_MEMBER_POPULATE_SELECT = 'fullname email role';
+const ENTRY_MEMBER_POPULATE_SELECT = userSelect('role');
 const LINKED_TICKET_POPULATE_SELECT = 'taskNumber subject status workspace isArchived';
 const LINKED_TICKET_STATUS_POPULATE_SELECT = 'slug label color';
 
@@ -251,6 +252,7 @@ const buildMemberSummary = (intern) => ({
   id: String(intern._id),
   fullname: intern.fullname || '',
   email: intern.email || '',
+  avatarUrl: intern.avatarUrl || null,
 });
 
 /**

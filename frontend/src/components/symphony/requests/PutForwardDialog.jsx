@@ -11,13 +11,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { formatSuggestionMeta, getInitials } from '@/helpers/staffingRequests';
+import { formatSuggestionMeta } from '@/helpers/staffingRequests';
 import { TechnologyIcon, buildTechnologyIndex } from '@/helpers/technologyIcons';
 import { usePutForwardCandidates } from '@/queries/staffingRequests';
 import { useTechnologies } from '@/queries/technologies';
 import { cn } from '@/lib/utils';
 import { getRequestTitle } from './requestPresentation';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // How many technology chips stay on screen before the rest fold behind
 // "+N more". Chips the admin has switched on are always counted in, so a filter
@@ -68,6 +68,7 @@ const CandidateWarnings = ({ warnings }) => (
 const toPick = (candidate) => ({
   id: candidate.internProfile,
   name: candidate.internName,
+  avatarUrl: candidate.internAvatarUrl ?? null,
   technologies: candidate.technologies ?? [],
   startDate: candidate.startDate ?? null,
 });
@@ -112,15 +113,11 @@ const CandidateRow = ({ candidate, staged, onToggle }) => {
       data-test={`candidate-${candidate.internProfile}`}
     >
       <div className={cn('flex items-center gap-3', conflicted && 'pb-2.5')}>
-        <span
-          className={cn(
-            'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
-            getAvatarColor(candidate.internName)
-          )}
-          aria-hidden="true"
-        >
-          {getInitials(candidate.internName)}
-        </span>
+        <UserAvatar
+          user={{ fullname: candidate.internName, avatarUrl: candidate.internAvatarUrl }}
+          className="h-9 w-9 text-[11px]"
+          showTitle={false}
+        />
 
         <div className="min-w-0 flex-1">
           <p className="flex items-center gap-2 text-sm font-semibold leading-tight text-foreground">
@@ -545,15 +542,11 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
                     key={pick.id}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background py-0.5 pl-1 pr-2 text-xs"
                   >
-                    <span
-                      className={cn(
-                        'inline-flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold',
-                        getAvatarColor(pick.name)
-                      )}
-                      aria-hidden="true"
-                    >
-                      {getInitials(pick.name)}
-                    </span>
+                    <UserAvatar
+                      user={{ fullname: pick.name, avatarUrl: pick.avatarUrl }}
+                      className="h-5 w-5 text-[9px]"
+                      showTitle={false}
+                    />
                     <span className="max-w-[10rem] truncate font-medium">{pick.name}</span>
                     <button
                       type="button"

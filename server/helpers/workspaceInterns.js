@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const { ROLES } = require('../constants/roles');
+const { userSelect } = require('../constants/userSelect');
 
 /**
  * The interns who count as "in" a workspace.
@@ -21,7 +22,7 @@ const getActiveWorkspaceInterns = async (workspaceId) => {
     active: true,
     status: 'active',
   })
-    .select('fullname email')
+    .select(userSelect())
     .lean();
 };
 

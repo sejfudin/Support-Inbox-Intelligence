@@ -215,6 +215,7 @@ export function InternProfileView({
       <PageSection>
         <Tabs value={activeTab} onValueChange={onTabChange}>
           <InternProfileHeader
+            user={intern.user}
             fullname={intern.user?.fullname}
             email={intern.user?.email}
             status={intern.status}

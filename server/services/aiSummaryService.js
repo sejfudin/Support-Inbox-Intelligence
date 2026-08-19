@@ -6,6 +6,7 @@ const Workspace = require('../models/Workspace');
 const statusService = require('./statusService');
 const { buildUserSummaryPrompt } = require('../prompts/ticketPrompts');
 const { createAiServiceError, requestGroqOutputText } = require('./groqAiClient');
+const { userSelect } = require('../constants/userSelect');
 
 function normalizeText(value) {
   return String(value || '').trim();
@@ -82,7 +83,7 @@ async function getLatestUserSummary({ userId, workspaceId, requesterId, requeste
     workspace: workspaceObjectId,
   })
     .sort({ generatedAt: -1 })
-    .populate('user', 'fullname email')
+    .populate('user', userSelect())
     .populate('workspace', 'name');
 }
 

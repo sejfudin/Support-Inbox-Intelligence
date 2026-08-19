@@ -19,8 +19,6 @@ import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import FilterSelect from '@/components/FilterSelect';
 import RecommendationTechnologies from '@/components/interns/recommendations/RecommendationTechnologies';
 import { CHIP, badgeTone } from '@/helpers/badgeTones';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
 import {
   getRecommendationResultLabel,
   getRecommendationResultTone,
@@ -36,6 +34,7 @@ import { useRecommendations } from '@/queries/recommendations';
 import { useTechnologies } from '@/queries/technologies';
 import { formatDate } from '@/helpers/date';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // The three pipeline stages, in order — the columns that used to carry a date
 // each and now live in the status chip's tooltip.
@@ -281,15 +280,12 @@ export default function MentorRecommendationsPage() {
                             they are listed. */}
                         <TableCell>
                           <div className="flex min-w-0 items-center gap-2.5">
-                            <span
-                              className={cn(
-                                'grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full text-[10.5px] font-bold',
-                                getAvatarColor(fullname)
-                              )}
-                              aria-hidden="true"
-                            >
-                              {getInitials(fullname)}
-                            </span>
+                            <UserAvatar
+                              user={intern?.user}
+                              name={fullname}
+                              size="md"
+                              showTitle={false}
+                            />
                             <div className="min-w-0 leading-[1.35]">
                               <p className="truncate text-[13px] font-medium text-foreground">
                                 {fullname}
@@ -318,6 +314,7 @@ export default function MentorRecommendationsPage() {
                         <TableCell>
                           <RecommendationTechnologies
                             technologies={recommendation.technologies}
+                            intern={intern?.user}
                             internName={fullname}
                             subtitle={recommendation.position?.name}
                           />

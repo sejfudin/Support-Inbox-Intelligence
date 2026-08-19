@@ -14,8 +14,8 @@ import NavbarNotifications from '@/components/NavbarNotifications';
 import { useAuth } from '@/context/AuthContext';
 import { useLogoutUser } from '@/queries/auth';
 import { useStaffingRequestNews } from '@/queries/staffingRequests';
-import { getInitials } from '@/helpers/initials';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const NAV_ITEMS = [
   {
@@ -44,7 +44,6 @@ export function SymphonyNav() {
   const { user } = useAuth();
   const { mutate: logout } = useLogoutUser();
   const { resolvedTheme, setTheme } = useTheme();
-  const initials = getInitials(user?.fullname, 'L');
   const { data: news } = useStaffingRequestNews();
   const requestsBadge = news?.count > 0 ? news.count : null;
   const isDark = resolvedTheme === 'dark';
@@ -85,9 +84,12 @@ export function SymphonyNav() {
                 aria-label="Account menu"
                 data-test="symphony-nav-account-button"
               >
-                <span className="symphony-navbar-avatar" aria-hidden>
-                  {initials}
-                </span>
+                <UserAvatar
+                  user={user}
+                  className="symphony-navbar-avatar"
+                  fallback="L"
+                  showTitle={false}
+                />
                 <ChevronDown className="symphony-navbar-account-chevron" aria-hidden />
               </button>
             </DropdownMenuTrigger>

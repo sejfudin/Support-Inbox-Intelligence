@@ -21,6 +21,7 @@ const {
 const { httpError } = require('../helpers/httpError');
 const { isAssignedMentor } = require('../helpers/internAccess');
 const { ROLES } = require('../constants/roles');
+const { userSelect } = require('../constants/userSelect');
 
 const { PRESENT, CANCELLED } = Attendance;
 
@@ -196,6 +197,7 @@ const toInternSummary = (profile) => {
     id: profile._id,
     fullname: user.fullname || '',
     email: user.email || '',
+    avatarUrl: user.avatarUrl || null,
     hub: user.hub?.name || '',
   };
 };
@@ -236,7 +238,7 @@ const getRoster = async (_user, { month, search, hub } = {}) => {
   let profiles = await InternProfile.find(filter)
     .populate({
       path: 'user',
-      select: 'fullname email hub',
+      select: userSelect('hub'),
       populate: { path: 'hub', select: 'name' },
     })
     .lean();
@@ -291,7 +293,7 @@ const getInternAttendance = async (actor, internProfileId, month) => {
     profile = await InternProfile.findById(internProfileId)
       .populate({
         path: 'user',
-        select: 'fullname email hub',
+        select: userSelect('hub'),
         populate: { path: 'hub', select: 'name' },
       })
       .lean();

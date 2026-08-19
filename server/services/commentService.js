@@ -7,6 +7,7 @@ const notificationService = require('./notificationService');
 const historyService = require('./historyService');
 const { buildMentionDirectory, extractMentionHandles } = require('../helpers/commentMention');
 const { emitCommentEvent } = require('../socket/events');
+const { userSelect } = require('../constants/userSelect');
 
 const COMMENT_SOCKET_EVENTS = {
   created: 'comment:created',
@@ -53,7 +54,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
 
   historyService.logEvent(ticket, authorId, 'Comment Added');
 
-  const populated = await comment.populate('author', 'fullname email');
+  const populated = await comment.populate('author', userSelect());
 
   emitCommentTicketEvent({
     eventName: COMMENT_SOCKET_EVENTS.created,
@@ -71,7 +72,7 @@ const createComment = async ({ content, ticket, authorId, role }) => {
       workspace?.members?.filter((m) => m.status === 'active' && m.user).map((m) => m.user) || [];
 
     if (activeMemberIds.length > 0) {
-      const users = await User.find({ _id: { $in: activeMemberIds } }).select('_id fullname email');
+      const users = await User.find({ _id: { $in: activeMemberIds } }).select(userSelect());
       const { byHandle } = buildMentionDirectory(users);
       const handles = extractMentionHandles(trimmedContent);
 
@@ -131,7 +132,7 @@ const getCommentsByTicketId = async (ticketId, userId, role) => {
     ticket: ticketId,
     isDeleted: { $ne: true },
   })
-    .populate('author', 'fullname email')
+    .populate('author', userSelect())
     .sort({ createdAt: 1 });
 };
 
@@ -165,7 +166,7 @@ const updateComment = async (commentId, content, userId) => {
     commentId: comment._id,
   });
 
-  return comment.populate('author', 'fullname email');
+  return comment.populate('author', userSelect());
 };
 
 const deleteComment = async (commentId, userId, role) => {

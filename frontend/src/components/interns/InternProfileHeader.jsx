@@ -1,7 +1,7 @@
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
-import { getInitials } from '@/helpers/getInitials';
 import { CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 function MetaField({ label, value }) {
   return (
@@ -24,6 +24,10 @@ function MetaField({ label, value }) {
  * `InternProfileView` and the strip is passed down.
  */
 export function InternProfileHeader({
+  // The intern's own user record, for their picture. Passed as an object rather
+  // than as an `avatarUrl` string so this header reads a person the same way every
+  // other avatar in the app does.
+  user,
   fullname,
   email,
   status,
@@ -46,13 +50,15 @@ export function InternProfileHeader({
         {/* A tint block, not the inverted foreground square: at 52px a solid dark
             slab is the heaviest thing on the page, and the person's name should
             win that contest. `accent-ink` is what keeps 16px initials legible on
-            the tint — see `index.css`. */}
-        <span
-          className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[var(--r-card)] bg-primary/10 text-[16px] font-bold accent-ink"
-          aria-hidden="true"
-        >
-          {getInitials(fullname || '')}
-        </span>
+            the tint — see `index.css`. The rounded-square is deliberate and
+            survives here: this is the page's header block, not a person in a list.
+            A photo fills the same square. */}
+        <UserAvatar
+          user={user}
+          name={fullname}
+          className="h-[52px] w-[52px] rounded-[var(--r-card)] bg-primary/10 text-[16px] accent-ink"
+          showTitle={false}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <div className="flex flex-wrap items-center gap-2.5">

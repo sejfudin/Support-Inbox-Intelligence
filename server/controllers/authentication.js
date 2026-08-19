@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const userAvatarService = require('../services/userAvatarService');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const { ROLES } = require('../constants/roles');
 
@@ -124,6 +125,43 @@ const changePassword = async (req, res, next) => {
   }
 };
 
+/**
+ * Set or replace your own profile picture. As with `changePassword`, the account
+ * comes from the token and never from the URL, so there is no id here that a
+ * caller could point at somebody else.
+ */
+const setMyAvatar = async (req, res, next) => {
+  try {
+    const result = await userAvatarService.setMyAvatar(req.user._id, req.file);
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture updated.',
+      data: result,
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+const removeMyAvatar = async (req, res, next) => {
+  try {
+    const result = await userAvatarService.removeMyAvatar(req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Profile picture removed.',
+      data: result,
+    });
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -228,6 +266,8 @@ module.exports = {
   login,
   refresh,
   getMe,
+  setMyAvatar,
+  removeMyAvatar,
   logout,
   changePassword,
   updateUser,

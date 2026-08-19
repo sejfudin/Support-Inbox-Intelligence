@@ -13,6 +13,7 @@ const {
   loadNonWorkingDays,
 } = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
+const { userSelect } = require('../constants/userSelect');
 const {
   officeDateKey,
   officeMonthKey,
@@ -144,7 +145,7 @@ const loadPlacements = async () => {
     .populate({
       path: 'internProfile',
       select: 'user startDate',
-      populate: { path: 'user', select: 'fullname' },
+      populate: { path: 'user', select: userSelect() },
     })
     .populate({ path: 'project', select: 'name' })
     .populate({ path: 'position', select: 'name' })
@@ -156,7 +157,10 @@ const loadPlacements = async () => {
       const decidedAt = placement.result?.decidedAt || placement.updatedAt || null;
       return {
         id: placement._id,
-        intern: { fullname: placement.internProfile.user.fullname || '' },
+        intern: {
+          fullname: placement.internProfile.user.fullname || '',
+          avatarUrl: placement.internProfile.user.avatarUrl || null,
+        },
         project: placement.project?.name || '',
         position: placement.position?.name || '',
         decidedAt,
@@ -185,7 +189,7 @@ const loadSpecializations = async () => {
     .sort({ specializationAssignedAt: -1, _id: -1 })
     .limit(RECENT_SPECIALIZATION_LIMIT)
     .select('user declaredPosition secondaryMentor specializationAssignedAt')
-    .populate({ path: 'user', select: 'fullname' })
+    .populate({ path: 'user', select: userSelect() })
     .populate({ path: 'declaredPosition', select: 'name' })
     .populate({ path: 'secondaryMentor', select: 'fullname' })
     .lean();
@@ -194,7 +198,10 @@ const loadSpecializations = async () => {
     .filter((profile) => profile.user)
     .map((profile) => ({
       id: profile._id,
-      intern: { fullname: profile.user.fullname || '' },
+      intern: {
+        fullname: profile.user.fullname || '',
+        avatarUrl: profile.user.avatarUrl || null,
+      },
       specialization: profile.declaredPosition?.name || '',
       secondaryMentor: profile.secondaryMentor?.fullname || '',
       assignedAt: profile.specializationAssignedAt,
@@ -286,6 +293,7 @@ const getAdminDashboard = async ({ workspaceId }) => {
         id: user._id,
         fullname: user.fullname || '',
         email: user.email || '',
+        avatarUrl: user.avatarUrl || null,
         position: profile.declaredPosition?.name || '',
         presentToday: records.some((r) => r.date === todayKey),
         awayToday: exemptDates.includes(todayKey),

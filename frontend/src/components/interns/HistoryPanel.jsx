@@ -5,6 +5,7 @@ import { SortControl } from '@/components/interns/SortControl';
 import { CHIP, badgeTone } from '@/helpers/badgeTones';
 import { scoreFillClass, scoreTextClass, scoreTrackClass } from '@/helpers/scoreBand';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const dataTestId = (title) =>
   String(title || 'history')
@@ -17,7 +18,7 @@ const dataTestId = (title) =>
  * @property {{label:string,tone:'success'|'primary'|'neutral'}} [tag] e.g. LATEST
  * @property {string} title            the period, beside the tag
  * @property {{value:number,label?:string,hint?:string}} [score] square score badge
- * @property {{initials:string,name:string}} [avatar]
+ * @property {{user?:Object,name:string}} [avatar] `user` carries the picture; `name` labels the row
  * @property {string} [metaSub]
  * @property {Array<Object>} blocks    meters | chips | pill (see renderBlock)
  * @property {string} [note]
@@ -61,12 +62,19 @@ function ScoreBadge({ value, label = 'Overall', hint }) {
   );
 }
 
-function AuthorRow({ initials, name, metaSub }) {
+function AuthorRow({ user, name, metaSub }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-primary/15 text-[10.5px] font-bold accent-ink">
-        {initials}
-      </span>
+      {/* The flat `bg-primary/15` tint rather than the hashed avatar colour: these
+          cards are a single author's history, so a per-person hue distinguishes
+          nothing here and only competes with the score badge beside it. A photo,
+          when there is one, covers the tint entirely. */}
+      <UserAvatar
+        user={user}
+        name={name}
+        className="h-[26px] w-[26px] text-[10.5px] bg-primary/15 accent-ink"
+        showTitle={false}
+      />
       <div className="min-w-0 leading-[1.35]">
         <p className="truncate text-[12.5px] text-foreground">{name}</p>
         {metaSub && <p className="truncate text-[11px] text-muted-foreground/75">{metaSub}</p>}
@@ -188,11 +196,7 @@ function HistoryRow({ card, onReadMore, onCardClick }) {
         )}
 
         {card.avatar && (
-          <AuthorRow
-            initials={card.avatar.initials}
-            name={card.avatar.name}
-            metaSub={card.metaSub}
-          />
+          <AuthorRow user={card.avatar.user} name={card.avatar.name} metaSub={card.metaSub} />
         )}
         {!card.avatar && card.metaSub && (
           <p className="text-[11.5px] text-muted-foreground/75">{card.metaSub}</p>

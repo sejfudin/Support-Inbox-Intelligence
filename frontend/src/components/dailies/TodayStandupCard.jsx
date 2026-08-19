@@ -1,8 +1,7 @@
 import { format, parseISO } from 'date-fns';
 import { CalendarDays } from 'lucide-react';
-import { getInitials } from '@/helpers/getInitials';
-import { getAvatarColor } from '@/helpers/avatarColor';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const PersonRow = ({ person, metaClassName, meta, onClick }) => (
   <button
@@ -11,14 +10,7 @@ const PersonRow = ({ person, metaClassName, meta, onClick }) => (
     className="flex w-full items-center gap-2.5 rounded-[var(--r-control)] px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
     data-test={`daily-today-row-${person.id}`}
   >
-    <div
-      className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-        getAvatarColor(person.fullname)
-      )}
-    >
-      {getInitials(person.fullname)}
-    </div>
+    <UserAvatar user={person} className="h-8 w-8 text-xs font-semibold" showTitle={false} />
     <div className="min-w-0 flex-1">
       <p className="truncate text-sm font-semibold text-foreground">{person.fullname}</p>
       <p className="truncate text-xs text-muted-foreground">{person.email}</p>

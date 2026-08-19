@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { InitialsAvatar } from '@/components/ui/initials-avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { ProgressPanel, ProgressPanelEmpty, ProgressPanelLead } from './ProgressPanel';
 
@@ -46,7 +46,7 @@ export function MyMentorNotesSection({ mentorNotes }) {
         <ul className="divide-y divide-separator">
           {items.map((note) => (
             <li key={note.id} className="flex gap-3 p-[18px]">
-              <InitialsAvatar name={note.author?.fullname} size="sm" className="mt-0.5" />
+              <UserAvatar user={note.author} size="sm" className="mt-0.5" />
               <div className="min-w-0 flex-1">
                 <p className="text-[12.5px] leading-[1.35]">
                   <span className="font-semibold text-foreground">

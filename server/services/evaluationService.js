@@ -5,6 +5,7 @@ const { assertInternAccess } = require('../helpers/internAccess');
 const internNotificationService = require('./internNotificationService');
 const { EVALUATION_CRITERIA, averageScore } = require('../helpers/evaluationTrend');
 const { emitInternDataChanged } = require('../socket/events');
+const { userSelect } = require('../constants/userSelect');
 
 const formatEvaluation = (evaluation) => {
   const plain = evaluation.toObject ? evaluation.toObject() : evaluation;
@@ -55,7 +56,7 @@ const listEvaluations = async (user, internUserId) => {
   }
 
   const evaluations = await Evaluation.find({ internProfile: profile._id })
-    .populate('evaluator', 'fullname email role')
+    .populate('evaluator', userSelect('role'))
     .sort({ periodEnd: -1 });
 
   return evaluations.map(formatEvaluation);
@@ -89,7 +90,7 @@ const createEvaluation = async (user, internUserId, payload) => {
     notes: notes?.trim() || '',
   });
 
-  await evaluation.populate('evaluator', 'fullname email role');
+  await evaluation.populate('evaluator', userSelect('role'));
 
   internNotificationService.notifyEvaluationCreated({
     internUserId: profile.user,

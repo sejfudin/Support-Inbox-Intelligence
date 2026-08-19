@@ -1,15 +1,9 @@
 import { Link } from 'react-router-dom';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const INTERVIEWING_COLOR = '#E0A93B';
-
-function initialsOf(fullname = '') {
-  const parts = fullname.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function StatusPill({ status }) {
   const isInterviewing = status === 'interviewing';
@@ -35,9 +29,12 @@ function PersonRow({ person }) {
       to={`/interns/${person.userId}?tab=recommendations`}
       className="flex items-start gap-3 border-b border-[hsl(var(--symphony-border)/0.6)] px-4 py-4 transition-colors last:border-b-0 hover:bg-[hsl(var(--symphony-brand)/0.04)] lg:items-center lg:gap-4 lg:px-[26px]"
     >
-      <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]">
-        {initialsOf(person.fullname)}
-      </span>
+      <UserAvatar
+        user={person}
+        className="h-[42px] w-[42px] bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]"
+        fallback="—"
+        showTitle={false}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
         <div className="min-w-0 lg:min-w-[160px] lg:flex-[1.1]">
@@ -86,9 +83,12 @@ function PersonCard({ person }) {
     >
       <div className="flex flex-col gap-3 p-3.5">
         <div className="flex items-start gap-3">
-          <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]">
-            {initialsOf(person.fullname)}
-          </span>
+          <UserAvatar
+            user={person}
+            className="h-[42px] w-[42px] bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]"
+            fallback="—"
+            showTitle={false}
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-foreground">{person.fullname}</p>
             {meta && <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{meta}</p>}

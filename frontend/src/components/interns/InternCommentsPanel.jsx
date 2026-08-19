@@ -18,10 +18,10 @@ import { Chips, DetailModal, DetailText } from '@/components/interns/DetailModal
 import { useCommentViewers, useCreateInternComment, useInternComments } from '@/queries/interns';
 import { canWriteInternMentorData } from '@/helpers/roles';
 import { CHIP, badgeTone } from '@/helpers/badgeTones';
-import { getInitials } from '@/helpers/getInitials';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const SORT_OPTIONS = [
   { key: 'date', label: 'Date' },
@@ -46,14 +46,14 @@ function audienceOf(comment) {
   };
 }
 
-function NoteAvatar({ name }) {
+function NoteAvatar({ user, name }) {
   return (
-    <span
-      className="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full bg-primary/15 text-[10.5px] font-bold accent-ink"
-      aria-hidden="true"
-    >
-      {getInitials(name || '')}
-    </span>
+    <UserAvatar
+      user={user}
+      name={name}
+      className="h-[26px] w-[26px] text-[10.5px] bg-primary/15 accent-ink"
+      showTitle={false}
+    />
   );
 }
 
@@ -298,7 +298,7 @@ export function InternCommentsPanel({ userId, internName, readOnly = false }) {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2">
-                      <NoteAvatar name={comment.author?.fullname} />
+                      <NoteAvatar user={comment.author} name={comment.author?.fullname} />
                       <p className="min-w-0 truncate text-[12.5px] leading-[1.35]">
                         <span className="font-semibold text-foreground">
                           {comment.author?.fullname ?? 'Unknown'}
@@ -367,7 +367,7 @@ export function InternCommentsPanel({ userId, internName, readOnly = false }) {
           <div className="mt-3 flex flex-col gap-2.5">
             {viewers.map((viewer) => (
               <div key={resolveUserId(viewer)} className="flex items-center gap-2">
-                <NoteAvatar name={viewer.fullname} />
+                <NoteAvatar user={viewer} name={viewer.fullname} />
                 <div className="min-w-0 leading-[1.35]">
                   <p className="truncate text-[12.5px] font-semibold text-foreground">
                     {viewer.fullname}

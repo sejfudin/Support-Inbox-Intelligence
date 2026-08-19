@@ -1,9 +1,8 @@
 import { ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // One technology reads as an outlined pill with its logo — the same shape the
 // recommendation cards use, two sizes down so a row of them fits a 46px table row.
@@ -32,6 +31,7 @@ function TechnologyChip({ technology, className }) {
  *
  * @param {{
  *   technologies?: Array<{_id: string, name: string, slug?: string}>,
+ *   intern?: Object,        // the intern's user record, for their picture
  *   internName?: string,
  *   subtitle?: string,      // second line beside the count — the position, here
  *   inlineCount?: number,
@@ -39,6 +39,7 @@ function TechnologyChip({ technology, className }) {
  */
 export default function RecommendationTechnologies({
   technologies = [],
+  intern,
   internName = '',
   subtitle,
   inlineCount = 2,
@@ -82,15 +83,12 @@ export default function RecommendationTechnologies({
             data-test="recommendation-technologies-popover"
           >
             <div className="flex items-center gap-2.5 border-b border-separator px-3.5 py-3">
-              <span
-                className={cn(
-                  'grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10.5px] font-bold',
-                  getAvatarColor(internName)
-                )}
-                aria-hidden="true"
-              >
-                {getInitials(internName)}
-              </span>
+              <UserAvatar
+                user={intern}
+                name={internName}
+                className="h-7 w-7 text-[10.5px]"
+                showTitle={false}
+              />
               <div className="min-w-0 leading-[1.35]">
                 <p className="truncate text-[12.5px] font-semibold text-foreground">
                   {internName || 'Technologies'}

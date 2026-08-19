@@ -32,6 +32,9 @@ export default function AdminUsersPage() {
       fullName: user.fullname || 'No name',
       user: user.fullname || 'No name',
       email: user.email,
+      // This mapping picks fields by hand, so a new one has to be named here or
+      // the table silently renders initials for everybody.
+      avatarUrl: user.avatarUrl || null,
       role: user.role,
       hub: user.hub?._id || user.hub || '',
       hubName: user.hub?.name || '',

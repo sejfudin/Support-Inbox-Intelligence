@@ -7,6 +7,17 @@
 
 ## 1. Roles & Permissions
 
+**Everyone, whatever their role**
+- Sets their own profile picture from their profile page — add one, swap it, or remove it. It then
+  shows wherever you appear in the app: the sidebar, dashboards, ticket comments, mentor notes,
+  standups, the attendance roster, candidate lists. Without one you keep the coloured initials, so
+  nobody has to upload anything
+- Nobody can set or remove **someone else's** picture, admins included. There is no need for it —
+  unlike a forgotten password, nobody is ever locked out of a photo
+- One exception worth knowing: **leadership has no profile page yet** (they land on the programme
+  dashboard), so they can be shown a picture but cannot upload one until they get that page. The
+  same gap already applies to changing their password
+
 **Admin**
 - Only role with the admin dashboard as their landing page — reports on the workspace they're currently in (switch it from the sidebar): who's present today, each intern's open workload and monthly attendance, and today's standup coverage. The two placement cards are the exception: they show the latest placements across every workspace, not just the current one
 - Creates, deletes, and views all workspaces

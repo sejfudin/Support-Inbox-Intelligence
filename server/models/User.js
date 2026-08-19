@@ -123,6 +123,32 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Profile picture. Two fields rather than one, on purpose.
+    //
+    // `avatarUrl` is the public URL, denormalised so that it can ride along in
+    // the ordinary user projection (`constants/userSelect.js`). A Mongoose
+    // virtual would have been tidier, but virtuals do not survive `.lean()` and
+    // roughly forty-six of the queries that populate a user are lean — the
+    // avatar would have appeared on some screens and silently vanished on
+    // others, which is the one failure mode this feature cannot have.
+    //
+    // `avatarPath` is the storage key, kept because deleting the old object on
+    // replace needs it, and `select: false` so it is never handed to a client by
+    // accident. The two write paths that need it ask for it explicitly.
+    //
+    // If `SUPABASE_URL` or the bucket ever changes, stored URLs go stale; the
+    // path is what makes re-deriving them a one-line script rather than a
+    // re-upload.
+    avatarUrl: {
+      type: String,
+      default: null,
+    },
+    avatarPath: {
+      type: String,
+      default: null,
+      select: false,
+    },
+
     // When this viewer last opened the staffing-requests area — drives the
     // news badge (unset means "never opened", not "caught up").
     staffingRequestsLastSeenAt: {
