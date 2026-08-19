@@ -9,8 +9,8 @@ const {
   requestDayRefusal,
   budgetRefusal,
   createRequestRefusal,
-} = require('./attendanceRequestRules');
-const { maxDaysFor, yearlyBudgetFor } = require('../constants/attendanceRequestTypes');
+} = require('./absenceRequestRules');
+const { maxDaysFor, yearlyBudgetFor } = require('../constants/absenceRequestTypes');
 
 // Every case pins `todayKey` explicitly so the suite cannot drift as real time
 // passes — the helpers default to the office's today, which would make "is this day

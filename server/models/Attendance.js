@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 // repeat check-ins are idempotent (duplicate key) instead of piling up.
 const PRESENT = 'present';
 const CANCELLED = 'cancelled';
-// An approved remote-work day (see models/AttendanceRequest.js). Written by the
+// An approved remote-work day (see models/AbsenceRequest.js). Written by the
 // admin's approval, never by a check-in — there is no office to arrive at, so the
 // 07:00–11:00 window does not apply to it.
 //
@@ -93,7 +93,7 @@ const attendanceSchema = new mongoose.Schema(
     // on the same day.
     request: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'AttendanceRequest',
+      ref: 'AbsenceRequest',
       default: null,
     },
   },

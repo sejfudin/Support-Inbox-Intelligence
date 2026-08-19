@@ -3,7 +3,7 @@
  * between them.
  *
  * This table is the single source for the per-type rules. It lives here rather
- * than in the model because `helpers/attendanceRequestRules.js` needs it too, and
+ * than in the model because `helpers/absenceRequestRules.js` needs it too, and
  * that file is deliberately Mongoose-free so its rules can be unit-tested without
  * a database. (pt.1 kept the ceiling in both the model and the rules helper as two
  * separate literal `3`s — this is the fix for that.)
@@ -94,7 +94,7 @@ const rulesFor = (type) => TYPE_RULES[type] || TYPE_RULES[REMOTE];
  * The two numbers above are **defaults**, not the law: an admin sets them per type
  * from their profile, and what is stored arrives here as a `limits` override —
  * `{ [type]: { maxDaysPerRequest, yearlyBudget } }` — loaded by
- * `services/attendanceSettingsService.js` and passed down from the service layer.
+ * `services/absenceSettingsService.js` and passed down from the service layer.
  *
  * Everything else on a row stays fixed in code, because none of it is a quantity
  * an admin can weigh up: `label` and `description` are copy, `backdateWorkingDays`
@@ -102,7 +102,7 @@ const rulesFor = (type) => TYPE_RULES[type] || TYPE_RULES[REMOTE];
  * the whole attendance module is built on.
  *
  * The readers take the override as an argument rather than reaching for it. This
- * file has no database access on purpose — `helpers/attendanceRequestRules.js`
+ * file has no database access on purpose — `helpers/absenceRequestRules.js`
  * depends on it and is deliberately Mongoose-free so the rules unit-test without
  * a Mongo — and an override is per-call anyway.
  */

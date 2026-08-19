@@ -80,7 +80,7 @@ const WIPE_PLAN = [
   // the omission is invisible until you re-seed: profile ids are deterministic, so
   // surviving requests reattach to the newly-created intern and their approved days
   // are charged against a budget the fresh dataset says is untouched.
-  ['AttendanceRequest', {}],
+  ['AbsenceRequest', {}],
   ['Daily', {}],
   ['Ticket', {}],
   ['TicketStatus', {}],

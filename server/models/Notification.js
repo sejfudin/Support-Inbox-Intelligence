@@ -40,6 +40,7 @@ const notificationSchema = new mongoose.Schema(
         // leadership, not the intern)
         'mentor_note_mention',
         'intern_request_from_leadership',
+        'absence_request_pending',
       ],
       required: true,
     },

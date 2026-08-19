@@ -671,7 +671,7 @@ export const dayStatusLabel = (status) =>
     [DAY_STATUS.VACATION]: 'Vacation',
     [DAY_STATUS.RELIGIOUS]: 'Religious holiday',
     // "Sick day", not "Sick", so this matches the server's own label for the type
-    // (`constants/attendanceRequestTypes.js`). The balance card reads its label from
+    // (`constants/absenceRequestTypes.js`). The balance card reads its label from
     // the API and the history table reads it from here; when they disagreed, the
     // same request read as two different things on one screen.
     [DAY_STATUS.SICK]: 'Sick day',

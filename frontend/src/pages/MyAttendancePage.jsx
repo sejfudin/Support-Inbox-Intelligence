@@ -3,7 +3,7 @@ import PageHeading from '@/components/PageHeading';
 import AttendanceHeaderCard from '@/components/attendance/AttendanceHeaderCard';
 import AttendanceCalendar from '@/components/attendance/AttendanceCalendar';
 import AttendanceSummaryCard from '@/components/attendance/AttendanceSummaryCard';
-import AttendanceRequestPanel from '@/components/attendance/AttendanceRequestPanel';
+import AbsenceRequestPanel from '@/components/attendance/AbsenceRequestPanel';
 import { Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { useMyAttendance, useCheckInToday, useCancelTodayCheckIn } from '@/queries/attendance';
@@ -158,8 +158,8 @@ export default function MyAttendancePage() {
                   // dropped and the tour step would point at nothing. The wrapper
                   // takes the `flex-1` the panel had, and the panel fills it, so the
                   // stretch against the summary card above is unchanged.
-                  <div data-tour="attendance-requests" className="flex flex-1 flex-col">
-                    <AttendanceRequestPanel
+                  <div data-tour="absence-requests" className="flex flex-1 flex-col">
+                    <AbsenceRequestPanel
                       className="flex-1"
                       recordedDates={records.map((r) => r.date)}
                     />

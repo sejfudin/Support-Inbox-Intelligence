@@ -439,6 +439,34 @@ const notifyInternMentorNoteShared = safe(async ({ internUserId, internProfileId
   });
 });
 
+/**
+ * Staff-facing: an intern filed an absence request (remote/vacation/religious/
+ * sick) addressed to this admin specifically — the recipient they picked, or the
+ * configured primary admin by default (`absenceRequestService.resolveRecipientAdmin`).
+ * Fires once, to exactly that one resolved recipient — never to every admin, which
+ * is the entire reason the request carries a `recipientAdmin` in the first place.
+ */
+const notifyAbsenceRequestPending = safe(
+  async ({ recipientUserId, internProfileId, internName, requestType, dayCount }) => {
+    const days = dayCount === 1 ? '1 day' : `${dayCount} days`;
+    await dispatch({
+      internUserId: recipientUserId,
+      internProfileId,
+      type: 'absence_request_pending',
+      link: '/admin/absence-requests',
+      fallback: {
+        title: 'New absence request',
+        body: `${internName} asked for ${days} off (${requestType}) — needs your review.`,
+      },
+      promptBuilder: buildStaffUpdatePrompt,
+      promptArgs: {
+        summary: 'An intern filed a request to be away from the office, addressed to this admin.',
+        details: `Intern: ${internName}. Type: ${requestType}. Days requested: ${dayCount}.`,
+      },
+    });
+  }
+);
+
 /** Staff-facing: someone was named in a mentor note's visibility list — never sent to the intern. */
 const notifyMentorNoteMention = safe(
   async ({
@@ -486,4 +514,5 @@ module.exports = {
   notifyDailyReminder,
   notifyMentorNoteMention,
   notifyInternMentorNoteShared,
+  notifyAbsenceRequestPending,
 };

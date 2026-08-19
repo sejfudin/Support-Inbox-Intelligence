@@ -10,7 +10,7 @@ const {
   getRequests,
   decideRequest,
   revokeRequest,
-} = require('../controllers/attendanceRequest');
+} = require('../controllers/absenceRequest');
 
 // The signed-in intern's own requests — remote work, vacation, a religious
 // holiday, a sick day. Only interns record attendance, so only interns can ask for

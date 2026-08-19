@@ -3,13 +3,26 @@ import { format } from 'date-fns';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { PagePanel } from '@/components/PageShell';
 import { cn } from '@/lib/utils';
 import {
-  useAttendanceRequestSettings,
-  useUpdateAttendanceRequestSettings,
-  useResetAttendanceRequestSettings,
-} from '@/queries/attendanceRequestSettings';
+  useAbsenceRequestSettings,
+  useUpdateAbsenceRequestSettings,
+  useResetAbsenceRequestSettings,
+} from '@/queries/absenceRequestSettings';
+import { useAdminCandidates } from '@/queries/users';
+
+// No admin is ever this id, so it is safe as the Select's "cleared" sentinel —
+// Radix refuses an empty-string item value outright.
+const NO_PRIMARY_ADMIN = 'none';
 
 /**
  * How many days an intern may ask for, per kind of request. Admin only.
@@ -17,7 +30,7 @@ import {
  * The panel renders entirely from the server's payload — the four types, their
  * labels and descriptions, which of them have a yearly allowance at all, the
  * bounds, and what each ships as. Nothing about the types is written down here, so
- * adding a fifth is still a row in `server/constants/attendanceRequestTypes.js` and
+ * adding a fifth is still a row in `server/constants/absenceRequestTypes.js` and
  * no change to this file.
  *
  * Remote work and sick days have no yearly allowance by design, and the panel says
@@ -62,18 +75,21 @@ const outOfBounds = (raw, { min, max }) => {
 const ROW_GRID =
   'md:grid md:min-w-[640px] md:grid-cols-[minmax(180px,1fr)_10.5rem_10.5rem_5rem] md:items-start md:gap-4';
 
-export function AttendanceLimitsPanel() {
-  const { data: settings, isPending, isError } = useAttendanceRequestSettings();
-  const updateSettings = useUpdateAttendanceRequestSettings();
-  const resetSettings = useResetAttendanceRequestSettings();
+export function AbsenceLimitsPanel() {
+  const { data: settings, isPending, isError } = useAbsenceRequestSettings();
+  const updateSettings = useUpdateAbsenceRequestSettings();
+  const resetSettings = useResetAbsenceRequestSettings();
+  const { data: adminCandidates } = useAdminCandidates();
 
   const [draft, setDraft] = useState(null);
+  const [primaryAdminId, setPrimaryAdminId] = useState(NO_PRIMARY_ADMIN);
 
   // Re-seed whenever the server's copy changes — on load, after a save, and after
   // a reset, which is what puts the defaults back in the boxes without the panel
   // having to know what they are.
   useEffect(() => {
     if (settings?.types) setDraft(draftFrom(settings.types));
+    if (settings) setPrimaryAdminId(settings.primaryAdmin?.id || NO_PRIMARY_ADMIN);
   }, [settings]);
 
   if (isPending) {
@@ -103,11 +119,15 @@ export function AttendanceLimitsPanel() {
     (entry) => fieldError(entry, 'maxDaysPerRequest') || fieldError(entry, 'yearlyBudget')
   );
 
-  const isDirty = types.some((entry) => {
-    const row = draft[entry.type];
-    if (Number(row.maxDaysPerRequest) !== entry.maxDaysPerRequest) return true;
-    return entry.budgeted && Number(row.yearlyBudget) !== entry.yearlyBudget;
-  });
+  const primaryAdminDirty = primaryAdminId !== (settings.primaryAdmin?.id || NO_PRIMARY_ADMIN);
+
+  const isDirty =
+    primaryAdminDirty ||
+    types.some((entry) => {
+      const row = draft[entry.type];
+      if (Number(row.maxDaysPerRequest) !== entry.maxDaysPerRequest) return true;
+      return entry.budgeted && Number(row.yearlyBudget) !== entry.yearlyBudget;
+    });
 
   const isBusy = updateSettings.isPending || resetSettings.isPending;
   const isCustomised = types.some((entry) => !entry.isDefault);
@@ -137,7 +157,12 @@ export function AttendanceLimitsPanel() {
       })
     );
 
-    updateSettings.mutate({ limits });
+    updateSettings.mutate({
+      limits,
+      ...(primaryAdminDirty
+        ? { primaryAdmin: primaryAdminId === NO_PRIMARY_ADMIN ? null : primaryAdminId }
+        : {}),
+    });
   };
 
   const stepper = (entry, field, label) => {
@@ -204,7 +229,7 @@ export function AttendanceLimitsPanel() {
       <form onSubmit={handleSave}>
         <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-4 md:px-5">
           <div className="min-w-0 space-y-1">
-            <h2 className="text-[15px] font-semibold leading-tight">Attendance request limits</h2>
+            <h2 className="text-[15px] font-semibold leading-tight">Absence request limits</h2>
             <p className="text-[13px] text-muted-foreground">
               How many days an intern can ask for, per kind of request. Applies to every hub.
             </p>
@@ -221,6 +246,36 @@ export function AttendanceLimitsPanel() {
             <RotateCcw className="h-3.5 w-3.5" />
             Reset to defaults
           </Button>
+        </div>
+
+        {/* Who an unaddressed request falls back to. Its own row rather than a
+            fifth column in the table below — it applies once, to the whole
+            feature, not per type. */}
+        <div className="space-y-1.5 border-t border-separator px-4 py-4 md:px-5">
+          <Label htmlFor="primary-admin-select" className="text-sm font-medium text-foreground">
+            Primary admin
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Who a request is addressed to when the intern doesn&apos;t pick someone else. They can
+            always choose a different admin instead — for example, when the primary admin is away.
+          </p>
+          <Select value={primaryAdminId} onValueChange={setPrimaryAdminId} disabled={isBusy}>
+            <SelectTrigger
+              id="primary-admin-select"
+              className="mt-1.5 max-w-xs"
+              data-test="primary-admin-select"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_PRIMARY_ADMIN}>No default — interns must choose</SelectItem>
+              {(adminCandidates?.users || []).map((admin) => (
+                <SelectItem key={admin._id} value={admin._id}>
+                  {admin.fullname}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div

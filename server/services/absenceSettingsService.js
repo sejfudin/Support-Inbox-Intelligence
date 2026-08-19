@@ -1,4 +1,6 @@
-const AttendanceRequestSettings = require('../models/AttendanceRequestSettings');
+const AbsenceRequestSettings = require('../models/AbsenceRequestSettings');
+const User = require('../models/User');
+const { ROLES } = require('../constants/roles');
 const {
   REQUEST_TYPES,
   TYPE_RULES,
@@ -8,16 +10,16 @@ const {
   isBudgetedType,
   maxDaysFor,
   yearlyBudgetFor,
-} = require('../constants/attendanceRequestTypes');
+} = require('../constants/absenceRequestTypes');
 const { httpError } = require('../helpers/httpError');
 
 /**
- * The admin-set limits on attendance requests, and the one place that turns what
+ * The admin-set limits on absence requests, and the one place that turns what
  * is stored into what the rules actually apply.
  *
  * Everything that reads a limit goes through `getEffectiveLimits()` and passes
  * the result down as an argument. Nothing below the service layer loads it:
- * `helpers/attendanceRequestRules.js` and `constants/attendanceRequestTypes.js`
+ * `helpers/absenceRequestRules.js` and `constants/absenceRequestTypes.js`
  * stay free of Mongoose so the rules keep unit-testing without a database, which
  * in a repo with no integration suite is the only test they will ever get.
  *
@@ -28,9 +30,9 @@ const { httpError } = require('../helpers/httpError');
  * more confusing one than an extra query.
  */
 
-const { SINGLETON_KEY } = AttendanceRequestSettings;
+const { SINGLETON_KEY } = AbsenceRequestSettings;
 
-const loadDoc = () => AttendanceRequestSettings.findOne({ key: SINGLETON_KEY });
+const loadDoc = () => AbsenceRequestSettings.findOne({ key: SINGLETON_KEY });
 
 // `.lean()` hands back a plain object; a live document hands back a real `Map`,
 // which would read as empty under `limits[type]` and silently lose every override
@@ -62,6 +64,14 @@ const effectiveFrom = (stored) =>
 
 const getEffectiveLimits = async () => effectiveFrom(storedLimits(await loadDoc().lean()));
 
+/**
+ * The id of the configured primary admin, or `null` if none is set. The one
+ * thing `absenceRequestService` needs from this module without pulling in the
+ * whole settings payload — it resolves a request's `recipientAdmin` when the
+ * intern doesn't pick one.
+ */
+const getPrimaryAdminId = async () => (await loadDoc().lean())?.primaryAdmin || null;
+
 const isDefault = (type, limits) =>
   limits[type].maxDaysPerRequest === DEFAULT_LIMITS[type].maxDaysPerRequest &&
   limits[type].yearlyBudget === DEFAULT_LIMITS[type].yearlyBudget;
@@ -72,7 +82,12 @@ const isDefault = (type, limits) =>
  * bargain the intern's request panel already gets from `buildTypeInfo`.
  */
 const getSettings = async () => {
-  const doc = await loadDoc().populate({ path: 'updatedBy', select: 'fullname' }).lean();
+  const doc = await loadDoc()
+    .populate([
+      { path: 'updatedBy', select: 'fullname' },
+      { path: 'primaryAdmin', select: 'fullname' },
+    ])
+    .lean();
   const limits = effectiveFrom(storedLimits(doc));
 
   return {
@@ -90,6 +105,9 @@ const getSettings = async () => {
       defaults: DEFAULT_LIMITS[type],
       isDefault: isDefault(type, limits),
     })),
+    primaryAdmin: doc?.primaryAdmin
+      ? { id: doc.primaryAdmin._id, fullname: doc.primaryAdmin.fullname }
+      : null,
     updatedAt: doc?.updatedAt || null,
     updatedBy: doc?.updatedBy?.fullname || null,
   };
@@ -104,6 +122,32 @@ const readNumber = (raw, field, label) => {
   }
   if (value < min || value > max) {
     throw httpError(`${label} must be between ${min} and ${max} days.`, 400);
+  }
+  return value;
+};
+
+/**
+ * Resolve and validate a `primaryAdmin` payload value: `undefined` means "leave
+ * it as it is" (the field is absent from `Object.prototype.hasOwnProperty`'s
+ * check below, not merely falsy), `null` clears it, and anything else must be an
+ * existing active admin's id — the same check `absenceRequestService` runs on a
+ * request's own `recipientAdmin`, so a bad id can never end up as either.
+ */
+const readPrimaryAdmin = async (payload) => {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'primaryAdmin')) return undefined;
+  const value = payload.primaryAdmin;
+  if (!value) return null;
+
+  let admin;
+  try {
+    admin = await User.findById(value).select('role status').lean();
+  } catch (err) {
+    // A malformed id (not a valid ObjectId) is a bad request, not a server error.
+    if (err.name === 'CastError') throw httpError('Pick a valid admin as the primary admin.', 400);
+    throw err;
+  }
+  if (!admin || admin.role !== ROLES.ADMIN || admin.status !== 'active') {
+    throw httpError('Pick a valid admin as the primary admin.', 400);
   }
   return value;
 };
@@ -124,7 +168,12 @@ const updateSettings = async (user, payload = {}) => {
     throw httpError('Send the limits to save.', 400);
   }
 
-  const doc = (await loadDoc()) || new AttendanceRequestSettings({ key: SINGLETON_KEY });
+  // Validated before anything is written, same as the limits below — a bad
+  // primaryAdmin must refuse the whole save rather than leave the limits half
+  // saved with the admin id silently dropped.
+  const primaryAdmin = await readPrimaryAdmin(payload);
+
+  const doc = (await loadDoc()) || new AbsenceRequestSettings({ key: SINGLETON_KEY });
   const merged = effectiveFrom(storedLimits(doc));
 
   for (const [type, values] of Object.entries(incoming)) {
@@ -175,6 +224,7 @@ const updateSettings = async (user, payload = {}) => {
   }
 
   doc.limits = toStore;
+  if (primaryAdmin !== undefined) doc.primaryAdmin = primaryAdmin;
   doc.updatedBy = user._id;
   await doc.save();
 
@@ -183,7 +233,7 @@ const updateSettings = async (user, payload = {}) => {
 
 /** Put every type back to what it ships as, by forgetting the overrides. */
 const resetSettings = async (user) => {
-  const doc = (await loadDoc()) || new AttendanceRequestSettings({ key: SINGLETON_KEY });
+  const doc = (await loadDoc()) || new AbsenceRequestSettings({ key: SINGLETON_KEY });
   doc.limits = {};
   doc.updatedBy = user._id;
   await doc.save();
@@ -193,6 +243,7 @@ const resetSettings = async (user) => {
 
 module.exports = {
   getEffectiveLimits,
+  getPrimaryAdminId,
   getSettings,
   updateSettings,
   resetSettings,

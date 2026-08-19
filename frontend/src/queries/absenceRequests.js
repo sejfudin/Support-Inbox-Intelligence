@@ -1,17 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  fetchMyAttendanceRequests,
-  createAttendanceRequest,
-  cancelAttendanceRequest,
-  fetchAttendanceRequests,
-  decideAttendanceRequest,
-  revokeAttendanceRequest,
-} from '@/api/attendanceRequests';
+  fetchMyAbsenceRequests,
+  createAbsenceRequest,
+  cancelAbsenceRequest,
+  fetchAbsenceRequests,
+  decideAbsenceRequest,
+  revokeAbsenceRequest,
+} from '@/api/absenceRequests';
 import { MY_ATTENDANCE_QUERY_KEY, ATTENDANCE_ROSTER_QUERY_KEY } from '@/queries/attendance';
 
-export const MY_ATTENDANCE_REQUESTS_QUERY_KEY = ['attendance-requests', 'me'];
-export const ATTENDANCE_REQUESTS_QUERY_KEY = ['attendance-requests', 'admin'];
+export const MY_ABSENCE_REQUESTS_QUERY_KEY = ['absence-requests', 'me'];
+export const ABSENCE_REQUESTS_QUERY_KEY = ['absence-requests', 'admin'];
 
 // A decision writes attendance rows, so every mutation here has to invalidate
 // attendance as well as itself — otherwise the calendar keeps showing the day as
@@ -21,43 +21,43 @@ const INTERN_ATTENDANCE_KEY = ['attendance', 'intern'];
 const onRequestError = (fallback) => (error) =>
   toast.error(error?.response?.data?.message || fallback);
 
-export const useMyAttendanceRequests = (options = {}) =>
+export const useMyAbsenceRequests = (options = {}) =>
   useQuery({
-    queryKey: MY_ATTENDANCE_REQUESTS_QUERY_KEY,
-    queryFn: fetchMyAttendanceRequests,
+    queryKey: MY_ABSENCE_REQUESTS_QUERY_KEY,
+    queryFn: fetchMyAbsenceRequests,
     ...options,
   });
 
-export const useCreateAttendanceRequest = () => {
+export const useCreateAbsenceRequest = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createAttendanceRequest,
-    onSuccess: (attendanceRequests) => {
-      queryClient.setQueryData(MY_ATTENDANCE_REQUESTS_QUERY_KEY, attendanceRequests);
-      queryClient.invalidateQueries({ queryKey: MY_ATTENDANCE_REQUESTS_QUERY_KEY });
+    mutationFn: createAbsenceRequest,
+    onSuccess: (absenceRequests) => {
+      queryClient.setQueryData(MY_ABSENCE_REQUESTS_QUERY_KEY, absenceRequests);
+      queryClient.invalidateQueries({ queryKey: MY_ABSENCE_REQUESTS_QUERY_KEY });
       toast.success('Request sent. Your admin will review it.');
     },
     onError: onRequestError('Could not send your request. Please try again.'),
   });
 };
 
-export const useCancelAttendanceRequest = () => {
+export const useCancelAbsenceRequest = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: cancelAttendanceRequest,
-    onSuccess: (attendanceRequests) => {
-      queryClient.setQueryData(MY_ATTENDANCE_REQUESTS_QUERY_KEY, attendanceRequests);
-      queryClient.invalidateQueries({ queryKey: MY_ATTENDANCE_REQUESTS_QUERY_KEY });
+    mutationFn: cancelAbsenceRequest,
+    onSuccess: (absenceRequests) => {
+      queryClient.setQueryData(MY_ABSENCE_REQUESTS_QUERY_KEY, absenceRequests);
+      queryClient.invalidateQueries({ queryKey: MY_ABSENCE_REQUESTS_QUERY_KEY });
       toast.success('Request withdrawn.');
     },
     onError: onRequestError('Could not withdraw the request. Please try again.'),
   });
 };
 
-export const useAttendanceRequests = (params = {}, options = {}) =>
+export const useAbsenceRequests = (params = {}, options = {}) =>
   useQuery({
-    queryKey: [...ATTENDANCE_REQUESTS_QUERY_KEY, params],
-    queryFn: () => fetchAttendanceRequests(params),
+    queryKey: [...ABSENCE_REQUESTS_QUERY_KEY, params],
+    queryFn: () => fetchAbsenceRequests(params),
     ...options,
   });
 
@@ -70,7 +70,7 @@ const useAdminRequestMutation = (mutationFn, { success, failure }) => {
   return useMutation({
     mutationFn,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ATTENDANCE_REQUESTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ABSENCE_REQUESTS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ATTENDANCE_ROSTER_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: INTERN_ATTENDANCE_KEY });
       queryClient.invalidateQueries({ queryKey: MY_ATTENDANCE_QUERY_KEY });
@@ -80,14 +80,14 @@ const useAdminRequestMutation = (mutationFn, { success, failure }) => {
   });
 };
 
-export const useDecideAttendanceRequest = () =>
-  useAdminRequestMutation(decideAttendanceRequest, {
+export const useDecideAbsenceRequest = () =>
+  useAdminRequestMutation(decideAbsenceRequest, {
     success: 'Decision recorded.',
     failure: 'Could not record the decision. Please try again.',
   });
 
-export const useRevokeAttendanceRequest = () =>
-  useAdminRequestMutation(revokeAttendanceRequest, {
+export const useRevokeAbsenceRequest = () =>
+  useAdminRequestMutation(revokeAbsenceRequest, {
     success: 'Approval revoked.',
     failure: 'Could not revoke the approval. Please try again.',
   });

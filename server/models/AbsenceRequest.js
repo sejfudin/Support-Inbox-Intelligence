@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { REQUEST_TYPES, REMOTE, LIMIT_BOUNDS } = require('../constants/attendanceRequestTypes');
+const { REQUEST_TYPES, REMOTE, LIMIT_BOUNDS } = require('../constants/absenceRequestTypes');
 
 /**
  * One intern asking for days away from the usual office check-in, and the admin
@@ -9,11 +9,11 @@ const { REQUEST_TYPES, REMOTE, LIMIT_BOUNDS } = require('../constants/attendance
  * the same lifecycle, the same all-or-nothing decision, the same admin queue, and
  * the same "approval writes the attendance row" mechanic. What differs — the
  * ceiling, the yearly budget, whether the day may be backdated, and whether it
- * counts as worked — lives in `constants/attendanceRequestTypes.js`, one row per
+ * counts as worked — lives in `constants/absenceRequestTypes.js`, one row per
  * type. Four parallel collections would have been four copies of this file.
  *
  * Two of those four numbers are only the *defaults*: an admin sets the ceiling and
- * the yearly allowance per type, stored in `AttendanceRequestSettings` and applied
+ * the yearly allowance per type, stored in `AbsenceRequestSettings` and applied
  * by the rules helper.
  *
  * **A request is decided as a unit.** Its days need not be consecutive; nothing in
@@ -47,7 +47,7 @@ const REQUEST_STATUSES = [PENDING, APPROVED, REJECTED, CANCELLED, REVOKED];
 // same question.
 const LIVE_STATUSES = [PENDING, APPROVED];
 
-const attendanceRequestSchema = new mongoose.Schema(
+const absenceRequestSchema = new mongoose.Schema(
   {
     // Points at InternProfile, not User — the same anchor `Attendance` uses, so a
     // request and the rows it produces are keyed off the same document.
@@ -78,7 +78,7 @@ const attendanceRequestSchema = new mongoose.Schema(
     // was written, and the admin would be told the intern's own request is
     // invalid. The per-type ceiling is enforced where a refusal can be explained
     // and where lowering it is allowed to bind only what comes next:
-    // `helpers/attendanceRequestRules.js`.
+    // `helpers/absenceRequestRules.js`.
     dates: {
       type: [
         {
@@ -111,6 +111,18 @@ const attendanceRequestSchema = new mongoose.Schema(
       maxlength: 500,
       default: '',
     },
+    // Which admin this request is addressed to — set once at creation, by the
+    // intern's own pick (defaulting to `AbsenceRequestSettings.primaryAdmin` when
+    // they don't choose). It is what routes the "new request" notification to
+    // exactly one admin instead of every admin, so two admins never both get
+    // pinged about the same ask. The queue itself stays shared: every admin can
+    // still see and decide any pending request, this only targets who is told.
+    recipientAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
     // Who decided, and when. Both stay null while pending.
     decidedBy: {
       type: mongoose.Schema.Types.ObjectId,
@@ -130,16 +142,16 @@ const attendanceRequestSchema = new mongoose.Schema(
       default: '',
     },
   },
-  { timestamps: true }
+  { timestamps: true, collection: 'attendancerequests' }
 );
 
 // Serves both hot paths: "this intern's live requests" (the duplicate-day and
 // budget checks) and "this intern's history" for their own list.
-attendanceRequestSchema.index({ intern: 1, status: 1 });
+absenceRequestSchema.index({ intern: 1, status: 1 });
 // Serves the admin queue, which reads pending requests by the day being asked for.
-attendanceRequestSchema.index({ status: 1, dates: 1 });
+absenceRequestSchema.index({ status: 1, dates: 1 });
 
-module.exports = mongoose.model('AttendanceRequest', attendanceRequestSchema);
+module.exports = mongoose.model('AbsenceRequest', absenceRequestSchema);
 module.exports.REQUEST_STATUSES = REQUEST_STATUSES;
 module.exports.LIVE_STATUSES = LIVE_STATUSES;
 module.exports.PENDING = PENDING;

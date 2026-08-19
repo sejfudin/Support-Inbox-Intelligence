@@ -327,7 +327,7 @@ export const WHATS_NEW_STEPS = [
     roles: ['intern'],
     route: '/my-attendance',
     needsAttendance: true,
-    target: '[data-tour="attendance-requests"]',
+    target: '[data-tour="absence-requests"]',
     title: 'Remote work?',
     body: 'Ask for remote days, vacation, a religious holiday or a sick day here. An admin decides each one.',
     placement: 'left',
