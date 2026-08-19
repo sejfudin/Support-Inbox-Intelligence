@@ -50,7 +50,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLogoutUser } from '@/queries/auth';
 import { useMyInvitations } from '@/queries/invitations';
-import { useAttendanceRequests } from '@/queries/attendanceRequests';
+import { useAbsenceRequests } from '@/queries/absenceRequests';
 import { useStaffingRequestNews } from '@/queries/staffingRequests';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
@@ -232,11 +232,11 @@ export default function AppSidebar() {
   // Admin-only: the endpoint is admin-guarded, so asking as anyone else is a
   // guaranteed 403. Shares its query key with the Attendance page's own fetch, so
   // opening that page costs no extra request.
-  const { data: attendanceRequests } = useAttendanceRequests(
+  const { data: absenceRequests } = useAbsenceRequests(
     { status: 'pending' },
     { enabled: isAdmin(user?.role) }
   );
-  const pendingRequests = attendanceRequests?.pendingCount ?? 0;
+  const pendingRequests = absenceRequests?.pendingCount ?? 0;
 
   // Tooltips replace labels only in the desktop rail — the mobile sheet always
   // shows the full-width sidebar, so it must keep its labels.
@@ -361,7 +361,10 @@ export default function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border bg-card">
       <SidebarHeader className="px-3 pb-2.5 pt-3.5 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+          {/* ml-[2px] sets the lockup a touch inside the header's px-3 — the mark is round,
+              so sitting it flush with the straight left edges of the workspace card and the
+              nav items below reads as crowding the sidebar's edge rather than aligning. */}
+          <div className="ml-[5px] min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <TaskManagerBrand size="md" linkTo="/dashboard" />
           </div>
           <div className="hidden group-data-[collapsible=icon]:block">

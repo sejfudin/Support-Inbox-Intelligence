@@ -409,6 +409,47 @@ const notifyDailyReminder = safe(
   }
 );
 
+const ABSENCE_DECISION_COPY = {
+  approved: {
+    title: 'Absence request approved',
+    body: (requestType, days) =>
+      `Your ${requestType.toLowerCase()} request for ${days} day${days === 1 ? '' : 's'} was approved.`,
+  },
+  rejected: {
+    title: 'Absence request declined',
+    body: (requestType, days) =>
+      `Your ${requestType.toLowerCase()} request for ${days} day${days === 1 ? '' : 's'} was declined.`,
+  },
+};
+
+/**
+ * Intern-facing: an admin decided (approved or rejected) an absence request the
+ * intern filed — the other half of `notifyAbsenceRequestPending` below, which
+ * tells the admin a decision is needed. This one closes the loop back to the
+ * intern once it's made. Never fires for a revoke — only the ordinary
+ * approve/reject decision path, per what was asked.
+ */
+const notifyAbsenceRequestDecided = safe(
+  async ({ internUserId, internProfileId, decision, requestType, dayCount }) => {
+    const copy = ABSENCE_DECISION_COPY[decision] || ABSENCE_DECISION_COPY.rejected;
+    await dispatch({
+      internUserId,
+      internProfileId,
+      type: 'absence_request_decided',
+      link: '/my-attendance',
+      fallback: {
+        title: copy.title,
+        body: copy.body(requestType, dayCount),
+      },
+      promptBuilder: buildProgrammeUpdatePrompt,
+      promptArgs: {
+        summary: `An admin ${decision} the intern's absence request.`,
+        details: `Type: ${requestType}. Days requested: ${dayCount}.`,
+      },
+    });
+  }
+);
+
 const STAFF_INTERN_LINK = {
   admin: (internUserId) => `/interns/${internUserId}`,
   leadership: (internUserId) => `/interns/${internUserId}`,
@@ -438,6 +479,34 @@ const notifyInternMentorNoteShared = safe(async ({ internUserId, internProfileId
     },
   });
 });
+
+/**
+ * Staff-facing: an intern filed an absence request (remote/vacation/religious/
+ * sick) addressed to this admin specifically — the recipient they picked, or the
+ * configured primary admin by default (`absenceRequestService.resolveRecipientAdmin`).
+ * Fires once, to exactly that one resolved recipient — never to every admin, which
+ * is the entire reason the request carries a `recipientAdmin` in the first place.
+ */
+const notifyAbsenceRequestPending = safe(
+  async ({ recipientUserId, internProfileId, internName, requestType, dayCount }) => {
+    const days = dayCount === 1 ? '1 day' : `${dayCount} days`;
+    await dispatch({
+      internUserId: recipientUserId,
+      internProfileId,
+      type: 'absence_request_pending',
+      link: '/admin/absence-requests',
+      fallback: {
+        title: 'New absence request',
+        body: `${internName} asked for ${days} off (${requestType}) — needs your review.`,
+      },
+      promptBuilder: buildStaffUpdatePrompt,
+      promptArgs: {
+        summary: 'An intern filed a request to be away from the office, addressed to this admin.',
+        details: `Intern: ${internName}. Type: ${requestType}. Days requested: ${dayCount}.`,
+      },
+    });
+  }
+);
 
 /** Staff-facing: someone was named in a mentor note's visibility list — never sent to the intern. */
 const notifyMentorNoteMention = safe(
@@ -486,4 +555,6 @@ module.exports = {
   notifyDailyReminder,
   notifyMentorNoteMention,
   notifyInternMentorNoteShared,
+  notifyAbsenceRequestPending,
+  notifyAbsenceRequestDecided,
 };

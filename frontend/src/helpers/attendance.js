@@ -131,6 +131,15 @@ const officeToday = (now = new Date()) => {
   return new Date(year, month - 1, day, 12);
 };
 
+/**
+ * Whether it is the weekend on the office calendar.
+ *
+ * The dashboard strip is Mon–Fri, so "is today a weekend?" can no longer be read
+ * off a cell in it — and the hero still has to say "Weekend — no check-in needed"
+ * rather than counting Saturday as a missed day.
+ */
+export const isOfficeWeekend = (now = new Date()) => isWeekend(officeToday(now));
+
 /** Whether `date` is the office calendar's today. */
 const isOfficeToday = (date, now = new Date()) => toKey(date) === officeDateKey(now);
 
@@ -332,11 +341,13 @@ export const computeStreak = (records = [], placedAt = null) => {
 };
 
 /**
- * This week's days Mon–Sun, classified, for the dashboard hero's strip.
+ * This week's **working** days Mon–Fri, classified, for the dashboard hero's strip.
  *
- * Always seven cells so the strip's columns line up with its M T W T F S S
- * labels — the weekend cells render as inert rather than being dropped, which
- * would shift Friday under the "S" heading.
+ * Five cells, not seven. The weekend is not a state of the intern's week — nobody
+ * is expected in, nothing is owed, and the two inert cells only took a seventh of
+ * the strip each away from the days that carry a verdict. Anything that needs to
+ * know whether *today* is a weekend asks `isOfficeWeekend` rather than looking for
+ * a cell that is no longer there.
  */
 export const buildWeekStrip = (
   records = [],
@@ -355,12 +366,12 @@ export const buildWeekStrip = (
   // date-fns getDay: 0=Sun..6=Sat → walk back to Monday.
   monday.setDate(monday.getDate() - ((getDay(monday) + 6) % 7));
 
-  return Array.from({ length: 7 }, (_, index) => {
+  return Array.from({ length: 5 }, (_, index) => {
     const date = new Date(monday);
     date.setDate(monday.getDate() + index);
     return {
       key: toKey(date),
-      label: format(date, 'EEEEE'), // single letter: M T W T F S S
+      label: format(date, 'EEEEE'), // single letter: M T W T F
       isToday: isOfficeToday(date, now),
       status: classifyDay(
         date,
@@ -660,7 +671,7 @@ export const dayStatusLabel = (status) =>
     [DAY_STATUS.VACATION]: 'Vacation',
     [DAY_STATUS.RELIGIOUS]: 'Religious holiday',
     // "Sick day", not "Sick", so this matches the server's own label for the type
-    // (`constants/attendanceRequestTypes.js`). The balance card reads its label from
+    // (`constants/absenceRequestTypes.js`). The balance card reads its label from
     // the API and the history table reads it from here; when they disagreed, the
     // same request read as two different things on one screen.
     [DAY_STATUS.SICK]: 'Sick day',

@@ -1,6 +1,6 @@
 import { Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { replayWhatsNewTour, useWhatsNewSeen } from './whatsNewSteps';
+import { TOUR_ENABLED, replayWhatsNewTour, useWhatsNewSeen } from './whatsNewSteps';
 
 /**
  * The way back into the "what moved" tour, in the sidebar footer directly above
@@ -22,6 +22,10 @@ import { replayWhatsNewTour, useWhatsNewSeen } from './whatsNewSteps';
 export function WhatsNewButton({ collapsed = false }) {
   const seen = useWhatsNewSeen();
   const label = 'Notice some changes?';
+
+  // Tour temporarily disabled for the automation suite — render no entry point at
+  // all rather than a button that does nothing. See `TOUR_ENABLED` in `whatsNewSteps.js`.
+  if (!TOUR_ENABLED) return null;
 
   return (
     // Size is identical in both seen states — only fill, weight and glow change —

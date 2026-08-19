@@ -33,7 +33,7 @@ export const LoginPage = () => {
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card className="hidden border-primary/10 bg-foreground text-background shadow-elevated lg:block">
           <CardHeader className="p-10">
-            <TaskManagerBrand size="xl" onDark linkTo={null} className="mb-8" />
+            <TaskManagerBrand size="xl" onDark showTagline linkTo={null} className="mb-8" />
             <div>
               <CardTitle className="text-4xl font-semibold leading-tight text-background">
                 Stay on top of tickets, teams, and workspace operations.
@@ -49,7 +49,7 @@ export const LoginPage = () => {
         <Card className="border-border/50 bg-card shadow-elevated">
           <CardHeader className="space-y-3 pt-10 pb-6">
             <div className="flex justify-center lg:hidden">
-              <TaskManagerBrand size="md" linkTo={null} />
+              <TaskManagerBrand size="md" showTagline linkTo={null} />
             </div>
             <CardTitle className="text-center text-2xl font-semibold text-foreground md:text-3xl">
               Sign in

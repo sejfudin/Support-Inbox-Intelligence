@@ -9,12 +9,13 @@ import { cn } from '@/lib/utils';
  *
  * ── Why colour alone stopped working ─────────────────────────────────────────
  *
- * There are eleven day states and six shipped themes, and `--primary` moves across
- * all of them: `styles/themes.css` sets it to hue 241 (indigo), 215/213 (slate),
- * 199 (sky), 187 (cyan), **152 (emerald)** and **24 (orange)**, plus a desaturated
- * grey in `mono`. Emerald is what Present is drawn in and orange is what a sick day
- * asks for, so in the `forest` and `sunset` themes any status hue is somebody's
- * primary. There is no safe band left to claim.
+ * There are eleven day states and eleven shipped themes, and `--primary` moves across
+ * all of them: `styles/themes.css` sets it to hue 239 (indigo), 262 (violet),
+ * 293 (fuchsia), **346 (crimson)**, **6 (coral)**, **24 (orange)**, 173 (teal), 199 (sky) and
+ * 222 (navy), plus two neutrals — warm near-black in `ash`, achromatic in `mono`.
+ * Orange is what a sick day asks for and red is what a missed one asks for, so in
+ * the `sunset`, `ruby` and `rose` themes any status hue is somebody's primary.
+ * There is no safe band left to claim.
  *
  * So the system stops trying:
  *
@@ -123,7 +124,7 @@ const STATUS_DOT = {
  * Religious holiday gets a plain `Star`, and it is the same star every tradition
  * gets in the observance notice — the calendar draws no distinction between faiths
  * anywhere. Two reasons it stays that way: the request itself never records which
- * faith it is for (`AttendanceRequest` holds a type and some dates, nothing else),
+ * faith it is for (`AbsenceRequest` holds a type and some dates, nothing else),
  * and where the tradition *is* known the label already names the holiday, so a
  * per-faith symbol would only rank traditions by which ones have an icon available.
  * The star means "religious observance", nothing narrower.

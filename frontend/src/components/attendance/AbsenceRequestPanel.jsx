@@ -6,6 +6,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -16,12 +23,12 @@ import {
 import { cn } from '@/lib/utils';
 import { officeDateKey, formatRequestDates, isRequestActive } from '@/helpers/attendance';
 import { DayStatusGlyph, dayStatusDot } from '@/components/attendance/dayStatusVisuals';
-import AttendanceRequestHistory from '@/components/attendance/AttendanceRequestHistory';
+import AbsenceRequestHistory from '@/components/attendance/AbsenceRequestHistory';
 import {
-  useMyAttendanceRequests,
-  useCreateAttendanceRequest,
-  useCancelAttendanceRequest,
-} from '@/queries/attendanceRequests';
+  useMyAbsenceRequests,
+  useCreateAbsenceRequest,
+  useCancelAbsenceRequest,
+} from '@/queries/absenceRequests';
 
 const formatDay = (key) => format(new Date(`${key}T12:00:00`), 'EEE, d MMM');
 
@@ -58,7 +65,7 @@ function BalanceRow({ type, label, budget, used }) {
   const pct = budget ? Math.min(100, Math.round((budget.used / budget.budget) * 100)) : 0;
 
   return (
-    <li className="space-y-1.5" data-test={`attendance-balance-${type}`}>
+    <li className="space-y-1.5" data-test={`absence-balance-${type}`}>
       <div className="flex items-baseline justify-between gap-3">
         <span className="flex items-center gap-1.5 text-sm text-foreground">
           <DayStatusGlyph status={type} className="opacity-70" />
@@ -108,13 +115,13 @@ function BalanceRow({ type, label, budget, used }) {
  * Four types share one request form. Choosing a type reconfigures it from the
  * server's `types` payload — the ceiling, the current-year balance, and the date
  * bounds. The picker mirrors the server's per-year budget check only to keep
- * impossible dates disabled; `server/helpers/attendanceRequestRules.js` remains
+ * impossible dates disabled; `server/helpers/absenceRequestRules.js` remains
  * the authority on submission.
  */
-export default function AttendanceRequestPanel({ recordedDates = [], className }) {
-  const { data, isPending, isError } = useMyAttendanceRequests();
-  const { mutate: createRequest, isPending: isSubmitting } = useCreateAttendanceRequest();
-  const { mutate: cancelRequest, isPending: isCancelling } = useCancelAttendanceRequest();
+export default function AbsenceRequestPanel({ recordedDates = [], className }) {
+  const { data, isPending, isError } = useMyAbsenceRequests();
+  const { mutate: createRequest, isPending: isSubmitting } = useCreateAbsenceRequest();
+  const { mutate: cancelRequest, isPending: isCancelling } = useCancelAbsenceRequest();
 
   const [formOpen, setFormOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -122,9 +129,11 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
   const [dates, setDates] = useState([]);
   const [draftDate, setDraftDate] = useState('');
   const [reason, setReason] = useState('');
+  const [recipientAdmin, setRecipientAdmin] = useState('');
 
   const requests = useMemo(() => data?.requests ?? [], [data]);
   const types = useMemo(() => data?.types ?? [], [data]);
+  const admins = useMemo(() => data?.admins ?? [], [data]);
   const active = types.find((t) => t.type === type) || null;
 
   // The soonest day still ahead of the intern, across everything live. Pending
@@ -200,11 +209,20 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
     return taken;
   }, [requests, recordedDates]);
 
+  const openForm = () => {
+    // Defaults to the configured primary admin every time the dialog opens,
+    // never carried over from a previous request — the last request's pick was
+    // a deliberate choice for that request, not a standing preference.
+    setRecipientAdmin(data?.primaryAdmin?.id ?? '');
+    setFormOpen(true);
+  };
+
   const closeForm = () => {
     setFormOpen(false);
     setDates([]);
     setDraftDate('');
     setReason('');
+    setRecipientAdmin('');
   };
 
   const chooseType = (next) => {
@@ -231,8 +249,8 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
 
   const submit = (event) => {
     event.preventDefault();
-    if (dates.length === 0) return;
-    createRequest({ type, dates, reason }, { onSuccess: closeForm });
+    if (dates.length === 0 || !recipientAdmin) return;
+    createRequest({ type, dates, reason, recipientAdmin }, { onSuccess: closeForm });
   };
 
   // Everything the client can rule out without asking. Holidays and the placement
@@ -259,7 +277,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
   return (
     <div
       className={cn('app-card flex flex-col p-4 md:p-5', className)}
-      data-test="attendance-request-panel"
+      data-test="absence-request-panel"
     >
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-sm font-semibold text-foreground">Absence balance</h3>
@@ -267,7 +285,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
           type="button"
           onClick={() => setHistoryOpen(true)}
           className="shrink-0 text-xs font-medium text-primary transition-colors hover:text-primary/80"
-          data-test="attendance-request-view-history"
+          data-test="absence-request-view-history"
         >
           View history
           {pendingCount > 0 && (
@@ -284,7 +302,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
       {isPending && <p className="mt-4 text-sm text-muted-foreground">Loading…</p>}
 
       {!isPending && !isError && (
-        <ul className="mt-4 space-y-3" data-test="attendance-balance-list">
+        <ul className="mt-4 space-y-3" data-test="absence-balance-list">
           {types.map((t) => (
             <BalanceRow
               key={t.type}
@@ -300,7 +318,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
       {/* Pushed to the bottom so the card's footer lines up with the calendar's,
           however tall the column grows. */}
       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
-        <p className="text-xs text-muted-foreground" data-test="attendance-next-away">
+        <p className="text-xs text-muted-foreground" data-test="absence-next-away">
           {nextAway ? (
             <>
               Next away{' '}
@@ -312,25 +330,20 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
             'Nothing booked'
           )}
         </p>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => setFormOpen(true)}
-          data-test="attendance-request-button"
-        >
+        <Button type="button" size="sm" onClick={openForm} data-test="absence-request-button">
           Request absence
         </Button>
       </div>
 
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
-        <DialogContent className="sm:max-w-3xl" data-test="attendance-history-dialog">
+        <DialogContent className="sm:max-w-3xl" data-test="absence-history-dialog">
           <DialogHeader>
             <DialogTitle>Request history</DialogTitle>
             <DialogDescription>
               Everything you have asked for this year, decided or not.
             </DialogDescription>
           </DialogHeader>
-          <AttendanceRequestHistory
+          <AbsenceRequestHistory
             requests={requests}
             onWithdraw={(id) => cancelRequest(id)}
             isWithdrawing={isCancelling}
@@ -339,7 +352,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
       </Dialog>
 
       <Dialog open={formOpen} onOpenChange={(open) => (open ? setFormOpen(true) : closeForm())}>
-        <DialogContent className="sm:max-w-lg" data-test="attendance-request-dialog">
+        <DialogContent className="sm:max-w-lg" data-test="absence-request-dialog">
           <DialogHeader>
             <DialogTitle>Request time away</DialogTitle>
             <DialogDescription>
@@ -366,7 +379,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
                           ? 'border-foreground/30 bg-muted text-foreground'
                           : 'border-border/60 text-muted-foreground hover:bg-muted/50'
                       )}
-                      data-test={`attendance-request-type-${t.type}`}
+                      data-test={`absence-request-type-${t.type}`}
                     >
                       <DayStatusGlyph status={t.type} />
                       {t.label}
@@ -382,7 +395,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
             {currentYearSpent && (
               <p
                 className="rounded-[var(--r-control)] bg-muted/60 px-3 py-2 text-xs text-muted-foreground"
-                data-test="attendance-request-current-year-spent"
+                data-test="absence-request-current-year-spent"
               >
                 You have used all {active.budget.budget} of your {active.label.toLowerCase()} days
                 for {currentYear}. Future-year dates are still checked against that year&apos;s
@@ -391,11 +404,11 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="attendance-request-date">
+              <Label htmlFor="absence-request-date">
                 {maxDays === 1 ? 'Day' : `Days (${dates.length} of ${maxDays})`}
               </Label>
               <DatePicker
-                id="attendance-request-date"
+                id="absence-request-date"
                 value={draftDate}
                 onChange={toggleDate}
                 selectedDates={dates}
@@ -407,12 +420,12 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
                 }
                 placeholder={active?.latestDate ? 'Pick the day you were ill' : 'Pick working days'}
                 isDateDisabled={isDateDisabled}
-                data-test="attendance-request-date-picker"
+                data-test="absence-request-date-picker"
               />
               {dates.length > 0 && (
                 <ul
                   className="flex flex-wrap gap-1.5 pt-1"
-                  data-test="attendance-request-selected-days"
+                  data-test="absence-request-selected-days"
                 >
                   {dates.map((date) => (
                     <li key={date}>
@@ -421,7 +434,7 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
                         onClick={() => removeDate(date)}
                         className="inline-flex items-center gap-1 rounded-[var(--r-control)] border border-border/60 bg-muted px-2.5 py-0.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted/60"
                         aria-label={`Remove ${formatDay(date)}`}
-                        data-test={`attendance-request-selected-${date}`}
+                        data-test={`absence-request-selected-${date}`}
                       >
                         {formatDay(date)}
                         <X className="h-3 w-3" />
@@ -438,19 +451,41 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="attendance-request-reason">Reason (optional)</Label>
+              <Label htmlFor="absence-request-recipient">Send to</Label>
+              <Select value={recipientAdmin} onValueChange={setRecipientAdmin}>
+                <SelectTrigger id="absence-request-recipient" data-test="absence-request-recipient">
+                  <SelectValue placeholder="Choose an admin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {admins.map((admin) => (
+                    <SelectItem key={admin.id} value={admin.id}>
+                      {admin.fullname}
+                      {admin.id === data?.primaryAdmin?.id ? ' (default)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {admins.length === 0 && (
+                <p className="text-xs text-[hsl(var(--tone-danger-fg))]">
+                  No admin is available to send this to right now.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="absence-request-reason">Reason (optional)</Label>
               {/* `resize-none`: the box is two lines for a one-line reason, and a
                       drag handle in the corner of a short optional field invites
                       fiddling with the layout instead of filling it in. */}
               <Textarea
-                id="attendance-request-reason"
+                id="absence-request-reason"
                 rows={2}
                 value={reason}
                 maxLength={500}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Anything the admin should know"
                 className="resize-none"
-                data-test="attendance-request-reason-input"
+                data-test="absence-request-reason-input"
               />
             </div>
 
@@ -460,8 +495,8 @@ export default function AttendanceRequestPanel({ recordedDates = [], className }
               </Button>
               <Button
                 type="submit"
-                disabled={dates.length === 0 || isSubmitting}
-                data-test="attendance-request-submit-button"
+                disabled={dates.length === 0 || !recipientAdmin || isSubmitting}
+                data-test="absence-request-submit-button"
               >
                 {isSubmitting ? 'Sending…' : 'Send request'}
               </Button>

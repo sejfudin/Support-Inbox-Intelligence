@@ -48,6 +48,8 @@ export const NOTIFICATION_GROUPS = [
       'intern_documentation_updated',
       'intern_request_from_leadership',
       'intern_mentor_note_shared',
+      'absence_request_pending',
+      'absence_request_decided',
     ],
   },
   {

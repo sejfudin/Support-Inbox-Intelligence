@@ -1,3 +1,6 @@
+/* Montserrat is the Task Manager logo face — used only by the brand wordmark
+   (see components/TaskManagerBrand.jsx), never for app copy. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400..800&display=swap');
 @import './styles/themes.css';
 @import './styles/symphony.css';
 
@@ -321,6 +324,56 @@
 
   #root {
     min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* The brand mark. Symphony Indigo is the house palette, so it keeps the multicolour
+     artwork exactly as drawn — the mark comes in as a background image, and TaskManagerBrand
+     hands the same URL to CSS as `--brand-mark`. */
+  [data-brand-mark] {
+    background-image: var(--brand-mark);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+
+  /* Every other palette tints it instead: the same URL is used purely as a mask and
+     `--primary` floods the shape flat, so the mark follows the palette and its dark variant
+     with no per-theme block to keep in sync. This works because the swirl's structure is
+     transparency, not colour — 28% of the asset is cut away, including every crescent
+     between the petals — so the flat silhouette still reads as the logo. Petals told apart
+     only by hue do merge; that is the trade for a one-colour mark. */
+  [data-theme-brand]:not([data-theme-brand='default']) [data-brand-mark] {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    -webkit-mask-image: var(--brand-mark);
+    mask-image: var(--brand-mark);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  /* `onDark` placements sit on a `bg-foreground` panel, which is near-black in a light
+     palette and near-white in a dark one — so the accent is pulled towards `--background`,
+     the token that always sits opposite it. That keeps the mark's hue while guaranteeing it
+     stays visible in both directions: without it the dark-accent palettes (`ash`,
+     `midnight`) paint a near-black mark onto a near-black panel. 62% is as far as the mix
+     can stay and still leave those two above 4:1 against the panel. */
+  [data-theme-brand]:not([data-theme-brand='default']) [data-brand-mark][data-brand-on-dark] {
+    background-color: color-mix(in oklab, hsl(var(--primary)) 62%, hsl(var(--background)));
+  }
+
+  /* Black & White is the one palette the mix cannot rescue, because it is the one palette
+     where `--primary` and `--foreground` are the same ink: mixing pure black 62% toward
+     pure white lands mid-grey on a pure-black panel, at 2.1:1. It is also the one palette
+     with no hue to protect, so it skips the mix entirely and takes `--background` — the
+     exact opposite of the panel, 21:1, in both modes. */
+  [data-theme-brand='mono'] [data-brand-mark][data-brand-on-dark] {
+    background-color: hsl(var(--background));
   }
 }
 

@@ -327,7 +327,8 @@ domain (`recommendation_created`, `recommendation_status_changed`,
 `recommendation_not_placed`, `intern_placed`, `evaluation_created`, `readiness_updated`, the four
 `specialization_*` types, `intern_status_changed`, `intern_expected_end_date_changed`,
 `intern_documentation_updated`, `daily_attendance_reminder`, `intern_mentor_note_shared`,
-`mentor_note_mention`, `intern_request_from_leadership` — `internProfile` set when the event is
+`absence_request_decided`,
+`mentor_note_mention`, `intern_request_from_leadership`, `absence_request_pending` — `internProfile` set when the event is
 about one specific intern (null for a project-level staffing request), `ticket`/`workspace` null,
 `link` a frontend route the bell's action button navigates to). Both domains push through the same
 `sendToUser(..., 'new_notification', ...)` socket event and the same `user:<id>` invalidation
@@ -364,7 +365,7 @@ see "UI preferences" below.
   Most events notify **the intern** about their own record — `buildProgrammeUpdatePrompt`, with a
   distinctly celebratory `buildPlacementCelebrationPrompt` for `intern_placed`. A couple notify
   **staff** (admin/mentor/leadership) about someone else's situation — `mentor_note_mention`,
-  `intern_request_from_leadership` — which use `buildStaffUpdatePrompt` instead: reusing the
+  `intern_request_from_leadership`, `absence_request_pending` — which use `buildStaffUpdatePrompt` instead: reusing the
   intern-framed prompt for a staff recipient produced text like "your programme record was
   updated" for a recipient reading about someone *else's* record, which is actively confusing.
   Always match the builder to the recipient axis when adding a new event type.
@@ -619,7 +620,7 @@ Frontend: `pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/att
   `label` can't be relied on to do. **Cohort-wide only** — per-intern days off (an intern requesting
   remote, calling in sick, taking leave) need their own per-intern model with a requester and an
   approval state; widening `kind` for them would exempt the whole cohort for one person's day.
-  That per-intern model is `AttendanceRequest`, below. `Observance` is a third thing again — a
+  That per-intern model is `AbsenceRequest`, below. `Observance` is a third thing again — a
   religious holiday marked on the calendar as a **notice only**, which changes nobody's denominator
   and must never be merged into `NonWorkingDay`.
 - **`attendanceRate` is `null`, never `0`, when nothing was owed** (`workingDays === 0`: a placed
@@ -653,19 +654,19 @@ Frontend: `pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/att
   via `helpers/internAccess.js` — and the intern-facing copy on `MyAttendancePage`, which says
   *admins* can see their attendance, has to change back.
 
-### Attendance requests (remote work, vacation, religious holidays, sick days)
+### Absence requests (remote work, vacation, religious holidays, sick days)
 
-An intern asks for days away from the usual office check-in; an admin decides them.
-`server/{models/AttendanceRequest.js, services/attendanceRequestService.js,
-controllers/attendanceRequest.js, routes/attendanceRequest.js}` +
-`server/constants/attendanceRequestTypes.js` (the per-type table) and
-`server/helpers/attendanceRequestRules.js` (pure, unit-tested in `attendanceRequestRules.test.js`).
-Frontend: `components/attendance/{AttendanceRequestPanel,AttendanceRequestQueue,dayStatusVisuals}.jsx`,
-`api/attendanceRequests.js`, `queries/attendanceRequests.js`.
+An intern asks for days away from the usual office check-in, addressed to one admin; that admin
+decides it. `server/{models/AbsenceRequest.js, services/absenceRequestService.js,
+controllers/absenceRequest.js, routes/absenceRequest.js}` +
+`server/constants/absenceRequestTypes.js` (the per-type table) and
+`server/helpers/absenceRequestRules.js` (pure, unit-tested in `absenceRequestRules.test.js`).
+Frontend: `components/attendance/{AbsenceRequestPanel,AbsenceRequestQueue,dayStatusVisuals}.jsx`,
+`api/absenceRequests.js`, `queries/absenceRequests.js`.
 
 - **One model, four types.** `type` is `remote | vacation | religious | sick`. They share a
   lifecycle, an admin queue and the approval-writes-attendance mechanic, so they share a collection.
-  Everything that differs lives in **`constants/attendanceRequestTypes.js`** — one row per type. A
+  Everything that differs lives in **`constants/absenceRequestTypes.js`** — one row per type. A
   fifth type should be a row there plus a colour on the client, and nothing else. Never branch on
   the type in a service.
 
@@ -710,42 +711,69 @@ Frontend: `components/attendance/{AttendanceRequestPanel,AttendanceRequestQueue,
   except sick is today-or-later, so a recorded absence can never be relabelled after the fact. Sick
   is the deliberate exception in both directions: it reaches back two **working** days (you file a
   sick day after being ill, not before) and cannot be booked ahead at all.
-- Endpoints: `GET|POST /api/attendance-requests/me`, `DELETE /api/attendance-requests/me/:id`
-  (intern-self); `GET /api/attendance-requests?status=pending|all&type=…`,
-  `PATCH /api/attendance-requests/:id` (approve/reject), `DELETE /api/attendance-requests/:id`
+- **Every request is addressed to exactly one admin** (`recipientAdmin`, required). The intern picks
+  from `admins` (every active admin, sent alongside `types` on the intern's own list response —
+  built via `adminService.getUsers`, no separate "list the admins" endpoint), preselected to the
+  configured **primary admin** (`AbsenceRequestSettings.primaryAdmin`, below) when one is set.
+  Omitting `recipientAdmin` falls back to that primary admin server-side; if neither is set, create
+  is refused with a 400 rather than silently addressing the request to nobody. This is what lets an
+  intern route around a primary admin who is on leave (pick someone else) without the request
+  reaching both of them — the id is validated as an existing **active admin** before it is trusted,
+  the same "check the foreign key" rule `.claude/docs/security.md` states for workspace refs,
+  generalized here to a role check. The admin **queue stays shared**: `listRequests` is unfiltered,
+  so every admin can still see and decide every pending request regardless of who it was addressed
+  to — `recipientAdmin` only targets the notification below and the queue row's "for" tag.
+- **Two notifications, one per axis** (both fire-and-forget from `absenceRequestService`, both via
+  `internNotificationService`): `absence_request_pending` (staff-facing) tells the resolved
+  `recipientAdmin` a request needs a decision, sent once at creation from `createMyRequest`.
+  `absence_request_decided` (intern-facing) tells the intern the verdict — approved or rejected —
+  sent from `decideRequest` after the status is saved. Neither fires for a revoke: revoking undoes
+  an approval already communicated, not a new decision to announce.
+- Endpoints: `GET|POST /api/absence-requests/me`, `DELETE /api/absence-requests/me/:id`
+  (intern-self); `GET /api/absence-requests?status=pending|all&type=…`,
+  `PATCH /api/absence-requests/:id` (approve/reject), `DELETE /api/absence-requests/:id`
   (revoke) — **admin-only**. The intern list also returns `types`, carrying each type's ceiling,
   remaining allowance and requestable bounds, so **no limit is duplicated on the client**.
   `pendingCount` on the admin list is deliberately unfiltered, so the nav dot and tab badge keep
   meaning "anything waiting" while a type filter is applied.
 - **The admin surface is `/admin/absence-requests`** (`pages/AdminAbsenceRequestsPage.jsx`) — three
-  tabs: Queue, History, Request limits. `AttendanceRequestQueue` renders the first two off a `mode`
+  tabs: Queue, History, Request limits. `AbsenceRequestQueue` renders the first two off a `mode`
   prop; history asks for `status=all` and drops the pending rows, because the API filters on one
   status at a time and "decided" is four of them. `/attendance` keeps only the reports.
 
-#### Configurable limits
+#### Configurable limits, and the primary admin
 
-An admin sets the per-request ceiling and the yearly allowance per type, from the Request limits
-tab of `/admin/absence-requests`.
-`server/{models/AttendanceRequestSettings.js, services/attendanceSettingsService.js,
-controllers/attendanceSettings.js, routes/attendanceSettings.js}`. Frontend:
-`components/attendance/AttendanceLimitsPanel.jsx`, `api/attendanceRequestSettings.js`,
-`queries/attendanceRequestSettings.js`.
+An admin sets the per-request ceiling and the yearly allowance per type, and the primary admin
+default, from the Request limits tab of `/admin/absence-requests`.
+`server/{models/AbsenceRequestSettings.js, services/absenceSettingsService.js,
+controllers/absenceSettings.js, routes/absenceSettings.js}`. Frontend:
+`components/attendance/AbsenceLimitsPanel.jsx`, `api/absenceRequestSettings.js`,
+`queries/absenceRequestSettings.js`.
 
 - **One document, global.** `key: 'global'`, unique — a second row cannot be written, so the
   effective configuration never depends on a sort order. Global rather than per-workspace on the
-  same grounds as `NonWorkingDay`: an `AttendanceRequest` carries no workspace at all.
-- **Only differences from the shipped table are stored.** An empty `limits` map is a system running
-  as shipped, which makes "reset to defaults" a deletion and lets a later change to
-  `constants/attendanceRequestTypes.js` still reach types nobody overrode. Saving a value equal to
-  the default therefore stores nothing — "unset" and "set to the default" mean the same thing.
+  same grounds as `NonWorkingDay`: an `AbsenceRequest` carries no workspace at all.
+- **Only differences from the shipped table are stored**, for the per-type `limits`. An empty map
+  is a system running as shipped, which makes "reset to defaults" a deletion and lets a later
+  change to `constants/absenceRequestTypes.js` still reach types nobody overrode. Saving a value
+  equal to the default therefore stores nothing — "unset" and "set to the default" mean the same
+  thing. `primaryAdmin` has no such default to fall back to: it is either an admin's id or `null`,
+  and `resetSettings` (the "Reset to defaults" button) never touches it — that button is about the
+  per-type numbers only.
+- **`primaryAdmin`** (`ObjectId ref: 'User'`, nullable) is who an intern's request is addressed to
+  when they don't pick someone else — see "Absence requests" above. Validated the same way a
+  request's own `recipientAdmin` is: must be an existing user with `role: 'admin'` and
+  `status: 'active'`, or the save is refused with a 400. `null` means "no default" — the intern's
+  form then has no preselection and must pick explicitly, it never silently falls back to "some
+  admin".
 - **Unbudgeted stays unbudgeted.** `remote` and `sick` have no yearly allowance and an admin cannot
   give them one — `yearlyBudgetFor` returns `null` for them whatever is stored. Read off the table
   (`yearlyBudget: null`), so the fact is stated once. Their *ceilings* are configurable.
-- **The rules take limits as an argument.** `helpers/attendanceRequestRules.js` and
-  `constants/attendanceRequestTypes.js` stay Mongoose-free; `attendanceRequestService` loads the
+- **The rules take limits as an argument.** `helpers/absenceRequestRules.js` and
+  `constants/absenceRequestTypes.js` stay Mongoose-free; `absenceRequestService` loads the
   limits (`getEffectiveLimits()`) and passes them down. Omit the argument and everything falls back
   to the shipped defaults — which is what keeps the rules unit-testable without a database.
-- **The per-type ceiling is not a schema validator.** `AttendanceRequest.dates` is bounded by the
+- **The per-type ceiling is not a schema validator.** `AbsenceRequest.dates` is bounded by the
   absolute `LIMIT_BOUNDS.maxDaysPerRequest.max` instead. A validator holding a number an admin can
   lower would make an existing five-day request unsaveable the moment the ceiling dropped to
   three — so approving one filed last week would fail validation on a document that was legal when
@@ -753,9 +781,9 @@ controllers/attendanceSettings.js, routes/attendanceSettings.js}`. Frontend:
 - **Lowering a limit binds only what comes next.** Nothing already filed is re-validated or
   revoked, and `budgetStateFor` clamps `remaining` at zero: an intern who spent four when the
   allowance drops to three is out of days, not owed minus one.
-- Endpoints: `GET|PUT|DELETE /api/attendance-request-settings` — **admin-only in both directions**.
-  Interns never call them; the numbers reach them already applied, in the `types` payload of their
-  own request list.
+- Endpoints: `GET|PUT|DELETE /api/absence-request-settings` — **admin-only in both directions**.
+  Interns never call them; the per-type numbers and the primary admin's identity reach them already
+  resolved, in the `types`/`admins`/`primaryAdmin` fields of their own request list.
 
 ### Religious observances
 
@@ -781,10 +809,11 @@ controllers/attendanceSettings.js, routes/attendanceSettings.js}`. Frontend:
 `frontend/src/components/attendance/dayStatusVisuals.jsx` is the single source; the calendar, both
 admin tables and the dashboard week strip all read from it.
 
-- **No hue is safe, because `--primary` moves.** `styles/themes.css` ships primaries at hue 241
-  (indigo), 215/213 (slate), 199 (sky), 187 (cyan), **152 (emerald)** and **24 (orange)**, plus a
-  desaturated grey in `mono`. Emerald is Present and orange is Sick, so in the `forest` and `sunset`
-  themes a status colour *is* somebody's primary.
+- **No hue is safe, because `--primary` moves.** `styles/themes.css` ships primaries at hue 239
+  (indigo), 262 (violet), 293 (fuchsia), **346 (crimson)**, **6 (coral)**, **24 (orange)**,
+  173 (teal), 199 (sky) and 222 (navy), plus two neutrals — a near-black warm brown in `ash` and pure
+  achromatic black/white in `mono`. Orange is Sick and red is Absent, so in the `sunset`, `ruby`
+  and `rose` themes a status colour *is* somebody's primary.
 - So the system separates the axes: **fill says what happened** (a fixed hue per status, never
   `--primary`), **a ring says when** (today is drawn as a ring over whatever the day actually is, so
   it survives the intern checking in), and **a glyph says which** (every away-from-the-office state
@@ -798,7 +827,7 @@ admin tables and the dashboard week strip all read from it.
   Encoding the difference in shape as well is also the only version that works for a colour-blind
   viewer. Religious leave uses a plain `Star`, and **the calendar draws no distinction between
   faiths anywhere** — the same star marks every observance in the advance notice. The request
-  itself never records which faith it is for (`AttendanceRequest` holds a type and dates, nothing
+  itself never records which faith it is for (`AbsenceRequest` holds a type and dates, nothing
   else), and in the notice the label already names the holiday, so per-faith symbols would only
   rank traditions by which ones happen to have an icon available. `Observance.tradition` is still
   stored; it just isn't what draws the mark.
@@ -925,6 +954,11 @@ controllers/internDashboard.js}` + `GET /me` in `routes/dashboard.js`. Frontend:
 - **Shared with the admin board**: `components/dashboard/{DashboardCard, DashboardHeader,
   WorkloadSegments, AttendanceMeter}` and the `.dashboard-hero-surface` gradient (whose theme-accent
   and contrast constraints are documented at the rule in `frontend/src/index.css`).
+- **The hero's week strip is Mon–Fri, five cells** (`buildWeekStrip`). The weekend is not a state of
+  an intern's week — nobody is expected in and nothing is owed — and two inert cells took a seventh
+  of the strip each from the days that carry a verdict. Anything asking "is today a weekend?" calls
+  `isOfficeWeekend` rather than looking for a cell that is not there; the month calendar on
+  `/my-attendance` still draws weekends, where they are part of the shape of the month.
 - **Not implemented**: weekly hours on the hero (`Attendance` records a check-in and no check-out, so
   hours aren't derivable — the line shows the month's attendance rate and present days instead), and
   the "next review in N days" line on evaluations (no scheduled-review concept exists in the model).
@@ -941,9 +975,9 @@ The intern's read-only mirror of everything the programme records **about** them
 
 - **`GET /api/dashboard/me/progress` takes no parameters, ever** — same rule and reason as
   `GET /api/dashboard/me`, and more load-bearing: this is the widest self-read on the platform. See
-  `security.md`. Four sections in one payload (`programme`, `evaluations`, `readiness`,
-  `recommendations`) so the page has one loading state and one cache key for the socket refresh to
-  land on — four endpoints would refresh three sections and leave the fourth stale.
+  `security.md`. Every section in one payload (`programme`, `evaluations`, `readiness`,
+  `recommendations`, `mentorNotes`) so the page has one loading state and one cache key for the
+  socket refresh to land on — an endpoint each would refresh four sections and leave the fifth stale.
 - **Nothing on it is workspace-scoped.** Every section is programme data, so unlike the dashboard
   aggregate there is no `resolveActiveWorkspaceId` call in the service and the route sits outside
   `WorkspaceGuard` — an intern between workspaces still has a review history.
@@ -979,6 +1013,14 @@ The intern's read-only mirror of everything the programme records **about** them
 - **Attendance is deliberately not on it** — `/my-attendance` owns that surface and the dashboard
   hero already reads `GET /api/attendance/me`; a third copy of the same month's numbers is a third
   thing to keep in agreement. The programme panel links there instead.
+- **The page is a summary band over collapsible cards**, in one column. The band
+  (`components/intern/progress/ProgressHeader.jsx`) answers "where do I stand?" outright — status
+  and its sentence, a *time-elapsed* meter (nothing in the payload measures attainment, and a bar
+  that implied it would be inventing a score), and three counts whose tiles open the section they
+  summarise. Every card below starts closed and states its own count on the band, so a shut page
+  still reads. Length inside a section is handled by condensing, not hiding: the newest evaluation
+  and the newest recommendation render in full, everything older is one line. There is no right-hand
+  rail — an index of a page is what you need when you cannot close it.
 - The lifecycle status is printed **verbatim** (no label mapping, per the rule in
   `frontend/src/helpers/internProfile.js`) with a plain-English sentence beside it from
   `components/intern/progress/programmeStatus.js`. Keep those as sentences: the moment one becomes a

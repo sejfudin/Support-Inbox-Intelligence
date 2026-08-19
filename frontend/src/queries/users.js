@@ -31,3 +31,14 @@ export const useMentorCandidates = ({ hubId, hubScoped = false } = {}) =>
     enabled: !hubScoped || Boolean(hubId),
     staleTime: 5 * 60 * 1000,
   });
+
+// Every active admin — the primary-admin picker on the absence-request settings
+// page. Admin-only screen, so (unlike an intern-facing picker) it's safe to reach
+// `/admin/users` directly rather than routing through a list response's own
+// bundled `admins` field.
+export const useAdminCandidates = () =>
+  useQuery({
+    queryKey: ['admin-candidates'],
+    queryFn: () => getUsers({ pagination: false, roles: 'admin', status: 'active' }),
+    staleTime: 5 * 60 * 1000,
+  });

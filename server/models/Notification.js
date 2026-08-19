@@ -40,10 +40,12 @@ const notificationSchema = new mongoose.Schema(
         'intern_documentation_updated',
         'daily_attendance_reminder',
         'intern_mentor_note_shared',
+        'absence_request_decided',
         // Intern-programme domain — staff-facing (recipient is admin/mentor/
         // leadership, not the intern)
         'mentor_note_mention',
         'intern_request_from_leadership',
+        'absence_request_pending',
       ],
       required: true,
     },

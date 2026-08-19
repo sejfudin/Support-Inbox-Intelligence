@@ -10,6 +10,7 @@ import { resolveUserId } from '@/helpers/userIdentity';
 import { THEMES } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 import {
+  TOUR_ENABLED,
   TOUR_REPLAY_EVENT,
   WHATS_NEW_STEPS,
   markWhatsNewSeen,
@@ -323,7 +324,11 @@ export function WhatsNewTour() {
   // Opening while dashboard data is still in flight is safe now: no step is
   // dropped for a missing target, so the only effect of an early open is that the
   // first card or two are centred until their element lands.
+  // `TOUR_ENABLED` is off for now so the overlay cannot block the automation suite —
+  // see the flag's note in `whatsNewSteps.js`. With no auto-open and no replay, the
+  // tour stays `dismissed`, `step` is null, and this component renders nothing.
   useEffect(() => {
+    if (!TOUR_ENABLED) return;
     if (autoOpenedRef.current || seen || !user || loading || steps.length === 0) return;
     autoOpenedRef.current = true;
     setIndex(0);
@@ -343,6 +348,7 @@ export function WhatsNewTour() {
 
   // Opened on demand — the sidebar's what's-new button fires this.
   useEffect(() => {
+    if (!TOUR_ENABLED) return undefined;
     const onReplay = () => {
       setIndex(0);
       attemptedRouteRef.current = null;
@@ -566,11 +572,11 @@ export function WhatsNewTour() {
         </h2>
         <p className="mt-3 text-[15.5px] leading-[1.55] text-white/75">{step.body}</p>
 
-        {/* Shown, not listed. "Twelve accent palettes" is a claim; the twelve
-            gradients are the thing itself, and they come straight from `THEMES`, so
-            a palette added or retuned there is reflected here with no edit.
-            `aria-hidden` because the copy above already says what they are — to a
-            screen reader these are twelve unlabelled decorations. */}
+        {/* Shown, not listed. "Eleven accent palettes" is a claim; the eleven gradients
+            are the thing itself, and they come straight from `THEMES`, so a palette
+            added or retuned there is reflected here with no edit. `aria-hidden`
+            because the copy above already says what they are — to a screen reader
+            these are eleven unlabelled decorations. */}
         {step.swatches && (
           <div className="mt-3.5 flex flex-wrap gap-1.5" aria-hidden="true">
             {THEMES.map((theme) => (
