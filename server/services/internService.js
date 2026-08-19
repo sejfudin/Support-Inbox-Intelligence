@@ -653,9 +653,25 @@ const getProgrammeStats = async (user) => {
     recentOutcomeRecs,
     allActiveRecommendations,
   ] = await Promise.all([
-    InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    // A profile whose User was removed outside the app (there is no in-app
+    // "delete user" path — see `.claude/docs/security.md`) has no code path
+    // that cleans it up, so it lingers forever unless this lookup drops it.
+    // Every InternProfile aggregate in this function needs the same guard —
+    // this counted a handful of such orphans into "N interns in the
+    // programme" and into `funnel.placed` on the leadership dashboard.
+    InternProfile.aggregate([
+      {
+        $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'userDoc' },
+      },
+      { $match: { userDoc: { $ne: [] } } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
     InternProfile.aggregate([
       { $match: { status: { $in: activeStatuses } } },
+      {
+        $lookup: { from: 'users', localField: 'user', foreignField: '_id', as: 'userDoc' },
+      },
+      { $match: { userDoc: { $ne: [] } } },
       { $group: { _id: '$internshipType', count: { $sum: 1 } } },
       {
         $lookup: {
@@ -1092,8 +1108,12 @@ const getProgrammeStats = async (user) => {
       // to several projects at once still counts as one person in the pipeline.
       activeRecommendations: profileIdsWithActiveRec.size,
       interviewingCount: interviewingProfileIds.size,
-      readyWithoutActiveRecommendation: readyProfiles.filter(
-        (profile) => !profileIdsWithActiveRec.has(profile._id.toString())
+      // readyBench, not readyProfiles: it's already had orphaned-user profiles
+      // dropped (formatReadyCandidate returns null for one, filtered out at
+      // readyBench's own definition above) — this count must agree with the
+      // list it's summarizing.
+      readyWithoutActiveRecommendation: readyBench.filter(
+        (candidate) => !profileIdsWithActiveRec.has(candidate.profileId.toString())
       ).length,
     },
   };
