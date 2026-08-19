@@ -820,6 +820,341 @@ const createTicket = async (ticketData) => {
   return populatedTicket;
 };
 
+// Workspace-checked assignee/category, plus dueDate parsing. Subject/description
+// sanitizing stays in updateTicket itself — it runs before the ticket is fetched
+// and doesn't need oldTicket, so folding it in here would reorder error precedence.
+const applyValidatedFieldUpdates = async (updateData, oldTicket) => {
+  if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
+    await ensureAssignableUsersBelongToWorkspace({
+      workspaceId: oldTicket.workspace,
+      assignedTo: updateData.assignedTo,
+    });
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updateData, 'category')) {
+    await ensureCategoryBelongsToWorkspace({
+      workspaceId: oldTicket.workspace,
+      categoryId: updateData.category,
+    });
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updateData, 'dueDate')) {
+    const raw = updateData.dueDate;
+    if (raw === null || raw === '') {
+      updateData.dueDate = null;
+    } else {
+      const parsed = parseOptionalDueDate(raw);
+      if (parsed === undefined) {
+        delete updateData.dueDate;
+      } else {
+        updateData.dueDate = parsed;
+      }
+    }
+  }
+};
+
+// Mutates updateData.status/statusId and returns what the rest of updateTicket
+// needs to finish the request: whether it changed, the resolved doc (the blocker
+// step below needs it), and the history line (held, not logged — the caller only
+// logs it after the ticket is actually persisted).
+const resolveStatusTransition = async ({ oldTicket, updateData }) => {
+  let statusChanged = false;
+  let nextStatusDoc = null;
+  let statusHistoryEntry = null;
+
+  const statusInput = updateData.statusId ?? updateData.status;
+  if (!statusInput) {
+    return { statusChanged, nextStatusDoc, statusHistoryEntry };
+  }
+
+  const statusDoc = await statusService.resolveStatusForWorkspace(oldTicket.workspace, statusInput);
+  nextStatusDoc = statusDoc;
+  // Single fetch for the old status doc — replaces separate slug/label/flags
+  // lookups that each independently re-fetched the same document.
+  const oldStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
+
+  if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
+    statusChanged = true;
+    if (statusDoc.isBacklog && !oldStatusDoc?.isBacklog) {
+      throw new Error('Tickets cannot be moved back to the backlog.');
+    }
+
+    const now = new Date();
+    const oldLabel = oldStatusDoc?.label || 'Unknown';
+    const newLabel = statusDoc.label;
+
+    updateData.status = statusDoc._id;
+    delete updateData.statusId;
+
+    await statusService.applyStatusLifecycleUpdate({
+      oldFlags: {
+        tracksTime: oldStatusDoc?.tracksTime,
+        isDone: oldStatusDoc?.isDone,
+        isBacklog: oldStatusDoc?.isBacklog,
+      },
+      newFlags: {
+        tracksTime: statusDoc.tracksTime,
+        isDone: statusDoc.isDone,
+        isBacklog: statusDoc.isBacklog,
+      },
+      oldTicket,
+      updateData,
+      now,
+    });
+
+    statusHistoryEntry = `Status changed from "${oldLabel}" to "${newLabel}"`;
+  } else {
+    delete updateData.status;
+    delete updateData.statusId;
+  }
+
+  return { statusChanged, nextStatusDoc, statusHistoryEntry };
+};
+
+// Resolved against the status the ticket ENDS UP in, not the one it had: a
+// ticket moving into Blocked can carry its blocker in the same request, and a
+// ticket moving out of it loses the blocker whether or not the client said so.
+// Skipped entirely for the common edit that neither sends a blocker nor has one.
+// Mutates updateData.blockedBy; returns the history lines (held, same reason as
+// the status ones above).
+const resolveBlockerTransition = async ({
+  oldTicket,
+  updateData,
+  requestedBlocker,
+  nextStatusDoc,
+  ticketId,
+}) => {
+  let blockerHistoryEntries = [];
+  const currentBlocker = readBlocker(oldTicket);
+
+  if (requestedBlocker === undefined && !currentBlocker.ticketId && !currentBlocker.note) {
+    return { blockerHistoryEntries };
+  }
+
+  const effectiveStatusDoc =
+    nextStatusDoc || (await statusService.getStatusDocFromTicketRef(oldTicket.status));
+
+  const blockedBy = resolveBlockerUpdate({
+    isBlocked: isBlockedStatusSlug(effectiveStatusDoc?.slug),
+    requested: requestedBlocker,
+    current: currentBlocker,
+  });
+
+  if (blockedBy) {
+    const labels = new Map();
+
+    if (blockedBy.ticket) {
+      const blockingTicket = await resolveBlockingTicket({
+        workspaceId: oldTicket.workspace,
+        blockerTicketId: blockedBy.ticket,
+        ticketId,
+        previousBlockerId: currentBlocker.ticketId,
+      });
+      labels.set(String(blockingTicket._id), ticketRefLabel(blockingTicket));
+    }
+
+    if (currentBlocker.ticketId && !labels.has(currentBlocker.ticketId)) {
+      const previousTicket = await Ticket.findById(currentBlocker.ticketId)
+        .select('taskNumber')
+        .lean();
+      labels.set(currentBlocker.ticketId, ticketRefLabel(previousTicket));
+    }
+
+    updateData.blockedBy = blockedBy;
+    blockerHistoryEntries = describeBlockerChange({
+      previous: currentBlocker,
+      next: blockedBy,
+      labelFor: (id) => labels.get(String(id)) || 'another ticket',
+    });
+  }
+
+  return { blockerHistoryEntries };
+};
+
+const persistTicketUpdate = async (ticketId, updateData) => {
+  const ticket = await Ticket.findByIdAndUpdate(
+    ticketId,
+    { $set: updateData },
+    {
+      returnDocument: 'after',
+      runValidators: true,
+    }
+  )
+    .populate('status', STATUS_POPULATE_SELECT)
+    .populate('assignedTo', 'fullname email role')
+    .populate('creator', 'fullName')
+    .populate(BLOCKER_POPULATE);
+
+  if (!ticket) {
+    throw new Error('Ticket not found');
+  }
+
+  return ticket;
+};
+
+// Notifies newly-assigned users and logs the assignee history line. Returns what
+// emitUpdateEvents needs to decide the `assigned` socket event.
+const applyAssigneeSideEffects = async ({
+  ticketId,
+  ticket,
+  previousAssignedTo,
+  updateData,
+  actorUserId,
+}) => {
+  let assigneesChanged = false;
+  let newlyAssignedUserIds = [];
+
+  if (!Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
+    return { assigneesChanged, newlyAssignedUserIds };
+  }
+
+  newlyAssignedUserIds = getNewAssigneeIds({
+    previousAssignedTo,
+    nextAssignedTo: ticket.assignedTo || [],
+  });
+
+  const prevIds = normalizeAssignedUserIds(previousAssignedTo).sort();
+  const nextIds = normalizeAssignedUserIds(updateData.assignedTo).sort();
+  assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
+
+  if (assigneesChanged) {
+    const currentAssignees = ticket.assignedTo || [];
+    if (newlyAssignedUserIds.length > 0) {
+      await notifyTicketAssigned({
+        ticket,
+        assignedUserIds: newlyAssignedUserIds,
+        actorUserId,
+      });
+      const newlyAssignedNames = currentAssignees
+        .filter((u) => newlyAssignedUserIds.some((id) => id.toString() === u._id.toString()))
+        .map((u) => u.fullname)
+        .join(', ');
+      historyService.logEvent(ticketId, actorUserId, `Assigned to ${newlyAssignedNames}`);
+    } else if (currentAssignees.length === 0) {
+      historyService.logEvent(ticketId, actorUserId, 'All assignees removed');
+    } else {
+      const names = currentAssignees.map((u) => u.fullname).join(', ');
+      historyService.logEvent(ticketId, actorUserId, `Reassigned to ${names}`);
+    }
+  }
+
+  return { assigneesChanged, newlyAssignedUserIds };
+};
+
+// History lines for the remaining plain fields — no side effects beyond the log.
+const logFieldChangeHistory = async ({ ticketId, oldTicket, updateData, actorUserId }) => {
+  if (
+    Object.prototype.hasOwnProperty.call(updateData, 'description') &&
+    updateData.description !== oldTicket.description
+  ) {
+    historyService.logEvent(ticketId, actorUserId, 'Description Updated');
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(updateData, 'subject') &&
+    updateData.subject !== oldTicket.subject
+  ) {
+    historyService.logEvent(ticketId, actorUserId, 'Subject updated');
+  }
+
+  if (
+    Object.prototype.hasOwnProperty.call(updateData, 'priority') &&
+    updateData.priority !== oldTicket.priority
+  ) {
+    historyService.logEvent(
+      ticketId,
+      actorUserId,
+      `Priority changed from ${oldTicket.priority} to ${updateData.priority}`
+    );
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updateData, 'storyPoints')) {
+    const oldSP = oldTicket.storyPoints ?? null;
+    const newSP = updateData.storyPoints ?? null;
+    if (oldSP !== newSP) {
+      let action;
+      if (oldSP === null && newSP !== null) action = `Story points set to ${newSP}`;
+      else if (oldSP !== null && newSP === null) action = 'Story points removed';
+      else action = `Story points changed from ${oldSP} to ${newSP}`;
+      historyService.logEvent(ticketId, actorUserId, action);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updateData, 'dueDate')) {
+    const oldDate = oldTicket.dueDate ? new Date(oldTicket.dueDate).getTime() : null;
+    const newDate = updateData.dueDate ? new Date(updateData.dueDate).getTime() : null;
+    if (oldDate !== newDate) {
+      let action;
+      if (!oldDate && newDate) {
+        action = `Due date set to ${new Date(updateData.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      } else if (oldDate && !newDate) {
+        action = 'Due date removed';
+      } else {
+        action = `Due date changed to ${new Date(updateData.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      }
+      historyService.logEvent(ticketId, actorUserId, action);
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updateData, 'category')) {
+    const oldCatId = oldTicket.category?.toString() || null;
+    const newCatId = updateData.category?.toString() || null;
+    if (oldCatId !== newCatId) {
+      const [oldCat, newCat] = await Promise.all([
+        oldCatId ? Category.findById(oldCatId).select('name').lean() : null,
+        newCatId ? Category.findById(newCatId).select('name').lean() : null,
+      ]);
+      let action;
+      if (!oldCatId && newCatId) action = `Category set to ${newCat?.name || 'Unknown'}`;
+      else if (oldCatId && !newCatId) action = 'Category removed';
+      else
+        action = `Category changed from ${oldCat?.name || 'Unknown'} to ${newCat?.name || 'Unknown'}`;
+      historyService.logEvent(ticketId, actorUserId, action);
+    }
+  }
+};
+
+const emitUpdateEvents = ({
+  ticket,
+  oldTicket,
+  statusChanged,
+  assigneesChanged,
+  newlyAssignedUserIds,
+  isStatusOnlyRequest,
+}) => {
+  if (!isStatusOnlyRequest) {
+    emitTicketWorkspaceEvent({
+      eventName: TICKET_SOCKET_EVENTS.updated,
+      ticket,
+      workspaceId: oldTicket.workspace,
+    });
+  }
+
+  if (statusChanged) {
+    emitTicketWorkspaceEvent({
+      eventName: TICKET_SOCKET_EVENTS.moved,
+      ticket,
+      workspaceId: oldTicket.workspace,
+      extra: {
+        statusId: toSocketId(ticket.status?._id || ticket.status),
+        status: buildStatusPayload(ticket.status),
+      },
+    });
+  }
+
+  if (assigneesChanged) {
+    emitTicketWorkspaceEvent({
+      eventName: TICKET_SOCKET_EVENTS.assigned,
+      ticket,
+      workspaceId: oldTicket.workspace,
+      extra: {
+        assignedUserIds: normalizeAssignedUserIds(ticket.assignedTo),
+        newlyAssignedUserIds: newlyAssignedUserIds.map(String),
+      },
+    });
+  }
+};
+
 const updateTicket = async (ticketId, updateData, actorUserId) => {
   try {
     const requestedUpdateKeys = Object.keys(updateData);
@@ -843,12 +1178,6 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     if (!oldTicket) throw new Error('Ticket not found');
 
     const previousAssignedTo = oldTicket.assignedTo || [];
-    let statusChanged = false;
-    let assigneesChanged = false;
-    let newlyAssignedUserIds = [];
-    let nextStatusDoc = null;
-    let statusHistoryEntry = null;
-    let blockerHistoryEntries = [];
 
     // Parsed before the update object is written so a malformed blocker fails the
     // whole request rather than half of it. Removed from `updateData` either way:
@@ -856,285 +1185,49 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     const requestedBlocker = parseBlockerInput(updateData.blockedBy);
     delete updateData.blockedBy;
 
-    if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
-      await ensureAssignableUsersBelongToWorkspace({
-        workspaceId: oldTicket.workspace,
-        assignedTo: updateData.assignedTo,
-      });
-    }
+    await applyValidatedFieldUpdates(updateData, oldTicket);
 
-    if (Object.prototype.hasOwnProperty.call(updateData, 'category')) {
-      await ensureCategoryBelongsToWorkspace({
-        workspaceId: oldTicket.workspace,
-        categoryId: updateData.category,
-      });
-    }
+    const { statusChanged, nextStatusDoc, statusHistoryEntry } = await resolveStatusTransition({
+      oldTicket,
+      updateData,
+    });
 
-    if (Object.prototype.hasOwnProperty.call(updateData, 'dueDate')) {
-      const raw = updateData.dueDate;
-      if (raw === null || raw === '') {
-        updateData.dueDate = null;
-      } else {
-        const parsed = parseOptionalDueDate(raw);
-        if (parsed === undefined) {
-          delete updateData.dueDate;
-        } else {
-          updateData.dueDate = parsed;
-        }
-      }
-    }
-
-    const statusInput = updateData.statusId ?? updateData.status;
-    if (statusInput) {
-      const statusDoc = await statusService.resolveStatusForWorkspace(
-        oldTicket.workspace,
-        statusInput
-      );
-      nextStatusDoc = statusDoc;
-      // Single fetch for the old status doc — replaces separate slug/label/flags
-      // lookups that each independently re-fetched the same document.
-      const oldStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
-
-      if (!statusService.statusIdsMatch(oldTicket.status, statusDoc._id)) {
-        statusChanged = true;
-        if (statusDoc.isBacklog && !oldStatusDoc?.isBacklog) {
-          throw new Error('Tickets cannot be moved back to the backlog.');
-        }
-
-        const now = new Date();
-        const oldLabel = oldStatusDoc?.label || 'Unknown';
-        const newLabel = statusDoc.label;
-
-        updateData.status = statusDoc._id;
-        delete updateData.statusId;
-
-        await statusService.applyStatusLifecycleUpdate({
-          oldFlags: {
-            tracksTime: oldStatusDoc?.tracksTime,
-            isDone: oldStatusDoc?.isDone,
-            isBacklog: oldStatusDoc?.isBacklog,
-          },
-          newFlags: {
-            tracksTime: statusDoc.tracksTime,
-            isDone: statusDoc.isDone,
-            isBacklog: statusDoc.isBacklog,
-          },
-          oldTicket,
-          updateData,
-          now,
-        });
-
-        // Held, not logged yet. Everything after this point can still reject the
-        // request — the blocker validation below routinely does — and a rejected
-        // update that left "Status changed from X to Y" in the history would have
-        // the log claiming a move the database never made.
-        statusHistoryEntry = `Status changed from "${oldLabel}" to "${newLabel}"`;
-      } else {
-        delete updateData.status;
-        delete updateData.statusId;
-      }
-    }
-
-    // Resolved against the status the ticket ENDS UP in, not the one it had: a
-    // ticket moving into Blocked can carry its blocker in the same request, and a
-    // ticket moving out of it loses the blocker whether or not the client said so.
-    // Skipped entirely for the common edit that neither sends a blocker nor has one.
-    const currentBlocker = readBlocker(oldTicket);
-    if (requestedBlocker !== undefined || currentBlocker.ticketId || currentBlocker.note) {
-      const effectiveStatusDoc =
-        nextStatusDoc || (await statusService.getStatusDocFromTicketRef(oldTicket.status));
-
-      const blockedBy = resolveBlockerUpdate({
-        isBlocked: isBlockedStatusSlug(effectiveStatusDoc?.slug),
-        requested: requestedBlocker,
-        current: currentBlocker,
-      });
-
-      if (blockedBy) {
-        const labels = new Map();
-
-        if (blockedBy.ticket) {
-          const blockingTicket = await resolveBlockingTicket({
-            workspaceId: oldTicket.workspace,
-            blockerTicketId: blockedBy.ticket,
-            ticketId,
-            previousBlockerId: currentBlocker.ticketId,
-          });
-          labels.set(String(blockingTicket._id), ticketRefLabel(blockingTicket));
-        }
-
-        if (currentBlocker.ticketId && !labels.has(currentBlocker.ticketId)) {
-          const previousTicket = await Ticket.findById(currentBlocker.ticketId)
-            .select('taskNumber')
-            .lean();
-          labels.set(currentBlocker.ticketId, ticketRefLabel(previousTicket));
-        }
-
-        updateData.blockedBy = blockedBy;
-        blockerHistoryEntries = describeBlockerChange({
-          previous: currentBlocker,
-          next: blockedBy,
-          labelFor: (id) => labels.get(String(id)) || 'another ticket',
-        });
-      }
-    }
-
-    const ticket = await Ticket.findByIdAndUpdate(
+    const { blockerHistoryEntries } = await resolveBlockerTransition({
+      oldTicket,
+      updateData,
+      requestedBlocker,
+      nextStatusDoc,
       ticketId,
-      { $set: updateData },
-      {
-        returnDocument: 'after',
-        runValidators: true,
-      }
-    )
-      .populate('status', STATUS_POPULATE_SELECT)
-      .populate('assignedTo', 'fullname email role')
-      .populate('creator', 'fullName')
-      .populate(BLOCKER_POPULATE);
+    });
 
-    if (!ticket) {
-      throw new Error('Ticket not found');
-    }
+    const ticket = await persistTicketUpdate(ticketId, updateData);
 
+    // Logged only now, after the ticket is actually persisted — a rejected update
+    // that left "Status changed from X to Y" in the history would have the log
+    // claiming a move the database never made.
     if (statusHistoryEntry) {
       historyService.logEvent(ticketId, actorUserId, statusHistoryEntry);
     }
-
     blockerHistoryEntries.forEach((entry) => historyService.logEvent(ticketId, actorUserId, entry));
 
-    if (Object.prototype.hasOwnProperty.call(updateData, 'assignedTo')) {
-      newlyAssignedUserIds = getNewAssigneeIds({
-        previousAssignedTo,
-        nextAssignedTo: ticket.assignedTo || [],
-      });
+    const { assigneesChanged, newlyAssignedUserIds } = await applyAssigneeSideEffects({
+      ticketId,
+      ticket,
+      previousAssignedTo,
+      updateData,
+      actorUserId,
+    });
 
-      const prevIds = normalizeAssignedUserIds(previousAssignedTo).sort();
-      const nextIds = normalizeAssignedUserIds(updateData.assignedTo).sort();
-      assigneesChanged = JSON.stringify(prevIds) !== JSON.stringify(nextIds);
+    await logFieldChangeHistory({ ticketId, oldTicket, updateData, actorUserId });
 
-      if (assigneesChanged) {
-        const currentAssignees = ticket.assignedTo || [];
-        if (newlyAssignedUserIds.length > 0) {
-          await notifyTicketAssigned({
-            ticket,
-            assignedUserIds: newlyAssignedUserIds,
-            actorUserId,
-          });
-          const newlyAssignedNames = currentAssignees
-            .filter((u) => newlyAssignedUserIds.some((id) => id.toString() === u._id.toString()))
-            .map((u) => u.fullname)
-            .join(', ');
-          historyService.logEvent(ticketId, actorUserId, `Assigned to ${newlyAssignedNames}`);
-        } else if (currentAssignees.length === 0) {
-          historyService.logEvent(ticketId, actorUserId, 'All assignees removed');
-        } else {
-          const names = currentAssignees.map((u) => u.fullname).join(', ');
-          historyService.logEvent(ticketId, actorUserId, `Reassigned to ${names}`);
-        }
-      }
-    }
-
-    if (
-      Object.prototype.hasOwnProperty.call(updateData, 'description') &&
-      updateData.description !== oldTicket.description
-    ) {
-      historyService.logEvent(ticketId, actorUserId, 'Description Updated');
-    }
-
-    if (
-      Object.prototype.hasOwnProperty.call(updateData, 'subject') &&
-      updateData.subject !== oldTicket.subject
-    ) {
-      historyService.logEvent(ticketId, actorUserId, 'Subject updated');
-    }
-
-    if (
-      Object.prototype.hasOwnProperty.call(updateData, 'priority') &&
-      updateData.priority !== oldTicket.priority
-    ) {
-      historyService.logEvent(
-        ticketId,
-        actorUserId,
-        `Priority changed from ${oldTicket.priority} to ${updateData.priority}`
-      );
-    }
-
-    if (Object.prototype.hasOwnProperty.call(updateData, 'storyPoints')) {
-      const oldSP = oldTicket.storyPoints ?? null;
-      const newSP = updateData.storyPoints ?? null;
-      if (oldSP !== newSP) {
-        let action;
-        if (oldSP === null && newSP !== null) action = `Story points set to ${newSP}`;
-        else if (oldSP !== null && newSP === null) action = 'Story points removed';
-        else action = `Story points changed from ${oldSP} to ${newSP}`;
-        historyService.logEvent(ticketId, actorUserId, action);
-      }
-    }
-
-    if (Object.prototype.hasOwnProperty.call(updateData, 'dueDate')) {
-      const oldDate = oldTicket.dueDate ? new Date(oldTicket.dueDate).getTime() : null;
-      const newDate = updateData.dueDate ? new Date(updateData.dueDate).getTime() : null;
-      if (oldDate !== newDate) {
-        let action;
-        if (!oldDate && newDate) {
-          action = `Due date set to ${new Date(updateData.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-        } else if (oldDate && !newDate) {
-          action = 'Due date removed';
-        } else {
-          action = `Due date changed to ${new Date(updateData.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-        }
-        historyService.logEvent(ticketId, actorUserId, action);
-      }
-    }
-
-    if (Object.prototype.hasOwnProperty.call(updateData, 'category')) {
-      const oldCatId = oldTicket.category?.toString() || null;
-      const newCatId = updateData.category?.toString() || null;
-      if (oldCatId !== newCatId) {
-        const [oldCat, newCat] = await Promise.all([
-          oldCatId ? Category.findById(oldCatId).select('name').lean() : null,
-          newCatId ? Category.findById(newCatId).select('name').lean() : null,
-        ]);
-        let action;
-        if (!oldCatId && newCatId) action = `Category set to ${newCat?.name || 'Unknown'}`;
-        else if (oldCatId && !newCatId) action = 'Category removed';
-        else
-          action = `Category changed from ${oldCat?.name || 'Unknown'} to ${newCat?.name || 'Unknown'}`;
-        historyService.logEvent(ticketId, actorUserId, action);
-      }
-    }
-
-    if (!isStatusOnlyRequest) {
-      emitTicketWorkspaceEvent({
-        eventName: TICKET_SOCKET_EVENTS.updated,
-        ticket,
-        workspaceId: oldTicket.workspace,
-      });
-    }
-
-    if (statusChanged) {
-      emitTicketWorkspaceEvent({
-        eventName: TICKET_SOCKET_EVENTS.moved,
-        ticket,
-        workspaceId: oldTicket.workspace,
-        extra: {
-          statusId: toSocketId(ticket.status?._id || ticket.status),
-          status: buildStatusPayload(ticket.status),
-        },
-      });
-    }
-
-    if (assigneesChanged) {
-      emitTicketWorkspaceEvent({
-        eventName: TICKET_SOCKET_EVENTS.assigned,
-        ticket,
-        workspaceId: oldTicket.workspace,
-        extra: {
-          assignedUserIds: normalizeAssignedUserIds(ticket.assignedTo),
-          newlyAssignedUserIds: newlyAssignedUserIds.map(String),
-        },
-      });
-    }
+    emitUpdateEvents({
+      ticket,
+      oldTicket,
+      statusChanged,
+      assigneesChanged,
+      newlyAssignedUserIds,
+      isStatusOnlyRequest,
+    });
 
     return ticket;
   } catch (error) {
