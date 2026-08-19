@@ -361,7 +361,10 @@ export default function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-border bg-card">
       <SidebarHeader className="px-3 pb-2.5 pt-3.5 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
-          <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+          {/* ml-[2px] sets the lockup a touch inside the header's px-3 — the mark is round,
+              so sitting it flush with the straight left edges of the workspace card and the
+              nav items below reads as crowding the sidebar's edge rather than aligning. */}
+          <div className="ml-[5px] min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <TaskManagerBrand size="md" linkTo="/dashboard" />
           </div>
           <div className="hidden group-data-[collapsible=icon]:block">
