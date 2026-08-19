@@ -138,7 +138,7 @@ export const useAnswerReview = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ ticketId, decision }) => answerReview(ticketId, { decision }),
+    mutationFn: ({ ticketId, state }) => answerReview(ticketId, { state }),
     onSuccess: (response, variables) =>
       invalidateReviewRequestScopes(queryClient, response, variables.ticketId),
   });

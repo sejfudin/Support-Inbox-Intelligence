@@ -53,7 +53,10 @@ caller's workspace.
   whose deep link 404s for its own recipient. Three guards gate the three review-request actions:
   requesting is intern + assignee-of-the-ticket only (`assertCanRequestReview`), answering is the
   named reviewer only (`assertCanAnswerReview`), cancelling is the requesting intern or the named
-  reviewer (`assertCanCancelReview`). All three routes still call `assertWorkspaceAccess` first,
+  reviewer **and only while the request is still `pending`** (`assertCanCancelReview` — an answered
+  request is the record that the reviewer answered and when, so neither party may delete it; the way
+  off a verdict is requesting again, which replaces it). All three routes still call
+  `assertWorkspaceAccess` first,
   same as every other ticket action — the reviewer guard is in addition to, not instead of, the
   workspace check.
 

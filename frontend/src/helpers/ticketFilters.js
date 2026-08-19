@@ -54,6 +54,24 @@ export const TICKET_ID_ORDER_OPTIONS = [
   { value: TICKET_ID_ORDER_VALUES.DESC, label: 'Newest first (N -> 1)' },
 ];
 
+// Mirrors `REVIEW_REQUEST_STATES` in `server/helpers/reviewRequestRules.js` plus
+// `NONE` (the filter is off) and `ALL` (on, but every state) — states the
+// server itself has no notion of.
+export const REVIEW_REQUEST_FILTER_VALUES = {
+  NONE: '',
+  ALL: 'all',
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  CHANGES_REQUESTED: 'changes_requested',
+};
+
+export const REVIEW_REQUEST_FILTER_OPTIONS = [
+  { value: REVIEW_REQUEST_FILTER_VALUES.ALL, label: 'All requests' },
+  { value: REVIEW_REQUEST_FILTER_VALUES.PENDING, label: 'Pending' },
+  { value: REVIEW_REQUEST_FILTER_VALUES.APPROVED, label: 'Approved' },
+  { value: REVIEW_REQUEST_FILTER_VALUES.CHANGES_REQUESTED, label: 'Changes requested' },
+];
+
 export const EXPORT_PERIOD_VALUES = {
   LAST_7: '7',
   LAST_30: '30',
@@ -89,7 +107,7 @@ export const DEFAULT_TICKET_CONTROLS = {
   priorityOrder: PRIORITY_ORDER_VALUES.NONE,
   dueDateOrder: DUE_DATE_ORDER_VALUES.DEFAULT,
   ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,
-  awaitingReviewMine: false,
+  reviewRequestFilter: REVIEW_REQUEST_FILTER_VALUES.NONE,
 };
 
 const PRIORITY_VALUE_SET = new Set(
@@ -130,6 +148,13 @@ const sanitizeTicketIdOrder = (value) => {
   return Object.values(TICKET_ID_ORDER_VALUES).includes(safe) ? safe : TICKET_ID_ORDER_VALUES.NONE;
 };
 
+const sanitizeReviewRequestFilter = (value) => {
+  const safe = normalizeLower(value || REVIEW_REQUEST_FILTER_VALUES.NONE);
+  return Object.values(REVIEW_REQUEST_FILTER_VALUES).includes(safe)
+    ? safe
+    : REVIEW_REQUEST_FILTER_VALUES.NONE;
+};
+
 export const serializeCsvParam = (values, { lowercase = false } = {}) => {
   const safe = unique(
     (Array.isArray(values) ? values : [])
@@ -165,6 +190,7 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
   const priorityOrder = sanitizePriorityOrder(controls.priorityOrder);
   const dueDateOrder = sanitizeDueDateOrder(controls.dueDateOrder);
   const ticketIdOrder = sanitizeTicketIdOrder(controls.ticketIdOrder);
+  const reviewRequestFilter = sanitizeReviewRequestFilter(controls.reviewRequestFilter);
 
   const params = {};
 
@@ -176,8 +202,11 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
     params.assigneeIds = serializeCsvParam(assigneeIds);
   }
 
-  if (controls.awaitingReviewMine) {
+  if (reviewRequestFilter !== REVIEW_REQUEST_FILTER_VALUES.NONE) {
     params.awaitingReviewFrom = 'me';
+    if (reviewRequestFilter !== REVIEW_REQUEST_FILTER_VALUES.ALL) {
+      params.reviewRequestState = reviewRequestFilter;
+    }
   }
 
   if (priorityOrder !== PRIORITY_ORDER_VALUES.NONE) {

@@ -5,7 +5,6 @@ import {
   parsePullRequestNumber,
   reviewChipLabel,
   reviewChipTone,
-  reviewOverflowCaption,
   reviewPullRequestMismatch,
   validatePullRequestUrl,
 } from './reviewRequest';
@@ -80,19 +79,5 @@ describe('chip label and tone', () => {
 
   it('renders nothing for no request', () => {
     expect(reviewChipLabel(null)).toBeNull();
-  });
-});
-
-describe('reviewOverflowCaption', () => {
-  it('reports the true total against the shown count', () => {
-    expect(reviewOverflowCaption({ shown: 3, total: 7 })).toBe('3 of 7');
-  });
-
-  it('handles the singular case', () => {
-    expect(reviewOverflowCaption({ shown: 1, total: 1 })).toBe('1 of 1');
-  });
-
-  it('names the empty state instead of "0 of 0"', () => {
-    expect(reviewOverflowCaption({ shown: 0, total: 0 })).toBe('Nothing waiting on your review');
   });
 });

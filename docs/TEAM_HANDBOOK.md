@@ -132,6 +132,7 @@
 - No access to programme-wide statistics
 - Also works on tickets/projects within the workspace they belong to, independent of the mentor role — creates tickets, comments, tracks time, exports to CSV, uses AI assistance (summaries, description suggestions), and sees their workspace's analytics
 - Can answer a review request an intern sent them — approve it or ask for changes — from the ticket itself. No control to request a review themselves; that stays intern-only
+- Can cancel a review request addressed to them while it is still waiting. Once they answer, the answer stays — it is the record that they reviewed the work
 
 **Intern**
 - Sees and edits only their own profile
@@ -150,6 +151,7 @@
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics
 - Can request a review on a ticket they're assigned to — pastes the pull-request URL and picks one of their own mentors (primary, plus their specialization mentor once one is assigned) who is in the same workspace. Asking again replaces the earlier request. Mentors and admins have no equivalent control — this is the intern asking for their own work to be looked at
+- Can cancel their own review request while it is still waiting. Once it is answered, cancelling is gone — asking again is how they move on from a verdict
 - Can ask for time away from the Attendance page — four kinds, all decided by an admin as a whole request, all withdrawable while still pending:
   - **Remote work** — up to 3 days per request, no yearly limit. Need more than 3 — an exam week, say — send another request; there's no cap on how many. An approved day **counts as attendance** without checking in
   - **Vacation** — up to 5 days per request and **5 days a year**. Once the year's 5 are used the option locks until January

@@ -91,7 +91,7 @@ export function TicketReviewField({ ticket, ticketId, currentUser, disabled = fa
           reviewRequest={reviewRequest}
           isReviewer={isReviewer}
           isRequester={isRequester}
-          onAnswer={(decision) => answerReviewMutation.mutate({ ticketId, decision })}
+          onAnswer={(state) => answerReviewMutation.mutate({ ticketId, state })}
           onCancel={() => cancelReviewMutation.mutate(ticketId)}
           answerPending={answerReviewMutation.isPending}
           cancelPending={cancelReviewMutation.isPending}
@@ -192,7 +192,11 @@ function ReviewSummary({
           </Button>
         ) : null}
 
-        {isReviewer || isRequester ? (
+        {/* Pending only: an answered request is the record that the reviewer
+            answered and when, so neither party may erase it. Off a verdict the
+            intern uses Request again, which replaces the request instead. Same
+            rule the server enforces in `assertCanCancelReview`. */}
+        {(isReviewer || isRequester) && reviewRequest.state === 'pending' ? (
           <Button
             size="sm"
             variant="ghost"
@@ -248,7 +252,11 @@ function RequestReviewForm({
         <SelectTrigger data-test="ticket-review-reviewer-trigger">
           <SelectValue placeholder="Choose a mentor" />
         </SelectTrigger>
-        <SelectContent>
+        {/* Same z-[200] bump `PriorityDropdown` uses: this field lives inside the
+            details modal's z-[100] overlay, and Radix portals to document.body,
+            so the popover needs to out-rank the modal explicitly or it renders
+            behind it and swallows clicks. */}
+        <SelectContent className="z-[200]">
           {candidates.map((candidate) => (
             <SelectItem key={candidate._id} value={candidate._id}>
               {candidate.fullname}

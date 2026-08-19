@@ -246,14 +246,14 @@ const notifyTicketReviewRequested = async ({ ticket, reviewerId, actorUserId }) 
 // Recipient: the requesting intern. The verdict itself carries no words, so
 // the body must point at the pull request — that link is the only place the
 // reviewer's actual comments live.
-const notifyTicketReviewCompleted = async ({ ticket, internId, decision, prUrl }) => {
+const notifyTicketReviewCompleted = async ({ ticket, internId, state, prUrl }) => {
   if (!ticket || !ticket._id) return;
 
   const rid = toRecipientId(internId);
   if (!rid) return;
 
   const taskLabel = ticket.taskNumber ? `#${ticket.taskNumber}` : 'ticket';
-  const verdictLabel = decision === 'approved' ? 'Approved' : 'Changes requested';
+  const verdictLabel = state === 'approved' ? 'Approved' : 'Changes requested';
   const title = `${verdictLabel}: ${taskLabel}`;
   const body = prUrl ? `Pull request: ${prUrl}` : '';
   const workspaceId = ticket.workspace;

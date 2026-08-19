@@ -157,8 +157,8 @@ independent `prUrl`).
   `owner`/`repo`/`prNumber` are **derived**, written only by
   `server/helpers/reviewRequestRules.js#parsePullRequestUrl` — never accepted from a client, never
   reconciled with `Ticket.linkedPullRequest` (ADR-0008: two independent links to one PR, allowed to
-  disagree). Indexed on `reviewer` + `state` — the dashboard card and the "waiting on my review"
-  list filter are one indexed query.
+  disagree). Indexed on `reviewer` + `state` — the tickets list's review-request pills are one
+  indexed query per state.
 - **Rules live in `server/helpers/reviewRequestRules.js`** (pure, unit-tested): PR URL shape
   validation (`https://github.com/<owner>/<repo>/pull/<n>` only, missing vs malformed reported as
   distinct errors), reviewer-candidate resolution (`resolveReviewerCandidates` —
@@ -166,16 +166,22 @@ independent `prUrl`).
   to active members of the ticket's workspace via `workspaceAuthz.isActiveWorkspaceMember`),
   transition guards per actor (`assertCanRequestReview`/`assertReviewerEligible`/
   `assertCanAnswerReview`/`assertCanCancelReview`), the stale rule, mismatch detection, and
-  `History` phrasing. `ticketService.js` calls into it and reimplements none of it.
+  `History` phrasing. `ticketService.js` calls into it and reimplements none of it. One export has
+  no server call site on purpose: `detectPullRequestMismatch`, because the disagreement is shown and
+  not enforced, and the showing happens in the frontend mirror — it lives here so a server-side need
+  takes the rule from here rather than growing a second definition.
 - **Dedicated routes**, unlike `blockedBy` (which rides inside the ticket `PATCH` because anyone
   who can edit the ticket can set it): `POST/PATCH/DELETE /api/tickets/:ticketId/review-request`
   and `GET /api/tickets/:ticketId/review-request/candidates`. `PATCH /api/tickets/:id` cannot
   touch `reviewRequest` — it is not in the controller's update whitelist, so a review verdict can
   never ride along inside an unrelated ticket edit. `GET /api/tickets?awaitingReviewFrom=me` backs
-  both the admin dashboard's "Reviews I owe" card and the tickets list's "waiting on my review"
-  filter — one query, so the two can't disagree.
+  the tickets list's review-request pill row (admin/mentor only — an intern is never a request's
+  reviewer). `reviewRequestState` (`pending`/`approved`/`changes_requested`) narrows it to one
+  state; omitted, it means "All requests" — any state, still scoped to that reviewer.
 - **Requesting again replaces the request and resets it to `pending`**, from any prior state —
-  this is the whole of "re-request"; there is no separate action. **Goes stale** (the request is
+  this is the whole of "re-request"; there is no separate action. **Cancelling is `pending`-only**
+  (`assertCanCancelReview`): an answered request is the record of who reviewed and when, so neither
+  party may delete it, and requesting again is the only way off a verdict. **Goes stale** (the request is
   dropped, logged to `History`, no notification) when the ticket reaches a status whose `isDone`
   flag is set, or is archived — read off the flag, same rule `blockedBy` follows, never a status
   label a workspace may have renamed.

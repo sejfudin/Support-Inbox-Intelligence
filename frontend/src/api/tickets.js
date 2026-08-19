@@ -16,6 +16,7 @@ export const getAllTickets = async ({
   sortOrder,
   periodDays,
   awaitingReviewFrom,
+  reviewRequestState,
 } = {}) => {
   const response = await apiClient.get('/tickets', {
     params: {
@@ -34,6 +35,7 @@ export const getAllTickets = async ({
       sortOrder,
       periodDays,
       awaitingReviewFrom,
+      reviewRequestState,
     },
   });
   return response.data;
@@ -84,10 +86,8 @@ export const requestReview = async (ticketId, { prUrl, reviewerId }) => {
   return response.data;
 };
 
-export const answerReview = async (ticketId, { decision }) => {
-  const response = await apiClient.patch(`/tickets/${ticketId}/review-request`, {
-    state: decision,
-  });
+export const answerReview = async (ticketId, { state }) => {
+  const response = await apiClient.patch(`/tickets/${ticketId}/review-request`, { state });
   return response.data;
 };
 

@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const { REVIEW_REQUEST_STATES } = require('../helpers/reviewRequestRules');
+
 const messageSchema = new mongoose.Schema(
   {
     senderType: {
@@ -162,7 +164,7 @@ const ticketSchema = new mongoose.Schema(
         // enum doesn't recognise.
         state: {
           type: String,
-          enum: ['pending', 'approved', 'changes_requested'],
+          enum: REVIEW_REQUEST_STATES,
         },
         prUrl: {
           type: String,

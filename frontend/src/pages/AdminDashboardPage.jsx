@@ -17,7 +17,6 @@ import { PlacementsSpecializationCard } from '@/components/admin/dashboard/Place
 import { WorkspaceInternsPanel } from '@/components/admin/dashboard/WorkspaceInternsPanel';
 import { QuickActionsCard } from '@/components/admin/dashboard/QuickActionsCard';
 import { TodayStandupCard } from '@/components/admin/dashboard/TodayStandupCard';
-import { ReviewsOwedCard } from '@/components/admin/dashboard/ReviewsOwedCard';
 import { InternPickerModal } from '@/components/admin/dashboard/InternPickerModal';
 import { NewRecommendationDialog } from '@/components/admin/dashboard/NewRecommendationDialog';
 import { NewEvaluationDialog } from '@/components/admin/dashboard/NewEvaluationDialog';
@@ -311,7 +310,6 @@ export default function AdminDashboardPage() {
                     isPending={standupPending}
                     workspaceId={workspaceId}
                   />
-                  <ReviewsOwedCard workspaceId={workspaceId} />
                 </div>
               </div>
             </>

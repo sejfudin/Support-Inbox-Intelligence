@@ -52,13 +52,3 @@ export const REVIEW_CHIP_LABEL = {
 export const reviewChipLabel = (reviewRequest) => REVIEW_CHIP_LABEL[reviewRequest?.state] || null;
 
 export const reviewChipTone = (reviewRequest) => REVIEW_CHIP_TONE[reviewRequest?.state] || 'info';
-
-/**
- * The dashboard card's "3 of 7" header — `shown` is the row count actually
- * rendered (capped), `total` is the true count. Singular reads "1 of 1", not
- * "1 of 1 reviews".
- */
-export const reviewOverflowCaption = ({ shown, total }) => {
-  if (total <= 0) return 'Nothing waiting on your review';
-  return `${Math.min(shown, total)} of ${total}`;
-};

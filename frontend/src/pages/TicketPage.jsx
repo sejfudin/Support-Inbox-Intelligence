@@ -41,12 +41,15 @@ import { useUsers } from '@/queries/users';
 import {
   TICKET_ID_ORDER_VALUES,
   PRIORITY_FILTER_OPTIONS,
+  REVIEW_REQUEST_FILTER_OPTIONS,
   buildAssigneeFilterOptions,
   DEFAULT_EXPORT_PERIOD,
   buildExportPeriodQueryParam,
   getExportPeriodFilenameSuffix,
 } from '@/helpers/ticketFilters';
 import TicketExportPeriodSelect from '@/components/Tickets/TicketExportPeriodSelect';
+import ReviewRequestTabs from '@/components/Tickets/ReviewRequestTabs';
+import { canManageInterns } from '@/helpers/roles';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import TicketFiltersPanel from '@/components/Tickets/TicketsFiltersPanel';
@@ -112,6 +115,12 @@ const URL_ASSIGNEE_PARAM = 'assignee';
 // The alias the intern dashboard links with. Resolved against the signed-in user
 // on both read and write, so the URL never carries a raw id for "my tickets".
 const ASSIGNEE_SELF = 'me';
+
+const REVIEW_REQUEST_FILTER_VALUE_SET = new Set(
+  REVIEW_REQUEST_FILTER_OPTIONS.map((option) => option.value)
+);
+const sanitizeReviewRequestFilterParam = (value) =>
+  REVIEW_REQUEST_FILTER_VALUE_SET.has(value) ? value : '';
 
 export default function TicketPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -348,7 +357,7 @@ export default function TicketPage() {
     activeFilterChips,
     togglePriority,
     toggleAssignee,
-    toggleAwaitingReview,
+    setReviewRequestFilter,
     changePriorityOrder,
     changeDueDateOrder,
     changeTicketIdOrder,
@@ -391,14 +400,15 @@ export default function TicketPage() {
     setControls((prev) => ({ ...prev, assigneeIds: ids }));
   }, [initialAssigneeRaw, user?._id, setControls]);
 
-  // Seed the "waiting on my review" filter from the dashboard card's "View
-  // all" link, once — same rule as the assignee seed above.
-  const hasSeededAwaitingReviewRef = useRef(false);
+  // Seed the review-request filter from a shared link, once — same rule as
+  // the assignee seed above.
+  const hasSeededReviewRequestFilterRef = useRef(false);
   useEffect(() => {
-    if (hasSeededAwaitingReviewRef.current) return;
-    if (searchParams.get('awaitingReviewFrom') !== 'me') return;
-    hasSeededAwaitingReviewRef.current = true;
-    setControls((prev) => ({ ...prev, awaitingReviewMine: true }));
+    if (hasSeededReviewRequestFilterRef.current) return;
+    const seeded = sanitizeReviewRequestFilterParam(searchParams.get('reviewRequestFilter'));
+    if (!seeded) return;
+    hasSeededReviewRequestFilterRef.current = true;
+    setControls((prev) => ({ ...prev, reviewRequestFilter: seeded }));
   }, [searchParams, setControls]);
 
   const listData = useTicketList({
@@ -446,6 +456,31 @@ export default function TicketPage() {
     [helpers, statusTabCounts]
   );
 
+  // Admin/mentor only: an intern is never a request's reviewer, so the row
+  // would always read empty for them.
+  const showReviewRequestTabs = canManageInterns(user?.role);
+
+  const { data: reviewRequestCountsData } = useTickets(
+    {
+      awaitingReviewFrom: 'me',
+      workspaceId: effectiveWorkspaceId,
+      archived: false,
+      limit: 200,
+    },
+    { enabled: !isBoard && !!effectiveWorkspaceId && showReviewRequestTabs }
+  );
+
+  const reviewRequestCounts = useMemo(() => {
+    const rawTickets = reviewRequestCountsData?.data || [];
+    const counts = { all: rawTickets.length, pending: 0, approved: 0, changes_requested: 0 };
+    for (const ticket of rawTickets) {
+      const state = ticket.reviewRequest?.state;
+      if (!state) continue;
+      counts[state] = (counts[state] || 0) + 1;
+    }
+    return counts;
+  }, [reviewRequestCountsData]);
+
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch] = useDebounce(search, 500);
   const [isExporting, setIsExporting] = useState(false);
@@ -486,7 +521,7 @@ export default function TicketPage() {
 
   const handlePriorityFilterChange = runWithListReset(togglePriority);
   const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
-  const handleAwaitingReviewFilterChange = runWithListReset(toggleAwaitingReview);
+  const handleReviewRequestFilterChange = runWithListReset(setReviewRequestFilter);
   const handlePriorityOrderChange = runWithListReset(changePriorityOrder);
   const handleDueDateOrderChange = runWithListReset(changeDueDateOrder);
   const handleTicketIdOrderChange = runWithListReset(changeTicketIdOrder);
@@ -586,8 +621,6 @@ export default function TicketPage() {
     selectedAssigneeIds: controls.assigneeIds,
     onToggleAssignee: handleAssigneeFilterChange,
     assigneeOptions,
-    awaitingReviewMine: controls.awaitingReviewMine,
-    onToggleAwaitingReview: handleAwaitingReviewFilterChange,
     priorityOrder: controls.priorityOrder,
     onPriorityOrderChange: handlePriorityOrderChange,
     dueDateOrder: controls.dueDateOrder,
@@ -727,6 +760,15 @@ export default function TicketPage() {
           // the columns while squeezing the controls out of the band. The list
           // keeps them — they are its only status filter.
           showTabs={!isBoard}
+          bottomSlot={
+            !isBoard && showReviewRequestTabs ? (
+              <ReviewRequestTabs
+                activeFilter={controls.reviewRequestFilter}
+                counts={reviewRequestCounts}
+                onChange={handleReviewRequestFilterChange}
+              />
+            ) : null
+          }
           rightSlot={
             <div className="flex items-center gap-2" data-test="ticket-tabs-controls">
               <TicketFiltersPanel {...ticketFiltersPanelProps} activeFilterChips={[]} />

@@ -39,6 +39,7 @@ const {
   describeReviewRequestHistory,
   isReviewRequestStale,
   resolveReviewerCandidates,
+  REVIEW_REQUEST_STATES,
 } = require('../helpers/reviewRequestRules');
 
 const PRIORITY_RANK = {
@@ -535,7 +536,8 @@ const getAllTickets = async ({
   sortBy,
   sortOrder,
   periodDays,
-  awaitingReviewFromUserId = '',
+  awaitingReviewFromUserId,
+  reviewRequestState = '',
 }) => {
   if (!workspaceId) {
     return {
@@ -578,7 +580,12 @@ const getAllTickets = async ({
 
   if (awaitingReviewFromUserId) {
     query['reviewRequest.reviewer'] = awaitingReviewFromUserId;
-    query['reviewRequest.state'] = 'pending';
+    // No state means every request addressed to this reviewer, any state —
+    // the "All requests" pill. A specific state (`REVIEW_REQUEST_STATES`)
+    // narrows it, same as the ticket status tabs narrow by status.
+    if (reviewRequestState && REVIEW_REQUEST_STATES.includes(reviewRequestState)) {
+      query['reviewRequest.state'] = reviewRequestState;
+    }
   }
 
   if (status === 'null' || status === null) {
@@ -1288,14 +1295,23 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       ticketId,
     });
 
-    // A status move into "done" drops a live review request — read off the
-    // `isDone` flag, never a status label, same rule the blocker step above
-    // follows. Never rides in from the client: `reviewRequest` is not in the
-    // controller's PATCH whitelist, so this is the only way it changes here.
-    const staleReviewHistoryEntry =
-      statusChanged && nextStatusDoc?.isDone && oldTicket.reviewRequest
-        ? describeReviewRequestHistory('stale', { reason: 'done' })
-        : null;
+    // A status move into "done" drops a live review request. The rule itself is
+    // `reviewRequestRules.isReviewRequestStale` — read off the `isDone` flag,
+    // never a status label, same rule the blocker step above follows. Archiving
+    // is the other way a request goes stale and has its own route, so this call
+    // site only ever asks about `isDone`. Never rides in from the client:
+    // `reviewRequest` is not in the controller's PATCH whitelist, so this is the
+    // only way it changes here.
+    const reviewWentStale =
+      statusChanged &&
+      isReviewRequestStale({
+        reviewRequest: oldTicket.reviewRequest,
+        isDone: Boolean(nextStatusDoc?.isDone),
+        isArchived: false,
+      });
+    const staleReviewHistoryEntry = reviewWentStale
+      ? describeReviewRequestHistory('stale', { reason: 'done' })
+      : null;
     if (staleReviewHistoryEntry) {
       updateData.reviewRequest = null;
     }
@@ -1346,8 +1362,15 @@ const archiveTicket = async (ticketId, actorUserId) => {
   if (!existing) {
     throw new Error('Ticket not found');
   }
+  // Archiving is the second half of the stale rule, so it asks the same helper
+  // rather than re-deriving "there was a request, drop it".
+  const reviewWentStale = isReviewRequestStale({
+    reviewRequest: existing.reviewRequest,
+    isDone: false,
+    isArchived: true,
+  });
   const update = { isArchived: true, archivedAt: new Date() };
-  if (existing.reviewRequest) {
+  if (reviewWentStale) {
     update.reviewRequest = null;
   }
   const ticket = await Ticket.findByIdAndUpdate(
@@ -1361,7 +1384,7 @@ const archiveTicket = async (ticketId, actorUserId) => {
     throw new Error('Ticket not found');
   }
   historyService.logEvent(ticketId, actorUserId, 'Ticket Archived');
-  if (existing.reviewRequest) {
+  if (reviewWentStale) {
     historyService.logEvent(
       ticketId,
       actorUserId,
@@ -1462,7 +1485,7 @@ const requestReview = async (ticketId, { prUrl, reviewerId }, actorUser) => {
   return getTicketById(ticketId);
 };
 
-const answerReview = async (ticketId, { decision }, actorUserId) => {
+const answerReview = async (ticketId, { state }, actorUserId) => {
   const ticket = await Ticket.findById(ticketId);
   if (!ticket) throw httpError('Ticket not found', 404);
 
@@ -1473,17 +1496,17 @@ const answerReview = async (ticketId, { decision }, actorUserId) => {
 
   ticket.reviewRequest = answerReviewRequest({
     reviewRequest: ticket.reviewRequest,
-    decision,
+    state,
     answeredAt: new Date(),
   });
   await ticket.save();
 
-  historyService.logEvent(ticketId, actorUserId, describeReviewRequestHistory(decision));
+  historyService.logEvent(ticketId, actorUserId, describeReviewRequestHistory(state));
 
   await notifyTicketReviewCompleted({
     ticket,
     internId: ticket.reviewRequest.requestedBy,
-    decision,
+    state,
     prUrl: ticket.reviewRequest.prUrl,
   });
 
@@ -1508,6 +1531,7 @@ const cancelReview = async (ticketId, actorUserId) => {
     requestedById: ticket.reviewRequest.requestedBy,
     reviewerId: ticket.reviewRequest.reviewer,
     actorId: actorUserId,
+    state: ticket.reviewRequest.state,
   });
 
   const actor = await User.findById(actorUserId).select('fullname').lean();

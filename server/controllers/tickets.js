@@ -32,6 +32,7 @@ const getAllTickets = async (req, res) => {
       sortOrder,
       periodDays,
       awaitingReviewFrom,
+      reviewRequestState,
     } = req.query;
 
     const workspaceId = await resolveActiveWorkspaceId({
@@ -55,7 +56,8 @@ const getAllTickets = async (req, res) => {
       sortOrder: sortOrder === 'asc' ? 'asc' : 'desc',
       periodDays,
       // Resolved here, not in the service, which stays ignorant of "current user".
-      awaitingReviewFromUserId: awaitingReviewFrom === 'me' ? req.user._id : '',
+      awaitingReviewFromUserId: awaitingReviewFrom === 'me' ? req.user._id : undefined,
+      reviewRequestState: reviewRequestState || '',
     });
 
     res.status(200).json({
@@ -373,12 +375,12 @@ const getReviewerCandidates = async (req, res, next) => {
 
     const result = await ticketService.getReviewerCandidates(ticketId, req.user._id);
 
-    res.status(200).json({ success: true, data: result });
+    res.status(200).json({ success: true, message: 'Reviewer candidates fetched', data: result });
   } catch (error) {
     if (error.message === 'Ticket not found') {
       return res.status(404).json({ success: false, message: error.message });
     }
-    next(error);
+    handleControllerError(res, error, next);
   }
 };
 
@@ -409,7 +411,7 @@ const answerReview = async (req, res, next) => {
     const existingTicket = await ticketService.getTicketById(ticketId);
     await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
 
-    const ticket = await ticketService.answerReview(ticketId, { decision: state }, req.user._id);
+    const ticket = await ticketService.answerReview(ticketId, { state }, req.user._id);
 
     res.status(200).json({ success: true, message: 'Review answered', data: ticket });
   } catch (error) {

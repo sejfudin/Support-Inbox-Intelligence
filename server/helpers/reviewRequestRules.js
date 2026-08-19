@@ -26,7 +26,7 @@ const NOT_INTERN_ERROR = 'Only an intern may request a review';
 const NOT_ASSIGNEE_ERROR = 'Only an assignee of this ticket may request a review';
 const NOT_REVIEWER_ERROR = 'Only the requested reviewer may answer this review';
 const NOT_PARTY_ERROR = 'Only the requesting intern or the reviewer may cancel this review';
-const INVALID_DECISION_ERROR = 'A review can only be answered approved or changes requested';
+const INVALID_STATE_ERROR = 'A review can only be answered approved or changes requested';
 const NOT_PENDING_ERROR = 'This review request has already been answered';
 const NOT_MENTOR_ERROR = 'The reviewer must be one of your own mentors';
 const REVIEWER_NOT_MEMBER_ERROR = 'The reviewer is not an active member of this workspace';
@@ -138,11 +138,19 @@ const assertCanAnswerReview = ({ reviewerId, actorId }) => {
   }
 };
 
-/** Cancelling is the requesting intern or the named reviewer — nobody else. */
-const assertCanCancelReview = ({ requestedById, reviewerId, actorId }) => {
+/**
+ * Cancelling is the requesting intern or the named reviewer — nobody else — and
+ * only while the request is still pending. An answered request is a record of
+ * who reviewed and when, so neither party may erase it: the way off a verdict is
+ * requesting again, which replaces the request rather than deleting the trace.
+ */
+const assertCanCancelReview = ({ requestedById, reviewerId, actorId, state }) => {
   const actor = String(actorId ?? '');
   if (actor !== String(requestedById ?? '') && actor !== String(reviewerId ?? '')) {
     throw httpError(NOT_PARTY_ERROR, 403);
+  }
+  if (state !== 'pending') {
+    throw httpError(NOT_PENDING_ERROR, 409);
   }
 };
 
@@ -168,14 +176,14 @@ const buildReviewRequest = ({ prUrl, reviewer, requestedBy, requestedAt }) => {
 };
 
 /** The reviewer's verdict. Refuses any state but the two legal answers, and any request not pending. */
-const answerReviewRequest = ({ reviewRequest, decision, answeredAt }) => {
-  if (decision !== 'approved' && decision !== 'changes_requested') {
-    throw httpError(INVALID_DECISION_ERROR, 400);
+const answerReviewRequest = ({ reviewRequest, state, answeredAt }) => {
+  if (state !== 'approved' && state !== 'changes_requested') {
+    throw httpError(INVALID_STATE_ERROR, 400);
   }
   if (reviewRequest?.state !== 'pending') {
     throw httpError(NOT_PENDING_ERROR, 409);
   }
-  return { ...reviewRequest, state: decision, answeredAt };
+  return { ...reviewRequest, state, answeredAt };
 };
 
 /**
@@ -191,6 +199,12 @@ const isReviewRequestStale = ({ reviewRequest, isDone, isArchived }) =>
  * Compares the parsed PR number against the ticket's linked pull request.
  * Never blocks and never rewrites either value (ADR 0008) — this only
  * reports which of the three outcomes applies.
+ *
+ * No server call site: the disagreement is shown, not enforced, and the showing
+ * happens in `frontend/src/helpers/reviewRequest.js#reviewPullRequestMismatch`.
+ * Stated here too because this file is the authoritative copy of the rule — if
+ * the server ever needs the comparison (a History line, a digest), it takes it
+ * from here rather than growing a second definition.
  */
 const detectPullRequestMismatch = ({ prNumber, linkedPrNumber }) => {
   if (!prNumber || !linkedPrNumber) return MISMATCH.NO_COMPARISON;
@@ -217,7 +231,7 @@ const describeReviewRequestHistory = (transition, ctx = {}) => {
 
 module.exports = {
   CANDIDATE_EMPTY_CAUSES,
-  INVALID_DECISION_ERROR,
+  INVALID_STATE_ERROR,
   MISMATCH,
   MISSING_PR_URL_ERROR,
   NOT_ASSIGNEE_ERROR,

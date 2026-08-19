@@ -251,6 +251,7 @@ describe('transition legality', () => {
           requestedById: 'intern1',
           reviewerId: 'mentor1',
           actorId: 'intern1',
+          state: 'pending',
         })
       ).not.toThrow();
     });
@@ -261,6 +262,7 @@ describe('transition legality', () => {
           requestedById: 'intern1',
           reviewerId: 'mentor1',
           actorId: 'mentor1',
+          state: 'pending',
         })
       ).not.toThrow();
     });
@@ -271,6 +273,7 @@ describe('transition legality', () => {
           requestedById: 'intern1',
           reviewerId: 'mentor1',
           actorId: 'intern2',
+          state: 'pending',
         })
       ).toThrow(/Only the requesting intern or the reviewer/);
     });
@@ -281,6 +284,42 @@ describe('transition legality', () => {
           requestedById: 'intern1',
           reviewerId: 'mentor1',
           actorId: 'admin1',
+          state: 'pending',
+        })
+      ).toThrow(/Only the requesting intern or the reviewer/);
+    });
+
+    it('refuses the requesting intern once the request is approved', () => {
+      expect(() =>
+        assertCanCancelReview({
+          requestedById: 'intern1',
+          reviewerId: 'mentor1',
+          actorId: 'intern1',
+          state: 'approved',
+        })
+      ).toThrow(/already been answered/);
+    });
+
+    it('refuses the reviewer once they have requested changes', () => {
+      expect(() =>
+        assertCanCancelReview({
+          requestedById: 'intern1',
+          reviewerId: 'mentor1',
+          actorId: 'mentor1',
+          state: 'changes_requested',
+        })
+      ).toThrow(/already been answered/);
+    });
+
+    // Authz outranks state: a stranger is told they are not a party, never that
+    // the request has been answered — that would confirm a request exists.
+    it('refuses a stranger before it looks at the state', () => {
+      expect(() =>
+        assertCanCancelReview({
+          requestedById: 'intern1',
+          reviewerId: 'mentor1',
+          actorId: 'admin1',
+          state: 'approved',
         })
       ).toThrow(/Only the requesting intern or the reviewer/);
     });
@@ -350,7 +389,7 @@ describe('answerReviewRequest', () => {
     const answeredAt = new Date('2024-07-01T00:00:00Z');
     const result = answerReviewRequest({
       reviewRequest: pending,
-      decision: 'approved',
+      state: 'approved',
       answeredAt,
     });
     expect(result).toMatchObject({ state: 'approved', answeredAt });
@@ -360,7 +399,7 @@ describe('answerReviewRequest', () => {
     const answeredAt = new Date('2024-07-02T00:00:00Z');
     const result = answerReviewRequest({
       reviewRequest: pending,
-      decision: 'changes_requested',
+      state: 'changes_requested',
       answeredAt,
     });
     expect(result).toMatchObject({ state: 'changes_requested', answeredAt });
@@ -368,14 +407,14 @@ describe('answerReviewRequest', () => {
 
   it('refuses any other state value', () => {
     expect(() =>
-      answerReviewRequest({ reviewRequest: pending, decision: 'rejected', answeredAt: new Date() })
+      answerReviewRequest({ reviewRequest: pending, state: 'rejected', answeredAt: new Date() })
     ).toThrow(/approved or changes requested/);
   });
 
   it('refuses answering a request that is not pending', () => {
     const answered = { state: 'approved', reviewer: 'mentor1' };
     expect(() =>
-      answerReviewRequest({ reviewRequest: answered, decision: 'approved', answeredAt: new Date() })
+      answerReviewRequest({ reviewRequest: answered, state: 'approved', answeredAt: new Date() })
     ).toThrow(/already been answered/);
   });
 });

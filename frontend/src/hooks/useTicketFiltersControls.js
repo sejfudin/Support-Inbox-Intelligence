@@ -10,6 +10,8 @@ import {
   PRIORITY_ORDER_VALUES,
   TICKET_ID_ORDER_OPTIONS,
   TICKET_ID_ORDER_VALUES,
+  REVIEW_REQUEST_FILTER_OPTIONS,
+  REVIEW_REQUEST_FILTER_VALUES,
   buildTicketQueryParamsFromControls,
 } from '@/helpers/ticketFilters';
 import { badgeTone } from '@/helpers/badgeTones';
@@ -83,10 +85,13 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       });
     }
 
-    if (controls.awaitingReviewMine) {
+    if (controls.reviewRequestFilter !== REVIEW_REQUEST_FILTER_VALUES.NONE) {
+      const selectedReviewFilter = REVIEW_REQUEST_FILTER_OPTIONS.find(
+        (option) => option.value === controls.reviewRequestFilter
+      );
       chips.push({
-        key: 'awaitingReviewMine',
-        label: 'Waiting on my review',
+        key: 'reviewRequestFilter',
+        label: `Review: ${selectedReviewFilter?.label || controls.reviewRequestFilter}`,
         className: 'border-border/80 bg-secondary/70 text-foreground',
       });
     }
@@ -153,8 +158,13 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     }));
   };
 
-  const toggleAwaitingReview = () => {
-    setControls((prev) => ({ ...prev, awaitingReviewMine: !prev.awaitingReviewMine }));
+  // Exclusive, like the status tabs: picking the active pill again turns it off.
+  const setReviewRequestFilter = (value) => {
+    setControls((prev) => ({
+      ...prev,
+      reviewRequestFilter:
+        prev.reviewRequestFilter === value ? REVIEW_REQUEST_FILTER_VALUES.NONE : value,
+    }));
   };
 
   const clearAllFilters = () => {
@@ -204,8 +214,8 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       return;
     }
 
-    if (chipKey === 'awaitingReviewMine') {
-      setControls((prev) => ({ ...prev, awaitingReviewMine: false }));
+    if (chipKey === 'reviewRequestFilter') {
+      setControls((prev) => ({ ...prev, reviewRequestFilter: REVIEW_REQUEST_FILTER_VALUES.NONE }));
     }
   };
 
@@ -215,7 +225,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     activeFilterChips,
     togglePriority,
     toggleAssignee,
-    toggleAwaitingReview,
+    setReviewRequestFilter,
     changePriorityOrder,
     changeDueDateOrder,
     changeTicketIdOrder,
