@@ -6,6 +6,7 @@ import { ACCOUNT_PREFERENCES, useThemeConfig } from '@/context/ThemeConfigContex
 import { hasStoredAccessToken } from '@/lib/authStorage';
 import { setPreferencePusher } from '@/lib/preferenceSync';
 import { useMyPreferences, useUpdateMyPreferences } from '@/queries/userPreferences';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 /**
  * Renders nothing. It exists to sit at the one point in the tree that can see
@@ -171,7 +172,7 @@ export default function UserPreferencesSync() {
     hydratedRef.current = true;
     hydrateFromServer(data.preferences, {
       storedKeys: data.storedKeys,
-      userId: user?._id || user?.id || null,
+      userId: resolveUserId(user),
     });
   }, [isAuthenticated, isError, data, user, hydrateFromServer, markSyncUnavailable]);
 

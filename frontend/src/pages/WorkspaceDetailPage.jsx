@@ -44,6 +44,7 @@ import {
 } from '@/queries/workspaces';
 import PageHeading from '@/components/PageHeading';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 export default function WorkspaceDetailPage() {
   const { id } = useParams();
@@ -71,7 +72,7 @@ export default function WorkspaceDetailPage() {
   const updateWorkspace = useUpdateWorkspace(id);
   const deleteWorkspace = useDeleteWorkspace();
 
-  const currentUserId = user?._id || user?.id;
+  const currentUserId = resolveUserId(user);
   const allUsers = usersData?.users ?? [];
 
   const members = workspace?.members ?? [];

@@ -3,6 +3,10 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useMyAttendance } from '@/queries/attendance';
+import { isExemptToday } from '@/helpers/attendance';
+import { isIntern } from '@/helpers/roles';
+import { resolveUserId } from '@/helpers/userIdentity';
 import { THEMES } from '@/lib/themes';
 import { cn } from '@/lib/utils';
 import {
@@ -13,14 +17,13 @@ import {
 } from './whatsNewSteps';
 import { emitTourActive } from './tourPreview';
 
-// Kept in step with the `w-[26rem]` on the card itself. This is only the
+// Kept in step with the `w-[29rem]` on the card itself. This is only the
 // first-frame guess — the real box is measured off `cardRef` — but a guess that
 // disagrees with the rendered width makes the card jump on the frame it opens.
 const CARD_WIDTH = 464;
 const GAP = 14; // between the highlighted element and the card
 const PAD = 8; // breathing room around the spotlight cut-out
 const EDGE = 12; // minimum distance from the viewport edge
-const MIN_TEXT_WIDTH = 300; // never squeeze the copy below this
 
 // How long a step waits for its target to appear before settling for a centred
 // card. Longer than a dashboard round-trip so a cold open still lights every
@@ -130,7 +133,7 @@ const placeCard = (rect, card, preferred) => {
   // normal case for the ticket board and any full-width page region.
   //
   // This used to squeeze the card into whatever strip was left and floor the width
-  // at MIN_TEXT_WIDTH — "a sliver of a column is worse than a slight overhang", which
+  // at 300px — "a sliver of a column is worse than a slight overhang", which
   // was true when the card was 340px wide with a 20px title. It is not true now. With
   // the board spotlit, the strip is the 258px sidebar, the floor forced the card to
   // 300px, and the 42px it gained put white-on-dim text on top of the brightly lit
@@ -180,19 +183,23 @@ const placeCard = (rect, card, preferred) => {
  *   `whatsNewSteps.js`.
  * - **No Skip control.** There used to be one, and it made the tour opt-out on step
  *   one — which for a release nobody has been told about is the same as not shipping
- *   the announcement. The walkthrough is short enough to finish (8–13 steps by role),
- *   the counter says how much is left, and Back covers moving too fast. Escape still
- *   ends it, deliberately unadvertised: it keeps this from being a trap for someone
- *   who cannot deal with it right now, without offering the bail-out as the obvious
- *   first move. Escaping counts as seen, exactly as Skip did, so nobody is
+ *   the announcement. The walkthrough is short enough to finish (9–15 steps by role,
+ *   fewer for a viewer a `needsWorkspace` or `needsAttendance` step does not apply
+ *   to), the counter says how much is left, and Back covers moving too fast. Escape
+ *   still ends it, deliberately unadvertised: it keeps this from being a trap for
+ *   someone who cannot deal with it right now, without offering the bail-out as the
+ *   obvious first move. Escaping counts as seen, exactly as Skip did, so nobody is
  *   interrupted twice.
- * - **No step is ever skipped.** The step count is exactly the number of entries in
- *   the script that apply to the viewer's role — so admin and intern legitimately
- *   see different totals, but neither ever loses a step they were entitled to. A
- *   target that has not rendered yet is waited for (see the measuring effect) and
- *   the card is centred meanwhile. An earlier version filtered the whole script by
- *   target presence in one frame at open time, which silently dropped every step
- *   whose card was still loading.
+ * - **No step is ever skipped for not having rendered yet.** The step count is
+ *   exactly the number of entries in the script that apply to the viewer — so admin
+ *   and intern legitimately see different totals, but neither ever loses a step they
+ *   were entitled to. A target that has not rendered yet is waited for (see the
+ *   measuring effect) and the card is centred meanwhile. An earlier version filtered
+ *   the whole script by target presence in one frame at open time, which silently
+ *   dropped every step whose card was still loading. The two `needs*` flags are not
+ *   that filter returning: they drop a step whose subject the viewer cannot reach at
+ *   all, decided from the account rather than from what the DOM happens to hold this
+ *   frame. See the `steps` memo.
  * - **Nothing is highlighted until the element is measured**, the measurement
  *   re-runs on resize/scroll so a spotlight can never drift off its control, and a
  *   target below the fold is scrolled into view first rather than dimming the whole
@@ -230,12 +237,25 @@ export function WhatsNewTour() {
   const attemptedRouteRef = useRef(null);
 
   const role = user?.role;
+  // Whether this viewer can be routed behind `WorkspaceGuard` at all — see the
+  // `needsWorkspace` steps in the filter below.
+  const hasWorkspace = Boolean(user?.workspaceId);
+
+  // `placedAt` is the one thing a step needs that `/me` does not carry — it lives on
+  // the intern profile, so it has to be asked for. Fetched only for an intern, and
+  // only once the tour is actually open, so the shell does not pay a request per load
+  // for a banner shown once a release. The page this step routes to uses the same
+  // query key, so an intern who has been there already pays nothing.
+  const { data: attendance } = useMyAttendance({
+    enabled: isIntern(role) && !dismissed,
+  });
+  const onProject = isExemptToday(attendance?.placedAt ?? null);
   // The seen-state is keyed per account, so marking it needs to know whose it is.
-  // Same shape `UserPreferencesSync` uses for the id.
-  const userId = user?._id || user?.id || null;
+  const userId = resolveUserId(user);
 
   /**
-   * The steps this viewer gets — filtered by role and by nothing else.
+   * The steps this viewer gets — filtered by role, and by whether a step's route is
+   * reachable for them at all.
    *
    * Every role gets every step that applies to them, every time the version is
    * bumped. An earlier version of this filtered out steps from previous releases
@@ -254,16 +274,47 @@ export function WhatsNewTour() {
    * wrong. A step the role is entitled to is now always shown; a target that has
    * not arrived yet is waited for per-step in the measuring effect below, and until
    * it does the card is simply centred.
+   *
+   * `needsWorkspace` is the one exception, and it exists because of the navigation
+   * effect rather than the copy. A step routing behind `WorkspaceGuard` bounces a
+   * viewer with no `workspaceId` to `/create-workspace`, which `SidebarLayout` does
+   * not serve — so this overlay unmounts mid-walkthrough, `finish` never runs, and
+   * the next load auto-opens the same tour into the same bounce. Keeping the step
+   * would make the announcement unfinishable for that viewer; dropping it costs them
+   * a step about a board they cannot open. Not a role check: interns between
+   * workspaces, mentors without one and admins in Global admin mode are all here.
+   *
+   * `needsAttendance` is the same kind of exception for the same kind of reason. An
+   * intern already on a project owes no attendance, so `MyAttendancePage` withdraws
+   * the request panel the step points at — and the copy ("ask for remote days here")
+   * is false for them twice over: there is no panel, and there is nothing to request.
+   * A second anchor would only spotlight the notice that says the opposite.
    */
   const steps = useMemo(
-    () => WHATS_NEW_STEPS.filter((step) => !step.roles || step.roles.includes(role)),
-    [role]
+    () =>
+      WHATS_NEW_STEPS.filter((step) => {
+        if (step.roles && !step.roles.includes(role)) return false;
+        if (step.needsWorkspace && !hasWorkspace) return false;
+        if (step.needsAttendance && onProject) return false;
+        return true;
+      }),
+    [role, hasWorkspace, onProject]
   );
 
   const finish = useCallback(() => {
     markWhatsNewSeen(userId);
     setDismissed(true);
   }, [userId]);
+
+  // The step list can shrink under an open tour: the attendance query lands and a
+  // `needsAttendance` step drops, or the viewer's role or workspace changes. If that
+  // leaves `index` past the end, `step` is undefined and the render below bails to
+  // `null` — a tour that is on screen, unreadable and never marked seen, so the next
+  // load auto-opens it into the same dead end. Count it finished instead: everything
+  // still on the list has already been read.
+  useEffect(() => {
+    if (!dismissed && steps.length && index >= steps.length) finish();
+  }, [dismissed, index, steps.length, finish]);
 
   // First login on a new design: show the tour unprompted, once. Gated on the
   // *versioned* seen-state, so bumping TOUR_VERSION re-announces to everyone
@@ -329,22 +380,24 @@ export function WhatsNewTour() {
    *
    * Guarded on the *route* and not the step id, so a route a guard refuses (an
    * intern with no workspace bounced off `/tickets`) is one failed attempt rather
-   * than a navigate/bounce loop. Cleared once we arrive, so stepping back and
-   * forward through the same step navigates again.
+   * than a navigate/bounce loop. Cleared once we arrive — compared against the
+   * pathname *and* the query, because a `route` may carry one (`?view=board`) and a
+   * pathname-only match would never clear it — so stepping back and forward through
+   * the same step navigates again.
    *
    * The reader is deliberately left wherever the last step took them. They were
    * just told the page exists; dropping them back on the dashboard would undo that.
    */
   useEffect(() => {
     const route = step?.route;
-    if (!route || location.pathname === route) {
+    if (!route || `${location.pathname}${location.search}` === route) {
       attemptedRouteRef.current = null;
       return;
     }
     if (attemptedRouteRef.current === route) return;
     attemptedRouteRef.current = route;
     navigate(route);
-  }, [step, location.pathname, navigate]);
+  }, [step, location.pathname, location.search, navigate]);
 
   // Keep the spotlight glued to its element.
   //

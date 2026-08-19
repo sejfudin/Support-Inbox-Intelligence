@@ -22,6 +22,7 @@ import { useMyTickets } from '@/queries/tickets';
 import { useMyWorkspaces, useUserAnalytics } from '@/queries/workspaces';
 import { buildProfileActivity } from '@/helpers/profileActivity';
 import { getRoleLabel, isIntern as isInternRole } from '@/helpers/roles';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 // Enough recent tickets to fill the activity feed after the window drops the
 // stale ones, without pulling a page the card can never show.
@@ -38,7 +39,7 @@ const ProfilePage = () => {
 
   const [draftProfile, setDraftProfile] = useState({ fullName: '' });
 
-  const userId = user?.id || user?._id;
+  const userId = resolveUserId(user);
   const workspaceId = user?.workspaceId;
   const isIntern = isInternRole(user?.role);
 

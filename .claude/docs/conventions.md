@@ -20,6 +20,11 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
 - **A custom error type** (one carrying more than a status, e.g. field-level detail): follow
   `StatusValidationError` in `server/helpers/statusValidation.js` (carries `statusCode`, mapped to
   an HTTP status in the controller's catch).
+- **The id of a user you were handed**: `resolveUserId(user)` from
+  `frontend/src/helpers/userIdentity.js`. The same value arrives as `_id` (API payloads), `id`
+  (`/auth/me`) or a bare string (an unpopulated ref), so don't spell the fallback chain out at
+  the call site — that is how eleven copies of it appeared, three of them wrapped in a private
+  helper with a different name.
 
 ## Module systems
 

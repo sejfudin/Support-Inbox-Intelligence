@@ -24,13 +24,14 @@ import {
 import { useStoredPreference } from '@/hooks/useStoredPreference';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 export default function NavbarNotifications({ size = 'default', align = 'end' }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useNotifications({
-    userId: user?._id || user?.id,
+    userId: resolveUserId(user),
   });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();

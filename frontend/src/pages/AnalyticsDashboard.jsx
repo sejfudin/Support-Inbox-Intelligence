@@ -10,11 +10,12 @@ import AnalyticsPeriodSelect from '@/components/analytics/AnalyticsPeriodSelect'
 import PersonalSummaryTab from '@/components/analytics/PersonalSummaryTab';
 import WorkspaceAnalyticsTab from '@/components/analytics/WorkspaceAnalyticsTab';
 import PageHeading from '@/components/PageHeading';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
   const workspaceId = user?.workspaceId;
-  const userId = user?._id || user?.id;
+  const userId = resolveUserId(user);
   const [days, setDays] = useState(30);
   const [activeTab, setActiveTab] = useState('workspace');
   const [aiSummary, setAiSummary] = useState(null);

@@ -1,4 +1,5 @@
 import { PRIORITY_OPTIONS } from './ticketPriority';
+import { resolveUserId } from './userIdentity';
 
 export const PRIORITY_FILTER_VALUES = {
   ALL: 'all',
@@ -138,12 +139,6 @@ export const serializeCsvParam = (values, { lowercase = false } = {}) => {
   return safe.join(',');
 };
 
-const getUserId = (user) => {
-  if (!user) return null;
-  if (typeof user === 'string') return user;
-  return user._id || user.id || null;
-};
-
 export const buildAssigneeFilterOptions = (users = []) => {
   const base = [
     { value: ASSIGNEE_FILTER_VALUES.ALL, label: 'All assignees' },
@@ -153,7 +148,7 @@ export const buildAssigneeFilterOptions = (users = []) => {
   const uniqueUsers = new Map();
 
   users.forEach((user) => {
-    const id = getUserId(user);
+    const id = resolveUserId(user);
     if (!id) return;
 
     const label = user.fullname || user.fullName || user.email || 'Unknown user';

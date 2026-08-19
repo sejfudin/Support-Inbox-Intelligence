@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { registerUser, loginUser, getMe, logoutUser, updateUser, changePassword } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { clearSessionQueries } from '@/lib/sessionQueryCache';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 export const authKeys = {
   all: ['auth'],
@@ -107,7 +108,7 @@ export const useUpdateUser = () => {
       queryClient.setQueryData(['user', variables.id], updatedUser);
 
       const currentMe = queryClient.getQueryData(authKeys.me());
-      const currentId = currentMe?.id || currentMe?._id;
+      const currentId = resolveUserId(currentMe);
 
       // Refetch rather than seeding the cache from the PATCH response: /auth/me
       // reports the *verified* workspace (a stale User.workspaceId pointer reads

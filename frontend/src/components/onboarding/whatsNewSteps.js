@@ -22,25 +22,56 @@
  *   in sentence case. Keep the body to a sentence or two: this is read standing up,
  *   over a dimmed app, and a paragraph gets skipped rather than shortened.
  * - `target` — a `[data-tour]` selector to spotlight. With none, the card is centred
- *   and reads as a plain notice. **A target that spans the whole content column no
- *   longer works**: the card is wider than the sidebar, so there is nowhere on
- *   screen to park it that is not over the thing it describes. Point at a control.
+ *   and reads as a plain notice. A target that spans the whole content column is
+ *   allowed but costs something: the card is wider than the sidebar, so there is
+ *   nowhere left to park it that is not over the thing it describes. The overlay
+ *   then centres the card on the target and puts a scrim behind it (see `placeCard`),
+ *   which reads as a panel rather than as copy on the dim. Point at a control where
+ *   one carries the same meaning; spotlight the whole region only when the region
+ *   *is* the subject, as the ticket board is.
  * - `route` — a path to open before the step is read, for a step whose subject *is*
  *   a page. Must be a route `SidebarLayout` serves, or the overlay unmounts
- *   mid-walkthrough. See the navigation effect in `WhatsNewTour`.
+ *   mid-walkthrough. See the navigation effect in `WhatsNewTour`. A route the viewer
+ *   would be *redirected off* counts as not served — check what guards it.
+ * - `needsWorkspace` — drop the step for a viewer with no active workspace. Only for
+ *   routes behind `WorkspaceGuard`, which bounces those viewers to
+ *   `/create-workspace` — outside `SidebarLayout`, so the tour would unmount there
+ *   and never mark itself seen. See the second paragraph below.
+ * - `needsAttendance` — drop the step for an intern already on a project. They owe
+ *   no attendance from `placedAt`, so `MyAttendancePage` withdraws the request panel
+ *   and any copy about asking for days off is false for them. Costs the overlay a
+ *   `useMyAttendance` read, so only put it on a step that genuinely needs it.
  * - `swatches` — paints the twelve `THEMES` gradients under the copy. Specific to
  *   the accents step; showing them beats claiming they exist.
  * - `placement` — the preferred side for the card. A hint, not a guarantee: the
  *   overlay overrides it when that side would cover the target.
  * - `roles` — see below.
  *
- * **`roles` is the only thing that decides who sees a step.** Steps are never
- * dropped for a missing target: the count a viewer sees is exactly the number of
- * entries below that apply to their role, and a target that has not rendered yet
- * (every dashboard card is behind a query) is waited for, then falls back to a
- * centred card. So if you add a step for a role, that role *will* walk through it —
- * which also means a step whose element genuinely never exists for that role is a
- * scripting bug here, not something the runtime will quietly paper over.
+ * **`roles` decides who sees a step; `needsWorkspace` and `needsAttendance` are the
+ * only other things that can drop one.** Steps are never dropped for a missing target: the count a
+ * viewer sees is exactly the number of entries below that apply to them, and a target
+ * that has not rendered yet (every dashboard card is behind a query) is waited for,
+ * then falls back to a centred card. So if you add a step for a role, that role
+ * *will* walk through it — which also means a step whose element genuinely never
+ * exists for that role is a scripting bug here, not something the runtime will
+ * quietly paper over.
+ *
+ * `needsWorkspace` is the first exception, and it is not about copy or elements — it is
+ * about the tour surviving its own navigation. A step routing behind
+ * `WorkspaceGuard` sends a viewer with no `workspaceId` to `/create-workspace`,
+ * which `SidebarLayout` does not serve. The overlay unmounts, `markWhatsNewSeen`
+ * never runs, and the next load auto-opens the same tour into the same bounce —
+ * an announcement that can never be finished or dismissed. Dropping the step is the
+ * lesser loss: that viewer has no board to be shown. This is not a role check —
+ * interns between workspaces, mentors without one and admins in Global admin mode
+ * all sit in this state.
+ *
+ * `needsAttendance` is the second, and this one *is* about the copy as much as the
+ * element. An intern on a project has no request panel to spotlight and nothing to
+ * request — telling them to ask for remote days "here" is wrong on both counts, and
+ * pointing the step at the notice that replaces the panel would spotlight text
+ * saying the opposite. Both flags share one rule: a step is dropped only when the
+ * viewer cannot reach or cannot use what it describes, never to shorten the tour.
  *
  * `roles` narrows a step to specific platform roles when the *copy* only applies
  * to them, which is not the same thing as the element existing.
@@ -52,6 +83,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 // Bump history, newest last. Each entry is the reason the re-announcement was
 // worth interrupting people for — a bump with no reason here is a nag.
@@ -177,7 +209,7 @@ export const useWhatsNewSeen = () => {
   // a hook that cannot be handed the wrong id is one fewer way to reintroduce the
   // shared-browser bug the key namespacing above fixes.
   const { user } = useAuth();
-  const userId = user?._id || user?.id || null;
+  const userId = resolveUserId(user);
 
   const [seen, setSeen] = useState(() => hasSeenWhatsNew(userId));
 
@@ -274,6 +306,7 @@ export const WHATS_NEW_STEPS = [
   {
     id: 'tickets-board',
     route: '/tickets?view=board',
+    needsWorkspace: true,
     target: '[data-tour="tickets-board"]',
     title: 'Tickets: list and board',
     body: 'Both screens rebuilt. Switch view from the header — and the board widens its columns when you collapse the sidebar.',
@@ -293,6 +326,7 @@ export const WHATS_NEW_STEPS = [
     id: 'attendance-intern',
     roles: ['intern'],
     route: '/my-attendance',
+    needsAttendance: true,
     target: '[data-tour="attendance-requests"]',
     title: 'Remote work?',
     body: 'Ask for remote days, vacation, a religious holiday or a sick day here. An admin decides each one.',

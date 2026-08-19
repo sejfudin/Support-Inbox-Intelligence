@@ -37,6 +37,7 @@ import TicketStatusEditor from '@/components/TicketStatusEditor';
 import { DEFAULT_STATUS_DRAFTS } from '@/helpers/ticketStatus';
 import { validateStatusDrafts } from '@/helpers/validateStatusDrafts';
 import { getApiErrorMessage } from '@/helpers/getApiErrorMessage';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 // Role-aware workspaces overview: admins see every workspace in the system,
 // mentors/members see the workspaces they belong to. Same cards + create dialog.
@@ -64,7 +65,7 @@ export default function WorkspacesOverviewPage() {
   const createWorkspace = useCreateWorkspace();
   const switchWorkspace = useSwitchWorkspace();
   const deleteWorkspace = useDeleteWorkspace();
-  const currentUserId = user?._id || user?.id;
+  const currentUserId = resolveUserId(user);
 
   const [logoFile, setLogoFile] = useState(null);
 
