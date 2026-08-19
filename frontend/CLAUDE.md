@@ -33,5 +33,16 @@ Root rules and shared conventions apply — see ../CLAUDE.md and ../.claude/docs
 - **A new route needs a tab title** — add it to the map in `helpers/pageTitle.js`; if the page
   shows one named record, also call `useDocumentTitle(name)`. See conventions.md.
 - Use `src/components/ui/` primitives + Tailwind; theme via `next-themes` (support light + dark).
+- **A person is drawn with `ui/user-avatar.jsx` (`UserAvatar`) and nothing else.** It renders their
+  profile picture when they have one and their hashed-colour initials when they do not. Do not
+  hand-roll the circle from `getAvatarColor` + `getInitials` — 26 components used to, which is why
+  a photo would have shown on some screens and a monogram on others. Pass `user` when you have the
+  record, `name` when a component only ever received a string, and pin an odd size or tint with
+  `className` (twMerge lets it win). For several people overlapped with tooltips, use
+  `components/Avatar.jsx`, which is built out of it. Initials come from `getInitials` in
+  `helpers/userIdentity.js` — the one implementation; there were three, and they disagreed.
+- **Payload mappings that pick user fields by hand must name `avatarUrl`.** A `.map()` building
+  `{ fullName, email, role }` silently drops it and the screen falls back to initials — see the
+  comment in `pages/AdminUsersPage.jsx`.
 - Forms: React Hook Form + Zod schemas.
 - Run `npm run format` before finishing.

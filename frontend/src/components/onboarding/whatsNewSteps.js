@@ -94,7 +94,7 @@ import { resolveUserId } from '@/helpers/userIdentity';
 //   their evaluations — which the previous tour had told them stayed with their
 //   mentor. Leaving the old string would have shipped a correction that only
 //   first-time viewers ever saw.
-// - `2026-08-redesign-and-requests` (this one): the component-library redesign, the
+// - `2026-08-redesign-and-requests`: the component-library redesign, the
 //   eleven accents, the new Settings page, and preferences moving off the browser
 //   onto the account. It also clears a genuine backlog — time-away requests, the
 //   absence queue, staffing requests, the positions catalog, the placement start
@@ -111,7 +111,13 @@ import { resolveUserId } from '@/helpers/userIdentity';
 //   rather than something to walk them through. The bell keeps a step, but about
 //   what it now carries instead of where it sits. What that buys is a tour short
 //   enough to finish, on the surfaces nobody has been shown even once.
-export const TOUR_VERSION = '2026-08-redesign-and-requests';
+// - `2026-08-profile-pictures` (this one): everyone can set a profile picture, and it
+//   stands in for their initials everywhere they appear. One step, and a bump for it,
+//   because the feature is opt-in and invisible until somebody uses it — an avatar
+//   nobody knows they can change is an avatar that stays initials forever. It adds
+//   nothing else and deletes nothing: the previous entry's steps are still the first
+//   telling of most of what they cover.
+export const TOUR_VERSION = '2026-08-profile-pictures';
 
 /**
  * Master switch for the what's-new tour — **temporarily off**.
@@ -317,6 +323,29 @@ export const WHATS_NEW_STEPS = [
     title: 'All of it follows your account',
     body: 'Every setting on this page used to be per-browser, lost in a private window. Now it travels with you.',
   },
+  // Sits at the end of the account-level run, before the walkthrough moves out into
+  // the workspace — a picture is the last thing on this page that is *yours*.
+  //
+  // `roles` excludes leadership, and that is not a copy judgement: `/profile` renders
+  // `<Navigate to="/programme">` for them, and `/programme` is served by the
+  // leadership layout rather than `SidebarLayout`. Routing them here would unmount the
+  // overlay mid-tour, so `markWhatsNewSeen` would never run and the next load would
+  // re-open the same tour into the same bounce — the failure `needsWorkspace` exists
+  // to prevent, arrived at through a role instead. Leadership genuinely has no profile
+  // page to be shown; when they get one, drop the filter.
+  //
+  // Spotlights the picture at rest, where the camera is not yet showing, so the copy
+  // has to name the way in rather than say "here".
+  {
+    id: 'profile-picture',
+    roles: ['admin', 'mentor', 'intern'],
+    route: '/profile',
+    target: '[data-tour="profile-avatar"]',
+    title: 'Profile pictures',
+    body: 'Set yours under Edit profile, and it follows you everywhere you appear — dashboards, comments, standups, rosters. Initials stand in until you do.',
+    placement: 'right',
+  },
+
   // `?view=board` opens the board without writing the view preference — see the
   // comment on `viewParam` in `TicketPage`. So the tour can show someone the board
   // without quietly changing what Tickets opens on for them afterwards.

@@ -15,11 +15,11 @@ import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { HistoryPanel } from '@/components/interns/HistoryPanel';
 import { DetailModal, DetailText, ScoreBanner, ScoreTiles } from '@/components/interns/DetailModal';
 import { EVALUATION_CRITERIA } from '@/helpers/internProfile';
-import { getInitials } from '@/helpers/getInitials';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import { useCreateInternEvaluation, useInternEvaluations } from '@/queries/interns';
 import { toast } from 'sonner';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const defaultScores = {
   technical: 3,
@@ -117,7 +117,7 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
         hint: isBaseline ? 'Baseline' : avg >= baseline ? 'On track' : 'Below baseline',
       },
       avatar: {
-        initials: getInitials(evaluation.evaluator?.fullname),
+        user: evaluation.evaluator,
         name: evaluation.evaluator?.fullname ?? 'Unknown',
       },
       blocks: [

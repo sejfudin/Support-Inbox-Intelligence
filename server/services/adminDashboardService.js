@@ -156,7 +156,10 @@ const loadPlacements = async () => {
       const decidedAt = placement.result?.decidedAt || placement.updatedAt || null;
       return {
         id: placement._id,
-        intern: { fullname: placement.internProfile.user.fullname || '' },
+        intern: {
+          fullname: placement.internProfile.user.fullname || '',
+          avatarUrl: placement.internProfile.user.avatarUrl || null,
+        },
         project: placement.project?.name || '',
         position: placement.position?.name || '',
         decidedAt,
@@ -194,7 +197,10 @@ const loadSpecializations = async () => {
     .filter((profile) => profile.user)
     .map((profile) => ({
       id: profile._id,
-      intern: { fullname: profile.user.fullname || '' },
+      intern: {
+        fullname: profile.user.fullname || '',
+        avatarUrl: profile.user.avatarUrl || null,
+      },
       specialization: profile.declaredPosition?.name || '',
       secondaryMentor: profile.secondaryMentor?.fullname || '',
       assignedAt: profile.specializationAssignedAt,
@@ -286,6 +292,7 @@ const getAdminDashboard = async ({ workspaceId }) => {
         id: user._id,
         fullname: user.fullname || '',
         email: user.email || '',
+        avatarUrl: user.avatarUrl || null,
         position: profile.declaredPosition?.name || '',
         presentToday: records.some((r) => r.date === todayKey),
         awayToday: exemptDates.includes(todayKey),

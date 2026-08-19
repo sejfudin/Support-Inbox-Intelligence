@@ -1,8 +1,7 @@
 import { PagePanel } from '@/components/PageShell';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
 import { useMyInternProfile } from '@/queries/interns';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 /**
  * Who assesses the technologies in the list beside this card.
@@ -32,15 +31,11 @@ export function InternMentorsCard() {
       <ul className="mt-3 flex flex-col gap-2.5">
         {mentors.map(({ user, role }) => (
           <li key={user._id || role} className="flex items-center gap-2.5">
-            <span
-              className={cn(
-                'flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold',
-                getAvatarColor(user.fullname || '')
-              )}
-              aria-hidden="true"
-            >
-              {getInitials(user.fullname || '')}
-            </span>
+            <UserAvatar
+              user={user}
+              className="h-[30px] w-[30px] text-[11px] font-semibold"
+              showTitle={false}
+            />
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-[12.5px] font-medium text-foreground">
                 {user.fullname || 'Unassigned'}

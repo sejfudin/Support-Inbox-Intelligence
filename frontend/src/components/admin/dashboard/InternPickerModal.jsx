@@ -8,14 +8,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
 import { useInterns } from '@/queries/interns';
 import {
   isRecommendBlockedByProfileStatus,
   recommendBlockedReason,
 } from '@/helpers/recommendations';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Short chip labels for the disabled rows. The rule itself and the full sentence
 // come from helpers/recommendations.js — the same source the New recommendation
@@ -52,6 +51,7 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
           userId: profile.user?._id,
           fullname: profile.user?.fullname || profile.user?.email || 'Unknown',
           email: profile.user?.email || '',
+          avatarUrl: profile.user?.avatarUrl || null,
           position: profile.declaredPosition?.name || '',
           status: profile.status,
           blocked: isRecommendBlockedByProfileStatus(profile.status),
@@ -140,19 +140,14 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
                     : 'hover:bg-primary/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
                 )}
               >
-                <span
-                  className={cn(
-                    'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
-                    getAvatarColor(row.fullname)
-                  )}
-                  aria-hidden="true"
-                >
-                  {row.fullname === 'Unknown' ? (
-                    <UserRound className="h-4 w-4" />
-                  ) : (
-                    getInitials(row.fullname)
-                  )}
-                </span>
+                <UserAvatar
+                  user={row}
+                  className="h-8 w-8 text-[11px]"
+                  showTitle={false}
+                  initials={
+                    row.fullname === 'Unknown' ? <UserRound className="h-4 w-4" /> : undefined
+                  }
+                />
 
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-semibold leading-4 text-foreground">

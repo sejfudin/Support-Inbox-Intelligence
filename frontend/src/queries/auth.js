@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { registerUser, loginUser, getMe, logoutUser, updateUser, changePassword } from '@/api/auth';
+import {
+  registerUser,
+  loginUser,
+  getMe,
+  logoutUser,
+  updateUser,
+  changePassword,
+  uploadMyAvatar,
+  deleteMyAvatar,
+} from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { clearSessionQueries } from '@/lib/sessionQueryCache';
 import { resolveUserId } from '@/helpers/userIdentity';
@@ -120,6 +129,40 @@ export const useUpdateUser = () => {
     },
     onError: (error) => {
       console.error('Update error:', error.response?.data?.message || error.message);
+    },
+  });
+};
+
+/**
+ * Set or replace your own profile picture.
+ *
+ * Invalidating `/auth/me` is the whole mechanism: `AuthContext` reads that query,
+ * and the sidebar and the leadership navbar read the user through it, so they
+ * repaint in the same tick as the profile card. Holding the new URL in component
+ * state instead would leave the nav showing initials until a reload, which is the
+ * most obvious way to make this feature feel half-finished.
+ *
+ * Nothing invalidates other people's avatars, because this endpoint cannot change
+ * anybody else's picture.
+ */
+export const useUploadMyAvatar = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: uploadMyAvatar,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+    },
+  });
+};
+
+export const useDeleteMyAvatar = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteMyAvatar,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
     },
   });
 };

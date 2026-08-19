@@ -3,6 +3,7 @@ const MentorComment = require('../models/MentorComment');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
 const internNotificationService = require('./internNotificationService');
+const { userSelect } = require('../constants/userSelect');
 
 const VIEWER_ROLES = [ROLES.ADMIN, ROLES.MENTOR, ROLES.LEADERSHIP];
 
@@ -54,14 +55,17 @@ const listComments = async (user, internUserId) => {
       internProfile: profile._id,
       visibleToIntern: true,
     })
-      .populate('author', 'fullname role')
+      // Not `userSelect()`: the intern-facing view of a note deliberately does not
+      // carry the author's email, and the shared projection includes it. Name,
+      // role and face only.
+      .populate('author', 'fullname role avatarUrl')
       .sort({ createdAt: -1 });
     return comments.map(formatCommentForIntern);
   }
 
   const comments = await MentorComment.find({ internProfile: profile._id })
-    .populate('author', 'fullname email role')
-    .populate('visibleTo', 'fullname email role')
+    .populate('author', userSelect('role'))
+    .populate('visibleTo', userSelect('role'))
     .sort({ createdAt: -1 });
 
   return comments
@@ -112,8 +116,8 @@ const createComment = async (
   });
 
   await comment.populate([
-    { path: 'author', select: 'fullname email role' },
-    { path: 'visibleTo', select: 'fullname email role' },
+    { path: 'author', select: userSelect('role') },
+    { path: 'visibleTo', select: userSelect('role') },
   ]);
 
   // Staff-facing only — never the intern. `visibleTo` recipients already have

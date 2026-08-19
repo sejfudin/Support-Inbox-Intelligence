@@ -174,15 +174,6 @@ export const describePlacedRefusal = (blocked = []) => {
   } already placed against it`;
 };
 
-// "DP" for Dario Perić — first letter of the first and last word, so a
-// three-part name doesn't produce three letters.
-export const getInitials = (fullname = '') => {
-  const words = fullname.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return '?';
-  const letters = words.length === 1 ? [words[0]] : [words[0], words[words.length - 1]];
-  return letters.map((word) => word[0].toUpperCase()).join('');
-};
-
 // A suggested intern's second line: what they work with, and how long they've
 // been in the programme. There is no "duration" on an intern — `startDate` is
 // the only time anchor on the profile, so months-since-start is what "5 mo"

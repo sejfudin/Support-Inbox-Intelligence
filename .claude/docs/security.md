@@ -548,6 +548,13 @@ exactly like a real one, but never appear in a listing meant for real users.
   500. Keep both properties if you touch the validator.
 - Preferences are UI taste, not authorization. Nothing may read them to decide what a
   caller can see or do.
+- `POST`/`DELETE /api/auth/me/avatar` follow the same shape — the account comes from
+  `req.user._id`, so there is no id to aim at somebody else's record. `PATCH /auth/:id`
+  builds its update from an explicit allow-list and so cannot write `avatarUrl` or
+  `avatarPath` either; a guard you can walk around by posting elsewhere is not a guard.
+  There is **no admin-sets-another-user's-picture endpoint** by decision: unlike a
+  password reset, nobody is ever locked out of a photo, so nothing forces the override.
+  If one is ever added it is a new capability and belongs in the handbook.
 
 ## The preference cache is not a trust boundary
 
@@ -574,11 +581,39 @@ exactly like a real one, but never appear in a listing meant for real users.
   `&`/`<`/`>` into the stored value and corrupts text like "A & B". Escape at the sink, not on input.
 - Validate AI-related input via `server/helpers/aiValidationRules.js`.
 
+## Uploaded images
+
+- **Profile pictures are `image/jpeg`, `image/png`, `image/webp` — never SVG.** The
+  workspace-logo filter next door (`ALLOWED_LOGO_MIME_TYPES`) does allow `image/svg+xml`;
+  an avatar must not. An SVG is a script-bearing document, and the two things that make it
+  tolerable for a logo are both absent here: a logo is set by an admin configuring a
+  workspace, whereas a picture is uploaded by any of the four roles, and these objects are
+  served from a **public** bucket. The rule is enforced twice on purpose — in
+  `middleware/upload.js` and again in `services/userAvatarService.js` — because the service
+  owns it and a caller reaching it another way must not get to write a script into a public
+  bucket.
+- **The avatar bucket is public-read**, unlike the signed-URL path `attachmentImage` uses.
+  Deliberate: an avatar rides in every populated user summary, so signing would mean an
+  `await` per user per payload (a 40-row board with three assignees each is 120 signing
+  calls to paint one screen) and a URL that expires mid-session, defeating the browser cache
+  on the most re-requested image in the app. The trade: **anyone holding the exact URL can
+  fetch the picture without a session.** What keeps that from being derivable is the object
+  key — `avatars/<userId>/<timestamp>-<12 hex>.<ext>` — so knowing a user id, which appears
+  in plenty of payloads, is not enough. Do not "tidy" that key into something predictable.
+- A removed picture stops being referenced immediately (`avatarUrl` → `null`) and the object
+  is deleted, but Supabase's CDN may keep serving the old URL for a while. That URL was
+  already public, so this leaks nothing new — but do not treat deletion as instantaneous
+  revocation of a URL someone already has.
+- The client is never given a storage path. `avatarPath` is `select: false` on the schema and
+  absent from `userSelect()`; the two write paths ask for it explicitly.
+
 ## Secrets
 
 - All config from `server/.env`. Never commit it. Never log secret values.
 - GitHub installation tokens are **encrypted at rest** (`GITHUB_ENCRYPTION_KEY`, `server/helpers/crypto.js`).
 - JWT secrets: `JWT_SECRET`, `JWT_REFRESH_SECRET`.
+- Supabase bucket names are config, not secrets, but `SUPABASE_PROFILE_BUCKET` is **required** —
+  see `workflows.md`. Pointing it at the workspace-logo bucket breaks valid uploads.
 
 ## When reviewing / writing an endpoint, checklist
 

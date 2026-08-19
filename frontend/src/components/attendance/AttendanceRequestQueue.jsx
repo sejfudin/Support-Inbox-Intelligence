@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { FilterChip } from '@/components/ui/filter-chip';
-import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { cn } from '@/lib/utils';
 import { CHIP } from '@/helpers/badgeTones';
 import { dayStatusLabel, formatRequestDayRuns } from '@/helpers/attendance';
@@ -15,6 +14,7 @@ import {
   useDecideAttendanceRequest,
   useRevokeAttendanceRequest,
 } from '@/queries/attendanceRequests';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const STATUS_BADGE = {
   pending: { variant: 'warning', label: 'Pending' },
@@ -151,7 +151,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
                 className="flex flex-wrap items-center gap-x-3 gap-y-3 px-4 py-3 transition-colors hover:bg-muted/30 md:flex-nowrap md:px-5"
                 data-test={`attendance-request-queue-row-${request.id}`}
               >
-                <InitialsAvatar name={name} size="md" aria-hidden="true" />
+                <UserAvatar user={request.intern} size="md" showTitle={false} />
 
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

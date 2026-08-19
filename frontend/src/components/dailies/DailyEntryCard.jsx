@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import { Pencil, Trash2 } from 'lucide-react';
-import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 /**
  * One of the card's three columns. The mockup gives each a 10.5px/600 uppercase
@@ -91,7 +91,7 @@ export const DailyEntryCard = ({ entry, isEditable = false, onEdit, onRemove }) 
     >
       {/* Identity band — 28px avatar, name over role, time flush right. */}
       <div className="flex items-center gap-2.5 border-b border-separator px-4 py-[11px]">
-        <InitialsAvatar name={fullname} size="sm" />
+        <UserAvatar user={entry.member} size="sm" showTitle={false} />
         <span className="flex min-w-0 flex-col leading-[1.3]">
           <span className="truncate text-[13px] font-semibold text-foreground">{fullname}</span>
           {entry.member?.role ? (

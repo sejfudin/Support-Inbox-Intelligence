@@ -36,3 +36,24 @@ export const changePassword = async ({ currentPassword, newPassword }) => {
   const response = await apiClient.patch('/auth/me/password', { currentPassword, newPassword });
   return response.data;
 };
+/**
+ * Set or replace your own profile picture. Takes no id, for the same reason
+ * `changePassword` doesn't — the server reads the account from the token, so this
+ * can only ever act on your own.
+ *
+ * The explicit `Content-Type` overrides the client's JSON default, matching
+ * `uploadMyCv` in `api/interns.js`.
+ */
+export const uploadMyAvatar = async (file) => {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  const { data } = await apiClient.post('/auth/me/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+};
+
+export const deleteMyAvatar = async () => {
+  const { data } = await apiClient.delete('/auth/me/avatar');
+  return data;
+};

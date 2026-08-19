@@ -12,10 +12,9 @@ import {
 import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-import { getInitials } from '@/helpers/getInitials';
-import { getAvatarColor } from '@/helpers/avatarColor';
 import { badgeTone, CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
@@ -76,18 +75,12 @@ export default function AdminUsersExpandableTable({ data, pagination, onPageChan
                 >
                   <TableCell className="min-w-[200px]">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      {/* Tinted from the name, not a flat grey: in a directory of
-                          54 people the colour is what lets you re-find a row you
-                          scrolled past. `getAvatarColor` is deterministic, so the
-                          same person keeps the same tint across the app. */}
-                      <span
-                        className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold ${getAvatarColor(
-                          user.fullName
-                        )}`}
-                        aria-hidden="true"
-                      >
-                        {getInitials(user.fullName)}
-                      </span>
+                      {/* A face where there is one, and initials tinted from the
+                          name where there is not: in a directory of 54 people the
+                          picture — or failing that the colour — is what lets you
+                          re-find a row you scrolled past. Both are deterministic,
+                          so a person looks the same on every screen. */}
+                      <UserAvatar user={user} size="md" showTitle={false} />
                       <div className="flex min-w-0 flex-col leading-[1.35]">
                         <span className="flex min-w-0 items-center gap-1.5">
                           <span className="truncate text-[13px] font-medium text-foreground">

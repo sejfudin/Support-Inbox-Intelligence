@@ -168,7 +168,7 @@ const ProfilePage = () => {
             left, which is much taller. */}
         <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-3.5">
-            <ProfileIdentityCard user={user} />
+            <ProfileIdentityCard user={user} isEditing={isEditing} />
 
             <ProfileStatRow
               analytics={analytics}

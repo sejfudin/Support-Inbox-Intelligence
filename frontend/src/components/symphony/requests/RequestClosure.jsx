@@ -1,8 +1,8 @@
 import { Ban, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLES } from '@/helpers/roles';
-import { getInitials } from '@/helpers/staffingRequests';
 import { formatDay } from './requestPresentation';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Which side ended the request, in the words each shell's readers use. Read off
 // `closedBy.role` rather than inferred from the reason: the rule is one-per-side
@@ -117,9 +117,11 @@ export function RequestClosure({ request }) {
 
       {request.closedBy?.fullname && (
         <div className="flex items-center gap-2">
-          <span className="symphony-suggestion-avatar" aria-hidden="true">
-            {getInitials(request.closedBy.fullname)}
-          </span>
+          <UserAvatar
+            user={request.closedBy}
+            className="symphony-suggestion-avatar"
+            showTitle={false}
+          />
           <p className="text-xs text-muted-foreground">
             {request.closedBy.fullname}
             {request.closedBy.role && ` · ${request.closedBy.role}`}

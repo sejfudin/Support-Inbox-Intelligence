@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { formatSuggestionMeta, getInitials } from '@/helpers/staffingRequests';
+import { formatSuggestionMeta } from '@/helpers/staffingRequests';
 import { cn } from '@/lib/utils';
 import { getSuggestionState } from './requestPresentation';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Where an intern stands, as a pill rather than the tail of the meta line. It is
 // the one thing on the card that decides whether this person is actually coming,
@@ -43,15 +43,11 @@ export function RequestSuggestionCard({ suggestion }) {
 
   return (
     <div className="symphony-suggestion" data-test={`suggestion-${suggestion.id}`}>
-      <span
-        className={cn(
-          'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold',
-          getAvatarColor(suggestion.internName)
-        )}
-        aria-hidden="true"
-      >
-        {getInitials(suggestion.internName)}
-      </span>
+      <UserAvatar
+        user={{ fullname: suggestion.internName, avatarUrl: suggestion.internAvatarUrl }}
+        className="h-8 w-8 text-[11px]"
+        showTitle={false}
+      />
       <div className="min-w-0 flex-1">
         {suggestion.internProfile ? (
           <Link

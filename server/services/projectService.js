@@ -6,6 +6,7 @@ const Recommendation = require('../models/Recommendation');
 const { ROLES } = require('../constants/roles');
 const { slugify } = require('../helpers/slugify');
 const { httpError } = require('../helpers/httpError');
+const { userSelect } = require('../constants/userSelect');
 
 // Same two-role read gate as recommendations (recommendationService.js
 // READ_ROLES) — leadership is stakeholder-facing read access, everyone else
@@ -105,7 +106,7 @@ const getProjectById = async (id) => {
 };
 
 const RECOMMENDATION_INTERN_POPULATE = [
-  { path: 'internProfile', populate: { path: 'user', select: 'fullname email' } },
+  { path: 'internProfile', populate: { path: 'user', select: userSelect() } },
   { path: 'position', select: 'name slug' },
   { path: 'technologies', select: 'name slug' },
 ];
@@ -114,6 +115,7 @@ const internSummary = (recommendation) => ({
   recommendationId: recommendation._id,
   userId: recommendation.internProfile?.user?._id || null,
   fullname: recommendation.internProfile?.user?.fullname || 'Unknown',
+  avatarUrl: recommendation.internProfile?.user?.avatarUrl || null,
   position: recommendation.position?.name || null,
 });
 

@@ -1,14 +1,14 @@
 import { AlertTriangle, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { formatSuggestionMeta, getInitials, getSolePlacedName } from '@/helpers/staffingRequests';
-import { getAvatarColor } from '@/helpers/avatarColor';
+import { formatSuggestionMeta, getSolePlacedName } from '@/helpers/staffingRequests';
 import { RequestPositionCard } from './RequestPositionCard';
 import {
   RequestEmptySeats,
   RequestSuggestionCard,
   SuggestionStatePill,
 } from './RequestSuggestionCard';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 /**
  * A pick that has been staged but never sent. It shows the same skills-and-
@@ -24,15 +24,11 @@ const StagedCard = ({ pick, rejection, onRemove }) => (
     )}
     data-test={`staged-pick-${pick.id}`}
   >
-    <span
-      className={cn(
-        'grid h-8 w-8 shrink-0 place-items-center rounded-full text-[11px] font-bold',
-        getAvatarColor(pick.name)
-      )}
-      aria-hidden="true"
-    >
-      {getInitials(pick.name)}
-    </span>
+    <UserAvatar
+      user={{ fullname: pick.name, avatarUrl: pick.avatarUrl }}
+      className="h-8 w-8 text-[11px]"
+      showTitle={false}
+    />
     <div className="min-w-0 flex-1">
       <p className="truncate text-sm font-semibold text-foreground">{pick.name}</p>
       <p className="truncate text-xs leading-snug text-muted-foreground">

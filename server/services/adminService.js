@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const { escapeRegex } = require('../helpers/escapeRegex');
+const { userSelect } = require('../constants/userSelect');
 
 const getUserWorkspaceMemberships = async (userId) => {
   const workspaces = await Workspace.find(
@@ -122,7 +123,7 @@ const getUsers = async ({
 
   if (pagination === 'false' || pagination === false) {
     const users = await User.find(query)
-      .select('fullname email role status workspaceId hub')
+      .select(userSelect('role', 'status', 'workspaceId', 'hub'))
       .populate('hub', 'name city country')
       .sort({ fullname: 1 });
     return { users };
@@ -183,7 +184,7 @@ const updateUserRole = async (userId, role) => {
 
 const getUserById = async (userId) => {
   const user = await User.findById(userId)
-    .select('fullname email role status workspaceId hub createdAt')
+    .select(userSelect('role', 'status', 'workspaceId', 'hub', 'createdAt'))
     .populate('hub', 'name city country');
 
   if (!user) {

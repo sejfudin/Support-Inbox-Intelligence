@@ -29,9 +29,8 @@ import { AssignSpecializationModal } from '@/components/interns/specialization/A
 import { ReassignSpecializationDialog } from '@/components/interns/specialization/ReassignSpecializationDialog';
 import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMentorModal';
 import { ConfirmModal } from '@/components/Modals/ConfirmModal';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
 import { formatDate } from '@/helpers/date';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const STATUS_OPTIONS = [
   { value: 'specialized', label: 'Specialized' },
@@ -303,15 +302,12 @@ export default function SpecializationPage() {
                       >
                         <TableCell>
                           <div className="flex min-w-0 items-center gap-2.5">
-                            <span
-                              className={cn(
-                                'grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full text-[10.5px] font-bold',
-                                getAvatarColor(fullname)
-                              )}
-                              aria-hidden="true"
-                            >
-                              {getInitials(fullname)}
-                            </span>
+                            <UserAvatar
+                              user={specialization.user}
+                              name={fullname}
+                              size="md"
+                              showTitle={false}
+                            />
                             <div className="min-w-0 leading-[1.35]">
                               <p className="truncate text-[13px] font-medium text-foreground">
                                 {fullname}

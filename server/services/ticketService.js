@@ -10,6 +10,7 @@ const { emitTicketEvent, toSocketId } = require('../socket/events');
 const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
 const { escapeRegex } = require('../helpers/escapeRegex');
 const { httpError } = require('../helpers/httpError');
+const { userSelect } = require('../constants/userSelect');
 const {
   CIRCULAR_BLOCKER_ERROR,
   DONE_BLOCKER_ERROR,
@@ -569,8 +570,8 @@ const getAllTickets = async ({
       .skip(skip)
       .limit(safeLimit)
       .populate('status', STATUS_POPULATE_SELECT)
-      .populate('creator', 'fullname email')
-      .populate('assignedTo', 'fullname email role')
+      .populate('creator', userSelect())
+      .populate('assignedTo', userSelect('role'))
       .populate('category')
       .populate(BLOCKER_LIST_POPULATE);
 
@@ -623,7 +624,7 @@ const getAllTickets = async ({
             localField: 'creator',
             foreignField: '_id',
             as: 'creator',
-            pipeline: [{ $project: { fullname: 1, email: 1 } }],
+            pipeline: [{ $project: { fullname: 1, email: 1, avatarUrl: 1 } }],
           },
         },
         { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
@@ -633,7 +634,7 @@ const getAllTickets = async ({
             localField: 'assignedTo',
             foreignField: '_id',
             as: 'assignedTo',
-            pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
+            pipeline: [{ $project: { fullname: 1, email: 1, role: 1, avatarUrl: 1 } }],
           },
         },
         {
@@ -675,8 +676,8 @@ const getAllTickets = async ({
 const getTicketById = async (ticketId) => {
   const ticket = await Ticket.findById(ticketId)
     .populate('status', STATUS_POPULATE_SELECT)
-    .populate('assignedTo', 'fullname email role')
-    .populate('creator', 'fullname email')
+    .populate('assignedTo', userSelect('role'))
+    .populate('creator', userSelect())
     .populate('category')
     .populate(BLOCKER_POPULATE);
 
@@ -981,7 +982,7 @@ const persistTicketUpdate = async (ticketId, updateData) => {
     }
   )
     .populate('status', STATUS_POPULATE_SELECT)
-    .populate('assignedTo', 'fullname email role')
+    .populate('assignedTo', userSelect('role'))
     .populate('creator', 'fullName')
     .populate(BLOCKER_POPULATE);
 
@@ -1353,8 +1354,8 @@ const getMyTickets = async ({
           .skip(skip)
           .limit(safeLimit)
           .populate('status', STATUS_POPULATE_SELECT)
-          .populate('creator', 'fullname email')
-          .populate('assignedTo', 'fullname email role')
+          .populate('creator', userSelect())
+          .populate('assignedTo', userSelect('role'))
           .populate('category')
           .populate(BLOCKER_LIST_POPULATE)
       : Ticket.aggregate([
@@ -1383,7 +1384,7 @@ const getMyTickets = async ({
               localField: 'creator',
               foreignField: '_id',
               as: 'creator',
-              pipeline: [{ $project: { fullname: 1, email: 1 } }],
+              pipeline: [{ $project: { fullname: 1, email: 1, avatarUrl: 1 } }],
             },
           },
           { $unwind: { path: '$creator', preserveNullAndEmptyArrays: true } },
@@ -1393,7 +1394,7 @@ const getMyTickets = async ({
               localField: 'assignedTo',
               foreignField: '_id',
               as: 'assignedTo',
-              pipeline: [{ $project: { fullname: 1, email: 1, role: 1 } }],
+              pipeline: [{ $project: { fullname: 1, email: 1, role: 1, avatarUrl: 1 } }],
             },
           },
           {

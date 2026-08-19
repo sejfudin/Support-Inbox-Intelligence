@@ -31,6 +31,7 @@ const {
 } = require('./recommendationService');
 const { emitStaffingNewsChanged, emitInternDataChanged } = require('../socket/events');
 const InternProfile = require('../models/InternProfile');
+const { userSelect } = require('../constants/userSelect');
 
 // This is the platform's first leadership write path: no existing route
 // admits ROLES.LEADERSHIP for a write, so every guard below is explicit
@@ -38,12 +39,12 @@ const InternProfile = require('../models/InternProfile');
 const READ_ROLES = [ROLES.ADMIN, ROLES.LEADERSHIP];
 
 const REQUEST_POPULATE = [
-  { path: 'author', select: 'fullname email role' },
+  { path: 'author', select: userSelect('role') },
   { path: 'project', select: 'name slug status type' },
   { path: 'requestedPositions.position', select: 'name slug' },
   { path: 'requestedPositions.technologies', select: 'name slug' },
-  { path: 'closedBy', select: 'fullname email role' },
-  { path: 'noteBy', select: 'fullname email role' },
+  { path: 'closedBy', select: userSelect('role') },
+  { path: 'noteBy', select: userSelect('role') },
 ];
 
 const assertValidObjectId = (id, label) => {
@@ -194,6 +195,7 @@ const formatSuggestion = (recommendation) => ({
   id: recommendation._id,
   position: recommendation.position,
   internName: recommendation.internProfile?.user?.fullname ?? 'Unknown intern',
+  internAvatarUrl: recommendation.internProfile?.user?.avatarUrl ?? null,
   internProfile: recommendation.internProfile?._id ?? null,
   startDate: recommendation.internProfile?.startDate ?? null,
   technologies: (recommendation.technologies ?? [])
@@ -766,7 +768,7 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
   // to load them and their whole recommendation history first.
   const profiles = await InternProfile.find({ status: { $nin: PICKER_EXCLUDED_INTERN_STATUSES } })
     .select('user status startDate declaredPosition selfTechnologies cvTechnologies')
-    .populate({ path: 'user', select: 'fullname email' })
+    .populate({ path: 'user', select: userSelect() })
     .populate({ path: 'declaredPosition', select: 'name' })
     .populate({ path: 'selfTechnologies', select: 'name' })
     .populate({ path: 'cvTechnologies', select: 'name' })
@@ -805,6 +807,7 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
     return {
       internProfile: profile._id,
       internName: profile.user?.fullname ?? 'Unknown intern',
+      internAvatarUrl: profile.user?.avatarUrl ?? null,
       email: profile.user?.email ?? null,
       status: profile.status,
       // How long they have been in the programme, the same anchor the suggestion

@@ -7,8 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // The check-in window is 07:00–11:00 office time (server-owned — see
 // helpers/attendanceTime.js). Which end of it matters depends on where "now"
@@ -106,15 +105,11 @@ export function PresenceHeroCard({ presence }) {
           <ul className="max-h-72 space-y-1 overflow-y-auto">
             {absentToday.map((intern) => (
               <li key={intern.id} className="flex items-center gap-3 rounded-xl px-1 py-2">
-                <span
-                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${getAvatarColor(intern.fullname || intern.email || '?')}`}
-                >
-                  {intern.fullname ? (
-                    getInitials(intern.fullname)
-                  ) : (
-                    <UserRound className="h-4 w-4" />
-                  )}
-                </span>
+                <UserAvatar
+                  user={intern}
+                  className="h-8 w-8 text-[12px]"
+                  initials={intern.fullname ? undefined : <UserRound className="h-4 w-4" />}
+                />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium text-foreground">
                     {intern.fullname || intern.email}

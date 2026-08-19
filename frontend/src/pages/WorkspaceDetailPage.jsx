@@ -25,8 +25,6 @@ import { SearchableSelect } from '@/components/ui/searchable-select';
 import { RoleBadge } from '@/components/RoleBadge';
 import { useAuth } from '@/context/AuthContext';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-import { getInitials } from '@/helpers/getInitials';
-import { getAvatarColor } from '@/helpers/avatarColor';
 import { CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
 import { canDeleteWorkspace, isPlatformAdmin } from '@/helpers/workspacePermissions';
@@ -45,6 +43,7 @@ import {
 import PageHeading from '@/components/PageHeading';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { resolveUserId } from '@/helpers/userIdentity';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 export default function WorkspaceDetailPage() {
   const { id } = useParams();
@@ -395,14 +394,7 @@ export default function WorkspaceDetailPage() {
                       key={member._id}
                       className="flex flex-wrap items-center gap-3 border-b border-separator px-[18px] py-2.5 transition-colors last:border-b-0 hover:bg-accent/60 sm:flex-nowrap"
                     >
-                      <span
-                        className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold ${getAvatarColor(
-                          memberUser?.fullname || memberUser?.email || ''
-                        )}`}
-                        aria-hidden="true"
-                      >
-                        {getInitials(memberUser?.fullname || memberUser?.email || '')}
-                      </span>
+                      <UserAvatar user={memberUser} size="md" showTitle={false} />
                       <div className="min-w-0 flex-1 leading-[1.35]">
                         <div className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
                           <span className="truncate">{memberUser?.fullname || 'Unnamed user'}</span>
@@ -457,14 +449,7 @@ export default function WorkspaceDetailPage() {
                       key={invitation._id}
                       className="flex items-center gap-2.5 border-b border-separator px-[18px] py-2.5 last:border-b-0"
                     >
-                      <span
-                        className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold ${getAvatarColor(
-                          invitation.user?.fullname || invitation.user?.email || ''
-                        )}`}
-                        aria-hidden="true"
-                      >
-                        {getInitials(invitation.user?.fullname || invitation.user?.email || '')}
-                      </span>
+                      <UserAvatar user={invitation.user} size="md" showTitle={false} />
                       <div className="min-w-0 flex-1 leading-[1.35]">
                         <div className="truncate text-[13px] font-medium text-foreground">
                           {invitation.user?.fullname || 'Pending user'}

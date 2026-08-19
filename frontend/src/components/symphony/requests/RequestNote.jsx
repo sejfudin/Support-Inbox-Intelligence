@@ -1,5 +1,5 @@
-import { getInitials } from '@/helpers/staffingRequests';
 import { formatDay } from './requestPresentation';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 /**
  * The admin's one remark on a request, for anything leadership should know that
@@ -21,9 +21,11 @@ export function RequestNote({ request }) {
         Note from the admin
       </p>
       <div className="symphony-card-muted flex gap-3 p-4">
-        <span className="symphony-suggestion-avatar" aria-hidden="true">
-          {getInitials(request.noteBy?.fullname ?? '')}
-        </span>
+        <UserAvatar
+          user={request.noteBy}
+          className="symphony-suggestion-avatar"
+          showTitle={false}
+        />
         <div className="min-w-0 flex-1 space-y-1">
           <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{note}</p>
           <p className="text-xs text-muted-foreground">

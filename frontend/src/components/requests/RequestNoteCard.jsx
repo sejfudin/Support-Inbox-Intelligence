@@ -1,20 +1,11 @@
 import { Ban, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLES } from '@/helpers/roles';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/staffingRequests';
 import { formatDay } from '@/components/symphony/requests/requestPresentation';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
-const Avatar = ({ name }) => (
-  <span
-    className={cn(
-      'grid h-7 w-7 shrink-0 place-items-center rounded-full text-[10.5px] font-bold',
-      getAvatarColor(name || '')
-    )}
-    aria-hidden="true"
-  >
-    {getInitials(name || '')}
-  </span>
+const Avatar = ({ user }) => (
+  <UserAvatar user={user} className="h-7 w-7 text-[10.5px]" showTitle={false} />
 );
 
 /**
@@ -35,7 +26,7 @@ export function RequestNoteCard({ request }) {
     <section className="space-y-2" data-test="request-note">
       <p className="app-crumb">Note from the admin</p>
       <div className="flex gap-3 rounded-[var(--r-card)] border border-border bg-muted/30 p-3.5">
-        <Avatar name={request.noteBy?.fullname} />
+        <Avatar user={request.noteBy} />
         <div className="min-w-0 flex-1 space-y-1">
           <p className="whitespace-pre-wrap text-[13px] leading-6 text-foreground">{note}</p>
           <p className="text-[11.5px] text-muted-foreground">
@@ -152,7 +143,7 @@ export function RequestClosurePanel({ request }) {
 
       {request.closedBy?.fullname && (
         <div className="flex items-center gap-2">
-          <Avatar name={request.closedBy.fullname} />
+          <Avatar user={request.closedBy} />
           <p className="text-[11.5px] text-muted-foreground">
             {request.closedBy.fullname}
             {request.closedBy.role && ` · ${request.closedBy.role}`}

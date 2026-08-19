@@ -5,6 +5,13 @@
 - Node.js >= 18, npm.
 - MongoDB instance (local or cloud) — `MONGODB_URI`.
 - Supabase project + Storage buckets — **required**, server throws on startup without it.
+  Four buckets: `SUPABASE_ATTACHMENT_BUCKET`, `SUPABASE_WORKSPACE_LOGO_BUCKET`,
+  `SUPABASE_CV_BUCKET` (falls back to the logo bucket) and **`SUPABASE_PROFILE_BUCKET`**, which
+  does not fall back. It must be **public** and permit `image/jpeg`, `image/png`, `image/webp`
+  at 2MB or more. Do not point it at the workspace-logo bucket: that one caps objects at 1MB
+  and disallows WEBP, so a valid 1.5MB JPEG and every WEBP come back as a 502 from storage —
+  which reads as a broken feature, not as a misconfigured bucket. On the shared dev project the
+  bucket is called `profile-images`.
 - Optional: Groq API key (AI), GitHub App (PR linking).
 
 Config lives in `server/.env`. Full variable list in `README.md` ("Environment variables").
@@ -413,7 +420,10 @@ script and a new step here, in the same change that alters the model.
 
 There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers pure helpers —
 `slugify`, `dailyRules`, `cvTechnologyMatcher`, `cvTechnologySync`, `staffingRequestRules`
-(`helpers/*.test.js`) — plus three services that mock Mongo and Supabase: `internCvService`
+`userAvatar` (`helpers/userAvatar.test.js`, the accepted file types and the object-key shape)
+(`helpers/*.test.js`) — plus four services that mock Mongo and Supabase: `userAvatarService`
+(`services/userAvatarService.test.js`), for the upload → repoint → delete-the-old ordering and
+the cleanup when a save fails, `internCvService`
 (`services/internCvService.test.js`), for the CV re-upload → technology replacement wiring,
 `internService` (`services/internService.test.js`), for the CV-scan provenance prune on a manual
 technology save, and `staffingRequestService` (`services/staffingRequestService.test.js`), for the

@@ -24,22 +24,23 @@ const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
 const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 const internNotificationService = require('./internNotificationService');
+const { userSelect } = require('../constants/userSelect');
 
 const PROFILE_POPULATE = [
   {
     path: 'user',
-    select: 'fullname email status role hub',
+    select: userSelect('role', 'status', 'hub'),
     populate: { path: 'hub', select: 'name city country' },
   },
   { path: 'internshipType', select: 'name slug' },
   {
     path: 'primaryMentor',
-    select: 'fullname email role hub',
+    select: userSelect('role', 'hub'),
     populate: { path: 'hub', select: 'name' },
   },
   {
     path: 'secondaryMentor',
-    select: 'fullname email role hub',
+    select: userSelect('role', 'hub'),
     populate: { path: 'hub', select: 'name' },
   },
   { path: 'selfTechnologies', select: 'name slug' },
@@ -522,6 +523,7 @@ const formatPipelineCandidate = (profile) => {
   return {
     userId,
     fullname: profile.user.fullname || 'Unknown',
+    avatarUrl: profile.user.avatarUrl || null,
     hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
     programme: profile.internshipType
       ? {
@@ -617,6 +619,7 @@ const formatReadyCandidate = (
     userId,
     fullname: profile.user.fullname || 'Unknown',
     email: profile.user.email || '',
+    avatarUrl: profile.user.avatarUrl || null,
     hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
     programme: profile.internshipType
       ? {
@@ -626,7 +629,11 @@ const formatReadyCandidate = (
         }
       : null,
     primaryMentor: profile.primaryMentor
-      ? { _id: profile.primaryMentor._id, fullname: profile.primaryMentor.fullname }
+      ? {
+          _id: profile.primaryMentor._id,
+          fullname: profile.primaryMentor.fullname,
+          avatarUrl: profile.primaryMentor.avatarUrl || null,
+        }
       : null,
     status: profile.status,
     expectedEndDate: profile.expectedEndDate || null,
@@ -795,7 +802,7 @@ const getProgrammeStats = async (user) => {
       .populate([
         {
           path: 'user',
-          select: 'fullname email hub',
+          select: userSelect('hub'),
           populate: { path: 'hub', select: 'name' },
         },
         { path: 'internshipType', select: 'name slug' },
@@ -807,7 +814,7 @@ const getProgrammeStats = async (user) => {
       .populate([
         {
           path: 'user',
-          select: 'fullname email hub',
+          select: userSelect('hub'),
           populate: { path: 'hub', select: 'name' },
         },
         { path: 'internshipType', select: 'name slug' },
@@ -849,7 +856,7 @@ const getProgrammeStats = async (user) => {
           populate: [
             {
               path: 'user',
-              select: 'fullname email hub',
+              select: userSelect('hub'),
               populate: { path: 'hub', select: 'name' },
             },
             { path: 'internshipType', select: 'name slug' },
@@ -865,7 +872,7 @@ const getProgrammeStats = async (user) => {
           path: 'internProfile',
           populate: {
             path: 'user',
-            select: 'fullname email',
+            select: userSelect(),
           },
         },
       ])
@@ -1090,6 +1097,7 @@ const getProgrammeStats = async (user) => {
         userId,
         fullname: profile.user.fullname || 'Unknown',
         email: profile.user.email || '',
+        avatarUrl: profile.user.avatarUrl || null,
         hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
         programme: profile.internshipType
           ? {

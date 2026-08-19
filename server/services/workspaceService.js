@@ -14,6 +14,7 @@ const { seedDefaultCategories } = require('./categoryService');
 const { createStatusesForWorkspace, validateStatusesPayload } = require('./statusService');
 const { isActiveWorkspaceMember } = require('../helpers/workspaceAuthz');
 const { ROLES } = require('../constants/roles');
+const { userSelect } = require('../constants/userSelect');
 
 const LOGO_MIME_TO_EXT = {
   'image/jpeg': 'jpg',
@@ -86,8 +87,8 @@ const switchWorkspace = async ({ workspaceId, userId, userRole }) => {
 
 const getWorkspaceById = async (workspaceId, caller) => {
   const workspace = await Workspace.findById(workspaceId)
-    .populate('owner', 'fullname email')
-    .populate('members.user', 'fullname email role status');
+    .populate('owner', userSelect())
+    .populate('members.user', userSelect('role', 'status'));
 
   if (!workspace) throw new Error('Workspace not found');
 
@@ -105,8 +106,8 @@ const getWorkspaceById = async (workspaceId, caller) => {
     workspace: workspaceId,
     status: 'pending',
   })
-    .populate('user', 'fullname email role status')
-    .populate('invitedBy', 'fullname email')
+    .populate('user', userSelect('role', 'status'))
+    .populate('invitedBy', userSelect())
     .sort({ createdAt: -1 });
 
   return {
@@ -147,7 +148,7 @@ const getUserWorkspaces = async (userId) => {
     isArchived: { $ne: true },
     members: { $elemMatch: { user: userId, status: 'active' } },
   })
-    .populate('owner', 'fullname email')
+    .populate('owner', userSelect())
     .lean();
 
   return attachWorkspaceStats(workspaces);
@@ -182,8 +183,8 @@ const updateWorkspace = async (workspaceId, { name, description, owner }, reques
 
     return attachLogoUrl(
       await Workspace.findById(workspaceId)
-        .populate('owner', 'fullname email')
-        .populate('members.user', 'fullname email role status')
+        .populate('owner', userSelect())
+        .populate('members.user', userSelect('role', 'status'))
     );
   }
 
@@ -232,8 +233,8 @@ const uploadWorkspaceLogo = async (workspaceId, file) => {
   }
 
   const updated = await Workspace.findById(workspaceId)
-    .populate('owner', 'fullname email')
-    .populate('members.user', 'fullname email role status');
+    .populate('owner', userSelect())
+    .populate('members.user', userSelect('role', 'status'));
 
   return attachLogoUrl(updated);
 };
@@ -256,8 +257,8 @@ const deleteWorkspaceLogo = async (workspaceId) => {
   await workspace.save();
 
   const updated = await Workspace.findById(workspaceId)
-    .populate('owner', 'fullname email')
-    .populate('members.user', 'fullname email role status');
+    .populate('owner', userSelect())
+    .populate('members.user', userSelect('role', 'status'));
 
   return attachLogoUrl(updated);
 };
@@ -403,7 +404,7 @@ const deleteWorkspace = async (workspaceId) => {
 
 const getAllWorkspaces = async () => {
   const workspaces = await Workspace.find({ isArchived: { $ne: true } })
-    .populate('owner', 'fullname email')
+    .populate('owner', userSelect())
     .lean();
 
   return attachWorkspaceStats(workspaces);

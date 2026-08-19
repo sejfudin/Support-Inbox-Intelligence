@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useProjectOverview } from '@/queries/projects';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
-import { getInitials } from '@/helpers/initials';
 import {
   getOutcomeHistoryTone,
   getOutcomeLabel,
@@ -21,6 +20,7 @@ import {
   getSelectionStageTheme,
 } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Clicking a tile scrolls to its section below — it never filters, unlike
 // the list page's KPI cards (see LeadershipProjectsPage). `dot` gives each
@@ -55,13 +55,14 @@ function SectionHeading({ icon: Icon, tint, title, subtitle }) {
   );
 }
 
-function PersonAvatar({ fullname, className }) {
+function PersonAvatar({ user, fullname, className }) {
   return (
-    <Avatar className="h-9 w-9 shrink-0">
-      <AvatarFallback className={cn('text-xs font-semibold', className)}>
-        {getInitials(fullname)}
-      </AvatarFallback>
-    </Avatar>
+    <UserAvatar
+      user={user}
+      name={fullname}
+      className={cn('h-9 w-9 text-xs font-semibold', className)}
+      showTitle={false}
+    />
   );
 }
 
@@ -194,6 +195,7 @@ export default function LeadershipProjectPage() {
                   className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2.5 dark:border-emerald-500/15"
                 >
                   <PersonAvatar
+                    user={intern}
                     fullname={intern.fullname}
                     className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
                   />
@@ -236,7 +238,11 @@ export default function LeadershipProjectPage() {
                       theme.panel
                     )}
                   >
-                    <PersonAvatar fullname={intern.fullname} className={theme.avatar} />
+                    <PersonAvatar
+                      user={intern}
+                      fullname={intern.fullname}
+                      className={theme.avatar}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
                         {intern.fullname}

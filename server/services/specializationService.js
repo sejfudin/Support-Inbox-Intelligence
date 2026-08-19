@@ -13,19 +13,20 @@ const {
 const { emitInternDataChanged } = require('../socket/events');
 const { httpError } = require('../helpers/httpError');
 const internNotificationService = require('./internNotificationService');
+const { userSelect } = require('../constants/userSelect');
 
 const STATUSES = ['specialized', 'unspecialized', 'all'];
 
 const PROFILE_POPULATE = [
   {
     path: 'user',
-    select: 'fullname email status role hub',
+    select: userSelect('role', 'status', 'hub'),
     populate: { path: 'hub', select: 'name city country' },
   },
   { path: 'declaredPosition', select: 'name slug' },
   { path: 'secondaryPosition', select: 'name slug' },
-  { path: 'primaryMentor', select: 'fullname email role' },
-  { path: 'secondaryMentor', select: 'fullname email role' },
+  { path: 'primaryMentor', select: userSelect('role') },
+  { path: 'secondaryMentor', select: userSelect('role') },
 ];
 
 // Only a platform admin may view or manage specializations — mentors receive
@@ -44,6 +45,7 @@ const formatUser = (user) => {
     fullname: user.fullname,
     email: user.email,
     role: user.role,
+    avatarUrl: user.avatarUrl || null,
     hub: user.hub || null,
   };
 };

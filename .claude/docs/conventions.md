@@ -59,6 +59,12 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
     Mongoose `ValidationError` answered 400 or 500, and on passing `error.data` through.
     `attachmentImage.js` is the one deliberate exception — it serves image bytes and has no `next`.
 - **Constants** in `server/constants/` (e.g. `roles.js`). Don't hardcode role strings — import `ROLES`.
+- **Projecting a user** — `userSelect(...extras)` from `constants/userSelect.js`, never a literal.
+  `populate('creator', userSelect())`, `select: userSelect('role', 'hub')`. It always carries the
+  fields needed to *display* a person, the avatar included, and the caller names only what it needs
+  on top. Sixty hand-written variants of `'fullname email role'` is how a new display field ends up
+  on some screens and not others. If you hand-build a DTO that reshapes a user, carry `avatarUrl`
+  yourself — a projection constant cannot reach inside a `.map()`.
 
 ## Frontend
 

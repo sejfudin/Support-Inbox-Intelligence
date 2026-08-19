@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CHIP, badgeTone } from '@/helpers/badgeTones';
-import { getInitials } from '@/helpers/getInitials';
-import { getAvatarColor } from '@/helpers/avatarColor';
 import {
   attendanceRateFillClass,
   attendanceRateTextClass,
@@ -16,6 +14,7 @@ import {
   DAY_STATUS,
 } from '@/helpers/attendance';
 import { DayStatusGlyph } from '@/components/attendance/dayStatusVisuals';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const columnsFor = (rateLabel) => [
   { key: 'name', label: 'Intern', sortable: true },
@@ -226,14 +225,7 @@ export default function AttendanceRosterTable({
                 >
                   <td className="px-[18px] py-2.5">
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <span
-                        className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full text-[10.5px] font-bold ${getAvatarColor(
-                          row.intern.fullname
-                        )}`}
-                        aria-hidden="true"
-                      >
-                        {getInitials(row.intern.fullname)}
-                      </span>
+                      <UserAvatar user={row.intern} size="md" showTitle={false} />
                       <div className="min-w-0 leading-[1.35]">
                         <p className="truncate text-[13px] font-medium text-foreground">
                           {row.intern.fullname}

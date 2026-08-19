@@ -16,6 +16,7 @@ const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
 const { httpError } = require('../helpers/httpError');
 const internNotificationService = require('./internNotificationService');
+const { userSelect } = require('../constants/userSelect');
 
 // The status milestones tracked in the append-only history log — the status
 // lifecycle itself (recommended → interviewing → resulted). The placement
@@ -50,20 +51,20 @@ const RECOMMENDATION_POPULATE = [
     populate: [
       {
         path: 'user',
-        select: 'fullname email status role hub',
+        select: userSelect('role', 'status', 'hub'),
         populate: { path: 'hub', select: 'name city country' },
       },
       { path: 'internshipType', select: 'name slug' },
-      { path: 'primaryMentor', select: 'fullname email role' },
-      { path: 'secondaryMentor', select: 'fullname email role' },
+      { path: 'primaryMentor', select: userSelect('role') },
+      { path: 'secondaryMentor', select: userSelect('role') },
     ],
   },
   { path: 'position', select: 'name slug' },
   { path: 'project', select: 'name slug status isSystem' },
   { path: 'technologies', select: 'name slug' },
-  { path: 'createdBy', select: 'fullname email role' },
-  { path: 'updatedBy', select: 'fullname email role' },
-  { path: 'result.decidedBy', select: 'fullname email role' },
+  { path: 'createdBy', select: userSelect('role') },
+  { path: 'updatedBy', select: userSelect('role') },
+  { path: 'result.decidedBy', select: userSelect('role') },
 ];
 
 const assertValidObjectId = (id, label) => {
@@ -94,6 +95,7 @@ const formatUser = (user) => {
     fullname: user.fullname,
     email: user.email,
     role: user.role,
+    avatarUrl: user.avatarUrl || null,
     hub: user.hub || null,
   };
 };
