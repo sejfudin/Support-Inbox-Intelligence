@@ -353,7 +353,7 @@ const ensureCategoryBelongsToWorkspace = async ({ workspaceId, categoryId }) => 
 // claiming the other blocks them is not an error the database can catch, and it
 // reads as a deadlock nobody put there — so the link is refused at write time.
 // The walk is short in practice and bounded by `seen` against pre-existing loops.
-const assertNoBlockerCycle = async ({ ticketId, blockerTicketId }) => {
+const assertNoBlockerCycle = async ({ ticketId, blockerTicketId, workspaceId }) => {
   if (!ticketId) return; // A ticket being created cannot yet be in anyone's chain.
 
   const target = String(ticketId);
@@ -367,7 +367,12 @@ const assertNoBlockerCycle = async ({ ticketId, blockerTicketId }) => {
     if (seen.has(cursor)) return;
     seen.add(cursor);
 
-    const next = await Ticket.findById(cursor).select('blockedBy.ticket').lean();
+    // Scoped by workspace like every other blocker lookup — a cross-workspace
+    // link is already refused before this runs, so this is belt-and-suspenders
+    // against ever walking into another tenant's chain.
+    const next = await Ticket.findOne({ _id: cursor, workspace: workspaceId })
+      .select('blockedBy.ticket')
+      .lean();
     cursor = next?.blockedBy?.ticket ? String(next.blockedBy.ticket) : null;
   }
 };
@@ -410,7 +415,7 @@ const resolveBlockingTicket = async ({
     throw httpError(DONE_BLOCKER_ERROR, 400);
   }
 
-  await assertNoBlockerCycle({ ticketId, blockerTicketId: blocker._id });
+  await assertNoBlockerCycle({ ticketId, blockerTicketId: blocker._id, workspaceId });
 
   return blocker;
 };

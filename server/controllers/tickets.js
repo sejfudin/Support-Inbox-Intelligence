@@ -2,6 +2,7 @@ const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
 const { assertWorkspaceAccess, resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const { ROLES } = require('../constants/roles');
+const { handleControllerError } = require('../helpers/controllerError');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -106,7 +107,7 @@ const getTicketById = async (req, res) => {
   }
 };
 
-const createTicket = async (req, res) => {
+const createTicket = async (req, res, next) => {
   try {
     const {
       subject,
@@ -200,10 +201,7 @@ const createTicket = async (req, res) => {
     // pointing outside the workspace, a circular block) — the status rides on the
     // error, so it maps straight through instead of reading as a server fault.
     if (Number.isInteger(error?.statusCode)) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
+      return handleControllerError(res, error, next);
     }
 
     res.status(500).json({
@@ -298,7 +296,7 @@ const updateTicket = async (req, res, next) => {
     // See the note in `createTicket` — an error carrying a `statusCode` is one the
     // caller can act on; only the ones without fall through as an unexpected 500.
     if (Number.isInteger(error?.statusCode)) {
-      return res.status(error.statusCode).json({ success: false, message: error.message });
+      return handleControllerError(res, error, next);
     }
 
     next(error);
