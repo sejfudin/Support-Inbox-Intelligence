@@ -29,6 +29,16 @@
     --attention-glow-blur: 20px;
     --attention-glow-spread: 6px;
 
+    /* How much of the page the brand loader's backdrop hides. Same reasoning as the glow
+       above — set per light/dark, not per palette.
+       Deliberately short of opaque: the point of the veil is that you can still make out
+       a screen assembling itself behind the mark, which is what tells you the wait is
+       this page rather than a blank tab. Paired with a 2px blur in the component so the
+       shapes behind read as depth rather than as content competing with the label.
+       Light needs more cover than dark — a near-white page and a near-white card sit at
+       almost the same value, so at 0.7 the two just look like one washed-out surface. */
+    --loader-backdrop-alpha: 0.82;
+
     /* Semantic status tones — the colours `helpers/badgeTones.js` paints every
        chip, pill and dot with. Tokens rather than literal Tailwind classes for
        one reason: the colour-blind palette below can then redefine eight values
@@ -116,6 +126,7 @@
   .dark,
   .dark[data-theme] {
     --separator: 240 4% 13%;
+    --loader-backdrop-alpha: 0.7;
 
     /* Only the inks move in dark — the bases stay put, so a tone keeps its hue
        across modes and only the text on it lightens. */
@@ -374,6 +385,117 @@
      exact opposite of the panel, 21:1, in both modes. */
   [data-theme-brand='mono'] [data-brand-mark][data-brand-on-dark] {
     background-color: hsl(var(--background));
+  }
+}
+
+/* ── The brand loader ──────────────────────────────────────────────────────────
+   The mark unfurling one petal at a time, for waits whose result has no shape to
+   fake with a skeleton. Straight from the design handoff: four stacked spans, a
+   staggered `logo-unfurl`, size and speed driven by custom properties.
+
+   Each span is handed its own petal as `--petal`, exactly as TaskManagerBrand hands
+   the whole mark over as `--brand-mark` — so the themed rule below can reuse that
+   file as a mask without JS knowing anything about palettes.
+
+   The keyframes sit outside `@layer components` on purpose: a layered `@keyframes`
+   is legal but its precedence is layer-dependent, and an animation this file owns
+   should not be something a utility can win against by accident. */
+@keyframes logo-unfurl {
+  0% {
+    transform: rotate(-115deg) scale(0.55);
+    opacity: 0;
+  }
+  30% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  62% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  86%,
+  100% {
+    transform: rotate(115deg) scale(0.55);
+    opacity: 0;
+  }
+}
+
+/* The OS-preference fallback: the petals breathe in place instead of sweeping. */
+@keyframes logo-fade {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .logo-loader {
+    position: relative;
+    width: var(--loader-size, 96px);
+    height: var(--loader-size, 96px);
+  }
+
+  .logo-loader span {
+    position: absolute;
+    inset: 0;
+    background-image: var(--petal);
+    background-position: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    animation: logo-unfurl var(--loader-speed, 2.2s) cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    will-change: transform, opacity;
+  }
+
+  /* The stagger, verbatim from the handoff. It is what makes the mark read as one thing
+     unfurling rather than four things pulsing, and it is the only reason the one-colour
+     palettes below stay legible — so these four numbers are not a detail to round off. */
+  .logo-loader span:nth-child(2) {
+    animation-delay: 0.11s;
+  }
+  .logo-loader span:nth-child(3) {
+    animation-delay: 0.22s;
+  }
+  .logo-loader span:nth-child(4) {
+    animation-delay: 0.33s;
+  }
+
+  /* Every palette but Symphony Indigo flattens the mark to `--primary`, and the loader
+     follows that rule rather than being the one place the four-colour artwork survives a
+     palette change — same mechanism as `[data-brand-mark]`, applied per petal. The cost is
+     real and known: mid-unfurl, four same-coloured petals overlap into one moving shape
+     where the coloured version reads as four distinct ones. The stagger is what keeps it
+     legible, which is why the delays matter more here than in the default palette. */
+  [data-theme-brand]:not([data-theme-brand='default']) .logo-loader span {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    -webkit-mask-image: var(--petal);
+    mask-image: var(--petal);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+  }
+
+  /* The OS-level preference. It is NOT the same switch as the app's own motion setting:
+     `DEFAULT_MOTION` is 'full' (helpers/uiPreferences.js), so a person whose system asks
+     for less motion but who has never opened the appearance panel only ever hits this
+     block. The in-app setting is handled by the global `[data-motion='reduced']` rule near
+     the top of this file, which flattens the animation to a single 0.01ms pass; with no
+     `animation-fill-mode` the petals then revert to their base style, which is the whole
+     mark, static and opaque. Do not add `fill-mode: forwards` here or there — it would pin
+     them at the 100% keyframe, `opacity: 0`, and hide the loader from exactly the people
+     who asked for less movement. */
+  @media (prefers-reduced-motion: reduce) {
+    .logo-loader span {
+      animation: logo-fade 1.4s ease-in-out infinite alternate;
+    }
+    .logo-loader span:nth-child(1) {
+      animation-delay: 0s;
+    }
   }
 }
 

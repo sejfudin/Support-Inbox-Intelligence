@@ -44,5 +44,30 @@ Root rules and shared conventions apply — see ../CLAUDE.md and ../.claude/docs
 - **Payload mappings that pick user fields by hand must name `avatarUrl`.** A `.map()` building
   `{ fullName, email, role }` silently drops it and the screen falls back to initials — see the
   comment in `pages/AdminUsersPage.jsx`.
+- **Every wait is a skeleton with the brand mark over it.** `LoadingOverlay` from
+  `components/ui/loader.jsx` wraps the skeleton and lays `Loader` on top behind a translucent,
+  blurred veil — the skeleton says what shape is coming, the mark says it is still coming. Where
+  there is no shape to draw (app boot, a record page that branches on its data, a modal body) use
+  `Loader` alone: `variant="screen"` for the viewport, `panel` inside a container, `overlay` over a
+  positioned parent, plain for inline. Inside a `tbody` a `div` is illegal — put `relative` on the
+  scroll box and render `<Loader variant="overlay" />` as the table's sibling.
+- **Gate every loader through `useLoaderHold`, and pass it the query's `isError`.** It keeps the
+  mark up for `MIN_VISIBLE_MS` (1.5s) once shown and never lifts before the data is in, so the app
+  has one loading rhythm. Wrap the query's own flag at the source — `const { isPending:
+  isPendingRaw, isError } = useX(); const isPending = useLoaderHold(isPendingRaw, { release:
+  isError });` — so every use in the file inherits it and no site can forget. Without `release` a
+  failed query holds the mark over the error banner it just rendered. The floor applies to the
+  first arrival only; paging, filtering and stepping a month re-enter `isPending` on a screen that
+  is already up, and those are not charged again.
+- **A skeleton's own spacing goes in `contentClassName`, not `className`.** On `LoadingOverlay`,
+  `className` styles the positioned box and `contentClassName` styles the wrapper the skeletons sit
+  in — `space-y-*` on the outer one lands on the inert wrapper and an absolutely positioned mark,
+  and silently does nothing.
+- **`<Loader variant="overlay" />` needs a `relative` parent that does not scroll.** Put the class
+  on a wrapper *around* the scroll box, never on the scroll box itself: an absolutely positioned
+  child of a scroller is sized to its visible width and scrolls away with the content, so a wide
+  table ends up half-covered.
+- **Spinners are for actions, not for arriving pages.** `Loader2` inside a button means "your click
+  is working"; it stays. Don't convert those, and don't add new ones for page loads.
 - Forms: React Hook Form + Zod schemas.
 - Run `npm run format` before finishing.

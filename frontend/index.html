@@ -5,6 +5,22 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Task Manager</title>
+
+    <!--
+      The brand loader's four petals (components/ui/loader.jsx), fetched with the document
+      rather than at the moment the loader mounts.
+
+      This is not an optimisation, it is what makes the animation correct: the first wait in a
+      session is the app boot itself, and without a preload the browser only starts these four
+      requests when the loader renders. Nothing is painted until they arrive, so the unfurl is
+      already several hundred milliseconds in by the time it becomes visible — you see the
+      animation from the middle of its cycle instead of from the start. ~104KB total, and they
+      are needed on the very first screen, so preload is exactly the right hint.
+    -->
+    <link rel="preload" as="image" href="/brand/petals/petal-red.png" />
+    <link rel="preload" as="image" href="/brand/petals/petal-gold.png" />
+    <link rel="preload" as="image" href="/brand/petals/petal-blue.png" />
+    <link rel="preload" as="image" href="/brand/petals/petal-purple.png" />
   </head>
   <body>
     <div id="root"></div>
