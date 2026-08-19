@@ -60,16 +60,24 @@ const VARIANT_TO_TONE = {
   outline: 'outline',
 };
 
-function Badge({ className, tone, variant, dot = false, children, ...props }) {
+function Badge({
+  className,
+  tone,
+  variant,
+  dot = false,
+  as: Component = 'div',
+  children,
+  ...props
+}) {
   const resolved = tone ?? VARIANT_TO_TONE[variant] ?? 'muted';
 
   return (
-    <div className={cn(badgeVariants({ tone: resolved }), className)} {...props}>
+    <Component className={cn(badgeVariants({ tone: resolved }), className)} {...props}>
       {dot ? (
         <span className="h-[6px] w-[6px] shrink-0 rounded-full bg-current" aria-hidden />
       ) : null}
       {children}
-    </div>
+    </Component>
   );
 }
 
