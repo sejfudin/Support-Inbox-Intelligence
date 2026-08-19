@@ -183,3 +183,48 @@ intern side. The intern-facing dashboard card for the same concept is **"My Sele
 (was "My pipeline").
 _Avoid_: pipeline, in pipeline (as UI copy — "pipeline" stays only as the internal/doc term for
 the whole `recommended → interviewing → resulted` lifecycle, see `.claude/docs/architecture.md`).
+
+## Code review
+
+**Review request**:
+An intern asking one of their own mentors to look at the work on a ticket. At most one per
+ticket, live or answered, and asking again **replaces** the previous one. Always names one
+GitHub pull request, by URL, typed by the intern and **required** — an ask with nothing to look
+at is the thing this replaces. The URL is what the intern *claims* the reviewer should look at,
+and is never treated as proof that pull request exists or is theirs. Distinct from the ticket's
+**linked pull request**, which GitHub reports and nobody types; the two can disagree.
+_Avoid_: review (bare — a review is the reviewer's answer, not the ask), approval request,
+PR request, code review request (it reviews the work on a ticket, which may be more than a PR).
+
+**Reviewer**:
+The single mentor a review request is addressed to — always either the intern's **primary mentor**
+(`InternProfile.primaryMentor`, in everyday speech the "main mentor", and often a platform admin)
+or their **specialization mentor**, and only when that mentor is an
+active member of the ticket's workspace. Never a free choice of person: an intern cannot ask a
+teammate, and nobody outside the workspace can be asked, because they could not open the ticket.
+_Avoid_: approver (approving is one of two answers), assignee (that is who does the work),
+requested reviewer (GitHub's term for its own reviewer list — a different thing).
+
+**Answering a review**:
+The reviewer's verdict on a review request: **approved** or **changes requested**. Both are
+answers — neither ends the ticket, and neither is a gate on anything. Changes requested is not
+a rejection; the intern fixes the work and asks again, which replaces the request and puts it
+back to pending. The verdict is kept and shown until that happens.
+
+The verdict carries **no words**. The platform records *that* the reviewer answered; *why* lives
+on the pull request, where the reviewer writes it. So a changes-requested answer on its own never
+tells the intern what to change — it tells them to go read the review.
+_Avoid_: rejecting, blocking, failing the review, sign-off (nothing is signed off — see
+`Ticket.blockedBy` for the separate, unrelated notion of a ticket being blocked).
+
+**Cancelling a review request**:
+The intern withdrawing their own ask before it is answered. Nothing is owed and nobody is
+notified — the item simply leaves the reviewer's list.
+_Avoid_: declining (that would be the reviewer refusing, which does not exist), closing,
+deleting.
+
+**Going stale**:
+A review request being dropped because the work it asked about is over — the ticket reached a
+done status, or was archived. Not an answer and not a cancellation: nobody acted, so nobody is
+notified.
+_Avoid_: expiring (no clock is involved), auto-declining, timing out.
