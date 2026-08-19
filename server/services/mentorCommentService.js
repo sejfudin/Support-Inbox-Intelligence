@@ -87,10 +87,15 @@ const createComment = async (
   const visibleIds = [...new Set(visibleTo.map(String))].filter((id) => id !== user._id.toString());
 
   if (visibleIds.length > 0) {
+    // Same exclusion as listCommentViewers (the picker that offers these ids
+    // in the first place) — a QA test account must never become a real
+    // recipient, even via a crafted id an admin could see on Platform
+    // Management's "All Users" screen (`includeTestAccounts: true` there).
     const viewers = await User.find({
       _id: { $in: visibleIds },
       role: { $in: VIEWER_ROLES },
       status: 'active',
+      isTestAccount: { $ne: true },
     }).select('_id');
 
     if (viewers.length !== visibleIds.length) {

@@ -281,6 +281,17 @@ exports.upsertReadiness = async (req, res, next) => {
 
 exports.listCommentViewers = async (req, res, next) => {
   try {
+    // Only admin/mentor ever compose a mentor note (canWriteMentorData), so
+    // only they have a legitimate reason to see this picker's pool — the
+    // route itself carries no role guard (`protect` only), so this is the
+    // only thing standing between an intern calling this directly and
+    // getting a full staff roster back.
+    if (req.user.role !== ROLES.ADMIN && req.user.role !== ROLES.MENTOR) {
+      const err = new Error('Not authorized');
+      err.statusCode = 403;
+      throw err;
+    }
+
     // Reuses `adminService.getUsers` rather than its own `User.find` — same
     // active-staff-by-role query the mentor/specialization pickers already run,
     // so it inherits the test-account exclusion (and any future change to that
@@ -291,10 +302,19 @@ exports.listCommentViewers = async (req, res, next) => {
       status: 'active',
     });
 
+    // Trimmed to what the audience picker actually reads (fullname, role) —
+    // `getUsers` selects far more (status, workspaceId, hub) for its other
+    // callers, none of which belongs on the wire for this one.
     res.json({
-      users: users.map((u) => ({ ...u.toObject(), id: u._id })),
+      users: users.map((u) => ({ id: u._id, fullname: u.fullname, role: u.role })),
     });
   } catch (error) {
-    next(error);
+    // Was a bare `next(error)` — harmless while the only failure mode was a
+    // DB error, but this function now also throws a deliberate 403, and
+    // there is no global error-handling middleware to read `statusCode` off
+    // an error that reaches `next()` directly. Route it through the same
+    // helper every other handler in this file uses so the 403 actually
+    // surfaces as `{ success: false, message }` instead of a generic 500.
+    handleError(res, error, next);
   }
 };
