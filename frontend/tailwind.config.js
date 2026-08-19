@@ -4,6 +4,9 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx,js,jsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        brand: ['Montserrat', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: 'hsl(var(--border))',
         separator: 'hsl(var(--separator))',
