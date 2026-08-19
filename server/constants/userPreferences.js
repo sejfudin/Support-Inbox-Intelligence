@@ -50,7 +50,13 @@ const USER_PREFERENCE_DEFINITIONS = {
  * migration. Mirrors `NOTIFICATION_GROUPS` in
  * `frontend/src/helpers/notificationPreferences.js`.
  */
-const MUTED_NOTIFICATION_GROUP_VALUES = ['mentions', 'assignments', 'programme', 'reminders'];
+const MUTED_NOTIFICATION_GROUP_VALUES = [
+  'mentions',
+  'assignments',
+  'reviews',
+  'programme',
+  'reminders',
+];
 
 const USER_PREFERENCE_KEYS = [
   ...Object.keys(USER_PREFERENCE_DEFINITIONS),

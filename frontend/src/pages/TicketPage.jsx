@@ -348,6 +348,7 @@ export default function TicketPage() {
     activeFilterChips,
     togglePriority,
     toggleAssignee,
+    toggleAwaitingReview,
     changePriorityOrder,
     changeDueDateOrder,
     changeTicketIdOrder,
@@ -389,6 +390,16 @@ export default function TicketPage() {
     if (ids.length === 0) return;
     setControls((prev) => ({ ...prev, assigneeIds: ids }));
   }, [initialAssigneeRaw, user?._id, setControls]);
+
+  // Seed the "waiting on my review" filter from the dashboard card's "View
+  // all" link, once — same rule as the assignee seed above.
+  const hasSeededAwaitingReviewRef = useRef(false);
+  useEffect(() => {
+    if (hasSeededAwaitingReviewRef.current) return;
+    if (searchParams.get('awaitingReviewFrom') !== 'me') return;
+    hasSeededAwaitingReviewRef.current = true;
+    setControls((prev) => ({ ...prev, awaitingReviewMine: true }));
+  }, [searchParams, setControls]);
 
   const listData = useTicketList({
     activeTab,
@@ -475,6 +486,7 @@ export default function TicketPage() {
 
   const handlePriorityFilterChange = runWithListReset(togglePriority);
   const handleAssigneeFilterChange = runWithListReset(toggleAssignee);
+  const handleAwaitingReviewFilterChange = runWithListReset(toggleAwaitingReview);
   const handlePriorityOrderChange = runWithListReset(changePriorityOrder);
   const handleDueDateOrderChange = runWithListReset(changeDueDateOrder);
   const handleTicketIdOrderChange = runWithListReset(changeTicketIdOrder);
@@ -574,6 +586,8 @@ export default function TicketPage() {
     selectedAssigneeIds: controls.assigneeIds,
     onToggleAssignee: handleAssigneeFilterChange,
     assigneeOptions,
+    awaitingReviewMine: controls.awaitingReviewMine,
+    onToggleAwaitingReview: handleAwaitingReviewFilterChange,
     priorityOrder: controls.priorityOrder,
     onPriorityOrderChange: handlePriorityOrderChange,
     dueDateOrder: controls.dueDateOrder,

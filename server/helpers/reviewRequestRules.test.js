@@ -5,6 +5,7 @@ const {
   assertCanAnswerReview,
   assertCanCancelReview,
   assertCanRequestReview,
+  assertReviewerEligible,
   buildReviewRequest,
   describeReviewRequestHistory,
   detectPullRequestMismatch,
@@ -52,16 +53,21 @@ describe('parsePullRequestUrl', () => {
     ['a blob link', 'https://github.com/acme/widgets/blob/main/README.md'],
     ['a non-GitHub host', 'https://gitlab.com/acme/widgets/pull/42'],
     ['plain http', 'http://github.com/acme/widgets/pull/42'],
-    ['an empty string', ''],
-    ['whitespace only', '   '],
     ['over-long input', `https://github.com/acme/widgets/pull/${'1'.repeat(500)}`],
   ])('rejects %s', (_label, url) => {
     expect(() => parsePullRequestUrl(url)).toThrow(/must look like/);
   });
 
-  it('rejects non-string input', () => {
-    expect(() => parsePullRequestUrl(undefined)).toThrow(/must look like/);
-    expect(() => parsePullRequestUrl(null)).toThrow(/must look like/);
+  it.each([
+    ['an empty string', ''],
+    ['whitespace only', '   '],
+  ])('reports %s as a missing URL, not a shape error', (_label, url) => {
+    expect(() => parsePullRequestUrl(url)).toThrow(/required/);
+  });
+
+  it('reports non-string input as a missing URL', () => {
+    expect(() => parsePullRequestUrl(undefined)).toThrow(/required/);
+    expect(() => parsePullRequestUrl(null)).toThrow(/required/);
   });
 
   it('throws an httpError carrying a 400 status', () => {
@@ -151,6 +157,56 @@ describe('resolveReviewerCandidates', () => {
       candidates: [],
       emptyCause: CANDIDATE_EMPTY_CAUSES.NOT_WORKSPACE_MEMBERS,
     });
+  });
+});
+
+describe('assertReviewerEligible', () => {
+  const mentorA = id('mentor-a');
+  const stranger = id('stranger');
+
+  it('accepts the primary mentor when they are an active workspace member', () => {
+    const workspace = workspaceWith([activeMember(mentorA)]);
+    expect(() =>
+      assertReviewerEligible({
+        reviewerId: mentorA,
+        internProfile: { primaryMentor: mentorA, secondaryMentor: null },
+        workspace,
+      })
+    ).not.toThrow();
+  });
+
+  it("refuses someone who is not one of the intern's mentors", () => {
+    const workspace = workspaceWith([activeMember(stranger)]);
+    expect(() =>
+      assertReviewerEligible({
+        reviewerId: stranger,
+        internProfile: { primaryMentor: mentorA, secondaryMentor: null },
+        workspace,
+      })
+    ).toThrow(/must be one of your own mentors/);
+  });
+
+  it('refuses a secondaryMentor with no specializationAssignedAt (legacy junk)', () => {
+    const secondary = id('secondary');
+    const workspace = workspaceWith([activeMember(secondary)]);
+    expect(() =>
+      assertReviewerEligible({
+        reviewerId: secondary,
+        internProfile: { primaryMentor: mentorA, secondaryMentor: secondary },
+        workspace,
+      })
+    ).toThrow(/must be one of your own mentors/);
+  });
+
+  it('refuses a real mentor who is not an active member of the workspace', () => {
+    const workspace = workspaceWith([]);
+    expect(() =>
+      assertReviewerEligible({
+        reviewerId: mentorA,
+        internProfile: { primaryMentor: mentorA, secondaryMentor: null },
+        workspace,
+      })
+    ).toThrow(/not an active member of this workspace/);
   });
 });
 

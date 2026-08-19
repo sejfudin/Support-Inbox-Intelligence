@@ -13,6 +13,10 @@ import {
   getTicketDescriptionImages,
   uploadTicketDescriptionImages,
   deleteTicketDescriptionImage,
+  getReviewerCandidates,
+  requestReview,
+  answerReview,
+  cancelReview,
 } from '@/api/tickets';
 import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
 import { invalidateTicketScope, invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
@@ -98,6 +102,55 @@ export const useUnarchiveTicket = () => {
       invalidateTicketScope(queryClient, ticketId);
       invalidateWorkspaceTicketsScope(queryClient, workspaceId);
     },
+  });
+};
+
+export const useReviewerCandidates = (ticketId, options = {}) => {
+  return useQuery({
+    queryKey: ['ticket', ticketId, 'review-request', 'candidates'],
+    queryFn: () => getReviewerCandidates(ticketId),
+    enabled: !!ticketId,
+    ...options,
+  });
+};
+
+// Shared by all three review-request mutations below: same scopes invalidate
+// on request, answer and cancel, since each replaces the same ticket field.
+const invalidateReviewRequestScopes = (queryClient, response, ticketId) => {
+  const workspaceId =
+    response?.data?.workspace?._id ?? response?.data?.workspace ?? response?.data?.workspaceId;
+  invalidateTicketScope(queryClient, ticketId);
+  invalidateWorkspaceTicketsScope(queryClient, workspaceId);
+  queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+};
+
+export const useRequestReview = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ticketId, prUrl, reviewerId }) => requestReview(ticketId, { prUrl, reviewerId }),
+    onSuccess: (response, variables) =>
+      invalidateReviewRequestScopes(queryClient, response, variables.ticketId),
+  });
+};
+
+export const useAnswerReview = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ticketId, decision }) => answerReview(ticketId, { decision }),
+    onSuccess: (response, variables) =>
+      invalidateReviewRequestScopes(queryClient, response, variables.ticketId),
+  });
+};
+
+export const useCancelReview = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (ticketId) => cancelReview(ticketId),
+    onSuccess: (response, ticketId) =>
+      invalidateReviewRequestScopes(queryClient, response, ticketId),
   });
 };
 

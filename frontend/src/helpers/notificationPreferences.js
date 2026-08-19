@@ -51,6 +51,12 @@ export const NOTIFICATION_GROUPS = [
     ],
   },
   {
+    key: 'reviews',
+    label: 'Code reviews',
+    hint: 'An intern asks you to review their work, or your own review is answered.',
+    types: ['ticket_review_requested', 'ticket_review_completed'],
+  },
+  {
     key: 'reminders',
     label: 'Daily reminder',
     hint: 'The nudge to record attendance and post your daily.',

@@ -28,6 +28,9 @@ const NOT_REVIEWER_ERROR = 'Only the requested reviewer may answer this review';
 const NOT_PARTY_ERROR = 'Only the requesting intern or the reviewer may cancel this review';
 const INVALID_DECISION_ERROR = 'A review can only be answered approved or changes requested';
 const NOT_PENDING_ERROR = 'This review request has already been answered';
+const NOT_MENTOR_ERROR = 'The reviewer must be one of your own mentors';
+const REVIEWER_NOT_MEMBER_ERROR = 'The reviewer is not an active member of this workspace';
+const MISSING_PR_URL_ERROR = 'A pull request URL is required to request a review';
 
 const CANDIDATE_EMPTY_CAUSES = Object.freeze({
   NO_PROFILE: 'no_profile',
@@ -49,7 +52,10 @@ const MISMATCH = Object.freeze({
  */
 const parsePullRequestUrl = (rawUrl) => {
   const url = typeof rawUrl === 'string' ? rawUrl.trim() : '';
-  if (!url || url.length > PR_URL_MAX_LENGTH) {
+  if (!url) {
+    throw httpError(MISSING_PR_URL_ERROR, 400);
+  }
+  if (url.length > PR_URL_MAX_LENGTH) {
     throw httpError(PR_URL_ERROR, 400);
   }
   const match = PR_URL_PATTERN.exec(url);
@@ -61,28 +67,37 @@ const parsePullRequestUrl = (rawUrl) => {
 };
 
 /**
- * Which of the requesting intern's mentors may be asked: `primaryMentor`
- * always, `secondaryMentor` only once `specializationAssignedAt` is set — a
- * `secondaryMentor` without it is legacy junk left by the specialization
- * flow (ADR 0002), not a real reviewer option. The result is filtered to
- * active members of the ticket's workspace, reusing the same predicate every
- * other workspace-scoped read uses.
- *
- * An empty result is first-class: `emptyCause` tells the UI whether there is
- * no profile at all, no mentor set on it, or mentors exist but none belongs
- * to this workspace.
+ * The requester's mentors, unfiltered by workspace membership — the raw set
+ * `resolveReviewerCandidates` filters, and the set `assertReviewerEligible`
+ * checks a chosen reviewer against. Kept in one place so the two never define
+ * "one of my mentors" differently: `primaryMentor` always, `secondaryMentor`
+ * only once `specializationAssignedAt` is set — a `secondaryMentor` without it
+ * is legacy junk left by the specialization flow (ADR 0002), not a real
+ * reviewer option.
+ */
+const mentorsForProfile = (internProfile) => {
+  if (!internProfile) return [];
+  const mentors = [];
+  if (internProfile.primaryMentor) mentors.push(internProfile.primaryMentor);
+  if (internProfile.secondaryMentor && internProfile.specializationAssignedAt) {
+    mentors.push(internProfile.secondaryMentor);
+  }
+  return mentors;
+};
+
+/**
+ * `mentorsForProfile`'s result filtered to active members of the ticket's
+ * workspace, reusing the same predicate every other workspace-scoped read
+ * uses. An empty result is first-class: `emptyCause` tells the UI whether
+ * there is no profile at all, no mentor set on it, or mentors exist but none
+ * belongs to this workspace.
  */
 const resolveReviewerCandidates = ({ internProfile, workspace }) => {
   if (!internProfile) {
     return { candidates: [], emptyCause: CANDIDATE_EMPTY_CAUSES.NO_PROFILE };
   }
 
-  const mentors = [];
-  if (internProfile.primaryMentor) mentors.push(internProfile.primaryMentor);
-  if (internProfile.secondaryMentor && internProfile.specializationAssignedAt) {
-    mentors.push(internProfile.secondaryMentor);
-  }
-
+  const mentors = mentorsForProfile(internProfile);
   if (mentors.length === 0) {
     return { candidates: [], emptyCause: CANDIDATE_EMPTY_CAUSES.NO_MENTOR };
   }
@@ -93,6 +108,21 @@ const resolveReviewerCandidates = ({ internProfile, workspace }) => {
   }
 
   return { candidates, emptyCause: null };
+};
+
+/**
+ * Guards the reviewer named on an incoming request, with the two failure
+ * causes the route must report distinctly: picking someone who is not one of
+ * the requester's own mentors, versus picking a real mentor who is not an
+ * active member of the ticket's workspace.
+ */
+const assertReviewerEligible = ({ reviewerId, internProfile, workspace }) => {
+  const mentors = mentorsForProfile(internProfile);
+  const isMentor = mentors.some((mentorId) => String(mentorId) === String(reviewerId));
+  if (!isMentor) throw httpError(NOT_MENTOR_ERROR, 403);
+  if (!isActiveWorkspaceMember(workspace, reviewerId)) {
+    throw httpError(REVIEWER_NOT_MEMBER_ERROR, 403);
+  }
 };
 
 /** Requesting requires an intern profile and assignee membership on the ticket. */
@@ -189,17 +219,21 @@ module.exports = {
   CANDIDATE_EMPTY_CAUSES,
   INVALID_DECISION_ERROR,
   MISMATCH,
+  MISSING_PR_URL_ERROR,
   NOT_ASSIGNEE_ERROR,
   NOT_INTERN_ERROR,
+  NOT_MENTOR_ERROR,
   NOT_PARTY_ERROR,
   NOT_PENDING_ERROR,
   NOT_REVIEWER_ERROR,
   PR_URL_ERROR,
+  REVIEWER_NOT_MEMBER_ERROR,
   REVIEW_REQUEST_STATES,
   answerReviewRequest,
   assertCanAnswerReview,
   assertCanCancelReview,
   assertCanRequestReview,
+  assertReviewerEligible,
   buildReviewRequest,
   describeReviewRequestHistory,
   detectPullRequestMismatch,

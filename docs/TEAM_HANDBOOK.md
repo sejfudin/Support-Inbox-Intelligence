@@ -22,6 +22,7 @@
 - Only role that can reassign a specialization to the intern's other position, change the specialization mentor, or clear a specialization entirely
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth) — note the intern now reads their own scores **and the written notes** on their My Progress page, so write them as feedback addressed to the intern
 - Only role that can set readiness (by technology or by position) for an intern — the intern now sees their own levels, and who set them, on My Progress
+- Can answer a review request an intern sent them, same as a mentor — whenever they're the primary or specialization mentor named on it
 - Only role that can see the attendance roster (all interns' attendance) — an intern's own check-in stays theirs
 - Only role that approves time-away requests — remote work, vacation, religious holidays and sick days all land in one queue on the Absence requests page, its own item in the sidebar. Approving records those days for the intern (they don't check in), rejecting refuses the whole request, and an approval can be revoked later if it was a mistake. Remote days still count as attendance; the other three take the day out of the percentage altogether, so approving leave never hurts an intern's number and never flatters it either. The Absence requests sidebar item shows a pulsing dot while anything is waiting — worth watching, since a sick day is always for today or the last couple of days and goes stale fast
 - Everything already decided moves to the History tab on that page — approved, rejected, withdrawn or revoked, with who decided it and when
@@ -130,6 +131,7 @@
 - Can't create workspaces
 - No access to programme-wide statistics
 - Also works on tickets/projects within the workspace they belong to, independent of the mentor role — creates tickets, comments, tracks time, exports to CSV, uses AI assistance (summaries, description suggestions), and sees their workspace's analytics
+- Can answer a review request an intern sent them — approve it or ask for changes — from the ticket itself. No control to request a review themselves; that stays intern-only
 
 **Intern**
 - Sees and edits only their own profile
@@ -147,6 +149,7 @@
 - Sees no one else's recommendations, evaluations, or readiness
 - Can declare an optional secondary position alongside their main one; once an admin assigns a specialization, their confirmed position locks (read-only, badged) and their secondary stays editable
 - Works on tickets/projects within their workspace — creates tickets, comments, tracks time, uses AI assistance, sees their workspace's analytics
+- Can request a review on a ticket they're assigned to — pastes the pull-request URL and picks one of their own mentors (primary, plus their specialization mentor once one is assigned) who is in the same workspace. Asking again replaces the earlier request. Mentors and admins have no equivalent control — this is the intern asking for their own work to be looked at
 - Can ask for time away from the Attendance page — four kinds, all decided by an admin as a whole request, all withdrawable while still pending:
   - **Remote work** — up to 3 days per request, no yearly limit. Need more than 3 — an exam week, say — send another request; there's no cap on how many. An approved day **counts as attendance** without checking in
   - **Vacation** — up to 5 days per request and **5 days a year**. Once the year's 5 are used the option locks until January

@@ -89,6 +89,7 @@ export const DEFAULT_TICKET_CONTROLS = {
   priorityOrder: PRIORITY_ORDER_VALUES.NONE,
   dueDateOrder: DUE_DATE_ORDER_VALUES.DEFAULT,
   ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,
+  awaitingReviewMine: false,
 };
 
 const PRIORITY_VALUE_SET = new Set(
@@ -173,6 +174,10 @@ export const buildTicketQueryParamsFromControls = (controls = {}) => {
 
   if (assigneeIds.length > 0) {
     params.assigneeIds = serializeCsvParam(assigneeIds);
+  }
+
+  if (controls.awaitingReviewMine) {
+    params.awaitingReviewFrom = 'me';
   }
 
   if (priorityOrder !== PRIORITY_ORDER_VALUES.NONE) {

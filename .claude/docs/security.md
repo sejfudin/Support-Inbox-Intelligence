@@ -45,6 +45,17 @@ caller's workspace.
   (category), `resolveBlockingTicket` (`blockedBy.ticket` — a ticket pointing at another ticket,
   so the same rule turns inward) in `ticketService.js`, on both create and update. Add the
   equivalent check when you add a new reference field.
+- **`Ticket.reviewRequest.reviewer`** gets the same "foreign key is part of the scope" treatment:
+  `assertReviewerEligible` (`server/helpers/reviewRequestRules.js`) rejects a reviewer who is a
+  real mentor of the requesting intern but not an **active member of the ticket's workspace** —
+  the membership filter exists because nothing else links a mentor to a workspace while every
+  ticket read is workspace-scoped, so an unfiltered reviewer set would produce a notification
+  whose deep link 404s for its own recipient. Three guards gate the three review-request actions:
+  requesting is intern + assignee-of-the-ticket only (`assertCanRequestReview`), answering is the
+  named reviewer only (`assertCanAnswerReview`), cancelling is the requesting intern or the named
+  reviewer (`assertCanCancelReview`). All three routes still call `assertWorkspaceAccess` first,
+  same as every other ticket action — the reviewer guard is in addition to, not instead of, the
+  workspace check.
 
 ## Socket rooms follow the same rule as HTTP
 

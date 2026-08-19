@@ -17,6 +17,7 @@ import { useTicketDetailsFormState } from '@/hooks/useTicketDetailsFormState';
 import { exportTicketToCsv } from '@/helpers/ticketCsvExport';
 import { isBlockedStatusId, toBlockerPayload } from '@/helpers/ticketBlocker';
 import BlockedByField from '@/components/Tickets/BlockedByField';
+import { TicketReviewField } from '@/components/Tickets/TicketReviewField';
 import TicketComments from '@/components/Tickets/TicketComments';
 import TicketHistory from '@/components/Tickets/TicketHistory';
 import { ConfirmModal } from './ConfirmModal';
@@ -437,18 +438,26 @@ export const TicketDetailsModal = ({
               onCategoryChange={setCurrentCategory}
               statusTracksTime={helpers.statusTracksTime}
               lead={
-                isBlockedSelected ? (
-                  <BlockedByField
-                    value={currentBlocker}
-                    onChange={setCurrentBlocker}
-                    workspaceId={workspaceId}
-                    currentTicketId={ticketId}
+                <>
+                  {isBlockedSelected ? (
+                    <BlockedByField
+                      value={currentBlocker}
+                      onChange={setCurrentBlocker}
+                      workspaceId={workspaceId}
+                      currentTicketId={ticketId}
+                      disabled={isArchived}
+                      onOpenTicket={onOpenTicket ? handleOpenBlockingTicket : null}
+                      idPrefix={`ticket-${ticketId}-blocker`}
+                      variant="rail"
+                    />
+                  ) : null}
+                  <TicketReviewField
+                    ticket={ticket}
+                    ticketId={ticketId}
+                    currentUser={user}
                     disabled={isArchived}
-                    onOpenTicket={onOpenTicket ? handleOpenBlockingTicket : null}
-                    idPrefix={`ticket-${ticketId}-blocker`}
-                    variant="rail"
                   />
-                ) : null
+                </>
               }
             >
               {ticket?.linkedPullRequest && (

@@ -15,6 +15,7 @@ export const getAllTickets = async ({
   sortBy,
   sortOrder,
   periodDays,
+  awaitingReviewFrom,
 } = {}) => {
   const response = await apiClient.get('/tickets', {
     params: {
@@ -32,6 +33,7 @@ export const getAllTickets = async ({
       sortBy,
       sortOrder,
       periodDays,
+      awaitingReviewFrom,
     },
   });
   return response.data;
@@ -66,6 +68,31 @@ export const archiveTicket = async (ticketId) => {
 
 export const unarchiveTicket = async (ticketId) => {
   const response = await apiClient.patch(`/tickets/${ticketId}/unarchive`);
+  return response.data;
+};
+
+export const getReviewerCandidates = async (ticketId) => {
+  const response = await apiClient.get(`/tickets/${ticketId}/review-request/candidates`);
+  return response.data;
+};
+
+export const requestReview = async (ticketId, { prUrl, reviewerId }) => {
+  const response = await apiClient.post(`/tickets/${ticketId}/review-request`, {
+    prUrl,
+    reviewerId,
+  });
+  return response.data;
+};
+
+export const answerReview = async (ticketId, { decision }) => {
+  const response = await apiClient.patch(`/tickets/${ticketId}/review-request`, {
+    state: decision,
+  });
+  return response.data;
+};
+
+export const cancelReview = async (ticketId) => {
+  const response = await apiClient.delete(`/tickets/${ticketId}/review-request`);
   return response.data;
 };
 

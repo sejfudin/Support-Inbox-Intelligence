@@ -83,6 +83,14 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       });
     }
 
+    if (controls.awaitingReviewMine) {
+      chips.push({
+        key: 'awaitingReviewMine',
+        label: 'Waiting on my review',
+        className: 'border-border/80 bg-secondary/70 text-foreground',
+      });
+    }
+
     return chips;
   }, [controls, assigneeOptions]);
 
@@ -145,6 +153,10 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     }));
   };
 
+  const toggleAwaitingReview = () => {
+    setControls((prev) => ({ ...prev, awaitingReviewMine: !prev.awaitingReviewMine }));
+  };
+
   const clearAllFilters = () => {
     setControls({ ...DEFAULT_TICKET_CONTROLS });
   };
@@ -189,6 +201,11 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
         ...prev,
         ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,
       }));
+      return;
+    }
+
+    if (chipKey === 'awaitingReviewMine') {
+      setControls((prev) => ({ ...prev, awaitingReviewMine: false }));
     }
   };
 
@@ -198,6 +215,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     activeFilterChips,
     togglePriority,
     toggleAssignee,
+    toggleAwaitingReview,
     changePriorityOrder,
     changeDueDateOrder,
     changeTicketIdOrder,

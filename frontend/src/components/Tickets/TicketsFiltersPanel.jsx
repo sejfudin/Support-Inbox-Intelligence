@@ -47,6 +47,9 @@ export default function TicketFiltersPanel({
   onToggleAssignee,
   assigneeOptions = [],
 
+  awaitingReviewMine = false,
+  onToggleAwaitingReview,
+
   priorityOrder = PRIORITY_ORDER_VALUES.NONE,
   onPriorityOrderChange,
   priorityOrderOptions = PRIORITY_ORDER_OPTIONS,
@@ -64,7 +67,8 @@ export default function TicketFiltersPanel({
   onClearAllFilters,
   className,
 }) {
-  const activeFilterCount = selectedPriorities.length + selectedAssigneeIds.length;
+  const activeFilterCount =
+    selectedPriorities.length + selectedAssigneeIds.length + (awaitingReviewMine ? 1 : 0);
   const activeSortCount =
     (priorityOrder !== PRIORITY_ORDER_VALUES.NONE ? 1 : 0) +
     (dueDateOrder !== DUE_DATE_ORDER_VALUES.DEFAULT ? 1 : 0) +
@@ -170,6 +174,16 @@ export default function TicketFiltersPanel({
                   ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem
+              checked={awaitingReviewMine}
+              onCheckedChange={() => onToggleAwaitingReview?.()}
+              onSelect={(e) => e.preventDefault()}
+              data-test="tickets-filter-awaiting-review-option"
+            >
+              Waiting on my review
+            </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

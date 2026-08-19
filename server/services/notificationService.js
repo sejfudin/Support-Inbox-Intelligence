@@ -206,6 +206,80 @@ const notifyTicketMention = async ({
   }
 };
 
+// Recipient: the reviewer. Fires on a first request AND every repeat request
+// (see ticket-review-requests spec) — a silent second round means the mentor
+// never looks, so this is deliberately called on replace-on-re-request too.
+const notifyTicketReviewRequested = async ({ ticket, reviewerId, actorUserId }) => {
+  if (!ticket || !ticket._id) return;
+
+  const rid = toRecipientId(reviewerId);
+  const actorId = toRecipientId(actorUserId);
+  if (!rid || rid === actorId) return;
+
+  const taskLabel = ticket.taskNumber ? `#${ticket.taskNumber}` : 'ticket';
+  const title = `Review requested on ${taskLabel}`;
+  const body = ticket.subject ? `Task: ${ticket.subject}` : '';
+  const workspaceId = ticket.workspace;
+
+  const n = await Notification.create({
+    recipient: rid,
+    read: false,
+    type: 'ticket_review_requested',
+    title,
+    body,
+    ticket: ticket._id,
+    workspace: workspaceId,
+  });
+
+  sendToUser(rid, 'new_notification', {
+    notification: n.toObject(),
+    recipientId: String(rid),
+    scopes: [
+      invalidationScopes.user(rid),
+      invalidationScopes.ticket(ticket._id),
+      invalidationScopes.workspace(workspaceId),
+    ],
+    unreadDelta: 1,
+  });
+};
+
+// Recipient: the requesting intern. The verdict itself carries no words, so
+// the body must point at the pull request — that link is the only place the
+// reviewer's actual comments live.
+const notifyTicketReviewCompleted = async ({ ticket, internId, decision, prUrl }) => {
+  if (!ticket || !ticket._id) return;
+
+  const rid = toRecipientId(internId);
+  if (!rid) return;
+
+  const taskLabel = ticket.taskNumber ? `#${ticket.taskNumber}` : 'ticket';
+  const verdictLabel = decision === 'approved' ? 'Approved' : 'Changes requested';
+  const title = `${verdictLabel}: ${taskLabel}`;
+  const body = prUrl ? `Pull request: ${prUrl}` : '';
+  const workspaceId = ticket.workspace;
+
+  const n = await Notification.create({
+    recipient: rid,
+    read: false,
+    type: 'ticket_review_completed',
+    title,
+    body,
+    ticket: ticket._id,
+    workspace: workspaceId,
+  });
+
+  sendToUser(rid, 'new_notification', {
+    notification: n.toObject(),
+    recipientId: String(rid),
+    scopes: [
+      invalidationScopes.user(rid),
+      invalidationScopes.ticket(ticket._id),
+      invalidationScopes.workspace(workspaceId),
+    ],
+    unreadDelta: 1,
+  });
+};
+
 module.exports = {
   listForUser,
   markRead,
@@ -213,4 +287,6 @@ module.exports = {
   notifyNewTicketComment,
   notifyTicketAssigned,
   notifyTicketMention,
+  notifyTicketReviewRequested,
+  notifyTicketReviewCompleted,
 };
