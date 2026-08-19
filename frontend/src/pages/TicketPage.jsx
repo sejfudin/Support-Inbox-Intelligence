@@ -403,6 +403,7 @@ export default function TicketPage() {
 
   const statusCountsParams = getTicketsQueryParams({
     page: 1,
+    archived: false,
     workspaceId: effectiveWorkspaceId,
   }).board;
 
@@ -412,14 +413,17 @@ export default function TicketPage() {
 
   const statusTabCounts = useMemo(() => {
     const rawTickets = statusCountsData?.data || [];
-    const counts = { all: rawTickets.length };
+    const counts = { all: 0 };
     for (const ticket of rawTickets) {
       const slug = extractStatusSlug(ticket.status).toLowerCase();
       if (!slug) continue;
       counts[slug] = (counts[slug] || 0) + 1;
+      // The "All" tab's table excludes Backlog (status filter "not_null"), so its
+      // count must skip Backlog tickets too, or the number never matches the rows.
+      if (slug !== helpers.backlogSlug) counts.all += 1;
     }
     return counts;
-  }, [statusCountsData]);
+  }, [statusCountsData, helpers.backlogSlug]);
 
   const statusTabsWithCounts = useMemo(
     () =>
@@ -457,8 +461,9 @@ export default function TicketPage() {
         statusIsDone: helpers.statusIsDone,
         statusTracksTime: helpers.statusTracksTime,
         hiddenColumns: ['totalTimeSpent'],
+        onOpenTicket: openTicketDetails,
       }),
-    [helpers, timeSpentTick]
+    [helpers, timeSpentTick, openTicketDetails]
   );
 
   const runWithListReset =
@@ -780,6 +785,7 @@ export default function TicketPage() {
         focusCommentId={focusCommentId}
         focusRequestToken={focusRequestToken}
         onFocusConsumed={handleFocusConsumed}
+        onOpenTicket={openTicketDetails}
       />
     </PageShell>
   );

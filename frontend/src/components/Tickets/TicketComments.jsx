@@ -4,7 +4,7 @@ import { MessageSquare } from 'lucide-react';
 import { useComments, useDeleteComment } from '@/queries/comments';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { DeleteConfirmModal } from '../Modals/DeleteConfirmModal';
+import { ConfirmModal } from '../Modals/ConfirmModal';
 import { CommentItem } from './CommentItem';
 import { CommentInput } from './CommentInput';
 import CommentsSkeleton from '../Skeletons/CommentsSkeleton';
@@ -149,7 +149,7 @@ export default function TicketComments({
         </AccordionContent>
       </AccordionItem>
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={!!commentToDelete}
         onClose={() => setCommentToDelete(null)}
         onConfirm={handleConfirmDelete}

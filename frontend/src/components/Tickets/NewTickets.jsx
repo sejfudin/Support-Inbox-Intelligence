@@ -20,6 +20,8 @@ import { useAiDescriptionGenerator } from '@/hooks/useAiDescriptionGenerator';
 import { htmlToPlainText } from '@/helpers/aiDescriptionPrompt';
 import { templateTextToDescriptionHtml } from '@/helpers/ticketDescriptionTemplates';
 import AiDescriptionPanel from '@/components/Tickets/AiDescriptionPanel';
+import BlockedByField from '@/components/Tickets/BlockedByField';
+import { emptyBlocker, isBlockedStatusId, toBlockerPayload } from '@/helpers/ticketBlocker';
 import StatusDropdown from '@/components/StatusDropdown';
 import PriorityDropdown from '@/components/PriorityDropdown';
 import StoryPointsField from '@/components/StoryPointsField';
@@ -75,6 +77,8 @@ const NewTickets = ({
 
   const resolvedInitialStatus = initialStatus ?? statusOptions[0]?.value ?? '';
   const { form: newTicket, updateField, resetForm } = useTicketForm(resolvedInitialStatus);
+
+  const isBlockedSelected = !hideStatus && isBlockedStatusId(statusOptions, newTicket.status);
 
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
@@ -166,6 +170,15 @@ const NewTickets = ({
     } else if (ticketData.status) {
       ticketData.statusId = ticketData.status;
       delete ticketData.status;
+    }
+
+    // A blocker only travels with a Blocked ticket. Switching the status back and
+    // forth keeps what was typed (a misclick shouldn't lose it), so what the form
+    // holds is filtered here rather than cleared as the dropdown moves.
+    if (isBlockedSelected) {
+      ticketData.blockedBy = toBlockerPayload(newTicket.blockedBy);
+    } else {
+      delete ticketData.blockedBy;
     }
 
     if (ticketData.dueDate) {
@@ -569,6 +582,15 @@ const NewTickets = ({
                     )}
                   </div>
                 </div>
+
+                {isBlockedSelected && (
+                  <BlockedByField
+                    value={newTicket.blockedBy}
+                    onChange={(next) => updateField('blockedBy', next)}
+                    workspaceId={effectiveWorkspaceId}
+                    idPrefix="new-ticket-blocker"
+                  />
+                )}
               </aside>
             </div>
           </div>

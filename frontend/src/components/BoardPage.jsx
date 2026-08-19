@@ -15,8 +15,8 @@ import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react';
 import { PR_STATE_CONFIG } from '@/components/PRCard';
 import PriorityIndicator from '@/components/PriorityIndicator';
 import AssigneesAvatar from '@/components/Tickets/AssigneesAvatar';
+import BlockedByChip from '@/components/Tickets/BlockedByChip';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getColumnStyle } from '@/helpers/ticketStatus';
@@ -73,6 +73,7 @@ function buildBoardTaskView(ticket, boardHelpers) {
     storyPoints: normalized.storyPoints,
     categoryLabel,
     linkedPullRequest: ticket.linkedPullRequest || null,
+    blockingTicket: ticket.blockedBy?.ticket || null,
     columnId: colId,
     updatedAt: ticket.updatedAt ?? null,
     // Raw values the board sort needs — `dueLabel` above is display-only, and a
@@ -124,6 +125,9 @@ const BoardTaskCardBody = memo(function BoardTaskCardBody({
             {task.storyPoints} pts
           </span>
         ) : null}
+        {/* `onOpen` is "open ticket details for this id", so the chip reuses it to
+            open the blocker. It stops the click reaching the card underneath. */}
+        <BlockedByChip blocker={task.blockingTicket} onOpenTicket={onOpen} className="flex-none" />
         <span className="min-w-0 flex-1" />
         {prLabel && prStateConfig ? (
           <span

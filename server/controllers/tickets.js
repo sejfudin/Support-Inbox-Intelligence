@@ -2,6 +2,7 @@ const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
 const { assertWorkspaceAccess, resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const { ROLES } = require('../constants/roles');
+const { handleControllerError } = require('../helpers/controllerError');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -106,7 +107,7 @@ const getTicketById = async (req, res) => {
   }
 };
 
-const createTicket = async (req, res) => {
+const createTicket = async (req, res, next) => {
   try {
     const {
       subject,
@@ -119,6 +120,7 @@ const createTicket = async (req, res) => {
       dueDate,
       storyPoints,
       category,
+      blockedBy,
     } = req.body;
     const isAdmin = req.user?.role === ROLES.ADMIN;
     const hasStatus = status !== undefined && status !== null && status !== '';
@@ -160,6 +162,7 @@ const createTicket = async (req, res) => {
       dueDate,
       storyPoints: normalizedStoryPoints,
       category: category || null,
+      blockedBy,
     });
     res.status(201).json({
       success: true,
@@ -192,6 +195,13 @@ const createTicket = async (req, res) => {
         success: false,
         message: error.message,
       });
+    }
+
+    // Services raise `httpError` for validation the caller can fix (a blocker
+    // pointing outside the workspace, a circular block) — the status rides on the
+    // error, so it maps straight through instead of reading as a server fault.
+    if (Number.isInteger(error?.statusCode)) {
+      return handleControllerError(res, error, next);
     }
 
     res.status(500).json({
@@ -230,6 +240,7 @@ const updateTicket = async (req, res, next) => {
       'dueDate',
       'storyPoints',
       'category',
+      'blockedBy',
     ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
@@ -280,6 +291,12 @@ const updateTicket = async (req, res, next) => {
 
     if (error.message === STORY_POINTS_ERROR) {
       return res.status(400).json({ message: error.message });
+    }
+
+    // See the note in `createTicket` — an error carrying a `statusCode` is one the
+    // caller can act on; only the ones without fall through as an unexpected 500.
+    if (Number.isInteger(error?.statusCode)) {
+      return handleControllerError(res, error, next);
     }
 
     next(error);

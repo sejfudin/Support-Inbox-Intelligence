@@ -43,13 +43,6 @@ export default function BacklogPage() {
     defaultSort: BACKLOG_DEFAULT_SORT,
   });
 
-  const columns = createTicketColumns({
-    statusBadgeConfig: helpers.statusBadgeConfig,
-    statusIsDone: helpers.statusIsDone,
-    statusTracksTime: helpers.statusTracksTime,
-    variant: 'backlog',
-  });
-
   const {
     isNewOpen,
     initialStatus,
@@ -61,6 +54,16 @@ export default function BacklogPage() {
     closeTicketDetails,
   } = useTicketModals();
   useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
+
+  // Built after the modal hook because the subject cell's blocked-by chip opens a
+  // ticket through it.
+  const columns = createTicketColumns({
+    statusBadgeConfig: helpers.statusBadgeConfig,
+    statusIsDone: helpers.statusIsDone,
+    statusTracksTime: helpers.statusTracksTime,
+    variant: 'backlog',
+    onOpenTicket: openTicketDetails,
+  });
   const { data: me } = useGetMe();
   const canCreateTicket = isAdmin(me?.role) || isMentor(me?.role) || isIntern(me?.role);
 
@@ -130,6 +133,7 @@ export default function BacklogPage() {
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
+        onOpenTicket={openTicketDetails}
       />
     </PageShell>
   );

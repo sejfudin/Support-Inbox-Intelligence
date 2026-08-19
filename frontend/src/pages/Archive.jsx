@@ -65,16 +65,18 @@ export default function ArchivePage() {
     defaultSort: ARCHIVE_DEFAULT_SORT,
   });
 
+  const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
+    useTicketModals();
+
   const columns = createTicketColumns({
     statusBadgeConfig: helpers.statusBadgeConfig,
     statusIsDone: helpers.statusIsDone,
     statusTracksTime: helpers.statusTracksTime,
     variant: 'archive',
     onRestore: handleRestore,
+    onOpenTicket: openTicketDetails,
   });
 
-  const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
-    useTicketModals();
   useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
 
   return (
@@ -123,6 +125,7 @@ export default function ArchivePage() {
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
+        onOpenTicket={openTicketDetails}
       />
     </PageShell>
   );

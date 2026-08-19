@@ -52,6 +52,7 @@ export function TicketMetaRail({
   currentCategory,
   onCategoryChange,
   statusTracksTime,
+  lead,
   children,
 }) {
   const tracksTime = isTicketTrackingTime(ticket, statusTracksTime);
@@ -76,6 +77,11 @@ export function TicketMetaRail({
       )}
       data-test="ticket-modal-meta-rail"
     >
+      {/* Above ASSIGNEE, ahead of the mockup's order, because the only thing that
+          renders here is the blocker — the answer to "why is this not moving?"
+          belongs at the top of the column, not under the category chips. */}
+      {lead}
+
       <RailField label="ASSIGNEE">
         <TicketAssigneesField
           isArchived={isArchived}

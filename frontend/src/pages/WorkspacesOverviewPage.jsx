@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import { uploadWorkspaceLogo } from '@/api/workspaces';
 import {
   WORKSPACE_LOGO_ACCEPT,
@@ -305,7 +305,7 @@ export default function WorkspacesOverviewPage() {
         )}
       </div>
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={!!deleteTargetId}
         onClose={() => {
           setDeleteTargetId(null);

@@ -30,7 +30,7 @@ import { getAvatarColor } from '@/helpers/avatarColor';
 import { CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
 import { canDeleteWorkspace, isPlatformAdmin } from '@/helpers/workspacePermissions';
-import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import { useTickets } from '@/queries/tickets';
 import { useUsers } from '@/queries/users';
 import {
@@ -518,7 +518,7 @@ export default function WorkspaceDetailPage() {
         </div>
       </div>
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={isDeleteOpen}
         onClose={() => {
           setIsDeleteOpen(false);

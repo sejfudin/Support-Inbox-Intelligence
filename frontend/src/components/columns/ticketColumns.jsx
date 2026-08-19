@@ -9,6 +9,7 @@ import { getTicketTimeSpentSeconds, isTicketTrackingTime } from '../../helpers/t
 import { cn } from '@/lib/utils';
 import { isSortableTicketColumn } from '@/helpers/ticketSort';
 import StoryPointsIndicator from '../StoryPointsIndicator';
+import BlockedByChip from '../Tickets/BlockedByChip';
 
 const stripHtml = (html) => {
   if (!html) return '';
@@ -39,6 +40,7 @@ export function createTicketColumns({
   statusTracksTime,
   variant = 'default',
   onRestore,
+  onOpenTicket,
   hiddenColumns = [],
 } = {}) {
   // Column order and content widths are the mockup's: 56 · 1fr(min 180) · 116 ·
@@ -87,6 +89,14 @@ export function createTicketColumns({
             >
               {row.original.title}
             </span>
+            {/* Sits with the title rather than in its own column: it is a fact
+                about this ticket's title row, and a column would be blank for
+                almost every ticket on the board. */}
+            <BlockedByChip
+              blocker={row.original.blockedBy?.ticket}
+              onOpenTicket={onOpenTicket}
+              className="shrink-0"
+            />
             {comments > 0 ? (
               <span className="flex shrink-0 items-center gap-[3px] text-[11px] text-muted-foreground/75">
                 <MessageSquare className="h-3 w-3" aria-hidden />

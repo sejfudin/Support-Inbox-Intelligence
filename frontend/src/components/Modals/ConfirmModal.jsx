@@ -3,20 +3,25 @@ import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 /**
- * The one "are you sure?" dialog, shared by ticket, workspace, specialization and
- * daily deletions.
+ * The one "are you sure?" dialog — deletions, but also archive, unlink, and any
+ * other action worth a confirm step. `title`/`description`/`confirmLabel` are
+ * always passed by the caller; the defaults below only cover the plain-delete
+ * case for a caller that doesn't bother.
  *
  * This is the case the design carves out for a filled destructive button: the
- * whole view *is* the confirmation step, so Delete gets `destructive-solid` and
+ * whole view *is* the confirmation step, so Confirm gets `destructive-solid` and
  * `lg`, the modal-footer size. Everywhere else a destructive action is an outline
- * — a page of filled red buttons stops reading as a warning.
+ * — a page of filled red buttons stops reading as a warning. A caller confirming
+ * a non-destructive action (e.g. discarding unsaved changes) still uses this
+ * shell; the red icon reads a little strong there, but a second visual variant
+ * for that one case isn't worth it yet.
  *
  * The colours run through `--tone-danger` rather than the raw `red-*` steps they
  * used to use. Those steps had no dark variants, so in dark mode this dialog put
  * a red-600 icon on a red-100 disc — near-invisible — and the same tokens are
  * what Settings → Accessibility → Colour-blind safe repaints.
  */
-export const DeleteConfirmModal = ({
+export const ConfirmModal = ({
   isOpen,
   onClose,
   onConfirm,
