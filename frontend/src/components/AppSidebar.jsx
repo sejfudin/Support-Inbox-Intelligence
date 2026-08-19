@@ -50,7 +50,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLogoutUser } from '@/queries/auth';
 import { useMyInvitations } from '@/queries/invitations';
-import { useAttendanceRequests } from '@/queries/attendanceRequests';
+import { useAbsenceRequests } from '@/queries/absenceRequests';
 import { useStaffingRequestNews } from '@/queries/staffingRequests';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
@@ -232,11 +232,11 @@ export default function AppSidebar() {
   // Admin-only: the endpoint is admin-guarded, so asking as anyone else is a
   // guaranteed 403. Shares its query key with the Attendance page's own fetch, so
   // opening that page costs no extra request.
-  const { data: attendanceRequests } = useAttendanceRequests(
+  const { data: absenceRequests } = useAbsenceRequests(
     { status: 'pending' },
     { enabled: isAdmin(user?.role) }
   );
-  const pendingRequests = attendanceRequests?.pendingCount ?? 0;
+  const pendingRequests = absenceRequests?.pendingCount ?? 0;
 
   // Tooltips replace labels only in the desktop rail — the mobile sheet always
   // shows the full-width sidebar, so it must keep its labels.

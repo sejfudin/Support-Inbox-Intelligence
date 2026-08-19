@@ -17,7 +17,7 @@ import { ProfileStatRow } from '@/components/profile/ProfileStatRow';
 import { useAuth } from '@/context/AuthContext';
 import { useUpdateUser } from '@/queries/auth';
 import { useMyAttendance } from '@/queries/attendance';
-import { useMyAttendanceRequests } from '@/queries/attendanceRequests';
+import { useMyAbsenceRequests } from '@/queries/absenceRequests';
 import { useMyTickets } from '@/queries/tickets';
 import { useMyWorkspaces, useUserAnalytics } from '@/queries/workspaces';
 import { buildProfileActivity } from '@/helpers/profileActivity';
@@ -54,7 +54,7 @@ const ProfilePage = () => {
   const { data: attendance, isLoading: isAttendanceLoading } = useMyAttendance({
     enabled: isIntern,
   });
-  const { data: attendanceRequests } = useMyAttendanceRequests({ enabled: isIntern });
+  const { data: absenceRequests } = useMyAbsenceRequests({ enabled: isIntern });
 
   const { data: myTickets, isLoading: isTicketsLoading } = useMyTickets(
     { limit: ACTIVITY_TICKET_LIMIT },
@@ -68,10 +68,10 @@ const ProfilePage = () => {
       buildProfileActivity({
         tickets: myTickets?.data || [],
         records: attendance?.records || [],
-        requests: attendanceRequests?.requests || [],
+        requests: absenceRequests?.requests || [],
         hubName: user?.hub?.name || '',
       }),
-    [myTickets, attendance, attendanceRequests, user]
+    [myTickets, attendance, absenceRequests, user]
   );
 
   const accountRows = useMemo(() => {

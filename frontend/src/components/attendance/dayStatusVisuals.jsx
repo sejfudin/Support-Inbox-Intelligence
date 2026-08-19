@@ -124,7 +124,7 @@ const STATUS_DOT = {
  * Religious holiday gets a plain `Star`, and it is the same star every tradition
  * gets in the observance notice — the calendar draws no distinction between faiths
  * anywhere. Two reasons it stays that way: the request itself never records which
- * faith it is for (`AttendanceRequest` holds a type and some dates, nothing else),
+ * faith it is for (`AbsenceRequest` holds a type and some dates, nothing else),
  * and where the tradition *is* known the label already names the holiday, so a
  * per-faith symbol would only rank traditions by which ones have an icon available.
  * The star means "religious observance", nothing narrower.

@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
-const { LIMIT_BOUNDS } = require('../constants/attendanceRequestTypes');
+const { LIMIT_BOUNDS } = require('../constants/absenceRequestTypes');
 
 /**
- * The admin-set limits on attendance requests: how many days one request of each
- * type may cover, and how many days a year the budgeted types allow.
+ * The admin-set limits on absence requests: how many days one request of each
+ * type may cover, and how many days a year the budgeted types allow. Also carries
+ * the **primary admin** — the default recipient an intern's request is addressed
+ * to when they don't pick someone else.
  *
  * **One document, always.** `key` is fixed and unique, so a second row cannot be
  * written — the alternative, "newest wins", makes the effective configuration
@@ -11,19 +13,21 @@ const { LIMIT_BOUNDS } = require('../constants/attendanceRequestTypes');
  * authoritative.
  *
  * Global rather than per-workspace, on the same grounds as `NonWorkingDay`: an
- * `AttendanceRequest` carries no workspace at all — it hangs off the intern — and
+ * `AbsenceRequest` carries no workspace at all — it hangs off the intern — and
  * the programme's allowances apply to the whole cohort. If a hub ever needs its
  * own, the escape hatch is the one that model documents: an optional `workspace`
  * here, with the lookup falling back to the global row.
  *
- * **Only differences from the default are stored.** An empty `limits` map is a
- * system running exactly as shipped, which is what makes "reset to defaults" a
- * deletion rather than a re-write of the current constants, and lets a change to
- * `constants/attendanceRequestTypes.js` still reach installations that never
- * touched the type it changed. The consequence to know: saving a value that
+ * **Only differences from the default are stored**, for the `limits` map. An
+ * empty map is a system running exactly as shipped, which is what makes "reset to
+ * defaults" a deletion rather than a re-write of the current constants, and lets a
+ * change to `constants/absenceRequestTypes.js` still reach installations that
+ * never touched the type it changed. The consequence to know: saving a value that
  * happens to equal the default stores nothing, so the two are indistinguishable
  * afterwards. That is the intended reading — "unset" and "set to the default"
- * mean the same thing here.
+ * mean the same thing here. `primaryAdmin` has no such default to fall back to —
+ * it is either set or `null`, and `null` means "nobody configured one yet", not
+ * "the first admin".
  */
 
 const SINGLETON_KEY = 'global';
@@ -50,7 +54,7 @@ const limitSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const attendanceRequestSettingsSchema = new mongoose.Schema(
+const absenceRequestSettingsSchema = new mongoose.Schema(
   {
     key: {
       type: String,
@@ -66,6 +70,15 @@ const attendanceRequestSettingsSchema = new mongoose.Schema(
       of: limitSchema,
       default: () => new Map(),
     },
+    // The admin an intern's request is addressed to by default. `null` until an
+    // admin sets one, in which case the request form has no preselection and the
+    // intern must pick explicitly — there is deliberately no silent fallback to
+    // "some admin", since that is the exact behaviour this field replaces.
+    primaryAdmin: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     // These numbers decide what an intern is entitled to. "Who cut vacation to
     // three days, and when" is a question someone will ask, and `timestamps`
     // alone answers only half of it.
@@ -75,14 +88,14 @@ const attendanceRequestSettingsSchema = new mongoose.Schema(
       default: null,
     },
   },
-  { timestamps: true }
+  { timestamps: true, collection: 'attendancerequestsettings' }
 );
 
-const AttendanceRequestSettings = mongoose.model(
-  'AttendanceRequestSettings',
-  attendanceRequestSettingsSchema
+const AbsenceRequestSettings = mongoose.model(
+  'AbsenceRequestSettings',
+  absenceRequestSettingsSchema
 );
 
-AttendanceRequestSettings.SINGLETON_KEY = SINGLETON_KEY;
+AbsenceRequestSettings.SINGLETON_KEY = SINGLETON_KEY;
 
-module.exports = AttendanceRequestSettings;
+module.exports = AbsenceRequestSettings;

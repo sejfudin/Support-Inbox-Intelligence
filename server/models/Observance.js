@@ -31,7 +31,7 @@ const TRADITIONS = ['muslim', 'orthodox', 'catholic', 'jewish', 'other'];
 const observanceSchema = new mongoose.Schema(
   {
     // Office-local calendar day as 'YYYY-MM-DD' — the same key shape `Attendance`,
-    // `NonWorkingDay` and `AttendanceRequest.dates` use, so they all compare as
+    // `NonWorkingDay` and `AbsenceRequest.dates` use, so they all compare as
     // plain strings with no timezone maths.
     //
     // Not unique: two traditions can land on the same day, and a multi-day

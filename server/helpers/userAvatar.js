@@ -5,7 +5,7 @@ const crypto = require('crypto');
  * object goes in the bucket.
  *
  * Deliberately free of both Mongoose and the Supabase client, for the same
- * reason `attendanceRequestRules.js` is — these are the rules worth pinning in a
+ * reason `absenceRequestRules.js` is — these are the rules worth pinning in a
  * unit test, and a test should not need a database or a storage account to assert
  * that an SVG is refused.
  */

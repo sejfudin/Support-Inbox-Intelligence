@@ -37,7 +37,7 @@ const COLLAPSED_ROWS = 6;
  * balance card shows totals rather than a list — so the action lives on the row
  * rather than being reachable only from a card that no longer enumerates them.
  */
-export default function AttendanceRequestHistory({
+export default function AbsenceRequestHistory({
   requests = [],
   onWithdraw,
   isWithdrawing = false,
@@ -63,7 +63,7 @@ export default function AttendanceRequestHistory({
   return (
     <div
       className="-mx-6 overflow-hidden border-y border-border/60"
-      data-test="attendance-request-history"
+      data-test="absence-request-history"
     >
       <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-2.5">
         <span className="text-xs text-muted-foreground">
@@ -74,18 +74,19 @@ export default function AttendanceRequestHistory({
       {rows.length === 0 ? (
         <p
           className="px-5 pb-5 text-sm text-muted-foreground"
-          data-test="attendance-request-history-empty"
+          data-test="absence-request-history-empty"
         >
           You have not asked for any days off this year.
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-y border-border/60 bg-muted/40">
               <tr className="text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-5 py-2.5 font-semibold">Type</th>
                 <th className="px-5 py-2.5 font-semibold">Dates</th>
                 <th className="px-5 py-2.5 text-right font-semibold">Days</th>
+                <th className="px-5 py-2.5 font-semibold">Sent to</th>
                 <th className="px-5 py-2.5 font-semibold">Decided by</th>
                 <th className="px-5 py-2.5 text-right font-semibold">Status</th>
                 {onWithdraw && <th className="px-5 py-2.5" />}
@@ -101,7 +102,7 @@ export default function AttendanceRequestHistory({
                   <tr
                     key={request.id}
                     className="border-t border-border/60"
-                    data-test={`attendance-request-history-row-${request.id}`}
+                    data-test={`absence-request-history-row-${request.id}`}
                   >
                     <td className="px-5 py-3">
                       <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
@@ -114,6 +115,9 @@ export default function AttendanceRequestHistory({
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">
                       {request.dates?.length || 0}
+                    </td>
+                    <td className="px-5 py-3 text-muted-foreground">
+                      {request.recipientAdmin?.fullname || '—'}
                     </td>
                     {/* An em dash, not a blank: a request nobody has answered yet has
                         no decider, and an empty cell reads as missing data. */}
@@ -131,7 +135,7 @@ export default function AttendanceRequestHistory({
                             className="h-7 px-2 text-xs"
                             disabled={isWithdrawing}
                             onClick={() => onWithdraw(request.id)}
-                            data-test={`attendance-request-withdraw-${request.id}`}
+                            data-test={`absence-request-withdraw-${request.id}`}
                           >
                             Withdraw
                           </Button>
@@ -154,7 +158,7 @@ export default function AttendanceRequestHistory({
             size="sm"
             className="h-7 px-2 text-xs"
             onClick={() => setExpanded(true)}
-            data-test="attendance-request-history-expand"
+            data-test="absence-request-history-expand"
           >
             Show all {rows.length} requests
           </Button>
@@ -168,7 +172,7 @@ export default function AttendanceRequestHistory({
             size="sm"
             className="h-7 px-2 text-xs"
             onClick={() => setExpanded(false)}
-            data-test="attendance-request-history-collapse"
+            data-test="absence-request-history-collapse"
           >
             Show fewer
           </Button>
