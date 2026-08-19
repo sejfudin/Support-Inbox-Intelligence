@@ -264,6 +264,7 @@ empty) and the intern-programme domain (`recommendation_created`, `recommendatio
 `recommendation_not_placed`, `intern_placed`, `evaluation_created`, `readiness_updated`, the four
 `specialization_*` types, `intern_status_changed`, `intern_expected_end_date_changed`,
 `intern_documentation_updated`, `daily_attendance_reminder`, `intern_mentor_note_shared`,
+`absence_request_decided`,
 `mentor_note_mention`, `intern_request_from_leadership`, `absence_request_pending` — `internProfile` set when the event is
 about one specific intern (null for a project-level staffing request), `ticket`/`workspace` null,
 `link` a frontend route the bell's action button navigates to). Both domains push through the same
@@ -658,11 +659,12 @@ Frontend: `components/attendance/{AbsenceRequestPanel,AbsenceRequestQueue,daySta
   generalized here to a role check. The admin **queue stays shared**: `listRequests` is unfiltered,
   so every admin can still see and decide every pending request regardless of who it was addressed
   to — `recipientAdmin` only targets the notification below and the queue row's "for" tag.
-- **The one notification this feature fires**: `absence_request_pending` (staff-facing, see
-  "Notifications" above), sent once, to the resolved `recipientAdmin` only, when the request is
-  created. Fire-and-forget from `absenceRequestService.createMyRequest`, via
-  `internNotificationService.notifyAbsenceRequestPending`. Nothing notifies the intern of the
-  decision — that axis doesn't exist for this feature today.
+- **Two notifications, one per axis** (both fire-and-forget from `absenceRequestService`, both via
+  `internNotificationService`): `absence_request_pending` (staff-facing) tells the resolved
+  `recipientAdmin` a request needs a decision, sent once at creation from `createMyRequest`.
+  `absence_request_decided` (intern-facing) tells the intern the verdict — approved or rejected —
+  sent from `decideRequest` after the status is saved. Neither fires for a revoke: revoking undoes
+  an approval already communicated, not a new decision to announce.
 - Endpoints: `GET|POST /api/absence-requests/me`, `DELETE /api/absence-requests/me/:id`
   (intern-self); `GET /api/absence-requests?status=pending|all&type=…`,
   `PATCH /api/absence-requests/:id` (approve/reject), `DELETE /api/absence-requests/:id`

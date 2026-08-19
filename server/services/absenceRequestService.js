@@ -411,8 +411,9 @@ const decideRequest = async (user, requestId, { decision, note } = {}) => {
     throw httpError(`This request has already been ${request.status}.`, 409);
   }
 
+  let profile = null;
   if (decision === APPROVED) {
-    const profile = await InternProfile.findById(request.intern).lean();
+    profile = await InternProfile.findById(request.intern).lean();
     if (!profile) throw httpError('Intern not found.', 404);
 
     const context = await loadDayContext(profile);
@@ -437,6 +438,24 @@ const decideRequest = async (user, requestId, { decision, note } = {}) => {
   request.decidedAt = new Date();
   request.decisionNote = (note || '').trim();
   await request.save();
+
+  // Tell the intern the verdict — the other half of the notification this
+  // feature fires (`notifyAbsenceRequestPending` told the admin one was
+  // waiting). `profile` is already loaded for an approval; a rejection loads
+  // it fresh here, tolerating a since-deleted profile by simply not notifying
+  // rather than failing the decision — same "drop orphans" rule the queue read
+  // already applies.
+  const notifyProfile =
+    profile || (await InternProfile.findById(request.intern).select('user').lean());
+  if (notifyProfile) {
+    internNotificationService.notifyAbsenceRequestDecided({
+      internUserId: notifyProfile.user,
+      internProfileId: notifyProfile._id,
+      decision,
+      requestType: (TYPE_RULES[request.type] || TYPE_RULES[REMOTE]).label,
+      dayCount: request.dates.length,
+    });
+  }
 
   return listRequests(user);
 };
