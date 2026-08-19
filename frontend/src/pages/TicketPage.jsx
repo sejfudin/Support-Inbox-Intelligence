@@ -23,6 +23,7 @@ import {
 } from '@/helpers/boardCardSort';
 import TicketsTabs from '@/components/Tickets/TicketsTabs';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
+import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
 import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
 import { normalizeTicket, extractStatusSlug } from '@/helpers/normalizeTicket';
 import { useTicketModals } from '@/hooks/useTicketModals';
@@ -69,6 +70,7 @@ import {
 import { toast } from 'sonner';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useTimeSpentTicker } from '@/hooks/useTimeSpentTicker';
+import { Loader, LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
@@ -428,6 +430,8 @@ export default function TicketPage() {
     page: 1,
     archived: false,
     workspaceId: effectiveWorkspaceId,
+    archived: false,
+    queryFilters,
   }).board;
 
   const { data: statusCountsData } = useTickets(statusCountsParams, {
@@ -496,7 +500,12 @@ export default function TicketPage() {
 
   const listTickets = listData.tickets;
   const pagination = listData.pagination;
-  const isLoading = listData.isLoading;
+  // Global hold, same as every other surface: the list keeps its skeleton and mark for
+  // MIN_VISIBLE_MS rather than flashing them on a warm cache.
+  const isLoading = useLoaderHold(listData.isLoading, { release: listData.isError });
+  // Held for a full turn of the animation. This is the screen people open most, several times an
+  // hour, and a mark that appears and vanishes inside 200ms on a warm cache reads as a glitch
+  // rather than as loading. The skeleton behind it carries the shape either way.
   const isError = listData.isError;
   const isPlaceholderData = listData.isPlaceholderData;
 
@@ -793,7 +802,15 @@ export default function TicketPage() {
         <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden py-0">
           {/* The mockup's board grid padding: 14px 24px 20px. */}
           <div className="-mx-6 flex min-h-0 flex-1 flex-col px-6 pt-3.5">
-            <Suspense fallback={<TableSkeleton />}>
+            {/* A table skeleton used to stand in for a column board — the wrong shape, so the
+                fallback rearranged itself into the real thing when the chunk landed. */}
+            <Suspense
+              fallback={
+                <LoadingOverlay label="Loading board">
+                  <BoardSkeleton />
+                </LoadingOverlay>
+              }
+            >
               <BoardPage
                 fetchMode="all"
                 workspaceId={effectiveWorkspaceId}
@@ -822,7 +839,11 @@ export default function TicketPage() {
               isError={isError}
               isEmpty={!isLoading && !isError && listTickets.length === 0}
               emptyMessage="No tickets found."
-              loadingSlot={<TableSkeleton />}
+              loadingSlot={
+                <LoadingOverlay label="Loading tickets">
+                  <TableSkeleton />
+                </LoadingOverlay>
+              }
             >
               <DataTable
                 columns={listColumns}

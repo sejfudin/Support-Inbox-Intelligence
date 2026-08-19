@@ -4,7 +4,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import TwoPaneSkeleton from '@/components/Skeletons/TwoPaneSkeleton';
 import { ScrollFade } from '@/components/ui/scroll-fade';
 import PageHeading from '@/components/PageHeading';
 import { RequestGroupTabs } from '@/components/requests/RequestGroupTabs';
@@ -22,6 +22,7 @@ import {
   useStagedPicks,
 } from '@/hooks/useStagedPicks';
 import { getRequestGroup } from '@/helpers/staffingRequests';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const matchesQuery = (request, query) => {
   if (!query) return true;
@@ -86,7 +87,9 @@ export default function AdminStaffingRequestsPage() {
   // pick — not that something, somewhere, was wrong.
   const [rejections, setRejections] = useState({});
 
-  const { data: requests = [], isPending, isError } = useStaffingRequests();
+  const { data: requests = [], isPending: isPendingRaw, isError } = useStaffingRequests();
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const unreadRequestIds = useStaffingNewsMarkers();
   // Matches the `lg:` grid below — one column means list or detail, never both.
   const isSinglePane = useMediaQuery(SINGLE_PANE_QUERY);
@@ -299,14 +302,9 @@ export default function AdminStaffingRequestsPage() {
             place — a single "Loading requests…" line left the page empty and
             then rearranged it. */}
           {isPending && (
-            <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
-              <div className="space-y-3">
-                {[0, 1, 2, 3].map((row) => (
-                  <Skeleton key={row} className="h-[104px] w-full rounded-[var(--r-card)]" />
-                ))}
-              </div>
-              <Skeleton className="hidden h-[420px] w-full rounded-[var(--r-card)] lg:block" />
-            </div>
+            <LoadingOverlay label="Loading requests">
+              <TwoPaneSkeleton />
+            </LoadingOverlay>
           )}
 
           {!isPending && requests.length === 0 && (

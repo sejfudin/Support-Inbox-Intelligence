@@ -5,6 +5,8 @@ import { useMyTickets } from '@/queries/tickets';
 import { normalizeTicket } from '@/helpers/normalizeTicket';
 import LegacyTicketsState from '@/components/dashboard/legacy/LegacyTicketsState';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
+import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
+import { LoadingOverlay } from '@/components/ui/loader';
 // The dashboard keeps the pre-overhaul header and table verbatim — see
 // components/dashboard/legacy/. Nothing here follows the overhauled Tickets list.
 import LegacyTicketsHeader from '@/components/dashboard/legacy/LegacyTicketsHeader';
@@ -132,7 +134,13 @@ export default function UserDashboard() {
 
       {!isMobile && isBoard ? (
         <PageSection className="flex min-h-0 flex-1 flex-col overflow-hidden pb-4 pt-4">
-          <Suspense fallback={<TableSkeleton />}>
+          <Suspense
+            fallback={
+              <LoadingOverlay label="Loading board">
+                <BoardSkeleton />
+              </LoadingOverlay>
+            }
+          >
             <BoardPage
               fetchMode="my"
               workspaceId={user?.workspaceId}
@@ -153,7 +161,11 @@ export default function UserDashboard() {
               isError={isError}
               isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
               emptyMessage="No tickets assigned to you found."
-              loadingSlot={<TableSkeleton />}
+              loadingSlot={
+                <LoadingOverlay label="Loading tickets">
+                  <TableSkeleton />
+                </LoadingOverlay>
+              }
             >
               <LegacyDataTable
                 columns={columns}

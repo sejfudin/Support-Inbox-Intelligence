@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import StatBandSkeleton from '@/components/Skeletons/StatBandSkeleton';
 import AttendanceStat from '@/components/attendance/AttendanceStat';
 import TodayStandupCard from '@/components/dailies/TodayStandupCard';
 import DailyCoverageGrid from '@/components/dailies/DailyCoverageGrid';
@@ -19,6 +21,7 @@ import MemberDailyEntryModal from '@/components/dailies/MemberDailyEntryModal';
 import { useAllWorkspaces } from '@/queries/workspaces';
 import { useWorkspaceDailyOverview } from '@/queries/dailies';
 import { useAuth } from '@/context/AuthContext';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const currentMonthKey = () => format(new Date(), 'yyyy-MM');
 
@@ -63,7 +66,9 @@ export default function AdminDailyInsightsPage() {
     else setWorkspaceId(workspaces[0]._id);
   }, [workspaces, workspaceId, searchParams, user?.workspaceId]);
 
-  const { data, isPending, isError } = useWorkspaceDailyOverview(workspaceId, month);
+  const { data, isPending: isPendingRaw, isError } = useWorkspaceDailyOverview(workspaceId, month);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const overview = data?.data;
   const isCurrentMonth = month === currentMonthKey();
   // Weekend has no standup expectation — don't surface "reported/not reported today"
@@ -146,8 +151,20 @@ export default function AdminDailyInsightsPage() {
             Failed to load daily insights.
           </div>
         )}
+        {/* The bands are known before the numbers are: the standup card only exists on the
+            current month, then the KPI strip, then the coverage grid. The one thing the page
+            can't know yet is whether today is a weekend — the server decides that, and on a
+            weekend the two "today" tiles don't render — so a Saturday drops two placeholders
+            when the data lands. Every other day the strip is exactly what arrives. */}
         {workspaceId && isPending && (
-          <div className="app-card p-6 text-sm text-muted-foreground">Loading daily insights…</div>
+          <LoadingOverlay label="Loading daily insights" contentClassName="space-y-3">
+            {isCurrentMonth && <Skeleton className="h-[168px] w-full rounded-[var(--r-card)]" />}
+            <StatBandSkeleton
+              tiles={isCurrentMonth ? 4 : 2}
+              columnsClassName="sm:grid-cols-2 lg:grid-cols-4"
+            />
+            <Skeleton className="h-[320px] w-full rounded-[var(--r-card)]" />
+          </LoadingOverlay>
         )}
 
         {showContent && (

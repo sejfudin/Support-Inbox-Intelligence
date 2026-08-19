@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import CardGridSkeleton from '@/components/Skeletons/CardGridSkeleton';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { TechnologyDemandChart } from '@/components/symphony/dashboard/TechnologyDemandChart';
@@ -18,6 +19,7 @@ import { ProjectCard } from '@/components/symphony/projects/ProjectCard';
 import { PROJECT_STATUSES, getProjectStatusLabel } from '@/helpers/projects';
 import { useProjectsOverview } from '@/queries/projects';
 import { cn } from '@/lib/utils';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const STATUS_FILTER_OPTIONS = [{ value: '', label: 'All' }, ...PROJECT_STATUSES];
 // A project nobody is placed on or in selection for isn't interesting to
@@ -44,7 +46,9 @@ export default function LeadershipProjectsPage() {
   const gridRef = useRef(null);
   const chartRef = useRef(null);
 
-  const { data, isPending, isError } = useProjectsOverview();
+  const { data, isPending: isPendingRaw, isError } = useProjectsOverview();
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const projects = data?.projects ?? [];
   const kpis = data?.kpis;
 
@@ -237,7 +241,14 @@ export default function LeadershipProjectsPage() {
       </SymphonyCard>
 
       <div ref={gridRef} className="scroll-mt-20">
-        {isPending && <p className="text-sm text-muted-foreground">Loading projects…</p>}
+        {/* The same three-column grid the cards land in — `ProjectsKpiRow` and the demand
+            chart above already draw their own pending states, so a line of copy here left a
+            gap between two occupied bands. */}
+        {isPending && (
+          <LoadingOverlay label="Loading projects">
+            <CardGridSkeleton cards={6} />
+          </LoadingOverlay>
+        )}
         {!isPending && filteredProjects.length === 0 && (
           <SymphonyCard className="py-12 text-center text-sm text-muted-foreground">
             {staffingFilterHidesProjects ? (

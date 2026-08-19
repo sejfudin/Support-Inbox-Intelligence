@@ -23,6 +23,7 @@ import { useMyWorkspaces, useUserAnalytics } from '@/queries/workspaces';
 import { buildProfileActivity } from '@/helpers/profileActivity';
 import { getRoleLabel, isIntern as isInternRole } from '@/helpers/roles';
 import { resolveUserId } from '@/helpers/userIdentity';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 // Enough recent tickets to fill the activity feed after the window drops the
 // stale ones, without pulling a page the card can never show.
@@ -109,7 +110,12 @@ const ProfilePage = () => {
     );
   };
 
-  if (loading) return <TableSkeleton />;
+  if (loading)
+    return (
+      <LoadingOverlay label="Loading profile">
+        <TableSkeleton />
+      </LoadingOverlay>
+    );
   if (!user)
     return (
       <div className="flex h-screen items-center justify-center text-[hsl(var(--tone-danger))]">

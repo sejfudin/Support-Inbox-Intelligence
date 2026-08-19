@@ -13,9 +13,12 @@ import {
   formatAttendanceRate,
   isExemptToday,
 } from '@/helpers/attendance';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 export default function MyAttendancePage() {
-  const { data, isPending, isError } = useMyAttendance();
+  const { data, isPending: isPendingRaw, isError } = useMyAttendance();
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const { mutate: checkIn, isPending: isCheckingIn } = useCheckInToday();
   const { mutate: cancelCheckIn, isPending: isCancelling } = useCancelTodayCheckIn();
 
@@ -68,8 +71,14 @@ export default function MyAttendancePage() {
           </div>
         )}
 
+        {/* The intern's own attendance screen: a header card whose copy depends on whether
+            they are on a project, then a month grid beside a balance column. Which of those
+            render at all is decided by the data, so the page waits behind the mark rather than
+            drawing a layout it may have to replace. */}
         {isPending && (
-          <div className="app-card p-6 text-sm text-muted-foreground">Loading your attendance…</div>
+          <div className="app-card p-6">
+            <Loader label="Loading your attendance…" />
+          </div>
         )}
 
         {!isPending && !isError && (

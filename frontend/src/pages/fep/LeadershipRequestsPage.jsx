@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ScrollFade } from '@/components/ui/scroll-fade';
+import TwoPaneSkeleton from '@/components/Skeletons/TwoPaneSkeleton';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { RequestsFilterTabs } from '@/components/symphony/requests/RequestsFilterTabs';
@@ -27,6 +28,7 @@ import { useStaffingRequests } from '@/queries/staffingRequests';
 import { useStaffingNewsMarkers } from '@/hooks/useStaffingNewsMarkers';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { getRequestGroup } from '@/helpers/staffingRequests';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const SORTS = {
   needed: 'Needed-by date',
@@ -75,7 +77,13 @@ export default function LeadershipRequestsPage() {
   const [formState, setFormState] = useState({ open: false, request: null });
   const [closeReason, setCloseReason] = useState(null);
 
-  const { data: requests = [], isPending, isError } = useStaffingRequests({ mine: mineOnly });
+  const {
+    data: requests = [],
+    isPending: isPendingRaw,
+    isError,
+  } = useStaffingRequests({ mine: mineOnly });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   // Opening the tab clears the badge — read state is tab-level, stamped once
   // per mount rather than on every render.
   const unreadRequestIds = useStaffingNewsMarkers();
@@ -235,7 +243,13 @@ export default function LeadershipRequestsPage() {
         </SymphonyCard>
       )}
 
-      {isPending && <p className="text-sm text-muted-foreground">Loading requests…</p>}
+      {/* Same grid as the two panes below, so the list doesn't arrive and then shove the
+          detail pane into place beside it. */}
+      {isPending && (
+        <LoadingOverlay label="Loading requests">
+          <TwoPaneSkeleton columnsClassName="lg:grid-cols-[minmax(280px,340px)_1fr]" />
+        </LoadingOverlay>
+      )}
 
       {!isPending && requests.length === 0 && (
         <SymphonyCard className="py-12 text-center text-sm text-muted-foreground">

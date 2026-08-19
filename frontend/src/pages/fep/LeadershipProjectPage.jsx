@@ -10,6 +10,7 @@ import { RequestFormModal } from '@/components/symphony/requests/RequestFormModa
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 import { useProjectOverview } from '@/queries/projects';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
@@ -68,7 +69,9 @@ function PersonAvatar({ user, fullname, className }) {
 
 export default function LeadershipProjectPage() {
   const { id } = useParams();
-  const { data, isPending, isError } = useProjectOverview(id);
+  const { data, isPending: isPendingRaw, isError } = useProjectOverview(id);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   useDocumentTitle(data?.project?.name);
   const [requestOpen, setRequestOpen] = useState(false);
 
@@ -79,7 +82,7 @@ export default function LeadershipProjectPage() {
   const scrollTo = (ref) => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading project...</p>;
+    return <Loader variant="panel" label="Loading project…" />;
   }
 
   if (isError || !data?.project) {
