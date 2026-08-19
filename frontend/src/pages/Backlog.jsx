@@ -72,7 +72,10 @@ export default function BacklogPage() {
       <NewTickets
         isOpen={isNewOpen}
         onClose={closeNewTicket}
-        initialStatus={initialStatus ?? helpers.defaultMainStatusId}
+        // The whole point of creating from this page is that the ticket lands
+        // in Backlog — defaultMainStatusId (the board's first non-backlog
+        // status) would silently send it straight to Tickets/Board instead.
+        initialStatus={initialStatus ?? helpers.backlogStatusId}
         hideStatus={true}
       />
       <TicketsHeader
