@@ -28,7 +28,7 @@ import { useMentorCandidates } from '@/queries/users';
 import { AssignSpecializationModal } from '@/components/interns/specialization/AssignSpecializationModal';
 import { ReassignSpecializationDialog } from '@/components/interns/specialization/ReassignSpecializationDialog';
 import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMentorModal';
-import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import { getAvatarColor } from '@/helpers/avatarColor';
 import { getInitials } from '@/helpers/getInitials';
 import { formatDate } from '@/helpers/date';
@@ -471,7 +471,7 @@ export default function SpecializationPage() {
         onClose={() => setChangeMentorTarget(null)}
       />
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={Boolean(clearTarget)}
         onClose={() => setClearTarget(null)}
         onConfirm={handleConfirmClear}

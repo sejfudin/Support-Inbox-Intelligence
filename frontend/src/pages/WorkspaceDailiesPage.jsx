@@ -10,7 +10,7 @@ import { DailyHeader } from '@/components/dailies/DailyHeader';
 import { DailyEmptyState } from '@/components/dailies/DailyEmptyState';
 import { DailyEntryCard } from '@/components/dailies/DailyEntryCard';
 import { AddEntryModal } from '@/components/dailies/AddEntryModal';
-import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import DailySkeleton from '@/components/Skeletons/DailySkeleton';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
 import { Button } from '@/components/ui/button';
@@ -187,7 +187,7 @@ const WorkspaceDailiesPage = () => {
               entry={editingEntry}
               date={selectedDate}
             />
-            <DeleteConfirmModal
+            <ConfirmModal
               isOpen={Boolean(entryToDelete)}
               onClose={() => setEntryToDelete(null)}
               onConfirm={handleConfirmRemove}

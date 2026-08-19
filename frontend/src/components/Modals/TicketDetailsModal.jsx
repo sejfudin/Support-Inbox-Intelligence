@@ -19,7 +19,7 @@ import { isBlockedStatusId, toBlockerPayload } from '@/helpers/ticketBlocker';
 import BlockedByField from '@/components/Tickets/BlockedByField';
 import TicketComments from '@/components/Tickets/TicketComments';
 import TicketHistory from '@/components/Tickets/TicketHistory';
-import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { ConfirmModal } from './ConfirmModal';
 import { TicketModalHeader } from './TicketDetailsModal/TicketModalHeader';
 import { TicketTitleField } from './TicketDetailsModal/TicketTitleField';
 import { TicketDescriptionEditor } from './TicketDetailsModal/TicketDescriptionEditor';
@@ -333,7 +333,7 @@ export const TicketDetailsModal = ({
         />
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <DeleteConfirmModal
+          <ConfirmModal
             isOpen={archiveActions.isActionModalOpen}
             onClose={() => archiveActions.setIsActionModalOpen(false)}
             onConfirm={archiveActions.handleConfirmAction}
@@ -345,7 +345,7 @@ export const TicketDetailsModal = ({
             loadingLabel="Archiving..."
           />
 
-          <DeleteConfirmModal
+          <ConfirmModal
             isOpen={prActions.isUnlinkModalOpen}
             onClose={() => prActions.setIsUnlinkModalOpen(false)}
             onConfirm={prActions.handleConfirmUnlink}
@@ -357,7 +357,7 @@ export const TicketDetailsModal = ({
             loadingLabel="Unlinking..."
           />
 
-          <DeleteConfirmModal
+          <ConfirmModal
             isOpen={Boolean(pendingBlockerTicketId)}
             onClose={() => setPendingBlockerTicketId(null)}
             onConfirm={() => {
