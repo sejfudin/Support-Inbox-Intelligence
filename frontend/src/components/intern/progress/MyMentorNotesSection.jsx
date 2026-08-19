@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { InitialsAvatar } from '@/components/ui/initials-avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { ProgressPanel, ProgressPanelEmpty, ProgressPanelLead } from './ProgressPanel';
 
@@ -44,19 +45,22 @@ export function MyMentorNotesSection({ mentorNotes }) {
       ) : (
         <ul className="divide-y divide-separator">
           {items.map((note) => (
-            <li key={note.id} className="p-[18px]">
-              <p className="text-[12.5px] leading-[1.35]">
-                <span className="font-semibold text-foreground">
-                  {note.author?.fullname ?? 'Unknown'}
-                </span>
-                <span className="ml-1.5 text-[11.5px] text-muted-foreground/75">
-                  {capitalizeFirst(note.author?.role || '')} ·{' '}
-                  {format(new Date(note.createdAt), 'MMM d, yyyy')}
-                </span>
-              </p>
-              <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-foreground/90 [overflow-wrap:anywhere]">
-                {note.content}
-              </p>
+            <li key={note.id} className="flex gap-3 p-[18px]">
+              <InitialsAvatar name={note.author?.fullname} size="sm" className="mt-0.5" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] leading-[1.35]">
+                  <span className="font-semibold text-foreground">
+                    {note.author?.fullname ?? 'Unknown'}
+                  </span>
+                  <span className="ml-1.5 text-[11.5px] text-muted-foreground/75">
+                    {capitalizeFirst(note.author?.role || '')} ·{' '}
+                    {format(new Date(note.createdAt), 'MMM d, yyyy')}
+                  </span>
+                </p>
+                <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-foreground/90 [overflow-wrap:anywhere]">
+                  {note.content}
+                </p>
+              </div>
             </li>
           ))}
         </ul>
