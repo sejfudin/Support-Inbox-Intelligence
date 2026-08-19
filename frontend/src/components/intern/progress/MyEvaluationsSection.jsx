@@ -1,7 +1,12 @@
 import { format } from 'date-fns';
 import { EVALUATION_CRITERIA } from '@/helpers/internProfile';
 import { Badge } from '@/components/ui/badge';
-import { ProgressPanel, ProgressPanelEmpty, ProgressPanelLead } from './ProgressPanel';
+import {
+  ProgressGroupLabel,
+  ProgressPanel,
+  ProgressPanelEmpty,
+  ProgressPanelLead,
+} from './ProgressPanel';
 import { ScoreDelta, ScoreScale } from './ScoreScale';
 
 const formatPeriod = (evaluation) =>
@@ -20,6 +25,39 @@ const formatPeriod = (evaluation) =>
  * Older periods deliberately show no chips: "+1 since the period before" for a
  * review from a year ago is arithmetic nobody asked for.
  */
+/**
+ * An earlier review period, on one line: when, who wrote it, and the average.
+ *
+ * Only the newest period renders its four scales and write-up. Six periods of
+ * full-height scores is a page nobody scrolls to the end of, and an older
+ * evaluation is looked *up* — "what did I get in the spring?" — rather than read.
+ * The scores behind this line are one click away in the same place they have
+ * always been: the mentor who wrote it.
+ */
+function EarlierPeriod({ evaluation }) {
+  return (
+    <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-separator px-[18px] py-2.5 last:border-b-0">
+      <span className="min-w-0 text-[12.5px] font-medium text-foreground">
+        {formatPeriod(evaluation)}
+      </span>
+      <span className="flex items-baseline gap-3">
+        <span className="text-[11.5px] text-muted-foreground">
+          {evaluation.evaluator || 'your mentor'}
+        </span>
+        <span className="text-[12.5px] font-semibold tabular-nums text-foreground">
+          {evaluation.averageScore ?? '—'}
+          <span className="ml-1 text-[11px] font-medium text-muted-foreground">/ 5</span>
+        </span>
+      </span>
+    </li>
+  );
+}
+
+/** The band's summary: what is in this section, in one muted phrase. */
+function SectionCount({ children }) {
+  return <span className="text-[11.5px] font-medium text-muted-foreground">{children}</span>;
+}
+
 function EvaluationPeriod({ evaluation, trends, isLatest }) {
   const deltaByCriterion = Object.fromEntries(
     (trends || []).map((trend) => [trend.key, trend.delta])
@@ -106,15 +144,15 @@ export function MyEvaluationsSection({ evaluations }) {
       title="Evaluations"
       action={
         items.length === 0 ? (
-          <Badge variant="outline" className="rounded-full font-medium text-muted-foreground">
-            None yet
-          </Badge>
-        ) : items.length > 1 ? (
+          <SectionCount>None yet</SectionCount>
+        ) : (
           <span className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-muted-foreground">Since last period</span>
-            <ScoreDelta delta={averageDelta} />
+            <SectionCount>
+              {items.length} review {items.length === 1 ? 'period' : 'periods'}
+            </SectionCount>
+            {items.length > 1 ? <ScoreDelta delta={averageDelta} /> : null}
           </span>
-        ) : null
+        )
       }
       dataTour="my-progress-evaluations"
     >
@@ -130,16 +168,29 @@ export function MyEvaluationsSection({ evaluations }) {
           No evaluation recorded yet. Your mentor writes one at the end of each review period.
         </ProgressPanelEmpty>
       ) : (
-        <ul className="divide-y divide-separator">
-          {items.map((evaluation, index) => (
-            <EvaluationPeriod
-              key={evaluation.id}
-              evaluation={evaluation}
-              trends={evaluations?.trends}
-              isLatest={index === 0}
-            />
-          ))}
-        </ul>
+        <>
+          <ul>
+            {items.slice(0, 1).map((evaluation) => (
+              <EvaluationPeriod
+                key={evaluation.id}
+                evaluation={evaluation}
+                trends={evaluations?.trends}
+                isLatest
+              />
+            ))}
+          </ul>
+
+          {items.length > 1 && (
+            <>
+              <ProgressGroupLabel>Earlier periods</ProgressGroupLabel>
+              <ul>
+                {items.slice(1).map((evaluation) => (
+                  <EarlierPeriod key={evaluation.id} evaluation={evaluation} />
+                ))}
+              </ul>
+            </>
+          )}
+        </>
       )}
     </ProgressPanel>
   );

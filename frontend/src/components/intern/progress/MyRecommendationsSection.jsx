@@ -4,7 +4,12 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/helpers/date';
 import { buildStageSteps, outcomeLabel, sortInterviews } from '@/helpers/recommendationStages';
-import { ProgressPanel, ProgressPanelEmpty, ProgressPanelLead } from './ProgressPanel';
+import {
+  ProgressGroupLabel,
+  ProgressPanel,
+  ProgressPanelEmpty,
+  ProgressPanelLead,
+} from './ProgressPanel';
 
 /** The fields a recommendation is made of — the empty state's chips. */
 const RECOMMENDATION_FIELDS = ['Position', 'Technologies', 'Stage', 'Date'];
@@ -19,6 +24,12 @@ const STATUS_BADGE_VARIANT = {
   recommended: 'secondary',
   interviewing: 'warning',
   resulted: 'outline',
+};
+
+const STATUS_LABEL = {
+  recommended: 'Recommended',
+  interviewing: 'Interviewing',
+  resulted: 'Result recorded',
 };
 
 const formatDateTime = (value) => format(new Date(value), 'MMM d, yyyy · HH:mm');
@@ -209,11 +220,7 @@ function RecommendationCard({ recommendation, isLatest }) {
         </div>
 
         <Badge variant={STATUS_BADGE_VARIANT[recommendation.status] || 'secondary'}>
-          {recommendation.status === 'resulted'
-            ? 'Result recorded'
-            : recommendation.status === 'interviewing'
-              ? 'Interviewing'
-              : 'Recommended'}
+          {STATUS_LABEL[recommendation.status] || 'Recommended'}
         </Badge>
       </div>
 
@@ -247,6 +254,36 @@ function RecommendationCard({ recommendation, isLatest }) {
  * interviewer's feedback and the reasoning behind the decision are not part of it,
  * so nothing in this component can render them by accident.
  */
+/**
+ * An earlier recommendation, on one line: what it was for, where it ended, when.
+ *
+ * Only the most recent one renders its stages, interviews and outcome. Six of
+ * those in full is most of the page, and a recommendation that already resulted is
+ * a fact to look up rather than a thing to follow — the live one is always the
+ * newest.
+ */
+function EarlierRecommendation({ recommendation }) {
+  const label =
+    [recommendation.position, recommendation.project].filter(Boolean).join(' · ') ||
+    'Project to be confirmed';
+  const outcome = recommendation.result?.outcome ? outcomeLabel(recommendation.result) : null;
+
+  return (
+    <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-separator px-[18px] py-2.5 last:border-b-0">
+      <span className="min-w-0 truncate text-[12.5px] font-medium text-foreground">{label}</span>
+      <span className="flex items-baseline gap-3 text-[11.5px] text-muted-foreground">
+        <span>{outcome || STATUS_LABEL[recommendation.status] || recommendation.status}</span>
+        <span className="tabular-nums">{formatDate(recommendation.updatedAt)}</span>
+      </span>
+    </li>
+  );
+}
+
+/** The band's summary: what is in this section, in one muted phrase. */
+function SectionCount({ children }) {
+  return <span className="text-[11.5px] font-medium text-muted-foreground">{children}</span>;
+}
+
 export function MyRecommendationsSection({ recommendations }) {
   const items = recommendations?.items || [];
 
@@ -255,15 +292,11 @@ export function MyRecommendationsSection({ recommendations }) {
       id="my-progress-recommendations"
       title="Recommendations"
       action={
-        items.length === 0 ? (
-          <Badge variant="outline" className="rounded-full font-medium text-muted-foreground">
-            None yet
-          </Badge>
-        ) : items.length > 1 ? (
-          <span className="text-[11px] font-medium text-muted-foreground">
-            {items.length} recommendations
-          </span>
-        ) : null
+        <SectionCount>
+          {items.length === 0
+            ? 'None yet'
+            : `${items.length} recommendation${items.length === 1 ? '' : 's'}`}
+        </SectionCount>
       }
       dataTour="my-progress-recommendations"
     >
@@ -279,15 +312,26 @@ export function MyRecommendationsSection({ recommendations }) {
         </ProgressPanelEmpty>
       ) : (
         <>
-          <ul className="divide-y divide-separator">
-            {items.map((recommendation, index) => (
+          <ul>
+            {items.slice(0, 1).map((recommendation) => (
               <RecommendationCard
                 key={recommendation.id}
                 recommendation={recommendation}
-                isLatest={index === 0}
+                isLatest
               />
             ))}
           </ul>
+
+          {items.length > 1 && (
+            <>
+              <ProgressGroupLabel>Earlier recommendations</ProgressGroupLabel>
+              <ul>
+                {items.slice(1).map((recommendation) => (
+                  <EarlierRecommendation key={recommendation.id} recommendation={recommendation} />
+                ))}
+              </ul>
+            </>
+          )}
           {/* Says once what would otherwise be implied per stage: there is nothing
               for the intern to do on this page. */}
           <p className="flex items-start gap-2 border-t border-separator px-[18px] py-3.5 text-[11.5px] leading-[1.5] text-muted-foreground">

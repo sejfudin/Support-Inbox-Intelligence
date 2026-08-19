@@ -1,6 +1,5 @@
 import { format } from 'date-fns';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-import { Badge } from '@/components/ui/badge';
 import { ProgressPanel, ProgressPanelEmpty, ProgressPanelLead } from './ProgressPanel';
 
 /**
@@ -12,6 +11,11 @@ import { ProgressPanel, ProgressPanelEmpty, ProgressPanelLead } from './Progress
  * Read-only, same as every other section on this page: there is no reply or
  * write path here, only the note text, who wrote it, and when.
  */
+/** The closed band's summary: what is in this section, in one muted phrase. */
+function SectionCount({ children }) {
+  return <span className="text-[11.5px] font-medium text-muted-foreground">{children}</span>;
+}
+
 export function MyMentorNotesSection({ mentorNotes }) {
   const items = mentorNotes?.items || [];
 
@@ -20,11 +24,11 @@ export function MyMentorNotesSection({ mentorNotes }) {
       id="my-progress-mentor-notes"
       title="Notes from your mentor"
       action={
-        items.length === 0 ? (
-          <Badge variant="outline" className="rounded-full font-medium text-muted-foreground">
-            None yet
-          </Badge>
-        ) : null
+        <SectionCount>
+          {items.length === 0
+            ? 'None yet'
+            : `${items.length} note${items.length === 1 ? '' : 's'} shared`}
+        </SectionCount>
       }
       dataTour="my-progress-mentor-notes"
     >
