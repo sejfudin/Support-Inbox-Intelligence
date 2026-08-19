@@ -114,6 +114,22 @@ import { resolveUserId } from '@/helpers/userIdentity';
 export const TOUR_VERSION = '2026-08-redesign-and-requests';
 
 /**
+ * Master switch for the what's-new tour — **temporarily off**.
+ *
+ * The tour is a full-screen overlay that opens itself on first load after a version
+ * bump, which makes the app undrivable by automated tests: the scrim swallows every
+ * click until someone walks the script to the end. Turned off so the automation suite
+ * can run.
+ *
+ * TEMPORARY — turn this back to `true` before the production release. Nothing else
+ * needs reverting: this flag gates both ways in (the auto-open in `WhatsNewTour` and
+ * the sidebar's "Notice some changes?" button), the steps and anchors are all still
+ * here, and the per-account seen-state is untouched, so flipping it back re-announces
+ * `TOUR_VERSION` to everyone exactly once as designed.
+ */
+export const TOUR_ENABLED = false;
+
+/**
  * Opening the tour. Two ways in, and they answer different needs:
  *
  * 1. **Automatically, once, on the first load after a `TOUR_VERSION` bump.** A
@@ -133,6 +149,7 @@ export const TOUR_VERSION = '2026-08-redesign-and-requests';
 export const TOUR_REPLAY_EVENT = 'whatsnew:replay';
 
 export const replayWhatsNewTour = () => {
+  if (!TOUR_ENABLED) return;
   window.dispatchEvent(new Event(TOUR_REPLAY_EVENT));
 };
 
