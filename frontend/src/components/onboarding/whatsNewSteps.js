@@ -41,7 +41,7 @@
  *   no attendance from `placedAt`, so `MyAttendancePage` withdraws the request panel
  *   and any copy about asking for days off is false for them. Costs the overlay a
  *   `useMyAttendance` read, so only put it on a step that genuinely needs it.
- * - `swatches` — paints the twelve `THEMES` gradients under the copy. Specific to
+ * - `swatches` — paints the eleven `THEMES` gradients under the copy. Specific to
  *   the accents step; showing them beats claiming they exist.
  * - `placement` — the preferred side for the card. A hint, not a guarantee: the
  *   overlay overrides it when that side would cover the target.
@@ -95,7 +95,7 @@ import { resolveUserId } from '@/helpers/userIdentity';
 //   mentor. Leaving the old string would have shipped a correction that only
 //   first-time viewers ever saw.
 // - `2026-08-redesign-and-requests` (this one): the component-library redesign, the
-//   twelve accents, the new Settings page, and preferences moving off the browser
+//   eleven accents, the new Settings page, and preferences moving off the browser
 //   onto the account. It also clears a genuine backlog — time-away requests, the
 //   absence queue, staffing requests, the positions catalog, the placement start
 //   date and the new notification triggers all shipped without anyone bumping this
@@ -251,8 +251,8 @@ export const WHATS_NEW_STEPS = [
     title: 'Settings',
     body: 'A page of your own, and it opens from your name in the sidebar. Here is what is on it.',
   },
-  // `swatches` paints the real `THEMES` gradients under the copy — twelve squares say
-  // "twelve palettes" faster than the sentence does. Pointed at the Appearance card
+  // `swatches` paints the real `THEMES` gradients under the copy — eleven squares say
+  // "eleven palettes" faster than the sentence does. Pointed at the Appearance card
   // rather than the account menu, so the control that changes them is under the
   // reader's eyes while they read about them.
   {
@@ -260,7 +260,7 @@ export const WHATS_NEW_STEPS = [
     target: '[data-tour="settings-appearance"]',
     swatches: true,
     title: 'New themes!',
-    body: 'Twelve accents, in light or dark, plus a compact row density.',
+    body: 'Eleven accents, in light or dark, plus a compact row density.',
     placement: 'right',
   },
   {

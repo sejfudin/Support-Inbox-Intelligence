@@ -6,13 +6,18 @@ export const DEFAULT_COLOR_THEME = 'default';
  * The accent palettes. Every `id` matches a `[data-theme='…']` block in
  * `styles/themes.css` — adding one here without the CSS gives a swatch that
  * changes nothing. The ids are storage values and never change; only the labels
- * are for reading.
+ * are for reading. Dropping one is safe: `isValidColorTheme` sends anyone still
+ * holding a retired id back to the default.
  *
- * Eight, one per hue family, because the picker is a decision and not a
- * catalogue: two blues sitting next to each other cost the reader a comparison
- * and buy nothing. The accents themselves are stock Tailwind steps (indigo-500,
- * violet-600, sky-500, emerald-600, orange-500, rose-600), so a colour picked
- * here is the same colour a designer means by its name.
+ * Eleven, because the picker is a decision and not a catalogue: two blues sitting
+ * next to each other cost the reader a comparison and buy nothing. Nine carry a
+ * hue and are spread around the wheel so no two are mistakable for each other;
+ * the last two are deliberate neutrals — Forged Ash warm, Black & White absolute.
+ * Most hued accents are stock Tailwind steps (indigo-500, violet-600,
+ * fuchsia-600, sky-500, emerald-600, orange-500), so a colour picked here is the
+ * same colour a designer means by its name. Ruby and Coral are the exception:
+ * Tailwind's rose-600 is both of them at once, so they are hand-separated into a
+ * dark jewel crimson and a light salmon instead.
  *
  * `preview.primary` and `preview.background` are what the sidebar's Appearance
  * grid paints; `preview.gradient` is the Settings swatch.
@@ -30,7 +35,7 @@ export const THEMES = [
   },
   {
     id: 'violet',
-    label: 'Deep Purple',
+    label: 'Lavender Purple',
     description: 'Warmer and deeper than Symphony, same cool neutrals',
     preview: {
       gradient: 'linear-gradient(135deg, #C4B5FD, #8B5CF6 55%, #6D28D9)',
@@ -40,8 +45,8 @@ export const THEMES = [
   },
   {
     id: 'magenta',
-    label: 'Orchid Magenta',
-    description: 'Pink-purple with more punch than Deep Purple',
+    label: 'Orchid Pink',
+    description: 'Pink-purple with more punch than Lavender',
     preview: {
       gradient: 'linear-gradient(135deg, #F0ABFC, #D946EF 55%, #A21CAF)',
       primary: 'hsl(293 69% 49%)',
@@ -49,52 +54,22 @@ export const THEMES = [
     },
   },
   {
-    id: 'azure',
-    label: 'Azure Blue',
-    description: 'The workhorse product blue — high trust, low drama',
+    id: 'ruby',
+    label: 'Ruby Red',
+    description: 'Deep jewel crimson — darker and cooler than Coral',
     preview: {
-      gradient: 'linear-gradient(135deg, #93C5FD, #3B82F6 55%, #1D4ED8)',
-      primary: 'hsl(221 83% 53%)',
+      gradient: 'linear-gradient(135deg, #F4869E, #B21138 55%, #61091F)',
+      primary: 'hsl(346 84% 38%)',
       background: 'hsl(210 20% 98%)',
     },
   },
   {
-    id: 'ocean',
-    label: 'Ocean Blue',
-    description: 'Cool blues and cyans for a calm inbox',
+    id: 'rose',
+    label: 'Coral Pink',
+    description: 'Warm salmon — the soft end of the red band',
     preview: {
-      gradient: 'linear-gradient(135deg, #7DD3FC, #0EA5E9 55%, #0369A1)',
-      primary: 'hsl(199 89% 48%)',
-      background: 'hsl(204 45% 97%)',
-    },
-  },
-  {
-    id: 'teal',
-    label: 'Pacific Teal',
-    description: 'Blue-green — quieter than Alpine, cooler than Ocean',
-    preview: {
-      gradient: 'linear-gradient(135deg, #5EEAD4, #14B8A6 55%, #0F766E)',
-      primary: 'hsl(173 80% 40%)',
-      background: 'hsl(210 20% 98%)',
-    },
-  },
-  {
-    id: 'forest',
-    label: 'Alpine Green',
-    description: 'Greens for reduced eye strain over a long day',
-    preview: {
-      gradient: 'linear-gradient(135deg, #6EE7B7, #10B981 55%, #047857)',
-      primary: 'hsl(152 69% 40%)',
-      background: 'hsl(150 30% 97%)',
-    },
-  },
-  {
-    id: 'amber',
-    label: 'Desert Gold',
-    description: 'Yellow-amber — the warmest accent that still reads on white',
-    preview: {
-      gradient: 'linear-gradient(135deg, #FCD34D, #F59E0B 55%, #B45309)',
-      primary: 'hsl(38 92% 50%)',
+      gradient: 'linear-gradient(135deg, #FCA5A0, #EA5A45 55%, #A3301F)',
+      primary: 'hsl(6 80% 57%)',
       background: 'hsl(210 20% 98%)',
     },
   },
@@ -109,33 +84,53 @@ export const THEMES = [
     },
   },
   {
-    id: 'rose',
-    label: 'Coral Pink',
-    description: 'Red-pink with enough weight to carry buttons',
+    id: 'teal',
+    label: 'Pacific Teal',
+    description: 'Blue-green for reduced eye strain over a long day',
     preview: {
-      gradient: 'linear-gradient(135deg, #FDA4AF, #F43F5E 55%, #BE123C)',
-      primary: 'hsl(347 77% 50%)',
+      gradient: 'linear-gradient(135deg, #5EEAD4, #0D9488 55%, #115E59)',
+      primary: 'hsl(174 82% 28%)',
       background: 'hsl(210 20% 98%)',
     },
   },
   {
-    id: 'slate',
-    label: 'Graphite',
-    description: 'Neutral professional tones for focused work',
+    id: 'ocean',
+    label: 'Ocean Blue',
+    description: 'Cool blues and cyans for a calm inbox',
     preview: {
-      gradient: 'linear-gradient(135deg, #CBD5E1, #64748B 55%, #334155)',
-      primary: 'hsl(215 25% 35%)',
+      gradient: 'linear-gradient(135deg, #7DD3FC, #0EA5E9 55%, #0369A1)',
+      primary: 'hsl(199 89% 48%)',
+      background: 'hsl(204 45% 97%)',
+    },
+  },
+  {
+    id: 'midnight',
+    label: 'Midnight Navy',
+    description: 'Near-ink blue — the quiet, serious end of the house hue',
+    preview: {
+      gradient: 'linear-gradient(135deg, #8FA8CE, #22314F 55%, #0F1729)',
+      primary: 'hsl(222 47% 26%)',
       background: 'hsl(210 20% 98%)',
+    },
+  },
+  {
+    id: 'ash',
+    label: 'Forged Ash',
+    description: 'Warm charcoal and cooled metal — at its best in dark mode',
+    preview: {
+      gradient: 'linear-gradient(135deg, #A89283, #5B4A44 55%, #2A2123)',
+      primary: 'hsl(14 18% 25%)',
+      background: 'hsl(24 22% 97%)',
     },
   },
   {
     id: 'mono',
-    label: 'Space Black',
-    description: 'High-contrast grayscale for accessibility',
+    label: 'Black & White',
+    description: 'No hue anywhere — the highest contrast on offer',
     preview: {
-      gradient: 'linear-gradient(135deg, #A1A1AA, #52525B 55%, #18181B)',
-      primary: 'hsl(0 0% 25%)',
-      background: 'hsl(0 0% 98%)',
+      gradient: 'linear-gradient(135deg, #FFFFFF, #A3A3A3 55%, #000000)',
+      primary: 'hsl(0 0% 0%)',
+      background: 'hsl(0 0% 100%)',
     },
   },
 ];

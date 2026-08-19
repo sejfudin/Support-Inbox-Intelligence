@@ -192,7 +192,7 @@ function AccentSwatches({ disabled = false }) {
 
   const current = themes.find((theme) => theme.id === colorTheme) ?? themes[0];
 
-  // A dropdown rather than a grid of tiles: twelve palettes is a list, not a
+  // A dropdown rather than a grid of tiles: eleven palettes is a list, not a
   // canvas, and the row it used to occupy was three deep. The swatch travels with
   // the name into the trigger, so the current accent is still visible closed.
   return (

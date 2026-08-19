@@ -566,11 +566,11 @@ export function WhatsNewTour() {
         </h2>
         <p className="mt-3 text-[15.5px] leading-[1.55] text-white/75">{step.body}</p>
 
-        {/* Shown, not listed. "Twelve accent palettes" is a claim; the twelve
-            gradients are the thing itself, and they come straight from `THEMES`, so
-            a palette added or retuned there is reflected here with no edit.
-            `aria-hidden` because the copy above already says what they are — to a
-            screen reader these are twelve unlabelled decorations. */}
+        {/* Shown, not listed. "Eleven accent palettes" is a claim; the eleven gradients
+            are the thing itself, and they come straight from `THEMES`, so a palette
+            added or retuned there is reflected here with no edit. `aria-hidden`
+            because the copy above already says what they are — to a screen reader
+            these are eleven unlabelled decorations. */}
         {step.swatches && (
           <div className="mt-3.5 flex flex-wrap gap-1.5" aria-hidden="true">
             {THEMES.map((theme) => (

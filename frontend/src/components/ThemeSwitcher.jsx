@@ -177,7 +177,7 @@ function ThemeAppearanceItems({ showHeading = true }) {
             value={t.id}
             data-test={`theme-appearance-palette-${t.id}-radio`}
           >
-            {/* The palette's own gradient beside its name — twelve names in a
+            {/* The palette's own gradient beside its name — eleven names in a
                 list is a vocabulary test otherwise, and the swatch is what the
                 reader is actually choosing between. */}
             <span className="flex items-center gap-2.5">
