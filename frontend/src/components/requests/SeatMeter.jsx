@@ -21,7 +21,7 @@ const MAX_SEGMENTS = 14;
  *
  * The app-native twin of `symphony/requests/RequestSeatMeter` — same arithmetic,
  * drawn with app tone tokens instead of the symphony surface's, so it reads
- * correctly in all twelve themes and in dark mode.
+ * correctly in all eleven themes and in dark mode.
  */
 export function SeatMeter({
   wanted,

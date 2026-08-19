@@ -717,10 +717,11 @@ controllers/attendanceSettings.js, routes/attendanceSettings.js}`. Frontend:
 `frontend/src/components/attendance/dayStatusVisuals.jsx` is the single source; the calendar, both
 admin tables and the dashboard week strip all read from it.
 
-- **No hue is safe, because `--primary` moves.** `styles/themes.css` ships primaries at hue 241
-  (indigo), 215/213 (slate), 199 (sky), 187 (cyan), **152 (emerald)** and **24 (orange)**, plus a
-  desaturated grey in `mono`. Emerald is Present and orange is Sick, so in the `forest` and `sunset`
-  themes a status colour *is* somebody's primary.
+- **No hue is safe, because `--primary` moves.** `styles/themes.css` ships primaries at hue 239
+  (indigo), 262 (violet), 293 (fuchsia), **346 (crimson)**, **6 (coral)**, **24 (orange)**,
+  173 (teal), 199 (sky) and 222 (navy), plus two neutrals — a near-black warm brown in `ash` and pure
+  achromatic black/white in `mono`. Orange is Sick and red is Absent, so in the `sunset`, `ruby`
+  and `rose` themes a status colour *is* somebody's primary.
 - So the system separates the axes: **fill says what happened** (a fixed hue per status, never
   `--primary`), **a ring says when** (today is drawn as a ring over whatever the day actually is, so
   it survives the intern checking in), and **a glyph says which** (every away-from-the-office state
