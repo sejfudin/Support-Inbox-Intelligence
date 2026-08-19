@@ -578,6 +578,21 @@ const averageEvaluationScore = (scores) => {
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 };
 
+// Every InternProfile-rooted aggregate in getProgrammeStats must exclude a
+// profile whose User was removed outside the app — there is no in-app
+// "delete user" path (see .claude/docs/security.md), so nothing ever cleans
+// such a profile up, and it lingers forever inflating every leadership-
+// dashboard count built on top of it. `userLocalField` is the dotted path to
+// the InternProfile's `user` ref at whatever point in the pipeline this is
+// spliced in: 'user' when InternProfile is the aggregation root, or
+// 'profile.user' once an earlier stage has already $lookup'd/$unwind'd the
+// profile in under that alias.
+const excludeOrphanedProfileStages = (userLocalField = 'user') => [
+  { $lookup: { from: 'users', localField: userLocalField, foreignField: '_id', as: '_userDoc' } },
+  { $match: { _userDoc: { $ne: [] } } },
+  { $project: { _userDoc: 0 } },
+];
+
 const buildFunnel = (rows) => {
   const funnel = Object.fromEntries(INTERN_STATUSES.map((status) => [status, 0]));
   rows.forEach(({ _id, count }) => {
@@ -645,7 +660,7 @@ const getProgrammeStats = async (user) => {
     activeByHubRows,
     technologySupplyRows,
     positionSupplyRows,
-    readyProfiles,
+    rawReadyProfiles,
     recentlyReadyProfiles,
     recommendationFunnelRows,
     recommendationOutcomeRows,
@@ -653,9 +668,15 @@ const getProgrammeStats = async (user) => {
     recentOutcomeRecs,
     allActiveRecommendations,
   ] = await Promise.all([
-    InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    // This counted a handful of orphaned profiles into "N interns in the
+    // programme" and into `funnel.placed` on the leadership dashboard.
+    InternProfile.aggregate([
+      ...excludeOrphanedProfileStages(),
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
     InternProfile.aggregate([
       { $match: { status: { $in: activeStatuses } } },
+      ...excludeOrphanedProfileStages(),
       { $group: { _id: '$internshipType', count: { $sum: 1 } } },
       {
         $lookup: {
@@ -717,6 +738,7 @@ const getProgrammeStats = async (user) => {
         },
       },
       { $unwind: '$profile' },
+      ...excludeOrphanedProfileStages('profile.user'),
       { $match: { 'profile.status': { $nin: excludedSupplyStatuses } } },
       {
         $lookup: {
@@ -750,6 +772,7 @@ const getProgrammeStats = async (user) => {
           declaredPosition: { $ne: null },
         },
       },
+      ...excludeOrphanedProfileStages(),
       { $group: { _id: '$declaredPosition', count: { $sum: 1 } } },
       {
         $lookup: {
@@ -792,9 +815,31 @@ const getProgrammeStats = async (user) => {
       .sort({ updatedAt: -1 })
       .limit(5)
       .lean(),
-    Recommendation.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    Recommendation.aggregate([
+      {
+        $lookup: {
+          from: 'internprofiles',
+          localField: 'internProfile',
+          foreignField: '_id',
+          as: 'profile',
+        },
+      },
+      { $unwind: '$profile' },
+      ...excludeOrphanedProfileStages('profile.user'),
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
     Recommendation.aggregate([
       { $match: { status: 'resulted', 'result.outcome': { $ne: null } } },
+      {
+        $lookup: {
+          from: 'internprofiles',
+          localField: 'internProfile',
+          foreignField: '_id',
+          as: 'profile',
+        },
+      },
+      { $unwind: '$profile' },
+      ...excludeOrphanedProfileStages('profile.user'),
       { $group: { _id: '$result.outcome', count: { $sum: 1 } } },
     ]),
     Recommendation.find({ status: { $in: ACTIVE_PIPELINE_STATUSES } })
@@ -831,6 +876,12 @@ const getProgrammeStats = async (user) => {
       .select('internProfile status updatedAt interviews')
       .lean(),
   ]);
+
+  // Drop an orphaned (user-deleted) ready profile before the readiness/
+  // evaluation lookups below run for it — formatReadyCandidate would discard
+  // it from readyBench anyway, so there's no reason to spend those queries on
+  // a profile that can never render.
+  const readyProfiles = rawReadyProfiles.filter((profile) => Boolean(profile.user));
 
   const profileIds = readyProfiles.map((profile) => profile._id);
 
@@ -887,7 +938,10 @@ const getProgrammeStats = async (user) => {
   const pipelineEligibleProfileIds = new Set(
     activePipelineRecs
       .map((recommendation) => recommendation.internProfile)
-      .filter((profile) => profile && !PIPELINE_EXCLUDED_PROFILE_STATUSES.includes(profile.status))
+      .filter(
+        (profile) =>
+          profile && profile.user && !PIPELINE_EXCLUDED_PROFILE_STATUSES.includes(profile.status)
+      )
       .map((profile) => profile._id.toString())
   );
 
@@ -1092,8 +1146,12 @@ const getProgrammeStats = async (user) => {
       // to several projects at once still counts as one person in the pipeline.
       activeRecommendations: profileIdsWithActiveRec.size,
       interviewingCount: interviewingProfileIds.size,
-      readyWithoutActiveRecommendation: readyProfiles.filter(
-        (profile) => !profileIdsWithActiveRec.has(profile._id.toString())
+      // readyBench, not readyProfiles: it's already had orphaned-user profiles
+      // dropped (formatReadyCandidate returns null for one, filtered out at
+      // readyBench's own definition above) — this count must agree with the
+      // list it's summarizing.
+      readyWithoutActiveRecommendation: readyBench.filter(
+        (candidate) => !profileIdsWithActiveRec.has(candidate.profileId.toString())
       ).length,
     },
   };

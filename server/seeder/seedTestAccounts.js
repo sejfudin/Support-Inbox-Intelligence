@@ -89,9 +89,22 @@ const describeTarget = (uri) => {
   let host = '(unparseable)';
   let db = '(unparseable)';
   try {
-    const parsed = new URL(uri);
-    host = parsed.hostname;
-    db = parsed.pathname.replace(/^\//, '') || 'test';
+    // Not `new URL()`: WHATWG URL throws on a standard multi-host replica-set
+    // string (mongodb://h1:27017,h2:27017,h3:27017/db) because it can't parse
+    // a comma-separated authority — exactly the URI shape a self-hosted
+    // production Mongo is likely to use, unlike the single-host mongodb+srv://
+    // form this was only ever tested against. Mongo connection strings share
+    // enough shape with a URL to pull the two things the banner needs by hand:
+    // scheme://[user:pass@]hosts[/db][?opts].
+    const withoutScheme = uri.replace(/^mongodb(\+srv)?:\/\//, '');
+    const withoutCreds = withoutScheme.includes('@')
+      ? withoutScheme.slice(withoutScheme.lastIndexOf('@') + 1)
+      : withoutScheme;
+    const hostsPart = withoutCreds.split(/[/?]/)[0];
+    host = hostsPart.split(',')[0].split(':')[0] || '(unparseable)';
+
+    const pathMatch = withoutCreds.slice(hostsPart.length).match(/^\/([^?]*)/);
+    db = (pathMatch ? pathMatch[1] : '') || 'test';
   } catch {
     /* leave the placeholders — the banner will show them */
   }
@@ -209,12 +222,26 @@ const main = async () => {
 
   const results = [];
   for (const account of ACCOUNTS) {
-    const existing = await User.findOne({ email: account.email }).select('_id isTestAccount role');
+    const existing = await User.findOne({ email: account.email }).select(
+      '_id isTestAccount role fullname'
+    );
     if (existing) {
-      results.push({ ...account, outcome: existing.isTestAccount ? 'present' : 'CONFLICT' });
+      // A pre-existing account is reported "present" either way, but a role/
+      // name that no longer matches this fixture is worth a visible flag —
+      // e.g. someone hand-edited it in Mongo for one-off testing — rather
+      // than silently treating it as an untouched match.
+      const drift = [
+        existing.role !== account.role
+          ? `role is "${existing.role}", expected "${account.role}"`
+          : '',
+        existing.fullname !== account.fullname
+          ? `name is "${existing.fullname}", expected "${account.fullname}"`
+          : '',
+      ].filter(Boolean);
+      results.push({ ...account, outcome: existing.isTestAccount ? 'present' : 'CONFLICT', drift });
       continue;
     }
-    results.push({ ...account, outcome: 'insert' });
+    results.push({ ...account, outcome: 'insert', drift: [] });
   }
 
   const conflicts = results.filter((r) => r.outcome === 'CONFLICT');
@@ -226,11 +253,12 @@ const main = async () => {
   }
 
   console.log('  Plan');
-  results.forEach((r) =>
+  results.forEach((r) => {
     console.log(
       `   ${r.outcome === 'insert' ? '+' : '·'} ${r.email.padEnd(28)} ${r.role.padEnd(10)} ${r.outcome}`
-    )
-  );
+    );
+    r.drift.forEach((note) => console.log(`       ⚠️  ${note}`));
+  });
 
   if (options.dryRun) {
     console.log('\n  --dry-run: nothing was written.\n');
@@ -248,21 +276,36 @@ const main = async () => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
+  let createdCount = 0;
   for (const account of toInsert) {
-    await User.create({
-      fullname: account.fullname,
-      email: account.email,
-      password: hashedPassword,
-      role: account.role,
-      hub: hub._id,
-      active: true,
-      status: 'active',
-      isTestAccount: true,
-    });
-    console.log(`   created ${account.email}`);
+    try {
+      await User.create({
+        fullname: account.fullname,
+        email: account.email,
+        password: hashedPassword,
+        role: account.role,
+        hub: hub._id,
+        active: true,
+        status: 'active',
+        isTestAccount: true,
+      });
+      createdCount += 1;
+      console.log(`   created ${account.email}`);
+    } catch (error) {
+      // A duplicate-key error here means something else created this exact
+      // email between the existence check above and this insert — a second
+      // concurrent run of this script, or a real signup racing it. The
+      // account exists either way, which is the idempotent outcome this
+      // script promises; only a non-duplicate error is a real failure.
+      if (error?.code === 11000) {
+        console.log(`   ${account.email} already existed by the time of insert (race) — skipped`);
+        continue;
+      }
+      throw error;
+    }
   }
 
-  console.log(`\n✅ Created ${toInsert.length} account(s). Hub: ${hub.name}.\n`);
+  console.log(`\n✅ Created ${createdCount} account(s). Hub: ${hub.name}.\n`);
 
   await mongoose.disconnect();
 };

@@ -164,6 +164,21 @@ describe('createComment', () => {
     expect(MentorComment.create).not.toHaveBeenCalled();
   });
 
+  it('excludes QA test accounts from valid visibleTo recipients, same as the picker that offers them', async () => {
+    InternProfile.findOne.mockResolvedValue(mockProfile());
+    const select = jest.fn().mockResolvedValue([]); // the test account never matches the query
+    User.find.mockReturnValue({ select });
+
+    await expect(
+      createComment(ADMIN, 'intern1', { content: 'hi', visibleTo: ['qa-mentor-id'] })
+    ).rejects.toThrow('One or more visibility recipients are invalid');
+
+    expect(User.find).toHaveBeenCalledWith(
+      expect.objectContaining({ isTestAccount: { $ne: true } })
+    );
+    expect(MentorComment.create).not.toHaveBeenCalled();
+  });
+
   it('notifies each staff visibleTo recipient, and never the intern, when visibleToIntern is unset', async () => {
     InternProfile.findOne.mockResolvedValue(mockProfile());
     User.find.mockReturnValue({ select: jest.fn().mockResolvedValue([{ _id: 'leader1' }]) });
