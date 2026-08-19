@@ -18,6 +18,11 @@ export const getBacklogSlug = (statuses = []) => {
   return statuses.find((s) => s.isBacklog)?.slug ?? '';
 };
 
+export const getBacklogStatusId = (statuses = []) => {
+  const backlog = statuses.find((s) => s.isBacklog);
+  return backlog?._id != null ? String(backlog._id) : '';
+};
+
 export const getDefaultMainStatusId = (statuses = []) => {
   const board = statuses.filter((s) => !s.isBacklog);
   return board[0]?._id != null ? String(board[0]._id) : '';
@@ -235,6 +240,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
   const defaultMainStatusId = getDefaultMainStatusId(statuses);
   const defaultMainStatusSlug = getDefaultMainStatusSlug(statuses);
   const backlogSlug = getBacklogSlug(statuses);
+  const backlogStatusId = getBacklogStatusId(statuses);
 
   const tracksTimeSlugs = new Set(statuses.filter((s) => s.tracksTime).map((s) => s.slug));
   const doneSlugs = new Set(statuses.filter((s) => s.isDone).map((s) => s.slug));
@@ -256,6 +262,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     boardColumns,
     statusBadgeConfig,
     backlogSlug,
+    backlogStatusId,
     defaultMainStatus: defaultMainStatusSlug,
     defaultMainStatusId,
     defaultMainStatusSlug,

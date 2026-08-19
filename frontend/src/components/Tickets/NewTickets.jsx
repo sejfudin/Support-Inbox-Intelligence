@@ -160,12 +160,18 @@ const NewTickets = ({
       workspaceId: effectiveWorkspaceId,
     };
 
-    if (hideStatus) {
-      delete ticketData.status;
-      delete ticketData.statusId;
-    } else if (ticketData.status) {
+    // `hideStatus` only hides the picker UI (below) — it must not also drop the
+    // resolved status from the payload. It used to: a create from a page that
+    // hides the picker (Backlog) discarded `initialStatus` entirely here, so the
+    // backend fell back to a role-based default status instead of Backlog's,
+    // and the new ticket silently landed on Tickets/Board rather than staying
+    // in Backlog.
+    if (ticketData.status) {
       ticketData.statusId = ticketData.status;
       delete ticketData.status;
+    } else {
+      delete ticketData.status;
+      delete ticketData.statusId;
     }
 
     if (ticketData.dueDate) {
