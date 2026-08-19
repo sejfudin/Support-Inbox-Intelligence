@@ -20,6 +20,10 @@ const notificationSchema = new mongoose.Schema(
         'ticket_comment',
         'ticket_assigned',
         'ticket_mention',
+        // Code review — recipient split by direction: the reviewer is asked,
+        // the requesting intern is told the verdict.
+        'ticket_review_requested',
+        'ticket_review_completed',
         // Intern-programme domain — admin/mentor changes surfaced to the intern
         'recommendation_created',
         'recommendation_status_changed',

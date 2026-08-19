@@ -2,8 +2,14 @@ const Ticket = require('../models/Ticket');
 const Comment = require('../models/Comment');
 const Category = require('../models/Category');
 const Workspace = require('../models/Workspace');
+const InternProfile = require('../models/InternProfile');
+const User = require('../models/User');
 const mongoose = require('mongoose');
-const { notifyTicketAssigned } = require('./notificationService');
+const {
+  notifyTicketAssigned,
+  notifyTicketReviewRequested,
+  notifyTicketReviewCompleted,
+} = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
@@ -11,6 +17,7 @@ const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
 const { escapeRegex } = require('../helpers/escapeRegex');
 const { httpError } = require('../helpers/httpError');
 const { userSelect } = require('../constants/userSelect');
+const { ROLES } = require('../constants/roles');
 const {
   CIRCULAR_BLOCKER_ERROR,
   DONE_BLOCKER_ERROR,
@@ -23,6 +30,18 @@ const {
   readBlocker,
   resolveBlockerUpdate,
 } = require('../helpers/ticketBlocker');
+const {
+  answerReviewRequest,
+  assertCanAnswerReview,
+  assertCanCancelReview,
+  assertCanRequestReview,
+  assertReviewerEligible,
+  buildReviewRequest,
+  describeReviewRequestHistory,
+  isReviewRequestStale,
+  resolveReviewerCandidates,
+  REVIEW_REQUEST_STATES,
+} = require('../helpers/reviewRequestRules');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -167,6 +186,15 @@ const BLOCKER_LIST_POPULATE = {
   select: 'subject taskNumber',
 };
 
+// Both halves the review section and the review chip need to name a person by
+// — the reviewer being asked, the intern who asked. Same shape everywhere a
+// ticket is read, since there is no separate "list" width worth trimming here
+// (just two names, unlike the blocker's populated status/archived flags).
+const REVIEW_REQUEST_POPULATE = [
+  { path: 'reviewRequest.reviewer', select: userSelect('role') },
+  { path: 'reviewRequest.requestedBy', select: userSelect('role') },
+];
+
 // Aggregate equivalent of BLOCKER_LIST_POPULATE — the priority-ordered list sorts
 // in Mongo, and `$match`/`$lookup` know nothing about Mongoose populate. `$ifNull`
 // keeps the shape identical to the populate path for a ticket with no blocker,
@@ -184,6 +212,49 @@ const blockerLookupStages = () => [
   {
     $set: {
       'blockedBy.ticket': { $ifNull: [{ $first: '$blockedByTicket' }, null] },
+    },
+  },
+];
+
+// Aggregate equivalent of `REVIEW_REQUEST_POPULATE` — same reason as
+// `blockerLookupStages()` above: the priority-ordered list sorts in Mongo, so
+// this path gets its own `$lookup` rather than a Mongoose `.populate()`.
+const reviewRequestLookupStages = () => [
+  {
+    $lookup: {
+      from: 'users',
+      localField: 'reviewRequest.reviewer',
+      foreignField: '_id',
+      as: 'reviewRequestReviewer',
+      pipeline: [{ $project: { fullname: 1, email: 1, role: 1, avatarUrl: 1 } }],
+    },
+  },
+  {
+    $lookup: {
+      from: 'users',
+      localField: 'reviewRequest.requestedBy',
+      foreignField: '_id',
+      as: 'reviewRequestRequestedBy',
+      pipeline: [{ $project: { fullname: 1, email: 1, role: 1, avatarUrl: 1 } }],
+    },
+  },
+  {
+    $set: {
+      reviewRequest: {
+        $cond: [
+          { $ifNull: ['$reviewRequest', false] },
+          {
+            $mergeObjects: [
+              '$reviewRequest',
+              { reviewer: { $ifNull: [{ $first: '$reviewRequestReviewer' }, null] } },
+              {
+                requestedBy: { $ifNull: [{ $first: '$reviewRequestRequestedBy' }, null] },
+              },
+            ],
+          },
+          null,
+        ],
+      },
     },
   },
 ];
@@ -466,6 +537,8 @@ const getAllTickets = async ({
   sortBy,
   sortOrder,
   periodDays,
+  awaitingReviewFromUserId,
+  reviewRequestState = '',
 }) => {
   if (!workspaceId) {
     return {
@@ -504,6 +577,16 @@ const getAllTickets = async ({
     }
 
     query.$or = searchConditions;
+  }
+
+  if (awaitingReviewFromUserId) {
+    query['reviewRequest.reviewer'] = awaitingReviewFromUserId;
+    // No state means every request addressed to this reviewer, any state —
+    // the "All requests" pill. A specific state (`REVIEW_REQUEST_STATES`)
+    // narrows it, same as the ticket status tabs narrow by status.
+    if (reviewRequestState && REVIEW_REQUEST_STATES.includes(reviewRequestState)) {
+      query['reviewRequest.state'] = reviewRequestState;
+    }
   }
 
   if (status === 'null' || status === null) {
@@ -573,7 +656,8 @@ const getAllTickets = async ({
       .populate('creator', userSelect())
       .populate('assignedTo', userSelect('role'))
       .populate('category')
-      .populate(BLOCKER_LIST_POPULATE);
+      .populate(BLOCKER_LIST_POPULATE)
+      .populate(REVIEW_REQUEST_POPULATE);
 
     if (sortField === 'subject') {
       listQuery.collation(SUBJECT_SORT_COLLATION);
@@ -648,9 +732,18 @@ const getAllTickets = async ({
         { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
         ...statusLookupStages(),
         ...blockerLookupStages(),
+        ...reviewRequestLookupStages(),
         // Excluding a field the pipeline never added is a no-op, so one projection
         // covers both branches.
-        { $project: { priorityRank: 0, [ARCHIVED_AT_SORT_FIELD]: 0, blockedByTicket: 0 } },
+        {
+          $project: {
+            priorityRank: 0,
+            [ARCHIVED_AT_SORT_FIELD]: 0,
+            blockedByTicket: 0,
+            reviewRequestReviewer: 0,
+            reviewRequestRequestedBy: 0,
+          },
+        },
       ]),
       Ticket.countDocuments(query),
     ]);
@@ -679,10 +772,11 @@ const getTicketById = async (ticketId) => {
     .populate('assignedTo', userSelect('role'))
     .populate('creator', userSelect())
     .populate('category')
-    .populate(BLOCKER_POPULATE);
+    .populate(BLOCKER_POPULATE)
+    .populate(REVIEW_REQUEST_POPULATE);
 
   if (!ticket) {
-    throw new Error('Ticket not found');
+    throw httpError('Ticket not found', 404);
   }
 
   return ticket;
@@ -984,7 +1078,8 @@ const persistTicketUpdate = async (ticketId, updateData) => {
     .populate('status', STATUS_POPULATE_SELECT)
     .populate('assignedTo', userSelect('role'))
     .populate('creator', userSelect())
-    .populate(BLOCKER_POPULATE);
+    .populate(BLOCKER_POPULATE)
+    .populate(REVIEW_REQUEST_POPULATE);
 
   if (!ticket) {
     throw new Error('Ticket not found');
@@ -1201,6 +1296,27 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
       ticketId,
     });
 
+    // A status move into "done" drops a live review request. The rule itself is
+    // `reviewRequestRules.isReviewRequestStale` — read off the `isDone` flag,
+    // never a status label, same rule the blocker step above follows. Archiving
+    // is the other way a request goes stale and has its own route, so this call
+    // site only ever asks about `isDone`. Never rides in from the client:
+    // `reviewRequest` is not in the controller's PATCH whitelist, so this is the
+    // only way it changes here.
+    const reviewWentStale =
+      statusChanged &&
+      isReviewRequestStale({
+        reviewRequest: oldTicket.reviewRequest,
+        isDone: Boolean(nextStatusDoc?.isDone),
+        isArchived: false,
+      });
+    const staleReviewHistoryEntry = reviewWentStale
+      ? describeReviewRequestHistory('stale', { reason: 'done' })
+      : null;
+    if (staleReviewHistoryEntry) {
+      updateData.reviewRequest = null;
+    }
+
     const ticket = await persistTicketUpdate(ticketId, updateData);
 
     // Logged only now, after the ticket is actually persisted — a rejected update
@@ -1208,6 +1324,9 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     // claiming a move the database never made.
     if (statusHistoryEntry) {
       historyService.logEvent(ticketId, actorUserId, statusHistoryEntry);
+    }
+    if (staleReviewHistoryEntry) {
+      historyService.logEvent(ticketId, actorUserId, staleReviewHistoryEntry);
     }
     blockerHistoryEntries.forEach((entry) => historyService.logEvent(ticketId, actorUserId, entry));
 
@@ -1240,15 +1359,39 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
 };
 
 const archiveTicket = async (ticketId, actorUserId) => {
+  const existing = await Ticket.findById(ticketId).select('reviewRequest');
+  if (!existing) {
+    throw new Error('Ticket not found');
+  }
+  // Archiving is the second half of the stale rule, so it asks the same helper
+  // rather than re-deriving "there was a request, drop it".
+  const reviewWentStale = isReviewRequestStale({
+    reviewRequest: existing.reviewRequest,
+    isDone: false,
+    isArchived: true,
+  });
+  const update = { isArchived: true, archivedAt: new Date() };
+  if (reviewWentStale) {
+    update.reviewRequest = null;
+  }
   const ticket = await Ticket.findByIdAndUpdate(
     ticketId,
-    { $set: { isArchived: true, archivedAt: new Date() } },
-    { returnDocument: 'after' }
+    { $set: update },
+    {
+      returnDocument: 'after',
+    }
   );
   if (!ticket) {
     throw new Error('Ticket not found');
   }
   historyService.logEvent(ticketId, actorUserId, 'Ticket Archived');
+  if (reviewWentStale) {
+    historyService.logEvent(
+      ticketId,
+      actorUserId,
+      describeReviewRequestHistory('stale', { reason: 'archived' })
+    );
+  }
   emitTicketWorkspaceEvent({
     eventName: TICKET_SOCKET_EVENTS.archived,
     ticket,
@@ -1271,6 +1414,144 @@ const unarchiveTicket = async (ticketId, actorUserId) => {
     ticket,
   });
   return ticket;
+};
+
+// Candidates are read off the CALLER's own InternProfile — there is no
+// "request a review on someone else's behalf". An empty result is a normal
+// outcome (see reviewRequestRules) and is returned, not thrown.
+const getReviewerCandidates = async (ticketId, actorUserId) => {
+  const ticket = await Ticket.findById(ticketId).select('workspace').lean();
+  if (!ticket) throw httpError('Ticket not found', 404);
+
+  const [internProfile, workspace] = await Promise.all([
+    InternProfile.findOne({ user: actorUserId }).lean(),
+    Workspace.findById(ticket.workspace).select('members').lean(),
+  ]);
+
+  const { candidates, emptyCause } = resolveReviewerCandidates({ internProfile, workspace });
+  if (candidates.length === 0) {
+    return { candidates: [], emptyCause };
+  }
+
+  const users = await User.find({ _id: { $in: candidates } })
+    .select('fullname email role')
+    .lean();
+  return { candidates: users, emptyCause: null };
+};
+
+// Creates or replaces the ticket's review request, resetting it to `pending`
+// either way — "re-request" is this same path, never a separate action.
+const requestReview = async (ticketId, { prUrl, reviewerId }, actorUser) => {
+  const ticket = await Ticket.findById(ticketId);
+  if (!ticket) throw httpError('Ticket not found', 404);
+
+  const isAssignee = (ticket.assignedTo || []).some((id) => id.equals(actorUser._id));
+  assertCanRequestReview({ isIntern: actorUser.role === ROLES.INTERN, isAssignee });
+
+  const [internProfile, workspace] = await Promise.all([
+    InternProfile.findOne({ user: actorUser._id }).lean(),
+    Workspace.findById(ticket.workspace).select('members').lean(),
+  ]);
+  assertReviewerEligible({ reviewerId, internProfile, workspace });
+
+  const reviewRequest = buildReviewRequest({
+    prUrl,
+    reviewer: reviewerId,
+    requestedBy: actorUser._id,
+    requestedAt: new Date(),
+  });
+
+  ticket.reviewRequest = reviewRequest;
+  await ticket.save();
+
+  const reviewer = await User.findById(reviewerId).select('fullname').lean();
+  historyService.logEvent(
+    ticketId,
+    actorUser._id,
+    describeReviewRequestHistory('requested', { reviewerName: reviewer?.fullname })
+  );
+
+  await notifyTicketReviewRequested({
+    ticket,
+    reviewerId,
+    actorUserId: actorUser._id,
+  });
+
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.updated,
+    ticket,
+    workspaceId: ticket.workspace,
+  });
+
+  return getTicketById(ticketId);
+};
+
+const answerReview = async (ticketId, { state }, actorUserId) => {
+  const ticket = await Ticket.findById(ticketId);
+  if (!ticket) throw httpError('Ticket not found', 404);
+
+  assertCanAnswerReview({
+    reviewerId: ticket.reviewRequest?.reviewer,
+    actorId: actorUserId,
+  });
+
+  ticket.reviewRequest = answerReviewRequest({
+    reviewRequest: ticket.reviewRequest,
+    state,
+    answeredAt: new Date(),
+  });
+  await ticket.save();
+
+  historyService.logEvent(ticketId, actorUserId, describeReviewRequestHistory(state));
+
+  await notifyTicketReviewCompleted({
+    ticket,
+    internId: ticket.reviewRequest.requestedBy,
+    state,
+    prUrl: ticket.reviewRequest.prUrl,
+  });
+
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.updated,
+    ticket,
+    workspaceId: ticket.workspace,
+  });
+
+  return getTicketById(ticketId);
+};
+
+const cancelReview = async (ticketId, actorUserId) => {
+  const ticket = await Ticket.findById(ticketId);
+  if (!ticket) throw httpError('Ticket not found', 404);
+
+  if (!ticket.reviewRequest) {
+    throw httpError('This ticket has no review request to cancel', 404);
+  }
+
+  assertCanCancelReview({
+    requestedById: ticket.reviewRequest.requestedBy,
+    reviewerId: ticket.reviewRequest.reviewer,
+    actorId: actorUserId,
+    state: ticket.reviewRequest.state,
+  });
+
+  const actor = await User.findById(actorUserId).select('fullname').lean();
+  ticket.reviewRequest = null;
+  await ticket.save();
+
+  historyService.logEvent(
+    ticketId,
+    actorUserId,
+    describeReviewRequestHistory('cancelled', { actorName: actor?.fullname })
+  );
+
+  emitTicketWorkspaceEvent({
+    eventName: TICKET_SOCKET_EVENTS.updated,
+    ticket,
+    workspaceId: ticket.workspace,
+  });
+
+  return getTicketById(ticketId);
 };
 
 const getMyTickets = async ({
@@ -1358,6 +1639,7 @@ const getMyTickets = async ({
           .populate('assignedTo', userSelect('role'))
           .populate('category')
           .populate(BLOCKER_LIST_POPULATE)
+          .populate(REVIEW_REQUEST_POPULATE)
       : Ticket.aggregate([
           { $match: castTicketQueryForAggregate(query) },
           {
@@ -1408,7 +1690,15 @@ const getMyTickets = async ({
           { $unwind: { path: '$category', preserveNullAndEmptyArrays: true } },
           ...statusLookupStages(),
           ...blockerLookupStages(),
-          { $project: { priorityRank: 0, blockedByTicket: 0 } },
+          ...reviewRequestLookupStages(),
+          {
+            $project: {
+              priorityRank: 0,
+              blockedByTicket: 0,
+              reviewRequestReviewer: 0,
+              reviewRequestRequestedBy: 0,
+            },
+          },
         ]);
 
   if (normalizedOrder === 'none' && sortField === 'subject') {
@@ -1436,6 +1726,10 @@ module.exports = {
   archiveTicket,
   unarchiveTicket,
   getMyTickets,
+  getReviewerCandidates,
+  requestReview,
+  answerReview,
+  cancelReview,
   INVALID_ASSIGNEE_ERROR,
   INVALID_CATEGORY_ERROR,
 };

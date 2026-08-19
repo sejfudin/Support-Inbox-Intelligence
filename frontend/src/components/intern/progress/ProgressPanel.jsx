@@ -2,7 +2,7 @@ import { AccordionContent, AccordionItem, AccordionTrigger } from '@/components/
 import { cn } from '@/lib/utils';
 
 /**
- * The section shell every block on "My progress" sits in — a flat card whose
+ * The section shell most blocks on "My progress" sit in — a flat card whose
  * header band opens and closes it.
  *
  * Two things carry the page's length, and they are not the same thing:
@@ -26,8 +26,54 @@ import { cn } from '@/lib/utils';
  *
  * `id` doubles as the accordion item's value, so the summary header's tiles name
  * sections by the same id an anchor link would use.
+ *
+ * **`collapsible={false}`** renders the same header/body shape as a plain static
+ * card instead — no `AccordionItem`, no trigger, content always open. For a
+ * section that already lives behind its own tab (Evaluations, Recommendations):
+ * the tab itself is the disclosure, so wrapping the content in a second one
+ * (click to expand a thing you just clicked a tab to see) would be redundant.
  */
-export function ProgressPanel({ id, title, description, action, children, className, dataTour }) {
+export function ProgressPanel({
+  id,
+  title,
+  description,
+  action,
+  children,
+  className,
+  dataTour,
+  collapsible = true,
+}) {
+  const header = (
+    <div className="min-w-0">
+      <span className="app-card-title block transition-colors group-hover:text-foreground">
+        {title}
+      </span>
+      {description ? (
+        <p className="mt-1 max-w-[42rem] text-[12.5px] leading-[1.45] text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
+    </div>
+  );
+
+  if (!collapsible) {
+    return (
+      <section
+        id={id}
+        data-tour={dataTour}
+        className={cn('app-card flex scroll-mt-4 flex-col overflow-hidden', className)}
+      >
+        <div className="app-card-head flex-wrap items-start justify-between gap-3">
+          {header}
+          {action ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div>
+          ) : null}
+        </div>
+        <div className="flex flex-col text-[unset]">{children}</div>
+      </section>
+    );
+  }
+
   return (
     <AccordionItem
       value={id}
@@ -45,19 +91,7 @@ export function ProgressPanel({ id, title, description, action, children, classN
             'items-start [&>svg]:mt-[3px]'
           )}
         >
-          <div className="min-w-0">
-            {/* A span, not an `<h2>`: Radix's `AccordionTrigger` already sits inside
-                its own heading element, and a heading nested in that heading's
-                button would be one level of outline for the same title. */}
-            <span className="app-card-title block transition-colors group-hover:text-foreground">
-              {title}
-            </span>
-            {description ? (
-              <p className="mt-1 max-w-[42rem] text-[12.5px] leading-[1.45] text-muted-foreground">
-                {description}
-              </p>
-            ) : null}
-          </div>
+          {header}
         </AccordionTrigger>
         {action ? <div className="flex shrink-0 flex-wrap items-center gap-2">{action}</div> : null}
       </div>

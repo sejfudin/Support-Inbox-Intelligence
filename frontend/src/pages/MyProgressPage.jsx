@@ -4,19 +4,20 @@ import { PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
 import { Accordion } from '@/components/ui/accordion';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useInternProgress } from '@/queries/internProgress';
-import { ProgrammeSnapshot } from '@/components/intern/progress/ProgrammeSnapshot';
 import { MyEvaluationsSection } from '@/components/intern/progress/MyEvaluationsSection';
 import { MyMentorNotesSection } from '@/components/intern/progress/MyMentorNotesSection';
 import { MyReadinessSection } from '@/components/intern/progress/MyReadinessSection';
 import { MyRecommendationsSection } from '@/components/intern/progress/MyRecommendationsSection';
-import { ProgressHeader } from '@/components/intern/progress/ProgressHeader';
+import { ProgressOverview } from '@/components/intern/progress/ProgressOverview';
 
 /**
- * Nothing is open on arrival. The summary band above the cards is what the page
- * says on load — status, how far through, and the three counts — and each closed
- * card still states its own summary on the right, so a shut page still reads.
- * Opening one is then a question the reader asked, not a scroll they inherited.
+ * Nothing is open on arrival. `ProgressOverview` above the accordion is what the
+ * page says on load — status, timeline, and the three stat tiles — and each
+ * closed card still states its own summary on the right, so a shut page still
+ * reads. Opening one is then a question the reader asked, not a scroll they
+ * inherited.
  */
 const OPEN_ON_LOAD = [];
 
@@ -61,11 +62,24 @@ function SectionSkeleton({ rows = 0 }) {
  * admin-authored: evaluations and readiness through `/api/interns/:userId/...`,
  * recommendations through `/api/recommendations`, all `requireRole(ADMIN)`. There is
  * no mutation hook in this tree and no endpoint behind it to call. Attendance and
- * the intern's own declarations live on their own pages, linked from the first
- * panel, because those the intern *can* change.
+ * the intern's own declarations live on their own pages, linked from the overview
+ * card, because those the intern *can* change.
+ *
+ * **Three tabs, not one long scroll.** Evaluations and recommendations are things
+ * that *happen* to the intern over time — a history to look up, not a fact to have
+ * in view alongside everything else — so each gets its own tab (`Tabs` is the
+ * "what the page is" control per its own doc-comment, not a `Switcher`, and this is
+ * exactly that: the heading and the data both change). The Overview tab keeps
+ * everything that answers "where do I stand right now": the always-open
+ * `ProgressOverview` card (status, timeline, stat tiles, and the programme's own
+ * record of dates/position/mentors/hub — previously a second, separate "Programme
+ * details" dropdown, now one section so the basics aren't hidden behind a click),
+ * plus readiness and mentor notes as two closed-by-default cards underneath —
+ * occasional reading, not the headline.
  */
 export default function MyProgressPage() {
   const { data, isPending, isError, error } = useInternProgress();
+  const [tab, setTab] = useState('overview');
   const [openSections, setOpenSections] = useState(OPEN_ON_LOAD);
 
   /**
@@ -80,6 +94,9 @@ export default function MyProgressPage() {
       document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }, []);
+
+  const evaluationCount = data?.evaluations?.total ?? 0;
+  const recommendationCount = data?.recommendations?.total ?? 0;
 
   return (
     <PageShell>
@@ -121,56 +138,66 @@ export default function MyProgressPage() {
             </div>
             <SectionSkeleton />
             <SectionSkeleton />
-            <SectionSkeleton />
-            <SectionSkeleton />
-            <SectionSkeleton />
           </div>
         )}
 
-        {/* The page in two registers: one band that answers "where do I stand?"
-            outright, then the record itself as cards you open.
-
-            Both halves of the length problem are handled, and they are different
-            problems. BETWEEN sections: every card starts closed, carrying its own
-            count on the band, so what loads is the summary and nothing else. INSIDE
-            a section: the newest evaluation and the newest recommendation render in
-            full and everything older is one line, so opening one is not six screens
-            of history.
-
-            What it is not is a two-column board. The right rail held an "on this
-            page" index and the mentors behind the record — an index is what a page
-            needs when it is too tall to survey, and the header's tiles do that job
-            now by opening the section they summarise.
-
-            Order is by what an intern does with it: readiness is the only section
-            they can move, evaluations and recommendations are what happens to them,
-            notes are occasional, and the programme facts are reference — looked up,
-            not read. `type="multiple"` because these are independent: comparing an
-            evaluation against the readiness it produced should not cost the one you
-            were reading. */}
         {!isError && !isPending && (
-          <>
-            <ProgressHeader
-              programme={data?.programme}
-              readiness={data?.readiness}
-              evaluations={data?.evaluations}
-              recommendations={data?.recommendations}
-              onOpen={openSection}
-            />
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList className="w-full justify-start overflow-x-auto" data-test="my-progress-tabs">
+              <TabsTrigger value="overview" data-test="my-progress-tab-overview">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="evaluations" data-test="my-progress-tab-evaluations">
+                Evaluations
+                {evaluationCount > 0 && <TabsCount>{evaluationCount}</TabsCount>}
+              </TabsTrigger>
+              <TabsTrigger value="recommendations" data-test="my-progress-tab-recommendations">
+                Recommendations
+                {recommendationCount > 0 && <TabsCount>{recommendationCount}</TabsCount>}
+              </TabsTrigger>
+            </TabsList>
 
-            <Accordion
-              type="multiple"
-              value={openSections}
-              onValueChange={setOpenSections}
-              className="flex flex-col gap-3.5"
-            >
-              <MyReadinessSection readiness={data?.readiness} />
-              <MyEvaluationsSection evaluations={data?.evaluations} />
-              <MyRecommendationsSection recommendations={data?.recommendations} />
-              <MyMentorNotesSection mentorNotes={data?.mentorNotes} />
-              <ProgrammeSnapshot programme={data?.programme} />
-            </Accordion>
-          </>
+            <TabsContent value="overview" className="flex flex-col gap-3.5">
+              <ProgressOverview
+                programme={data?.programme}
+                readiness={data?.readiness}
+                evaluations={data?.evaluations}
+                recommendations={data?.recommendations}
+                onOpenReadiness={() => openSection('my-progress-readiness')}
+                onGoToEvaluations={() => setTab('evaluations')}
+                onGoToRecommendations={() => setTab('recommendations')}
+              />
+
+              {/* Side by side rather than stacked: readiness and mentor notes are
+                  both occasional reading, not the headline, and two closed bands
+                  of near-identical width read as a matched pair this way instead
+                  of a lone half-empty row under the overview card. `items-start`
+                  keeps each card at its own natural height — opening one must not
+                  stretch the other to match and leave it half blank.
+                  `type="multiple"`: the two are independent, so opening one to
+                  check something should not cost the other. */}
+              <Accordion
+                type="multiple"
+                value={openSections}
+                onValueChange={setOpenSections}
+                className="grid items-start gap-3.5 lg:grid-cols-2"
+              >
+                <MyReadinessSection readiness={data?.readiness} />
+                <MyMentorNotesSection mentorNotes={data?.mentorNotes} />
+              </Accordion>
+            </TabsContent>
+
+            <TabsContent value="evaluations">
+              <MyEvaluationsSection evaluations={data?.evaluations} collapsible={false} />
+            </TabsContent>
+
+            <TabsContent value="recommendations">
+              <MyRecommendationsSection
+                recommendations={data?.recommendations}
+                collapsible={false}
+              />
+            </TabsContent>
+          </Tabs>
         )}
       </PageSection>
     </PageShell>
