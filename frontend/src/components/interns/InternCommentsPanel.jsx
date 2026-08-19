@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { ChevronDown, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import { resolveUserId } from '@/helpers/userIdentity';
 import { Button } from '@/components/ui/button';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
 import {
@@ -26,8 +27,6 @@ const SORT_OPTIONS = [
   { key: 'date', label: 'Date' },
   { key: 'author', label: 'Author' },
 ];
-
-const viewerId = (viewer) => viewer?._id || viewer?.id;
 
 /**
  * What the note's audience chip says. An empty `visibleTo` is not "shared with
@@ -122,7 +121,7 @@ function SharedWithMenu({
         <DropdownMenuLabel className="text-[11.5px]">Who else can read this</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {viewers.map((viewer) => {
-          const id = viewerId(viewer);
+          const id = resolveUserId(viewer);
           return (
             <DropdownMenuCheckboxItem
               key={id}
@@ -172,7 +171,7 @@ export function InternCommentsPanel({ userId, internName, readOnly = false }) {
 
   // You are never in your own audience list — you wrote the note.
   const viewers = useMemo(
-    () => allViewers.filter((viewer) => viewerId(viewer) !== user?._id),
+    () => allViewers.filter((viewer) => resolveUserId(viewer) !== user?._id),
     [allViewers, user?._id]
   );
 
@@ -367,7 +366,7 @@ export function InternCommentsPanel({ userId, internName, readOnly = false }) {
           </p>
           <div className="mt-3 flex flex-col gap-2.5">
             {viewers.map((viewer) => (
-              <div key={viewerId(viewer)} className="flex items-center gap-2">
+              <div key={resolveUserId(viewer)} className="flex items-center gap-2">
                 <NoteAvatar name={viewer.fullname} />
                 <div className="min-w-0 leading-[1.35]">
                   <p className="truncate text-[12.5px] font-semibold text-foreground">

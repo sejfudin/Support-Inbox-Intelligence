@@ -1,3 +1,5 @@
+import { resolveUserId } from './userIdentity';
+
 export const ROLES = Object.freeze({
   ADMIN: 'admin',
   MENTOR: 'mentor',
@@ -37,18 +39,15 @@ export const isLeadership = (role) => role === ROLES.LEADERSHIP;
 
 export const canManageInterns = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
 
-const refId = (ref) => {
-  if (!ref) return null;
-  if (typeof ref === 'string') return ref;
-  return ref._id || ref.id || null;
-};
-
 // Whether `user` is the primary/secondary mentor assigned to `intern`.
 export const isAssignedMentor = (user, intern) => {
   if (!user || !intern) return false;
-  const userId = user._id || user.id;
+  const userId = resolveUserId(user);
   if (!userId) return false;
-  return refId(intern.primaryMentor) === userId || refId(intern.secondaryMentor) === userId;
+  return (
+    resolveUserId(intern.primaryMentor) === userId ||
+    resolveUserId(intern.secondaryMentor) === userId
+  );
 };
 
 // Documentation links can be managed by admins, leadership, and the intern's assigned mentor.

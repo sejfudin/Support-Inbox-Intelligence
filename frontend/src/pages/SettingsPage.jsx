@@ -331,6 +331,7 @@ export default function SettingsPage() {
           icon={Palette}
           title="Appearance"
           description="Theme, accent and row density — saved to your account."
+          tour="settings-appearance"
         >
           <SettingsRow label="Theme" hint="Light, dark, or follow your system.">
             <ThemeModeControl />
@@ -369,6 +370,7 @@ export default function SettingsPage() {
           icon={Accessibility}
           title="Accessibility"
           description="Contrast, colour and motion follow your account; size stays on this device."
+          tour="settings-accessibility"
         >
           <SettingsRow
             label="Text & UI size"
@@ -432,6 +434,7 @@ export default function SettingsPage() {
           icon={SlidersHorizontal}
           title="Workspace defaults"
           description="How the app opens for you."
+          tour="settings-defaults"
         >
           <div className="grid gap-x-5 gap-y-3.5 py-[15px] sm:grid-cols-2">
             <SettingsField
@@ -473,6 +476,7 @@ export default function SettingsPage() {
           icon={Bell}
           title="Notifications"
           description="What reaches you, and where."
+          tour="settings-notifications"
         >
           <DesktopNotificationsRow />
 

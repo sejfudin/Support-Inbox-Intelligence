@@ -93,7 +93,14 @@ export default function DesktopNotificationsRow() {
   };
 
   return (
-    <SettingsRow label="Desktop notifications" hint={denied ? HINT.denied : HINT[permission]}>
+    <SettingsRow
+      label="Desktop notifications"
+      hint={denied ? HINT.denied : HINT[permission]}
+      // Anchor for the what's-new tour. Note the `!supported` early return above:
+      // in a browser with no Notification API this row does not render, and the
+      // tour step falls back to a centred card rather than pointing at nothing.
+      tour="settings-desktop-notifications"
+    >
       <Switch
         checked={checked}
         disabled={denied}

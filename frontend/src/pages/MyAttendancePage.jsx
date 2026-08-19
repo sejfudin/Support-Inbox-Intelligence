@@ -153,10 +153,17 @@ export default function MyAttendancePage() {
                     request calendar greys them out rather than letting the intern
                     pick a day the server is bound to refuse. */}
                 {!onProject && (
-                  <AttendanceRequestPanel
-                    className="flex-1"
-                    recordedDates={records.map((r) => r.date)}
-                  />
+                  // Wrapped rather than given the attribute directly: the panel
+                  // destructures its props, so a `data-tour` passed to it would be
+                  // dropped and the tour step would point at nothing. The wrapper
+                  // takes the `flex-1` the panel had, and the panel fills it, so the
+                  // stretch against the summary card above is unchanged.
+                  <div data-tour="attendance-requests" className="flex flex-1 flex-col">
+                    <AttendanceRequestPanel
+                      className="flex-1"
+                      recordedDates={records.map((r) => r.date)}
+                    />
+                  </div>
                 )}
               </div>
             </div>

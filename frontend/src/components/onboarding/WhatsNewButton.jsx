@@ -13,7 +13,7 @@ import { replayWhatsNewTour, useWhatsNewSeen } from './whatsNewSteps';
  * is where the other "about you and this app" controls already are.
  *
  * Filled and gently animated until it has been used, then quiet. "Used" means
- * finished or skipped, not merely opened, and it is remembered per `TOUR_VERSION`,
+ * finished or escaped out of, not merely opened, and it is remembered per `TOUR_VERSION`,
  * so the next redesign gets to be loud again exactly once. The tour also opens
  * itself on a viewer's first load after a version bump (see `WhatsNewTour`) — this
  * button is how you get it back afterwards, and how you reach it if you dismissed
