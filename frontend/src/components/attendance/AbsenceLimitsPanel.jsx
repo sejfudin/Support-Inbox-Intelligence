@@ -19,6 +19,7 @@ import {
   useResetAbsenceRequestSettings,
 } from '@/queries/absenceRequestSettings';
 import { useAdminCandidates } from '@/queries/users';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 // No admin is ever this id, so it is safe as the Select's "cleared" sentinel —
 // Radix refuses an empty-string item value outright.
@@ -76,7 +77,9 @@ const ROW_GRID =
   'md:grid md:min-w-[640px] md:grid-cols-[minmax(180px,1fr)_10.5rem_10.5rem_5rem] md:items-start md:gap-4';
 
 export function AbsenceLimitsPanel() {
-  const { data: settings, isPending, isError } = useAbsenceRequestSettings();
+  const { data: settings, isPending: isPendingRaw, isError } = useAbsenceRequestSettings();
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const updateSettings = useUpdateAbsenceRequestSettings();
   const resetSettings = useResetAbsenceRequestSettings();
   const { data: adminCandidates } = useAdminCandidates();
@@ -92,10 +95,12 @@ export function AbsenceLimitsPanel() {
     if (settings) setPrimaryAdminId(settings.primaryAdmin?.id || NO_PRIMARY_ADMIN);
   }, [settings]);
 
+  // A settings form whose fields are generated from the configured types — nothing to draw
+  // until the server says which types exist and what they are set to.
   if (isPending) {
     return (
-      <PagePanel className="px-5 py-6 text-sm text-muted-foreground md:px-6">
-        Loading request limits…
+      <PagePanel className="px-5 py-6 md:px-6">
+        <Loader label="Loading request limits…" />
       </PagePanel>
     );
   }

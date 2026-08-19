@@ -16,6 +16,8 @@ import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const READINESS_PAGE_SIZE = 9;
 
@@ -39,7 +41,9 @@ const sortTechnologiesByReadiness = (technologyList, flagMap) =>
 export function InternReadinessPanel({ userId, declaredTechnologies = [], readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && user?.role === ROLES.ADMIN;
-  const { data: flags = [], isPending } = useInternReadiness(userId);
+  const { data: flags = [], isPending: isPendingRaw } = useInternReadiness(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw);
   const { mutate } = useUpsertInternReadiness();
   const [visibleCount, setVisibleCount] = useState(READINESS_PAGE_SIZE);
 
@@ -83,7 +87,11 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
         </p>
       )}
       {isPending && declaredTechnologies.length > 0 && (
-        <p className="pt-3 text-[12.5px] text-muted-foreground">Loading readiness...</p>
+        <LoadingOverlay size="sm" label="Loading readiness">
+          <PanelBodySkeleton
+            rows={declaredTechnologies.length > 3 ? 4 : declaredTechnologies.length}
+          />
+        </LoadingOverlay>
       )}
       {!isPending && declaredTechnologies.length > 0 && (
         <>

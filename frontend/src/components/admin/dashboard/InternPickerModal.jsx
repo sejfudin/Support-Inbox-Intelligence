@@ -15,6 +15,7 @@ import {
 } from '@/helpers/recommendations';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 // Short chip labels for the disabled rows. The rule itself and the full sentence
 // come from helpers/recommendations.js — the same source the New recommendation
@@ -38,7 +39,13 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
   //
   // Filtered client-side: it is a few dozen rows, and typing against a local list
   // beats a request per keystroke.
-  const { data, isPending, isError } = useInterns({ pagination: false }, { enabled: open });
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useInterns({ pagination: false }, { enabled: open });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const rows = useMemo(() => {
     const interns = data?.interns || [];
@@ -105,7 +112,7 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
         )}
 
         <div className="max-h-80 space-y-1 overflow-y-auto">
-          {isPending && <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>}
+          {isPending && <Loader size="sm" className="py-6" label="Loading interns…" />}
 
           {isError && (
             <p className="py-6 text-center text-xs text-[hsl(var(--tone-danger-fg))]">

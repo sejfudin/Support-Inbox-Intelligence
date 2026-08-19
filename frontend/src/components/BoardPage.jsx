@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useIsFetching } from '@tanstack/react-query';
 import {
   DndContext,
   DragOverlay,
@@ -18,6 +19,7 @@ import AssigneesAvatar from '@/components/Tickets/AssigneesAvatar';
 import BlockedByChip from '@/components/Tickets/BlockedByChip';
 import TicketReviewChip from '@/components/Tickets/TicketReviewChip';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
+import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getColumnStyle } from '@/helpers/ticketStatus';
@@ -27,6 +29,7 @@ import { DEFAULT_BOARD_SORT, sortBoardCards } from '@/helpers/boardCardSort';
 import { normalizeTicket } from '@/helpers/normalizeTicket';
 import { cn } from '@/lib/utils';
 import { useBoardColumnTickets } from '@/queries/boardTickets';
+import { Loader, LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 // Category chip tints, per the mockup: Bug → error, Feature → info, Refactor →
 // primary tint, Fix → warning. Status tokens don't exist in this app's palette, so
@@ -451,6 +454,36 @@ export default function BoardPage({
 }) {
   const [activeTaskView, setActiveTaskView] = useState(null);
   const [collapsedColumns, setCollapsedColumns] = useState(() => new Set());
+  // Held for one full turn of the animation — same reasoning as the ticket list this sits next to.
+  const showBoardLoader = useLoaderHold(statusesLoading);
+  // Any column still fetching means the board is still arriving. Scoped to the board's own key so
+  // an unrelated background refetch elsewhere in the app cannot raise the mark over the columns.
+  const columnsFetching = useIsFetching({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+  // First load only. `useIsFetching` alone would raise the veil over a board the person is reading
+  // every time a socket event invalidated a column or a filter changed — the one thing a loading
+  // state must never do. So it latches once the columns have settled, and re-arms only when the
+  // board is genuinely a different board.
+  //
+  // The latch has to wait until it has actually *seen* the columns fetch. `columnsFetching` is the
+  // count as of the last render, and on the render that first mounts the columns that count is
+  // still 0 — the children start their queries in effects, which run before this one. Latching on
+  // that zero marked the board settled before a single request had left, and the mark never
+  // appeared at all. A board served entirely from cache never trips `hasFetched`, so it stays
+  // unsettled and simply never raises the veil, which is the right answer for it too.
+  const [columnsSettled, setColumnsSettled] = useState(false);
+  const columnsHaveFetched = useRef(false);
+  useEffect(() => {
+    columnsHaveFetched.current = false;
+    setColumnsSettled(false);
+  }, [workspaceId, fetchMode]);
+  useEffect(() => {
+    if (columnsFetching > 0) {
+      columnsHaveFetched.current = true;
+      return;
+    }
+    if (columnsHaveFetched.current) setColumnsSettled(true);
+  }, [columnsFetching]);
+  const showColumnsLoader = useLoaderHold(!columnsSettled && columnsFetching > 0);
 
   const toggleColumnCollapsed = useCallback((columnId) => {
     setCollapsedColumns((current) => {
@@ -498,7 +531,7 @@ export default function BoardPage({
     [boardHelpers, onStatusChange]
   );
 
-  if (statusesLoading || !boardHelpers?.hasStatuses) {
+  if (showBoardLoader || !boardHelpers?.hasStatuses) {
     return (
       <div
         className={cn(
@@ -506,7 +539,9 @@ export default function BoardPage({
           flush ? 'flex h-full min-h-0 flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'
         )}
       >
-        <BoardSkeleton />
+        <LoadingOverlay label="Loading board">
+          <BoardSkeleton />
+        </LoadingOverlay>
       </div>
     );
   }
@@ -516,7 +551,7 @@ export default function BoardPage({
   // column onto a second row instead of pushing the board into a horizontal
   // scroll. Nothing here ever overflows sideways.
   const columnRow = (
-    <div className={cn('flex flex-wrap items-stretch gap-3 pb-5', flush && 'min-h-0')}>
+    <div className={cn('relative flex flex-wrap items-stretch gap-3 pb-5', flush && 'min-h-0')}>
       {columns.map((col) => (
         <BoardColumn
           key={col.id}
@@ -536,6 +571,11 @@ export default function BoardPage({
           onToggleCollapsed={toggleColumnCollapsed}
         />
       ))}
+      {/* One mark for the whole board, not one per column. Every column fetches on its own, so
+          the columns keep their card skeletons — that is the shape — but four marks unfurling
+          side by side would read as four separate waits instead of one board arriving. Held on
+          the same 1.5s floor as everything else. */}
+      {showColumnsLoader && <Loader variant="overlay" label="Loading board" />}
     </div>
   );
 

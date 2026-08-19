@@ -1,4 +1,6 @@
 import { TableCell, TableRow } from '@/components/ui/table';
+import TableRowsSkeleton from '@/components/Skeletons/TableRowsSkeleton';
+import { Loader } from '@/components/ui/loader';
 import { cn } from '@/lib/utils';
 
 /**
@@ -11,16 +13,40 @@ import { cn } from '@/lib/utils';
  * loose page copy and the button beside it — which read as page-level furniture
  * even though both belong to the one table underneath.
  */
-export function ReferenceDataPanel({ description, action, children, className }) {
+export function ReferenceDataPanel({
+  description,
+  action,
+  children,
+  className,
+  loading = false,
+  // Every other surface names what it is fetching; the five tabs share one component, so the
+  // name has to come in from the tab rather than being hard-coded to a bare "Loading".
+  loadingLabel = 'Loading',
+}) {
   return (
-    <section className={cn('app-card overflow-hidden', className)}>
+    <section className={cn('app-card relative overflow-hidden', className)}>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-separator px-[18px] pb-3 pt-[13px]">
         <p className="text-[12.5px] leading-[1.45] text-muted-foreground">{description}</p>
         {action}
       </div>
       {children}
+      {/* Over the whole card, head band included, so the mark is centred on the panel rather than
+          on the rows — the band is chrome that is already there and has nothing to wait for. */}
+      {loading && <Loader variant="overlay" size="sm" label={loadingLabel} />}
     </section>
   );
+}
+
+/**
+ * The loading body for a tab's table: skeleton rows in the `tbody`, and the mark over the panel.
+ *
+ * The mark can't go inside the table (a `div` is illegal in a `tbody`), so `ReferenceDataPanel`
+ * marks itself `relative` and the overlay is rendered as a sibling of the table by the panel — see
+ * `loading` below. This keeps all five tabs on one implementation rather than five copies of a
+ * "Loading positions…" row.
+ */
+export function ReferenceDataTableLoading({ colSpan, rows = 5 }) {
+  return <TableRowsSkeleton rows={rows} columns={colSpan} cellClassName="px-4 py-2.5" />;
 }
 
 /**

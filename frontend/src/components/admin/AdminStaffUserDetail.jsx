@@ -15,13 +15,25 @@ import {
 import { useInterns } from '@/queries/interns';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { getRoleLabel, ROLES } from '@/helpers/roles';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 function MentorInternsPanel({ mentorUserId }) {
-  const { data, isPending, isError } = useInterns({ mentorId: mentorUserId, limit: 50 });
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useInterns({ mentorId: mentorUserId, limit: 50 });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const interns = data?.interns ?? [];
 
   if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading assigned interns...</p>;
+    return (
+      <LoadingOverlay size="sm" label="Loading interns">
+        <PanelBodySkeleton people rows={3} />
+      </LoadingOverlay>
+    );
   }
 
   if (isError) {

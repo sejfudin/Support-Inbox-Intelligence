@@ -25,6 +25,7 @@ import {
   ReferenceDataTableMessage,
   referenceDataActionClass,
   referenceDataRowActionClass,
+  ReferenceDataTableLoading,
 } from '@/components/reference-data/ReferenceDataPanel';
 import { useCreateHub, useHubs, useUpdateHub } from '@/queries/hubs';
 import { toast } from 'sonner';
@@ -78,6 +79,8 @@ export function ReferenceDataHubsPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={isPending}
+        loadingLabel="Loading hubs"
         description="Company office locations used to assign every employee to a hub."
         action={
           <Button
@@ -105,7 +108,7 @@ export function ReferenceDataHubsPanel() {
           </TableHeader>
           <TableBody>
             {isPending ? (
-              <ReferenceDataTableMessage colSpan={5}>Loading hubs…</ReferenceDataTableMessage>
+              <ReferenceDataTableLoading colSpan={5} />
             ) : hubs.length === 0 ? (
               <ReferenceDataTableMessage colSpan={5}>No hubs yet.</ReferenceDataTableMessage>
             ) : (

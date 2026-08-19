@@ -32,6 +32,7 @@ import {
   ReferenceDataTableMessage,
   referenceDataActionClass,
   referenceDataRowActionClass,
+  ReferenceDataTableLoading,
 } from '@/components/reference-data/ReferenceDataPanel';
 import { toast } from 'sonner';
 
@@ -83,6 +84,8 @@ export function ReferenceDataInternshipTypesPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={isPending}
+        loadingLabel="Loading internship types"
         description="Program tracks such as FEP, Shadow, Industrial, and 1-on-1."
         action={
           <Button
@@ -110,9 +113,7 @@ export function ReferenceDataInternshipTypesPanel() {
           </TableHeader>
           <TableBody>
             {isPending ? (
-              <ReferenceDataTableMessage colSpan={5}>
-                Loading internship types…
-              </ReferenceDataTableMessage>
+              <ReferenceDataTableLoading colSpan={5} />
             ) : types.length === 0 ? (
               <ReferenceDataTableMessage colSpan={5}>
                 No internship types yet.

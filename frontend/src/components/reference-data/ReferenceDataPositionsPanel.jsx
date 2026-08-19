@@ -26,6 +26,7 @@ import {
   ReferenceDataTableMessage,
   referenceDataActionClass,
   referenceDataRowActionClass,
+  ReferenceDataTableLoading,
 } from '@/components/reference-data/ReferenceDataPanel';
 import { useCreatePosition, usePositions, useUpdatePosition } from '@/queries/positions';
 import { toast } from 'sonner';
@@ -77,6 +78,8 @@ export function ReferenceDataPositionsPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={isPending}
+        loadingLabel="Loading positions"
         description="Specializations interns declare and get recommended for — kept separate from Technologies, which are the concrete tools, languages and frameworks they use."
         action={
           <Button
@@ -103,7 +106,7 @@ export function ReferenceDataPositionsPanel() {
           </TableHeader>
           <TableBody>
             {isPending ? (
-              <ReferenceDataTableMessage colSpan={4}>Loading positions…</ReferenceDataTableMessage>
+              <ReferenceDataTableLoading colSpan={4} />
             ) : positions.length === 0 ? (
               <ReferenceDataTableMessage colSpan={4}>No positions yet.</ReferenceDataTableMessage>
             ) : (

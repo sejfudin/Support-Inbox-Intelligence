@@ -15,11 +15,15 @@ import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export function InternRoleReadinessPanel({ userId, declaredPosition = null, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && user?.role === ROLES.ADMIN;
-  const { data: flags = [], isPending } = useInternReadiness(userId);
+  const { data: flags = [], isPending: isPendingRaw } = useInternReadiness(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw);
   const { mutate } = useUpsertInternReadiness();
 
   // Only the flag assessed for the currently declared role counts — a flag
@@ -53,7 +57,9 @@ export function InternRoleReadinessPanel({ userId, declaredPosition = null, read
         </p>
       )}
       {isPending && declaredPosition && (
-        <p className="pt-3 text-[12.5px] text-muted-foreground">Loading readiness...</p>
+        <LoadingOverlay size="sm" label="Loading readiness">
+          <PanelBodySkeleton rows={2} />
+        </LoadingOverlay>
       )}
       {!isPending && declaredPosition && (
         // Same tile as the technology grid, one wide — one role, so there is

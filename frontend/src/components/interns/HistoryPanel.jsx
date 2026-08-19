@@ -6,6 +6,8 @@ import { CHIP, badgeTone } from '@/helpers/badgeTones';
 import { scoreFillClass, scoreTextClass, scoreTrackClass } from '@/helpers/scoreBand';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay } from '@/components/ui/loader';
 
 const dataTestId = (title) =>
   String(title || 'history')
@@ -312,7 +314,9 @@ export function HistoryPanel({
 
       <div>
         {isLoading && (
-          <p className="px-[18px] py-8 text-center text-[12.5px] text-muted-foreground">Loading…</p>
+          <LoadingOverlay size="sm" label="Loading history">
+            <PanelBodySkeleton rows={3} className="px-[18px] pb-5" />
+          </LoadingOverlay>
         )}
         {!isLoading && sortedCards.length === 0 && (
           <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">

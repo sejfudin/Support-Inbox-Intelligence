@@ -34,6 +34,7 @@ import { PROJECT_TYPES } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 import { useTechnologies } from '@/queries/technologies';
 import { useCreateProject, useProjects, useUpdateProject } from '@/queries/projects';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
 
 const STATUS_OPTIONS = [
   {
@@ -415,6 +416,8 @@ export function ReferenceDataProjectsPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={isPending}
+        loadingLabel="Loading projects"
         description="Every client engagement your workspace is running."
         action={
           <Button
@@ -429,9 +432,9 @@ export function ReferenceDataProjectsPanel() {
         }
       >
         {isPending ? (
-          <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">
-            Loading projects…
-          </p>
+          // Not a table on this tab — projects render as rows of cards — so the placeholder is
+          // lines of copy rather than table cells. The mark comes from the panel itself.
+          <PanelBodySkeleton rows={4} className="px-[18px] pb-6" />
         ) : projects.length === 0 ? (
           <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">
             No projects yet.

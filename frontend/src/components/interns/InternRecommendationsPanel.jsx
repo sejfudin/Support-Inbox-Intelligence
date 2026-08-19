@@ -42,6 +42,8 @@ import {
   REC_FONT,
 } from '@/components/interns/recommendations/recommendationUi';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 // Detailed / Compact list rendering, persisted so it survives reloads.
 //
@@ -182,10 +184,16 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
   const { data: positions = [] } = usePositions();
   const { data: projects = [] } = useProjects();
   const { data: technologies = [] } = useTechnologies();
-  const { data, isPending, isError } = useRecommendations({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useRecommendations({
     internUserId: userId,
     limit: 50,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const { mutate: createRecommendation, isPending: isCreating } = useCreateRecommendation();
   const { mutate: updateRecommendation, isPending: isUpdating } = useUpdateRecommendation();
   const { mutate: deleteRecommendation, isPending: isDeleting } = useDeleteRecommendation();
@@ -490,9 +498,9 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
 
         <div>
           {isPending && (
-            <p className="px-[18px] py-8 text-center text-[12.5px] text-muted-foreground">
-              Loading…
-            </p>
+            <LoadingOverlay size="sm" label="Loading recommendations">
+              <PanelBodySkeleton rows={3} className="px-[18px] pb-5" />
+            </LoadingOverlay>
           )}
           {!isPending && sorted.length === 0 && (
             <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">

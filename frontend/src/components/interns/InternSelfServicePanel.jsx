@@ -2,6 +2,8 @@ import { format } from 'date-fns';
 import { ProfileMetaCard } from '@/components/profile/ProfileMetaCard';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useMyInternProfile } from '@/queries/interns';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 /**
  * The intern's own view of their programme, in the profile page's right-hand
@@ -12,12 +14,16 @@ import { useMyInternProfile } from '@/queries/interns';
  * that record says.
  */
 export function InternSelfServicePanel() {
-  const { data: intern, isPending, isError } = useMyInternProfile();
+  const { data: intern, isPending: isPendingRaw, isError } = useMyInternProfile();
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   if (isPending) {
     return (
-      <section className="app-card px-[18px] py-[15px] text-[12.5px] text-muted-foreground">
-        Loading internship profile…
+      <section className="app-card px-[18px] py-[15px]">
+        <LoadingOverlay size="sm" label="Loading profile">
+          <PanelBodySkeleton rows={4} className="pt-0" />
+        </LoadingOverlay>
       </section>
     );
   }

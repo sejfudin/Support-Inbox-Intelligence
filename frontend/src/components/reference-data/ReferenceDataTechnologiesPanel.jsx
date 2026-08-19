@@ -26,6 +26,7 @@ import {
   ReferenceDataTableMessage,
   referenceDataActionClass,
   referenceDataRowActionClass,
+  ReferenceDataTableLoading,
 } from '@/components/reference-data/ReferenceDataPanel';
 import { useCreateTechnology, useTechnologies, useUpdateTechnology } from '@/queries/technologies';
 import { toast } from 'sonner';
@@ -77,6 +78,8 @@ export function ReferenceDataTechnologiesPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={isPending}
+        loadingLabel="Loading technologies"
         description="Skills and stacks used for intern profiles and readiness tracking."
         action={
           <Button
@@ -103,9 +106,7 @@ export function ReferenceDataTechnologiesPanel() {
           </TableHeader>
           <TableBody>
             {isPending ? (
-              <ReferenceDataTableMessage colSpan={4}>
-                Loading technologies…
-              </ReferenceDataTableMessage>
+              <ReferenceDataTableLoading colSpan={4} />
             ) : technologies.length === 0 ? (
               <ReferenceDataTableMessage colSpan={4}>
                 No technologies yet.

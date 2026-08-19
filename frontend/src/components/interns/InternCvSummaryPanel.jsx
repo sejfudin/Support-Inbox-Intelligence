@@ -3,6 +3,8 @@ import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useInternCvSummary, useGenerateInternCvSummary } from '@/queries/interns';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 /**
  * The CV the intern uploaded themselves, and an AI read of it.
@@ -36,7 +38,9 @@ import { useInternCvSummary, useGenerateInternCvSummary } from '@/queries/intern
  * button that only fails.
  */
 export function InternCvSummaryPanel({ userId, cvUrl, canGenerate = false }) {
-  const { data, isPending, isError } = useInternCvSummary(userId);
+  const { data, isPending: isPendingRaw, isError } = useInternCvSummary(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const generate = useGenerateInternCvSummary(userId);
 
   // `hasCv` comes off the summary payload rather than the link, because the
@@ -94,7 +98,9 @@ export function InternCvSummaryPanel({ userId, cvUrl, canGenerate = false }) {
       </div>
 
       {isPending ? (
-        <p className="text-[12.5px] text-muted-foreground">Loading…</p>
+        <LoadingOverlay size="sm" label="Loading summary">
+          <PanelBodySkeleton rows={4} />
+        </LoadingOverlay>
       ) : isError ? (
         <p className="text-[12.5px] text-[hsl(var(--tone-danger-fg))]">
           Could not load the CV summary.

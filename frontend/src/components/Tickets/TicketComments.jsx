@@ -14,6 +14,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export default function TicketComments({
   ticketId,
@@ -25,7 +26,14 @@ export default function TicketComments({
 }) {
   const { user } = useAuth();
   const [commentToDelete, setCommentToDelete] = useState(null);
-  const { data: comments = [], isLoading, isFetching, refetch } = useComments(ticketId);
+  const {
+    data: comments = [],
+    isLoading: isLoadingRaw,
+    isFetching,
+    refetch,
+  } = useComments(ticketId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw);
   const deleteMutation = useDeleteComment(ticketId);
   const onFocusConsumedRef = useRef(onFocusConsumed);
   const lastFocusRefetchTokenRef = useRef(null);
@@ -85,7 +93,12 @@ export default function TicketComments({
     refetch();
   }, [focusCommentId, focusRequestToken, comments, isLoading, isFetching, refetch]);
 
-  if (isLoading) return <CommentsSkeleton />;
+  if (isLoading)
+    return (
+      <LoadingOverlay size="sm" label="Loading comments">
+        <CommentsSkeleton />
+      </LoadingOverlay>
+    );
 
   return (
     <Accordion

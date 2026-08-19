@@ -29,6 +29,8 @@ import {
   useCreateAbsenceRequest,
   useCancelAbsenceRequest,
 } from '@/queries/absenceRequests';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const formatDay = (key) => format(new Date(`${key}T12:00:00`), 'EEE, d MMM');
 
@@ -119,7 +121,9 @@ function BalanceRow({ type, label, budget, used }) {
  * the authority on submission.
  */
 export default function AbsenceRequestPanel({ recordedDates = [], className }) {
-  const { data, isPending, isError } = useMyAbsenceRequests();
+  const { data, isPending: isPendingRaw, isError } = useMyAbsenceRequests();
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const { mutate: createRequest, isPending: isSubmitting } = useCreateAbsenceRequest();
   const { mutate: cancelRequest, isPending: isCancelling } = useCancelAbsenceRequest();
 
@@ -299,7 +303,11 @@ export default function AbsenceRequestPanel({ recordedDates = [], className }) {
           Failed to load your balance.
         </p>
       )}
-      {isPending && <p className="mt-4 text-sm text-muted-foreground">Loading…</p>}
+      {isPending && (
+        <LoadingOverlay size="sm" label="Loading balance">
+          <PanelBodySkeleton rows={4} className="mt-1" />
+        </LoadingOverlay>
+      )}
 
       {!isPending && !isError && (
         <ul className="mt-4 space-y-3" data-test="absence-balance-list">
