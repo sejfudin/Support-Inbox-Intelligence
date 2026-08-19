@@ -2,10 +2,10 @@ import { useState } from 'react';
 import PageHeading from '@/components/PageHeading';
 import { Tabs, TabsList, TabsTrigger, TabsCount, TabsContent } from '@/components/ui/tabs';
 import { PagePanel } from '@/components/PageShell';
-import AttendanceRequestQueue from '@/components/attendance/AttendanceRequestQueue';
-import { AttendanceLimitsPanel } from '@/components/attendance/AttendanceLimitsPanel';
-import { useAttendanceRequests } from '@/queries/attendanceRequests';
-import { useAttendanceRequestSettings } from '@/queries/attendanceRequestSettings';
+import AbsenceRequestQueue from '@/components/attendance/AbsenceRequestQueue';
+import { AbsenceLimitsPanel } from '@/components/attendance/AbsenceLimitsPanel';
+import { useAbsenceRequests } from '@/queries/absenceRequests';
+import { useAbsenceRequestSettings } from '@/queries/absenceRequestSettings';
 
 function RailStat({ label, value }) {
   return (
@@ -35,11 +35,11 @@ export default function AdminAbsenceRequestsPage() {
 
   // Shares its query key with the queue's default fetch, so the two are one
   // request — this only exists so the tab can carry the count.
-  const { data: requestData } = useAttendanceRequests({ status: 'pending' });
+  const { data: requestData } = useAbsenceRequests({ status: 'pending' });
   const pendingCount = requestData?.pendingCount ?? 0;
 
   // Likewise one request with the limits panel's own fetch.
-  const { data: settings } = useAttendanceRequestSettings();
+  const { data: settings } = useAbsenceRequestSettings();
   const customisedCount = settings?.types?.filter((entry) => !entry.isDefault).length ?? 0;
 
   // The line on the right of the tab band — what this tab is, in the fewest words
@@ -88,16 +88,16 @@ export default function AdminAbsenceRequestsPage() {
 
           <div className="py-[18px]">
             <TabsContent value="queue">
-              <AttendanceRequestQueue />
+              <AbsenceRequestQueue />
             </TabsContent>
 
             <TabsContent value="history">
-              <AttendanceRequestQueue mode="history" />
+              <AbsenceRequestQueue mode="history" />
             </TabsContent>
 
             <TabsContent value="limits">
               <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1fr)_19rem]">
-                <AttendanceLimitsPanel />
+                <AbsenceLimitsPanel />
 
                 <div className="space-y-3.5">
                   <PagePanel className="px-4 py-4 md:px-5">

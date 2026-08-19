@@ -11,10 +11,10 @@ import { CHIP } from '@/helpers/badgeTones';
 import { dayStatusLabel, formatRequestDayRuns } from '@/helpers/attendance';
 import { dayStatusClass } from '@/components/attendance/dayStatusVisuals';
 import {
-  useAttendanceRequests,
-  useDecideAttendanceRequest,
-  useRevokeAttendanceRequest,
-} from '@/queries/attendanceRequests';
+  useAbsenceRequests,
+  useDecideAbsenceRequest,
+  useRevokeAbsenceRequest,
+} from '@/queries/absenceRequests';
 
 const STATUS_BADGE = {
   pending: { variant: 'warning', label: 'Pending' },
@@ -29,7 +29,7 @@ const STATUS_BADGE = {
 const TYPE_FILTERS = [null, 'remote', 'vacation', 'religious', 'sick'];
 
 /**
- * The admin list of attendance requests — remote work, vacation, religious
+ * The admin list of absence requests — remote work, vacation, religious
  * holidays and sick days, in one place. Two modes over one component:
  *
  * - `queue` (default): only what is waiting on a decision, with the note field and
@@ -63,19 +63,19 @@ const TYPE_FILTERS = [null, 'remote', 'vacation', 'religious', 'sick'];
  * Carries no heading of its own: it fills a tab of the absence-requests page, which
  * already names it and carries the pending count.
  */
-export default function AttendanceRequestQueue({ mode = 'queue' }) {
+export default function AbsenceRequestQueue({ mode = 'queue' }) {
   const isHistory = mode === 'history';
   const [typeFilter, setTypeFilter] = useState(null);
   const [notes, setNotes] = useState({});
 
   // History asks for everything and drops what is still pending, because the API
   // filters on one status at a time and "decided" is four of them.
-  const { data, isPending, isError } = useAttendanceRequests({
+  const { data, isPending, isError } = useAbsenceRequests({
     status: isHistory ? 'all' : 'pending',
     ...(typeFilter ? { type: typeFilter } : {}),
   });
-  const { mutate: decide, isPending: isDeciding } = useDecideAttendanceRequest();
-  const { mutate: revoke, isPending: isRevoking } = useRevokeAttendanceRequest();
+  const { mutate: decide, isPending: isDeciding } = useDecideAbsenceRequest();
+  const { mutate: revoke, isPending: isRevoking } = useRevokeAbsenceRequest();
 
   const allRequests = data?.requests ?? [];
   const requests = isHistory
@@ -91,7 +91,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
   return (
     <div
       className="app-card overflow-hidden"
-      data-test={isHistory ? 'attendance-request-history' : 'attendance-request-queue'}
+      data-test={isHistory ? 'absence-request-history' : 'absence-request-queue'}
     >
       {/* The filter band. Sits inside the card and above the list rather than out
           on the page, because it narrows this list and nothing else. */}
@@ -113,7 +113,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
               count={waiting > 0 ? waiting : undefined}
               pressed={selected}
               onClick={() => setTypeFilter(value)}
-              data-test={`attendance-request-filter-${value ?? 'all'}`}
+              data-test={`absence-request-filter-${value ?? 'all'}`}
             />
           );
         })}
@@ -129,14 +129,14 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
       {!isPending && !isError && requests.length === 0 && (
         <p
           className="px-4 py-8 text-center text-sm text-muted-foreground md:px-5"
-          data-test="attendance-request-queue-empty"
+          data-test="absence-request-queue-empty"
         >
           {isHistory ? 'Nothing decided yet.' : 'Nothing waiting on a decision.'}
         </p>
       )}
 
       {!isPending && !isError && requests.length > 0 && (
-        <ul className="divide-y divide-separator" data-test="attendance-request-queue-list">
+        <ul className="divide-y divide-separator" data-test="absence-request-queue-list">
           {requests.map((request) => {
             const badge = STATUS_BADGE[request.status] || {
               variant: 'secondary',
@@ -149,7 +149,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
               <li
                 key={request.id}
                 className="flex flex-wrap items-center gap-x-3 gap-y-3 px-4 py-3 transition-colors hover:bg-muted/30 md:flex-nowrap md:px-5"
-                data-test={`attendance-request-queue-row-${request.id}`}
+                data-test={`absence-request-queue-row-${request.id}`}
               >
                 <InitialsAvatar name={name} size="md" aria-hidden="true" />
 
@@ -208,6 +208,15 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
                         </>
                       )
                     )}
+                    {/* Who this was addressed to — every admin still sees and can
+                        decide it (the queue stays shared), but only the named admin
+                        was notified, so the row has to say who that was. */}
+                    {request.recipientAdmin && (
+                      <>
+                        <span aria-hidden="true">·</span>
+                        <span>for {request.recipientAdmin.fullname}</span>
+                      </>
+                    )}
                   </p>
 
                   {request.reason && (
@@ -235,7 +244,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
                       className="w-full md:w-[260px]"
                       maxLength={500}
                       aria-label={`Decision note for ${name}`}
-                      data-test={`attendance-request-note-${request.id}`}
+                      data-test={`absence-request-note-${request.id}`}
                     />
                     <Button
                       type="button"
@@ -248,7 +257,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
                           note: noteFor(request.id),
                         })
                       }
-                      data-test={`attendance-request-approve-${request.id}`}
+                      data-test={`absence-request-approve-${request.id}`}
                     >
                       <Check className="h-3.5 w-3.5" />
                       Approve
@@ -265,7 +274,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
                           note: noteFor(request.id),
                         })
                       }
-                      data-test={`attendance-request-reject-${request.id}`}
+                      data-test={`absence-request-reject-${request.id}`}
                     >
                       <X className="h-3.5 w-3.5" />
                       Reject
@@ -284,7 +293,7 @@ export default function AttendanceRequestQueue({ mode = 'queue' }) {
                     disabled={busy}
                     onClick={() => revoke({ id: request.id, note: noteFor(request.id) })}
                     title="Removes every day of this request from the intern's attendance"
-                    data-test={`attendance-request-revoke-${request.id}`}
+                    data-test={`absence-request-revoke-${request.id}`}
                   >
                     <Undo2 className="h-3 w-3" />
                     Revoke approval

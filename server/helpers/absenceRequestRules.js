@@ -6,25 +6,25 @@ const {
   rulesFor,
   maxDaysFor,
   yearlyBudgetFor,
-} = require('../constants/attendanceRequestTypes');
+} = require('../constants/absenceRequestTypes');
 
 /**
- * The rules governing attendance requests — remote work, vacation, religious
+ * The rules governing absence requests — remote work, vacation, religious
  * holidays and sick days — as pure functions over plain 'YYYY-MM-DD' keys.
  *
  * Kept out of the service on purpose: this repo has no integration or E2E suite,
  * so logic that only exists inside a Mongo-touching service is logic that is never
  * tested. Everything here is decided from arguments alone and is covered by
- * `attendanceRequestRules.test.js`.
+ * `absenceRequestRules.test.js`.
  *
  * What differs per type is not branched on here — it is read from
- * `constants/attendanceRequestTypes.js`, so a new type is a row in that table
+ * `constants/absenceRequestTypes.js`, so a new type is a row in that table
  * rather than an `if` in this file.
  *
  * The two numbers an admin can set — the per-request ceiling and the yearly
  * allowance — arrive as an optional `limits` argument, shaped
  * `{ [type]: { maxDaysPerRequest, yearlyBudget } }` and loaded by
- * `services/attendanceSettingsService.js`. Passed in rather than fetched: this
+ * `services/absenceSettingsService.js`. Passed in rather than fetched: this
  * file must not learn how to reach a database, or the rules stop being testable
  * without one. Omit it and every function falls back to the shipped defaults,
  * which is what keeps the existing tests honest — they assert the behaviour of

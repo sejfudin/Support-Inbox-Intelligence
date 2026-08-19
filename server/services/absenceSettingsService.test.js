@@ -1,66 +1,92 @@
-// Cover for the admin-set attendance request limits: what is stored, what is
+// Cover for the admin-set absence request limits: what is stored, what is
 // merged, and what is refused.
 //
 // The arithmetic those limits then drive is covered as pure functions in
-// helpers/attendanceRequestRules.test.js. What is left here is the part that only
+// helpers/absenceRequestRules.test.js. What is left here is the part that only
 // exists because there is a database — resolving an override against the shipped
 // table, storing only what differs, and validating what an admin sends. Mongo is
 // mocked; no DB.
 
-jest.mock('../models/AttendanceRequestSettings', () => {
+jest.mock('../models/AbsenceRequestSettings', () => {
   let current = null;
 
   // `findOne` is awaited directly in one place and chained through `.lean()` and
-  // `.populate().lean()` in the others, so the stub has to answer to all three.
+  // `.populate([...]).lean()` in the others, so the stub has to answer to all
+  // three. `populate` ignores its argument — this mock never actually resolves a
+  // ref, it only has to keep the chain from throwing.
   const query = (doc) => ({
     lean: async () => doc,
     populate: () => ({ lean: async () => doc }),
     then: (resolve, reject) => Promise.resolve(doc).then(resolve, reject),
   });
 
-  function AttendanceRequestSettings(fields = {}) {
+  function AbsenceRequestSettings(fields = {}) {
     this.key = fields.key;
     this.limits = {};
+    this.primaryAdmin = null;
     this.updatedBy = null;
     this.updatedAt = null;
   }
 
-  AttendanceRequestSettings.prototype.save = async function () {
+  AbsenceRequestSettings.prototype.save = async function () {
     this.updatedAt = new Date('2026-08-13T09:00:00.000Z');
     current = this;
     return this;
   };
 
-  AttendanceRequestSettings.SINGLETON_KEY = 'global';
-  AttendanceRequestSettings.findOne = jest.fn(() => query(current));
+  AbsenceRequestSettings.SINGLETON_KEY = 'global';
+  AbsenceRequestSettings.findOne = jest.fn(() => query(current));
 
-  AttendanceRequestSettings.__clear = () => {
+  AbsenceRequestSettings.__clear = () => {
     current = null;
   };
-  AttendanceRequestSettings.__stored = () => current?.limits ?? null;
-  AttendanceRequestSettings.__seed = (limits) => {
-    current = new AttendanceRequestSettings({ key: 'global' });
+  AbsenceRequestSettings.__stored = () => current?.limits ?? null;
+  AbsenceRequestSettings.__storedPrimaryAdmin = () => current?.primaryAdmin ?? null;
+  AbsenceRequestSettings.__seed = (limits) => {
+    current = new AbsenceRequestSettings({ key: 'global' });
     current.limits = limits;
     current.updatedAt = new Date('2026-01-05T09:00:00.000Z');
   };
+  AbsenceRequestSettings.__seedPrimaryAdmin = (id) => {
+    if (!current) current = new AbsenceRequestSettings({ key: 'global' });
+    current.primaryAdmin = id;
+  };
 
-  return AttendanceRequestSettings;
+  return AbsenceRequestSettings;
 });
 
-const AttendanceRequestSettings = require('../models/AttendanceRequestSettings');
+// The primary-admin write path checks the id against `User` before trusting it —
+// same rule `absenceRequestService` applies to a request's own `recipientAdmin`.
+// Mocked with an in-memory table rather than a real query, since Mongo is mocked
+// throughout this file.
+jest.mock('../models/User', () => {
+  const users = new Map();
+  const User = {
+    findById: jest.fn((id) => ({
+      select: () => ({ lean: async () => users.get(String(id)) || null }),
+    })),
+  };
+  User.__seed = (id, fields) => users.set(String(id), fields);
+  User.__clear = () => users.clear();
+  return User;
+});
+
+const AbsenceRequestSettings = require('../models/AbsenceRequestSettings');
+const User = require('../models/User');
 const {
   getEffectiveLimits,
   getSettings,
   updateSettings,
   resetSettings,
-} = require('./attendanceSettingsService');
+} = require('./absenceSettingsService');
 
 const ADMIN = { _id: 'admin-1' };
 
 const byType = (settings, type) => settings.types.find((entry) => entry.type === type);
 
 beforeEach(() => {
-  AttendanceRequestSettings.__clear();
+  AbsenceRequestSettings.__clear();
+  User.__clear();
 });
 
 describe('reading the limits', () => {
@@ -74,7 +100,7 @@ describe('reading the limits', () => {
   });
 
   it('fills the gaps around a partial override', async () => {
-    AttendanceRequestSettings.__seed({ vacation: { yearlyBudget: 10 } });
+    AbsenceRequestSettings.__seed({ vacation: { yearlyBudget: 10 } });
 
     const limits = await getEffectiveLimits();
 
@@ -105,7 +131,7 @@ describe('reading the limits', () => {
   });
 
   it('carries the defaults alongside, so the panel can show what it would revert to', async () => {
-    AttendanceRequestSettings.__seed({ vacation: { maxDaysPerRequest: 2 } });
+    AbsenceRequestSettings.__seed({ vacation: { maxDaysPerRequest: 2 } });
 
     const vacation = byType(await getSettings(), 'vacation');
 
@@ -125,11 +151,11 @@ describe('saving the limits', () => {
 
     // The whole point of storing diffs: a later change to the constants table
     // still reaches a type nobody has overridden.
-    expect(AttendanceRequestSettings.__stored()).toEqual({ vacation: { yearlyBudget: 10 } });
+    expect(AbsenceRequestSettings.__stored()).toEqual({ vacation: { yearlyBudget: 10 } });
   });
 
   it('keeps types the payload leaves out', async () => {
-    AttendanceRequestSettings.__seed({ religious: { yearlyBudget: 6 } });
+    AbsenceRequestSettings.__seed({ religious: { yearlyBudget: 6 } });
 
     const settings = await updateSettings(ADMIN, { limits: { vacation: { yearlyBudget: 8 } } });
 
@@ -140,7 +166,7 @@ describe('saving the limits', () => {
   it('records who changed it', async () => {
     await updateSettings(ADMIN, { limits: { vacation: { yearlyBudget: 8 } } });
 
-    expect(AttendanceRequestSettings.findOne).toHaveBeenCalled();
+    expect(AbsenceRequestSettings.findOne).toHaveBeenCalled();
     expect((await getSettings()).updatedAt).not.toBeNull();
   });
 
@@ -199,26 +225,26 @@ describe('saving the limits', () => {
   });
 
   it('writes nothing when the payload is refused', async () => {
-    AttendanceRequestSettings.__seed({ vacation: { yearlyBudget: 8 } });
+    AbsenceRequestSettings.__seed({ vacation: { yearlyBudget: 8 } });
 
     await expect(
       updateSettings(ADMIN, { limits: { vacation: { yearlyBudget: 999 } } })
     ).rejects.toMatchObject({ statusCode: 400 });
 
-    expect(AttendanceRequestSettings.__stored()).toEqual({ vacation: { yearlyBudget: 8 } });
+    expect(AbsenceRequestSettings.__stored()).toEqual({ vacation: { yearlyBudget: 8 } });
   });
 });
 
 describe('resetting', () => {
   it('forgets every override', async () => {
-    AttendanceRequestSettings.__seed({
+    AbsenceRequestSettings.__seed({
       vacation: { maxDaysPerRequest: 2, yearlyBudget: 2 },
       sick: { maxDaysPerRequest: 4 },
     });
 
     const settings = await resetSettings(ADMIN);
 
-    expect(AttendanceRequestSettings.__stored()).toEqual({});
+    expect(AbsenceRequestSettings.__stored()).toEqual({});
     expect(settings.types.every((entry) => entry.isDefault)).toBe(true);
     expect(byType(settings, 'vacation').maxDaysPerRequest).toBe(5);
     expect(byType(settings, 'sick').maxDaysPerRequest).toBe(1);
@@ -228,5 +254,58 @@ describe('resetting', () => {
     const settings = await resetSettings(ADMIN);
 
     expect(settings.types.every((entry) => entry.isDefault)).toBe(true);
+  });
+});
+
+describe('the primary admin', () => {
+  it('is null until one is set', async () => {
+    expect((await getSettings()).primaryAdmin).toBeNull();
+  });
+
+  it('accepts an existing active admin and stores their id', async () => {
+    User.__seed('admin-2', { role: 'admin', status: 'active' });
+
+    await updateSettings(ADMIN, { limits: {}, primaryAdmin: 'admin-2' });
+
+    expect(AbsenceRequestSettings.__storedPrimaryAdmin()).toBe('admin-2');
+  });
+
+  it('refuses an id that is not an admin', async () => {
+    User.__seed('mentor-1', { role: 'mentor', status: 'active' });
+
+    await expect(
+      updateSettings(ADMIN, { limits: {}, primaryAdmin: 'mentor-1' })
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(AbsenceRequestSettings.__storedPrimaryAdmin()).toBeNull();
+  });
+
+  it('refuses an admin who is not active', async () => {
+    User.__seed('admin-3', { role: 'admin', status: 'invited' });
+
+    await expect(
+      updateSettings(ADMIN, { limits: {}, primaryAdmin: 'admin-3' })
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('refuses an id that does not exist', async () => {
+    await expect(
+      updateSettings(ADMIN, { limits: {}, primaryAdmin: 'ghost' })
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('clears the primary admin when sent null explicitly', async () => {
+    AbsenceRequestSettings.__seedPrimaryAdmin('admin-2');
+
+    await updateSettings(ADMIN, { limits: {}, primaryAdmin: null });
+
+    expect(AbsenceRequestSettings.__storedPrimaryAdmin()).toBeNull();
+  });
+
+  it('leaves the primary admin untouched when the payload omits it', async () => {
+    AbsenceRequestSettings.__seedPrimaryAdmin('admin-2');
+
+    await updateSettings(ADMIN, { limits: { vacation: { yearlyBudget: 4 } } });
+
+    expect(AbsenceRequestSettings.__storedPrimaryAdmin()).toBe('admin-2');
   });
 });
