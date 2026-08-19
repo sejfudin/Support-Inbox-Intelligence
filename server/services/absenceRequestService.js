@@ -1,8 +1,8 @@
 const AbsenceRequest = require('../models/AbsenceRequest');
 const Attendance = require('../models/Attendance');
 const InternProfile = require('../models/InternProfile');
-const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
+const { assertActiveAdmin } = require('../helpers/assertActiveAdmin');
 const { officeDateKey } = require('../helpers/attendanceTime');
 const { loadNonWorkingDays } = require('../helpers/attendanceStats');
 const {
@@ -56,8 +56,10 @@ const { PENDING, APPROVED, REJECTED, CANCELLED, REVOKED, LIVE_STATUSES } = Absen
  * and the row's "for" tag are targeted.
  */
 
-const toAdminRef = (user) =>
-  user ? { id: user._id ?? user, fullname: user.fullname || '' } : null;
+// `recipientAdmin` only ever arrives here already populated (both call sites
+// below `.populate({ path: 'recipientAdmin', ... })` before mapping), so this
+// only has to handle "populated user" or "absent" — never a bare unpopulated id.
+const toAdminRef = (user) => (user ? { id: user._id, fullname: user.fullname || '' } : null);
 
 const toRequestSummary = (request) => ({
   id: request._id,
@@ -72,23 +74,6 @@ const toRequestSummary = (request) => ({
   createdAt: request.createdAt,
 });
 
-/** 400s unless `userId` is an active platform admin — never trust a picked id. */
-const assertActiveAdmin = async (userId) => {
-  let admin;
-  try {
-    admin = await User.findById(userId).select('role status').lean();
-  } catch (err) {
-    // A malformed id (not a valid ObjectId) is a bad request, not a server error —
-    // same rule `findRequest` applies below.
-    if (err.name === 'CastError')
-      throw httpError('Pick a valid admin to send this request to.', 400);
-    throw err;
-  }
-  if (!admin || admin.role !== ROLES.ADMIN || admin.status !== 'active') {
-    throw httpError('Pick a valid admin to send this request to.', 400);
-  }
-};
-
 /**
  * The admin this request is addressed to: the intern's own pick, or the
  * configured primary admin when they leave it blank. Either way the id is
@@ -100,7 +85,7 @@ const resolveRecipientAdmin = async (recipientAdmin) => {
   if (!candidate) {
     throw httpError('Pick which admin should review this request.', 400);
   }
-  await assertActiveAdmin(candidate);
+  await assertActiveAdmin(candidate, 'Pick a valid admin to send this request to.');
   return candidate;
 };
 
@@ -411,9 +396,11 @@ const decideRequest = async (user, requestId, { decision, note } = {}) => {
     throw httpError(`This request has already been ${request.status}.`, 409);
   }
 
-  let profile = null;
+  // Loaded once, whichever way this goes: an approval needs it for the day
+  // rules, and either verdict needs it to know who to notify.
+  const profile = await InternProfile.findById(request.intern).lean();
+
   if (decision === APPROVED) {
-    profile = await InternProfile.findById(request.intern).lean();
     if (!profile) throw httpError('Intern not found.', 404);
 
     const context = await loadDayContext(profile);
@@ -441,16 +428,13 @@ const decideRequest = async (user, requestId, { decision, note } = {}) => {
 
   // Tell the intern the verdict — the other half of the notification this
   // feature fires (`notifyAbsenceRequestPending` told the admin one was
-  // waiting). `profile` is already loaded for an approval; a rejection loads
-  // it fresh here, tolerating a since-deleted profile by simply not notifying
-  // rather than failing the decision — same "drop orphans" rule the queue read
+  // waiting). Tolerates a since-deleted profile by simply not notifying rather
+  // than failing the decision — same "drop orphans" rule the queue read
   // already applies.
-  const notifyProfile =
-    profile || (await InternProfile.findById(request.intern).select('user').lean());
-  if (notifyProfile) {
+  if (profile) {
     internNotificationService.notifyAbsenceRequestDecided({
-      internUserId: notifyProfile.user,
-      internProfileId: notifyProfile._id,
+      internUserId: profile.user,
+      internProfileId: profile._id,
       decision,
       requestType: (TYPE_RULES[request.type] || TYPE_RULES[REMOTE]).label,
       dayCount: request.dates.length,

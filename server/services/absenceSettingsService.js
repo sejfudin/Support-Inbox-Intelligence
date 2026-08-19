@@ -1,6 +1,6 @@
 const AbsenceRequestSettings = require('../models/AbsenceRequestSettings');
-const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
+const { assertActiveAdmin } = require('../helpers/assertActiveAdmin');
 const {
   REQUEST_TYPES,
   TYPE_RULES,
@@ -85,10 +85,24 @@ const getSettings = async () => {
   const doc = await loadDoc()
     .populate([
       { path: 'updatedBy', select: 'fullname' },
-      { path: 'primaryAdmin', select: 'fullname' },
+      { path: 'primaryAdmin', select: 'fullname role status isTestAccount' },
     ])
     .lean();
   const limits = effectiveFrom(storedLimits(doc));
+
+  // Read back as unset if the stored reference no longer resolves to an active
+  // admin — demoted, deactivated, or (impossible via the picker, but not via a
+  // stale id) a test account. Matches what `absenceRequestService#listAdminChoices`
+  // already does for the intern-facing form: a settings screen that kept
+  // showing a name for a primary admin who can no longer receive anything would
+  // silently disagree with the request form, which would already be showing no
+  // default at all.
+  const storedPrimaryAdmin = doc?.primaryAdmin;
+  const primaryAdminStillValid =
+    storedPrimaryAdmin &&
+    storedPrimaryAdmin.role === ROLES.ADMIN &&
+    storedPrimaryAdmin.status === 'active' &&
+    !storedPrimaryAdmin.isTestAccount;
 
   return {
     bounds: LIMIT_BOUNDS,
@@ -105,8 +119,8 @@ const getSettings = async () => {
       defaults: DEFAULT_LIMITS[type],
       isDefault: isDefault(type, limits),
     })),
-    primaryAdmin: doc?.primaryAdmin
-      ? { id: doc.primaryAdmin._id, fullname: doc.primaryAdmin.fullname }
+    primaryAdmin: primaryAdminStillValid
+      ? { id: storedPrimaryAdmin._id, fullname: storedPrimaryAdmin.fullname }
       : null,
     updatedAt: doc?.updatedAt || null,
     updatedBy: doc?.updatedBy?.fullname || null,
@@ -130,25 +144,16 @@ const readNumber = (raw, field, label) => {
  * Resolve and validate a `primaryAdmin` payload value: `undefined` means "leave
  * it as it is" (the field is absent from `Object.prototype.hasOwnProperty`'s
  * check below, not merely falsy), `null` clears it, and anything else must be an
- * existing active admin's id — the same check `absenceRequestService` runs on a
- * request's own `recipientAdmin`, so a bad id can never end up as either.
+ * existing active admin's id — the same `assertActiveAdmin` check
+ * `absenceRequestService` runs on a request's own `recipientAdmin`, so a bad id
+ * can never end up as either.
  */
 const readPrimaryAdmin = async (payload) => {
   if (!Object.prototype.hasOwnProperty.call(payload, 'primaryAdmin')) return undefined;
   const value = payload.primaryAdmin;
   if (!value) return null;
 
-  let admin;
-  try {
-    admin = await User.findById(value).select('role status').lean();
-  } catch (err) {
-    // A malformed id (not a valid ObjectId) is a bad request, not a server error.
-    if (err.name === 'CastError') throw httpError('Pick a valid admin as the primary admin.', 400);
-    throw err;
-  }
-  if (!admin || admin.role !== ROLES.ADMIN || admin.status !== 'active') {
-    throw httpError('Pick a valid admin as the primary admin.', 400);
-  }
+  await assertActiveAdmin(value, 'Pick a valid admin as the primary admin.');
   return value;
 };
 

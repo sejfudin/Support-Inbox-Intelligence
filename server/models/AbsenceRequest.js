@@ -117,11 +117,21 @@ const absenceRequestSchema = new mongoose.Schema(
     // exactly one admin instead of every admin, so two admins never both get
     // pinged about the same ask. The queue itself stays shared: every admin can
     // still see and decide any pending request, this only targets who is told.
+    //
+    // Deliberately NOT `required` at the schema level, even though the service
+    // always resolves one before `create()` (`resolveRecipientAdmin` 400s
+    // otherwise). This collection is renamed in place from `AttendanceRequest`
+    // (see `collection` below) and already holds rows written before this field
+    // existed. Mongoose validates every required path on a plain `.save()`, not
+    // only the modified ones, so a schema-level requirement here would turn the
+    // next `cancelMyRequest`/`decideRequest`/`revokeRequest` on any such row into
+    // a ValidationError — permanently un-actionable until hand-patched. The
+    // application layer is what guarantees every *new* request has one; old rows
+    // simply read back with `recipientAdmin: null`, same as `decidedBy`.
     recipientAdmin: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
-      index: true,
+      default: null,
     },
     // Who decided, and when. Both stay null while pending.
     decidedBy: {

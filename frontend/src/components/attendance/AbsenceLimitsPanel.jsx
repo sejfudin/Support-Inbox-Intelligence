@@ -121,13 +121,19 @@ export function AbsenceLimitsPanel() {
 
   const primaryAdminDirty = primaryAdminId !== (settings.primaryAdmin?.id || NO_PRIMARY_ADMIN);
 
-  const isDirty =
-    primaryAdminDirty ||
-    types.some((entry) => {
-      const row = draft[entry.type];
-      if (Number(row.maxDaysPerRequest) !== entry.maxDaysPerRequest) return true;
-      return entry.budgeted && Number(row.yearlyBudget) !== entry.yearlyBudget;
-    });
+  // Kept apart from `isDirty` below: "Reset to defaults" only ever touches the
+  // per-type limits (see `resetSettings` — it never writes `primaryAdmin`), so
+  // it must not light up for an unsaved primary-admin pick alone. Clicking it
+  // would silently discard that pick (the draft re-seeds from the post-reset
+  // settings, which still carry the old primaryAdmin) with a toast that never
+  // mentions it.
+  const limitsDirty = types.some((entry) => {
+    const row = draft[entry.type];
+    if (Number(row.maxDaysPerRequest) !== entry.maxDaysPerRequest) return true;
+    return entry.budgeted && Number(row.yearlyBudget) !== entry.yearlyBudget;
+  });
+
+  const isDirty = primaryAdminDirty || limitsDirty;
 
   const isBusy = updateSettings.isPending || resetSettings.isPending;
   const isCustomised = types.some((entry) => !entry.isDefault);
@@ -239,7 +245,7 @@ export function AbsenceLimitsPanel() {
             variant="outline"
             size="sm"
             className="gap-2"
-            disabled={isBusy || (!isCustomised && !isDirty)}
+            disabled={isBusy || (!isCustomised && !limitsDirty)}
             onClick={() => resetSettings.mutate()}
             data-test="limits-reset-button"
           >
