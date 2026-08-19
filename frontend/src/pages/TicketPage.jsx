@@ -41,7 +41,8 @@ import { useUsers } from '@/queries/users';
 import {
   TICKET_ID_ORDER_VALUES,
   PRIORITY_FILTER_OPTIONS,
-  REVIEW_REQUEST_FILTER_OPTIONS,
+  REVIEW_REQUEST_FILTER_VALUES,
+  sanitizeReviewRequestFilter,
   buildAssigneeFilterOptions,
   DEFAULT_EXPORT_PERIOD,
   buildExportPeriodQueryParam,
@@ -116,11 +117,9 @@ const URL_ASSIGNEE_PARAM = 'assignee';
 // on both read and write, so the URL never carries a raw id for "my tickets".
 const ASSIGNEE_SELF = 'me';
 
-const REVIEW_REQUEST_FILTER_VALUE_SET = new Set(
-  REVIEW_REQUEST_FILTER_OPTIONS.map((option) => option.value)
-);
-const sanitizeReviewRequestFilterParam = (value) =>
-  REVIEW_REQUEST_FILTER_VALUE_SET.has(value) ? value : '';
+// The deep link the dashboard used to carry, still documented in
+// `.claude/docs/architecture.md`. It names no state, so it means "All requests".
+const URL_AWAITING_REVIEW_PARAM = 'awaitingReviewFrom';
 
 export default function TicketPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -405,8 +404,11 @@ export default function TicketPage() {
   const hasSeededReviewRequestFilterRef = useRef(false);
   useEffect(() => {
     if (hasSeededReviewRequestFilterRef.current) return;
-    const seeded = sanitizeReviewRequestFilterParam(searchParams.get('reviewRequestFilter'));
-    if (!seeded) return;
+    const seeded =
+      searchParams.get(URL_AWAITING_REVIEW_PARAM) === 'me'
+        ? REVIEW_REQUEST_FILTER_VALUES.ALL
+        : sanitizeReviewRequestFilter(searchParams.get('reviewRequestFilter'));
+    if (seeded === REVIEW_REQUEST_FILTER_VALUES.NONE) return;
     hasSeededReviewRequestFilterRef.current = true;
     setControls((prev) => ({ ...prev, reviewRequestFilter: seeded }));
   }, [searchParams, setControls]);

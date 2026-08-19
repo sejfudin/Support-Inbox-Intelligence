@@ -377,9 +377,6 @@ const getReviewerCandidates = async (req, res, next) => {
 
     res.status(200).json({ success: true, message: 'Reviewer candidates fetched', data: result });
   } catch (error) {
-    if (error.message === 'Ticket not found') {
-      return res.status(404).json({ success: false, message: error.message });
-    }
     handleControllerError(res, error, next);
   }
 };

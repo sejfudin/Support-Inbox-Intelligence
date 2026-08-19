@@ -148,7 +148,10 @@ const sanitizeTicketIdOrder = (value) => {
   return Object.values(TICKET_ID_ORDER_VALUES).includes(safe) ? safe : TICKET_ID_ORDER_VALUES.NONE;
 };
 
-const sanitizeReviewRequestFilter = (value) => {
+// Exported as well as used below: `TicketPage` sanitizes the same value coming
+// off the URL, and one sanitizer keeps the URL and the controls agreeing on
+// which values are real.
+export const sanitizeReviewRequestFilter = (value) => {
   const safe = normalizeLower(value || REVIEW_REQUEST_FILTER_VALUES.NONE);
   return Object.values(REVIEW_REQUEST_FILTER_VALUES).includes(safe)
     ? safe

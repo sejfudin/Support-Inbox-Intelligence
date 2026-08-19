@@ -157,8 +157,9 @@ independent `prUrl`).
   `owner`/`repo`/`prNumber` are **derived**, written only by
   `server/helpers/reviewRequestRules.js#parsePullRequestUrl` — never accepted from a client, never
   reconciled with `Ticket.linkedPullRequest` (ADR-0008: two independent links to one PR, allowed to
-  disagree). Indexed on `reviewer` + `state` — the tickets list's review-request pills are one
-  indexed query per state.
+  disagree). Indexed on `reviewer` + `state` — the pill row's active filter is one indexed query.
+  The pill *counts* are not: the page reads the reviewer's requests once, unfiltered, and tallies
+  the states client-side, same shape as the status-tab counts.
 - **Rules live in `server/helpers/reviewRequestRules.js`** (pure, unit-tested): PR URL shape
   validation (`https://github.com/<owner>/<repo>/pull/<n>` only, missing vs malformed reported as
   distinct errors), reviewer-candidate resolution (`resolveReviewerCandidates` —

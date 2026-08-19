@@ -775,7 +775,7 @@ const getTicketById = async (ticketId) => {
     .populate(REVIEW_REQUEST_POPULATE);
 
   if (!ticket) {
-    throw new Error('Ticket not found');
+    throw httpError('Ticket not found', 404);
   }
 
   return ticket;
@@ -1420,7 +1420,7 @@ const unarchiveTicket = async (ticketId, actorUserId) => {
 // outcome (see reviewRequestRules) and is returned, not thrown.
 const getReviewerCandidates = async (ticketId, actorUserId) => {
   const ticket = await Ticket.findById(ticketId).select('workspace').lean();
-  if (!ticket) throw new Error('Ticket not found');
+  if (!ticket) throw httpError('Ticket not found', 404);
 
   const [internProfile, workspace] = await Promise.all([
     InternProfile.findOne({ user: actorUserId }).lean(),
