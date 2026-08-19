@@ -10,6 +10,8 @@ import {
   PRIORITY_ORDER_VALUES,
   TICKET_ID_ORDER_OPTIONS,
   TICKET_ID_ORDER_VALUES,
+  REVIEW_REQUEST_FILTER_OPTIONS,
+  REVIEW_REQUEST_FILTER_VALUES,
   buildTicketQueryParamsFromControls,
 } from '@/helpers/ticketFilters';
 import { badgeTone } from '@/helpers/badgeTones';
@@ -83,6 +85,17 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       });
     }
 
+    if (controls.reviewRequestFilter !== REVIEW_REQUEST_FILTER_VALUES.NONE) {
+      const selectedReviewFilter = REVIEW_REQUEST_FILTER_OPTIONS.find(
+        (option) => option.value === controls.reviewRequestFilter
+      );
+      chips.push({
+        key: 'reviewRequestFilter',
+        label: `Review: ${selectedReviewFilter?.label || controls.reviewRequestFilter}`,
+        className: 'border-border/80 bg-secondary/70 text-foreground',
+      });
+    }
+
     return chips;
   }, [controls, assigneeOptions]);
 
@@ -145,6 +158,15 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     }));
   };
 
+  // Exclusive, like the status tabs: picking the active pill again turns it off.
+  const setReviewRequestFilter = (value) => {
+    setControls((prev) => ({
+      ...prev,
+      reviewRequestFilter:
+        prev.reviewRequestFilter === value ? REVIEW_REQUEST_FILTER_VALUES.NONE : value,
+    }));
+  };
+
   const clearAllFilters = () => {
     setControls({ ...DEFAULT_TICKET_CONTROLS });
   };
@@ -189,6 +211,11 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
         ...prev,
         ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,
       }));
+      return;
+    }
+
+    if (chipKey === 'reviewRequestFilter') {
+      setControls((prev) => ({ ...prev, reviewRequestFilter: REVIEW_REQUEST_FILTER_VALUES.NONE }));
     }
   };
 
@@ -198,6 +225,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     activeFilterChips,
     togglePriority,
     toggleAssignee,
+    setReviewRequestFilter,
     changePriorityOrder,
     changeDueDateOrder,
     changeTicketIdOrder,

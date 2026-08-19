@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const { REVIEW_REQUEST_STATES } = require('../helpers/reviewRequestRules');
+
 const messageSchema = new mongoose.Schema(
   {
     senderType: {
@@ -142,6 +144,60 @@ const ticketSchema = new mongoose.Schema(
         default: '',
       },
     },
+    // A single pending-or-answered ask for a mentor to look at this ticket's
+    // work. At most one per ticket, cleared rather than accumulated — same
+    // shape choice `blockedBy` made. `owner`/`repo`/`prNumber` are derived by
+    // `helpers/reviewRequestRules.js` from `prUrl`, never written directly.
+    // Kept independent of `linkedPullRequest`, which the GitHub webhook owns —
+    // see ADR 0008.
+    reviewRequest: {
+      type: {
+        reviewer: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          default: null,
+        },
+        // No `default: null` — `null` is not itself a legal value of the enum
+        // below, and Mongoose validates a field-level default same as any
+        // other write. Leaving it unset means an accidental write that omits
+        // `state` fails validation loudly instead of persisting a value the
+        // enum doesn't recognise.
+        state: {
+          type: String,
+          enum: REVIEW_REQUEST_STATES,
+        },
+        prUrl: {
+          type: String,
+          default: null,
+        },
+        owner: {
+          type: String,
+          default: null,
+        },
+        repo: {
+          type: String,
+          default: null,
+        },
+        prNumber: {
+          type: Number,
+          default: null,
+        },
+        requestedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          default: null,
+        },
+        requestedAt: {
+          type: Date,
+          default: null,
+        },
+        answeredAt: {
+          type: Date,
+          default: null,
+        },
+      },
+      default: null,
+    },
     linkedPullRequest: {
       type: {
         prNumber: {
@@ -198,4 +254,7 @@ ticketSchema.index({ isArchived: 1, updatedAt: -1 });
 ticketSchema.index({ workspace: 1, isArchived: 1, archivedAt: -1 });
 ticketSchema.index({ workspace: 1, taskNumber: 1 });
 ticketSchema.index({ 'linkedPullRequest.prNumber': 1, workspace: 1 });
+// Backs the dashboard card and the tickets-list filter (helpers/reviewRequestRules.js#06/#07):
+// "reviews this mentor owes" is one indexed query on reviewer + pending state.
+ticketSchema.index({ 'reviewRequest.reviewer': 1, 'reviewRequest.state': 1 });
 module.exports = mongoose.model('Ticket', ticketSchema);

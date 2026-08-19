@@ -53,6 +53,8 @@ AI: `AISummary`.
 - **`Ticket.blockedBy`** — `{ ticket, note }`, why a ticket can't move while it is Blocked. Both
   halves optional and independent; only meaningful in the Blocked status, and cleared on the way
   out of it. See "Ticket blockers" below.
+- **`Ticket.reviewRequest`** — at most one live ask for a mentor to look at the ticket's work, or
+  `null`. See "Review requests" below.
 - `User.preferences` — one optional subdocument holding the account's UI preferences (mode,
   accent, density, contrast, colour-vision, motion, landing page, tickets view, default assignee,
   board sort, muted notification groups). Its keys and legal values are declared once in
@@ -141,6 +143,66 @@ mirror of the same slug and note cap, since the two are separate packages) over
 - **History for a status change is written after the update commits, not when it is decided.**
   The blocker validation sits between the two and rejects routinely (cross-workspace, cycle), and an
   entry written earlier would have the log claiming a move the database never made.
+
+## Review requests
+
+An intern, on a ticket they are assigned to, asks one of their own mentors to look at a pull
+request. Platform-only in this version — nothing is written to GitHub, no reviewer is requested on
+the PR itself. See `CONTEXT.md` § "Code review", ADR-0007 (reviewer selection) and ADR-0008 (the
+independent `prUrl`).
+
+- **`Ticket.reviewRequest`** — `{ reviewer, state, prUrl, owner, repo, prNumber, requestedBy,
+  requestedAt, answeredAt }`, at most one per ticket, cleared rather than accumulated (the same
+  shape choice `blockedBy` made). `state` is `pending | approved | changes_requested`.
+  `owner`/`repo`/`prNumber` are **derived**, written only by
+  `server/helpers/reviewRequestRules.js#parsePullRequestUrl` — never accepted from a client, never
+  reconciled with `Ticket.linkedPullRequest` (ADR-0008: two independent links to one PR, allowed to
+  disagree). Indexed on `reviewer` + `state` — the pill row's active filter is one indexed query.
+  The pill *counts* are not: the page reads the reviewer's requests once, unfiltered, and tallies
+  the states client-side, same shape as the status-tab counts.
+- **Rules live in `server/helpers/reviewRequestRules.js`** (pure, unit-tested): PR URL shape
+  validation (`https://github.com/<owner>/<repo>/pull/<n>` only, missing vs malformed reported as
+  distinct errors), reviewer-candidate resolution (`resolveReviewerCandidates` —
+  `primaryMentor` always, `secondaryMentor` only once `specializationAssignedAt` is set, filtered
+  to active members of the ticket's workspace via `workspaceAuthz.isActiveWorkspaceMember`),
+  transition guards per actor (`assertCanRequestReview`/`assertReviewerEligible`/
+  `assertCanAnswerReview`/`assertCanCancelReview`), the stale rule, mismatch detection, and
+  `History` phrasing. `ticketService.js` calls into it and reimplements none of it. One export has
+  no server call site on purpose: `detectPullRequestMismatch`, because the disagreement is shown and
+  not enforced, and the showing happens in the frontend mirror — it lives here so a server-side need
+  takes the rule from here rather than growing a second definition.
+- **Dedicated routes**, unlike `blockedBy` (which rides inside the ticket `PATCH` because anyone
+  who can edit the ticket can set it): `POST/PATCH/DELETE /api/tickets/:ticketId/review-request`
+  and `GET /api/tickets/:ticketId/review-request/candidates`. `PATCH /api/tickets/:id` cannot
+  touch `reviewRequest` — it is not in the controller's update whitelist, so a review verdict can
+  never ride along inside an unrelated ticket edit. `GET /api/tickets?awaitingReviewFrom=me` backs
+  the tickets list's review-request pill row (admin/mentor only — an intern is never a request's
+  reviewer). `reviewRequestState` (`pending`/`approved`/`changes_requested`) narrows it to one
+  state; omitted, it means "All requests" — any state, still scoped to that reviewer.
+- **Requesting again replaces the request and resets it to `pending`**, from any prior state —
+  this is the whole of "re-request"; there is no separate action. **Cancelling is `pending`-only**
+  (`assertCanCancelReview`): an answered request is the record of who reviewed and when, so neither
+  party may delete it, and requesting again is the only way off a verdict. **Goes stale** (the request is
+  dropped, logged to `History`, no notification) when the ticket reaches a status whose `isDone`
+  flag is set, or is archived — read off the flag, same rule `blockedBy` follows, never a status
+  label a workspace may have renamed.
+- **Deliberately no status movement of any kind**, independent of
+  `Integration.settings.autoMoveOnPROpenEnabled`/`autoMoveOnMergeEnabled`. The whole flow works in
+  a workspace with no GitHub integration connected.
+- **Notifications**: `ticket_review_requested` (recipient: the reviewer, fires on every request
+  including a repeat) and `ticket_review_completed` (recipient: the intern, body points at the PR
+  since the verdict carries no words). A new **`reviews`** mute group ("Code reviews") in both
+  `server/constants/userPreferences.js` and `frontend/src/helpers/notificationPreferences.js` —
+  not folded into `assignments`, so muting "Assigned to me" cannot silently kill reviews. Cancelling
+  or going stale notifies nobody.
+- **Frontend**: `helpers/reviewRequest.js` mirrors the URL validation and adds chip label/tone per
+  state (a deliberate duplicate of the server rule, same justification as the two `ticketBlocker`
+  helpers). `components/Tickets/TicketReviewField.jsx` is the meta rail section (mounted beside the
+  blocker field, in the modal's `lead` slot) — form for the requesting intern, answer controls for
+  the named reviewer, read-only summary for everyone else in the workspace.
+  `components/Tickets/TicketReviewChip.jsx` is the list/board chip, same chip vocabulary as
+  `BlockedByChip`, sitting in the card's meta row (not beside the title, since a card can already
+  carry a blocker chip and a PR chip there).
 
 ## Auth flow
 
@@ -259,8 +321,9 @@ See `services/internCvService.js#syncTechnologiesFromCv`.
 ## Notifications
 
 `Notification` (`server/models/Notification.js`) covers two domains on one model: ticketing
-(`ticket_comment`/`ticket_assigned`/`ticket_mention` — `ticket`/`workspace` populated, `link`
-empty) and the intern-programme domain (`recommendation_created`, `recommendation_status_changed`,
+(`ticket_comment`/`ticket_assigned`/`ticket_mention`/`ticket_review_requested`/
+`ticket_review_completed` — `ticket`/`workspace` populated, `link` empty) and the intern-programme
+domain (`recommendation_created`, `recommendation_status_changed`,
 `recommendation_not_placed`, `intern_placed`, `evaluation_created`, `readiness_updated`, the four
 `specialization_*` types, `intern_status_changed`, `intern_expected_end_date_changed`,
 `intern_documentation_updated`, `daily_attendance_reminder`, `intern_mentor_note_shared`,
@@ -286,7 +349,8 @@ invalidation beside it, and the bell entry is the real record. The switch itself
 see "UI preferences" below.
 
 - **Ticketing** notifications live in `server/services/notificationService.js`
-  (`notifyNewTicketComment`, `notifyTicketAssigned`, `notifyTicketMention`), `await`ed from
+  (`notifyNewTicketComment`, `notifyTicketAssigned`, `notifyTicketMention`,
+  `notifyTicketReviewRequested`, `notifyTicketReviewCompleted`), `await`ed from
   `commentService.js` / `ticketService.js` inside a try/catch that only logs on failure.
 - **Intern-programme** notifications live in `server/services/internNotificationService.js`, one
   function per event (see `.claude/docs/security.md` for the writes that must never notify, or

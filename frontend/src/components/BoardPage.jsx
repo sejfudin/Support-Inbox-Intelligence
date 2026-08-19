@@ -16,6 +16,7 @@ import { PR_STATE_CONFIG } from '@/components/PRCard';
 import PriorityIndicator from '@/components/PriorityIndicator';
 import AssigneesAvatar from '@/components/Tickets/AssigneesAvatar';
 import BlockedByChip from '@/components/Tickets/BlockedByChip';
+import TicketReviewChip from '@/components/Tickets/TicketReviewChip';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -74,6 +75,7 @@ function buildBoardTaskView(ticket, boardHelpers) {
     categoryLabel,
     linkedPullRequest: ticket.linkedPullRequest || null,
     blockingTicket: ticket.blockedBy?.ticket || null,
+    reviewRequest: ticket.reviewRequest || null,
     columnId: colId,
     updatedAt: ticket.updatedAt ?? null,
     // Raw values the board sort needs — `dueLabel` above is display-only, and a
@@ -128,6 +130,7 @@ const BoardTaskCardBody = memo(function BoardTaskCardBody({
         {/* `onOpen` is "open ticket details for this id", so the chip reuses it to
             open the blocker. It stops the click reaching the card underneath. */}
         <BlockedByChip blocker={task.blockingTicket} onOpenTicket={onOpen} className="flex-none" />
+        <TicketReviewChip reviewRequest={task.reviewRequest} className="flex-none" />
         <span className="min-w-0 flex-1" />
         {prLabel && prStateConfig ? (
           <span

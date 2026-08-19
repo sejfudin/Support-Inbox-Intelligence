@@ -291,7 +291,7 @@ export default function AdminDashboardPage() {
               )}
 
               <div className={BOTTOM_ROW_CLASS}>
-                <div className="flex min-w-0 xl:col-span-3">
+                <div className="flex min-w-0 self-start xl:col-span-3">
                   {dashboardPending ? (
                     <InternsPanelSkeleton />
                   ) : (

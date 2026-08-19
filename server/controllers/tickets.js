@@ -31,6 +31,8 @@ const getAllTickets = async (req, res) => {
       sortBy,
       sortOrder,
       periodDays,
+      awaitingReviewFrom,
+      reviewRequestState,
     } = req.query;
 
     const workspaceId = await resolveActiveWorkspaceId({
@@ -53,6 +55,9 @@ const getAllTickets = async (req, res) => {
       sortBy: sortBy || 'updatedAt',
       sortOrder: sortOrder === 'asc' ? 'asc' : 'desc',
       periodDays,
+      // Resolved here, not in the service, which stays ignorant of "current user".
+      awaitingReviewFromUserId: awaitingReviewFrom === 'me' ? req.user._id : undefined,
+      reviewRequestState: reviewRequestState || '',
     });
 
     res.status(200).json({
@@ -361,6 +366,77 @@ const unarchiveTicket = async (req, res, next) => {
   }
 };
 
+const getReviewerCandidates = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const result = await ticketService.getReviewerCandidates(ticketId, req.user._id);
+
+    res.status(200).json({ success: true, message: 'Reviewer candidates fetched', data: result });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
+const requestReview = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { prUrl, reviewerId } = req.body;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const ticket = await ticketService.requestReview(ticketId, { prUrl, reviewerId }, req.user);
+
+    res.status(200).json({ success: true, message: 'Review requested', data: ticket });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    handleControllerError(res, error, next);
+  }
+};
+
+const answerReview = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { state } = req.body;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const ticket = await ticketService.answerReview(ticketId, { state }, req.user._id);
+
+    res.status(200).json({ success: true, message: 'Review answered', data: ticket });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    handleControllerError(res, error, next);
+  }
+};
+
+const cancelReview = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const ticket = await ticketService.cancelReview(ticketId, req.user._id);
+
+    res.status(200).json({ success: true, message: 'Review request cancelled', data: ticket });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    handleControllerError(res, error, next);
+  }
+};
+
 const getMyTickets = async (req, res, next) => {
   try {
     const {
@@ -478,4 +554,8 @@ module.exports = {
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
+  getReviewerCandidates,
+  requestReview,
+  answerReview,
+  cancelReview,
 };
