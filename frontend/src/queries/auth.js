@@ -144,15 +144,20 @@ export const useUpdateUser = () => {
  *
  * Nothing invalidates other people's avatars, because this endpoint cannot change
  * anybody else's picture.
+ *
+ * `onSuccess` **returns** the invalidation rather than firing and forgetting it:
+ * React Query awaits a promise returned from `onSuccess` before settling
+ * `mutateAsync`, and `useProfileAvatar` drops its optimistic preview the moment
+ * that settles. Without the `return`, a first upload clears the preview while
+ * `/auth/me` is still in flight and the circle snaps back to initials for the
+ * length of that round trip — the one blink this whole preview exists to avoid.
  */
 export const useUploadMyAvatar = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: uploadMyAvatar,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: authKeys.me() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me() }),
   });
 };
 
@@ -161,8 +166,6 @@ export const useDeleteMyAvatar = () => {
 
   return useMutation({
     mutationFn: deleteMyAvatar,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: authKeys.me() });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me() }),
   });
 };

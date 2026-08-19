@@ -99,7 +99,13 @@ const UserAvatar = React.forwardRef(
             onError={() => setFailed(true)}
           />
         ) : (
-          monogram
+          // Decorative for the same reason the photo is: a monogram is an
+          // abbreviation of the name that is already beside the circle, so
+          // reading it out first only turns every row into "DP Dario Perić".
+          // Nearly every hand-rolled avatar this component replaced carried
+          // `aria-hidden` on its initials span; the accessible name, where one
+          // is wanted, comes from `title` on the wrapper.
+          <span aria-hidden="true">{monogram}</span>
         )}
       </span>
     );

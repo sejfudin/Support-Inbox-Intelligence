@@ -13,6 +13,7 @@ const {
   loadNonWorkingDays,
 } = require('../helpers/attendanceStats');
 const { httpError } = require('../helpers/httpError');
+const { userSelect } = require('../constants/userSelect');
 const {
   officeDateKey,
   officeMonthKey,
@@ -144,7 +145,7 @@ const loadPlacements = async () => {
     .populate({
       path: 'internProfile',
       select: 'user startDate',
-      populate: { path: 'user', select: 'fullname' },
+      populate: { path: 'user', select: userSelect() },
     })
     .populate({ path: 'project', select: 'name' })
     .populate({ path: 'position', select: 'name' })
@@ -188,7 +189,7 @@ const loadSpecializations = async () => {
     .sort({ specializationAssignedAt: -1, _id: -1 })
     .limit(RECENT_SPECIALIZATION_LIMIT)
     .select('user declaredPosition secondaryMentor specializationAssignedAt')
-    .populate({ path: 'user', select: 'fullname' })
+    .populate({ path: 'user', select: userSelect() })
     .populate({ path: 'declaredPosition', select: 'name' })
     .populate({ path: 'secondaryMentor', select: 'fullname' })
     .lean();

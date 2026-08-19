@@ -983,7 +983,7 @@ const persistTicketUpdate = async (ticketId, updateData) => {
   )
     .populate('status', STATUS_POPULATE_SELECT)
     .populate('assignedTo', userSelect('role'))
-    .populate('creator', 'fullName')
+    .populate('creator', userSelect())
     .populate(BLOCKER_POPULATE);
 
   if (!ticket) {

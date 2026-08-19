@@ -419,9 +419,9 @@ script and a new step here, in the same change that alters the model.
 ## Verifying a change
 
 There is no integration or E2E suite. `npm test` (Jest, in `server/`) covers pure helpers —
-`slugify`, `dailyRules`, `cvTechnologyMatcher`, `cvTechnologySync`, `staffingRequestRules`
-`userAvatar` (`helpers/userAvatar.test.js`, the accepted file types and the object-key shape)
-(`helpers/*.test.js`) — plus four services that mock Mongo and Supabase: `userAvatarService`
+`slugify`, `dailyRules`, `cvTechnologyMatcher`, `cvTechnologySync`, `staffingRequestRules` and
+`userAvatar` (`helpers/*.test.js`; the avatar one covers the accepted file types and the
+object-key shape) — plus four services that mock Mongo and Supabase: `userAvatarService`
 (`services/userAvatarService.test.js`), for the upload → repoint → delete-the-old ordering and
 the cleanup when a save fails, `internCvService`
 (`services/internCvService.test.js`), for the CV re-upload → technology replacement wiring,

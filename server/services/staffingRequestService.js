@@ -176,7 +176,7 @@ const loadTaggedRecommendations = async (requestIds) => {
     .populate({
       path: 'internProfile',
       select: 'user startDate',
-      populate: { path: 'user', select: 'fullname' },
+      populate: { path: 'user', select: userSelect() },
     })
     .lean();
   const byRequestId = new Map();

@@ -806,7 +806,7 @@ const getProgrammeStats = async (user) => {
           populate: { path: 'hub', select: 'name' },
         },
         { path: 'internshipType', select: 'name slug' },
-        { path: 'primaryMentor', select: 'fullname' },
+        { path: 'primaryMentor', select: userSelect() },
       ])
       .sort({ expectedEndDate: 1, updatedAt: -1 })
       .lean(),
