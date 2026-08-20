@@ -2,6 +2,7 @@ const Attendance = require('../models/Attendance');
 const InternProfile = require('../models/InternProfile');
 const {
   officeDateKey,
+  officeDateLabel,
   officeMonthKey,
   isValidMonthKey,
   monthBounds,
@@ -23,7 +24,7 @@ const { isAssignedMentor } = require('../helpers/internAccess');
 const { ROLES } = require('../constants/roles');
 const { userSelect } = require('../constants/userSelect');
 
-const { PRESENT, CANCELLED } = Attendance;
+const { PRESENT, CANCELLED, REMOTE, VACATION, RELIGIOUS, SICK } = Attendance;
 
 // Which interns appear on the admin roster. Attendance is only meaningful for
 // interns currently in the programme, so terminal states (placed/completed/
@@ -80,29 +81,110 @@ const buildSummary = async (profile) => {
 };
 
 /**
+ * Every reason a check-in can be refused answers with 422 and a sentence the
+ * intern can act on — see the ordering in `checkIn` for why they are asked in the
+ * order they are. 422 rather than 409 or 403 throughout: the request is
+ * well-formed and the caller is who they say they are, the *day* is simply not one
+ * they can claim. The client turns any 422 from this route into a "you can't check
+ * in today, here is why" toast rather than a red failure.
+ */
+const refuse = (message) => httpError(message, 422);
+
+/**
  * An intern who has started on a real project is no longer obliged to record
  * attendance, so check-in is refused rather than merely uncounted. Without this the
  * exemption would be cosmetic: they could still create rows that the rate ignores.
  */
 const assertNotPlaced = (profile, now) => {
   if (isExemptOn(profile.placedAt, officeDateKey(now))) {
-    throw httpError('You are on a project, so you no longer need to record attendance.', 422);
+    throw refuse('You are on a project, so you no longer need to record attendance.');
   }
+};
+
+/**
+ * Nobody can attend before their first day. `computeMonthStats` already clamps the
+ * denominator to `startDate`, so a row written before it counts for nothing — this
+ * says so instead of accepting a click that silently does nothing.
+ *
+ * Only guards a start date that is actually set: profiles imported without one owe
+ * attendance from their first record, and refusing them would lock check-in for
+ * good.
+ */
+const assertStarted = (profile, dateKey) => {
+  if (!profile.startDate) return;
+  const startKey = officeDateKey(profile.startDate);
+  if (dateKey >= startKey) return;
+  throw refuse(
+    `Your internship starts on ${officeDateLabel(profile.startDate)} — check-in opens on your first day.`
+  );
+};
+
+/**
+ * A day the whole cohort was excused: a public holiday, a programme break, a
+ * remote week (`models/NonWorkingDay.js`).
+ *
+ * Refused rather than allowed-but-ignored, because allowed-but-ignored is exactly
+ * what it used to be: `computeMonthStats` drops a check-in on an excluded day from
+ * the numerator as well as the denominator, so the intern got a green "checked in"
+ * for a row that counted for nothing.
+ */
+const assertNotCohortDayOff = async (dateKey) => {
+  const { list } = await loadNonWorkingDays();
+  const day = list.find((entry) => entry.date === dateKey);
+  if (!day) return;
+  const label = day.label || 'Today';
+  throw refuse(
+    day.kind === 'remote'
+      ? `${label} — the whole programme is remote today, so there is no office check-in to record.`
+      : `${label} is a non-working day for the whole programme, so no check-in is needed. It is not counted as an absence.`
+  );
 };
 
 const assertCheckInOpen = (now) => {
   if (isOfficeWeekend(now)) {
-    throw httpError('Check-in is only available on weekdays.', 422);
+    throw refuse("It's the weekend — check-in is only available on weekdays.");
   }
   if (!isWithinCheckInWindow(now)) {
     const opensAt = `${String(CHECK_IN_WINDOW.startHour).padStart(2, '0')}:00`;
     const message =
       checkInWindowState(now) === 'before'
-        ? `Check-in opens at ${opensAt}.`
+        ? `Check-in opens at ${opensAt} office time.`
         : `Check-in is closed for today. The window is ${CHECK_IN_WINDOW_LABEL} office time.`;
-    throw httpError(message, 422);
+    throw refuse(message);
   }
 };
+
+/**
+ * What to say when today already carries a status an approval wrote.
+ *
+ * These are not failures and they are not the intern's mistake — an admin agreed
+ * the day, and the day is already accounted for. Each one says both halves the
+ * intern needs: why the button did nothing, and that the day is not being held
+ * against them. Remote is the odd one out: it IS work and it already counts, so it
+ * says that rather than reassuring them about an absence they are not having.
+ */
+const APPROVED_DAY_REFUSAL = {
+  [REMOTE]:
+    'Today is an approved remote-work day. It already counts as attended — there is no office check-in to add.',
+  [VACATION]:
+    'You are on approved vacation today, so there is nothing to check in for. The day is not counted as an absence.',
+  [RELIGIOUS]:
+    'Today is your approved religious holiday, so there is nothing to check in for. The day is not counted as an absence.',
+  [SICK]:
+    'You are on approved sick leave today, so there is nothing to check in for. The day is not counted as an absence.',
+};
+
+/**
+ * Flipping such a row to `present` would look harmless and would quietly orphan
+ * the approval — the row's `request` back-pointer is what a revoke matches on — so
+ * the answer is a refusal, not a write. An intern who believes the approval is
+ * wrong asks an admin to revoke it; that is not a thing a check-in button undoes.
+ */
+const approvedDayRefusal = (status) =>
+  refuse(
+    APPROVED_DAY_REFUSAL[status] ||
+      'Today is already recorded as an approved day off, so there is nothing to check in for.'
+  );
 
 const getMyAttendance = async (user) => {
   const profile = await loadMyProfile(user);
@@ -126,27 +208,40 @@ const markPresent = async (row, { now, user, ip }) => {
  * the day, and re-checking-in is allowed for as long as the window is open —
  * `assertCheckInOpen` above is what closes the day for good.
  * The office-network (IP) check is a later, optional guard — see attendanceTime.
+ *
+ * **The guards run most-specific first, and that ordering is the feature.** Today's
+ * stored row is read before the clock rules, so an intern on approved vacation who
+ * clicks at 15:00 is told they are on vacation rather than that the window shut at
+ * 11:00 — the second is true and useless. Same reason the cohort's day off is asked
+ * about before the window: "Labour Day" answers the question, "check-in is closed"
+ * only restates the button.
+ *
+ * Nothing above the write is a write, so the two read-only outcomes (already
+ * checked in, or refused) are reached whatever the clock says.
  */
 const checkIn = async (user, { ip } = {}) => {
   const profile = await loadMyProfile(user);
   const now = new Date();
+  const date = officeDateKey(now);
+
   assertNotPlaced(profile, now);
+  assertStarted(profile, date);
+
+  const existing = await Attendance.findOne({ intern: profile._id, date });
+  // Already present → leave it exactly as it is, and report success: a second click
+  // is not an error, and re-stamping would move `checkedInAt` off the real arrival.
+  if (existing && existing.status === PRESENT) return buildSummary(profile);
+  // Any request-written status (remote, vacation, religious, sick) is refused with
+  // the reason attached — see `approvedDayRefusal`.
+  if (existing && existing.status !== CANCELLED) throw approvedDayRefusal(existing.status);
+
+  await assertNotCohortDayOff(date);
   assertCheckInOpen(now);
 
-  const date = officeDateKey(now);
-  const existing = await Attendance.findOne({ intern: profile._id, date });
+  // Cancelled earlier today → a genuine new check-in, so re-stamp the same row
+  // rather than inserting a second one against the unique { intern, date } index.
   if (existing) {
-    // Cancelled earlier today → this is a genuine new check-in, so re-stamp the
-    // row. Already present → leave it exactly as it is (idempotent).
-    //
-    // Any request-written status (remote, vacation, religious, sick) is the third
-    // case and also leaves the row alone. Remote already counts, so a check-in adds
-    // nothing; the three exempt ones are days an admin agreed the intern is away,
-    // and the intern arguing otherwise by clicking a button is not how that gets
-    // undone — an admin revokes it. Either way, flipping the row to `present` here
-    // would look harmless and would quietly orphan the approval, since the row's
-    // `request` link is what revoke matches on.
-    if (existing.status === CANCELLED) await markPresent(existing, { now, user, ip });
+    await markPresent(existing, { now, user, ip });
     return buildSummary(profile);
   }
 

@@ -472,7 +472,7 @@ export function StatusSegmented({ statuses, value, onChange, lockedValues = [], 
  * Modal shell for the recommendation dialogs: 680px, radius 20, structured
  * header (title / aside pill / subline / 32px ✕), scrollable body and bordered
  * footer. The body is a `ScrollFade`: these modals are tall enough to overflow
- * the 90vh cap, and an overlay scrollbar stays hidden until you scroll, so the
+ * the 90%-of-viewport cap, and an overlay scrollbar stays hidden until you scroll, so the
  * body looked cut off rather than scrollable. An optional `strip` paints the 4px
  * status-color bar across the top.
  */
@@ -541,7 +541,7 @@ export function RecModal({
       <DialogContent
         hideCloseButton
         className={cn(
-          'flex max-h-[90vh] max-w-[680px] flex-col gap-0 overflow-hidden rounded-[var(--r-card)] border-0 bg-card p-0 text-foreground shadow-elevated sm:rounded-[var(--r-card)] sm:p-0',
+          'flex max-h-[calc(var(--app-vh)*0.9)] max-w-[680px] flex-col gap-0 overflow-hidden rounded-[var(--r-card)] border-0 bg-card p-0 text-foreground shadow-elevated sm:rounded-[var(--r-card)] sm:p-0',
           REC_FONT
         )}
         data-test={dataTest}

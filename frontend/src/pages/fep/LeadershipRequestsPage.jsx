@@ -266,7 +266,7 @@ export default function LeadershipRequestsPage() {
                 that it scrolls — the fade marks the edge that still has rows
                 past it, and the count says how many there are in total. */}
             <ScrollFade
-              viewportClassName="space-y-3 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1"
+              viewportClassName="space-y-3 lg:max-h-[calc(var(--app-vh)-18rem)] lg:overflow-y-auto lg:pr-1"
               fadeClassName="from-[hsl(var(--symphony-surface))]"
             >
               {visibleRequests.length === 0 ? (
@@ -306,7 +306,7 @@ export default function LeadershipRequestsPage() {
               sibling — it would push the card down by a gap belonging to
               something nobody can see, and the two panes would start on
               different lines. The button carries its own margin instead. */}
-          <div className="min-w-0 lg:max-h-[calc(100vh-18rem)] lg:overflow-y-auto lg:pr-1">
+          <div className="min-w-0 lg:max-h-[calc(var(--app-vh)-18rem)] lg:overflow-y-auto lg:pr-1">
             {selected && (
               <Button
                 type="button"

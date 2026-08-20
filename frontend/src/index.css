@@ -155,15 +155,43 @@
 @layer base {
   /* Text & UI size. `zoom` rather than a root `font-size`, because this design
      sizes almost everything in px literals — a rem change would scale the few
-     rem values and leave every table row exactly where it was. The trade-off is
-     that `100vh` still means the unzoomed viewport, so full-height panes can
-     gain a few pixels of scroll at 125%. */
+     rem values and leave every table row exactly where it was.
+
+     `zoom` scales lengths but NOT viewport units: `100vh` inside the zoomed body
+     still resolves against the unzoomed viewport, so at 125% it paints 125% of
+     the screen. That is why nothing in this app measures itself against the
+     screen with `vh`/`svh`/`dvh`/`vw` directly — it uses the four variables
+     below, which are those units divided back down by whatever zoom is active.
+     Getting this wrong is not cosmetic: the sidebar is `position: fixed`, so an
+     over-tall one puts the account footer permanently below the fold with no
+     scroll that can reach it. */
+  :root {
+    --app-vh: 100vh;
+    --app-svh: 100svh;
+    --app-dvh: 100dvh;
+    --app-vw: 100vw;
+  }
+
   :root[data-ui-scale='large'] body {
     zoom: 1.1;
   }
 
+  :root[data-ui-scale='large'] {
+    --app-vh: calc(100vh / 1.1);
+    --app-svh: calc(100svh / 1.1);
+    --app-dvh: calc(100dvh / 1.1);
+    --app-vw: calc(100vw / 1.1);
+  }
+
   :root[data-ui-scale='larger'] body {
     zoom: 1.25;
+  }
+
+  :root[data-ui-scale='larger'] {
+    --app-vh: calc(100vh / 1.25);
+    --app-svh: calc(100svh / 1.25);
+    --app-dvh: calc(100dvh / 1.25);
+    --app-vw: calc(100vw / 1.25);
   }
 
   /* High contrast. Borders and secondary text are what fail WCAG on a light
@@ -334,7 +362,7 @@
   }
 
   #root {
-    min-height: 100vh;
+    min-height: var(--app-vh);
   }
 }
 
@@ -501,7 +529,8 @@
 
 @layer components {
   .app-page {
-    @apply min-h-screen bg-transparent;
+    @apply bg-transparent;
+    min-height: var(--app-vh);
   }
 
   /* Pages span the area left by the sidebar, with a 24px side gutter and 24px

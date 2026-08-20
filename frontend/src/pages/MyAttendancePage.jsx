@@ -88,6 +88,7 @@ export default function MyAttendancePage() {
               cancelledDates={cancelledDates}
               placedAt={placedAt}
               requestedDays={requestedDays}
+              nonWorkingDays={nonWorkingDays}
               onCheckIn={() => checkIn()}
               onCancel={() => cancelCheckIn()}
               isCheckingIn={isCheckingIn}

@@ -551,7 +551,7 @@ export function WhatsNewTour() {
           overlapping && 'rounded-[var(--r-card)] bg-slate-950/85 p-5 ring-1 ring-white/10',
           '[text-shadow:0_1px_14px_rgba(2,6,23,0.95)]'
         )}
-        style={{ ...cardPosition, maxWidth: cardPosition.maxWidth ?? 'calc(100vw - 2rem)' }}
+        style={{ ...cardPosition, maxWidth: cardPosition.maxWidth ?? 'calc(var(--app-vw) - 2rem)' }}
       >
         <div className="flex items-center gap-2 text-white/70">
           <Sparkles className="h-[18px] w-[18px] shrink-0" />

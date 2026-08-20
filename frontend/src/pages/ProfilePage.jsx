@@ -118,7 +118,7 @@ const ProfilePage = () => {
     );
   if (!user)
     return (
-      <div className="flex h-screen items-center justify-center text-[hsl(var(--tone-danger))]">
+      <div className="flex h-[var(--app-vh)] items-center justify-center text-[hsl(var(--tone-danger))]">
         Error Loading User Profile.
       </div>
     );

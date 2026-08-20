@@ -31,7 +31,7 @@ export default function Register() {
   }
 
   return (
-    <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
+    <div className="fixed inset-0 h-[var(--app-vh)] w-[var(--app-vw)] overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
           <Card className="border-border/50 bg-muted shadow-elevated dark:border-surface-border dark:bg-surface-elevated">
