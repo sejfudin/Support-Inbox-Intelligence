@@ -767,11 +767,10 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
   // as by the picker rules below — they can never appear, so there is no reason
   // to load them and their whole recommendation history first.
   const profiles = await InternProfile.find({ status: { $nin: PICKER_EXCLUDED_INTERN_STATUSES } })
-    .select('user status startDate declaredPosition selfTechnologies cvTechnologies')
+    .select('user status startDate declaredPosition selfTechnologies')
     .populate({ path: 'user', select: userSelect() })
     .populate({ path: 'declaredPosition', select: 'name' })
     .populate({ path: 'selfTechnologies', select: 'name' })
-    .populate({ path: 'cvTechnologies', select: 'name' })
     .lean();
 
   const recommendations = await Recommendation.find({
@@ -815,14 +814,12 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
       // half a row.
       startDate: profile.startDate ?? null,
       position: profile.declaredPosition?.name ?? null,
-      // Both technology lists, because a picker matching against what the
-      // request asked for should not care which of the two an intern's skill
-      // was recorded in.
+      // One list, whether the intern added an entry by hand or a CV scan did it
+      // for them — a picker matching against what the request asked for has no
+      // reason to care which.
       technologies: [
         ...new Set(
-          [...(profile.selfTechnologies ?? []), ...(profile.cvTechnologies ?? [])]
-            .map((technology) => technology?.name)
-            .filter(Boolean)
+          (profile.selfTechnologies ?? []).map((technology) => technology?.name).filter(Boolean)
         ),
       ],
       eligibility: partitioned.eligibility,

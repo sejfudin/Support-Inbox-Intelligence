@@ -58,9 +58,7 @@ const run = async () => {
         continue;
       }
 
-      const declaredBy = await InternProfile.countDocuments({
-        $or: [{ selfTechnologies: row._id }, { cvTechnologies: row._id }],
-      });
+      const declaredBy = await InternProfile.countDocuments({ selfTechnologies: row._id });
       console.log(
         `${isDryRun ? '📝 Would retire' : '🧹 Retiring'} ${row.name} (${slug}) — duplicates a ` +
           `position title. Declared by ${declaredBy} intern(s)` +

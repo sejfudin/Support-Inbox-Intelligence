@@ -347,20 +347,17 @@ effect as a manual add, no `ReadinessFlag` created, so each reads "Not assessed"
 assesses it. Best-effort by design: an unreadable PDF adds nothing and never fails the upload.
 See `services/internCvService.js#syncTechnologiesFromCv`.
 
-- **A re-upload replaces the previous scan, it does not accumulate.** `selfTechnologies` mixes
-  manual and scanned entries, so `InternProfile.cvTechnologies` records the subset the scan added
-  (always a subset of `selfTechnologies`, stripped from responses in `formatProfile`).
-  Reconciliation is pure — `helpers/cvTechnologySync.js#reconcileCvTechnologies`, covered by
-  `cvTechnologySync.test.js`. Its four rules:
-  - **Manual declarations are never removed** — only what a scan added is CV-owned.
-    `updateSelfTechnologies` prunes `cvTechnologies` to what is still declared, so removing a
-    CV-added technology by hand hands it back to the intern.
-  - **A readable CV that matches nothing still clears the previous scan** — a real result, not a
-    failure.
-  - **An unreadable CV changes nothing.** Text we could not extract is not evidence a skill was
-    dropped. Removal also leaves any existing `ReadinessFlag` alone.
-  - Profiles that last uploaded before `cvTechnologies` existed add without removing on their first
-    re-upload, then self-correct. No backfill is possible.
+- **A scan only ever adds — it never removes, and a re-upload accumulates.** A CV that omits a
+  section, spells a skill differently, matches nothing, or cannot be read is not evidence the
+  intern lost anything, so nothing already declared is touched. The merge is pure —
+  `helpers/cvTechnologySync.js#mergeCvTechnologies`, covered by `cvTechnologySync.test.js` — and
+  reports only genuine additions, so a technology that was already on the list is not announced
+  as newly added. It follows that:
+  - **No CV-vs-manual provenance is recorded.** `selfTechnologies` is one list from two sources;
+    nothing needs to tell them apart, because neither can shorten it.
+  - **`updateSelfTechnologies` is the only path that removes** — the intern's own act, on the
+    technologies screen. A later CV that still mentions the technology adds it back as a fresh
+    add; that is the accepted cost of scans never removing.
 - **The catalog is the ceiling.** A skill with no `Technology` row is invisible to the scan however
   it is spelled, so a thin catalog reads as a broken scanner. Adding one takes three steps in the
   same change: `seeder/defaultTechnologies.js` (the entry), `helpers/cvTechnologyMatcher.js`
