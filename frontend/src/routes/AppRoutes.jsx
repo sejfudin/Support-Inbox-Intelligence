@@ -54,7 +54,12 @@ import AdminDailyInsightsPage from '@/pages/AdminDailyInsightsPage';
 import AdminStaffingRequestsPage from '@/pages/AdminStaffingRequestsPage';
 
 const WorkspaceGuard = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  // Nothing to guard against until the session lands. Every check below reads a field off `user`,
+  // and on a cold reload that is `undefined` for the length of the boot — so redirecting here
+  // would bounce someone off the URL they typed before we knew whether they could see it. The
+  // children mount under the boot splash and start what they can; see `ProtectedRoutes.jsx`.
+  if (loading) return <Outlet />;
   if (user?.role === ROLES.LEADERSHIP) {
     return <Navigate to="/programme" replace />;
   }
@@ -78,8 +83,11 @@ const WorkspaceGuard = () => {
  * those pages do not handle — hence the repeated check on the mentor branch only.
  */
 const DashboardRoute = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
+  // The split is on role, so there is no branch to take until the session lands. The boot splash
+  // is up over this, so the person sees the mark rather than a blank frame.
+  if (loading) return null;
   if (user?.role === ROLES.LEADERSHIP) {
     return <Navigate to="/programme" replace />;
   }
@@ -96,7 +104,11 @@ const DashboardRoute = () => {
 };
 
 const HomeRedirect = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  // Every branch here is a redirect, and the last one is unconditional — running them on a session
+  // that has not resolved would send everyone to /create-workspace on a cold load of `/`.
+  if (loading) return null;
 
   if (user?.role === ROLES.LEADERSHIP) {
     return <Navigate to="/programme" replace />;
