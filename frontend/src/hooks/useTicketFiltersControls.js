@@ -10,8 +10,11 @@ import {
   PRIORITY_ORDER_VALUES,
   TICKET_ID_ORDER_OPTIONS,
   TICKET_ID_ORDER_VALUES,
+  REVIEW_REQUEST_FILTER_OPTIONS,
+  REVIEW_REQUEST_FILTER_VALUES,
   buildTicketQueryParamsFromControls,
 } from '@/helpers/ticketFilters';
+import { badgeTone } from '@/helpers/badgeTones';
 import { PRIORITY_CONFIG } from '@/helpers/ticketPriority';
 
 export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
@@ -56,8 +59,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'priorityOrder',
         label: `Sort: ${selectedOrder?.label || controls.priorityOrder}`,
-        className:
-          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
+        className: badgeTone('info'),
       });
     }
 
@@ -68,8 +70,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'dueDateOrder',
         label: `Due date: ${selectedDue?.label || controls.dueDateOrder}`,
-        className:
-          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
+        className: badgeTone('info'),
       });
     }
 
@@ -80,8 +81,18 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
       chips.push({
         key: 'ticketIdOrder',
         label: `Ticket ID: ${selectedTicketIdOrder?.label || controls.ticketIdOrder}`,
-        className:
-          'border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300',
+        className: badgeTone('info'),
+      });
+    }
+
+    if (controls.reviewRequestFilter !== REVIEW_REQUEST_FILTER_VALUES.NONE) {
+      const selectedReviewFilter = REVIEW_REQUEST_FILTER_OPTIONS.find(
+        (option) => option.value === controls.reviewRequestFilter
+      );
+      chips.push({
+        key: 'reviewRequestFilter',
+        label: `Review: ${selectedReviewFilter?.label || controls.reviewRequestFilter}`,
+        className: 'border-border/80 bg-secondary/70 text-foreground',
       });
     }
 
@@ -147,6 +158,15 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     }));
   };
 
+  // Exclusive, like the status tabs: picking the active pill again turns it off.
+  const setReviewRequestFilter = (value) => {
+    setControls((prev) => ({
+      ...prev,
+      reviewRequestFilter:
+        prev.reviewRequestFilter === value ? REVIEW_REQUEST_FILTER_VALUES.NONE : value,
+    }));
+  };
+
   const clearAllFilters = () => {
     setControls({ ...DEFAULT_TICKET_CONTROLS });
   };
@@ -191,6 +211,11 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
         ...prev,
         ticketIdOrder: TICKET_ID_ORDER_VALUES.NONE,
       }));
+      return;
+    }
+
+    if (chipKey === 'reviewRequestFilter') {
+      setControls((prev) => ({ ...prev, reviewRequestFilter: REVIEW_REQUEST_FILTER_VALUES.NONE }));
     }
   };
 
@@ -200,6 +225,7 @@ export function useTicketFiltersControls({ assigneeOptions = [] } = {}) {
     activeFilterChips,
     togglePriority,
     toggleAssignee,
+    setReviewRequestFilter,
     changePriorityOrder,
     changeDueDateOrder,
     changeTicketIdOrder,

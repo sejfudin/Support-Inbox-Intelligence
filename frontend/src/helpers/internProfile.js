@@ -27,9 +27,9 @@ export const getReadinessLabel = (level) =>
 export const getReadinessBadgeClassName = (level) => {
   switch (level) {
     case 'ready':
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400';
+      return 'border-[hsl(var(--tone-success)/0.3)] bg-[hsl(var(--tone-success)/0.1)] text-[hsl(var(--tone-success-fg))]';
     case 'learning':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300';
+      return 'border-[hsl(var(--tone-warning)/0.3)] bg-[hsl(var(--tone-warning)/0.1)] text-[hsl(var(--tone-warning-fg))]';
     default:
       return 'border-border/60 bg-muted/30 text-muted-foreground';
   }

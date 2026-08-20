@@ -16,16 +16,62 @@
  * Nothing here opens itself. The button is the only way in — see the comment on
  * `TOUR_REPLAY_EVENT` for why.
  *
- * Each step either points at a real element (`target`, a `[data-tour]` selector)
- * or has none, in which case the card is centred and reads as a plain notice.
+ * **The fields a step can carry:**
  *
- * **`roles` is the only thing that decides who sees a step.** Steps are never
- * dropped for a missing target: the count a viewer sees is exactly the number of
- * entries below that apply to their role, and a target that has not rendered yet
- * (every dashboard card is behind a query) is waited for, then falls back to a
- * centred card. So if you add a step for a role, that role *will* walk through it —
- * which also means a step whose element genuinely never exists for that role is a
- * scripting bug here, not something the runtime will quietly paper over.
+ * - `title`, `body` — the copy. The title is upper-cased by the overlay, so write it
+ *   in sentence case. Keep the body to a sentence or two: this is read standing up,
+ *   over a dimmed app, and a paragraph gets skipped rather than shortened.
+ * - `target` — a `[data-tour]` selector to spotlight. With none, the card is centred
+ *   and reads as a plain notice. A target that spans the whole content column is
+ *   allowed but costs something: the card is wider than the sidebar, so there is
+ *   nowhere left to park it that is not over the thing it describes. The overlay
+ *   then centres the card on the target and puts a scrim behind it (see `placeCard`),
+ *   which reads as a panel rather than as copy on the dim. Point at a control where
+ *   one carries the same meaning; spotlight the whole region only when the region
+ *   *is* the subject, as the ticket board is.
+ * - `route` — a path to open before the step is read, for a step whose subject *is*
+ *   a page. Must be a route `SidebarLayout` serves, or the overlay unmounts
+ *   mid-walkthrough. See the navigation effect in `WhatsNewTour`. A route the viewer
+ *   would be *redirected off* counts as not served — check what guards it.
+ * - `needsWorkspace` — drop the step for a viewer with no active workspace. Only for
+ *   routes behind `WorkspaceGuard`, which bounces those viewers to
+ *   `/create-workspace` — outside `SidebarLayout`, so the tour would unmount there
+ *   and never mark itself seen. See the second paragraph below.
+ * - `needsAttendance` — drop the step for an intern already on a project. They owe
+ *   no attendance from `placedAt`, so `MyAttendancePage` withdraws the request panel
+ *   and any copy about asking for days off is false for them. Costs the overlay a
+ *   `useMyAttendance` read, so only put it on a step that genuinely needs it.
+ * - `swatches` — paints the eleven `THEMES` gradients under the copy. Specific to
+ *   the accents step; showing them beats claiming they exist.
+ * - `placement` — the preferred side for the card. A hint, not a guarantee: the
+ *   overlay overrides it when that side would cover the target.
+ * - `roles` — see below.
+ *
+ * **`roles` decides who sees a step; `needsWorkspace` and `needsAttendance` are the
+ * only other things that can drop one.** Steps are never dropped for a missing target: the count a
+ * viewer sees is exactly the number of entries below that apply to them, and a target
+ * that has not rendered yet (every dashboard card is behind a query) is waited for,
+ * then falls back to a centred card. So if you add a step for a role, that role
+ * *will* walk through it — which also means a step whose element genuinely never
+ * exists for that role is a scripting bug here, not something the runtime will
+ * quietly paper over.
+ *
+ * `needsWorkspace` is the first exception, and it is not about copy or elements — it is
+ * about the tour surviving its own navigation. A step routing behind
+ * `WorkspaceGuard` sends a viewer with no `workspaceId` to `/create-workspace`,
+ * which `SidebarLayout` does not serve. The overlay unmounts, `markWhatsNewSeen`
+ * never runs, and the next load auto-opens the same tour into the same bounce —
+ * an announcement that can never be finished or dismissed. Dropping the step is the
+ * lesser loss: that viewer has no board to be shown. This is not a role check —
+ * interns between workspaces, mentors without one and admins in Global admin mode
+ * all sit in this state.
+ *
+ * `needsAttendance` is the second, and this one *is* about the copy as much as the
+ * element. An intern on a project has no request panel to spotlight and nothing to
+ * request — telling them to ask for remote days "here" is wrong on both counts, and
+ * pointing the step at the notice that replaces the panel would spotlight text
+ * saying the opposite. Both flags share one rule: a step is dropped only when the
+ * viewer cannot reach or cannot use what it describes, never to shorten the tour.
  *
  * `roles` narrows a step to specific platform roles when the *copy* only applies
  * to them, which is not the same thing as the element existing.
@@ -36,68 +82,139 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { resolveUserId } from '@/helpers/userIdentity';
 
-// Covers both boards and the new way in, which is why it supersedes the shell
-// redesign's own string rather than extending it: people who already walked the
-// shell tour have still seen neither dashboard nor this button.
+// Bump history, newest last. Each entry is the reason the re-announcement was
+// worth interrupting people for — a bump with no reason here is a nag.
 //
-// Bumped to r2 because the tour now opens itself on first load after a bump again,
-// and the way back in moved from the dashboard header to the sidebar footer. A
-// viewer who "saw" r1 saw a truncated walkthrough (steps whose card had not loaded
-// were silently dropped) and a button that is no longer where they left it, so this
-// is a genuine re-announcement rather than a nag.
-export const TOUR_VERSION = '2026-08-dashboards-r2';
+// - r1/r2 (shell redesign): the app shell, then a re-announcement because the way
+//   back in moved to the sidebar footer and r1 had shipped a truncated walkthrough.
+// - `2026-08-my-progress`: interns gained a page, and with it the written notes on
+//   their evaluations — which the previous tour had told them stayed with their
+//   mentor. Leaving the old string would have shipped a correction that only
+//   first-time viewers ever saw.
+// - `2026-08-redesign-and-requests`: the component-library redesign, the
+//   eleven accents, the new Settings page, and preferences moving off the browser
+//   onto the account. It also clears a genuine backlog — time-away requests, the
+//   absence queue, staffing requests, the positions catalog, the placement start
+//   date and the new notification triggers all shipped without anyone bumping this
+//   string, so they have never been announced to a single user.
+//
+//   This is also the first bump to spend more of its length deleting than adding,
+//   and the trade the note above prescribes applied for real. Gone: the collapse
+//   control, the bell's location and the workspace switcher, each announced across
+//   three consecutive releases, where a fourth telling is a nag rather than news;
+//   both dashboard walks, which the previous two releases already covered card by
+//   card; the archive/backlog sort, too small to spend a step on; and the
+//   current-password change, which is a security fix people meet when they need it
+//   rather than something to walk them through. The bell keeps a step, but about
+//   what it now carries instead of where it sits. What that buys is a tour short
+//   enough to finish, on the surfaces nobody has been shown even once.
+// - `2026-08-profile-pictures` (this one): everyone can set a profile picture, and it
+//   stands in for their initials everywhere they appear. One step, and a bump for it,
+//   because the feature is opt-in and invisible until somebody uses it — an avatar
+//   nobody knows they can change is an avatar that stays initials forever. It adds
+//   nothing else and deletes nothing: the previous entry's steps are still the first
+//   telling of most of what they cover.
+export const TOUR_VERSION = '2026-08-profile-pictures';
 
-// Not exported: every read and write of it lives in this module now, and the two
-// consumers go through `useWhatsNewSeen` / `markWhatsNewSeen` instead. Keep it
-// that way — a second module touching this key directly is how the button and the
-// overlay end up disagreeing about whether the tour has been seen.
-const TOUR_STORAGE_KEY = 'whatsNewTour';
+/**
+ * Master switch for the what's-new tour — **temporarily off**.
+ *
+ * The tour is a full-screen overlay that opens itself on first load after a version
+ * bump, which makes the app undrivable by automated tests: the scrim swallows every
+ * click until someone walks the script to the end. Turned off so the automation suite
+ * can run.
+ *
+ * TEMPORARY — turn this back to `true` before the production release. Nothing else
+ * needs reverting: this flag gates both ways in (the auto-open in `WhatsNewTour` and
+ * the sidebar's "Notice some changes?" button), the steps and anchors are all still
+ * here, and the per-account seen-state is untouched, so flipping it back re-announces
+ * `TOUR_VERSION` to everyone exactly once as designed.
+ */
+export const TOUR_ENABLED = false;
 
 /**
  * Opening the tour. Two ways in, and they answer different needs:
  *
  * 1. **Automatically, once, on the first load after a `TOUR_VERSION` bump.** A
  *    redesign that nobody is told about generates support questions instead of
- *    discovery, and the people most likely to be confused are the least likely to
- *    go hunting for a button. Gated on the versioned seen-state, so it interrupts
- *    a given viewer exactly once per release and never again.
+ *    discovery, and the people most likely to be confused are the least likely to go
+ *    hunting for a button. Gated on the versioned seen-state, so it interrupts a
+ *    given account exactly once per release and never again — on any browser.
  * 2. **The "Notice some changes?" button** in the sidebar footer, just above the
- *    account row, which pulses until the tour has been used. This is the way back
- *    in for anyone who dismissed the automatic showing without reading it, or who
- *    only wonders what moved a week later. It sits in the sidebar rather than on a
- *    dashboard because the tour covers the shell as much as the boards.
+ *    account row, which pulses until the tour has been used. This is the way back in
+ *    for anyone who escaped the automatic showing without reading it, or who only
+ *    wonders what moved a week later.
  *
- * Window events rather than a context: the publishers and subscribers are one
- * button and one overlay, so a provider wrapping the whole app would be plumbing
- * for its own sake.
+ * Window events rather than a context: the publishers and subscribers are one button
+ * and one overlay, so a provider wrapping the whole app would be plumbing for its own
+ * sake.
  */
 export const TOUR_REPLAY_EVENT = 'whatsnew:replay';
 
-/** Fired once the tour has been completed or skipped, to stop the pulse. */
-const TOUR_SEEN_EVENT = 'whatsnew:seen';
-
 export const replayWhatsNewTour = () => {
+  if (!TOUR_ENABLED) return;
   window.dispatchEvent(new Event(TOUR_REPLAY_EVENT));
 };
 
-const readSeenVersion = () => {
+/**
+ * Where "this viewer has finished this tour" is remembered — **one key per account**,
+ * not one per browser.
+ *
+ * It used to be a single `whatsNewTour` key, which is a real bug on a shared machine:
+ * sign-out clears only the tokens (`clearAuth` in `queries/auth.js`), so the next
+ * person to sign in inherited the previous person's "seen" state and never got the
+ * tour at all. Namespacing by account id is the whole fix.
+ *
+ * Namespacing rather than clearing on sign-out, because clearing would re-show the
+ * tour to the *same* person every time they signed back in — a nag — and would do
+ * nothing for a session that simply expires instead of being logged out.
+ *
+ * No migration: the old un-namespaced key is now never read, so every account reads as
+ * "not seen yet" once. That is what this release wants anyway.
+ *
+ * **Known limit, accepted:** this is per browser, so someone who reads the tour in
+ * Safari meets it again in Chrome. Putting it on the user record alongside
+ * `preferences` would fix that, and it was built and then reverted — it cost a server
+ * constant, a model field, a validator branch, a sync-table row and a hydration gate,
+ * which is too much machinery for one boolean-ish flag. If a second thing ever needs
+ * to follow the account like this, do it then and carry this along with it.
+ *
+ * Not exported: every read and write lives in this module, and the two consumers go
+ * through `useWhatsNewSeen` / `markWhatsNewSeen`. Keep it that way — a second module
+ * touching these keys directly is how the button and the overlay end up disagreeing.
+ */
+const tourStorageKey = (userId) => `whatsNewTour:${userId}`;
+
+/** Fired once the tour has been finished (or escaped out of), to stop the pulse. */
+const TOUR_SEEN_EVENT = 'whatsnew:seen';
+
+const readSeenVersion = (userId) => {
   try {
-    return window.localStorage.getItem(TOUR_STORAGE_KEY);
+    return window.localStorage.getItem(tourStorageKey(userId));
   } catch {
     // Private mode / storage disabled. Counted as seen: a dismissal can't be
-    // remembered here, and the alternative is a button that pulses for attention
-    // on every page load forever.
+    // remembered here, and the alternative is a button that pulses for attention on
+    // every page load forever.
     return TOUR_VERSION;
   }
 };
 
-/** Versioned, not boolean, so the next redesign only has to bump TOUR_VERSION. */
-const hasSeenWhatsNew = () => readSeenVersion() === TOUR_VERSION;
+/**
+ * Versioned, not boolean, so the next release only has to bump `TOUR_VERSION`.
+ *
+ * No id yet (the `/me` fetch is still in flight) counts as seen: it keeps the button
+ * from pulsing for a frame before we know who is looking, and the overlay's auto-open
+ * is gated on having a user anyway.
+ */
+const hasSeenWhatsNew = (userId) => !userId || readSeenVersion(userId) === TOUR_VERSION;
 
-export const markWhatsNewSeen = () => {
+export const markWhatsNewSeen = (userId) => {
+  if (!userId) return;
   try {
-    window.localStorage.setItem(TOUR_STORAGE_KEY, TOUR_VERSION);
+    window.localStorage.setItem(tourStorageKey(userId), TOUR_VERSION);
   } catch {
     /* nothing we can do, and not worth surfacing to the user */
   }
@@ -106,12 +223,25 @@ export const markWhatsNewSeen = () => {
 
 /**
  * Whether this viewer has already been through the current tour — what decides
- * whether the dashboard button pulses. Subscribed to the event rather than just
- * reading storage once, so finishing the tour stops the pulse immediately instead
- * of on the next page load.
+ * whether the sidebar button pulses. Subscribed to the event rather than just reading
+ * storage once, so finishing the tour stops the pulse immediately instead of on the
+ * next page load.
  */
 export const useWhatsNewSeen = () => {
-  const [seen, setSeen] = useState(hasSeenWhatsNew);
+  // Read here rather than taken as a prop: both consumers sit inside the provider, and
+  // a hook that cannot be handed the wrong id is one fewer way to reintroduce the
+  // shared-browser bug the key namespacing above fixes.
+  const { user } = useAuth();
+  const userId = resolveUserId(user);
+
+  const [seen, setSeen] = useState(() => hasSeenWhatsNew(userId));
+
+  // Re-read on the id, not just once: the same mounted shell can go from no user to a
+  // user (the `/me` fetch resolving), and on a shared browser from one person to
+  // another without a remount.
+  useEffect(() => {
+    setSeen(hasSeenWhatsNew(userId));
+  }, [userId]);
 
   useEffect(() => {
     const onSeen = () => setSeen(true);
@@ -124,185 +254,164 @@ export const useWhatsNewSeen = () => {
 
 export const WHATS_NEW_STEPS = [
   {
-    id: 'intro',
-    title: 'Task Manager has a new look',
-    body: 'Same features, tidier shell — and a dashboard built for your role. A few controls moved; here is where they went.',
+    id: 'overhaul',
+    title: 'New UI overhaul',
+    body: 'Every button, badge, table and input rebuilt on one shared set. Same features, same places — it just reads as one app now.',
   },
+  // The Settings walk. One route, then a section at a time — the reader is standing
+  // on the page while it is described, so "under Accessibility" means the card they
+  // are looking at, not somewhere to go and find later.
+  //
+  // Only the opener carries the `route`: the rest are already there, and re-navigating
+  // on every step would reset the page's scroll out from under the spotlight.
+  //
+  // The opener is deliberately un-targeted. Its subject is the page as a whole, and a
+  // spotlight on any one card would crop the thing it is introducing — so the whole
+  // page shows through the dim, and the sections get their own steps below it.
   {
-    id: 'collapse',
-    target: '[data-tour="sidebar-collapse"]',
-    title: 'Collapse the sidebar',
-    body: 'The menu folds down to a slim icon rail when you want the full width for a board or a wide table. Your choice is remembered.',
+    id: 'settings',
+    route: '/settings',
+    title: 'Settings',
+    body: 'A page of your own, and it opens from your name in the sidebar. Here is what is on it.',
+  },
+  // `swatches` paints the real `THEMES` gradients under the copy — eleven squares say
+  // "eleven palettes" faster than the sentence does. Pointed at the Appearance card
+  // rather than the account menu, so the control that changes them is under the
+  // reader's eyes while they read about them.
+  {
+    id: 'appearance',
+    target: '[data-tour="settings-appearance"]',
+    swatches: true,
+    title: 'New themes!',
+    body: 'Eleven accents, in light or dark, plus a compact row density.',
     placement: 'right',
   },
   {
-    id: 'user-menu',
-    target: '[data-tour="user-menu"]',
-    title: 'Profile, theme and logout live here',
-    body: 'These used to be a separate Logout button and a floating palette icon. They are now one menu on your name at the bottom of the sidebar.',
+    id: 'accessibility',
+    target: '[data-tour="settings-accessibility"]',
+    title: 'Contrast, colour vision, motion',
+    body: 'Plus a text size control. Red text that was unreadable on dark is repaired everywhere, not only in high contrast.',
     placement: 'right',
   },
   {
-    id: 'notifications',
-    target: '[data-tour="notifications"]',
-    title: 'Notifications moved down here',
-    body: 'The bell no longer floats over the top-right of the page — it sits next to your name, and still shows a dot when something is unread.',
+    id: 'defaults',
+    target: '[data-tour="settings-defaults"]',
+    title: 'What the app opens on',
+    body: 'Your landing page, list or board, whether Tickets arrives filtered to you, and how board cards sort.',
     placement: 'right',
   },
-  // Both of these point at the page area itself, so it stays lit while the rest of
-  // the shell dims and the card is pushed off to the side — you can see what is
-  // being described instead of reading about it through a covering panel.
   {
-    id: 'full-bleed',
-    target: '[data-tour="page-content"]',
-    title: 'Pages use the full width',
-    body: 'Screens are no longer boxed into a narrow column, so long ticket tables and boards have room to breathe.',
+    id: 'notifications-new',
+    target: '[data-tour="settings-notifications"]',
+    title: 'More notifications',
+    body: 'Programme changes, and a 10:30 nudge when a check-in or daily is missing. Mute any group right here.',
+    placement: 'right',
+  },
+  // The one row worth its own step: it is the only setting on the page that needs a
+  // browser permission, so it is the only one that does nothing until it is clicked
+  // deliberately. Pointed at the row rather than the section above, which the
+  // previous step already spotlights.
+  {
+    id: 'desktop-notifications',
+    target: '[data-tour="settings-desktop-notifications"]',
+    title: 'Keep forgetting check-ins?',
+    body: 'Or just have FOMO? Switch on desktop notifications and you get a banner outside the browser, even when this tab is in the background.',
+    placement: 'right',
+  },
+  {
+    id: 'preferences-sync',
+    title: 'All of it follows your account',
+    body: 'Every setting on this page used to be per-browser, lost in a private window. Now it travels with you.',
+  },
+  // Sits at the end of the account-level run, before the walkthrough moves out into
+  // the workspace — a picture is the last thing on this page that is *yours*.
+  //
+  // `roles` excludes leadership, and that is not a copy judgement: `/profile` renders
+  // `<Navigate to="/programme">` for them, and `/programme` is served by the
+  // leadership layout rather than `SidebarLayout`. Routing them here would unmount the
+  // overlay mid-tour, so `markWhatsNewSeen` would never run and the next load would
+  // re-open the same tour into the same bounce — the failure `needsWorkspace` exists
+  // to prevent, arrived at through a role instead. Leadership genuinely has no profile
+  // page to be shown; when they get one, drop the filter.
+  //
+  // Spotlights the picture at rest, where the camera is not yet showing, so the copy
+  // has to name the way in rather than say "here".
+  {
+    id: 'profile-picture',
+    roles: ['admin', 'mentor', 'intern'],
+    route: '/profile',
+    target: '[data-tour="profile-avatar"]',
+    title: 'Profile pictures',
+    body: 'Set yours under Edit profile, and it follows you everywhere you appear — dashboards, comments, standups, rosters. Initials stand in until you do.',
+    placement: 'right',
+  },
+
+  // `?view=board` opens the board without writing the view preference — see the
+  // comment on `viewParam` in `TicketPage`. So the tour can show someone the board
+  // without quietly changing what Tickets opens on for them afterwards.
+  {
+    id: 'tickets-board',
+    route: '/tickets?view=board',
+    needsWorkspace: true,
+    target: '[data-tour="tickets-board"]',
+    title: 'Tickets: list and board',
+    body: 'Both screens rebuilt. Switch view from the header — and the board widens its columns when you collapse the sidebar.',
     placement: 'left',
   },
-  // Switching workspace re-points the board, so it comes before the tour walks
-  // through what is on that board.
-  //
-  // Two variants of the SAME control, split by role rather than one shared step
-  // plus a role-specific one — a control must only be spotlighted once per tour,
-  // and an intern was getting the switcher twice with overlapping copy.
-  // Whenever a step's copy needs to differ by role, split it like this and give
-  // every variant a `roles`; never leave one un-scoped as the "default", or the
-  // un-scoped one shows up for the role that already has its own.
-  {
-    id: 'workspace-switcher',
-    roles: ['admin', 'mentor', 'leadership'],
-    target: '[data-tour="workspace-switcher"]',
-    title: 'Switching workspace changes everything below it',
-    body: 'Pick a workspace here and the app follows — tickets, dailies, and every number on the dashboard. One workspace at a time, always the one named here.',
-    placement: 'right',
-  },
-  {
-    id: 'workspace-switcher-intern',
-    roles: ['intern'],
-    target: '[data-tour="workspace-switcher"]',
-    title: 'Half your dashboard follows this',
-    body: 'Tickets, workload and standup belong to the workspace named here and change when you switch. Attendance, your placement and your evaluations are programme-wide — they stay the same in every workspace.',
-    placement: 'right',
-  },
 
-  // The new dashboard, card by card. All admin-only, and all targeting elements
-  // that exist only on the dashboard itself — on any other page these steps drop
-  // out on their own, so the tour never points at something that is not there.
+  // Intern-only.
   {
-    id: 'admin-dashboard',
-    roles: ['admin'],
-    target: '[data-tour="page-content"]',
-    title: 'Your dashboard is new',
-    body: 'It used to be your ticket list. It is now an overview of the workspace you are in — let us walk the four parts.',
+    id: 'nav-my-progress',
+    roles: ['intern'],
+    target: '[data-tour="nav-my-progress"]',
+    title: 'My Progress',
+    body: 'Your evaluations and scores with your mentor’s written notes, your readiness, and every project you have been put forward for.',
+    placement: 'right',
+  },
+  {
+    id: 'attendance-intern',
+    roles: ['intern'],
+    route: '/my-attendance',
+    needsAttendance: true,
+    target: '[data-tour="absence-requests"]',
+    title: 'Remote work?',
+    body: 'Ask for remote days, vacation, a religious holiday or a sick day here. An admin decides each one.',
     placement: 'left',
   },
-  {
-    id: 'dashboard-presence',
-    roles: ['admin'],
-    target: '[data-tour="dashboard-presence"]',
-    title: 'Who is in today',
-    body: 'Check-ins against the interns in this workspace, this month’s average attendance, and a list of who has not checked in yet. Absence is derived from a missing check-in, not recorded by hand.',
-  },
-  {
-    id: 'dashboard-interns',
-    roles: ['admin'],
-    target: '[data-tour="dashboard-interns"]',
-    title: 'Workload and attendance per intern',
-    body: 'Open tickets split across To do, In progress, On staging and Blocked, plus each intern’s attendance for the month. Only interns still in the programme appear here.',
-  },
-  {
-    id: 'dashboard-placements',
-    roles: ['admin'],
-    target: '[data-tour="dashboard-placements"]',
-    title: 'Placements & specializations — across every workspace',
-    body: 'The one panel that is not scoped to your current workspace: placement and specialization are both programme milestones, so this shows the latest across all of them — recent placements on the left, the newest specialization assignments on the right.',
-  },
-  {
-    id: 'dashboard-quick-actions',
-    roles: ['admin'],
-    target: '[data-tour="dashboard-quick-actions"]',
-    title: 'Quick actions',
-    body: 'Assign a ticket, recommend an intern or write an evaluation without leaving this page — each opens right here. Marking an absence is still to come.',
-  },
-  {
-    id: 'dashboard-standup',
-    roles: ['admin'],
-    target: '[data-tour="dashboard-standup"]',
-    title: 'Standup coverage',
-    body: 'How many interns have filed today’s note, and any open blockers. Open the board for the full picture.',
-  },
 
-  // The intern dashboard, card by card. Same shape as the admin block above: all
-  // intern-only, all anchored to elements that exist only on /dashboard, so on any
-  // other page these drop out on their own.
-  //
-  // This is a bigger change for interns than the shell was — /dashboard used to BE
-  // their ticket list — so the first step says that outright before walking the
-  // cards.
-  // No target on purpose: it reads as a section title before the card-by-card
-  // walk, and the page area it would otherwise point at is already spotlighted by
-  // `full-bleed` above — the same control twice in one tour is repetition, not
-  // emphasis.
-  {
-    id: 'intern-dashboard',
-    roles: ['intern'],
-    title: 'Your dashboard is new',
-    body: 'It used to be your ticket list. It is now your day at a glance — attendance, workload, standup, what to work on next, and where your placement stands. Here is each part.',
-  },
-  {
-    id: 'intern-dashboard-attendance',
-    roles: ['intern'],
-    target: '[data-tour="intern-dashboard-attendance"]',
-    title: 'Check in without leaving this page',
-    body: 'The 07:00–11:00 check-in, your current streak and how this week is going. Attendance in the sidebar still has the full calendar and the cancel option.',
-  },
-  {
-    id: 'intern-dashboard-workload',
-    roles: ['intern'],
-    target: '[data-tour="intern-dashboard-workload"]',
-    title: 'Your open work, two ways',
-    body: 'Switch between the bar and the breakdown with the toggle — your choice is remembered. Clicking the card opens your tickets.',
-  },
-  {
-    id: 'intern-dashboard-standup',
-    roles: ['intern'],
-    target: '[data-tour="intern-dashboard-standup"]',
-    title: 'Today’s note, shortened if it is long',
-    body: 'A long note is trimmed here with an AI summary a click away, and you can edit today’s entry without opening the standup board.',
-  },
-  {
-    id: 'intern-dashboard-tickets',
-    roles: ['intern'],
-    target: '[data-tour="intern-dashboard-tickets"]',
-    title: 'Start here tells you what to pick up',
-    body: 'Overdue, blocked and critical work sorts to the top. My Tickets has left the sidebar — “View all” opens the ticket list already filtered to you.',
-  },
-  {
-    id: 'intern-dashboard-pipeline',
-    roles: ['intern'],
-    target: '[data-tour="intern-dashboard-pipeline"]',
-    title: 'You can now see your own progress',
-    body: 'Where your recommendation stands, and your evaluation scores below it. Both are new to you — the written notes behind them stay with your mentor. Put forward for more than one project? Use the arrows to switch between them.',
-  },
-
-  // The features that arrived alongside the boards, pointed at their sidebar row
-  // rather than their page — the tour runs on the dashboard, and sending someone
-  // away mid-walkthrough loses them. `nav-<slug>` anchors come from `NavItem`, so
-  // any nav row can be targeted this way.
-  {
-    id: 'nav-attendance-intern',
-    roles: ['intern'],
-    target: '[data-tour="nav-my-attendance"]',
-    title: 'Attendance lives in the app now',
-    body: 'Check in here on every office day, between 07:00 and 11:00 — the old sheet is being retired, and everything you had in it has already been imported. Your streak, this month’s rate and the full calendar are on this page.',
-    placement: 'right',
-  },
+  // Admin-only, in sidebar order. These stay pointed at their nav row rather than
+  // navigating: the news is that the row exists, and four page loads in a row would
+  // turn the tail of the tour into a slideshow.
   {
     id: 'nav-attendance-admin',
     roles: ['admin'],
     target: '[data-tour="nav-attendance"]',
     title: 'Attendance roster',
-    body: 'Who checked in, by month, with a calendar per intern. Absence is derived from a missing check-in rather than recorded by hand, so there is nothing to mark — and only interns still in the programme appear.',
+    body: 'Every intern by month. A placement start date now ends their attendance obligation from that day.',
+    placement: 'right',
+  },
+  {
+    id: 'nav-absence-requests',
+    roles: ['admin'],
+    target: '[data-tour="nav-admin-absence-requests"]',
+    title: 'Absence requests',
+    body: 'Remote work, vacation, holidays and sick days in one queue. The dot means something is waiting. Limits live on their own tab.',
+    placement: 'right',
+  },
+  {
+    id: 'nav-staffing-requests',
+    roles: ['admin'],
+    target: '[data-tour="nav-admin-staffing-requests"]',
+    title: 'Staffing requests',
+    body: 'Leadership records demand for a project. You put interns forward seat by seat, then close it fulfilled or declined.',
+    placement: 'right',
+  },
+  {
+    id: 'nav-platform-management',
+    roles: ['admin'],
+    target: '[data-tour="nav-admin-platform-management"]',
+    title: 'Positions catalog',
+    body: 'Positions are their own list now, separate from technologies. New projects also carry a client or internal type.',
     placement: 'right',
   },
   {
@@ -310,7 +419,17 @@ export const WHATS_NEW_STEPS = [
     roles: ['admin'],
     target: '[data-tour="nav-specialization"]',
     title: 'Specializations',
-    body: 'Confirm one of an intern’s two declared positions as their focus and pair them with a 1-on-1 mentor — both in one action. While a specialization is set the intern can’t change that position themselves, and their secondary stays theirs to edit.',
+    body: 'Confirm one of an intern’s declared positions as their focus and pair them with a 1-on-1 mentor, in one action.',
     placement: 'right',
+  },
+
+  // Un-targeted: the panel sits on an intern's profile Overview, which an admin
+  // reaches from All Users and a mentor from My Interns. No single nav row is the
+  // way in for both roles.
+  {
+    id: 'cv-summary',
+    roles: ['admin', 'mentor'],
+    title: 'AI CV summary',
+    body: 'On an intern’s profile: a description of what their CV says. Never a score, a ranking or a verdict on fit. The intern never sees it.',
   },
 ];

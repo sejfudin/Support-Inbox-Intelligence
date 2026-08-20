@@ -9,9 +9,20 @@ export const getUsers = async ({
   roles,
   status,
   hubId,
+  includeTestAccounts,
 }) => {
   const response = await apiClient.get('/admin/users', {
-    params: { page, limit, search, pagination, workspaceId, roles, status, hubId },
+    params: {
+      page,
+      limit,
+      search,
+      pagination,
+      workspaceId,
+      roles,
+      status,
+      hubId,
+      includeTestAccounts,
+    },
   });
   return response.data;
 };

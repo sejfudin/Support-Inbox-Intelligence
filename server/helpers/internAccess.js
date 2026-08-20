@@ -26,6 +26,22 @@ const canWriteMentorData = (user, profile) => {
   return false;
 };
 
+/**
+ * May this actor read mentor-held assessment material about the intern (mentor
+ * notes' audience aside, the CV summary today)?
+ *
+ * Deliberately NOT `canWriteMentorData`: that answers "may they change this
+ * intern's data", and reusing it for a read both reads wrong at the call site and
+ * excludes leadership, who assess candidates but write nothing. Also not
+ * `canViewInternProfile`, which admits the intern themselves — the one reader
+ * this material must never reach.
+ */
+const canReadMentorAssessment = (user, profile) => {
+  if (user.role === ROLES.ADMIN || user.role === ROLES.LEADERSHIP) return true;
+  if (user.role === ROLES.MENTOR && isAssignedMentor(profile, user._id)) return true;
+  return false;
+};
+
 const canManageDocumentationLinks = (user, profile) =>
   user.role === ROLES.ADMIN ||
   user.role === ROLES.LEADERSHIP ||
@@ -81,6 +97,7 @@ module.exports = {
   isAssignedMentor,
   canViewFepDirectory,
   canWriteMentorData,
+  canReadMentorAssessment,
   canManageDocumentationLinks,
   canViewInternProfile,
   canEditOwnInternProfile,

@@ -18,6 +18,11 @@ export const getBacklogSlug = (statuses = []) => {
   return statuses.find((s) => s.isBacklog)?.slug ?? '';
 };
 
+export const getBacklogStatusId = (statuses = []) => {
+  const backlog = statuses.find((s) => s.isBacklog);
+  return backlog?._id != null ? String(backlog._id) : '';
+};
+
 export const getDefaultMainStatusId = (statuses = []) => {
   const board = statuses.filter((s) => !s.isBacklog);
   return board[0]?._id != null ? String(board[0]._id) : '';
@@ -52,10 +57,75 @@ const parseHexColor = (value) => {
   return null;
 };
 
-/** Board column top border + card accent from workspace status color. */
-export const getColumnAccentStyles = (color) => {
+/**
+ * A stored status colour, expressed as the nearest semantic tone.
+ *
+ * Board column colours are per-workspace data, not design tokens — they are hex
+ * values someone picked in workspace settings and they live in Mongo. That makes
+ * them the one part of the palette a colour vision mode cannot reach by
+ * redefining a variable, and on the board they are load-bearing: a column is
+ * identified by its stripe, with no other mark. So when a mode is on, the hue is
+ * bucketed to the closest `--tone-*` and the column borrows that instead. Off,
+ * the workspace's own colour is returned untouched.
+ */
+const toneVarForRgb = ({ r, g, b }) => {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  // Greys have no hue to bucket, and a status deliberately set to grey should
+  // stay grey in every mode.
+  if (delta < 24) return '--tone-neutral';
+
+  let hue;
+  if (max === r) hue = ((g - b) / delta) % 6;
+  else if (max === g) hue = (b - r) / delta + 2;
+  else hue = (r - g) / delta + 4;
+  hue = (hue * 60 + 360) % 360;
+
+  if (hue < 20 || hue >= 330) return '--tone-danger';
+  if (hue < 45) return '--tone-orange';
+  if (hue < 70) return '--tone-warning';
+  if (hue < 170) return '--tone-success';
+  if (hue < 200) return '--tone-cyan';
+  if (hue < 255) return '--tone-info';
+  return '--tone-violet';
+};
+
+/**
+ * The same remap for a plain dot — the status tabs above the ticket list, which
+ * are the list view's version of the board's column stripe.
+ */
+export const statusDotColor = (color, toneMapped = false) => {
+  if (!toneMapped) return color;
+  const rgb = parseHexColor(color?.trim() || '');
+  const tone = rgb ? toneVarForRgb(rgb) : '--tone-neutral';
+  return tone === '--tone-neutral' ? 'hsl(var(--muted-foreground))' : `hsl(var(${tone}))`;
+};
+
+/**
+ * Board column top border + card accent from workspace status color.
+ *
+ * @param {string} color stored hex
+ * @param {boolean} toneMapped true while a colour vision mode is active
+ */
+export const getColumnAccentStyles = (color, toneMapped = false) => {
   const borderTopColor = color?.trim() || '#94a3b8';
   const rgb = parseHexColor(borderTopColor);
+
+  if (toneMapped) {
+    // `--tone-neutral` is not a real token — grey columns fall back to the muted
+    // foreground, which is already mode-aware.
+    const tone = rgb ? toneVarForRgb(rgb) : '--tone-neutral';
+    const base = tone === '--tone-neutral' ? 'hsl(var(--muted-foreground))' : `hsl(var(${tone}))`;
+    const tint =
+      tone === '--tone-neutral'
+        ? 'hsl(var(--muted-foreground) / 0.35)'
+        : `hsl(var(${tone}) / 0.35)`;
+    return {
+      borderTopColor: base,
+      cardStyle: { borderColor: tint },
+    };
+  }
   if (!rgb) {
     return {
       borderTopColor,
@@ -158,9 +228,9 @@ export const buildTicketStatusHelpers = (statuses = []) => {
         label: s.label,
         variant: s.isDone ? 'outline' : s.tracksTime ? 'outline' : 'secondary',
         className: s.isDone
-          ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/35'
+          ? 'bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))] border-[hsl(var(--tone-success)/0.3)] dark:bg-[hsl(var(--tone-success)/0.2)] dark:text-[hsl(var(--tone-success-fg))] dark:border-[hsl(var(--tone-success)/0.35)]'
           : s.tracksTime
-            ? 'bg-blue-500/15 text-blue-800 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/35'
+            ? 'bg-[hsl(var(--tone-info)/0.15)] text-[hsl(var(--tone-info-fg))] border-[hsl(var(--tone-info)/0.3)] dark:bg-[hsl(var(--tone-info)/0.2)] dark:text-[hsl(var(--tone-info-fg))] dark:border-[hsl(var(--tone-info)/0.35)]'
             : 'bg-muted text-muted-foreground border-border',
         color: s.color,
       },
@@ -170,6 +240,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
   const defaultMainStatusId = getDefaultMainStatusId(statuses);
   const defaultMainStatusSlug = getDefaultMainStatusSlug(statuses);
   const backlogSlug = getBacklogSlug(statuses);
+  const backlogStatusId = getBacklogStatusId(statuses);
 
   const tracksTimeSlugs = new Set(statuses.filter((s) => s.tracksTime).map((s) => s.slug));
   const doneSlugs = new Set(statuses.filter((s) => s.isDone).map((s) => s.slug));
@@ -191,6 +262,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     boardColumns,
     statusBadgeConfig,
     backlogSlug,
+    backlogStatusId,
     defaultMainStatus: defaultMainStatusSlug,
     defaultMainStatusId,
     defaultMainStatusSlug,
@@ -209,9 +281,9 @@ export const buildTicketStatusHelpers = (statuses = []) => {
   };
 };
 
-export const getColumnStyle = (helpers, columnId) => {
+export const getColumnStyle = (helpers, columnId, toneMapped = false) => {
   const col = helpers.boardColumns.find((c) => c.id === columnId);
-  return getColumnAccentStyles(col?.color);
+  return getColumnAccentStyles(col?.color, toneMapped);
 };
 
 /** Default GitHub automation targets from workspace status config. */

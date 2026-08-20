@@ -1,22 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'use-debounce';
 import { addDays, format, isWeekend, parseISO, startOfMonth, subMonths } from 'date-fns';
-import { Users, UserCheck, UserX, Percent, TriangleAlert, Star } from 'lucide-react';
-import { PageShell, PageSection } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+import FilterSelect from '@/components/FilterSelect';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import AttendanceStat from '@/components/attendance/AttendanceStat';
+import { SearchField } from '@/components/ui/search-field';
+import { Switcher } from '@/components/ui/switcher';
+import { Skeleton } from '@/components/ui/skeleton';
+import StatBandSkeleton from '@/components/Skeletons/StatBandSkeleton';
+import { AnalyticsStatCard } from '@/components/analytics/AnalyticsStatCard';
 import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
 import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
 import InternAttendanceModal from '@/components/attendance/InternAttendanceModal';
@@ -25,9 +18,11 @@ import { useHubs } from '@/queries/hubs';
 import {
   attendanceRateTextClass,
   internStatusOnDate,
+  isLeaveStatus,
   nonWorkingKeySet,
   DAY_STATUS,
 } from '@/helpers/attendance';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const LOW_ATTENDANCE_THRESHOLD = 75;
 const todayKey = () => format(new Date(), 'yyyy-MM-dd');
@@ -78,11 +73,17 @@ export default function AttendanceOverviewPage() {
     if (format(parseISO(day), 'yyyy-MM') !== month) setDay(defaultDayForMonth(month));
   }, [month]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data, isPending, isError } = useAttendanceRoster({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useAttendanceRoster({
     month,
     search: debouncedSearch || undefined,
     hub: hub || undefined,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const { data: hubs = [] } = useHubs();
   const hubNames = hubs.map((h) => h.name);
@@ -101,13 +102,21 @@ export default function AttendanceOverviewPage() {
     return { ...summarize(rates, rates.length), total };
   }, [roster, total]);
 
-  // Counts for the selected day (present / absent / not-yet).
+  // Counts for the selected day (present / remote / away / absent / not-yet).
+  //
+  // Remote is tracked apart from present rather than folded in: both worked the
+  // day, but an admin looking at a single day wants to know how many of them were
+  // in the office. `away` is the three approved-leave types together — they owed
+  // nothing, so they belong in neither the worked count nor the absent one, and
+  // lumping them into "absent" would invent a problem the admin already signed off.
   const dayCounts = useMemo(() => {
     const date = parseISO(day);
-    const acc = { present: 0, absent: 0, pending: 0 };
+    const acc = { present: 0, remote: 0, away: 0, absent: 0, pending: 0 };
     roster.forEach((r) => {
       const { status } = internStatusOnDate(r, date, nonWorkingKeys);
       if (status === DAY_STATUS.PRESENT) acc.present += 1;
+      else if (status === DAY_STATUS.REMOTE) acc.remote += 1;
+      else if (isLeaveStatus(status)) acc.away += 1;
       else if (status === DAY_STATUS.ABSENT) acc.absent += 1;
       else if (status === DAY_STATUS.TODAY_PENDING) acc.pending += 1;
     });
@@ -117,184 +126,232 @@ export default function AttendanceOverviewPage() {
   const dayIsToday = day === todayKey();
 
   return (
-    <PageShell>
-      <PageSection className="space-y-6">
+    <div className="app-page">
+      <div className="app-page-content pb-0">
         <PageHeading
-          kicker="Future Experts Program"
+          crumb="Admin"
           title="Attendance"
-          subtitle="Office attendance across interns, by month. This view is read-only — only interns can record their own check-ins."
-          titleAdornment={<Badge variant="outline">Read-only</Badge>}
+          // No longer wholly read-only: approving a remote-work request writes that
+          // intern's attendance for the day. Check-ins are still theirs alone.
+          subtitle="Office attendance across interns, by month. Only interns record their own check-ins — the one day you can record for them is an approved remote day."
         />
 
-        {isError && (
-          <div
-            className="app-panel p-6 text-sm text-destructive"
-            data-test="attendance-roster-error"
-          >
-            Failed to load attendance.
-          </div>
-        )}
-        {isPending && (
-          <div className="app-panel p-6 text-sm text-muted-foreground">Loading attendance…</div>
-        )}
+        <div>
+          {/* Month summary / By day is a switcher, not tabs: it is the same
+              roster for the same month, drawn two ways. The page does not become
+              a different page, so it does not get a tab strip — it used to have
+              one, and that is why this control, the Tickets list/board toggle and
+              the requests tabs all looked like three different products.
 
-        {!isPending && !isError && (
-          <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-            <TabsList data-test="attendance-tabs">
-              <TabsTrigger value="month" data-test="attendance-tab-month">
-                Month summary
-              </TabsTrigger>
-              <TabsTrigger value="day" data-test="attendance-tab-day">
-                By day
-              </TabsTrigger>
-            </TabsList>
+              The band bleeds the page gutter so its surface spans the full
+              column, then pads it back so the switcher lines up with the card
+              edges below. The filters ride on its right because they apply to
+              both views — in a card of their own they cost a row of height to say
+              nothing. Rendered outside the loading branch so the controls do not
+              appear only once the roster lands. */}
+          <div className="-mx-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-separator bg-card px-6 py-2">
+            <Switcher
+              items={[
+                { value: 'month', label: 'Month summary', dataTest: 'attendance-tab-month' },
+                { value: 'day', label: 'By day', dataTest: 'attendance-tab-day' },
+              ]}
+              value={tab}
+              onChange={setTab}
+              label="Attendance view"
+              data-test="attendance-tabs"
+            />
 
-            {/* Shared filters */}
-            <div className="app-panel space-y-4 p-5 md:p-6">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Input
-                  placeholder="Search by name or email…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  data-test="attendance-search-input"
-                />
-                <Select value={hub || 'all'} onValueChange={(v) => setHub(v === 'all' ? '' : v)}>
-                  <SelectTrigger data-test="attendance-hub-filter-select">
-                    <SelectValue placeholder="All hubs" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All hubs</SelectItem>
-                    {hubNames.map((h) => (
-                      <SelectItem key={h} value={h}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={month} onValueChange={setMonth}>
-                  <SelectTrigger data-test="attendance-month-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monthOptions.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <TabsContent value="month" className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <AttendanceStat
-                  label="Avg attendance"
-                  value={`${monthSummary.avg}%`}
-                  hint={monthLabel}
-                  icon={Percent}
-                  valueClassName={attendanceRateTextClass(monthSummary.avg)}
-                />
-                <AttendanceStat
-                  label="Interns"
-                  value={monthSummary.total}
-                  hint="Total"
-                  icon={Users}
-                />
-                <AttendanceStat
-                  label="Perfect"
-                  value={monthSummary.perfect}
-                  hint={`100% in ${monthLabel}`}
-                  icon={Star}
-                  valueClassName={
-                    monthSummary.perfect > 0 ? 'text-emerald-600 dark:text-emerald-400' : undefined
-                  }
-                />
-                <AttendanceStat
-                  label={`Below ${LOW_ATTENDANCE_THRESHOLD}%`}
-                  value={monthSummary.low}
-                  hint="Need attention"
-                  icon={TriangleAlert}
-                  valueClassName={
-                    monthSummary.low > 0 ? 'text-amber-600 dark:text-amber-400' : undefined
-                  }
-                />
-              </div>
-
-              <AttendanceRosterTable
-                roster={roster}
-                rateLabel={`Attendance (${monthLabel})`}
-                showToday={isCurrentMonth}
-                onSelectIntern={setSelectedIntern}
+            {/* One row, one height: a 32px search beside two 32px dropdowns. */}
+            <div className="flex flex-wrap items-center gap-[var(--control-gap)]">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Search interns…"
+                aria-label="Search interns"
+                className="w-full sm:w-[230px]"
+                data-test="attendance-search-input"
               />
-            </TabsContent>
+              <FilterSelect
+                value={hub}
+                onChange={(v) => setHub(v === 'all' ? '' : v)}
+                options={hubNames.map((h) => ({ value: h, label: h }))}
+                allLabel="All hubs"
+                dataTest="attendance-hub-filter-select"
+                className="w-[150px]"
+              />
+              <FilterSelect
+                value={month}
+                onChange={setMonth}
+                options={monthOptions}
+                // The month always has a value, so "a value is set" would light
+                // this up permanently — it is only *filtering* away from the
+                // current month.
+                active={month !== currentMonthKey()}
+                dataTest="attendance-month-select"
+                className="w-[165px]"
+              />
+            </div>
+          </div>
 
-            <TabsContent value="day" className="space-y-6">
-              <div className="app-panel flex flex-wrap items-center gap-3 p-4 md:p-5">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Day in {monthLabel}:
-                </span>
-                <DatePicker
-                  value={day}
-                  onChange={setDay}
-                  isDateDisabled={(d) => isWeekend(d) || format(d, 'yyyy-MM') !== month}
-                  data-test="attendance-day-picker"
-                />
-                {isCurrentMonth && !dayIsToday && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDay(todayKey())}
-                    data-test="attendance-day-today-button"
-                  >
-                    Today
-                  </Button>
-                )}
+          <div className="space-y-3.5 py-[18px]">
+            {isError && (
+              <div
+                className="app-card p-6 text-[12.5px] text-[hsl(var(--tone-danger-fg))]"
+                data-test="attendance-roster-error"
+              >
+                Failed to load attendance.
               </div>
+            )}
+            {/* The roster is the heaviest read in the app — every in-programme intern, a month
+                of attendance rows each, plus the non-working days and observances — and all of
+                it used to collapse into one 6px-padded card, so the page went from a sentence to
+                a KPI strip and a full month grid in one jump. Which tab is open is known before
+                any of that arrives, so each one gets its own shape. */}
+            {isPending && (
+              <LoadingOverlay label="Loading attendance" contentClassName="space-y-3.5">
+                {tab === 'month' ? (
+                  <StatBandSkeleton />
+                ) : (
+                  <Skeleton className="h-[76px] w-full rounded-[var(--r-card)]" />
+                )}
+                <div className="app-card overflow-hidden p-0">
+                  <div className="border-b border-separator px-4 py-3.5">
+                    <Skeleton className="h-3.5 w-48" />
+                  </div>
+                  <div className="space-y-3.5 p-4">
+                    {[0, 1, 2, 3, 4, 5, 6, 7].map((row) => (
+                      <div key={row} className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+                        <Skeleton className="h-3 w-40 shrink-0" />
+                        {/* The day cells, which is what makes this table as wide as it is. */}
+                        <Skeleton className="h-3 flex-1" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </LoadingOverlay>
+            )}
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <AttendanceStat
-                  label="Present"
-                  value={`${dayCounts.present} / ${total}`}
-                  hint={format(parseISO(day), 'EEE, MMM d')}
-                  icon={UserCheck}
-                  valueClassName="text-emerald-600 dark:text-emerald-400"
-                />
-                {dayIsToday && (
-                  <AttendanceStat
-                    label="Not yet in"
-                    value={dayCounts.pending}
-                    hint="Window may still be open"
-                    icon={UserX}
-                    valueClassName={
-                      dayCounts.pending > 0 ? 'text-amber-600 dark:text-amber-400' : undefined
-                    }
+            {!isPending && !isError && (
+              <>
+                <div className={tab === 'month' ? 'space-y-3.5' : 'hidden'}>
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                    <AnalyticsStatCard
+                      label="Avg attendance"
+                      value={`${monthSummary.avg}%`}
+                      hint={monthLabel}
+                      valueClassName={attendanceRateTextClass(monthSummary.avg)}
+                    />
+                    <AnalyticsStatCard label="Interns" value={monthSummary.total} hint="Total" />
+                    <AnalyticsStatCard
+                      label="Perfect"
+                      value={monthSummary.perfect}
+                      hint={`100% in ${monthLabel}`}
+                      tone={monthSummary.perfect > 0 ? 'positive' : 'default'}
+                    />
+                    <AnalyticsStatCard
+                      label={`Below ${LOW_ATTENDANCE_THRESHOLD}%`}
+                      value={monthSummary.low}
+                      hint="Need attention"
+                      valueClassName={
+                        monthSummary.low > 0 ? 'text-[hsl(var(--tone-warning-fg))]' : undefined
+                      }
+                    />
+                  </div>
+
+                  <AttendanceRosterTable
+                    roster={roster}
+                    rateLabel={`Attendance (${format(parseISO(`${month}-01`), 'MMM')})`}
+                    showToday={isCurrentMonth}
+                    nonWorkingKeys={nonWorkingKeys}
+                    onSelectIntern={setSelectedIntern}
                   />
-                )}
-                <AttendanceStat
-                  label="Absent"
-                  value={dayCounts.absent}
-                  hint={dayIsToday ? 'Window closed, no check-in' : 'Missed this day'}
-                  icon={TriangleAlert}
-                  valueClassName={
-                    dayCounts.absent > 0 ? 'text-red-600 dark:text-red-400' : undefined
-                  }
-                />
-                <AttendanceStat label="Interns" value={total} hint="Total" icon={Users} />
-              </div>
+                </div>
 
-              <DailyAttendanceTable roster={roster} date={day} onSelectIntern={setSelectedIntern} />
-            </TabsContent>
-          </Tabs>
-        )}
+                <div className={tab === 'day' ? 'space-y-3.5' : 'hidden'}>
+                  <div className="app-card flex flex-wrap items-center gap-3 p-4 md:p-5">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Day in {monthLabel}:
+                    </span>
+                    <DatePicker
+                      value={day}
+                      onChange={setDay}
+                      isDateDisabled={(d) => isWeekend(d) || format(d, 'yyyy-MM') !== month}
+                      data-test="attendance-day-picker"
+                    />
+                    {isCurrentMonth && !dayIsToday && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDay(todayKey())}
+                        data-test="attendance-day-today-button"
+                      >
+                        Today
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                    <AnalyticsStatCard
+                      label="In the office"
+                      value={`${dayCounts.present} / ${total}`}
+                      hint={format(parseISO(day), 'EEE, MMM d')}
+                      tone="positive"
+                    />
+                    {dayCounts.remote > 0 && (
+                      <AnalyticsStatCard
+                        label="Remote"
+                        value={dayCounts.remote}
+                        hint="Approved remote work"
+                        valueClassName="text-[hsl(var(--tone-cyan-fg))]"
+                      />
+                    )}
+                    {dayCounts.away > 0 && (
+                      <AnalyticsStatCard
+                        label="Away"
+                        value={dayCounts.away}
+                        hint="Approved leave — not owed"
+                        valueClassName="text-[hsl(var(--tone-info-fg))]"
+                      />
+                    )}
+                    {dayIsToday && (
+                      <AnalyticsStatCard
+                        label="Not yet in"
+                        value={dayCounts.pending}
+                        hint="Window may still be open"
+                        valueClassName={
+                          dayCounts.pending > 0 ? 'text-[hsl(var(--tone-warning-fg))]' : undefined
+                        }
+                      />
+                    )}
+                    <AnalyticsStatCard
+                      label="Absent"
+                      value={dayCounts.absent}
+                      hint={dayIsToday ? 'Window closed, no check-in' : 'Missed this day'}
+                      tone={dayCounts.absent > 0 ? 'negative' : 'default'}
+                    />
+                    <AnalyticsStatCard label="Interns" value={total} hint="Total" />
+                  </div>
+
+                  <DailyAttendanceTable
+                    roster={roster}
+                    date={day}
+                    onSelectIntern={setSelectedIntern}
+                    nonWorkingKeys={nonWorkingKeys}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
 
         <InternAttendanceModal
           intern={selectedIntern}
           month={month}
           onClose={() => setSelectedIntern(null)}
         />
-      </PageSection>
-    </PageShell>
+      </div>
+    </div>
   );
 }

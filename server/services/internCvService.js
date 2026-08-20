@@ -122,6 +122,16 @@ const deleteInternCv = async (userId) => {
   if (profile.cvPath) {
     await removeCvFromStorage(profile.cvPath);
     profile.cvPath = null;
+    // The AI summary goes with the file. Staleness alone would not cover this:
+    // deleting a CV is the intern withdrawing the document, and a description of
+    // it left on the profile would outlive the thing they withdrew.
+    //
+    // A re-upload deliberately does NOT clear it here — the summary is still a
+    // true description of a CV they had, so it stays visible and marked stale
+    // until someone regenerates, rather than the panel emptying itself.
+    profile.cvSummary = null;
+    profile.cvSummaryFor = null;
+    profile.cvSummaryAt = null;
     await profile.save();
   }
 

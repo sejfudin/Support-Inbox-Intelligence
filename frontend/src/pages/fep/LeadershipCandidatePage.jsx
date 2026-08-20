@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 import { InternCommentsPanel } from '@/components/interns/InternCommentsPanel';
 import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPanel';
 import { InternRecommendationsPanel } from '@/components/interns/InternRecommendationsPanel';
@@ -13,6 +14,7 @@ import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
 import { useIntern, useInternReadiness } from '@/queries/interns';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAuth } from '@/context/AuthContext';
 import { canManageInternDocumentationLinks } from '@/helpers/roles';
 
@@ -38,7 +40,10 @@ export default function LeadershipCandidatePage() {
   const [activeTab, setActiveTab] = useState(
     CANDIDATE_TABS.includes(tabParam) ? tabParam : 'overview'
   );
-  const { data: intern, isPending, isError } = useIntern(userId);
+  const { data: intern, isPending: isPendingRaw, isError } = useIntern(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
+  useDocumentTitle(intern?.user?.fullname);
   const canEditDocumentation = canManageInternDocumentationLinks(user, intern);
   const declaredPosition = intern?.declaredPosition;
   const { data: readinessFlags = [] } = useInternReadiness(userId, {
@@ -57,13 +62,13 @@ export default function LeadershipCandidatePage() {
   }, [tabParam]);
 
   if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading candidate profile...</p>;
+    return <Loader variant="panel" label="Loading candidate profile…" />;
   }
 
   if (isError || !intern) {
     return (
       <SymphonyCard className="space-y-4">
-        <p className="text-sm text-destructive">Unable to load this candidate.</p>
+        <p className="text-sm text-[hsl(var(--tone-danger-fg))]">Unable to load this candidate.</p>
         <Link to="/interns" className="text-sm font-medium text-primary hover:underline">
           Back to directory
         </Link>
@@ -152,6 +157,7 @@ export default function LeadershipCandidatePage() {
               userId={userId}
               canEditDocumentation={canEditDocumentation}
               canEditInternalCv={false}
+              canGenerateCvSummary={false}
             />
           </SymphonyCard>
         </TabsContent>

@@ -77,7 +77,7 @@ export function TicketHeaderFields({
       </div>
 
       {!title.trim() && (
-        <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-destructive uppercase tracking-wider mt-1">
+        <p className="absolute -bottom-5 left-0 text-[9px] font-bold text-[hsl(var(--tone-danger-fg))] uppercase tracking-wider mt-1">
           Title is required
         </p>
       )}

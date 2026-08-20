@@ -23,6 +23,9 @@ function DropdownMessage({ children }) {
  * @param {(item) => string} [getItemDataTest]      Per-row `data-test`.
  * @param {boolean} [busy]            Blocks selection (e.g. a save in flight) but keeps the input usable.
  * @param {boolean} [disabled]        Fully disables the input.
+ * @param {string} [inputClassName]   Extra classes on the input — for callers that
+ *                                    need it at a non-default size, e.g. the 34px
+ *                                    field in a flat card's header band.
  */
 export function SearchableSelect({
   items = [],
@@ -40,6 +43,7 @@ export function SearchableSelect({
   debounceMs = 300,
   id,
   dataTest,
+  inputClassName,
 }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -120,6 +124,7 @@ export function SearchableSelect({
         <div>
           <Input
             id={id}
+            className={inputClassName}
             placeholder={placeholder}
             value={search}
             onChange={onSearchChange}
@@ -133,7 +138,7 @@ export function SearchableSelect({
         align="start"
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="max-h-72 w-[var(--radix-popper-anchor-width)] overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-md"
+        className="max-h-72 w-[var(--radix-popper-anchor-width)] overflow-y-auto rounded-[var(--r-card)] border border-border bg-card p-0 shadow-md"
       >
         {isLoading && <DropdownMessage>{loadingMessage}</DropdownMessage>}
         {!isLoading && results.length === 0 && <DropdownMessage>{emptyMessage}</DropdownMessage>}

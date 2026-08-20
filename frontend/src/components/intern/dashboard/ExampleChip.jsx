@@ -8,7 +8,7 @@
  */
 export function ExampleChip() {
   return (
-    <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-700 dark:text-amber-400">
+    <span className="shrink-0 rounded-full bg-[hsl(var(--tone-warning)/0.15)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[hsl(var(--tone-warning-fg))]">
       Example
     </span>
   );

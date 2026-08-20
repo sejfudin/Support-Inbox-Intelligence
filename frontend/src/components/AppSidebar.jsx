@@ -17,7 +17,9 @@ import {
   CalendarCheck,
   CalendarDays,
   CalendarClock,
+  CalendarOff,
   Target,
+  TrendingUp,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -25,7 +27,6 @@ import {
   UserRound,
 } from 'lucide-react';
 import WorkspaceSwitcher from '@/components/WorkspaceSwitcher';
-import NavbarNotifications from '@/components/NavbarNotifications';
 import { ThemeAppearanceSubmenu } from '@/components/ThemeSwitcher';
 import { WhatsNewButton } from '@/components/onboarding/WhatsNewButton';
 import {
@@ -49,10 +50,13 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLogoutUser } from '@/queries/auth';
 import { useMyInvitations } from '@/queries/invitations';
+import { useAbsenceRequests } from '@/queries/absenceRequests';
+import { useStaffingRequestNews } from '@/queries/staffingRequests';
 import { Avatar } from './Avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
 import { useCanManageActiveWorkspace } from '@/hooks/useCanManageActiveWorkspace';
+import NavbarNotifications from '@/components/NavbarNotifications';
 import { useEffect } from 'react';
 import { Separator } from '@/components/ui/separator';
 import { TaskManagerBrand } from '@/components/TaskManagerBrand';
@@ -118,17 +122,49 @@ function NavItem({ item, collapsed }) {
       // item so the two can never drift apart.
       data-tour={`nav-${navTestSlug(item.to)}`}
       className={cn(
-        `flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-300 ${RAIL_EASE}`,
-        'group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0',
+        `relative flex h-[34px] w-full items-center gap-2.5 rounded-[var(--r-control)] px-2.5 text-[12.5px] font-medium transition-all duration-300 ${RAIL_EASE}`,
+        'group-data-[collapsible=icon]:size-[34px] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0',
+        // Active is a tint plus a 3px inset bar on the leading edge, not a solid
+        // fill: at 34px a filled row is a heavy slab, and the bar is what carries
+        // "you are here" into the collapsed rail where the label is gone.
+        //
+        // Three cues, because at 12.5px no single one of them is enough on its own:
+        // weight (semibold against the row's medium), tint (stronger in dark themes,
+        // where the same wash of `--primary` separates far less than it does over
+        // near-white), and `.accent-ink` — a lightness-clamped `--primary` that
+        // gives the ink real contrast against its own tint (see `index.css`).
+        // The bar draws in `currentColor` so it tracks that accent rather than the
+        // raw token, which in most themes is a light button fill and would leave a
+        // 3px sliver you can't see.
         isActive
-          ? 'bg-primary text-primary-foreground shadow-elevated-sm'
-          : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+          ? 'accent-ink bg-primary/20 font-semibold shadow-[inset_3px_0_0_currentColor] dark:bg-primary/25'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      <span className={cn('min-w-0 flex-1 truncate font-medium', collapsibleLabel)}>
-        {item.label}
-      </span>
+      {/* No weight of its own — it inherits the row's, so the active row's
+          `font-semibold` actually reaches the label instead of being overridden. */}
+      <span className={cn('min-w-0 flex-1 truncate', collapsibleLabel)}>{item.label}</span>
+      {/* "Something here needs you", with no number attached — used where a count
+          would be noise (one pending remote-work request is as actionable as four).
+          Positioned absolutely rather than in the flow so it survives the rail:
+          `collapsibleLabel` crossfades the label to zero width when collapsed, and
+          an inline dot would go with it, which is exactly when the dot matters
+          most. Amber matches the `warning` badge the same pending state uses on
+          the Attendance page, so one signal reads as one thing. */}
+      {item.dot ? (
+        <span
+          // Vertically centred on the row, not pinned to its top edge — the row is
+          // a single line of text, so a top-aligned dot reads as misaligned rather
+          // than as a badge. In the collapsed rail it moves to the icon's top
+          // corner instead, where centring would sit it on top of the glyph.
+          className="pointer-events-none absolute right-2 top-1/2 flex h-2 w-2 -translate-y-1/2 group-data-[collapsible=icon]:right-0.5 group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:translate-y-0"
+          aria-hidden="true"
+        >
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[hsl(var(--tone-warning))] opacity-75 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(var(--tone-warning))]" />
+        </span>
+      ) : null}
       {item.badge ? (
         <span
           className={cn(
@@ -144,9 +180,15 @@ function NavItem({ item, collapsed }) {
 
   if (!collapsed) return link;
 
-  return (
-    <RailTooltip label={`${item.label}${item.badge ? ` (${item.badge})` : ''}`}>{link}</RailTooltip>
-  );
+  // The dot is the only cue in the rail, and a dot alone says nothing about what
+  // is waiting — so the tooltip is where it gets named.
+  const suffix = item.badge
+    ? ` (${item.badge})`
+    : item.dotLabel && item.dot
+      ? ` — ${item.dotLabel}`
+      : '';
+
+  return <RailTooltip label={`${item.label}${suffix}`}>{link}</RailTooltip>;
 }
 
 /**
@@ -160,7 +202,7 @@ function NavGroup({ title, items, collapsed, showSeparator, className }) {
   return (
     <div className={className}>
       {showSeparator && <Separator className="mb-3" />}
-      <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground group-data-[collapsible=icon]:hidden">
+      <div className="px-2.5 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground/75 group-data-[collapsible=icon]:hidden">
         {title}
       </div>
       <SidebarMenu className="group-data-[collapsible=icon]:items-center">
@@ -182,6 +224,19 @@ export default function AppSidebar() {
   const { setOpenMobile, isMobile, state, toggleSidebar } = useSidebar();
   const { data: invitations = [] } = useMyInvitations();
   const pendingCount = invitations.length;
+  // Admin-only route (`requireRole(ADMIN, LEADERSHIP)`); gate the query so a
+  // mentor/intern sidebar never fires a request that would 403.
+  const { data: staffingNews } = useStaffingRequestNews({ enabled: isAdmin(user?.role) });
+  const staffingRequestsBadge = staffingNews?.count > 0 ? staffingNews.count : undefined;
+
+  // Admin-only: the endpoint is admin-guarded, so asking as anyone else is a
+  // guaranteed 403. Shares its query key with the Attendance page's own fetch, so
+  // opening that page costs no extra request.
+  const { data: absenceRequests } = useAbsenceRequests(
+    { status: 'pending' },
+    { enabled: isAdmin(user?.role) }
+  );
+  const pendingRequests = absenceRequests?.pendingCount ?? 0;
 
   // Tooltips replace labels only in the desktop rail — the mobile sheet always
   // shows the full-width sidebar, so it must keep its labels.
@@ -230,6 +285,10 @@ export default function AppSidebar() {
 
   const internNav = isIntern(user?.role)
     ? [
+        // First in the group: it is the read-only overview of everything the
+        // programme records about them, and the two rows below it are the parts they
+        // can act on (declare a technology, check in).
+        { label: 'My Progress', to: '/my-progress', icon: TrendingUp },
         { label: 'Position & Technologies', to: '/my-technologies', icon: Code2 },
         { label: 'Attendance', to: '/my-attendance', icon: CalendarCheck },
       ]
@@ -253,6 +312,20 @@ export default function AppSidebar() {
           icon: CalendarCheck,
         },
         {
+          label: 'Absence Requests',
+          to: '/admin/absence-requests',
+          icon: CalendarOff,
+          // Time-away requests are decided by admins (mentors have no attendance
+          // view at all), and a request nobody notices goes stale on the very day
+          // it was asked for — so the pending state has to be visible from
+          // anywhere in the app, not only once you are already on the page. A sick
+          // day makes that sharper still: it is always for today or the last couple
+          // of days, so an unanswered one is stale almost immediately.
+          dot: pendingRequests > 0,
+          dotLabel:
+            pendingRequests === 1 ? '1 time-away request' : `${pendingRequests} time-away requests`,
+        },
+        {
           label: 'Daily Insights',
           to: '/admin/daily-insights',
           icon: CalendarClock,
@@ -272,6 +345,12 @@ export default function AppSidebar() {
           to: '/specialization',
           icon: Target,
         },
+        {
+          label: 'Requests',
+          to: '/admin/staffing-requests',
+          icon: ClipboardList,
+          badge: staffingRequestsBadge,
+        },
       ]
     : [];
 
@@ -279,14 +358,23 @@ export default function AppSidebar() {
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border/50 bg-card shadow-elevated-sm">
-      <SidebarHeader className="px-4 pb-3 pt-4 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
+    <Sidebar collapsible="icon" className="border-r border-border bg-card">
+      <SidebarHeader className="px-3 pb-2.5 pt-3.5 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:flex-col">
-          <div className="min-w-0 flex-1 rounded-[1.2rem] border border-primary/10 bg-gradient-to-br from-primary/12 via-primary/5 to-card px-3 py-2.5 shadow-elevated-sm group-data-[collapsible=icon]:hidden">
+          {/* ml-[2px] sets the lockup a touch inside the header's px-3 — the mark is round,
+              so sitting it flush with the straight left edges of the workspace card and the
+              nav items below reads as crowding the sidebar's edge rather than aligning. */}
+          <div className="ml-[5px] min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <TaskManagerBrand size="md" linkTo="/dashboard" />
           </div>
           <div className="hidden group-data-[collapsible=icon]:block">
             <TaskManagerBrand size="sm" showWordmark={false} linkTo="/dashboard" />
+          </div>
+
+          {/* The bell's home since the top header bar was dropped — beside the
+              wordmark, and still reachable in the collapsed rail. */}
+          <div className="shrink-0" data-tour="notifications">
+            <NavbarNotifications size="sm" align="start" />
           </div>
 
           <RailTooltip label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
@@ -296,7 +384,7 @@ export default function AppSidebar() {
               data-test="sidebar-collapse-button"
               data-tour="sidebar-collapse"
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
+              className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-card)] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:inline-flex"
             >
               <ToggleIcon className="h-4 w-4" />
             </button>
@@ -356,16 +444,20 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-2 pt-1.5 group-data-[collapsible=icon]:p-2">
-        {/* Three peer icons next to the avatar left ~70px for the name at 16rem,
-            which truncated it to "Admi…". So profile, appearance and logout fold
-            into one menu on the identity row, and notifications stay the single
-            standalone icon — it is the only one whose state (unread) has to be
-            readable without opening anything.
+        {/* Peer icons next to the avatar left too little room for the name, which
+            truncated it to "Admi…". So profile, appearance and logout fold into
+            one menu on the identity row — notifications live next to the logo in
+            the sidebar header (see above), not here.
 
-            Padding here is deliberately tight (footer p-2, row p-1.5, trigger
-            px-1.5) and the avatar is `sm`: every pixel spent on chrome comes
+            Padding here is deliberately tight (footer p-2, row p-1, trigger
+            px-1.5 py-1) and the avatar is `sm`: every pixel spent on chrome comes
             straight out of the name, and a real full name like
-            "Sejfudin Duranović" needs all of it to survive at 16rem. */}
+            "Sejfudin Duranović" needs all of it to survive at 17rem.
+
+            The row is also the last thing in a nav an admin has to scroll — the
+            longest list in the app — so its height is charged to the nav above
+            it. The two lines are set on explicit leading rather than the default
+            so the block is exactly as tall as the text in it. */}
 
         {/* Directly above the account row: the tour explains the shell, so it has
             to be reachable from every page, not just a dashboard. Wrapped with a
@@ -375,11 +467,11 @@ export default function AppSidebar() {
           <WhatsNewButton collapsed={collapsed} />
         </div>
 
-        <div className="flex items-center gap-1 rounded-[1.2rem] app-elevated-sm p-1.5 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none">
+        <div className="flex items-center gap-1 rounded-[var(--r-tile)] border border-separator p-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:shadow-none">
           {isLoginPending ? (
             <div className="flex w-full animate-pulse items-center gap-3 p-1">
-              <div className="h-8 w-8 shrink-0 rounded-full bg-muted" />
-              <div className="space-y-2 group-data-[collapsible=icon]:hidden">
+              <div className="h-7 w-7 shrink-0 rounded-full bg-muted" />
+              <div className="space-y-1.5 group-data-[collapsible=icon]:hidden">
                 <div className="h-3 w-20 rounded bg-muted" />
                 <div className="h-2 w-12 rounded bg-muted" />
               </div>
@@ -393,17 +485,17 @@ export default function AppSidebar() {
                     data-test="sidebar-user-menu-trigger"
                     data-tour="user-menu"
                     className={cn(
-                      `flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1.5 py-1.5 text-left text-sm text-foreground transition-all duration-300 ${RAIL_EASE} hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`,
+                      `flex min-w-0 flex-1 items-center gap-2 rounded-[var(--r-card)] px-1.5 py-1 text-left text-[13px] text-foreground transition-all duration-300 ${RAIL_EASE} hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`,
                       'group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0'
                     )}
                     aria-label={`Account menu for ${user?.fullname || 'your account'}`}
                   >
                     <Avatar users={[user]} size="sm" />
                     <span className={cn('min-w-0 flex-1', collapsibleLabel)}>
-                      <span className="block truncate font-semibold leading-5">
+                      <span className="block truncate font-semibold leading-[1.15rem]">
                         {user?.fullname || 'Unknown User'}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="block truncate text-[11px] leading-[0.95rem] text-muted-foreground">
                         {capitalizeFirst(user?.role) || 'User'}
                       </span>
                     </span>
@@ -427,24 +519,24 @@ export default function AppSidebar() {
                       Profile
                     </NavLink>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild data-test="sidebar-nav-settings-link">
+                    <NavLink to="/settings" end className="flex items-center gap-2.5">
+                      <Settings className="size-4 shrink-0" />
+                      Settings
+                    </NavLink>
+                  </DropdownMenuItem>
                   <ThemeAppearanceSubmenu />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     data-test="sidebar-logout-button"
                     onSelect={() => logout()}
-                    className="flex items-center gap-2.5 text-destructive focus:text-destructive"
+                    className="flex items-center gap-2.5 text-[hsl(var(--tone-danger-fg))] focus:text-[hsl(var(--tone-danger-fg))]"
                   >
                     <LogOut className="size-4 shrink-0" />
                     Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              {/* 32px in the rail: the default 40px trigger overflows the 3rem
-                  rail, so ask NavbarNotifications for its small size directly. */}
-              <div className="shrink-0" data-tour="notifications">
-                <NavbarNotifications size="sm" />
-              </div>
             </>
           )}
         </div>

@@ -26,6 +26,7 @@ function buildTicketDescriptionGenerationPrompt({ subject, prompt }) {
     '- Do not include inline styles, classes, scripts, links, or images.',
     '- Keep it concise and actionable.',
     '- Do not mention these instructions in output.',
+    '- Respond in English even when the subject or prompt is written in another language.',
     '',
     `Subject: ${subject}`,
     `Prompt: ${prompt}`,

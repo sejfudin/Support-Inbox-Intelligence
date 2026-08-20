@@ -2,6 +2,7 @@ const ticketService = require('../services/ticketService');
 const statusService = require('../services/statusService');
 const { assertWorkspaceAccess, resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
 const { ROLES } = require('../constants/roles');
+const { handleControllerError } = require('../helpers/controllerError');
 const {
   validateSuggestionInput,
   suggestTicketMetadata: suggestTicketMetadataService,
@@ -30,6 +31,8 @@ const getAllTickets = async (req, res) => {
       sortBy,
       sortOrder,
       periodDays,
+      awaitingReviewFrom,
+      reviewRequestState,
     } = req.query;
 
     const workspaceId = await resolveActiveWorkspaceId({
@@ -52,6 +55,9 @@ const getAllTickets = async (req, res) => {
       sortBy: sortBy || 'updatedAt',
       sortOrder: sortOrder === 'asc' ? 'asc' : 'desc',
       periodDays,
+      // Resolved here, not in the service, which stays ignorant of "current user".
+      awaitingReviewFromUserId: awaitingReviewFrom === 'me' ? req.user._id : undefined,
+      reviewRequestState: reviewRequestState || '',
     });
 
     res.status(200).json({
@@ -106,7 +112,7 @@ const getTicketById = async (req, res) => {
   }
 };
 
-const createTicket = async (req, res) => {
+const createTicket = async (req, res, next) => {
   try {
     const {
       subject,
@@ -119,6 +125,7 @@ const createTicket = async (req, res) => {
       dueDate,
       storyPoints,
       category,
+      blockedBy,
     } = req.body;
     const isAdmin = req.user?.role === ROLES.ADMIN;
     const hasStatus = status !== undefined && status !== null && status !== '';
@@ -160,6 +167,7 @@ const createTicket = async (req, res) => {
       dueDate,
       storyPoints: normalizedStoryPoints,
       category: category || null,
+      blockedBy,
     });
     res.status(201).json({
       success: true,
@@ -192,6 +200,13 @@ const createTicket = async (req, res) => {
         success: false,
         message: error.message,
       });
+    }
+
+    // Services raise `httpError` for validation the caller can fix (a blocker
+    // pointing outside the workspace, a circular block) — the status rides on the
+    // error, so it maps straight through instead of reading as a server fault.
+    if (Number.isInteger(error?.statusCode)) {
+      return handleControllerError(res, error, next);
     }
 
     res.status(500).json({
@@ -230,6 +245,7 @@ const updateTicket = async (req, res, next) => {
       'dueDate',
       'storyPoints',
       'category',
+      'blockedBy',
     ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
@@ -280,6 +296,12 @@ const updateTicket = async (req, res, next) => {
 
     if (error.message === STORY_POINTS_ERROR) {
       return res.status(400).json({ message: error.message });
+    }
+
+    // See the note in `createTicket` — an error carrying a `statusCode` is one the
+    // caller can act on; only the ones without fall through as an unexpected 500.
+    if (Number.isInteger(error?.statusCode)) {
+      return handleControllerError(res, error, next);
     }
 
     next(error);
@@ -341,6 +363,77 @@ const unarchiveTicket = async (req, res, next) => {
       return res.status(404).json({ message: error.message });
     }
     next(error);
+  }
+};
+
+const getReviewerCandidates = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const result = await ticketService.getReviewerCandidates(ticketId, req.user._id);
+
+    res.status(200).json({ success: true, message: 'Reviewer candidates fetched', data: result });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
+const requestReview = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { prUrl, reviewerId } = req.body;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const ticket = await ticketService.requestReview(ticketId, { prUrl, reviewerId }, req.user);
+
+    res.status(200).json({ success: true, message: 'Review requested', data: ticket });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    handleControllerError(res, error, next);
+  }
+};
+
+const answerReview = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+    const { state } = req.body;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const ticket = await ticketService.answerReview(ticketId, { state }, req.user._id);
+
+    res.status(200).json({ success: true, message: 'Review answered', data: ticket });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    handleControllerError(res, error, next);
+  }
+};
+
+const cancelReview = async (req, res, next) => {
+  try {
+    const { ticketId } = req.params;
+
+    const existingTicket = await ticketService.getTicketById(ticketId);
+    await assertWorkspaceAccess(existingTicket.workspace, req.user, 'Ticket not found');
+
+    const ticket = await ticketService.cancelReview(ticketId, req.user._id);
+
+    res.status(200).json({ success: true, message: 'Review request cancelled', data: ticket });
+  } catch (error) {
+    if (error.message === 'Ticket not found') {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+    handleControllerError(res, error, next);
   }
 };
 
@@ -461,4 +554,8 @@ module.exports = {
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
+  getReviewerCandidates,
+  requestReview,
+  answerReview,
+  cancelReview,
 };

@@ -1,4 +1,9 @@
 import axios from 'axios';
+import {
+  ACCESS_TOKEN_STORAGE_KEY,
+  REFRESH_TOKEN_STORAGE_KEY,
+  readAccessToken,
+} from '@/lib/authStorage';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -23,12 +28,22 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+/**
+ * The one place a bearer header is built. The request interceptor below is its
+ * main caller; it is exported for the rare request that cannot go through axios
+ * at all — see the `keepalive` flush in `api/userPreferences.js` — so that even
+ * those build the header here rather than reading the token themselves.
+ *
+ * Returns `{}` when there is no session, so it can be spread unconditionally.
+ */
+export const authorizationHeader = () => {
+  const token = readAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    Object.assign(config.headers, authorizationHeader());
     return config;
   },
   (error) => Promise.reject(error)
@@ -61,7 +76,7 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const storedRefreshToken = localStorage.getItem('refreshToken');
+        const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
 
         if (!storedRefreshToken) {
           throw new Error('No refresh token available');
@@ -78,9 +93,9 @@ apiClient.interceptors.response.use(
           throw new Error('No token returned from refresh');
         }
 
-        localStorage.setItem('accessToken', token);
+        localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
         if (refreshToken) {
-          localStorage.setItem('refreshToken', refreshToken);
+          localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
         }
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
@@ -90,8 +105,8 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (err) {
         processQueue(err, null);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
         window.location.href = '/login';
 
         return Promise.reject(err);

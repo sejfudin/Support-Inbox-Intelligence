@@ -8,10 +8,11 @@ import {
   DAY_STATUS,
   dayStatusLabel,
   buildWeekStrip,
-  weekAttendance,
+  stripAttendance,
   computeStreak,
   nonWorkingKeySet,
   nonWorkingKind,
+  isOfficeWeekend,
   todayRecord,
   isCancelledToday,
   formatCheckInTime,
@@ -25,24 +26,33 @@ import {
 // strength on purpose: they are the only two cells carrying a verdict, and a
 // washed-out one is easy to skim past on a coloured background.
 const CELL_CLASS = {
-  [DAY_STATUS.PRESENT]: 'bg-emerald-500 shadow-sm shadow-emerald-950/30',
-  [DAY_STATUS.ABSENT]: 'bg-red-500 shadow-sm shadow-red-950/30',
+  [DAY_STATUS.PRESENT]: 'bg-[hsl(var(--tone-success))] shadow-sm shadow-black/30',
+  [DAY_STATUS.ABSENT]: 'bg-[hsl(var(--tone-danger))] shadow-sm shadow-black/30',
   // Today, still open: an outline rather than a fill, so the strip reads as
   // "this one is still yours to claim" instead of as an already-missed day.
   [DAY_STATUS.TODAY_PENDING]: 'border-2 border-dashed border-white/65 bg-white/[0.08]',
   [DAY_STATUS.FUTURE]: 'bg-black/20',
-  [DAY_STATUS.WEEKEND]: 'bg-black/10',
-  // On a project: inert, but given its own amber rather than a weekend's grey —
-  // the calendar marks these days the same way, and an intern reading both should
-  // not have to work out that the blank cells and the amber ones are the same
-  // thing. Softer than present/absent because it carries no verdict.
-  [DAY_STATUS.EXEMPT]: 'bg-amber-400/60',
+  // No WEEKEND entry: the strip is Mon–Fri, so that status never reaches a cell
+  // here. The month calendar still renders it — see dayStatusVisuals.jsx.
+  // On a project: inert, and now the same near-grey as the other days nobody owed.
+  // It used to be amber, which claimed a hue for a state that means "no
+  // obligation" — and left nothing for a sick day. See dayStatusVisuals.jsx.
+  [DAY_STATUS.EXEMPT]: 'bg-white/[0.14]',
   // Holiday or programme break — same reasoning. A remote week is non-working too
-  // but gets REMOTE_CELL, matching the calendar's blue.
+  // but gets REMOTE_CELL, matching the calendar.
   [DAY_STATUS.NON_WORKING]: 'bg-black/10',
+  // An approved remote day. Full strength like present and absent, because it
+  // carries a verdict too: the day is worked and counted.
+  [DAY_STATUS.REMOTE]: 'bg-[hsl(var(--tone-cyan))] shadow-sm shadow-cyan-950/30',
+  // Approved leave. Deliberately softer than present/absent/remote: these days
+  // carry no verdict about the intern at all — they were never owed — so the strip
+  // should not shout them. The hues match the calendar so the two surfaces agree.
+  [DAY_STATUS.VACATION]: 'bg-[hsl(var(--tone-info)/0.7)]',
+  [DAY_STATUS.RELIGIOUS]: 'bg-[hsl(var(--tone-violet)/0.7)]',
+  [DAY_STATUS.SICK]: 'bg-[hsl(var(--tone-orange)/0.7)]',
 };
 
-const REMOTE_CELL = 'bg-sky-400/60';
+const REMOTE_CELL = 'bg-[hsl(var(--tone-cyan)/0.6)]';
 
 // How long today's cell keeps its just-claimed emphasis. Long enough to be seen
 // if you were looking at the button you pressed, short enough that it is over
@@ -129,6 +139,12 @@ export function AttendanceHeroCard({
   // nagging them for days they are not expected in.
   placedAt = null,
   nonWorkingDays = [],
+  startDate = null,
+  // 'YYYY-MM-DD' → the status an approved request wrote. Remote days are already
+  // inside `records`, so they count towards the week tally either way and this
+  // only colours them; the three leave statuses are not in `records` at all and
+  // drop out of the tally's denominator, which `stripAttendance` handles.
+  requestedDays = {},
   onCheckIn,
   isCheckingIn,
   className,
@@ -148,12 +164,17 @@ export function AttendanceHeroCard({
     cancelledDates,
     now,
     placedAt,
-    nonWorkingKeySet(nonWorkingDays)
+    nonWorkingKeySet(nonWorkingDays),
+    startDate,
+    requestedDays
   );
-  const { present: weekPresent, elapsed: weekElapsed } = weekAttendance(week);
+  const { present: weekPresent, elapsed: weekElapsed } = stripAttendance(week);
 
   const todayStatus = week.find((day) => day.isToday)?.status;
-  const weekend = todayStatus === DAY_STATUS.WEEKEND;
+  // Read off the calendar, not off the strip: the strip is Mon–Fri now, so on a
+  // Saturday there is no cell for today at all and a missing one must not read as
+  // a working day nobody checked into.
+  const weekend = isOfficeWeekend(now);
   // On a project: today is inert, so nothing is "missed" and check-in is not offered.
   const exempt = todayStatus === DAY_STATUS.EXEMPT;
   const missed = !checkedIn && !weekend && !exempt && windowState === 'closed';
@@ -216,10 +237,10 @@ export function AttendanceHeroCard({
               exempt
                 ? 'bg-white/40'
                 : checkedIn
-                  ? 'bg-emerald-400'
+                  ? 'bg-[hsl(var(--tone-success))]'
                   : missed
-                    ? 'bg-red-400'
-                    : 'bg-amber-400'
+                    ? 'bg-[hsl(var(--tone-danger))]'
+                    : 'bg-[hsl(var(--tone-warning))]'
             )}
             aria-hidden="true"
           />
@@ -331,15 +352,17 @@ export function AttendanceHeroCard({
           </span>
         </div>
 
-        {/* Chunky cells, as in the mockup. At strip height the week is meant to
-            be read as a glance-able block of colour, not as a sparkline — a thin
-            bar makes a missed day easy to miss.
+        {/* Chunky cells, as in the mockup, and Mon–Fri only: the weekend is not
+            part of anyone's attendance, and dropping the two inert cells gives the
+            five that carry a verdict more width each. At strip height the week is
+            meant to be read as a glance-able block of colour, not as a sparkline —
+            a thin bar makes a missed day easy to miss.
 
             Full-bleed to the card's edges, so the width comes from the cells
             rather than from padding the strip out. They are kept short for that
             reason: at 2.5rem the stretched cells read as seven progress bars, and
             flattening them to 1.75rem is what keeps the row reading as a week. */}
-        <div className="mt-2 grid grid-cols-7 gap-2.5">
+        <div className="mt-2 grid grid-cols-5 gap-2.5">
           {week.map((day) => (
             <Tooltip key={day.key}>
               <TooltipTrigger asChild>
@@ -357,7 +380,7 @@ export function AttendanceHeroCard({
                     }
                     transition={{ duration: 0.42, ease: 'easeOut', times: [0, 0.6, 1] }}
                     className={cn(
-                      'h-7 w-full rounded-lg transition-colors duration-300',
+                      'h-7 w-full rounded transition-colors duration-300',
                       day.status === DAY_STATUS.NON_WORKING &&
                         nonWorkingKind(nonWorkingDays, day.key) === 'remote'
                         ? REMOTE_CELL

@@ -23,22 +23,24 @@ const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
 const { closeActiveRecommendationsForIntern } = require('./recommendationService');
+const internNotificationService = require('./internNotificationService');
+const { userSelect } = require('../constants/userSelect');
 
 const PROFILE_POPULATE = [
   {
     path: 'user',
-    select: 'fullname email status role hub',
+    select: userSelect('role', 'status', 'hub'),
     populate: { path: 'hub', select: 'name city country' },
   },
   { path: 'internshipType', select: 'name slug' },
   {
     path: 'primaryMentor',
-    select: 'fullname email role hub',
+    select: userSelect('role', 'hub'),
     populate: { path: 'hub', select: 'name' },
   },
   {
     path: 'secondaryMentor',
-    select: 'fullname email role hub',
+    select: userSelect('role', 'hub'),
     populate: { path: 'hub', select: 'name' },
   },
   { path: 'selfTechnologies', select: 'name slug' },
@@ -282,6 +284,10 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   }
 
   const allowedStatuses = INTERN_STATUSES;
+  const previousStatus = profile.status;
+  const previousExpectedEndDateMs = profile.expectedEndDate
+    ? profile.expectedEndDate.getTime()
+    : null;
 
   if (payload.status !== undefined) {
     // Lifecycle status changes are admin-only — even the assigned mentor can't
@@ -293,6 +299,17 @@ const updateInternProgramme = async (user, internUserId, payload) => {
       throw err;
     }
     if (!allowedStatuses.includes(payload.status)) throw new Error('Invalid status');
+    // Placed is set automatically when a recommendation's outcome is recorded
+    // as placed (recommendationService.updateRecommendation) — it is never a
+    // manual admin choice. Moving *out* of placed manually is still allowed
+    // (e.g. correcting a mistake), as is re-saving while already placed.
+    if (payload.status === 'placed' && previousStatus !== 'placed') {
+      const err = new Error(
+        'Placed is set automatically when a recommendation records the intern as placed — it can’t be set manually.'
+      );
+      err.statusCode = 400;
+      throw err;
+    }
     profile.status = payload.status;
   }
 
@@ -313,12 +330,39 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   await profile.save();
 
   // Placement ends the intern's pipeline run — close any recommendations left
-  // open so they stop counting toward "In pipeline".
+  // open so they stop counting toward "In pipeline". Silent on purpose: it's
+  // a side effect of the placement below, not its own notification.
   if (payload.status === 'placed') {
     await closeActiveRecommendationsForIntern(profile._id, user);
   }
 
   emitInternDataChanged();
+
+  if (payload.status !== undefined && payload.status !== previousStatus) {
+    if (payload.status === 'placed') {
+      internNotificationService.notifyInternPlaced({ internUserId, internProfileId: profile._id });
+    } else {
+      internNotificationService.notifyInternStatusChanged({
+        internUserId,
+        internProfileId: profile._id,
+        newStatus: payload.status,
+      });
+    }
+  }
+
+  if (payload.expectedEndDate !== undefined) {
+    const nextExpectedEndDateMs = profile.expectedEndDate
+      ? profile.expectedEndDate.getTime()
+      : null;
+    if (nextExpectedEndDateMs !== previousExpectedEndDateMs) {
+      internNotificationService.notifyExpectedEndDateChanged({
+        internUserId,
+        internProfileId: profile._id,
+        expectedEndDate: profile.expectedEndDate,
+      });
+    }
+  }
+
   return getInternByUserId(user, internUserId);
 };
 
@@ -379,6 +423,12 @@ const updateDocumentationLinks = async (user, internUserId, links) => {
   profile.documentationLinks = validateDocumentationLinks(links);
   await profile.save();
   await profile.populate(PROFILE_POPULATE);
+
+  internNotificationService.notifyDocumentationLinksUpdated({
+    internUserId,
+    internProfileId: profile._id,
+  });
+
   return formatProfile(profile, user);
 };
 
@@ -473,6 +523,7 @@ const formatPipelineCandidate = (profile) => {
   return {
     userId,
     fullname: profile.user.fullname || 'Unknown',
+    avatarUrl: profile.user.avatarUrl || null,
     hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
     programme: profile.internshipType
       ? {
@@ -529,6 +580,21 @@ const averageEvaluationScore = (scores) => {
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 };
 
+// Every InternProfile-rooted aggregate in getProgrammeStats must exclude a
+// profile whose User was removed outside the app — there is no in-app
+// "delete user" path (see .claude/docs/security.md), so nothing ever cleans
+// such a profile up, and it lingers forever inflating every leadership-
+// dashboard count built on top of it. `userLocalField` is the dotted path to
+// the InternProfile's `user` ref at whatever point in the pipeline this is
+// spliced in: 'user' when InternProfile is the aggregation root, or
+// 'profile.user' once an earlier stage has already $lookup'd/$unwind'd the
+// profile in under that alias.
+const excludeOrphanedProfileStages = (userLocalField = 'user') => [
+  { $lookup: { from: 'users', localField: userLocalField, foreignField: '_id', as: '_userDoc' } },
+  { $match: { _userDoc: { $ne: [] } } },
+  { $project: { _userDoc: 0 } },
+];
+
 const buildFunnel = (rows) => {
   const funnel = Object.fromEntries(INTERN_STATUSES.map((status) => [status, 0]));
   rows.forEach(({ _id, count }) => {
@@ -553,6 +619,7 @@ const formatReadyCandidate = (
     userId,
     fullname: profile.user.fullname || 'Unknown',
     email: profile.user.email || '',
+    avatarUrl: profile.user.avatarUrl || null,
     hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
     programme: profile.internshipType
       ? {
@@ -562,7 +629,11 @@ const formatReadyCandidate = (
         }
       : null,
     primaryMentor: profile.primaryMentor
-      ? { _id: profile.primaryMentor._id, fullname: profile.primaryMentor.fullname }
+      ? {
+          _id: profile.primaryMentor._id,
+          fullname: profile.primaryMentor.fullname,
+          avatarUrl: profile.primaryMentor.avatarUrl || null,
+        }
       : null,
     status: profile.status,
     expectedEndDate: profile.expectedEndDate || null,
@@ -596,7 +667,7 @@ const getProgrammeStats = async (user) => {
     activeByHubRows,
     technologySupplyRows,
     positionSupplyRows,
-    readyProfiles,
+    rawReadyProfiles,
     recentlyReadyProfiles,
     recommendationFunnelRows,
     recommendationOutcomeRows,
@@ -604,9 +675,15 @@ const getProgrammeStats = async (user) => {
     recentOutcomeRecs,
     allActiveRecommendations,
   ] = await Promise.all([
-    InternProfile.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    // This counted a handful of orphaned profiles into "N interns in the
+    // programme" and into `funnel.placed` on the leadership dashboard.
+    InternProfile.aggregate([
+      ...excludeOrphanedProfileStages(),
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
     InternProfile.aggregate([
       { $match: { status: { $in: activeStatuses } } },
+      ...excludeOrphanedProfileStages(),
       { $group: { _id: '$internshipType', count: { $sum: 1 } } },
       {
         $lookup: {
@@ -668,6 +745,7 @@ const getProgrammeStats = async (user) => {
         },
       },
       { $unwind: '$profile' },
+      ...excludeOrphanedProfileStages('profile.user'),
       { $match: { 'profile.status': { $nin: excludedSupplyStatuses } } },
       {
         $lookup: {
@@ -701,6 +779,7 @@ const getProgrammeStats = async (user) => {
           declaredPosition: { $ne: null },
         },
       },
+      ...excludeOrphanedProfileStages(),
       { $group: { _id: '$declaredPosition', count: { $sum: 1 } } },
       {
         $lookup: {
@@ -723,11 +802,11 @@ const getProgrammeStats = async (user) => {
       .populate([
         {
           path: 'user',
-          select: 'fullname email hub',
+          select: userSelect('hub'),
           populate: { path: 'hub', select: 'name' },
         },
         { path: 'internshipType', select: 'name slug' },
-        { path: 'primaryMentor', select: 'fullname' },
+        { path: 'primaryMentor', select: userSelect() },
       ])
       .sort({ expectedEndDate: 1, updatedAt: -1 })
       .lean(),
@@ -735,7 +814,7 @@ const getProgrammeStats = async (user) => {
       .populate([
         {
           path: 'user',
-          select: 'fullname email hub',
+          select: userSelect('hub'),
           populate: { path: 'hub', select: 'name' },
         },
         { path: 'internshipType', select: 'name slug' },
@@ -743,9 +822,31 @@ const getProgrammeStats = async (user) => {
       .sort({ updatedAt: -1 })
       .limit(5)
       .lean(),
-    Recommendation.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+    Recommendation.aggregate([
+      {
+        $lookup: {
+          from: 'internprofiles',
+          localField: 'internProfile',
+          foreignField: '_id',
+          as: 'profile',
+        },
+      },
+      { $unwind: '$profile' },
+      ...excludeOrphanedProfileStages('profile.user'),
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
     Recommendation.aggregate([
       { $match: { status: 'resulted', 'result.outcome': { $ne: null } } },
+      {
+        $lookup: {
+          from: 'internprofiles',
+          localField: 'internProfile',
+          foreignField: '_id',
+          as: 'profile',
+        },
+      },
+      { $unwind: '$profile' },
+      ...excludeOrphanedProfileStages('profile.user'),
       { $group: { _id: '$result.outcome', count: { $sum: 1 } } },
     ]),
     Recommendation.find({ status: { $in: ACTIVE_PIPELINE_STATUSES } })
@@ -755,7 +856,7 @@ const getProgrammeStats = async (user) => {
           populate: [
             {
               path: 'user',
-              select: 'fullname email hub',
+              select: userSelect('hub'),
               populate: { path: 'hub', select: 'name' },
             },
             { path: 'internshipType', select: 'name slug' },
@@ -771,7 +872,7 @@ const getProgrammeStats = async (user) => {
           path: 'internProfile',
           populate: {
             path: 'user',
-            select: 'fullname email',
+            select: userSelect(),
           },
         },
       ])
@@ -782,6 +883,12 @@ const getProgrammeStats = async (user) => {
       .select('internProfile status updatedAt interviews')
       .lean(),
   ]);
+
+  // Drop an orphaned (user-deleted) ready profile before the readiness/
+  // evaluation lookups below run for it — formatReadyCandidate would discard
+  // it from readyBench anyway, so there's no reason to spend those queries on
+  // a profile that can never render.
+  const readyProfiles = rawReadyProfiles.filter((profile) => Boolean(profile.user));
 
   const profileIds = readyProfiles.map((profile) => profile._id);
 
@@ -838,7 +945,10 @@ const getProgrammeStats = async (user) => {
   const pipelineEligibleProfileIds = new Set(
     activePipelineRecs
       .map((recommendation) => recommendation.internProfile)
-      .filter((profile) => profile && !PIPELINE_EXCLUDED_PROFILE_STATUSES.includes(profile.status))
+      .filter(
+        (profile) =>
+          profile && profile.user && !PIPELINE_EXCLUDED_PROFILE_STATUSES.includes(profile.status)
+      )
       .map((profile) => profile._id.toString())
   );
 
@@ -987,6 +1097,7 @@ const getProgrammeStats = async (user) => {
         userId,
         fullname: profile.user.fullname || 'Unknown',
         email: profile.user.email || '',
+        avatarUrl: profile.user.avatarUrl || null,
         hub: profile.user.hub ? { _id: profile.user.hub._id, name: profile.user.hub.name } : null,
         programme: profile.internshipType
           ? {
@@ -1043,8 +1154,12 @@ const getProgrammeStats = async (user) => {
       // to several projects at once still counts as one person in the pipeline.
       activeRecommendations: profileIdsWithActiveRec.size,
       interviewingCount: interviewingProfileIds.size,
-      readyWithoutActiveRecommendation: readyProfiles.filter(
-        (profile) => !profileIdsWithActiveRec.has(profile._id.toString())
+      // readyBench, not readyProfiles: it's already had orphaned-user profiles
+      // dropped (formatReadyCandidate returns null for one, filtered out at
+      // readyBench's own definition above) — this count must agree with the
+      // list it's summarizing.
+      readyWithoutActiveRecommendation: readyBench.filter(
+        (candidate) => !profileIdsWithActiveRec.has(candidate.profileId.toString())
       ).length,
     },
   };

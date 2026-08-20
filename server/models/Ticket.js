@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+const { REVIEW_REQUEST_STATES } = require('../helpers/reviewRequestRules');
+
 const messageSchema = new mongoose.Schema(
   {
     senderType: {
@@ -124,6 +126,78 @@ const ticketSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Why this ticket can't move, recorded while it sits in the Blocked status.
+    // Both halves are optional and independent: `ticket` is another ticket in the
+    // SAME workspace (enforced in `ticketService`, same rule as `category`), and
+    // `note` covers the case where nothing on the board is the blocker. Cleared
+    // when the ticket leaves Blocked — see `helpers/ticketBlocker.js`.
+    blockedBy: {
+      ticket: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Ticket',
+        default: null,
+      },
+      note: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Blocker note cannot be more than 500 characters'],
+        default: '',
+      },
+    },
+    // A single pending-or-answered ask for a mentor to look at this ticket's
+    // work. At most one per ticket, cleared rather than accumulated — same
+    // shape choice `blockedBy` made. `owner`/`repo`/`prNumber` are derived by
+    // `helpers/reviewRequestRules.js` from `prUrl`, never written directly.
+    // Kept independent of `linkedPullRequest`, which the GitHub webhook owns —
+    // see ADR 0008.
+    reviewRequest: {
+      type: {
+        reviewer: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          default: null,
+        },
+        // No `default: null` — `null` is not itself a legal value of the enum
+        // below, and Mongoose validates a field-level default same as any
+        // other write. Leaving it unset means an accidental write that omits
+        // `state` fails validation loudly instead of persisting a value the
+        // enum doesn't recognise.
+        state: {
+          type: String,
+          enum: REVIEW_REQUEST_STATES,
+        },
+        prUrl: {
+          type: String,
+          default: null,
+        },
+        owner: {
+          type: String,
+          default: null,
+        },
+        repo: {
+          type: String,
+          default: null,
+        },
+        prNumber: {
+          type: Number,
+          default: null,
+        },
+        requestedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+          default: null,
+        },
+        requestedAt: {
+          type: Date,
+          default: null,
+        },
+        answeredAt: {
+          type: Date,
+          default: null,
+        },
+      },
+      default: null,
+    },
     linkedPullRequest: {
       type: {
         prNumber: {
@@ -173,6 +247,14 @@ ticketSchema.set('toObject', { virtuals: true });
 
 ticketSchema.index({ status: 1, updatedAt: -1 });
 ticketSchema.index({ isArchived: 1, updatedAt: -1 });
+// The Archive page's default order: one workspace's archived tickets, most
+// recently archived first. Tickets archived before `archivedAt` existed simply
+// have no value for it — the service sorts those through an `$ifNull` fallback
+// rather than a migration, so this index is a read optimisation, not a contract.
+ticketSchema.index({ workspace: 1, isArchived: 1, archivedAt: -1 });
 ticketSchema.index({ workspace: 1, taskNumber: 1 });
 ticketSchema.index({ 'linkedPullRequest.prNumber': 1, workspace: 1 });
+// Backs the dashboard card and the tickets-list filter (helpers/reviewRequestRules.js#06/#07):
+// "reviews this mentor owes" is one indexed query on reviewer + pending state.
+ticketSchema.index({ 'reviewRequest.reviewer': 1, 'reviewRequest.state': 1 });
 module.exports = mongoose.model('Ticket', ticketSchema);

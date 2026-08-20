@@ -1,6 +1,8 @@
-import { Input } from '@/components/ui/input';
+import { LayoutGrid, LayoutList, Plus } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
-import { Search, LayoutList, LayoutGrid, Plus } from 'lucide-react';
+import { SearchField } from '@/components/ui/search-field';
+import { Switcher } from '@/components/ui/switcher';
 import PageHeading from '@/components/PageHeading';
 
 export default function TicketsHeader({
@@ -15,61 +17,61 @@ export default function TicketsHeader({
   hideNewTicket = false,
   dataTestPrefix = 'tickets',
   title = 'Tickets',
-  kicker = 'Workspace overview',
+  crumb = 'Workspace',
   subtitle,
   afterNewTicketSlot = null,
 }) {
+  // List vs. board is the textbook switcher case: the same tickets, drawn a
+  // second way. It used to be a hand-rolled segmented control at radius 9 with
+  // 30px thumbs, one of the three separate builds of this the library replaces.
+  const viewItems = [
+    {
+      value: 'list',
+      label: 'List',
+      icon: LayoutList,
+      dataTest: `${dataTestPrefix}-view-list-button`,
+    },
+    {
+      value: 'board',
+      label: 'Board',
+      icon: LayoutGrid,
+      disabled: disableBoardView,
+      dataTest: `${dataTestPrefix}-view-board-button`,
+    },
+  ];
+
   return (
     <div className="app-page-content pb-0">
       <PageHeading
-        kicker={kicker}
+        crumb={crumb}
         title={title}
         subtitle={subtitle}
         actions={
           <>
             {!hideViewMode && (
-              <div className="flex shrink-0 items-center rounded-2xl border border-border/80 bg-secondary/70 p-1">
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => onViewModeChange('list')}
-                  className="gap-2 rounded-xl"
-                  data-test={`${dataTestPrefix}-view-list-button`}
-                >
-                  <LayoutList className="h-4 w-4" />
-                  <span className="hidden sm:inline">List</span>
-                </Button>
-                <Button
-                  variant={viewMode === 'board' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => onViewModeChange('board')}
-                  className="gap-2 rounded-xl"
-                  disabled={disableBoardView}
-                  data-test={`${dataTestPrefix}-view-board-button`}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                  <span className="hidden sm:inline">Board</span>
-                </Button>
-              </div>
+              <Switcher
+                items={viewItems}
+                value={viewMode}
+                onChange={onViewModeChange}
+                label="Ticket view"
+                collapseLabels
+              />
             )}
 
-            <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search tickets..."
-                className="pl-9"
-                value={search}
-                onChange={(e) => onSearch(e.target.value)}
-                aria-label="Search tickets"
-                data-test={`${dataTestPrefix}-search-input`}
-              />
-            </div>
+            {/* Search sits left of the primary action, at the same height as it. */}
+            <SearchField
+              ref={searchInputRef}
+              value={search}
+              onChange={onSearch}
+              placeholder="Search tickets…"
+              aria-label="Search tickets"
+              className="w-full md:w-[240px]"
+              data-test={`${dataTestPrefix}-search-input`}
+            />
 
             {!hideNewTicket && (
               <Button onClick={() => onNewTicket()} data-test={`${dataTestPrefix}-new-button`}>
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
                 New ticket
               </Button>
             )}

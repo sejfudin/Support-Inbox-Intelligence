@@ -1,11 +1,18 @@
-// Covers the `requireWorkspaceScope` guard on `getUsers`.
+// Two concerns on `getUsers`, both exercised with Mongo mocked — no DB.
 //
-// GET /api/admin/users is open to every authenticated user (routes/admin.js:
-// `protect` only), and the query starts from `{}` — a missing workspaceId means
-// "no filter", i.e. every user on the platform. That is correct for an admin
-// listing everyone and a leak for anyone else, which is what this flag decides.
+// 1. The `requireWorkspaceScope` guard. GET /api/admin/users is open to every
+//    authenticated user (routes/admin.js: `protect` only), and the query starts
+//    from `{}` — a missing workspaceId means "no filter", i.e. every user on the
+//    platform. That is correct for an admin listing everyone and a leak for
+//    anyone else, which is what this flag decides. A leak would show up here as
+//    User.find being called.
 //
-// Mongo is mocked; no DB. A leak would show up here as User.find being called.
+// 2. The `isTestAccount` exclusion every one of those queries now carries by
+//    default (same idiom as `Project.isSystem`) — every internal QA account
+//    stays out of the mentor/specialization pickers and the mentor-notes
+//    audience picker for free, since they all route through this one function.
+//    `includeTestAccounts: true` is the one deliberate bypass, for Platform
+//    Management's "All Users" screen.
 
 jest.mock('../models/User', () => ({ find: jest.fn(), countDocuments: jest.fn() }));
 jest.mock('../models/Workspace', () => ({ find: jest.fn(), findById: jest.fn() }));
@@ -67,7 +74,11 @@ describe('getUsers workspace scoping', () => {
     await getUsers({ workspaceId: 'ws1', pagination: false });
 
     // Only the active member reaches the query — invited/disabled are excluded.
-    expect(User.find).toHaveBeenCalledWith({ _id: { $in: ['u1'] } });
+    // `isTestAccount` is on every query by default — see the describe block below.
+    expect(User.find).toHaveBeenCalledWith({
+      _id: { $in: ['u1'] },
+      isTestAccount: { $ne: true },
+    });
   });
 
   it('lists platform-wide when scope is not required and no workspace is given', async () => {
@@ -77,7 +88,48 @@ describe('getUsers workspace scoping', () => {
 
     await getUsers({ pagination: false });
 
-    // The admin path: an unfiltered query is the intended behaviour here.
-    expect(User.find).toHaveBeenCalledWith({});
+    // The admin path: an unfiltered (bar test accounts) query is the intended
+    // behaviour here.
+    expect(User.find).toHaveBeenCalledWith({ isTestAccount: { $ne: true } });
+  });
+});
+
+describe('getUsers test-account exclusion', () => {
+  it('excludes test accounts by default, same idiom as Project.isSystem', async () => {
+    User.find.mockReturnValue({
+      select: () => ({ populate: () => ({ sort: () => Promise.resolve([]) }) }),
+    });
+
+    await getUsers({ pagination: false, roles: ['admin', 'mentor'] });
+
+    expect(User.find).toHaveBeenCalledWith({
+      role: { $in: ['admin', 'mentor'] },
+      isTestAccount: { $ne: true },
+    });
+  });
+
+  it('drops the exclusion only when includeTestAccounts is explicitly true', async () => {
+    User.find.mockReturnValue({
+      select: () => ({ populate: () => ({ sort: () => Promise.resolve([]) }) }),
+    });
+
+    await getUsers({ pagination: false, includeTestAccounts: true });
+
+    const queryArg = User.find.mock.calls[0][0];
+    expect(queryArg).not.toHaveProperty('isTestAccount');
+  });
+
+  it('still excludes on the paginated path (the default the admin/mentor pickers use)', async () => {
+    User.find.mockReturnValue({
+      select: () => ({
+        populate: () => ({ sort: () => ({ skip: () => ({ limit: () => Promise.resolve([]) }) }) }),
+      }),
+    });
+    User.countDocuments.mockResolvedValue(0);
+
+    await getUsers({ page: 1, limit: 10 });
+
+    expect(User.find).toHaveBeenCalledWith({ isTestAccount: { $ne: true } });
+    expect(User.countDocuments).toHaveBeenCalledWith({ isTestAccount: { $ne: true } });
   });
 });

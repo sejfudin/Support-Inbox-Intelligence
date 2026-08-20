@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   createInternComment,
   createInternEvaluation,
@@ -7,8 +8,10 @@ import {
   fetchIntern,
   fetchInternComments,
   fetchInternEvaluations,
+  fetchInternCvSummary,
   fetchInternReadiness,
   fetchInterns,
+  generateInternCvSummary,
   fetchInternStats,
   fetchMyInternProfile,
   fetchMyInternReadiness,
@@ -30,6 +33,7 @@ export const MY_INTERN_READINESS_QUERY_KEY = ['intern-readiness', 'me'];
 export const internDetailKey = (userId) => ['intern', userId];
 export const internCommentsKey = (userId) => ['intern-comments', userId];
 export const internEvaluationsKey = (userId) => ['intern-evaluations', userId];
+export const internCvSummaryKey = (userId) => ['intern-cv-summary', userId];
 export const internReadinessKey = (userId) => ['intern-readiness', userId];
 
 export const useInterns = (params = {}, options = {}) =>
@@ -213,5 +217,32 @@ export const useUpsertInternReadiness = () => {
       queryClient.invalidateQueries({ queryKey: MY_INTERN_READINESS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: INTERN_STATS_QUERY_KEY });
     },
+  });
+};
+
+/**
+ * The cached AI read of an intern's uploaded CV. Never generates — the GET is
+ * free and the POST below is what costs a model call, so the panel can mount on
+ * every profile view without spending anything.
+ */
+export const useInternCvSummary = (userId, options = {}) =>
+  useQuery({
+    queryKey: internCvSummaryKey(userId),
+    queryFn: () => fetchInternCvSummary(userId),
+    enabled: Boolean(userId),
+    ...options,
+  });
+
+export const useGenerateInternCvSummary = (userId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => generateInternCvSummary(userId),
+    // Written straight into the cache: the response IS the new summary, so
+    // refetching it would be a second round trip for bytes already in hand.
+    onSuccess: (summary) => queryClient.setQueryData(internCvSummaryKey(userId), summary),
+    onError: (error) =>
+      toast.error(
+        error?.response?.data?.message || 'Could not summarise the CV. Please try again.'
+      ),
   });
 };

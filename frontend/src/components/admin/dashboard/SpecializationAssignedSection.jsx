@@ -1,13 +1,12 @@
 import { format } from 'date-fns';
 import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
 import {
   DashboardCardEmpty,
   DashboardCardHeader,
   DashboardCardHelp,
 } from '@/components/dashboard/DashboardCard';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 /**
  * One half of `PlacementsSpecializationCard` — no panel of its own, the parent
@@ -38,12 +37,12 @@ export function SpecializationAssignedSection({ specializations = [] }) {
           <ul className="-mx-1 space-y-1">
             {specializations.map((row) => (
               <li key={row.id} className="flex items-center gap-2.5 rounded-xl px-1 py-1.5">
-                <span
-                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${getAvatarColor(row.intern?.fullname || '?')}`}
-                  aria-hidden="true"
-                >
-                  {getInitials(row.intern?.fullname || '?')}
-                </span>
+                <UserAvatar
+                  user={row.intern}
+                  name={row.intern?.fullname || '?'}
+                  className="h-8 w-8 text-[11px]"
+                  showTitle={false}
+                />
 
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-semibold leading-4 text-foreground">

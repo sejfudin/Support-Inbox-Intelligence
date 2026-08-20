@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const { sendToUser } = require('../socket/socketServer');
 const { invalidationScopes } = require('../socket/invalidationScopes');
+const { userSelect } = require('../constants/userSelect');
 
 const emitInvitationInvalidation = (userId) => {
   sendToUser(userId, 'CACHE_INVALIDATED', {
@@ -65,7 +66,7 @@ const listUserInvitations = async (userId) => {
     status: 'pending',
   })
     .populate('workspace', 'name description owner')
-    .populate('invitedBy', 'fullname email')
+    .populate('invitedBy', userSelect())
     .sort({ createdAt: -1 });
 };
 

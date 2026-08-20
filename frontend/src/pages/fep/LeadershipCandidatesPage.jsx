@@ -10,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import TableRowsSkeleton from '@/components/Skeletons/TableRowsSkeleton';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
@@ -17,9 +19,10 @@ import { IN_PIPELINE_STAGE, INTERN_STATUSES, READY_STATUS } from '@/helpers/inte
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
-// Placement-stage filter options in funnel order; `in pipeline` sits between
-// ready and placed because pipelined interns are ready interns with an active
+// Placement-stage filter options in funnel order; `in selection` sits between
+// ready and placed because those interns are ready interns with an active
 // recommendation.
 const stageOptions = INTERN_STATUSES.flatMap((s) =>
   s === READY_STATUS ? [s, IN_PIPELINE_STAGE] : [s]
@@ -30,7 +33,7 @@ const stageOptions = INTERN_STATUSES.flatMap((s) =>
 // title-cased so the selected value in the trigger matches the dropdown.
 const stageLabel = (s) => {
   if (s === READY_STATUS) return 'Available for a project';
-  if (s === IN_PIPELINE_STAGE) return 'In Pipeline';
+  if (s === IN_PIPELINE_STAGE) return 'In Selection';
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
 
@@ -55,7 +58,11 @@ export default function LeadershipCandidatesPage() {
 
   const { data: hubs = [] } = useHubs();
   const { data: types = [] } = useInternshipTypes();
-  const { data, isPending, isError } = useInterns({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useInterns({
     page,
     limit: 20,
     search: debouncedSearch || undefined,
@@ -71,6 +78,8 @@ export default function LeadershipCandidatesPage() {
           ? 'false'
           : undefined,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const interns = data?.interns ?? [];
   const pagination = data?.pagination;
@@ -86,11 +95,16 @@ export default function LeadershipCandidatesPage() {
 
       <SymphonyCard className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">
-            {isPending
-              ? 'Loading candidates…'
-              : `${totalMatching} matching candidate${totalMatching === 1 ? '' : 's'}`}
-          </p>
+          {/* A bar rather than "Loading candidates…": the skeleton rows below already say the
+              table is arriving, and a second sentence saying it again is the redundancy the
+              text-only states were made of. */}
+          {isPending ? (
+            <Skeleton className="h-4 w-40" />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {`${totalMatching} matching candidate${totalMatching === 1 ? '' : 's'}`}
+            </p>
+          )}
           <Link
             to="/programme"
             className="text-sm font-medium text-primary hover:underline"
@@ -173,10 +187,19 @@ export default function LeadershipCandidatesPage() {
         </div>
       </SymphonyCard>
 
-      <SymphonyCard className="overflow-hidden p-0">
-        {isError && <p className="p-6 text-sm text-destructive">Failed to load candidates.</p>}
-        {isPending && <p className="p-6 text-sm text-muted-foreground">Loading candidates...</p>}
-        {!isPending && !isError && (
+      {/* `relative` here, on the card, rather than on the scroll box below: an absolutely
+          positioned child of a scroller is sized to its visible width and then scrolls away with
+          the content, so on a narrow window the veil would cover the first screenful of an 880px
+          table and leave the rest bare. Same arrangement `ReferenceDataPanel` uses. */}
+      <SymphonyCard className="relative overflow-hidden p-0">
+        {isError && (
+          <p className="p-6 text-sm text-[hsl(var(--tone-danger-fg))]">
+            Failed to load candidates.
+          </p>
+        )}
+        {/* Header first, rows after — the five columns and their widths are known before the
+            query answers, so nothing below the filter bar moves when it does. */}
+        {!isError && (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[880px] text-left text-sm">
               <thead>
@@ -189,7 +212,8 @@ export default function LeadershipCandidatesPage() {
                 </tr>
               </thead>
               <tbody>
-                {interns.length === 0 && (
+                {isPending && <TableRowsSkeleton rows={8} columns={5} firstColumn="person" />}
+                {!isPending && interns.length === 0 && (
                   <tr>
                     <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">
                       No candidates match your filters.
@@ -228,7 +252,21 @@ export default function LeadershipCandidatesPage() {
             </table>
           </div>
         )}
-        {pagination && pagination.pages > 1 && (
+        {/* Beside the table, not inside it: a `div` cannot sit in a `tbody`, so the veil is the
+            scroller's sibling and the header stays legible through it. */}
+        {isPending && <Loader variant="overlay" label="Loading candidates" />}
+        {/* The pager's own height while the count is unknown — otherwise the row appears out of
+            nowhere under the table, which is the shift the skeleton rows above prevent. */}
+        {isPending && (
+          <div className="flex items-center justify-between border-t border-border/60 px-5 py-4">
+            <Skeleton className="h-5 w-28" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-20 rounded-[var(--r-control)]" />
+              <Skeleton className="h-8 w-20 rounded-[var(--r-control)]" />
+            </div>
+          </div>
+        )}
+        {!isPending && pagination && pagination.pages > 1 && (
           <div className="flex items-center justify-between border-t border-border/60 px-5 py-4">
             <p className="text-sm text-muted-foreground">
               Page {pagination.page} of {pagination.pages}

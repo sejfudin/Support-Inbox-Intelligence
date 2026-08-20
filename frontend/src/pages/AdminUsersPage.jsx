@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Search, UserPlus } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SearchField } from '@/components/ui/search-field';
 import UserEditModal from '@/components/UserEditModal';
 import { useNavigate } from 'react-router-dom';
 import { useUsers } from '@/queries/users';
@@ -9,6 +9,7 @@ import { useDebounce } from 'use-debounce';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import AdminUsersExpandableTable from '@/components/AdminUsersExpandableTable';
 import PageHeading from '@/components/PageHeading';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
@@ -18,9 +19,15 @@ export default function AdminUsersPage() {
   const navigate = useNavigate();
   const {
     data: usersData,
-    isPending,
+    isPending: isPendingRaw,
     isError,
-  } = useUsers({ page, limit, search: debouncedSearch });
+    // Only this screen ever asks for test accounts back — every other picker in
+    // the app (mentor assignment, specialization, ticket assignee, mentor-notes
+    // audience) calls `useUsers`/`useMentorCandidates` without this flag and gets
+    // them excluded by default. See `adminService.getUsers`.
+  } = useUsers({ page, limit, search: debouncedSearch, includeTestAccounts: true });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const [editingUser, setEditingUser] = useState(null);
   const users =
     usersData?.users?.map((user) => ({
@@ -28,11 +35,19 @@ export default function AdminUsersPage() {
       fullName: user.fullname || 'No name',
       user: user.fullname || 'No name',
       email: user.email,
+      // This mapping picks fields by hand, so a new one has to be named here or
+      // the table silently renders initials for everybody.
+      avatarUrl: user.avatarUrl || null,
       role: user.role,
       hub: user.hub?._id || user.hub || '',
       hubName: user.hub?.name || '',
       active: user.status === 'active',
-      status: user.status === 'active' ? 'active' : 'inactive',
+      // Passed through rather than folded to active/inactive: the enum is
+      // active | invited | disabled, and an invited user who has never signed in
+      // is not the same row as one an admin switched off. `UserStatusBadge` owns
+      // the labels ("Deactivated" for `disabled`).
+      status: user.status,
+      isTestAccount: Boolean(user.isTestAccount),
       workspaceCount: user.workspaceCount || 0,
       workspaces: user.workspaces || [],
     })) ?? [];
@@ -53,7 +68,7 @@ export default function AdminUsersPage() {
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-red-500">
+      <div className="flex items-center justify-center min-h-screen text-[hsl(var(--tone-danger))]">
         Failed to load users
       </div>
     );
@@ -63,42 +78,42 @@ export default function AdminUsersPage() {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Admin directory"
-          title="All Users"
-          subtitle="Global user directory across the entire TaskManager app."
+          crumb="Admin"
+          title="All users"
+          subtitle="Global user directory across the entire platform."
           actions={
             <>
-              <div className="relative w-full sm:flex-1 md:w-80 md:flex-none">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="admin-users-search"
-                  type="text"
-                  placeholder="Search users..."
-                  className="pl-9"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
-                  }}
-                  data-test="admin-users-search-input"
-                />
-              </div>
+              <SearchField
+                id="admin-users-search"
+                value={search}
+                onChange={(next) => {
+                  setSearch(next);
+                  setPage(1);
+                }}
+                placeholder="Search users…"
+                aria-label="Search users"
+                width="header"
+                className="w-full sm:flex-1 md:w-[320px] md:flex-none"
+                data-test="admin-users-search-input"
+              />
 
               <Button
                 onClick={() => navigate('/register')}
                 className="w-full sm:w-auto"
                 data-test="admin-users-create-button"
               >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Create User
+                <UserPlus className="h-4 w-4" />
+                Create user
               </Button>
             </>
           }
         />
 
-        <div className="app-panel overflow-hidden">
+        <div className="app-card overflow-hidden">
           {isPending ? (
-            <TableSkeleton columns={6} rows={6} minWidthClassName="min-w-[1000px]" />
+            <LoadingOverlay label="Loading users">
+              <TableSkeleton columns={5} rows={10} minWidthClassName="min-w-[760px]" />
+            </LoadingOverlay>
           ) : (
             <AdminUsersExpandableTable
               data={users}
@@ -106,7 +121,6 @@ export default function AdminUsersPage() {
               onPageChange={(newPage) => setPage(newPage)}
               onEditUser={handleEditUser}
               onRowClick={handleOpenUserAnalytics}
-              isLoading={isPending}
             />
           )}
         </div>

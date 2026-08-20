@@ -1,24 +1,16 @@
 import { format, parseISO } from 'date-fns';
 import { CalendarDays } from 'lucide-react';
-import { getInitials } from '@/helpers/getInitials';
-import { getAvatarColor } from '@/helpers/avatarColor';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const PersonRow = ({ person, metaClassName, meta, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
+    className="flex w-full items-center gap-2.5 rounded-[var(--r-control)] px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
     data-test={`daily-today-row-${person.id}`}
   >
-    <div
-      className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-        getAvatarColor(person.fullname)
-      )}
-    >
-      {getInitials(person.fullname)}
-    </div>
+    <UserAvatar user={person} className="h-8 w-8 text-xs font-semibold" showTitle={false} />
     <div className="min-w-0 flex-1">
       <p className="truncate text-sm font-semibold text-foreground">{person.fullname}</p>
       <p className="truncate text-xs text-muted-foreground">{person.email}</p>
@@ -40,7 +32,7 @@ export default function TodayStandupCard({ today, onSelect }) {
 
   if (today?.isWeekend) {
     return (
-      <div className="app-panel flex items-center gap-3 p-6 text-sm text-muted-foreground">
+      <div className="app-card flex items-center gap-3 p-6 text-sm text-muted-foreground">
         <CalendarDays className="h-5 w-5 shrink-0" />
         It&rsquo;s the weekend — no standup expected today.
       </div>
@@ -49,7 +41,7 @@ export default function TodayStandupCard({ today, onSelect }) {
 
   if (total === 0) {
     return (
-      <div className="app-panel p-6 text-sm text-muted-foreground">
+      <div className="app-card p-6 text-sm text-muted-foreground">
         No active interns in this workspace yet.
       </div>
     );
@@ -59,7 +51,7 @@ export default function TodayStandupCard({ today, onSelect }) {
     onSelect({ memberId: person.id, date: today.date, fullname: person.fullname });
 
   return (
-    <div className="app-panel space-y-3 p-4" data-test="daily-today-standup-card">
+    <div className="app-card space-y-3 p-4" data-test="daily-today-standup-card">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -75,9 +67,9 @@ export default function TodayStandupCard({ today, onSelect }) {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-red-500/20 bg-red-50/40 p-3 dark:bg-red-950/10">
-          <p className="flex items-center gap-1.5 px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+        <div className="rounded-[var(--r-card)] border border-[hsl(var(--tone-danger)/0.2)] bg-[hsl(var(--tone-danger)/0.4)] p-3 dark:bg-[hsl(var(--tone-danger)/0.1)]">
+          <p className="flex items-center gap-1.5 px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--tone-danger-fg))]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--tone-danger))]" />
             Not reported yet · {missing.length}
           </p>
           {missing.length === 0 ? (
@@ -87,7 +79,7 @@ export default function TodayStandupCard({ today, onSelect }) {
               <PersonRow
                 key={person.id}
                 person={person}
-                metaClassName="text-red-600 dark:text-red-400"
+                metaClassName="text-[hsl(var(--tone-danger-fg))]"
                 meta="No report yet"
                 onClick={selectFor(person)}
               />
@@ -95,9 +87,9 @@ export default function TodayStandupCard({ today, onSelect }) {
           )}
         </div>
 
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/40 p-3 dark:bg-emerald-950/10">
-          <p className="flex items-center gap-1.5 px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        <div className="rounded-[var(--r-card)] border border-[hsl(var(--tone-success)/0.2)] bg-[hsl(var(--tone-success)/0.4)] p-3 dark:bg-[hsl(var(--tone-success)/0.1)]">
+          <p className="flex items-center gap-1.5 px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--tone-success-fg))]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--tone-success))]" />
             Reported · {reported.length}
           </p>
           {reported.length === 0 ? (
@@ -107,7 +99,7 @@ export default function TodayStandupCard({ today, onSelect }) {
               <PersonRow
                 key={person.id}
                 person={person}
-                metaClassName="text-emerald-600 dark:text-emerald-400"
+                metaClassName="text-[hsl(var(--tone-success-fg))]"
                 meta={format(new Date(person.reportedAt), 'HH:mm')}
                 onClick={selectFor(person)}
               />

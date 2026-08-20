@@ -1,182 +1,390 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { format } from 'date-fns';
+import { ChevronDown, Eye } from 'lucide-react';
+import { toast } from 'sonner';
+import { resolveUserId } from '@/helpers/userIdentity';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { HistoryPanel } from '@/components/interns/HistoryPanel';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { SortControl } from '@/components/interns/SortControl';
 import { Chips, DetailModal, DetailText } from '@/components/interns/DetailModal';
 import { useCommentViewers, useCreateInternComment, useInternComments } from '@/queries/interns';
 import { canWriteInternMentorData } from '@/helpers/roles';
-import { getInitials } from '@/helpers/getInitials';
+import { CHIP, badgeTone } from '@/helpers/badgeTones';
+import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
-export function InternCommentsPanel({ userId, readOnly = false }) {
+const SORT_OPTIONS = [
+  { key: 'date', label: 'Date' },
+  { key: 'author', label: 'Author' },
+];
+
+/**
+ * What the note's audience chip says. An empty `visibleTo` is not "shared with
+ * nobody" — admins and the author always see the note — so it reads as the
+ * narrowest real audience rather than as an empty list.
+ */
+function audienceOf(comment) {
+  const viewers = (comment.visibleTo || []).filter(Boolean);
+  if (viewers.length === 0) return { label: 'Admins only', tone: 'warning' };
+  if (viewers.every((viewer) => viewer.role === 'mentor')) {
+    return { label: 'Mentors', tone: 'neutral', names: viewers.map((v) => v.fullname) };
+  }
+  return {
+    label: `Shared with ${viewers.length}`,
+    tone: 'neutral',
+    names: viewers.map((v) => v.fullname),
+  };
+}
+
+function NoteAvatar({ user, name }) {
+  return (
+    <UserAvatar
+      user={user}
+      name={name}
+      className="h-[26px] w-[26px] text-[10.5px] bg-primary/15 accent-ink"
+      showTitle={false}
+    />
+  );
+}
+
+/**
+ * The composer's audience control. Select-shaped, but a menu of checkboxes
+ * underneath: the audience is a list of specific people, not a preset, and a
+ * bulk "everyone with this role" shortcut would let a note reach an entire role
+ * — every mentor, every admin — in one click, which is exactly the mistake this
+ * menu exists to prevent. Every entry is one named person, chosen one at a time;
+ * the only bulk action left is "Admins only" (clear to empty), which narrows the
+ * audience rather than widening it to a role.
+ *
+ * The intern themselves is a separate, pinned toggle above the staff list, not
+ * one more checkbox in it: picking them isn't "share with a colleague", it's the
+ * author's write-time choice to let the note's subject read this specific note
+ * (`visibleToIntern` on the model) — a different field from `visibleTo`, kept
+ * that way so a future "select all" on the staff list can never touch it.
+ */
+function SharedWithMenu({
+  viewers,
+  visibleTo,
+  onToggle,
+  onClear,
+  internName,
+  visibleToIntern,
+  onToggleIntern,
+}) {
+  const label = visibleToIntern
+    ? `Visible to ${internName || 'the intern'}`
+    : visibleTo.length === 0
+      ? 'Admins only'
+      : `Shared with ${visibleTo.length} ${visibleTo.length === 1 ? 'person' : 'people'}`;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-8 items-center gap-1.5 rounded-[var(--r-control)] border border-input bg-card px-2.5 text-[12.5px] text-foreground transition-colors hover:bg-accent/60"
+          data-test="intern-comment-visibility-trigger"
+        >
+          {label}
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-64">
+        {internName && (
+          <>
+            <DropdownMenuCheckboxItem
+              checked={visibleToIntern}
+              onCheckedChange={onToggleIntern}
+              onSelect={(event) => event.preventDefault()}
+              className="text-[12.5px] font-medium"
+              data-test="intern-comment-visible-to-intern-checkbox"
+            >
+              <Eye className="mr-1 inline h-3.5 w-3.5 -translate-y-px" aria-hidden />
+              Share with {internName}
+            </DropdownMenuCheckboxItem>
+            <p className="px-2 pb-1.5 pt-0.5 text-[11px] leading-[1.4] text-muted-foreground">
+              They&apos;ll see this exact note on their own profile and get notified.
+            </p>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuLabel className="text-[11.5px]">Who else can read this</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {viewers.map((viewer) => {
+          const id = resolveUserId(viewer);
+          return (
+            <DropdownMenuCheckboxItem
+              key={id}
+              checked={visibleTo.includes(id)}
+              onCheckedChange={() => onToggle(id)}
+              onSelect={(event) => event.preventDefault()}
+              className="text-[12.5px]"
+              data-test={`intern-comment-viewer-${id}-checkbox`}
+            >
+              {viewer.fullname}
+              <span className="ml-1 text-muted-foreground/75">({viewer.role})</span>
+            </DropdownMenuCheckboxItem>
+          );
+        })}
+        {visibleTo.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5">
+              <button
+                type="button"
+                onClick={onClear}
+                className="text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
+              >
+                Admins only
+              </button>
+            </div>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function InternCommentsPanel({ userId, internName, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && canWriteInternMentorData(user?.role);
-  const { data: comments = [], isPending } = useInternComments(userId);
-  const { data: viewers = [] } = useCommentViewers({ enabled: canWrite });
+  const { data: comments = [], isPending: isPendingRaw } = useInternComments(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw);
+  const { data: allViewers = [] } = useCommentViewers({ enabled: canWrite });
   const { mutate, isPending: isSaving } = useCreateInternComment();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [detailComment, setDetailComment] = useState(null);
   const [content, setContent] = useState('');
   const [visibleTo, setVisibleTo] = useState([]);
+  const [visibleToIntern, setVisibleToIntern] = useState(false);
+  const [sortKey, setSortKey] = useState('');
+  const [sortDir, setSortDir] = useState('desc');
 
-  const resetForm = () => {
-    setContent('');
-    setVisibleTo([]);
-  };
-
-  const openDialog = () => {
-    resetForm();
-    setDialogOpen(true);
-  };
+  // You are never in your own audience list — you wrote the note.
+  const viewers = useMemo(
+    () => allViewers.filter((viewer) => resolveUserId(viewer) !== user?._id),
+    [allViewers, user?._id]
+  );
 
   const toggleViewer = (id) => {
     setVisibleTo((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (event) => {
+    event.preventDefault();
     if (!content.trim()) return;
 
     mutate(
-      { userId, payload: { content: content.trim(), visibleTo } },
+      { userId, payload: { content: content.trim(), visibleTo, visibleToIntern } },
       {
         onSuccess: () => {
-          resetForm();
-          setDialogOpen(false);
-          toast.success('Comment added');
+          setContent('');
+          setVisibleTo([]);
+          setVisibleToIntern(false);
+          toast.success('Note posted');
         },
         onError: (err) => toast.error(err?.response?.data?.message || 'Failed to add comment'),
       }
     );
   };
 
-  const roleTag = (role) => {
-    if (role === 'mentor') return { label: 'Mentor', color: 'indigo' };
-    if (role === 'leadership') return { label: 'Leadership', color: 'slate' };
-    if (role === 'admin') return { label: 'Admin', color: 'slate' };
-    return { label: role || 'Note', color: 'slate' };
+  const handleSortKeyChange = (key) => {
+    setSortKey(key);
+    if (key) setSortDir(key === 'date' ? 'desc' : 'asc');
   };
 
-  const ordered = [...comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const ordered = useMemo(() => {
+    const newestFirst = [...comments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    if (!sortKey) return newestFirst;
+    const factor = sortDir === 'asc' ? 1 : -1;
+    return newestFirst.sort((a, b) => {
+      if (sortKey === 'date') {
+        return (new Date(a.createdAt) - new Date(b.createdAt)) * factor;
+      }
+      return (
+        String(a.author?.fullname ?? '').localeCompare(String(b.author?.fullname ?? '')) * factor
+      );
+    });
+  }, [comments, sortKey, sortDir]);
 
-  const cards = ordered.map((comment, index) => ({
-    id: comment._id,
-    raw: comment,
-    featured: index === 0,
-    tag: roleTag(comment.author?.role),
-    title: format(new Date(comment.createdAt), 'MMM d, yyyy'),
-    avatar: {
-      initials: getInitials(comment.author?.fullname),
-      name: comment.author?.fullname ?? 'Unknown',
-    },
-    blocks: [
-      {
-        kind: 'chips',
-        label: 'Shared with',
-        items: (comment.visibleTo || []).map((viewer) => viewer?.fullname).filter(Boolean),
-      },
-    ],
-    note: comment.content,
-    sortVals: {
-      date: new Date(comment.createdAt).getTime(),
-      author: comment.author?.fullname ?? '',
-    },
-  }));
-
-  const subtitle = `${cards.length} note${cards.length === 1 ? '' : 's'}`;
+  const subtitle = `${ordered.length} note${ordered.length === 1 ? '' : 's'} · visible to admins and mentors`;
 
   return (
-    <div className="space-y-6">
-      <HistoryPanel
-        title="Mentor notes"
-        subtitle={subtitle}
-        buttonLabel="New note"
-        canWrite={canWrite}
-        isLoading={isPending}
-        cards={cards}
-        sortOptions={[
-          { key: 'date', label: 'Date' },
-          { key: 'author', label: 'Author' },
-        ]}
-        onNew={openDialog}
-        onReadMore={(id) => setDetailComment(cards.find((c) => c.id === id)?.raw)}
-        onCardClick={(card) => setDetailComment(card.raw)}
-        emptyMessage="No comments you can view yet."
-      />
+    <div className="grid items-start gap-3.5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="app-card overflow-hidden">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-separator px-[18px] py-3">
+          <div className="min-w-0">
+            <h2 className="app-card-title">Mentor notes</h2>
+            <p className="mt-0.5 text-[12.5px] text-muted-foreground">{subtitle}</p>
+          </div>
+          {ordered.length > 0 && (
+            <SortControl
+              sortKey={sortKey}
+              sortDir={sortDir}
+              options={SORT_OPTIONS}
+              onSortKeyChange={handleSortKeyChange}
+              onToggleDir={() => setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              className="h-8 rounded-[var(--r-control)]"
+              triggerClassName="text-[12.5px]"
+              dataTest="mentor-notes-sort"
+            />
+          )}
+        </header>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>New mentor note</DialogTitle>
-            <DialogDescription>
-              Interns cannot see mentor notes. Choose who else may read this comment.
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <Label htmlFor="mentor-comment-content">Comment</Label>
-              <AutoTextarea
-                id="mentor-comment-content"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={4}
-                data-test="intern-comment-content-input"
+        {/* Inline rather than behind a "New note" dialog: writing a note is the
+            main thing this tab is for, and the audience control has to sit beside
+            the text so you pick it before posting, not in a separate step. */}
+        {canWrite && (
+          <form className="border-b border-separator px-[18px] py-3" onSubmit={handleSubmit}>
+            <AutoTextarea
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              rows={3}
+              placeholder="Add a note about this intern…"
+              className="text-[12.5px]"
+              aria-label="Add a note about this intern"
+              data-test="intern-comment-content-input"
+            />
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <SharedWithMenu
+                viewers={viewers}
+                visibleTo={visibleTo}
+                onToggle={toggleViewer}
+                onClear={() => setVisibleTo([])}
+                internName={internName}
+                visibleToIntern={visibleToIntern}
+                onToggleIntern={() => setVisibleToIntern((prev) => !prev)}
               />
-            </div>
-            <div className="space-y-2">
-              <Label>Visible to</Label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {viewers
-                  .filter((v) => v._id !== user?._id && v.id !== user?._id)
-                  .map((viewer) => {
-                    const id = viewer._id || viewer.id;
-                    return (
-                      <label
-                        key={id}
-                        className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm"
-                      >
-                        <Checkbox
-                          checked={visibleTo.includes(id)}
-                          onCheckedChange={() => toggleViewer(id)}
-                          data-test={`intern-comment-viewer-${id}-checkbox`}
-                        />
-                        <span>
-                          {viewer.fullname}{' '}
-                          <span className="text-muted-foreground">({viewer.role})</span>
-                        </span>
-                      </label>
-                    );
-                  })}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
               <Button
                 type="submit"
+                className="px-3 text-[12.5px]"
                 disabled={isSaving || !content.trim()}
                 data-test="intern-comment-submit-button"
               >
-                {isSaving ? 'Saving...' : 'Add comment'}
+                {isSaving ? 'Posting…' : 'Post note'}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        )}
+
+        <div>
+          {isPending && (
+            <LoadingOverlay size="sm" label="Loading notes">
+              <PanelBodySkeleton people rows={3} className="px-[18px] pb-5" />
+            </LoadingOverlay>
+          )}
+          {!isPending && ordered.length === 0 && (
+            <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">
+              No notes you can view yet.
+            </p>
+          )}
+          {!isPending &&
+            ordered.map((comment) => {
+              const audience = audienceOf(comment);
+              return (
+                <article
+                  key={comment._id}
+                  className="border-b border-separator px-[18px] py-3 last:border-b-0"
+                  data-test={`history-card-${comment._id}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <NoteAvatar user={comment.author} name={comment.author?.fullname} />
+                      <p className="min-w-0 truncate text-[12.5px] leading-[1.35]">
+                        <span className="font-semibold text-foreground">
+                          {comment.author?.fullname ?? 'Unknown'}
+                        </span>
+                        <span className="ml-1.5 text-[11.5px] text-muted-foreground/75">
+                          {capitalizeFirst(comment.author?.role || '')} ·{' '}
+                          {format(new Date(comment.createdAt), 'MMM d, yyyy')}
+                        </span>
+                      </p>
+                    </div>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {comment.visibleToIntern && (
+                        <span
+                          className={cn(CHIP, 'border-0', badgeTone('success'))}
+                          title={`${internName || 'The intern'} can see this note`}
+                        >
+                          <Eye className="mr-1 inline h-3 w-3 -translate-y-px" aria-hidden />
+                          Visible to intern
+                        </span>
+                      )}
+                      <span
+                        className={cn(CHIP, 'border-0', badgeTone(audience.tone))}
+                        title={audience.names?.join(', ')}
+                      >
+                        {audience.label}
+                      </span>
+                    </span>
+                  </div>
+
+                  {/* Most notes are a sentence or two and should just be read in
+                      place. The clamp and its "Read more" only appear past roughly
+                      three lines' worth of text — a length heuristic rather than a
+                      measurement, but wrong only in the harmless direction (a
+                      slightly-too-long note renders in full). */}
+                  <p className="mt-2 text-[12.5px] leading-[1.5] text-foreground/90">
+                    <span
+                      className={cn(
+                        'align-top [overflow-wrap:anywhere]',
+                        comment.content.length > 220 && 'line-clamp-3'
+                      )}
+                    >
+                      {comment.content}
+                    </span>
+                    {comment.content.length > 220 && (
+                      <button
+                        type="button"
+                        onClick={() => setDetailComment(comment)}
+                        className="mt-0.5 font-semibold accent-ink hover:underline"
+                      >
+                        Read more
+                      </button>
+                    )}
+                  </p>
+                </article>
+              );
+            })}
+        </div>
+      </section>
+
+      {viewers.length > 0 && (
+        <aside className="app-card p-[18px] pt-[15px]">
+          <h3 className="app-card-title">Who can read these</h3>
+          <p className="mt-0.5 text-[12.5px] leading-[1.5] text-muted-foreground">
+            Notes stay off the intern&apos;s own profile unless you explicitly share one with them.
+          </p>
+          <div className="mt-3 flex flex-col gap-2.5">
+            {viewers.map((viewer) => (
+              <div key={resolveUserId(viewer)} className="flex items-center gap-2">
+                <NoteAvatar user={viewer} name={viewer.fullname} />
+                <div className="min-w-0 leading-[1.35]">
+                  <p className="truncate text-[12.5px] font-semibold text-foreground">
+                    {viewer.fullname}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground/75">
+                    {capitalizeFirst(viewer.role || '')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      )}
 
       <DetailModal
         open={Boolean(detailComment)}

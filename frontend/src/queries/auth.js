@@ -1,7 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { registerUser, loginUser, getMe, logoutUser, updateUser } from '@/api/auth';
+import {
+  registerUser,
+  loginUser,
+  getMe,
+  logoutUser,
+  updateUser,
+  changePassword,
+  uploadMyAvatar,
+  deleteMyAvatar,
+} from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { clearSessionQueries } from '@/lib/sessionQueryCache';
+import { resolveUserId } from '@/helpers/userIdentity';
 
 export const authKeys = {
   all: ['auth'],
@@ -75,6 +85,25 @@ export const useLogoutUser = () => {
   });
 };
 
+export const useChangePassword = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: changePassword,
+
+    onSuccess: (data) => {
+      // The server bumped `tokenVersion`, so the pair already in storage is dead
+      // — including the access token that made this very request. Swap in the
+      // one it minted for this session, or the next call 401s and the
+      // interceptor drops the user at the login screen for having changed their
+      // password successfully.
+      if (data?.accessToken) localStorage.setItem('accessToken', data.accessToken);
+      if (data?.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+    },
+  });
+};
+
 export const useUpdateUser = () => {
   const queryClient = useQueryClient();
 
@@ -88,7 +117,7 @@ export const useUpdateUser = () => {
       queryClient.setQueryData(['user', variables.id], updatedUser);
 
       const currentMe = queryClient.getQueryData(authKeys.me());
-      const currentId = currentMe?.id || currentMe?._id;
+      const currentId = resolveUserId(currentMe);
 
       // Refetch rather than seeding the cache from the PATCH response: /auth/me
       // reports the *verified* workspace (a stale User.workspaceId pointer reads
@@ -101,5 +130,42 @@ export const useUpdateUser = () => {
     onError: (error) => {
       console.error('Update error:', error.response?.data?.message || error.message);
     },
+  });
+};
+
+/**
+ * Set or replace your own profile picture.
+ *
+ * Invalidating `/auth/me` is the whole mechanism: `AuthContext` reads that query,
+ * and the sidebar and the leadership navbar read the user through it, so they
+ * repaint in the same tick as the profile card. Holding the new URL in component
+ * state instead would leave the nav showing initials until a reload, which is the
+ * most obvious way to make this feature feel half-finished.
+ *
+ * Nothing invalidates other people's avatars, because this endpoint cannot change
+ * anybody else's picture.
+ *
+ * `onSuccess` **returns** the invalidation rather than firing and forgetting it:
+ * React Query awaits a promise returned from `onSuccess` before settling
+ * `mutateAsync`, and `useProfileAvatar` drops its optimistic preview the moment
+ * that settles. Without the `return`, a first upload clears the preview while
+ * `/auth/me` is still in flight and the circle snaps back to initials for the
+ * length of that round trip — the one blink this whole preview exists to avoid.
+ */
+export const useUploadMyAvatar = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: uploadMyAvatar,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me() }),
+  });
+};
+
+export const useDeleteMyAvatar = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteMyAvatar,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me() }),
   });
 };

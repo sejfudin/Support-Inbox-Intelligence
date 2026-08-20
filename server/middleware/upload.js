@@ -1,4 +1,5 @@
 const multer = require('multer');
+const { ALLOWED_AVATAR_MIME_TYPES, MAX_AVATAR_FILE_SIZE_BYTES } = require('../helpers/userAvatar');
 
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_FILES_PER_REQUEST = 3;
@@ -156,10 +157,64 @@ const uploadCv = (req, res, next) => {
   });
 };
 
+// Avatar
+//
+// The allowed set and the size cap live in `helpers/userAvatar.js` rather than
+// here, because they are rules worth unit-testing and this file cannot be
+// required without multer. Note it does *not* reuse ALLOWED_LOGO_MIME_TYPES:
+// that set permits SVG, and a profile picture is uploaded by every role and
+// served from a public bucket. See the helper.
+const avatarFileFilter = (req, file, cb) => {
+  if (!file || !ALLOWED_AVATAR_MIME_TYPES.has(file.mimetype)) {
+    return cb(new Error('Profile picture must be a JPG, PNG, or WEBP image.'));
+  }
+
+  cb(null, true);
+};
+
+const uploadAvatarMulter = multer({
+  storage,
+  fileFilter: avatarFileFilter,
+  limits: {
+    fileSize: MAX_AVATAR_FILE_SIZE_BYTES,
+    files: 1,
+  },
+});
+
+const uploadAvatarRaw = uploadAvatarMulter.single('avatar');
+
+const uploadAvatar = (req, res, next) => {
+  uploadAvatarRaw(req, res, (err) => {
+    if (!err) return next();
+
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Profile picture must be 2MB or smaller.',
+        });
+      }
+
+      if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Use "avatar" as the upload field name.',
+        });
+      }
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: err.message || 'Invalid profile picture upload request.',
+    });
+  });
+};
+
 module.exports = {
   uploadImages,
   uploadLogo,
   uploadCv,
+  uploadAvatar,
   MAX_FILE_SIZE_BYTES,
   MAX_FILES_PER_REQUEST,
   ALLOWED_MIME_TYPES,

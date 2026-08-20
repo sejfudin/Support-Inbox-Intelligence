@@ -1,23 +1,19 @@
 const mongoose = require('mongoose');
 const Project = require('../models/Project');
-const { PROJECT_STATUSES } = require('../models/Project');
+const { PROJECT_STATUSES, PROJECT_TYPES } = require('../models/Project');
 const Technology = require('../models/Technology');
 const Recommendation = require('../models/Recommendation');
 const { ROLES } = require('../constants/roles');
 const { slugify } = require('../helpers/slugify');
-
-const createError = (message, statusCode = 400) => {
-  const error = new Error(message);
-  error.statusCode = statusCode;
-  return error;
-};
+const { httpError } = require('../helpers/httpError');
+const { userSelect } = require('../constants/userSelect');
 
 // Same two-role read gate as recommendations (recommendationService.js
 // READ_ROLES) — leadership is stakeholder-facing read access, everyone else
 // (including mentors) has no reason to see the cross-project roster/pipeline.
 const assertLeadershipReadAccess = (user) => {
   if (user?.role !== ROLES.ADMIN && user?.role !== ROLES.LEADERSHIP) {
-    throw createError('Not authorized', 403);
+    throw httpError('Not authorized', 403);
   }
 };
 
@@ -36,6 +32,14 @@ const resolveTechnologyIds = async (technologyIds) => {
   return ids;
 };
 
+// The admin must classify every project explicitly, so a missing `type` is
+// rejected here rather than left to the schema: Mongoose's validation error
+// wouldn't tell "omitted" apart from "misspelled" in the 400 message. One
+// assertion for both create and update so the two can't drift.
+const assertProjectType = (type) => {
+  if (!PROJECT_TYPES.includes(type)) throw httpError('Invalid project type', 400);
+};
+
 const getAllProjects = async ({ status, includeAll = false } = {}) => {
   const filter = {};
   if (!includeAll) {
@@ -47,14 +51,16 @@ const getAllProjects = async ({ status, includeAll = false } = {}) => {
   return Project.find(filter).populate('technologies', 'name slug').sort({ name: 1 }).lean();
 };
 
-const createProject = async ({ name, client, description, technologyIds }) => {
+const createProject = async ({ name, type, client, description, technologyIds }) => {
   if (!name?.trim()) throw new Error('Project name is required');
+  assertProjectType(type);
   const resolvedSlug = slugify(name);
   if (resolvedSlug === 'unspecified') throw new Error('This project name is reserved');
 
   const project = await Project.create({
     name: name.trim(),
     slug: resolvedSlug,
+    type,
     client: client?.trim() || '',
     description: description?.trim() || '',
     technologies: await resolveTechnologyIds(technologyIds),
@@ -62,7 +68,7 @@ const createProject = async ({ name, client, description, technologyIds }) => {
   return project.populate('technologies', 'name slug');
 };
 
-const updateProject = async (id, { name, client, description, status, technologyIds }) => {
+const updateProject = async (id, { name, type, client, description, status, technologyIds }) => {
   const project = await Project.findById(id);
   if (!project) throw new Error('Project not found');
   if (project.isSystem) throw new Error('This project cannot be edited');
@@ -83,20 +89,24 @@ const updateProject = async (id, { name, client, description, status, technology
     if (!PROJECT_STATUSES.includes(status)) throw new Error('Invalid project status');
     project.status = status;
   }
+  if (type !== undefined) {
+    assertProjectType(type);
+    project.type = type;
+  }
 
   await project.save();
   return project.populate('technologies', 'name slug');
 };
 
 const getProjectById = async (id) => {
-  if (!mongoose.Types.ObjectId.isValid(id)) throw createError('Project not found', 404);
+  if (!mongoose.Types.ObjectId.isValid(id)) throw httpError('Project not found', 404);
   const project = await Project.findById(id).populate('technologies', 'name slug').lean();
-  if (!project) throw createError('Project not found', 404);
+  if (!project) throw httpError('Project not found', 404);
   return project;
 };
 
 const RECOMMENDATION_INTERN_POPULATE = [
-  { path: 'internProfile', populate: { path: 'user', select: 'fullname email' } },
+  { path: 'internProfile', populate: { path: 'user', select: userSelect() } },
   { path: 'position', select: 'name slug' },
   { path: 'technologies', select: 'name slug' },
 ];
@@ -105,6 +115,7 @@ const internSummary = (recommendation) => ({
   recommendationId: recommendation._id,
   userId: recommendation.internProfile?.user?._id || null,
   fullname: recommendation.internProfile?.user?.fullname || 'Unknown',
+  avatarUrl: recommendation.internProfile?.user?.avatarUrl || null,
   position: recommendation.position?.name || null,
 });
 

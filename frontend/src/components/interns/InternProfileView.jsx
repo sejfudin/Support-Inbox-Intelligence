@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,45 +13,97 @@ import { InternRecommendationsPanel } from '@/components/interns/InternRecommend
 import { InternCandidateOverview } from '@/components/interns/InternCandidateOverview';
 import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
 import { InternPanel } from '@/components/interns/InternPanel';
+import InternAttendancePanel from '@/components/interns/InternAttendancePanel';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
+// The strip closes the identity band, so it carries the hairline above it rather
+// than below — the band's own bottom border is what separates it from the content.
 const internTabListClassName =
-  'flex h-auto w-full justify-start gap-2 overflow-x-auto rounded-none border-b border-border/70 bg-transparent px-5 pb-0 pt-0 text-muted-foreground md:px-6';
+  'flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-t border-separator bg-transparent p-0 text-muted-foreground';
 
+// Active = dark label + primary underline, NOT a primary-coloured label: the
+// underline already carries the accent, and colouring the word too makes the
+// selected tab read as a link while every other tab reads as text.
 const internTabTriggerClassName =
-  'h-11 rounded-none border-b-2 border-transparent bg-transparent px-3 py-3 text-sm font-semibold text-muted-foreground shadow-none transition-colors first:pl-0 hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none';
+  'h-10 shrink-0 rounded-none bg-transparent px-3 text-[12.5px] font-medium text-muted-foreground shadow-none transition-colors hover:text-foreground data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:text-foreground data-[state=active]:shadow-[inset_0_-2px_0_hsl(var(--primary))]';
 
 export function InternProfileView({
   userId,
   readOnly = false,
   backTo,
   backLabel = 'Back',
-  kicker = 'Intern profile',
   analyticsSection = null,
   headingActions = null,
 }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { data: intern, isPending, isError } = useIntern(userId);
+  const { data: intern, isPending: isPendingRaw, isError } = useIntern(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
   // Editing the internal CV link is admin-only; mentors keep read access to
   // whatever link is already on the profile (see canSeeInternalCv, backend).
   const canEditInternalCv = !readOnly && user?.role === ROLES.ADMIN;
+  // Generating a CV summary is a write (it caches on the profile and spends a
+  // model call), so leadership reads but never generates. The mentor case is a
+  // role check only — the service re-checks that they are actually this intern's
+  // assigned mentor, same as every other mentor write here.
+  const canGenerateCvSummary =
+    !readOnly && (user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR);
   const showComments = canViewComments(user?.role);
   const showEvaluations = user?.role === ROLES.ADMIN;
   const showReadiness = user?.role === ROLES.ADMIN;
   const showRecommendations = user?.role === ROLES.ADMIN || user?.role === ROLES.LEADERSHIP;
+  // Admin and mentor: a mentor is the primary reader of their intern's
+  // attendance, and `GET /attendance/:internProfileId` admits both roles.
+  const showAttendance = user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR;
+
+  // Which tab is open lives in the URL, so a link can point at one — the
+  // recommendations table sends an admin straight to the intern's own
+  // recommendations rather than dropping them on Overview to find the tab
+  // themselves. A `?tab=` naming a tab this viewer cannot see (readiness is
+  // admin-only) falls back to Overview rather than rendering an empty pane.
+  const visibleTabs = [
+    'overview',
+    showReadiness && 'readiness',
+    showEvaluations && 'evaluations',
+    showRecommendations && 'recommendations',
+    showComments && 'notes',
+    showAttendance && 'attendance',
+    analyticsSection && 'analytics',
+  ].filter(Boolean);
+
+  const requestedTab = searchParams.get('tab');
+  const activeTab = visibleTabs.includes(requestedTab) ? requestedTab : 'overview';
+
+  // `replace` so switching tabs does not stack history entries the back button
+  // then has to walk through to leave the profile.
+  const onTabChange = (next) =>
+    setSearchParams(
+      (params) => {
+        const updated = new URLSearchParams(params);
+        if (next === 'overview') updated.delete('tab');
+        else updated.set('tab', next);
+        return updated;
+      },
+      { replace: true }
+    );
 
   if (isPending) {
     return (
       <PageShell>
         <PageSection>
-          <PagePanel className="flex min-h-[220px] items-center justify-center p-6 text-sm text-muted-foreground">
-            Loading intern profile...
+          {/* The panels below this one are decided by the intern's own record — which tabs
+              exist, whether there is a specialization, whether attendance applies — so the page
+              can't lay itself out yet. The 220px is kept so it doesn't grow underneath. */}
+          <PagePanel className="flex min-h-[220px] items-center justify-center p-6">
+            <Loader label="Loading intern profile…" />
           </PagePanel>
         </PageSection>
       </PageShell>
@@ -63,7 +115,9 @@ export function InternProfileView({
       <PageShell>
         <PageSection>
           <PagePanel className="space-y-4 p-6">
-            <p className="text-sm text-destructive">Unable to load this intern profile.</p>
+            <p className="text-sm text-[hsl(var(--tone-danger-fg))]">
+              Unable to load this intern profile.
+            </p>
             {backTo && (
               <Button type="button" variant="outline" onClick={() => navigate(backTo)}>
                 {backLabel}
@@ -81,7 +135,7 @@ export function InternProfileView({
       variant="ghost"
       size="sm"
       onClick={() => navigate(backTo)}
-      className="-ml-2 h-7 px-2 text-muted-foreground"
+      className="-ml-2 h-7 px-2 text-[12.5px] text-muted-foreground"
       data-test="intern-profile-back-button"
     >
       <ArrowLeft className="mr-2 h-4 w-4" />
@@ -96,140 +150,166 @@ export function InternProfileView({
     ? format(new Date(intern.startDate), 'MMM d, yyyy')
     : '—';
 
+  const tabStrip = (
+    <TabsList className={internTabListClassName} data-test="intern-detail-tabs">
+      <TabsTrigger
+        value="overview"
+        className={internTabTriggerClassName}
+        data-test="intern-detail-overview-tab"
+      >
+        Overview
+      </TabsTrigger>
+      {showReadiness && (
+        <TabsTrigger
+          value="readiness"
+          className={internTabTriggerClassName}
+          data-test="intern-detail-readiness-tab"
+        >
+          Readiness
+        </TabsTrigger>
+      )}
+      {showEvaluations && (
+        <TabsTrigger
+          value="evaluations"
+          className={internTabTriggerClassName}
+          data-test="intern-detail-evaluations-tab"
+        >
+          Evaluations
+        </TabsTrigger>
+      )}
+      {showRecommendations && (
+        <TabsTrigger
+          value="recommendations"
+          className={internTabTriggerClassName}
+          data-test="intern-detail-recommendations-tab"
+        >
+          Recommendations
+        </TabsTrigger>
+      )}
+      {showComments && (
+        <TabsTrigger
+          value="notes"
+          className={internTabTriggerClassName}
+          data-test="intern-detail-notes-tab"
+        >
+          Mentor notes
+        </TabsTrigger>
+      )}
+      {showAttendance && (
+        <TabsTrigger
+          value="attendance"
+          className={internTabTriggerClassName}
+          data-test="intern-detail-attendance-tab"
+        >
+          Attendance
+        </TabsTrigger>
+      )}
+      {analyticsSection && (
+        <TabsTrigger
+          value="analytics"
+          className={internTabTriggerClassName}
+          data-test="intern-detail-analytics-tab"
+        >
+          Analytics
+        </TabsTrigger>
+      )}
+    </TabsList>
+  );
+
   return (
     <PageShell>
-      <PageSection className="space-y-6">
-        <InternProfileHeader
-          kicker={kicker}
-          fullname={intern.user?.fullname}
-          email={intern.user?.email}
-          status={intern.status}
-          declaredPosition={intern.declaredPosition?.name}
-          programme={intern.internshipType?.name}
-          hub={intern.user?.hub?.name}
-          startDate={formattedStartDate}
-          primaryMentor={intern.primaryMentor?.fullname}
-          secondaryMentor={intern.secondaryMentor?.fullname}
-          backButton={backButton}
-          titleAdornment={headingActions}
-        />
+      <PageSection>
+        <Tabs value={activeTab} onValueChange={onTabChange}>
+          <InternProfileHeader
+            user={intern.user}
+            fullname={intern.user?.fullname}
+            email={intern.user?.email}
+            status={intern.status}
+            declaredPosition={intern.declaredPosition?.name}
+            programme={intern.internshipType?.name}
+            hub={intern.user?.hub?.name}
+            startDate={formattedStartDate}
+            primaryMentor={intern.primaryMentor?.fullname}
+            secondaryMentor={intern.secondaryMentor?.fullname}
+            backButton={backButton}
+            titleAdornment={headingActions}
+            tabs={tabStrip}
+          />
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className={internTabListClassName} data-test="intern-detail-tabs">
-            <TabsTrigger
-              value="overview"
-              className={internTabTriggerClassName}
-              data-test="intern-detail-overview-tab"
-            >
-              Overview
-            </TabsTrigger>
-            {showReadiness && (
-              <TabsTrigger
-                value="readiness"
-                className={internTabTriggerClassName}
-                data-test="intern-detail-readiness-tab"
+          {/* The band above bleeds into the gutter and closes with its own border,
+              so the panels below start at the mockup's 18px rather than at
+              `.app-page-content`'s 24px. */}
+          <div className="mt-[18px]">
+            <TabsContent value="overview">
+              <div
+                className={cn(
+                  'grid grid-cols-1 gap-3.5',
+                  hasOverviewSidebar && 'items-start xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]'
+                )}
               >
-                Readiness
-              </TabsTrigger>
-            )}
-            {showEvaluations && (
-              <TabsTrigger
-                value="evaluations"
-                className={internTabTriggerClassName}
-                data-test="intern-detail-evaluations-tab"
-              >
-                Evaluations
-              </TabsTrigger>
-            )}
-            {showRecommendations && (
-              <TabsTrigger
-                value="recommendations"
-                className={internTabTriggerClassName}
-                data-test="intern-detail-recommendations-tab"
-              >
-                Recommendations
-              </TabsTrigger>
-            )}
-            {showComments && (
-              <TabsTrigger
-                value="notes"
-                className={internTabTriggerClassName}
-                data-test="intern-detail-notes-tab"
-              >
-                Mentor notes
-              </TabsTrigger>
-            )}
-            {analyticsSection && (
-              <TabsTrigger
-                value="analytics"
-                className={internTabTriggerClassName}
-                data-test="intern-detail-analytics-tab"
-              >
-                Analytics
-              </TabsTrigger>
-            )}
-          </TabsList>
+                <InternPanel dense>
+                  <InternCandidateOverview
+                    intern={intern}
+                    userId={userId}
+                    canEditDocumentation={canEditDocumentation}
+                    canEditInternalCv={canEditInternalCv}
+                    canGenerateCvSummary={canGenerateCvSummary}
+                  />
+                </InternPanel>
 
-          <TabsContent value="overview">
-            <div
-              className={cn(
-                'grid grid-cols-1 gap-8',
-                hasOverviewSidebar && 'items-start xl:grid-cols-[minmax(0,1fr)_360px]'
-              )}
-            >
-              <InternPanel className="p-6 md:p-8">
-                <InternCandidateOverview
-                  intern={intern}
-                  userId={userId}
-                  canEditDocumentation={canEditDocumentation}
-                  canEditInternalCv={canEditInternalCv}
-                />
-              </InternPanel>
-
-              {hasOverviewSidebar && canChangeStatus && <InternProgrammeControls intern={intern} />}
-            </div>
-          </TabsContent>
-
-          {analyticsSection && (
-            <TabsContent value="analytics" className="space-y-6">
-              {analyticsSection}
-            </TabsContent>
-          )}
-
-          {showReadiness && (
-            <TabsContent value="readiness">
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-                <InternReadinessPanel
-                  userId={userId}
-                  declaredTechnologies={intern.selfTechnologies || []}
-                  readOnly={readOnly}
-                />
-                <InternRoleReadinessPanel
-                  userId={userId}
-                  declaredPosition={intern.declaredPosition}
-                  readOnly={readOnly}
-                />
+                {hasOverviewSidebar && canChangeStatus && (
+                  <InternProgrammeControls intern={intern} />
+                )}
               </div>
             </TabsContent>
-          )}
 
-          {showEvaluations && (
-            <TabsContent value="evaluations">
-              <InternEvaluationsPanel userId={userId} readOnly={readOnly} />
-            </TabsContent>
-          )}
+            {showAttendance && (
+              <TabsContent value="attendance">
+                <InternAttendancePanel internProfileId={intern.id} />
+              </TabsContent>
+            )}
 
-          {showRecommendations && (
-            <TabsContent value="recommendations">
-              <InternRecommendationsPanel userId={userId} readOnly={readOnly} />
-            </TabsContent>
-          )}
+            {analyticsSection && <TabsContent value="analytics">{analyticsSection}</TabsContent>}
 
-          {showComments && (
-            <TabsContent value="notes">
-              <InternCommentsPanel userId={userId} readOnly={readOnly} />
-            </TabsContent>
-          )}
+            {showReadiness && (
+              <TabsContent value="readiness">
+                <div className="grid grid-cols-1 items-start gap-3.5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                  <InternReadinessPanel
+                    userId={userId}
+                    declaredTechnologies={intern.selfTechnologies || []}
+                    readOnly={readOnly}
+                  />
+                  <InternRoleReadinessPanel
+                    userId={userId}
+                    declaredPosition={intern.declaredPosition}
+                    readOnly={readOnly}
+                  />
+                </div>
+              </TabsContent>
+            )}
+
+            {showEvaluations && (
+              <TabsContent value="evaluations">
+                <InternEvaluationsPanel userId={userId} readOnly={readOnly} />
+              </TabsContent>
+            )}
+
+            {showRecommendations && (
+              <TabsContent value="recommendations">
+                <InternRecommendationsPanel userId={userId} readOnly={readOnly} />
+              </TabsContent>
+            )}
+
+            {showComments && (
+              <TabsContent value="notes">
+                <InternCommentsPanel
+                  userId={userId}
+                  internName={intern?.user?.fullname}
+                  readOnly={readOnly}
+                />
+              </TabsContent>
+            )}
+          </div>
         </Tabs>
       </PageSection>
     </PageShell>

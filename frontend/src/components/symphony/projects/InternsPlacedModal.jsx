@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { getInitials } from '@/helpers/initials';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 export function InternsPlacedModal({ open, onOpenChange, interns = [] }) {
   return (
@@ -28,11 +28,11 @@ export function InternsPlacedModal({ open, onOpenChange, interns = [] }) {
               key={intern.recommendationId}
               className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2.5 dark:border-emerald-500/15"
             >
-              <Avatar className="h-9 w-9 shrink-0">
-                <AvatarFallback className="bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
-                  {getInitials(intern.fullname)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                user={intern}
+                className="h-9 w-9 bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
+                showTitle={false}
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-foreground">{intern.fullname}</p>
                 <p className="truncate text-xs text-muted-foreground">

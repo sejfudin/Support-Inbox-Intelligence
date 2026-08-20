@@ -1,3 +1,6 @@
+/* Montserrat is the Task Manager logo face — used only by the brand wordmark
+   (see components/TaskManagerBrand.jsx), never for app copy. */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400..800&display=swap');
 @import './styles/themes.css';
 @import './styles/symphony.css';
 
@@ -25,17 +28,280 @@
     --attention-glow-alpha: 0.95;
     --attention-glow-blur: 20px;
     --attention-glow-spread: 6px;
+
+    /* How much of the page the brand loader's backdrop hides. Same reasoning as the glow
+       above — set per light/dark, not per palette.
+       Deliberately short of opaque: the point of the veil is that you can still make out
+       a screen assembling itself behind the mark, which is what tells you the wait is
+       this page rather than a blank tab. Paired with a 2px blur in the component so the
+       shapes behind read as depth rather than as content competing with the label.
+       Light needs more cover than dark — a near-white page and a near-white card sit at
+       almost the same value, so at 0.7 the two just look like one washed-out surface. */
+    --loader-backdrop-alpha: 0.82;
+
+    /* Semantic status tones — the colours `helpers/badgeTones.js` paints every
+       chip, pill and dot with. Tokens rather than literal Tailwind classes for
+       one reason: the colour-blind palette below can then redefine eight values
+       instead of hunting utility strings through forty components. The defaults
+       are the Tailwind steps they replaced, so the app looks unchanged with the
+       preference off. Each tone is a base (backgrounds, borders) plus an ink. */
+    --tone-success: 160 84% 39%;
+    --tone-success-fg: 163 88% 20%;
+    --tone-info: 217 91% 60%;
+    --tone-info-fg: 226 71% 32%;
+    --tone-warning: 38 92% 50%;
+    --tone-warning-fg: 32 81% 29%;
+    --tone-danger: 0 84% 60%;
+    --tone-danger-fg: 0 70% 35%;
+    --tone-orange: 25 95% 53%;
+    --tone-orange-fg: 26 83% 33%;
+    --tone-cyan: 189 94% 43%;
+    --tone-cyan-fg: 194 80% 27%;
+    --tone-violet: 258 90% 66%;
+    --tone-violet-fg: 264 67% 35%;
+    --tone-indigo: 239 84% 67%;
+    --tone-indigo-fg: 244 55% 41%;
+
+    /* ── Control geometry ────────────────────────────────────────────────────
+       The component library's geometry, as tokens rather than literals. Every
+       shared control in `components/ui/` reads these; none of them may hardcode
+       a height, a radius or a padding. That is the whole mechanism behind the
+       compact density switch further down — compact redefines these nine values
+       and every control follows, with no `compact` prop threaded anywhere and no
+       transform scaling.
+
+       A control with a literal `h-8` or `rounded-lg` in it is a bug: it will sit
+       at comfortable height while the rest of its row goes compact. */
+
+    /* Radius. Five steps, each with one job. `--r-pill` is deliberately scarce:
+       meters, progress tracks and the switch track are the only things round. */
+    --r-badge: 6px; /* badges, status chips, counts */
+    --r-control: 8px; /* buttons, inputs, filters, dropdowns, switcher track */
+    --r-tile: 10px; /* nested blocks inside a card */
+    --r-card: 12px; /* sections, cards, panels */
+    --r-pill: 999px; /* meters, progress tracks, toggles only */
+
+    /* Control height. Three, picked by container and not by importance: `lg` for
+       a modal/auth/empty-state CTA, `md` everywhere by default, `sm` for
+       controls nested inside a table or list row. One height per row, always. */
+    --h-sm: 28px;
+    --h-md: 32px;
+    --h-lg: 40px;
+
+    /* Text fields track `--h-md` but are overridable on their own, so the legacy
+       scope below can hold Leadership's 44px inputs without moving its buttons. */
+    --h-field: var(--h-md);
+
+    /* Horizontal padding, paired with the heights above. */
+    --px-sm: 10px;
+    --px-md: 12px;
+    --px-lg: 16px;
+
+    /* Type. Poppins throughout; JetBrains Mono only for code and numeric tokens.
+       These do NOT move with density — see the compact block's first rule. */
+    --fs-badge: 10.5px; /* 600 weight */
+    --fs-hint: 11.5px;
+    --fs-control: 12.5px;
+    --fs-row-title: 13px;
+    --fs-card-title: 13.5px;
+    --fs-page-title: 19px; /* 600, letter-spacing -0.015em */
+
+    /* Spacing rhythm. Shorthands, so `p-[var(--card-pad)]` is one declaration. */
+    --card-pad: 15px 18px;
+    --row-pad: 11px 18px;
+    --stack-gap: 14px; /* between sections */
+    --control-gap: 8px; /* between sibling controls */
+
+    /* Board column band. The min is the flex basis — below it the row wraps
+       rather than scrolling sideways, which is the board's one hard layout rule.
+       The max is what stops a handful of columns stretching into slabs on a wide
+       monitor; it is NOT meant to leave dead margin, so it sits just above what
+       the default five columns need at 1920 with the rail open (~310px each).
+       The collapsed-rail scope further down lifts the max so the ~208px the rail
+       gives back lands in the columns instead of pooling on the right. */
+    --board-col-min: 13.125rem;
+    --board-col-max: 20rem;
   }
 
   .dark,
   .dark[data-theme] {
     --separator: 240 4% 13%;
+    --loader-backdrop-alpha: 0.7;
+
+    /* Only the inks move in dark — the bases stay put, so a tone keeps its hue
+       across modes and only the text on it lightens. */
+    --tone-success-fg: 152 76% 80%;
+    --tone-info-fg: 213 97% 87%;
+    --tone-warning-fg: 48 96% 76%;
+    --tone-danger-fg: 0 94% 82%;
+    --tone-orange-fg: 31 97% 72%;
+    --tone-cyan-fg: 187 92% 69%;
+    --tone-violet-fg: 252 95% 85%;
+    --tone-indigo-fg: 234 100% 85%;
     --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.05), 0 10px 28px -10px hsl(0 0% 0% / 0.35);
     --shadow-elevated-sm: 0 1px 0 hsl(0 0% 100% / 0.04), 0 4px 14px -6px hsl(0 0% 0% / 0.28);
 
     --attention-glow-alpha: 0.75;
     --attention-glow-blur: 16px;
     --attention-glow-spread: 4px;
+  }
+}
+
+/* ── Accessibility preferences ──────────────────────────────────────────────
+   Four independent attributes on <html>, written by `ThemeConfigProvider` from
+   the Settings → Accessibility card. Each one is opt-in and none of them changes
+   anything at its default value, so the resting app is byte-identical to before
+   the card existed. */
+@layer base {
+  /* Text & UI size. `zoom` rather than a root `font-size`, because this design
+     sizes almost everything in px literals — a rem change would scale the few
+     rem values and leave every table row exactly where it was. The trade-off is
+     that `100vh` still means the unzoomed viewport, so full-height panes can
+     gain a few pixels of scroll at 125%. */
+  :root[data-ui-scale='large'] body {
+    zoom: 1.1;
+  }
+
+  :root[data-ui-scale='larger'] body {
+    zoom: 1.25;
+  }
+
+  /* High contrast. Borders and secondary text are what fail WCAG on a light
+     surface first, so those are what move — not the whole palette, which would
+     make this a thirteenth theme rather than a legibility switch. */
+  :root[data-contrast='high'] {
+    --border: 215 25% 62%;
+    --input: 215 25% 55%;
+    --separator: 215 22% 74%;
+    --muted-foreground: 222 32% 30%;
+  }
+
+  .dark[data-contrast='high'] {
+    --border: 215 15% 48%;
+    --input: 215 15% 55%;
+    --separator: 215 12% 38%;
+    --muted-foreground: 210 30% 85%;
+  }
+
+  /* A visible focus ring everywhere, not just where a component remembered to
+     ask for one. Keyboard-only (`:focus-visible`), so it never fires on a click. */
+  :root[data-contrast='high'] *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Reduced motion, chosen explicitly rather than inherited from the OS. Same
+     shape as the `prefers-reduced-motion` block every design system ships. */
+  :root[data-motion='reduced'] *,
+  :root[data-motion='reduced'] *::before,
+  :root[data-motion='reduced'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Red–green (deuteranomaly, deuteranopia, protanomaly, protanopia): the
+     Okabe–Ito palette, built for exactly this. The two that collide by default
+     are success (green) and danger (red) — they become bluish-green and
+     vermillion — and warning moves to yellow so it stops sitting next to
+     vermillion in the same orange band. */
+  :root[data-colorblind='redgreen'] {
+    --tone-success: 168 100% 31%;
+    --tone-success-fg: 168 100% 18%;
+    --tone-danger: 27 100% 42%;
+    --tone-danger-fg: 27 100% 26%;
+    --tone-warning: 55 84% 60%;
+    --tone-warning-fg: 50 90% 22%;
+    --tone-info: 201 100% 35%;
+    --tone-info-fg: 201 100% 22%;
+    --tone-orange: 39 100% 45%;
+    --tone-orange-fg: 39 100% 25%;
+    --tone-cyan: 202 71% 63%;
+    --tone-cyan-fg: 202 60% 28%;
+    --tone-violet: 328 43% 64%;
+    --tone-violet-fg: 328 40% 32%;
+    --tone-indigo: 201 100% 35%;
+    --tone-indigo-fg: 201 100% 22%;
+  }
+
+  .dark[data-colorblind='redgreen'] {
+    --tone-success-fg: 168 60% 75%;
+    --tone-danger-fg: 27 95% 74%;
+    --tone-warning-fg: 55 90% 78%;
+    --tone-info-fg: 201 90% 78%;
+    --tone-orange-fg: 39 95% 74%;
+    --tone-cyan-fg: 202 75% 80%;
+    --tone-violet-fg: 328 70% 82%;
+    --tone-indigo-fg: 201 90% 78%;
+  }
+
+  /* Blue–yellow (tritanopia, tritanomaly): blue reads greenish and yellow reads
+     pink, so this palette does the opposite of the one above — it leans on the
+     red–green axis, which these viewers keep, and pushes everything that used to
+     be blue or amber into purple and magenta. */
+  :root[data-colorblind='blueyellow'] {
+    --tone-success: 145 63% 33%;
+    --tone-success-fg: 145 70% 18%;
+    --tone-danger: 0 78% 48%;
+    --tone-danger-fg: 0 72% 30%;
+    --tone-warning: 291 55% 48%;
+    --tone-warning-fg: 291 60% 28%;
+    --tone-info: 262 60% 52%;
+    --tone-info-fg: 262 60% 32%;
+    --tone-orange: 12 72% 45%;
+    --tone-orange-fg: 12 72% 28%;
+    --tone-cyan: 175 40% 38%;
+    --tone-cyan-fg: 175 45% 22%;
+    --tone-violet: 315 58% 50%;
+    --tone-violet-fg: 315 60% 30%;
+    --tone-indigo: 262 60% 52%;
+    --tone-indigo-fg: 262 60% 32%;
+  }
+
+  .dark[data-colorblind='blueyellow'] {
+    --tone-success-fg: 145 55% 72%;
+    --tone-danger-fg: 0 90% 78%;
+    --tone-warning-fg: 291 80% 82%;
+    --tone-info-fg: 262 90% 84%;
+    --tone-orange-fg: 12 85% 74%;
+    --tone-cyan-fg: 175 50% 72%;
+    --tone-violet-fg: 315 80% 82%;
+    --tone-indigo-fg: 262 90% 84%;
+  }
+
+  /* Complete (achromatopsia): no hue survives, so the tones are separated by
+     lightness alone — roughly 10% apart, which is what a greyscale viewer can
+     actually rank. Colour stops carrying meaning here; every chip these tones
+     paint also carries its label, and that is what does the work. */
+  :root[data-colorblind='grayscale'] {
+    --tone-success: 0 0% 45%;
+    --tone-success-fg: 0 0% 20%;
+    --tone-danger: 0 0% 22%;
+    --tone-danger-fg: 0 0% 10%;
+    --tone-warning: 0 0% 64%;
+    --tone-warning-fg: 0 0% 26%;
+    --tone-info: 0 0% 54%;
+    --tone-info-fg: 0 0% 23%;
+    --tone-orange: 0 0% 34%;
+    --tone-orange-fg: 0 0% 15%;
+    --tone-cyan: 0 0% 72%;
+    --tone-cyan-fg: 0 0% 30%;
+    --tone-violet: 0 0% 60%;
+    --tone-violet-fg: 0 0% 25%;
+    --tone-indigo: 0 0% 50%;
+    --tone-indigo-fg: 0 0% 21%;
+  }
+
+  .dark[data-colorblind='grayscale'] {
+    --tone-success-fg: 0 0% 82%;
+    --tone-danger-fg: 0 0% 96%;
+    --tone-warning-fg: 0 0% 70%;
+    --tone-info-fg: 0 0% 78%;
+    --tone-orange-fg: 0 0% 90%;
+    --tone-cyan-fg: 0 0% 64%;
+    --tone-violet-fg: 0 0% 74%;
+    --tone-indigo-fg: 0 0% 80%;
   }
 }
 
@@ -73,12 +339,178 @@
 }
 
 @layer components {
+  /* The brand mark. Symphony Indigo is the house palette, so it keeps the multicolour
+     artwork exactly as drawn — the mark comes in as a background image, and TaskManagerBrand
+     hands the same URL to CSS as `--brand-mark`. */
+  [data-brand-mark] {
+    background-image: var(--brand-mark);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+
+  /* Every other palette tints it instead: the same URL is used purely as a mask and
+     `--primary` floods the shape flat, so the mark follows the palette and its dark variant
+     with no per-theme block to keep in sync. This works because the swirl's structure is
+     transparency, not colour — 28% of the asset is cut away, including every crescent
+     between the petals — so the flat silhouette still reads as the logo. Petals told apart
+     only by hue do merge; that is the trade for a one-colour mark. */
+  [data-theme-brand]:not([data-theme-brand='default']) [data-brand-mark] {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    -webkit-mask-image: var(--brand-mark);
+    mask-image: var(--brand-mark);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+  }
+
+  /* `onDark` placements sit on a `bg-foreground` panel, which is near-black in a light
+     palette and near-white in a dark one — so the accent is pulled towards `--background`,
+     the token that always sits opposite it. That keeps the mark's hue while guaranteeing it
+     stays visible in both directions: without it the dark-accent palettes (`ash`,
+     `midnight`) paint a near-black mark onto a near-black panel. 62% is as far as the mix
+     can stay and still leave those two above 4:1 against the panel. */
+  [data-theme-brand]:not([data-theme-brand='default']) [data-brand-mark][data-brand-on-dark] {
+    background-color: color-mix(in oklab, hsl(var(--primary)) 62%, hsl(var(--background)));
+  }
+
+  /* Black & White is the one palette the mix cannot rescue, because it is the one palette
+     where `--primary` and `--foreground` are the same ink: mixing pure black 62% toward
+     pure white lands mid-grey on a pure-black panel, at 2.1:1. It is also the one palette
+     with no hue to protect, so it skips the mix entirely and takes `--background` — the
+     exact opposite of the panel, 21:1, in both modes. */
+  [data-theme-brand='mono'] [data-brand-mark][data-brand-on-dark] {
+    background-color: hsl(var(--background));
+  }
+}
+
+/* ── The brand loader ──────────────────────────────────────────────────────────
+   The mark unfurling one petal at a time, for waits whose result has no shape to
+   fake with a skeleton. Straight from the design handoff: four stacked spans, a
+   staggered `logo-unfurl`, size and speed driven by custom properties.
+
+   Each span is handed its own petal as `--petal`, exactly as TaskManagerBrand hands
+   the whole mark over as `--brand-mark` — so the themed rule below can reuse that
+   file as a mask without JS knowing anything about palettes.
+
+   The keyframes sit outside `@layer components` on purpose: a layered `@keyframes`
+   is legal but its precedence is layer-dependent, and an animation this file owns
+   should not be something a utility can win against by accident. */
+@keyframes logo-unfurl {
+  0% {
+    transform: rotate(-115deg) scale(0.55);
+    opacity: 0;
+  }
+  30% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  62% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  86%,
+  100% {
+    transform: rotate(115deg) scale(0.55);
+    opacity: 0;
+  }
+}
+
+/* The OS-preference fallback: the petals breathe in place instead of sweeping. */
+@keyframes logo-fade {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .logo-loader {
+    position: relative;
+    width: var(--loader-size, 96px);
+    height: var(--loader-size, 96px);
+  }
+
+  .logo-loader span {
+    position: absolute;
+    inset: 0;
+    background-image: var(--petal);
+    background-position: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    animation: logo-unfurl var(--loader-speed, 2.2s) cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    will-change: transform, opacity;
+  }
+
+  /* The stagger, verbatim from the handoff. It is what makes the mark read as one thing
+     unfurling rather than four things pulsing, and it is the only reason the one-colour
+     palettes below stay legible — so these four numbers are not a detail to round off. */
+  .logo-loader span:nth-child(2) {
+    animation-delay: 0.11s;
+  }
+  .logo-loader span:nth-child(3) {
+    animation-delay: 0.22s;
+  }
+  .logo-loader span:nth-child(4) {
+    animation-delay: 0.33s;
+  }
+
+  /* Every palette but Symphony Indigo flattens the mark to `--primary`, and the loader
+     follows that rule rather than being the one place the four-colour artwork survives a
+     palette change — same mechanism as `[data-brand-mark]`, applied per petal. The cost is
+     real and known: mid-unfurl, four same-coloured petals overlap into one moving shape
+     where the coloured version reads as four distinct ones. The stagger is what keeps it
+     legible, which is why the delays matter more here than in the default palette. */
+  [data-theme-brand]:not([data-theme-brand='default']) .logo-loader span {
+    background-color: hsl(var(--primary));
+    background-image: none;
+    -webkit-mask-image: var(--petal);
+    mask-image: var(--petal);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+  }
+
+  /* The OS-level preference. It is NOT the same switch as the app's own motion setting:
+     `DEFAULT_MOTION` is 'full' (helpers/uiPreferences.js), so a person whose system asks
+     for less motion but who has never opened the appearance panel only ever hits this
+     block. The in-app setting is handled by the global `[data-motion='reduced']` rule near
+     the top of this file, which flattens the animation to a single 0.01ms pass; with no
+     `animation-fill-mode` the petals then revert to their base style, which is the whole
+     mark, static and opaque. Do not add `fill-mode: forwards` here or there — it would pin
+     them at the 100% keyframe, `opacity: 0`, and hide the loader from exactly the people
+     who asked for less movement. */
+  @media (prefers-reduced-motion: reduce) {
+    .logo-loader span {
+      animation: logo-fade 1.4s ease-in-out infinite alternate;
+    }
+    .logo-loader span:nth-child(1) {
+      animation-delay: 0s;
+    }
+  }
+}
+
+@layer components {
   .app-page {
     @apply min-h-screen bg-transparent;
   }
 
-  /* Pages span the area left by the sidebar, with a 48px side gutter so panels
-     don't crowd the sidebar border or the window edge, and 24px top/bottom.
+  /* Pages span the area left by the sidebar, with a 24px side gutter and 24px
+     top/bottom.
+     The gutter is 24px because that is where the page header band puts the
+     crumb, the title and the tab strip — the cards have to start on the same
+     line as the heading that names them. It used to be 48px, which left every
+     panel indented 24px from its own page header and read as a misalignment on
+     every route in the app.
      Capped and centred above 112rem (1792px): the dashboards are card grids, and
      past roughly that width the cards just stretch — a KPI number sitting alone in
      a 600px-wide panel, a three-column grid with acres between the columns, and
@@ -88,7 +520,7 @@
      because wide ticket tables and the board view are still the common case and
      they should keep using the room they have. */
   .app-page-content {
-    @apply mx-auto w-full max-w-[112rem] px-12 py-6;
+    @apply mx-auto w-full max-w-[112rem] px-6 py-6;
   }
 
   .app-elevated {
@@ -115,14 +547,256 @@
     @apply inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-primary;
   }
 
+  /* Accent ink for anything sitting ON a tint of the accent — the selected nav
+     row, the profile header's avatar block, a `bg-primary/10` chip. Plain
+     `text-primary` is too faint for that job: most themes' `--primary` is a light
+     indigo tuned for filled buttons — white text sits *on* it — so as ink over
+     that same colour's own tint it reads as washed out rather than as emphasis.
+
+     Clamping lightness in OKLCH keeps each theme's hue and chroma but pulls the
+     accent into a band with real contrast against that tint: dark in light mode,
+     light in dark mode. The 0.5 ceiling is the same one `.dashboard-hero-surface`
+     uses below, and it clears 5:1 against a `primary/20` tint in every theme —
+     measured, not assumed: default light was 3.2:1 before this and Sunset 2.4:1,
+     which is what "the selected row doesn't look selected" actually was. Chroma
+     passes through untouched so the Mono theme stays greyscale (its `--primary` is
+     already dark enough to fall inside the band, so Mono comes out unchanged).
+
+     Anything drawn in `currentColor` — the nav row's leading bar, an icon — follows
+     this automatically. Browsers without relative colour syntax keep the plain
+     `text-primary` fallback. */
+  .accent-ink {
+    @apply text-primary;
+  }
+
+  /* The count beside a page tab. Tertiary at rest; when its tab is active it
+     takes the accent ink, so it is listed alongside `.accent-ink` below rather
+     than repeating that rule's numbers. A child selector and not a Tailwind
+     variant because the state lives on the Radix trigger, one level up. */
+  .ui-tab-count {
+    @apply ml-[7px] text-[11px] font-semibold text-muted-foreground/75;
+  }
+
+  [data-state='active'] > .ui-tab-count {
+    @apply text-primary;
+  }
+
+  @supports (color: oklch(from white l c h)) {
+    .accent-ink,
+    [data-state='active'] > .ui-tab-count {
+      color: oklch(from hsl(var(--primary)) clamp(0.32, l, 0.5) c h);
+    }
+
+    .dark .accent-ink,
+    .dark [data-state='active'] > .ui-tab-count {
+      color: oklch(from hsl(var(--primary)) clamp(0.8, l, 0.93) c h);
+    }
+  }
+
+  /* ── Flat shell ────────────────────────────────────────────────────────────
+     The dense, Azure-Boards-style surface set from the UI overhaul mockup
+     (`handoff/TOKENS.md`). Every constant here is that spec's; the colours are
+     this app's semantic tokens, mapped as:
+
+       bg-page → background · bg-surface → card · bg-surface-alt → muted
+       bg-hover → accent · bg-primary-tint → primary/10 · text-tertiary →
+       muted-foreground/75 · border-default → border · border-hairline →
+       separator · shadow-card → shadow-elevated-sm · shadow-modal →
+       shadow-elevated
+
+     Deliberately additive. `.app-panel` and `.app-panel-soft` keep their round,
+     shadowed look because the three dashboards are out of the overhaul's scope
+     and must render exactly as they do today. */
+
+  /* The page header band. Bleeds out of `.app-page-content`'s gutter and its
+     24px top padding so its surface spans the full content column with a
+     hairline under it — the negative margins are exact counterparts of that
+     padding, and `px-6` puts the crumb, title and actions back on the same
+     24px line the cards below them start at.
+     Note the `-mt-6`: a page that renders this must leave its 24px top padding
+     in place (`app-page-content pb-0`, never `py-0`), or the band is pulled
+     above the content area and the crumb is clipped. */
+  .app-page-header {
+    @apply -mx-6 -mt-6 border-b border-border bg-card px-6 pb-4 pt-[15px];
+  }
+
+  .app-crumb {
+    @apply text-[11px] font-semibold uppercase leading-none tracking-[0.08em] text-muted-foreground/75;
+  }
+
   .app-title {
-    @apply text-2xl font-semibold tracking-tight text-foreground sm:text-3xl;
+    @apply text-xl font-semibold leading-tight tracking-[-0.015em] text-foreground;
   }
 
   .app-subtitle {
-    @apply mt-2 max-w-2xl text-sm leading-6 text-muted-foreground;
+    @apply max-w-[41rem] text-[12.5px] leading-[1.45] text-muted-foreground;
   }
 
+  /* Flat card: 12px radius, one hairline outline, the lightest of the two
+     shadows. The header band gets its own class because the mockup gives it a
+     surface-alt → surface gradient that a plain `bg-muted` reads too heavy for. */
+  .app-card {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-elevated-sm;
+  }
+
+  .app-card-head {
+    @apply flex items-center gap-3 border-b border-separator px-[18px] py-[15px];
+    background-image: linear-gradient(180deg, hsl(var(--muted)), hsl(var(--card)));
+  }
+
+  .app-card-title {
+    @apply text-[13.5px] font-semibold leading-tight text-foreground;
+  }
+
+  /* Table chrome. `.app-table-scroll` is not optional on a wide table: it is what
+     keeps a name column from being squeezed to nothing on a narrow window —
+     pair it with a `min-w-[…]` on the table itself. */
+  .app-table-head {
+    @apply h-[38px] bg-muted text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground/75;
+  }
+
+  .app-table-scroll {
+    @apply w-full overflow-x-auto;
+  }
+
+  /* One body cell. Padding comes from `--row-pad`, so the compact density switch
+     (Settings → Appearance) tightens every table in the app by redefining one
+     token rather than by each call site knowing its own numbers. The 46px is a
+     *minimum* height, not a fixed one: a cell holding a 32px control still has
+     to fit it. */
+  .app-table-cell {
+    @apply h-[46px] p-[var(--row-pad)] align-middle text-[length:var(--fs-control)];
+  }
+
+  .app-table-row {
+    @apply border-b border-separator transition-colors hover:bg-accent/60;
+  }
+
+  .app-chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-[9px] py-[3px] text-[10.5px] font-semibold leading-none;
+  }
+
+  .app-stat-value {
+    @apply text-2xl font-semibold tracking-[-0.02em] text-foreground;
+  }
+
+  /* The one focus treatment for every control in `components/ui/`: the border
+     goes to the ring colour and a 3px tint halo sits outside it. Written once
+     here because it is four utilities that must not drift between a button, an
+     input, a chip and a search field — a focus ring that changes thickness as
+     you tab across a filter bar is the tell that they were built separately. */
+  .ui-focus-ring {
+    @apply focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20 focus-visible:ring-offset-0;
+  }
+
+  /* Same halo, for a control whose focusable element is nested — the search
+     field's `<input>` inside its bordered wrapper, the stepper's buttons. */
+  .ui-focus-ring-within {
+    @apply focus-within:border-ring focus-within:outline-none focus-within:ring-[3px] focus-within:ring-primary/20 focus-within:ring-offset-0;
+  }
+
+  /* Compact density — a real preference, not a label: `data-density="compact"` on
+     the shell root takes table rows from 46px to 38px. The padding is not
+     repeated here any more; it rides on `--row-pad`, which the token block below
+     already tightens. Nothing else moves, so a dense table stays the same table. */
+  [data-density='compact'] .app-table-cell {
+    @apply h-[38px];
+  }
+
+  [data-density='compact'] .app-table-head {
+    @apply h-[34px];
+  }
+}
+
+/* Compact density, part two: the control geometry. Redefining the nine tokens is
+   the entire implementation — every shared control reads them, so nothing needs a
+   `compact` prop and nothing is scaled with a transform.
+
+   Only geometry moves. Type sizes, radii, border widths and colours are absent
+   from this block on purpose: compact must never drop text below 11px or shrink a
+   badge, or a dense table stops being readable rather than starting to be dense.
+
+   Outside `@layer base` deliberately — it has to win over the base-layer defaults
+   regardless of source order. */
+[data-density='compact'] {
+  --h-sm: 26px;
+  --h-md: 28px;
+  --h-lg: 34px;
+  --px-sm: 8px;
+  --px-md: 10px;
+  --px-lg: 13px;
+  --card-pad: 11px 14px;
+  --row-pad: 8px 14px;
+  --stack-gap: 10px;
+  --control-gap: 6px;
+}
+
+/* 26px is a mouse floor, not a finger one. On a touch pointer the compact
+   heights would fall under every hit-target guideline going, so a coarse pointer
+   keeps the comfortable heights and takes only the tighter padding and gaps. */
+@media (pointer: coarse) {
+  [data-density='compact'] {
+    --h-sm: 28px;
+    --h-md: 32px;
+    --h-lg: 40px;
+  }
+}
+
+/* Collapsing the rail (17rem → 4rem) hands the content column ~208px back.
+   Without this the board did not take it: once the columns hit `--board-col-max`
+   the leftover had nowhere to go and read as dead margin down the right-hand
+   side, which on the densest screen in the app is most of another column.
+
+   `data-sidebar-state` is stamped on the shell wrapper by `SidebarProvider`, so
+   this is a plain cascade override with no resize listener and no JS measuring:
+   the columns keep growing (`flex-grow: 1`) and only the ceiling moves. 23rem is
+   sized so the default five columns fill the row exactly at 1920 collapsed
+   (~339px each) while staying well under the ~400px at which a ticket card stops
+   looking like a card. Wrapping is untouched — the basis is still the min, so a
+   narrow window still drops a column onto a second row instead of scrolling.
+
+   Outside `@layer base`, same as the density block above, so it wins on cascade
+   rather than on source order. */
+[data-sidebar-state='collapsed'] {
+  --board-col-max: 23rem;
+}
+
+/* Leadership is out of the component library's scope — it has its own look and
+   must not be migrated onto these controls. It is also the one surface that can
+   be addressed wholesale (`data-surface="symphony"` on `SymphonyLayout`), so it
+   gets the pre-library geometry pinned here: the literals that were baked into
+   `ui/button`, `ui/input` and friends before they were tokenised. Task Manager
+   moves, Leadership does not. Density is deliberately not overridden — the
+   setting still tightens Leadership's padding, as it did before. */
+[data-surface='symphony'] {
+  --r-control: 12px; /* was rounded-xl */
+  --h-sm: 36px; /* was h-9 */
+  --h-md: 40px; /* was h-10 */
+  --h-lg: 44px; /* was h-11 */
+  --h-field: 44px; /* input was h-11 while buttons were h-10 */
+  --px-md: 16px; /* was px-4 */
+  --fs-control: 14px; /* was text-sm */
+}
+
+/* The hover lift, likewise. It came off `ui/button`'s base classes because the
+   library's controls are flat — a 32px toolbar button that jumps 2px on hover
+   reads as a mis-click in a dense filter row. Leadership's buttons are large and
+   sparse and it suited them, so they keep it. Marker class rather than a
+   descendant selector on `button`, so it lands on Buttons and nothing else. */
+[data-surface='symphony'] .ui-button:not(:disabled) {
+  box-shadow: var(--shadow-elevated-sm);
+  transition: transform 0.2s ease;
+}
+
+[data-surface='symphony'] .ui-button:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+
+[data-surface='symphony'] .ui-button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+@layer components {
   /* The one inverted surface on a dashboard — the admin board's presence hero and
      the intern board's attendance hero. Dark in BOTH themes deliberately: that is
      what makes the primary KPI read first. Mixed from --primary rather than a
@@ -324,4 +998,47 @@
 .z-\[100\] [data-slot='rich-text-editor'] [data-radix-popper-content-wrapper],
 .z-\[100\] [data-slot='rich-text-editor'] [data-radix-select-content] {
   z-index: 200 !important;
+}
+
+/* Always-visible scrollbar for a pane that scrolls inside a fixed-height surface
+   (modal bodies, capped lists). Overlay scrollbars — the macOS default — only
+   appear once a scroll gesture is already underway, so an overflowing pane reads
+   as merely cut off and nobody scrolls it. Declaring a width opts the element out
+   of overlay behaviour and pins the bar on screen, which is the only cue that
+   does not depend on content sitting under it: `ScrollFade`'s gradient fades the
+   content it overlaps, so it shows nothing at all when the cut lands in
+   whitespace (the empty half of a textarea, the gap between two sections).
+
+   Deliberately outside `@layer components`: `overflow-y-auto` is a utility, and a
+   component-layer rule would lose to it in the cascade on the same element. */
+.custom-scrollbar {
+  /* No `scrollbar-width` / `scrollbar-color` here on purpose. Chromium ignores the
+     `::-webkit-scrollbar` pseudo-elements outright once either standard property is
+     set, and `scrollbar-width: thin` still resolves to an overlay bar on macOS — so
+     declaring them costs the always-visible bar and gains nothing. Firefox has no
+     equivalent to the pseudo-elements and keeps its overlay bar; `ScrollFade`'s
+     gradient stays as the fallback cue there. */
+  scrollbar-gutter: stable;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  /* 2px inset keeps the thumb clear of the content without shaving it down to a
+     hairline: 10px track minus two 2px edges leaves a 6px thumb. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+  background-color: hsl(var(--muted-foreground) / 0.55);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.8);
 }

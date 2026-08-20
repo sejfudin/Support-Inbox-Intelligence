@@ -1,6 +1,8 @@
 import StatusDropdown from '@/components/StatusDropdown';
 import TicketStatusBadge from '@/components/StatusBadge';
 
+import { cn } from '@/lib/utils';
+
 export function TicketStatusField({
   isArchived,
   ticket,
@@ -8,13 +10,10 @@ export function TicketStatusField({
   onStatusChange,
   statusOptions,
   statusBadgeConfig,
+  className,
 }) {
   if (isArchived) {
-    return (
-      <div className="px-1 py-2">
-        <TicketStatusBadge status={ticket?.status} statusBadgeConfig={statusBadgeConfig} />
-      </div>
-    );
+    return <TicketStatusBadge status={ticket?.status} statusBadgeConfig={statusBadgeConfig} flat />;
   }
 
   return (
@@ -22,7 +21,7 @@ export function TicketStatusField({
       status={currentStatus}
       onChange={onStatusChange}
       statusOptions={statusOptions}
-      className="w-full justify-between"
+      className={cn('w-full justify-between', className)}
     />
   );
 }

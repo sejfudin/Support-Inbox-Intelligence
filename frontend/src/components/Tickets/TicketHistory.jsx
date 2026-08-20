@@ -76,7 +76,7 @@ export default function TicketHistory({ ticketId }) {
     <Accordion
       type="single"
       collapsible
-      className="bg-card rounded-2xl border border-border shadow-md overflow-hidden"
+      className="bg-card rounded-[var(--r-card)] border border-border shadow-md overflow-hidden"
     >
       <AccordionItem value="history" className="border-none">
         <AccordionTrigger

@@ -1,15 +1,10 @@
 import { Link } from 'react-router-dom';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const INTERVIEWING_COLOR = '#E0A93B';
-
-function initialsOf(fullname = '') {
-  const parts = fullname.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '—';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function StatusPill({ status }) {
   const isInterviewing = status === 'interviewing';
@@ -35,9 +30,12 @@ function PersonRow({ person }) {
       to={`/interns/${person.userId}?tab=recommendations`}
       className="flex items-start gap-3 border-b border-[hsl(var(--symphony-border)/0.6)] px-4 py-4 transition-colors last:border-b-0 hover:bg-[hsl(var(--symphony-brand)/0.04)] lg:items-center lg:gap-4 lg:px-[26px]"
     >
-      <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]">
-        {initialsOf(person.fullname)}
-      </span>
+      <UserAvatar
+        user={person}
+        className="h-[42px] w-[42px] bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]"
+        fallback="—"
+        showTitle={false}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-4">
         <div className="min-w-0 lg:min-w-[160px] lg:flex-[1.1]">
@@ -86,9 +84,12 @@ function PersonCard({ person }) {
     >
       <div className="flex flex-col gap-3 p-3.5">
         <div className="flex items-start gap-3">
-          <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]">
-            {initialsOf(person.fullname)}
-          </span>
+          <UserAvatar
+            user={person}
+            className="h-[42px] w-[42px] bg-[hsl(var(--symphony-brand)/0.1)] text-sm font-semibold text-[hsl(var(--symphony-brand-strong))]"
+            fallback="—"
+            showTitle={false}
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-foreground">{person.fullname}</p>
             {meta && <p className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{meta}</p>}
@@ -152,7 +153,7 @@ export function PipelineCard({
   recommendationOutcomes = {},
   showSummary = true,
 }) {
-  // Counts come from the same distinct-intern summary the "In pipeline" KPI uses,
+  // Counts come from the same distinct-intern summary the "In Selection" KPI uses,
   // so this card and the KPI card always agree. The rows below are one per intern
   // (deduped server-side) and may be truncated — see the "showing" note.
   const inFlight = summary.activeRecommendations ?? 0;
@@ -170,7 +171,7 @@ export function PipelineCard({
       <div className="border-b border-[hsl(var(--symphony-border)/0.6)] px-[26px] pb-5 pt-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-[19px] font-semibold text-foreground">Pipeline</h2>
+            <h2 className="text-[19px] font-semibold text-foreground">In Selection</h2>
             <p className="mt-1 text-[13.5px] text-muted-foreground">
               Interns put forward for a role — recommended or interviewing. One row per intern.
             </p>
@@ -214,9 +215,26 @@ export function PipelineCard({
         )}
       </div>
       <div>
-        {isPending && (
-          <p className="px-4 py-6 text-sm text-muted-foreground sm:px-[26px]">Loading pipeline…</p>
-        )}
+        {/* Rows of the same 42px-avatar shape `PersonRow` draws, on the same rule between them,
+            so the card keeps its height and the header above it doesn't shift when the people
+            arrive. Four is what the list usually opens with. */}
+        {isPending &&
+          [0, 1, 2, 3].map((row) => (
+            <div
+              key={row}
+              className="flex items-center gap-3 border-b border-[hsl(var(--symphony-border)/0.6)] px-4 py-4 last:border-b-0 lg:gap-4 lg:px-[26px]"
+            >
+              <Skeleton className="h-[42px] w-[42px] shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-1.5 lg:min-w-[160px]">
+                <Skeleton className="h-3.5 w-36" />
+                <Skeleton className="h-2.5 w-28" />
+              </div>
+              <div className="hidden gap-1.5 lg:flex">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-12 rounded-full" />
+              </div>
+            </div>
+          ))}
         {!isPending && activePipeline.length === 0 && (
           <p className="px-4 py-8 text-sm text-muted-foreground sm:px-[26px]">
             No active placement attempts. Ready candidates are waiting to be recommended.

@@ -1,5 +1,4 @@
-import { InternPanel } from '@/components/interns/InternPanel';
-import { Badge } from '@/components/ui/badge';
+import { PagePanel } from '@/components/PageShell';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
@@ -14,27 +13,36 @@ import {
   useUpdateMySecondaryPosition,
 } from '@/queries/interns';
 import { usePositions } from '@/queries/positions';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const NONE_VALUE = 'none';
 
-function PositionRow({ title, description, children }) {
+// The two positions sit side by side in one row, so the field box is shared
+// rather than set per control: at the flat card's 36px both fields line up, and
+// the locked specialization state below has to match them exactly or the row
+// visibly steps when an intern is specialized.
+const FIELD_CLASS = 'h-9 w-full rounded-[var(--r-control)] text-[13px]';
+
+/**
+ * `id` is the control the caption labels — omitted when the field renders a
+ * read-only value instead of a control, since a `<label for>` pointing at a
+ * non-labelable element is dead markup rather than an association.
+ */
+function PositionField({ id, label, children }) {
+  const Caption = id ? 'label' : 'span';
+
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
-        <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-      </div>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Caption htmlFor={id} className="text-[11.5px] font-medium text-muted-foreground">
+        {label}
+      </Caption>
       {children}
     </div>
   );
 }
 
-function PositionControlSkeleton() {
-  return <Skeleton className="h-10 w-full sm:w-56" />;
-}
-
-export function InternPositionDeclaration() {
+export function InternPositionDeclaration({ className }) {
   const { data: intern, isPending: isLoadingProfile } = useMyInternProfile();
   const { data: positions = [], isPending: isLoadingPositions } = usePositions();
   const { mutate: savePosition, isPending: isSavingMain } = useUpdateMyPosition();
@@ -68,42 +76,40 @@ export function InternPositionDeclaration() {
 
   const renderMainControl = () => {
     if (isLoading) {
-      return <PositionControlSkeleton />;
+      return <Skeleton className={FIELD_CLASS} />;
     }
 
+    // A specialization is the admin's call, so the field becomes a read-only value
+    // in the same box the select occupied — the chip is what says why it can't be
+    // changed. The mentor who owns it is named in the rail beside this card.
     if (isSpecialized) {
       return (
-        <div className="w-full sm:w-auto sm:text-right" data-test="position-locked-value">
-          <div
-            aria-disabled="true"
-            className="inline-flex h-10 select-none items-center gap-2 rounded-lg bg-indigo-600/10 px-4 dark:bg-indigo-500/15"
+        <div
+          aria-disabled="true"
+          data-test="position-locked-value"
+          className="flex h-9 select-none items-center gap-2 rounded-[var(--r-control)] border border-border bg-muted/40 px-[11px]"
+        >
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+          <span className="min-w-0 truncate text-[13px] font-medium text-foreground">
+            {intern?.declaredPosition?.name || '—'}
+          </span>
+          <span
+            data-test="specialization-badge"
+            className="app-chip ml-auto shrink-0 bg-primary/10 tracking-[0.04em] text-primary"
           >
-            <span className="h-2 w-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
-            <span className="text-sm font-semibold text-foreground">
-              {intern?.declaredPosition?.name || '-'}
-            </span>
-            <Badge
-              variant="outline"
-              className="pointer-events-none border-none bg-transparent px-0 text-[10px] font-bold tracking-wide text-indigo-700 shadow-none dark:text-indigo-300"
-              data-test="specialization-badge"
-            >
-              SPECIALIZATION
-            </Badge>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Mentor: {intern?.secondaryMentor?.fullname || 'Unassigned'}
-          </p>
+            SPECIALIZATION
+          </span>
         </div>
       );
     }
 
     if (!hasPositions) {
-      return <p className="text-sm text-muted-foreground">No positions configured yet.</p>;
+      return <p className="text-[12.5px] text-muted-foreground">No positions configured yet.</p>;
     }
 
     return (
       <Select value={mainPositionId} onValueChange={handleChange} disabled={isSavingMain}>
-        <SelectTrigger className="w-full sm:w-56" data-test="position-select">
+        <SelectTrigger id="main-position" className={FIELD_CLASS} data-test="position-select">
           <SelectValue placeholder="Select your position" />
         </SelectTrigger>
         <SelectContent>
@@ -119,11 +125,11 @@ export function InternPositionDeclaration() {
 
   const renderSecondaryControl = () => {
     if (isLoading) {
-      return <PositionControlSkeleton />;
+      return <Skeleton className={FIELD_CLASS} />;
     }
 
     if (!hasPositions) {
-      return <p className="text-sm text-muted-foreground">No positions configured yet.</p>;
+      return <p className="text-[12.5px] text-muted-foreground">No positions configured yet.</p>;
     }
 
     return (
@@ -132,7 +138,11 @@ export function InternPositionDeclaration() {
         onValueChange={handleSecondaryChange}
         disabled={isSavingSecondary}
       >
-        <SelectTrigger className="w-full sm:w-56" data-test="secondary-position-select">
+        <SelectTrigger
+          id="secondary-position"
+          className={FIELD_CLASS}
+          data-test="secondary-position-select"
+        >
           <SelectValue placeholder="No secondary position" />
         </SelectTrigger>
         <SelectContent>
@@ -150,24 +160,25 @@ export function InternPositionDeclaration() {
   };
 
   return (
-    <InternPanel className="flex flex-col gap-5 px-5 py-5 md:px-6">
-      <PositionRow
-        title={isSpecialized ? 'Primary position' : 'My position'}
-        description={
-          isSpecialized
-            ? 'Your specialization — assigned by your admin.'
-            : 'Your main position in the firm.'
-        }
-      >
-        {renderMainControl()}
-      </PositionRow>
+    <PagePanel className={cn('px-[18px] pb-[18px] pt-[15px]', className)}>
+      <h2 className="app-card-title">Position</h2>
+      <p className="mt-[3px] text-[12.5px] leading-[1.45] text-muted-foreground">
+        {isSpecialized
+          ? 'Your specialization is assigned by your admin. The second interest stays yours to pick.'
+          : 'Your main position in the firm, and an optional second interest.'}
+      </p>
 
-      <PositionRow
-        title="Secondary position"
-        description="Optional — a second position you're also interested in."
-      >
-        {renderSecondaryControl()}
-      </PositionRow>
-    </InternPanel>
+      <div className="mt-[13px] grid gap-3.5 sm:grid-cols-2">
+        <PositionField
+          id={isSpecialized ? undefined : 'main-position'}
+          label={isSpecialized ? 'Specialization' : 'Main position'}
+        >
+          {renderMainControl()}
+        </PositionField>
+        <PositionField id="secondary-position" label="Secondary position">
+          {renderSecondaryControl()}
+        </PositionField>
+      </div>
+    </PagePanel>
   );
 }

@@ -1,23 +1,33 @@
-import { cloneElement, isValidElement } from 'react';
-import { Pencil } from 'lucide-react';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
-import { getInitials } from '@/helpers/getInitials';
-import { badgeTone } from '@/helpers/badgeTones';
+import { CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
-function MetaField({ label, value, className }) {
+function MetaField({ label, value }) {
   return (
-    <div className={cn('min-w-0', className)}>
-      <dt className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="mt-1 truncate text-sm font-semibold text-foreground">{value || '—'}</dd>
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <dt className="app-crumb">{label}</dt>
+      <dd className="truncate text-[13px] font-medium text-foreground">{value || '—'}</dd>
     </div>
   );
 }
 
+/**
+ * The intern profile's identity band: back link, who this is, the four programme
+ * facts, and the tab strip that switches the body below.
+ *
+ * A flat band rather than a card, bleeding out of `.app-page-content`'s 48px
+ * gutter the same way `.app-page-header` does — it is this page's page header, and
+ * the tab strip has to be part of it so the tabs read as belonging to the person
+ * rather than floating above the content. `tabs` is a slot for exactly that: the
+ * `Tabs` root has to wrap both the strip and the panels, so it stays in
+ * `InternProfileView` and the strip is passed down.
+ */
 export function InternProfileHeader({
-  kicker,
+  // The intern's own user record, for their picture. Passed as an object rather
+  // than as an `avatarUrl` string so this header reads a person the same way every
+  // other avatar in the app does.
+  user,
   fullname,
   email,
   status,
@@ -29,77 +39,59 @@ export function InternProfileHeader({
   secondaryMentor,
   backButton,
   titleAdornment,
+  tabs,
   className,
 }) {
-  const editAction =
-    titleAdornment && isValidElement(titleAdornment)
-      ? cloneElement(titleAdornment, {
-          variant: 'ghost',
-          size: 'icon',
-          className: cn(
-            'h-8 w-8 shrink-0 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground',
-            titleAdornment.props.className
-          ),
-          'aria-label': 'Edit user',
-          title: 'Edit user',
-          children: <Pencil className="h-4 w-4" aria-hidden="true" />,
-        })
-      : titleAdornment;
-
   return (
-    <div className="space-y-4">
-      {backButton ? <div className="px-5 md:px-6">{backButton}</div> : null}
+    <div className={cn('-mx-6 -mt-6 border-b border-border bg-card px-6 pt-[14px]', className)}>
+      {backButton}
 
-      <header className={cn('app-panel overflow-hidden', className)}>
-        <div className="px-5 py-5 md:px-6 md:py-6">
-          {kicker ? <p className="app-kicker mb-2">{kicker}</p> : null}
+      <div className="flex flex-wrap items-start gap-3.5 pb-3.5 pt-3">
+        {/* A tint block, not the inverted foreground square: at 52px a solid dark
+            slab is the heaviest thing on the page, and the person's name should
+            win that contest. `accent-ink` is what keeps 16px initials legible on
+            the tint — see `index.css`. The rounded-square is deliberate and
+            survives here: this is the page's header block, not a person in a list.
+            A photo fills the same square. */}
+        <UserAvatar
+          user={user}
+          name={fullname}
+          className="h-[52px] w-[52px] rounded-[var(--r-card)] bg-primary/10 text-[16px] accent-ink"
+          showTitle={false}
+        />
 
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-4">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-foreground text-lg font-bold text-background"
-                aria-hidden="true"
-              >
-                {getInitials(fullname || '')}
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="app-title break-words">{fullname || 'Intern'}</h1>
-                  {declaredPosition ? (
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold',
-                        badgeTone('indigo')
-                      )}
-                    >
-                      {declaredPosition}
-                    </span>
-                  ) : null}
-                  {editAction}
-                </div>
-                {email ? <p className="app-subtitle mt-1">{email}</p> : null}
-              </div>
-            </div>
-
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              {status ? <SymphonyStatusBadge status={status} /> : null}
-            </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="app-title break-words">{fullname || 'Intern'}</h1>
+            {declaredPosition ? (
+              <span className={cn(CHIP, 'bg-primary/10 accent-ink')}>{declaredPosition}</span>
+            ) : null}
+            {status ? (
+              <SymphonyStatusBadge status={status} className={cn(CHIP, 'gap-1.5 border-0')} />
+            ) : null}
           </div>
+          {email ? <p className="app-subtitle">{email}</p> : null}
         </div>
 
-        <dl
-          className={cn(
-            'grid grid-cols-2 gap-4 border-t border-border/60 bg-muted/20 px-5 py-4 md:grid-cols-4 md:px-6',
-            secondaryMentor && 'md:grid-cols-5'
-          )}
-        >
-          <MetaField label="Programme" value={programme} />
-          <MetaField label="Hub" value={hub} />
-          <MetaField label="Start date" value={startDate} />
-          <MetaField label="Primary mentor" value={primaryMentor} />
-          {secondaryMentor ? <MetaField label="Secondary mentor" value={secondaryMentor} /> : null}
-        </dl>
-      </header>
+        {titleAdornment ? (
+          <div className="flex shrink-0 items-center gap-2">{titleAdornment}</div>
+        ) : null}
+      </div>
+
+      <dl
+        className={cn(
+          'grid grid-cols-2 gap-3 pb-3.5 sm:grid-cols-4',
+          secondaryMentor && 'sm:grid-cols-5'
+        )}
+      >
+        <MetaField label="Programme" value={programme} />
+        <MetaField label="Hub" value={hub} />
+        <MetaField label="Start date" value={startDate} />
+        <MetaField label="Primary mentor" value={primaryMentor} />
+        {secondaryMentor ? <MetaField label="Secondary mentor" value={secondaryMentor} /> : null}
+      </dl>
+
+      {tabs}
     </div>
   );
 }

@@ -5,6 +5,8 @@ const InternProfile = require('../models/InternProfile');
 const { READINESS_LEVELS } = require('../models/ReadinessFlag');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess } = require('../helpers/internAccess');
+const internNotificationService = require('./internNotificationService');
+const { emitInternDataChanged } = require('../socket/events');
 
 const listReadinessFlags = async (user, internUserId) => {
   const profile = await assertInternAccess(user, internUserId);
@@ -42,12 +44,14 @@ const upsertReadinessFlag = async (user, internUserId, { technologyId, positionI
   if (!READINESS_LEVELS.includes(level)) throw new Error('Invalid readiness level');
 
   let filter;
+  let label;
   const update = { level, setBy: user._id };
 
   if (technologyId) {
     const technology = await Technology.findOne({ _id: technologyId, isActive: true });
     if (!technology) throw new Error('Invalid technology');
     filter = { internProfile: profile._id, technology: technologyId };
+    label = technology.name;
   } else {
     const position = await Position.findById(positionId);
     if (!position) throw new Error('Invalid position');
@@ -55,6 +59,7 @@ const upsertReadinessFlag = async (user, internUserId, { technologyId, positionI
     // profile — it gets rewritten in place when the declared position changes.
     filter = { internProfile: profile._id, position: { $ne: null } };
     update.position = positionId;
+    label = position.name;
   }
 
   const flag = await ReadinessFlag.findOneAndUpdate(filter, update, {
@@ -64,6 +69,17 @@ const upsertReadinessFlag = async (user, internUserId, { technologyId, positionI
     .populate('technology', 'name slug')
     .populate('position', 'name slug')
     .populate('setBy', 'fullname');
+
+  internNotificationService.notifyReadinessUpdated({
+    internUserId: profile.user,
+    internProfileId: profile._id,
+    label,
+    level,
+  });
+
+  // Same reason as `createEvaluation`: readiness is programme data the intern
+  // reads about themselves on "My progress", and no workspace scope reaches it.
+  emitInternDataChanged();
 
   const plain = flag.toObject();
   return { ...plain, id: plain._id };

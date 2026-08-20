@@ -90,11 +90,11 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
         <p className="mt-0.5 text-xs text-muted-foreground">{WORKSPACE_LOGO_HELPER_TEXT}</p>
       </div>
 
-      <div className="rounded-lg border border-border bg-card">
+      <div className="rounded-[var(--r-tile)] border border-border bg-card">
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5">
           <div
             className={cn(
-              'relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/50',
+              'relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-card)] border border-border bg-muted/50',
               hasPendingChange && 'ring-2 ring-primary/30 ring-offset-2'
             )}
           >
@@ -183,7 +183,7 @@ const WorkspaceLogoSettings = ({ workspaceId }) => {
                 variant="ghost"
                 disabled={isBusy}
                 onClick={handleDelete}
-                className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                className="gap-1.5 text-[hsl(var(--tone-danger-fg))] hover:bg-destructive/10 hover:text-[hsl(var(--tone-danger-fg))]"
                 data-test="workspace-logo-remove-button"
               >
                 {deleteMutation.isPending ? (

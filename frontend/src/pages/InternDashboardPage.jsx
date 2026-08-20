@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -8,9 +9,9 @@ import { useAuth } from '@/context/AuthContext';
 import { useInternDashboard } from '@/queries/internDashboard';
 import { useMyAttendance, useCheckInToday } from '@/queries/attendance';
 import { useTicketModals } from '@/hooks/useTicketModals';
+import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { AttendanceSwitchNotice } from '@/components/intern/dashboard/AttendanceSwitchNotice';
 import { useTourActive, withTourSamples } from '@/components/onboarding/tourPreview';
 import { AttendanceHeroCard } from '@/components/intern/dashboard/AttendanceHeroCard';
 import { MyWorkloadCard } from '@/components/intern/dashboard/MyWorkloadCard';
@@ -110,10 +111,22 @@ export default function InternDashboardPage() {
   const { user } = useAuth();
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
+  useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
+  const location = useLocation();
 
   const { data: realDashboard, isPending, isError, error } = useInternDashboard();
   const { data: attendance, isPending: attendancePending } = useMyAttendance();
   const { mutate: checkIn, isPending: isCheckingIn } = useCheckInToday();
+
+  // A notification (e.g. a placement) links here with a `#my-selection-process`
+  // style hash so the intern lands ON the relevant card, not just the page —
+  // the real cards (and their ids) only exist once loading finishes, so this
+  // waits on `isPending` rather than firing against the skeleton.
+  useEffect(() => {
+    if (isPending || !location.hash) return;
+    const target = document.getElementById(location.hash.slice(1));
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [isPending, location.hash]);
 
   // While the what's-new tour is up, cards that are genuinely empty show example
   // data so the tour has something to point at — a first-day intern has no
@@ -127,14 +140,13 @@ export default function InternDashboardPage() {
     <TooltipProvider delayDuration={200}>
       <PageShell>
         <PageSection className="space-y-5">
-          {/* The notice sits inline on the greeting row. Time-boxed: it removes
-              itself after 15 August 2026 — delete the component and this prop once
-              that date has passed. See AttendanceSwitchNotice. */}
-          <DashboardHeader user={user} action={<AttendanceSwitchNotice />} />
+          <DashboardHeader user={user} />
 
           {isError && (
             <div className="app-panel px-6 py-8 text-center">
-              <p className="text-sm font-medium text-destructive">Could not load your dashboard.</p>
+              <p className="text-sm font-medium text-[hsl(var(--tone-danger-fg))]">
+                Could not load your dashboard.
+              </p>
               <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-muted-foreground">
                 {error?.response?.data?.message || 'Please try again.'}
               </p>
@@ -154,6 +166,8 @@ export default function InternDashboardPage() {
                     month={attendance?.month}
                     placedAt={attendance?.placedAt}
                     nonWorkingDays={attendance?.nonWorkingDays}
+                    startDate={attendance?.startDate}
+                    requestedDays={attendance?.requestedDays}
                     onCheckIn={() => checkIn()}
                     isCheckingIn={isCheckingIn}
                   />

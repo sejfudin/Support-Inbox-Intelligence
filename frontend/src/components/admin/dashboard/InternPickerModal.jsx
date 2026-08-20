@@ -8,14 +8,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { getAvatarColor } from '@/helpers/avatarColor';
-import { getInitials } from '@/helpers/getInitials';
 import { useInterns } from '@/queries/interns';
 import {
   isRecommendBlockedByProfileStatus,
   recommendBlockedReason,
 } from '@/helpers/recommendations';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 // Short chip labels for the disabled rows. The rule itself and the full sentence
 // come from helpers/recommendations.js — the same source the New recommendation
@@ -39,7 +39,13 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
   //
   // Filtered client-side: it is a few dozen rows, and typing against a local list
   // beats a request per keystroke.
-  const { data, isPending, isError } = useInterns({ pagination: false }, { enabled: open });
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useInterns({ pagination: false }, { enabled: open });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const rows = useMemo(() => {
     const interns = data?.interns || [];
@@ -52,6 +58,7 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
           userId: profile.user?._id,
           fullname: profile.user?.fullname || profile.user?.email || 'Unknown',
           email: profile.user?.email || '',
+          avatarUrl: profile.user?.avatarUrl || null,
           position: profile.declaredPosition?.name || '',
           status: profile.status,
           blocked: isRecommendBlockedByProfileStatus(profile.status),
@@ -105,10 +112,12 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
         )}
 
         <div className="max-h-80 space-y-1 overflow-y-auto">
-          {isPending && <p className="py-6 text-center text-xs text-muted-foreground">Loading…</p>}
+          {isPending && <Loader size="sm" className="py-6" label="Loading interns…" />}
 
           {isError && (
-            <p className="py-6 text-center text-xs text-destructive">Could not load interns.</p>
+            <p className="py-6 text-center text-xs text-[hsl(var(--tone-danger-fg))]">
+              Could not load interns.
+            </p>
           )}
 
           {!isPending && !isError && rows.length === 0 && (
@@ -138,19 +147,14 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
                     : 'hover:bg-primary/[0.06] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
                 )}
               >
-                <span
-                  className={cn(
-                    'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold',
-                    getAvatarColor(row.fullname)
-                  )}
-                  aria-hidden="true"
-                >
-                  {row.fullname === 'Unknown' ? (
-                    <UserRound className="h-4 w-4" />
-                  ) : (
-                    getInitials(row.fullname)
-                  )}
-                </span>
+                <UserAvatar
+                  user={row}
+                  className="h-8 w-8 text-[11px]"
+                  showTitle={false}
+                  initials={
+                    row.fullname === 'Unknown' ? <UserRound className="h-4 w-4" /> : undefined
+                  }
+                />
 
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13px] font-semibold leading-4 text-foreground">

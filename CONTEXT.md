@@ -35,6 +35,20 @@ The period a Daily stays editable: its date up to one working day in the past. O
 Dailies are frozen read-only history.
 _Avoid_: grace period, lock time.
 
+## Projects
+
+**Project type**:
+What kind of work a `Project` is, picked by the admin when the project is created and
+changeable afterwards. **Provisional set** — a starting pair pending the full list from the
+program leads, so expect values to be added and the wording to be revised:
+- **Client** — built for an external paying customer.
+- **Internal** — built for the firm itself, no external customer.
+
+Purely descriptive: it is a label shown on project views, and no rule, filter or statistic
+depends on it. Independent of the **`client`** field, which is free text and may legitimately
+name an internal stakeholder team — a project's type is not derived from whether that field is set.
+_Avoid_: category, kind, classification.
+
 ## Specializations & positions
 
 **Main position**:
@@ -85,3 +99,132 @@ _Avoid_: co-mentor, area mentor, second mentor (it is *the specialization mentor
 > (the platform **admin** role), and "mentor" usually means the *specialization mentor* (the
 > `secondaryMentor`). In code and docs use the platform-role words: **admin** assigns, the
 > **specialization mentor** is assigned.
+
+## Staffing requests
+
+**Staffing request**:
+Leadership's record of demand that arrived from **outside the platform** — a project needing a
+stated number of interns placed on it. Authored on the leadership side, acted on by an admin.
+Demand only: a staffing request never says who is on a project, only how many are wanted.
+_Avoid_: request (bare — invitations and recommendations are also requests), opening, headcount
+slot, demand.
+
+**Requested position**:
+One discipline's worth of demand inside a staffing request: a `Position`, how many interns are
+wanted for it, and optionally the technologies they should know. A position appears at most once
+per request — more demand for the same discipline is a higher count, never a second entry. A
+request is a set of requested positions; the interns it asks for in total is the sum of their
+counts, and each is worked and counted separately.
+_Avoid_: line, line item, slot, opening, role (a role is a platform role — admin/mentor/
+leadership/intern).
+
+**Putting interns forward**:
+The admin's response to a staffing request: choosing interns, which **creates recommendations**
+for the request's project. A staffing request holds no intern list of its own — who is being put
+forward, and whether they were placed, is always read off those recommendations. It means *put
+forward*, never *placed* — placement is the recommendations' own outcome, reached later and per
+intern.
+_Avoid_: fulfilling (**fulfilled** is a close reason, below — using it for this act too made one
+word mean both "interns were offered" and "the ask is done"), assigning, staffing (as a verb for
+this act), placing (that is the recommendation's outcome, not this act).
+
+**Closing a request**:
+Ending a staffing request. Terminal — a closed request is never reopened, and there is no delete.
+Exactly one of three reasons, each owned by one role:
+- **Cancelled** — the outside ask evaporated. **Leadership only**: only they speak to the outside
+  party, so only they can state that the demand is gone.
+- **Declined** — the ask is being refused rather than filled. **Admin only**, reason required. This
+  is the answer leadership takes back to whoever asked.
+- **Fulfilled** — the ask is done, whether the counts were met or the outside party said "that's
+  enough". **Admin only.**
+
+Closing always **closes out** whoever is still in selection, whatever the reason.
+_Avoid_: cancelling (as a word for closing generally — it is one specific reason), archiving,
+resolving (that is the draft **project** being resolved), reopening (does not exist).
+
+**Closing out**:
+An intern's still-live recommendation being resolved as **not placed** because the demand behind it
+ended, not because anyone judged them. Happens when the staffing request closes for any reason, or
+when the requested position it was created against is changed or removed. A **placed** intern is
+never closed out — placement is a fact about them, not about the demand.
+_Avoid_: releasing, cancelling (a *request* is cancelled; an *intern* is closed out), withdrawing,
+rejecting (nobody rejected them — that is the whole point).
+
+## Recommendations & placement
+
+**Put forward**:
+An intern having been offered to a project by an admin — i.e. a recommendation exists for them on
+it. Counts **every** intern ever offered against a requested position, including the ones since
+closed out, so it is a record of effort spent rather than of who is still live. A request's progress
+is therefore always three numbers next to what was wanted: "6 put forward, 0 in selection, 2
+placed" means six were offered, none are still live, and two are on the project. No number is
+meaningful alone, and **put forward** on its own says nothing about whether anyone is still being
+considered.
+_Avoid_: proposed, submitted, shortlisted, sourced (all seen in drafts — this is the one term).
+
+**Demand ended**:
+The mark on a **not-placed** recommendation saying the not-placement was caused by the ask behind it
+ending rather than by a decision about the intern. Set only by **closing out**, never by hand — an
+admin resolving someone deliberately is making a decision, which is the opposite of this. The
+intern's own view renders it as the opportunity having closed before a decision was made about them,
+never as an outcome they earned.
+_Avoid_: cancelled, withdrawn, lapsed, auto-resolved.
+
+**In Selection**:
+The user-facing name for an intern's `recommended` or `interviewing` recommendation status —
+ready and actively being put forward, not yet `resulted`. On a staffing request it is also a
+**count**: how many of the interns put forward are still live, as distinct from how many were ever
+offered. That distinction is what stops a request whose candidates have all been closed out from
+still reading as though it has a full pipeline. Already the term used on the
+leadership Projects view (`InSelectionModal`, "Skills in selection"); this made the same term the
+canonical one for the leadership Candidates filter and dashboard KPIs, which previously said
+"In Pipeline" / "Pipeline" for the identical concept and confused users on both the leadership and
+intern side. The intern-facing dashboard card for the same concept is **"My Selection Process"**
+(was "My pipeline").
+_Avoid_: pipeline, in pipeline (as UI copy — "pipeline" stays only as the internal/doc term for
+the whole `recommended → interviewing → resulted` lifecycle, see `.claude/docs/architecture.md`).
+
+## Code review
+
+**Review request**:
+An intern asking one of their own mentors to look at the work on a ticket. At most one per
+ticket, live or answered, and asking again **replaces** the previous one. Always names one
+GitHub pull request, by URL, typed by the intern and **required** — an ask with nothing to look
+at is the thing this replaces. The URL is what the intern *claims* the reviewer should look at,
+and is never treated as proof that pull request exists or is theirs. Distinct from the ticket's
+**linked pull request**, which GitHub reports and nobody types; the two can disagree.
+_Avoid_: review (bare — a review is the reviewer's answer, not the ask), approval request,
+PR request, code review request (it reviews the work on a ticket, which may be more than a PR).
+
+**Reviewer**:
+The single mentor a review request is addressed to — always either the intern's **primary mentor**
+(`InternProfile.primaryMentor`, in everyday speech the "main mentor", and often a platform admin)
+or their **specialization mentor**, and only when that mentor is an
+active member of the ticket's workspace. Never a free choice of person: an intern cannot ask a
+teammate, and nobody outside the workspace can be asked, because they could not open the ticket.
+_Avoid_: approver (approving is one of two answers), assignee (that is who does the work),
+requested reviewer (GitHub's term for its own reviewer list — a different thing).
+
+**Answering a review**:
+The reviewer's verdict on a review request: **approved** or **changes requested**. Both are
+answers — neither ends the ticket, and neither is a gate on anything. Changes requested is not
+a rejection; the intern fixes the work and asks again, which replaces the request and puts it
+back to pending. The verdict is kept and shown until that happens.
+
+The verdict carries **no words**. The platform records *that* the reviewer answered; *why* lives
+on the pull request, where the reviewer writes it. So a changes-requested answer on its own never
+tells the intern what to change — it tells them to go read the review.
+_Avoid_: rejecting, blocking, failing the review, sign-off (nothing is signed off — see
+`Ticket.blockedBy` for the separate, unrelated notion of a ticket being blocked).
+
+**Cancelling a review request**:
+The intern withdrawing their own ask before it is answered. Nothing is owed and nobody is
+notified — the item simply leaves the reviewer's list.
+_Avoid_: declining (that would be the reviewer refusing, which does not exist), closing,
+deleting.
+
+**Going stale**:
+A review request being dropped because the work it asked about is over — the ticket reached a
+done status, or was archived. Not an answer and not a cancellation: nobody acted, so nobody is
+notified.
+_Avoid_: expiring (no clock is involved), auto-declining, timing out.

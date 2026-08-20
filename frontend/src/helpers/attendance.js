@@ -13,6 +13,7 @@ import {
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
+  differenceInCalendarDays,
   getDay,
 } from 'date-fns';
 
@@ -22,6 +23,22 @@ export const DAY_STATUS = Object.freeze({
   WEEKEND: 'weekend',
   FUTURE: 'future',
   TODAY_PENDING: 'today-pending', // a working today with no check-in yet
+  // An approved remote-work day. Counts exactly like PRESENT in every rate — the
+  // server puts it in `records` alongside real check-ins — and exists as a status
+  // of its own purely so the day can be coloured and named "remote work" instead
+  // of green and "Present".
+  REMOTE: 'remote',
+  // The three approved-absence days. Unlike REMOTE these are **not work**: the
+  // server keeps them out of `records` entirely and subtracts them from the
+  // denominator, so a week of leave reads as nothing owed and nothing missed
+  // rather than as a week of absences or a fabricated 100%.
+  //
+  // They are three statuses rather than one because the intern asked for a
+  // specific thing and the calendar should say which — but everything downstream
+  // treats them identically, which is what `LEAVE_STATUSES` below is for.
+  VACATION: 'vacation',
+  RELIGIOUS: 'religious',
+  SICK: 'sick',
   // On or after the intern's first day on a real project: they are no longer
   // obliged to record attendance, so the day is inert and greyed out like a
   // weekend — never an absence.
@@ -34,6 +51,34 @@ export const DAY_STATUS = Object.freeze({
   // whole year, so without this every month before `startDate` renders as a wall of
   // absences for days the intern could not possibly have attended.
   BEFORE_START: 'before-start',
+});
+
+/**
+ * The approved-absence statuses, in the order the legend lists them.
+ *
+ * Anything that asks "was this day owed?" should test against this rather than
+ * naming the three individually — that is how a fourth kind of leave gets added
+ * without a hunt through the render surfaces.
+ */
+export const LEAVE_STATUSES = Object.freeze([
+  DAY_STATUS.VACATION,
+  DAY_STATUS.RELIGIOUS,
+  DAY_STATUS.SICK,
+]);
+
+const LEAVE_SET = new Set(LEAVE_STATUSES);
+
+/** Whether a classified day is approved leave, and so was never owed. */
+export const isLeaveStatus = (status) => LEAVE_SET.has(status);
+
+// The `Attendance.status` values the server sends in `requestedDays` map onto
+// DAY_STATUS one-for-one; keeping the map explicit means an unknown status from a
+// newer server renders as an ordinary day rather than as `undefined`.
+const REQUESTED_STATUS_TO_DAY = Object.freeze({
+  remote: DAY_STATUS.REMOTE,
+  vacation: DAY_STATUS.VACATION,
+  religious: DAY_STATUS.RELIGIOUS,
+  sick: DAY_STATUS.SICK,
 });
 
 // Check-in is an office-time concept: the server keys every Attendance record with
@@ -50,6 +95,19 @@ const OFFICE_TIMEZONE = 'Europe/Sarajevo';
  * date-fns's local `format`/`getDay`/`isWeekend` all read the intended day.
  */
 const toKey = (date) => format(date, 'yyyy-MM-dd');
+
+/**
+ * The inverse of `toKey`: a 'yyyy-MM-dd' key back to a local date at **noon**.
+ *
+ * Noon, not midnight, and local rather than `parseISO` — `parseISO('2026-08-13')`
+ * yields UTC midnight, which is the previous day for anyone west of Greenwich, so a
+ * request for Thursday would render as Wednesday for them. Only ever used for
+ * display; comparisons stay on the string keys.
+ */
+const parseKey = (key) => {
+  const [y, m, d] = String(key).split('-').map(Number);
+  return new Date(y, m - 1, d, 12);
+};
 
 /**
  * 'yyyy-MM-dd' for `date` in office time — the same key the server stores.
@@ -72,6 +130,15 @@ const officeToday = (now = new Date()) => {
   const [year, month, day] = officeDateKey(now).split('-').map(Number);
   return new Date(year, month - 1, day, 12);
 };
+
+/**
+ * Whether it is the weekend on the office calendar.
+ *
+ * The dashboard strip is Mon–Fri, so "is today a weekend?" can no longer be read
+ * off a cell in it — and the hero still has to say "Weekend — no check-in needed"
+ * rather than counting Saturday as a missed day.
+ */
+export const isOfficeWeekend = (now = new Date()) => isWeekend(officeToday(now));
 
 /** Whether `date` is the office calendar's today. */
 const isOfficeToday = (date, now = new Date()) => toKey(date) === officeDateKey(now);
@@ -101,6 +168,7 @@ export const isExemptToday = (placedAt, now = new Date()) => {
 };
 
 const EMPTY_KEYS = new Set();
+const EMPTY_REQUESTED = Object.freeze({});
 
 /** `[{date,label}]` from the API → a Set of keys for the classifiers. */
 export const nonWorkingKeySet = (nonWorkingDays = []) =>
@@ -135,6 +203,10 @@ export const nonWorkingKind = (nonWorkingDays = [], key) => {
  * @param {Set<string>} [nonWorkingKeys] - 'yyyy-MM-dd' nobody was expected to attend
  * @param {string|Date|null} [startDate] - the intern's first day in the programme;
  *   anything before it was never owed
+ * @param {Record<string,string>} [requestedDays] - 'yyyy-MM-dd' → the
+ *   `Attendance.status` an approved request wrote (remote | vacation | religious |
+ *   sick). One map rather than a Set per type, so adding a type is a row in
+ *   `REQUESTED_STATUS_TO_DAY` and nothing else.
  */
 export const classifyDay = (
   date,
@@ -143,7 +215,8 @@ export const classifyDay = (
   now = new Date(),
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
-  startDate = null
+  startDate = null,
+  requestedDays = EMPTY_REQUESTED
 ) => {
   const key = toKey(date);
   // Checked ahead of everything else, including PRESENT: once an intern is on a
@@ -154,6 +227,17 @@ export const classifyDay = (
   // Also ahead of PRESENT: the day was not owed, so a check-in on it is not
   // attendance that counts — the server drops it from the rate for the same reason.
   if (nonWorkingKeys.has(key)) return DAY_STATUS.NON_WORKING;
+  // Above PRESENT because a remote day is in `records` too — the server keeps it
+  // there so the rate counts it — and whichever of the two is checked first is the
+  // one the cell shows. The three leave statuses are not in `records` at all, so
+  // for them this rung is the only one that can fire.
+  //
+  // Below NON_WORKING because a cohort holiday outranks all four: that day was owed
+  // by nobody, so it is not remote work and not leave, it is no work. The request
+  // rules refuse such a day up front, so this only catches a holiday declared after
+  // the approval.
+  const requested = REQUESTED_STATUS_TO_DAY[requestedDays[key]];
+  if (requested) return requested;
   // After PRESENT would hide a genuine record; before ABSENT is the whole point.
   // A record cannot legitimately predate `startDate` (the importer pulls the start
   // back to the first attended day), so this ordering loses nothing.
@@ -192,7 +276,8 @@ export const buildMonthGrid = (
   cancelledDates = [],
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
-  startDate = null
+  startDate = null,
+  requestedDays = EMPTY_REQUESTED
 ) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
@@ -215,7 +300,8 @@ export const buildMonthGrid = (
         new Date(),
         placedAt,
         nonWorkingKeys,
-        startDate
+        startDate,
+        requestedDays
       ),
     })
   );
@@ -255,11 +341,13 @@ export const computeStreak = (records = [], placedAt = null) => {
 };
 
 /**
- * This week's days Mon–Sun, classified, for the dashboard hero's strip.
+ * This week's **working** days Mon–Fri, classified, for the dashboard hero's strip.
  *
- * Always seven cells so the strip's columns line up with its M T W T F S S
- * labels — the weekend cells render as inert rather than being dropped, which
- * would shift Friday under the "S" heading.
+ * Five cells, not seven. The weekend is not a state of the intern's week — nobody
+ * is expected in, nothing is owed, and the two inert cells only took a seventh of
+ * the strip each away from the days that carry a verdict. Anything that needs to
+ * know whether *today* is a weekend asks `isOfficeWeekend` rather than looking for
+ * a cell that is no longer there.
  */
 export const buildWeekStrip = (
   records = [],
@@ -267,7 +355,8 @@ export const buildWeekStrip = (
   now = new Date(),
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
-  startDate = null
+  startDate = null,
+  requestedDays = EMPTY_REQUESTED
 ) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
@@ -277,12 +366,12 @@ export const buildWeekStrip = (
   // date-fns getDay: 0=Sun..6=Sat → walk back to Monday.
   monday.setDate(monday.getDate() - ((getDay(monday) + 6) % 7));
 
-  return Array.from({ length: 7 }, (_, index) => {
+  return Array.from({ length: 5 }, (_, index) => {
     const date = new Date(monday);
     date.setDate(monday.getDate() + index);
     return {
       key: toKey(date),
-      label: format(date, 'EEEEE'), // single letter: M T W T F S S
+      label: format(date, 'EEEEE'), // single letter: M T W T F
       isToday: isOfficeToday(date, now),
       status: classifyDay(
         date,
@@ -291,29 +380,44 @@ export const buildWeekStrip = (
         now,
         placedAt,
         nonWorkingKeys,
-        startDate
+        startDate,
+        requestedDays
       ),
     };
   });
 };
 
 /**
- * Present vs elapsed working days within the current week — the hero's
- * "4 of 5 days in" line. Future days are excluded from the denominator so a
+ * Present vs elapsed working days across any strip of classified days — the
+ * hero's "4 of 5 days in" line for a week, and the per-month rate on the intern
+ * profile's six-month heatmap. Future days are excluded from the denominator so a
  * Monday morning doesn't read as "1 of 5" and look like a bad week.
+ *
+ * Strip-shaped rather than week-shaped on purpose: the INERT list below is what
+ * makes a derived rate agree with the server's, so every rate computed on the
+ * client has to come through here rather than re-deriving the rule.
  */
-export const weekAttendance = (weekStrip = []) => {
+export const stripAttendance = (strip = []) => {
   // Exempt days are as inert as weekends — they were never owed, so they must not
-  // enter the denominator.
+  // enter the denominator. Approved leave joins them for exactly the same reason,
+  // and this has to match the server: `computeMonthStats` subtracts those days from
+  // the month's denominator, so a week showing "3 of 5" beside a month showing 100%
+  // would be the two halves of the app disagreeing about the same fact.
   const INERT = [
     DAY_STATUS.WEEKEND,
     DAY_STATUS.EXEMPT,
     DAY_STATUS.NON_WORKING,
     DAY_STATUS.BEFORE_START,
+    ...LEAVE_STATUSES,
   ];
-  const working = weekStrip.filter((day) => !INERT.includes(day.status));
+  const working = strip.filter((day) => !INERT.includes(day.status));
   return {
-    present: working.filter((day) => day.status === DAY_STATUS.PRESENT).length,
+    // Remote days count here for the same reason they count in the server's
+    // numerator: the intern worked. A remote week that read "0 of 5 days in"
+    // would contradict the 100% the same page shows.
+    present: working.filter(
+      (day) => day.status === DAY_STATUS.PRESENT || day.status === DAY_STATUS.REMOTE
+    ).length,
     elapsed: working.filter((day) => day.status !== DAY_STATUS.FUTURE).length,
     workingDays: working.length,
   };
@@ -341,10 +445,24 @@ export const attendanceRateTone = (rate) => {
 /** Tailwind text color class for an attendance rate (for non-badge contexts). */
 export const attendanceRateTextClass = (rate) => {
   if (!hasAttendanceRate(rate)) return 'text-muted-foreground';
-  if (rate >= 90) return 'text-emerald-600 dark:text-emerald-400';
+  if (rate >= 90) return 'text-[hsl(var(--tone-success-fg))]';
   if (rate >= 75) return 'text-foreground';
-  if (rate >= 60) return 'text-amber-600 dark:text-amber-400';
-  return 'text-red-600 dark:text-red-400';
+  if (rate >= 60) return 'text-[hsl(var(--tone-warning-fg))]';
+  return 'text-[hsl(var(--tone-danger-fg))]';
+};
+
+/**
+ * Bar fill for an attendance rate — the same four bands as
+ * `attendanceRateTextClass`, so a bar and the number beside it can never
+ * disagree about whether a month was good. (They used to: the roster table
+ * carried its own copy of the thresholds.)
+ */
+export const attendanceRateFillClass = (rate) => {
+  if (!hasAttendanceRate(rate)) return 'bg-muted-foreground/30';
+  if (rate >= 90) return 'bg-[hsl(var(--tone-success))]';
+  if (rate >= 75) return 'bg-foreground/70';
+  if (rate >= 60) return 'bg-[hsl(var(--tone-warning))]';
+  return 'bg-[hsl(var(--tone-danger))]';
 };
 
 export const todayRecord = (records = []) => {
@@ -356,6 +474,27 @@ export const isCheckedInToday = (records = []) => Boolean(todayRecord(records));
 
 /** Whether the intern cancelled today's check-in (may still re-check-in while open). */
 export const isCancelledToday = (cancelledDates = []) => cancelledDates.includes(officeDateKey());
+
+/**
+ * The DAY_STATUS an approved request wrote for today, or null if none did.
+ *
+ * Returns a DAY_STATUS rather than the raw server status so callers can hand it
+ * straight to `dayStatusLabel` / the visuals. The two vocabularies happen to use
+ * identical strings, and `REQUESTED_STATUS_TO_DAY` is the one place that is allowed
+ * to depend on it — a status a newer server invents reads as null here instead of
+ * rendering as a bare word.
+ *
+ * Note that for `remote` — and only remote — `isCheckedInToday` is ALSO true, since
+ * a remote day is in `records` so that it counts. So anywhere both are shown, check
+ * this first or the day reports as an ordinary office check-in. The three leave
+ * statuses never appear in `records`, so they cannot be mistaken for one.
+ */
+export const requestedStatusToday = (requestedDays = {}) =>
+  REQUESTED_STATUS_TO_DAY[requestedDays[officeDateKey()]] || null;
+
+/** Whether today is an approved day off (not remote, which is still work). */
+export const isOnLeaveToday = (requestedDays = {}) =>
+  isLeaveStatus(requestedStatusToday(requestedDays));
 
 // Check-in is only open 07:00–11:00 office time (Europe/Sarajevo), regardless of
 // where the browser is. This mirrors server/helpers/attendanceTime.js for UX only
@@ -387,6 +526,57 @@ export const checkInWindowState = (now = new Date()) => {
   return 'closed';
 };
 
+/** Office-local minute (0–59) for `date`. */
+const officeMinute = (date = new Date()) => {
+  const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: OFFICE_TIMEZONE, minute: '2-digit' });
+  return Number(fmt.format(date));
+};
+
+/**
+ * The daily-reminder window: 10:30 up to (but not including) 11:00 office time,
+ * the last half hour before check-in closes. Mirrors `REMINDER_WINDOW` in
+ * server/services/dailyReminderService.js — the server re-checks the clock
+ * itself, so this is only here to keep the client from asking outside the window.
+ */
+export const REMINDER_WINDOW = Object.freeze({ hour: 10, fromMinute: 30 });
+
+/** Whether `now` sits inside the daily-reminder window (weekday, office time). */
+export const isWithinReminderWindow = (now = new Date()) => {
+  if (isWeekend(now)) return false;
+  if (officeHour(now) !== REMINDER_WINDOW.hour) return false;
+  return officeMinute(now) >= REMINDER_WINDOW.fromMinute;
+};
+
+/**
+ * Minutes until the check-in window's next boundary — until it opens while
+ * 'before', until it closes while 'open', and `null` once it has closed, because
+ * there is nothing left to count down to.
+ *
+ * Computed in office time, like everything else about the window: an intern
+ * travelling with a laptop still on Sarajevo's clock should see Sarajevo's
+ * countdown, not their browser's.
+ */
+export const checkInWindowMinutesLeft = (now = new Date()) => {
+  const state = checkInWindowState(now);
+  if (state === 'closed') return null;
+  const boundaryHour = state === 'before' ? CHECK_IN_WINDOW.startHour : CHECK_IN_WINDOW.endHour;
+  return boundaryHour * 60 - (officeHour(now) * 60 + officeMinute(now));
+};
+
+/**
+ * "2h 14m" / "14m", or `null` when there is nothing to show.
+ *
+ * Null rather than "0m" at the boundary: a countdown that has run out is not a
+ * countdown, and the caller drops the clause entirely instead of printing
+ * "closes in 0m" for a minute.
+ */
+export const formatMinutesLeft = (minutes) => {
+  if (minutes === null || minutes <= 0) return null;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours > 0 ? `${hours}h ${rest}m` : `${rest}m`;
+};
+
 export const formatCheckInTime = (iso) => (iso ? format(new Date(iso), 'HH:mm') : '—');
 export const formatCheckInDate = (iso) => (iso ? format(new Date(iso), 'MMM d, HH:mm') : '—');
 
@@ -408,10 +598,78 @@ export const internStatusOnDate = (entry, date, nonWorkingKeys = EMPTY_KEYS) => 
     new Date(),
     entry.placedAt || null,
     nonWorkingKeys,
-    entry.startDate || null
+    entry.startDate || null,
+    entry.requestedDays || EMPTY_REQUESTED
   );
   const rec = (entry.records || []).find((r) => r.date === toKey(date));
   return { status, checkInTime: rec?.checkedInAt || null };
+};
+
+/**
+ * The dates of one request, as a single line.
+ *
+ * A multi-day request renders as **first — last**, not as a list, with the count
+ * carried separately in its own column. The days need not be consecutive, so the
+ * range is a span rather than a promise about what is inside it: "20 Aug — 28 Aug"
+ * beside "5 days" reads correctly for Thu/Fri then Mon–Wed, which listing seven
+ * dates would not.
+ *
+ * The month is repeated on both sides deliberately. "16 — 20 Jun" saves four
+ * characters and makes a reader check whether the range crosses a month boundary.
+ */
+export const formatRequestDates = (dates = []) => {
+  const sorted = [...dates].filter(Boolean).sort();
+  if (sorted.length === 0) return '—';
+  const day = (key) => format(parseKey(key), 'd MMM');
+  if (sorted.length === 1) return format(parseKey(sorted[0]), 'EEE, d MMM');
+  return `${day(sorted[0])} — ${day(sorted[sorted.length - 1])}`;
+};
+
+/**
+ * The dates of one request as runs: consecutive days collapse into a span, and
+ * separate runs are listed side by side.
+ *
+ *   Mon–Fri            → "Mon, 20 Aug — Fri, 24 Aug"
+ *   Mon and the next Mon → "Mon, 16 Aug · Mon, 23 Aug"
+ *
+ * The admin queue used to print every day of a week off, which pushed the row's
+ * decision buttons off the line and made a five-day holiday look like five
+ * separate asks. `formatRequestDates` above stays as it is: it answers a
+ * different question — the outer span of a request in a fixed-width column.
+ */
+export const formatRequestDayRuns = (dates = []) => {
+  const sorted = [...dates].filter(Boolean).sort();
+  if (sorted.length === 0) return '—';
+
+  const runs = [];
+  for (const key of sorted) {
+    const previous = runs[runs.length - 1];
+    const isNextDay =
+      previous && differenceInCalendarDays(parseKey(key), parseKey(previous.to)) === 1;
+    if (isNextDay) previous.to = key;
+    else runs.push({ from: key, to: key });
+  }
+
+  const label = (key) => format(parseKey(key), 'EEE, d MMM');
+  return runs
+    .map((run) => (run.from === run.to ? label(run.from) : `${label(run.from)} — ${label(run.to)}`))
+    .join(' · ');
+};
+
+/**
+ * Whether a request still concerns the intern *now* — pending, or approved with a
+ * day that has not yet passed.
+ *
+ * This is what splits the "Time away" card from the history table below it: the
+ * card is a short list of things still in play, and everything else is history. It
+ * mirrors `isOutstanding` on the server, which decides the same question for the
+ * day-claim rules.
+ */
+export const isRequestActive = (request, todayKey = officeDateKey()) => {
+  if (!request) return false;
+  if (request.status === 'pending') return true;
+  if (request.status !== 'approved') return false;
+  return (request.dates || []).some((date) => date >= todayKey);
 };
 
 export const dayStatusLabel = (status) =>
@@ -424,6 +682,14 @@ export const dayStatusLabel = (status) =>
     [DAY_STATUS.EXEMPT]: 'On project',
     [DAY_STATUS.NON_WORKING]: 'Non-working',
     [DAY_STATUS.BEFORE_START]: 'Before joining',
+    [DAY_STATUS.REMOTE]: 'Remote work',
+    [DAY_STATUS.VACATION]: 'Vacation',
+    [DAY_STATUS.RELIGIOUS]: 'Religious holiday',
+    // "Sick day", not "Sick", so this matches the server's own label for the type
+    // (`constants/absenceRequestTypes.js`). The balance card reads its label from
+    // the API and the history table reads it from here; when they disagreed, the
+    // same request read as two different things on one screen.
+    [DAY_STATUS.SICK]: 'Sick day',
   })[status] || status;
 
 export const dayStatusBadgeVariant = (status) =>
@@ -436,4 +702,11 @@ export const dayStatusBadgeVariant = (status) =>
     [DAY_STATUS.EXEMPT]: 'outline',
     [DAY_STATUS.NON_WORKING]: 'outline',
     [DAY_STATUS.BEFORE_START]: 'outline',
+    [DAY_STATUS.REMOTE]: 'info',
+    // The three leave types share `outline` rather than each claiming a badge
+    // variant. In a table the label already says which one it is, and three more
+    // filled badges would make a roster of ordinary months look alarming.
+    [DAY_STATUS.VACATION]: 'outline',
+    [DAY_STATUS.RELIGIOUS]: 'outline',
+    [DAY_STATUS.SICK]: 'outline',
   })[status] || 'secondary';

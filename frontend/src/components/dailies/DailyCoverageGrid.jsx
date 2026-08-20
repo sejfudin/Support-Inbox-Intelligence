@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Switcher } from '@/components/ui/switcher';
+import { attendanceRateTextClass } from '@/helpers/attendance';
 import { cn } from '@/lib/utils';
 
 export const RANGE_OPTIONS = [
@@ -10,18 +11,16 @@ export const RANGE_OPTIONS = [
 ];
 
 const CELL_TONE = {
-  reported: 'bg-emerald-500 hover:bg-emerald-600',
-  missed: 'bg-red-500 hover:bg-red-600',
+  reported: 'bg-[hsl(var(--tone-success))] hover:bg-[hsl(var(--tone-success)/0.85)]',
+  missed: 'bg-[hsl(var(--tone-danger))] hover:bg-[hsl(var(--tone-danger)/0.85)]',
 };
 
-const rateTextClass = (rate) =>
-  rate >= 90
-    ? 'text-emerald-600 dark:text-emerald-400'
-    : rate >= 75
-      ? 'text-primary'
-      : rate >= 60
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-red-600 dark:text-red-400';
+// The rate colour comes from `helpers/attendance` rather than a copy here. This
+// file had its own four bands at the same thresholds, painted in raw
+// `emerald`/`amber`/`red` steps — so a coverage rate and an attendance rate could
+// disagree about what "good" looks like, and neither followed the colour-blind
+// palette. That helper's own comment records the roster table making exactly this
+// mistake before.
 
 // A handful of columns stretch evenly across the panel with no leftover gap;
 // once there are more than this many, fixed comfortable widths + horizontal
@@ -59,7 +58,7 @@ export default function DailyCoverageGrid({ coverage, onSelectCell, rangeOption,
   const dayColPct = fillContainer ? 72 / days.length : null;
 
   return (
-    <div className="app-panel overflow-hidden" data-test="daily-coverage-grid">
+    <div className="app-card overflow-hidden" data-test="daily-coverage-grid">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -69,32 +68,26 @@ export default function DailyCoverageGrid({ coverage, onSelectCell, rangeOption,
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <ToggleGroup
-            type="single"
+          {/* Same grid, three window sizes — a switcher, not tabs. It was a
+              `ToggleGroup` in a `rounded-[var(--r-card)]` (16px here) box, which made it the
+              fifth separate build of this control in the app. */}
+          <Switcher
+            items={RANGE_OPTIONS.map((option) => ({
+              ...option,
+              dataTest: `daily-coverage-range-${option.value}`,
+            }))}
             value={rangeOption}
-            onValueChange={(value) => value && onRangeChange(value)}
-            className="justify-start gap-1 rounded-lg border border-border/70 p-1"
+            onChange={onRangeChange}
+            label="Coverage range"
             data-test="daily-coverage-range-toggle"
-          >
-            {RANGE_OPTIONS.map((option) => (
-              <ToggleGroupItem
-                key={option.value}
-                value={option.value}
-                size="sm"
-                className="px-2.5 text-xs"
-                data-test={`daily-coverage-range-${option.value}`}
-              >
-                {option.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          />
 
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-emerald-500" /> Reported
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-[hsl(var(--tone-success))]" /> Reported
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-red-500" /> Missed
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-[hsl(var(--tone-danger))]" /> Missed
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-[3px] bg-muted-foreground/25" /> Weekend
@@ -202,7 +195,12 @@ export default function DailyCoverageGrid({ coverage, onSelectCell, rangeOption,
                   className="px-3 py-1.5 text-right"
                   title={`${person.reportedCount}/${person.eligibleWorkingDays} days`}
                 >
-                  <span className={cn('font-semibold tabular-nums', rateTextClass(person.rate))}>
+                  <span
+                    className={cn(
+                      'font-semibold tabular-nums',
+                      attendanceRateTextClass(person.rate)
+                    )}
+                  >
                     {person.rate}%
                   </span>
                 </td>

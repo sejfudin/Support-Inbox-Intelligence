@@ -32,7 +32,10 @@ export function ReassignSpecializationDialog({ specialization, onClose }) {
           </DialogDescription>
         </DialogHeader>
         {reassignMutation.isError && (
-          <p className="text-sm text-destructive" data-test="reassign-specialization-error">
+          <p
+            className="text-sm text-[hsl(var(--tone-danger-fg))]"
+            data-test="reassign-specialization-error"
+          >
             {reassignMutation.error?.response?.data?.message || 'Failed to reassign.'}
           </p>
         )}

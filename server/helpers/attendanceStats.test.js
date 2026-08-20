@@ -1,4 +1,5 @@
 const {
+  splitRows,
   computeMonthStats,
   averageAttendanceRate,
   placementExemptionDate,
@@ -320,5 +321,139 @@ describe('placementExemptionDate', () => {
     expect(placementExemptionDate({})).toBeNull();
     expect(placementExemptionDate(null)).toBeNull();
     expect(placementExemptionDate(undefined)).toBeNull();
+  });
+});
+
+// A day off is neither attended nor missed. These pin the arithmetic that makes
+// that true — a fortnight of approved leave must move the rate not at all.
+describe('computeMonthStats — exempt days (vacation, religious holiday, sick)', () => {
+  const june = (...days) => days.map((d) => `2026-06-${String(d).padStart(2, '0')}`);
+
+  it('takes an exempt day out of the denominator, exactly like a holiday', () => {
+    const stats = computeMonthStats([], PAST_MONTH, null, null, new Set(), june(1, 2, 3));
+
+    expect(stats.workingDays).toBe(PAST_MONTH_WORKING_DAYS - 3);
+    expect(stats.presentDays).toBe(0);
+  });
+
+  it('leaves a fully-attended month at 100% when part of it was leave', () => {
+    // Present on every working day except the three taken as leave.
+    const allWorking = [
+      1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 15, 16, 17, 18, 19, 22, 23, 24, 25, 26, 29, 30,
+    ];
+    const leave = june(10, 11, 12);
+    const attended = records(...june(...allWorking).filter((d) => !leave.includes(d)));
+
+    const stats = computeMonthStats(attended, PAST_MONTH, null, null, new Set(), leave);
+
+    expect(stats.workingDays).toBe(PAST_MONTH_WORKING_DAYS - 3);
+    expect(stats.presentDays).toBe(PAST_MONTH_WORKING_DAYS - 3);
+    expect(stats.attendanceRate).toBe(100);
+  });
+
+  it('does not punish leave: taking days off cannot lower the rate', () => {
+    const attended = records(...june(1, 2, 3, 4, 5));
+    const without = computeMonthStats(attended, PAST_MONTH, null, null, new Set(), []);
+    const withLeave = computeMonthStats(attended, PAST_MONTH, null, null, new Set(), june(8, 9));
+
+    expect(withLeave.attendanceRate).toBeGreaterThan(without.attendanceRate);
+  });
+
+  it('never counts an exempt day as attended, even if a record shares the date', () => {
+    // Defensive: splitRows keeps these apart, so a date in both lists is a bug
+    // upstream. The rate must still not exceed 100%.
+    const stats = computeMonthStats(
+      records(...june(1, 2)),
+      PAST_MONTH,
+      null,
+      null,
+      new Set(),
+      june(1, 2)
+    );
+
+    expect(stats.presentDays).toBe(0);
+    expect(stats.workingDays).toBe(PAST_MONTH_WORKING_DAYS - 2);
+  });
+
+  it('accepts a Set as readily as an array', () => {
+    const asArray = computeMonthStats([], PAST_MONTH, null, null, new Set(), june(1, 2));
+    const asSet = computeMonthStats([], PAST_MONTH, null, null, new Set(), new Set(june(1, 2)));
+
+    expect(asSet).toEqual(asArray);
+  });
+
+  it('is a no-op when nothing is exempt, so the pt.1 callers are unaffected', () => {
+    const attended = records(...june(1, 2));
+
+    expect(computeMonthStats(attended, PAST_MONTH, null, null, new Set(), [])).toEqual(
+      computeMonthStats(attended, PAST_MONTH, null)
+    );
+  });
+
+  it('does not double-count a day that is both a cohort holiday and personal leave', () => {
+    const holiday = new Set(june(1));
+    const stats = computeMonthStats([], PAST_MONTH, null, null, holiday, june(1, 2));
+
+    expect(stats.workingDays).toBe(PAST_MONTH_WORKING_DAYS - 2);
+  });
+});
+
+describe('splitRows', () => {
+  const row = (date, status, checkedInAt = new Date('2026-06-01T08:00:00Z')) => ({
+    date,
+    status,
+    checkedInAt,
+  });
+
+  it('sorts each status into the bucket that decides its arithmetic', () => {
+    const {
+      records: attended,
+      cancelledDates,
+      exemptDates,
+    } = splitRows([
+      row('2026-06-01', 'present'),
+      row('2026-06-02', 'remote'),
+      row('2026-06-03', 'vacation'),
+      row('2026-06-04', 'religious'),
+      row('2026-06-05', 'sick'),
+      row('2026-06-08', 'cancelled'),
+    ]);
+
+    expect(attended.map((r) => r.date)).toEqual(['2026-06-01', '2026-06-02']);
+    expect(exemptDates).toEqual(['2026-06-03', '2026-06-04', '2026-06-05']);
+    expect(cancelledDates).toEqual(['2026-06-08']);
+  });
+
+  it('maps every request-written day to its status for the calendar', () => {
+    const { requestedDays } = splitRows([
+      row('2026-06-01', 'present'),
+      row('2026-06-02', 'remote'),
+      row('2026-06-03', 'vacation'),
+    ]);
+
+    // `present` is the intern's own check-in and stands behind no request.
+    expect(requestedDays).toEqual({ '2026-06-02': 'remote', '2026-06-03': 'vacation' });
+  });
+
+  it('never reports an approval timestamp as a check-in', () => {
+    const early = new Date('2026-06-01T07:30:00Z');
+    const late = new Date('2026-06-02T15:00:00Z');
+
+    const { lastCheckIn } = splitRows([
+      row('2026-06-01', 'present', early),
+      row('2026-06-02', 'remote', late),
+    ]);
+
+    expect(lastCheckIn).toEqual(early);
+  });
+
+  it('reports no check-in at all for a month of pure leave', () => {
+    const { lastCheckIn, records: attended } = splitRows([
+      row('2026-06-03', 'vacation'),
+      row('2026-06-04', 'sick'),
+    ]);
+
+    expect(lastCheckIn).toBeNull();
+    expect(attended).toEqual([]);
   });
 });

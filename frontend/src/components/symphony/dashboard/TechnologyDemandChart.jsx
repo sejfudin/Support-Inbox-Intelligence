@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { Loader } from '@/components/ui/loader';
 
 // Same brand-purple family used by BreakdownDonut/TechnologySupply — a dark
 // shade for "Projects" and a light tint for "Interns placed" so the two
@@ -62,7 +63,7 @@ export function TechnologyDemandChart({
   if (isPending) {
     return (
       <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-        Loading…
+        <Loader size="sm" label="Loading demand" />
       </div>
     );
   }

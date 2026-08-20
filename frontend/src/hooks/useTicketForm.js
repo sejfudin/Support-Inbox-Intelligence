@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { emptyBlocker } from '@/helpers/ticketBlocker';
 
 export const useTicketForm = (initialStatus = '') => {
   const initialState = useMemo(
@@ -11,6 +12,8 @@ export const useTicketForm = (initialStatus = '') => {
       assignedTo: 'unassigned',
       dueDate: '',
       category: null,
+      // Only sent when Blocked is the chosen status — see `NewTickets#handleCreate`.
+      blockedBy: emptyBlocker(),
     }),
     [initialStatus]
   );

@@ -72,3 +72,21 @@ export const getRecommendationResultVariant = (result) => {
   if (result === 'not_placed') return 'destructive';
   return 'outline';
 };
+
+/**
+ * Tone keys for `helpers/badgeTones` — the flat chip used on the overhauled
+ * surfaces, as opposed to the bordered `Badge` variants above. Both spellings of
+ * the same three states exist because the overhaul has not reached every screen.
+ */
+export const getRecommendationStatusTone = (status) => {
+  if (status === 'resulted') return 'success';
+  if (status === 'interviewing') return 'warning';
+  if (status === 'recommended') return 'primary';
+  return 'neutral';
+};
+
+export const getRecommendationResultTone = (result) => {
+  if (result === 'placed') return 'success';
+  if (result === 'not_placed') return 'danger';
+  return 'neutral';
+};

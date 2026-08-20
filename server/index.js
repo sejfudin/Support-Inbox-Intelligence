@@ -6,6 +6,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const { initSocket } = require('./socket/socketServer');
+const { startDailyReminderScheduler } = require('./services/dailyReminderService');
 
 const authRoutes = require('./routes/auth');
 const ticketRoutes = require('./routes/ticket');
@@ -30,7 +31,11 @@ const recommendationRoutes = require('./routes/recommendations');
 const specializationRoutes = require('./routes/specializations');
 const dailyRoutes = require('./routes/dailies');
 const attendanceRoutes = require('./routes/attendance');
+const absenceRequestRoutes = require('./routes/absenceRequest');
+const absenceSettingsRoutes = require('./routes/absenceSettings');
 const dashboardRoutes = require('./routes/dashboard');
+const staffingRequestRoutes = require('./routes/staffingRequests');
+const userRoutes = require('./routes/users');
 const { handleWebhook } = require('./controllers/github');
 
 const PORT = process.env.PORT || 4000;
@@ -76,7 +81,11 @@ app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/specializations', specializationRoutes);
 app.use('/api/dailies', dailyRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/absence-requests', absenceRequestRoutes);
+app.use('/api/absence-request-settings', absenceSettingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/staffing-requests', staffingRequestRoutes);
+app.use('/api/users', userRoutes);
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 app.use((req, res, next) => {
@@ -91,6 +100,7 @@ app.use((req, res, next) => {
     await connectDB();
     const server = http.createServer(app);
     initSocket(server);
+    startDailyReminderScheduler();
 
     server.listen(PORT, () => {
       console.log(`🟢 Server is running at port: ${PORT}`);

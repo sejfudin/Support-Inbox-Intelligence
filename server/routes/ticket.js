@@ -11,6 +11,10 @@ const {
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
+  getReviewerCandidates,
+  requestReview,
+  answerReview,
+  cancelReview,
 } = require('../controllers/tickets');
 
 // const { generateAI } = require('../controllers/ai');
@@ -40,6 +44,11 @@ router.get('/:id', protect, getTicketById);
 router.patch('/:id', protect, updateTicket);
 router.patch('/:id/archive', protect, archiveTicket);
 router.patch('/:id/unarchive', protect, unarchiveTicket);
+
+router.get('/:ticketId/review-request/candidates', protect, getReviewerCandidates);
+router.post('/:ticketId/review-request', protect, requestReview);
+router.patch('/:ticketId/review-request', protect, answerReview);
+router.delete('/:ticketId/review-request', protect, cancelReview);
 
 // router.post('/:id/messages', protect, requireRole('admin', 'agent'), addMessage);
 // router.post('/:id/ai/generate', protect, requireRole('admin', 'agent'), generateAI);

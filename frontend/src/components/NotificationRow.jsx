@@ -1,16 +1,24 @@
 import { formatDistanceToNow } from 'date-fns';
-import { Check, ExternalLink } from 'lucide-react';
+import { Check, ExternalLink, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   getTicketIdFromNotification,
   getCommentIdFromNotification,
+  getNotificationLink,
   isMongoId,
 } from '@/helpers/notificationUtils';
 
-export function NotificationRow({ notification, markReadPending, onMarkRead, onOpenTicket }) {
+export function NotificationRow({
+  notification,
+  markReadPending,
+  onMarkRead,
+  onOpenTicket,
+  onOpenLink,
+}) {
   const ticketId = getTicketIdFromNotification(notification);
   const commentId = getCommentIdFromNotification(notification);
+  const link = getNotificationLink(notification);
   const created = notification.createdAt ? new Date(notification.createdAt) : null;
   const timeLabel =
     created && !Number.isNaN(created.getTime())
@@ -18,11 +26,28 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
       : '';
 
   const isMention = notification.type === 'ticket_mention';
+  const isPlacement = notification.type === 'intern_placed';
   const canMarkRead = !notification.read && !markReadPending && notification._id;
+  const hasTicketTarget = isMongoId(String(ticketId));
+  const hasDestination = hasTicketTarget || Boolean(link);
+  const isClickable = canMarkRead || hasDestination;
 
   const handleMarkRead = () => {
     if (!canMarkRead) return;
     onMarkRead(notification._id);
+  };
+
+  // Clicking anywhere on the row opens the notification's destination (same
+  // as the explicit button below) and marks it read as a side effect — not
+  // just mark-read, which made the row feel unresponsive when there was
+  // somewhere to go. Buttons stop propagation so this doesn't double-fire.
+  const handleRowActivate = () => {
+    handleMarkRead();
+    if (hasTicketTarget) {
+      onOpenTicket({ ticketId: String(ticketId), commentId: String(commentId || '') });
+    } else if (link) {
+      onOpenLink(link);
+    }
   };
 
   return (
@@ -30,23 +55,30 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
       data-test={`notification-row-${notification._id}`}
       className={cn(
         'px-3 py-2.5 transition-colors',
-        !notification.read ? 'cursor-pointer bg-primary/5 hover:bg-primary/10' : 'bg-transparent'
+        !notification.read ? 'cursor-pointer bg-primary/5 hover:bg-primary/10' : 'bg-transparent',
+        hasDestination && 'cursor-pointer hover:bg-muted/40'
       )}
-      role={canMarkRead ? 'button' : undefined}
-      tabIndex={canMarkRead ? 0 : undefined}
-      onClick={handleMarkRead}
+      role={isClickable ? 'button' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={handleRowActivate}
       onKeyDown={(e) => {
-        if (!canMarkRead || (e.key !== 'Enter' && e.key !== ' ')) return;
+        if (!isClickable || (e.key !== 'Enter' && e.key !== ' ')) return;
         e.preventDefault();
-        handleMarkRead();
+        handleRowActivate();
       }}
     >
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium leading-snug text-foreground">{notification.title}</p>
           {isMention ? (
-            <span className="rounded-full border border-blue-500/30 bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:border-blue-500/35 dark:bg-blue-500/20 dark:text-blue-300">
+            <span className="rounded-full border border-[hsl(var(--tone-info)/0.3)] bg-[hsl(var(--tone-info)/0.15)] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--tone-info-fg))] dark:border-[hsl(var(--tone-info)/0.35)] dark:bg-[hsl(var(--tone-info)/0.2)] dark:text-[hsl(var(--tone-info-fg))]">
               Mention
+            </span>
+          ) : null}
+          {isPlacement ? (
+            <span className="flex items-center gap-1 rounded-full border border-[hsl(var(--tone-success)/0.3)] bg-[hsl(var(--tone-success)/0.15)] px-2 py-0.5 text-[10px] font-semibold text-[hsl(var(--tone-success-fg))] dark:border-[hsl(var(--tone-success)/0.35)] dark:bg-[hsl(var(--tone-success)/0.15)] dark:text-[hsl(var(--tone-success-fg))]">
+              <PartyPopper className="h-2.5 w-2.5" />
+              Placed
             </span>
           ) : null}
         </div>
@@ -93,6 +125,23 @@ export function NotificationRow({ notification, markReadPending, onMarkRead, onO
               >
                 <ExternalLink className="h-3 w-3" />
                 Open task
+              </Button>
+            ) : link ? (
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                data-test={`notification-${notification._id}-open-link-button`}
+                className="h-7 gap-1 px-2 text-xs"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleMarkRead();
+                  onOpenLink(link);
+                }}
+              >
+                <ExternalLink className="h-3 w-3" />
+                View
               </Button>
             ) : null}
           </div>

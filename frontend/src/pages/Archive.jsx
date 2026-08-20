@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { Archive as ArchiveIcon } from 'lucide-react';
 import { createTicketColumns } from '@/components/columns/ticketColumns';
 import { useTicketList } from '@/hooks/useTicketList';
 import { DataTable } from '@/components/Tickets/TicketsTable';
 import { useTicketModals } from '@/hooks/useTicketModals';
+import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import TicketsState from '@/components/Tickets/TicketsState';
 import TicketsHeader from '@/components/Tickets/TicketsHeader';
@@ -11,7 +13,9 @@ import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useAuth } from '@/context/AuthContext';
 import { useArchiveTicket, useUnarchiveTicket } from '@/queries/tickets';
+import { ARCHIVE_DEFAULT_SORT } from '@/helpers/ticketSort';
 import { toast } from 'sonner';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export default function ArchivePage() {
   const [activeTab] = useState('all');
@@ -46,13 +50,30 @@ export default function ArchivePage() {
   const {
     tickets: normalizedTickets,
     pagination,
-    isLoading,
+    isLoading: isLoadingRaw,
     isError,
     isPlaceholderData,
     search,
     setSearch,
     setPage,
-  } = useTicketList({ activeTab, additionalFilters: { archived: true } });
+    sorting,
+    setSorting,
+  } = useTicketList({
+    activeTab,
+    additionalFilters: { archived: true },
+    // Archived date, newest first. The list is paginated, so `useTicketList`
+    // sends the order to the API rather than reordering the page in the browser.
+    defaultSort: ARCHIVE_DEFAULT_SORT,
+  });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw, { release: isError });
+
+  // Held for a full turn of the animation. This is the screen people open most, several times an
+  // hour, and a mark that appears and vanishes inside 200ms on a warm cache reads as a glitch
+  // rather than as loading. The skeleton behind it carries the shape either way.
+
+  const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
+    useTicketModals();
 
   const columns = createTicketColumns({
     statusBadgeConfig: helpers.statusBadgeConfig,
@@ -60,10 +81,10 @@ export default function ArchivePage() {
     statusTracksTime: helpers.statusTracksTime,
     variant: 'archive',
     onRestore: handleRestore,
+    onOpenTicket: openTicketDetails,
   });
 
-  const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
-    useTicketModals();
+  useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
 
   return (
     <PageShell>
@@ -86,8 +107,14 @@ export default function ArchivePage() {
             isLoading={isLoading}
             isError={isError}
             isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
-            emptyMessage="No archived tickets found."
-            loadingSlot={<TableSkeleton />}
+            loadingSlot={
+              <LoadingOverlay label="Loading archive">
+                <TableSkeleton />
+              </LoadingOverlay>
+            }
+            emptyIcon={ArchiveIcon}
+            emptyTitle="No archived tickets"
+            emptyDescription="Archived tickets stay here; restore any one to bring it back to the active board."
           >
             <DataTable
               columns={columns}
@@ -95,8 +122,11 @@ export default function ArchivePage() {
               pagination={pagination}
               onPageChange={(newPage) => setPage(newPage)}
               meta={{ onRowClick: openTicketDetails }}
-              hideHeader
-              tableClassName="w-full"
+              sorting={sorting}
+              onSortingChange={setSorting}
+              // Six columns, ~677px of content: below this the panel scrolls
+              // inside itself rather than crushing the subject.
+              tableClassName="min-w-[720px] table-fixed"
             />
           </TicketsState>
         </PagePanel>
@@ -106,6 +136,7 @@ export default function ArchivePage() {
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
+        onOpenTicket={openTicketDetails}
       />
     </PageShell>
   );
