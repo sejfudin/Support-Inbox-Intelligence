@@ -65,6 +65,12 @@ AI: `AISummary`.
   Read/written by their owner only, at `GET|PATCH /api/users/me/preferences` — the PATCH is a
   dot-notation partial merge, last-write-wins. **UI scale is deliberately not in it** and stays
   per-device in the browser. See "UI preferences" below.
+- `User.whatsNewSeenVersion` — the `TOUR_VERSION` of the what's-new tour this account has
+  finished, or `null` for "never seen one". A top-level field rather than a `preferences` row
+  because `preferences` validates every write against an enum table and a release string has no
+  such list; it is the same shape as `staffingRequestsLastSeenAt` — a marker the app writes, not a
+  setting the user picks. Written by its owner only, at `PATCH /api/users/me/whats-new-seen`. See
+  "The what's-new tour" below.
 - `User.isTestAccount` — marks an internal QA login (seeded by `seedTestAccounts.js`, safe on
   production) that must work exactly like a real account but is excluded, at the query, from
   every listing that surfaces mentors/leadership. See `.claude/docs/security.md` § Test accounts.
@@ -306,6 +312,30 @@ two browsers changing two different preferences do not clobber each other.
 - **UI scale stays per-device** and is deliberately absent from the server table — it is a function
   of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
   defaults so the auth screens never wear the last user's accent or accessibility settings.
+
+## The what's-new tour
+
+A full-screen walkthrough that announces a release by spotlighting the controls that changed. It
+lives entirely in `frontend/src/components/onboarding/` — `whatsNewSteps.js` is the script plus
+every read and write of the seen-state, `WhatsNewTour.jsx` is the overlay, and `WhatsNewButton.jsx`
+is the pulsing way back in from the sidebar footer.
+
+- **Versioned, not boolean, everywhere — server included.** Shipping a release through it is two
+  steps: edit the steps, then bump `TOUR_VERSION`. The bump is what re-announces to everyone
+  exactly once. The server deliberately holds **no copy** of that constant (it validates only that
+  the version is a plausible string), because a mirrored constant would make it three steps and a
+  forgotten bump would reject every save.
+- **`User.whatsNewSeenVersion` is the source of truth; `localStorage` is the backstop.** The
+  account field is what makes reading the tour in one browser mean not meeting it in another. It
+  arrives on the `GET /api/auth/me` payload — `getMe` spreads the whole user document — so it costs
+  no extra request and needs no hydration gate: the tour was already gated on having a user. The
+  per-account local key (`whatsNewTour:<userId>`) is written first and synchronously, and is what
+  keeps a failed or offline PATCH from turning into a tour that reopens on every load. **Where the
+  two disagree, seen wins.**
+- `TOUR_ENABLED` in `whatsNewSteps.js` is the master switch and is a plain constant on purpose —
+  flipping it is how you get an automated run past the scrim, the alternative being to drive as an
+  account already marked seen. It gates both ways in, so `false` means the overlay cannot mount and
+  the button renders nothing.
 
 ## Real-time (Socket.IO, `server/socket/`)
 

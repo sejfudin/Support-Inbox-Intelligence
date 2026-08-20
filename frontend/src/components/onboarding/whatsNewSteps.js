@@ -82,6 +82,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { markWhatsNewSeenOnAccount } from '@/api/onboardingTour';
 import { useAuth } from '@/context/AuthContext';
 import { resolveUserId } from '@/helpers/userIdentity';
 
@@ -120,20 +121,27 @@ import { resolveUserId } from '@/helpers/userIdentity';
 export const TOUR_VERSION = '2026-08-profile-pictures';
 
 /**
- * Master switch for the what's-new tour — **temporarily off**.
+ * Master switch for the what's-new tour. **On.**
  *
- * The tour is a full-screen overlay that opens itself on first load after a version
- * bump, which makes the app undrivable by automated tests: the scrim swallows every
- * click until someone walks the script to the end. Turned off so the automation suite
- * can run.
+ * It gates both ways in — the auto-open in `WhatsNewTour` and the sidebar's "Notice
+ * some changes?" button — so `false` here means the overlay cannot mount at all and
+ * the button renders nothing, rather than a control that does nothing.
  *
- * TEMPORARY — turn this back to `true` before the production release. Nothing else
- * needs reverting: this flag gates both ways in (the auto-open in `WhatsNewTour` and
- * the sidebar's "Notice some changes?" button), the steps and anchors are all still
- * here, and the per-account seen-state is untouched, so flipping it back re-announces
- * `TOUR_VERSION` to everyone exactly once as designed.
+ * **If you are driving the app and the screen is covered, this is why.** The tour is
+ * a full-screen overlay whose scrim swallows every click until the script is walked
+ * to the end, so an automated run against an account that has not seen the current
+ * `TOUR_VERSION` will stall on it. Two ways past it, in order of preference:
+ *
+ * 1. **Drive as an account that has already seen it.** Since the seen-state moved to
+ *    the user record (see `tourStorageKey` below) this survives a fresh browser
+ *    profile, so it is a property of the fixture rather than of the machine.
+ * 2. **Flip this constant to `false` for the run.** Deliberately a plain constant and
+ *    not an env var, a query param or a storage key: each of those costs something
+ *    outside this file — a row in `.env.example` and the workflows doc, a param that
+ *    leaks through a shared link, or app state a real user could land in — to replace
+ *    an edit that takes one line and is visible in the diff.
  */
-export const TOUR_ENABLED = false;
+export const TOUR_ENABLED = true;
 
 /**
  * Opening the tour. Two ways in, and they answer different needs:
@@ -160,31 +168,54 @@ export const replayWhatsNewTour = () => {
 };
 
 /**
- * Where "this viewer has finished this tour" is remembered — **one key per account**,
- * not one per browser.
+ * Where "this viewer has finished this tour" is remembered: **on the user record**,
+ * with a per-account `localStorage` key as the backstop underneath it.
  *
- * It used to be a single `whatsNewTour` key, which is a real bug on a shared machine:
- * sign-out clears only the tokens (`clearAuth` in `queries/auth.js`), so the next
- * person to sign in inherited the previous person's "seen" state and never got the
- * tour at all. Namespacing by account id is the whole fix.
+ * The server field (`User.whatsNewSeenVersion`, written through
+ * `PATCH /api/users/me/whats-new-seen`) is the source of truth, and it is what makes
+ * reading the tour in Chrome mean not meeting it again in Safari, on a phone, or on
+ * a fresh machine. It arrives on the `/auth/me` payload the shell already waits for,
+ * so it costs no extra request and no hydration gate of its own — `getMe` spreads the
+ * whole user document, and the tour was already gated on having a user.
  *
- * Namespacing rather than clearing on sign-out, because clearing would re-show the
- * tour to the *same* person every time they signed back in — a nag — and would do
- * nothing for a session that simply expires instead of being logged out.
+ * An earlier attempt at this was built and reverted for being too much machinery: it
+ * went through the `preferences` subdocument, which meant a server constant, an enum
+ * branch in a validator whose whole contract is "a value from this table", a row in
+ * the `ThemeConfigContext` sync table, and a gate to wait for the hydration. A
+ * top-level field beside `staffingRequestsLastSeenAt` — a marker the app writes, not
+ * a setting the user picks — needs none of those. That is the whole difference.
  *
- * No migration: the old un-namespaced key is now never read, so every account reads as
- * "not seen yet" once. That is what this release wants anyway.
+ * **The local key stays, and is not a leftover.** It is written first, synchronously,
+ * on every finish, and it is what the reads fall back to. Three things depend on it:
  *
- * **Known limit, accepted:** this is per browser, so someone who reads the tour in
- * Safari meets it again in Chrome. Putting it on the user record alongside
- * `preferences` would fix that, and it was built and then reverted — it cost a server
- * constant, a model field, a validator branch, a sync-table row and a hydration gate,
- * which is too much machinery for one boolean-ish flag. If a second thing ever needs
- * to follow the account like this, do it then and carry this along with it.
+ * - A failed or offline PATCH does not turn into a tour that reopens on every load.
+ *   Nagging is the one failure mode this feature cannot have, and it is worse than
+ *   someone reading the tour twice.
+ * - The button's pulse is correct on the frame the tour is finished, rather than
+ *   after a round trip.
+ * - Private mode / storage disabled still degrades to "counted as seen" via
+ *   `readSeenVersion`'s `catch`, unchanged.
+ *
+ * **Where the two disagree, seen wins**: either source saying "read it" means it was
+ * read. So an account marked seen on the server, opened in a browser with no local
+ * copy, is correctly not re-shown — that is the feature working, not a stale read.
+ *
+ * The local key is namespaced by account id and that still matters. Sign-out clears
+ * only the tokens (`clearAuth` in `queries/auth.js`), so a single `whatsNewTour` key
+ * on a shared machine let the next person inherit the previous person's "seen" state
+ * and never get the tour at all. Namespacing rather than clearing on sign-out,
+ * because clearing would re-show the tour to the *same* person every time they signed
+ * back in — a nag — and would do nothing for a session that simply expires.
+ *
+ * Versioned rather than boolean throughout, server included, so the release mechanism
+ * at the top of this file survives: bump `TOUR_VERSION`, and everyone is re-announced
+ * to exactly once. A boolean `hasOnboarded` would ship the tour once ever and quietly
+ * retire the channel the closing step promises.
  *
  * Not exported: every read and write lives in this module, and the two consumers go
  * through `useWhatsNewSeen` / `markWhatsNewSeen`. Keep it that way — a second module
- * touching these keys directly is how the button and the overlay end up disagreeing.
+ * touching these keys directly is how the button and the overlay end up disagreeing,
+ * and now also how a component would end up learning that a request is involved.
  */
 const tourStorageKey = (userId) => `whatsNewTour:${userId}`;
 
@@ -205,12 +236,36 @@ const readSeenVersion = (userId) => {
 /**
  * Versioned, not boolean, so the next release only has to bump `TOUR_VERSION`.
  *
- * No id yet (the `/me` fetch is still in flight) counts as seen: it keeps the button
+ * Takes the whole user rather than an id, because the account's own answer is now a
+ * field on it. Either source saying "seen" is enough — see the block above on why
+ * seen wins a disagreement.
+ *
+ * No user yet (the `/me` fetch is still in flight) counts as seen: it keeps the button
  * from pulsing for a frame before we know who is looking, and the overlay's auto-open
- * is gated on having a user anyway.
+ * is gated on having a user anyway. That gate is also what removes any need for a
+ * separate one here — by the time there is a user to read, the server's answer has
+ * arrived on the same payload.
  */
-const hasSeenWhatsNew = (userId) => !userId || readSeenVersion(userId) === TOUR_VERSION;
+const hasSeenWhatsNew = (user) => {
+  const userId = resolveUserId(user);
+  if (!userId) return true;
+  if (user?.whatsNewSeenVersion === TOUR_VERSION) return true;
+  return readSeenVersion(userId) === TOUR_VERSION;
+};
 
+/**
+ * Local first and synchronously, then the account.
+ *
+ * The order is the point: the local write and the event are what stop the pulse on
+ * this frame and what keep the tour from reopening if the request never lands, so
+ * neither waits on a round trip. The PATCH is fire-and-forget for the same reason —
+ * there is nothing to do with a failure that the local copy has not already covered,
+ * and a toast saying "we could not remember that you read this" helps nobody.
+ *
+ * The one case it leaves open is deliberate: an account that finishes the tour while
+ * offline and never comes back on this browser meets it once more elsewhere. That is
+ * the harmless direction to be wrong in.
+ */
 export const markWhatsNewSeen = (userId) => {
   if (!userId) return;
   try {
@@ -219,6 +274,10 @@ export const markWhatsNewSeen = (userId) => {
     /* nothing we can do, and not worth surfacing to the user */
   }
   window.dispatchEvent(new Event(TOUR_SEEN_EVENT));
+
+  markWhatsNewSeenOnAccount(TOUR_VERSION).catch(() => {
+    /* the local copy already answered; see the note above */
+  });
 };
 
 /**
@@ -233,15 +292,22 @@ export const useWhatsNewSeen = () => {
   // shared-browser bug the key namespacing above fixes.
   const { user } = useAuth();
   const userId = resolveUserId(user);
+  const accountSeenVersion = user?.whatsNewSeenVersion ?? null;
 
-  const [seen, setSeen] = useState(() => hasSeenWhatsNew(userId));
+  const [seen, setSeen] = useState(() => hasSeenWhatsNew(user));
 
-  // Re-read on the id, not just once: the same mounted shell can go from no user to a
-  // user (the `/me` fetch resolving), and on a shared browser from one person to
-  // another without a remount.
+  // Re-read on the id *and* on the account's stored version, not just once: the same
+  // mounted shell can go from no user to a user (the `/me` fetch resolving), and on a
+  // shared browser from one person to another without a remount. The version is in
+  // the deps because a `/me` refetch can change it under the same id — a second
+  // browser finishing the tour, say — and the button should go quiet without a reload.
   useEffect(() => {
-    setSeen(hasSeenWhatsNew(userId));
-  }, [userId]);
+    setSeen(hasSeenWhatsNew(user));
+    // `user` itself is not a dep: `AuthContext` hands back a new object on every
+    // refetch, which would re-run this on every one of them for nothing. The two
+    // fields that can actually change the answer are.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, accountSeenVersion]);
 
   useEffect(() => {
     const onSeen = () => setSeen(true);

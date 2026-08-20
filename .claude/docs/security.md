@@ -572,6 +572,12 @@ exactly like a real one, but never appear in a listing meant for real users.
   500. Keep both properties if you touch the validator.
 - Preferences are UI taste, not authorization. Nothing may read them to decide what a
   caller can see or do.
+- `PATCH /api/users/me/whats-new-seen` is the same shape again: the account comes from
+  `req.user._id`, so one person can never mark another's tour read. What it stores is an
+  opaque release string, so it is bounded (non-empty, trimmed, length-capped) rather than
+  enum-checked — the server holds no copy of `TOUR_VERSION` on purpose. Nothing may read
+  `whatsNewSeenVersion` to decide what a caller can see or do; like preferences, it is UI
+  state, not authorization.
 - `POST`/`DELETE /api/auth/me/avatar` follow the same shape — the account comes from
   `req.user._id`, so there is no id to aim at somebody else's record. `PATCH /auth/:id`
   builds its update from an explicit allow-list and so cannot write `avatarUrl` or

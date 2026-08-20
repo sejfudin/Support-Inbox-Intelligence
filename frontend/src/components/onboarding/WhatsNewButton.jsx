@@ -23,7 +23,7 @@ export function WhatsNewButton({ collapsed = false }) {
   const seen = useWhatsNewSeen();
   const label = 'Notice some changes?';
 
-  // Tour temporarily disabled for the automation suite — render no entry point at
+  // With the tour switched off there is nothing to open, so render no entry point at
   // all rather than a button that does nothing. See `TOUR_ENABLED` in `whatsNewSteps.js`.
   if (!TOUR_ENABLED) return null;
 
