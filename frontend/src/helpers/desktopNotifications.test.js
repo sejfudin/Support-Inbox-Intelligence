@@ -5,6 +5,7 @@ import {
   isDesktopNotificationsOn,
   isValidDesktopNotifications,
   shouldShowDesktopNotification,
+  drawsInForeground,
 } from './desktopNotifications';
 
 const reminder = {
@@ -12,6 +13,14 @@ const reminder = {
   type: 'daily_attendance_reminder',
   title: 'Reminder',
   body: 'Check in',
+};
+
+// Anything outside FOREGROUND_TYPES — the bell can hold it until the reader looks.
+const mention = {
+  _id: 'n3',
+  type: 'ticket_mention',
+  title: 'Mentioned',
+  body: 'In a comment',
 };
 
 const args = (overrides = {}) => ({
@@ -63,7 +72,24 @@ describe('shouldShowDesktopNotification', () => {
   });
 
   it('stays silent while the reader is looking at the app', () => {
-    expect(shouldShowDesktopNotification(args({ appInBackground: false }))).toBe(false);
+    expect(
+      shouldShowDesktopNotification(args({ notification: mention, appInBackground: false }))
+    ).toBe(false);
+  });
+
+  it('draws the daily reminder even with the app on screen', () => {
+    expect(shouldShowDesktopNotification(args({ appInBackground: false }))).toBe(true);
+  });
+
+  it('still respects the switch, permission and mute for a foreground type', () => {
+    const foreground = { appInBackground: false };
+    expect(shouldShowDesktopNotification(args({ ...foreground, enabled: false }))).toBe(false);
+    expect(shouldShowDesktopNotification(args({ ...foreground, permission: 'denied' }))).toBe(
+      false
+    );
+    expect(shouldShowDesktopNotification(args({ ...foreground, mutedGroups: ['reminders'] }))).toBe(
+      false
+    );
   });
 
   it('respects a muted group', () => {
@@ -87,5 +113,14 @@ describe('shouldShowDesktopNotification', () => {
     expect(
       shouldShowDesktopNotification(args({ notification: ungrouped, mutedGroups: ['reminders'] }))
     ).toBe(true);
+  });
+});
+
+describe('drawsInForeground', () => {
+  it('is the daily reminder and nothing else', () => {
+    expect(drawsInForeground(reminder)).toBe(true);
+    expect(drawsInForeground(mention)).toBe(false);
+    expect(drawsInForeground(null)).toBe(false);
+    expect(drawsInForeground(undefined)).toBe(false);
   });
 });

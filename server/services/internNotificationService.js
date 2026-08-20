@@ -78,15 +78,17 @@ const dispatch = async ({
   promptBuilder,
   promptArgs,
   dedupeKey,
+  redeliverOnDuplicate = false,
 }) => {
   const recipientId = toId(internUserId);
-  if (!recipientId) return;
+  if (!recipientId) return { skipped: 'no-recipient' };
 
   const { title, body } = promptBuilder
     ? await tryWarm(promptBuilder, promptArgs, fallback)
     : fallback;
 
   let notification;
+  let redelivered = false;
   try {
     notification = await Notification.create({
       recipient: recipientId,
@@ -97,19 +99,36 @@ const dispatch = async ({
       link: link || '',
       dedupeKey,
     });
+    notification = notification.toObject();
   } catch (err) {
-    // A unique scheduled-event key means another process/restarted scheduler
-    // already delivered it. That is a successful no-op, not an error.
-    if (dedupeKey && err?.code === 11000) return;
-    throw err;
+    if (!dedupeKey || err?.code !== 11000) throw err;
+
+    // The row already exists: another process, or a restarted scheduler, wrote
+    // it. For most types that is a finished job and there is nothing left to do.
+    if (!redeliverOnDuplicate) return { skipped: 'duplicate' };
+
+    // For a reminder the reader has to *see* while a window is still open, the
+    // record is not the missing half — delivery is. The socket event that
+    // carried it fired when the cohort was swept, which is exactly the moment a
+    // reader who was not signed in then did not receive. Re-emit the existing
+    // row for them instead of writing a second one.
+    const existing = await Notification.findOne({ dedupeKey }).lean();
+    if (!existing) return { skipped: 'duplicate' };
+    if (existing.read) return { skipped: 'already-read' };
+    notification = existing;
+    redelivered = true;
   }
 
   sendToUser(recipientId, 'new_notification', {
-    notification: notification.toObject(),
+    notification,
     recipientId,
     scopes: [invalidationScopes.user(recipientId)],
-    unreadDelta: 1,
+    // A re-delivery is the same unread row arriving a second time; counting it
+    // again would inflate the badge past the number of rows behind it.
+    unreadDelta: redelivered ? 0 : 1,
   });
+
+  return { delivered: true, redelivered };
 };
 
 // Wraps every exported function so callers can invoke it bare
@@ -381,15 +400,28 @@ const notifyDocumentationLinksUpdated = safe(async ({ internUserId, internProfil
   });
 });
 
+/**
+ * `redeliver` is set only by the on-arrival path
+ * (`dailyReminderService#runDailyReminderCheckForUser`). The cohort sweep leaves
+ * it off: the sweep is what writes the row, so for it a duplicate really does
+ * mean "already done".
+ */
 const notifyDailyReminder = safe(
-  async ({ internUserId, internProfileId, missingAttendance, missingDaily, dateKey }) => {
+  async ({
+    internUserId,
+    internProfileId,
+    missingAttendance,
+    missingDaily,
+    dateKey,
+    redeliver = false,
+  }) => {
     const missing = [
       missingAttendance ? 'check in for the day' : '',
       missingDaily ? "file today's standup note" : '',
     ].filter(Boolean);
-    if (missing.length === 0) return;
+    if (missing.length === 0) return { skipped: 'nothing-missing' };
 
-    await dispatch({
+    return dispatch({
       internUserId,
       internProfileId,
       type: 'daily_attendance_reminder',
@@ -405,6 +437,7 @@ const notifyDailyReminder = safe(
         details: `Still to do today: ${missing.join(', ')}.`,
       },
       dedupeKey: dateKey ? `daily-reminder:${dateKey}:${toId(internUserId)}` : undefined,
+      redeliverOnDuplicate: redeliver,
     });
   }
 );

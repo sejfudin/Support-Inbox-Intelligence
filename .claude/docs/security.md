@@ -225,6 +225,16 @@ branch:
 When adding a new mentor-facing write path, don't assume `canWriteMentorData` returning `true`
 for a mentor means the UI should expose it — check the carve-out list above first.
 
+**`POST /api/notifications/daily-reminder-check` is self-scoped, and must stay that way.**
+It is the only notification route that *writes* a notification, and it carries `protect` alone
+with no role guard — which is only safe because the controller passes `req.user._id` and nothing
+from the request body or params. `runDailyReminderCheckForUser` reads that user's own profile,
+attendance row and workspace memberships, and notifies that same user. Never add a `userId`
+parameter to it: that would turn a self-check into "make the server notify anyone", callable by
+any signed-in account. The route also re-checks the clock and the caller's role server-side —
+`DailyReminderSync`'s window check is UX only, and a client outside the window gets
+`{ skipped: 'outside-window' }`.
+
 **Intern notifications must not leak admin/mentor-private fields.**
 `internNotificationService.js` (see `.claude/docs/architecture.md` § Notifications) generates
 AI-flavored text as a side effect of admin/mentor/leadership writes to intern data — every prompt

@@ -71,11 +71,25 @@ export const isAppInBackground = () =>
   document.visibilityState !== 'visible' || !document.hasFocus();
 
 /**
+ * The types that draw even with the app on screen.
+ *
+ * Only the daily reminder. It is time-boxed — the check-in window shuts at
+ * 11:00 — so a reader who is looking at some other part of the app needs to be
+ * interrupted rather than left to notice the bell badge on their own. Every
+ * other type keeps the background-only rule below.
+ */
+const FOREGROUND_TYPES = new Set(['daily_attendance_reminder']);
+
+/** Whether this type is allowed to interrupt a reader who is on the page. */
+export const drawsInForeground = (notification) => FOREGROUND_TYPES.has(notification?.type);
+
+/**
  * Whether one incoming notification earns a banner. Pure, so the four
  * conditions are testable without a DOM.
  *
- * `appInBackground` matters: with the app on screen the bell badge already says
- * it, and a banner over the page the reader is looking at is pure noise.
+ * `appInBackground` matters for everything outside `FOREGROUND_TYPES`: with the
+ * app on screen the bell badge already says it, and a banner over the page the
+ * reader is looking at is pure noise.
  */
 export const shouldShowDesktopNotification = ({
   notification,
@@ -86,7 +100,7 @@ export const shouldShowDesktopNotification = ({
 }) => {
   if (!enabled) return false;
   if (permission !== 'granted') return false;
-  if (!appInBackground) return false;
+  if (!appInBackground && !drawsInForeground(notification)) return false;
   if (!notification?.title) return false;
   return filterNotifications([notification], mutedGroups).length > 0;
 };
@@ -137,9 +151,15 @@ export const showDesktopNotification = ({ title, body, tag, onClick }) => {
  * caller is a socket handler — a cached switch or permission would be whatever
  * it was when the socket connected, not what it is now.
  *
+ * `onBlocked` is the in-app fallback, and fires only when the reader has not
+ * silenced this notification but the OS banner is unavailable anyway — the
+ * device switch is off, or the browser never granted permission. Both are the
+ * common case: the switch defaults to off, and permission is per browser per
+ * device. A muted group never reaches it; mute means silence everywhere.
+ *
  * Safe to call for every notification. Returns the banner, or `null`.
  */
-export const maybeShowDesktopNotification = (notification, { onClick } = {}) => {
+export const maybeShowDesktopNotification = (notification, { onClick, onBlocked } = {}) => {
   const stored = readStoredPreference(
     DESKTOP_NOTIFICATIONS_STORAGE_KEY,
     DESKTOP_NOTIFICATIONS_DEFAULT,
@@ -148,15 +168,34 @@ export const maybeShowDesktopNotification = (notification, { onClick } = {}) => 
 
   const muted = readStoredPreference(NOTIFICATION_MUTED_STORAGE_KEY, '', isValidMutedGroups);
 
+  const mutedGroups = parseMutedGroups(muted);
+  const enabled = isDesktopNotificationsOn(stored);
+  const permission = getDesktopPermission();
+
   const allowed = shouldShowDesktopNotification({
     notification,
-    enabled: isDesktopNotificationsOn(stored),
-    permission: getDesktopPermission(),
+    enabled,
+    permission,
     appInBackground: isAppInBackground(),
-    mutedGroups: parseMutedGroups(muted),
+    mutedGroups,
   });
 
-  if (!allowed) return null;
+  if (!allowed) {
+    // Re-run the same gate with the OS-side conditions satisfied: if it passes,
+    // the only thing stopping the banner was the switch or the permission, and
+    // the fallback is allowed to speak.
+    const blockedByDeviceOnly =
+      (!enabled || permission !== 'granted') &&
+      shouldShowDesktopNotification({
+        notification,
+        enabled: true,
+        permission: 'granted',
+        appInBackground: isAppInBackground(),
+        mutedGroups,
+      });
+    if (blockedByDeviceOnly) onBlocked?.(notification);
+    return null;
+  }
 
   return showDesktopNotification({
     title: notification.title,

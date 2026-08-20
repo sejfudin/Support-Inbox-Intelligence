@@ -1,4 +1,5 @@
 const notificationService = require('../services/notificationService');
+const dailyReminderService = require('../services/dailyReminderService');
 const { broadcastToUserRoom } = require('../socket/socketServer');
 const { invalidationScopes } = require('../socket/invalidationScopes');
 
@@ -21,6 +22,24 @@ const getNotifications = async (req, res, next) => {
       data: items,
       unreadCount,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * The on-arrival half of the daily reminder. The scheduler sweeps the cohort on
+ * its first tick inside the 10:30–11:00 window; this covers the intern who was
+ * not around for that sweep and opens the app at 10:47.
+ *
+ * Scoped to the caller — it only ever checks `req.user`, so no role guard is
+ * needed beyond `protect`. Idempotent: `Notification.dedupeKey` means a repeat
+ * call (or a race with the scheduler) writes nothing and still reports success.
+ */
+const runDailyReminderCheck = async (req, res, next) => {
+  try {
+    const result = await dailyReminderService.runDailyReminderCheckForUser(req.user._id);
+    res.status(200).json({ success: true, message: 'Reminder check complete', data: result });
   } catch (err) {
     next(err);
   }
@@ -77,6 +96,7 @@ const markAllNotificationsRead = async (req, res, next) => {
 
 module.exports = {
   getNotifications,
+  runDailyReminderCheck,
   markNotificationRead,
   markAllNotificationsRead,
 };
