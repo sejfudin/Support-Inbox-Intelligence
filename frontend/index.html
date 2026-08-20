@@ -5,9 +5,172 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Task Manager</title>
+
+    <!--
+      The brand loader's four petals (components/ui/loader.jsx), fetched with the document
+      rather than at the moment the loader mounts.
+
+      This is not an optimisation, it is what makes the animation correct: the first wait in a
+      session is the app boot itself, and without a preload the browser only starts these four
+      requests when the loader renders. Nothing is painted until they arrive, so the unfurl is
+      already several hundred milliseconds in by the time it becomes visible — you see the
+      animation from the middle of its cycle instead of from the start. ~104KB total, and they
+      are needed on the very first screen, so preload is exactly the right hint.
+    -->
+    <link rel="preload" as="image" href="/brand/petals/petal-red.png" />
+    <link rel="preload" as="image" href="/brand/petals/petal-gold.png" />
+    <link rel="preload" as="image" href="/brand/petals/petal-blue.png" />
+    <link rel="preload" as="image" href="/brand/petals/petal-purple.png" />
+
+    <!--
+      The boot splash, in the document rather than in React.
+
+      The React splash (routes/ProtectedRoutes.jsx) cannot cover the wait for the code that
+      defines it. Until the entry chunk has downloaded, parsed and mounted, `#root` is empty and
+      the tab is white — so on a cold load the brand mark used to appear *after* the wait it was
+      meant to cover, for whatever was left of its 1.5s floor, which reads as a pointless flash at
+      the end of a blank screen.
+
+      So the same mark is written here as plain markup, with its own copy of the animation. The
+      copy is deliberate: keying off `.logo-loader` in index.css would tie the first paint to a
+      190KB render-blocking stylesheet in production, and in dev that file arrives through the JS
+      bundle, which is the very thing being waited on — the splash would be invisible exactly
+      where it is needed. Four rules and one set of keyframes is the cheaper trade. Keep them in
+      step with `.logo-loader` and `@keyframes logo-unfurl` in `src/index.css`; the stagger and
+      the cubic-bezier are the parts that must match, or the handover to the React splash reads
+      as two different animations rather than one continuous one.
+
+      No teardown code: the splash lives inside `#root`, and `createRoot().render()` clears the
+      container on React's first paint. The React splash is up at that moment (auth is still
+      resolving), so the mark continues rather than blinking out.
+
+      The house palette, not the account's: the accent preference is read synchronously in
+      main.jsx but the petals are the four-colour artwork in `default`, which is also what the
+      React loader draws before the stored theme resolves. Light/dark is worth resolving though —
+      a white flash before a dark app is the thing this is here to stop.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var dark =
+            stored === 'dark' ||
+            ((!stored || stored === 'system') &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-boot-theme', dark ? 'dark' : 'light');
+        } catch (e) {
+          document.documentElement.setAttribute('data-boot-theme', 'light');
+        }
+      })();
+    </script>
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        background-color: hsl(240 43% 98%);
+      }
+
+      html[data-boot-theme='dark'] #boot-splash {
+        background-color: hsl(240 10% 3.9%);
+      }
+
+      /* 132px and the 13px tracked uppercase label are the `lg` scale from components/ui/loader.jsx. */
+      #boot-splash-mark {
+        position: relative;
+        width: 132px;
+        height: 132px;
+      }
+
+      #boot-splash-mark span {
+        position: absolute;
+        inset: 0;
+        background-position: center;
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        animation: boot-unfurl 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+
+      /* The stagger, same four numbers as `.logo-loader` — it is what makes the mark read as one
+         thing unfurling rather than four things pulsing. */
+      #boot-splash-mark span:nth-child(2) {
+        animation-delay: 0.11s;
+      }
+      #boot-splash-mark span:nth-child(3) {
+        animation-delay: 0.22s;
+      }
+      #boot-splash-mark span:nth-child(4) {
+        animation-delay: 0.33s;
+      }
+
+      #boot-splash-label {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: hsl(225 12% 45%);
+      }
+
+      html[data-boot-theme='dark'] #boot-splash-label {
+        color: hsl(240 5% 64.9%);
+      }
+
+      @keyframes boot-unfurl {
+        0% {
+          transform: rotate(-115deg) scale(0.55);
+          opacity: 0;
+        }
+        30% {
+          transform: rotate(0deg) scale(1);
+          opacity: 1;
+        }
+        62% {
+          transform: rotate(0deg) scale(1);
+          opacity: 1;
+        }
+        86%,
+        100% {
+          transform: rotate(115deg) scale(0.55);
+          opacity: 0;
+        }
+      }
+
+      /* Same reasoning as index.css: no `animation-fill-mode`, so the petals fall back to their
+         base style — the whole mark, static and opaque — rather than being pinned at opacity 0. */
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash-mark span {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot-splash" role="status">
+        <div id="boot-splash-mark" aria-hidden="true">
+          <span style="background-image: url('/brand/petals/petal-red.png')"></span>
+          <span style="background-image: url('/brand/petals/petal-gold.png')"></span>
+          <span style="background-image: url('/brand/petals/petal-blue.png')"></span>
+          <span style="background-image: url('/brand/petals/petal-purple.png')"></span>
+        </div>
+        <p id="boot-splash-label">Loading your workspace</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

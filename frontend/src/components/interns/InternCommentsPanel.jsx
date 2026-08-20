@@ -22,6 +22,8 @@ import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const SORT_OPTIONS = [
   { key: 'date', label: 'Date' },
@@ -158,7 +160,9 @@ function SharedWithMenu({
 export function InternCommentsPanel({ userId, internName, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && canWriteInternMentorData(user?.role);
-  const { data: comments = [], isPending } = useInternComments(userId);
+  const { data: comments = [], isPending: isPendingRaw } = useInternComments(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw);
   const { data: allViewers = [] } = useCommentViewers({ enabled: canWrite });
   const { mutate, isPending: isSaving } = useCreateInternComment();
 
@@ -278,9 +282,9 @@ export function InternCommentsPanel({ userId, internName, readOnly = false }) {
 
         <div>
           {isPending && (
-            <p className="px-[18px] py-8 text-center text-[12.5px] text-muted-foreground">
-              Loading…
-            </p>
+            <LoadingOverlay size="sm" label="Loading notes">
+              <PanelBodySkeleton people rows={3} className="px-[18px] pb-5" />
+            </LoadingOverlay>
           )}
           {!isPending && ordered.length === 0 && (
             <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">

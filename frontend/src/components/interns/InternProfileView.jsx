@@ -18,6 +18,7 @@ import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 // The strip closes the identity band, so it carries the hairline above it rather
 // than below — the band's own bottom border is what separates it from the content.
@@ -41,7 +42,9 @@ export function InternProfileView({
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { data: intern, isPending, isError } = useIntern(userId);
+  const { data: intern, isPending: isPendingRaw, isError } = useIntern(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
   // Editing the internal CV link is admin-only; mentors keep read access to
@@ -96,8 +99,11 @@ export function InternProfileView({
     return (
       <PageShell>
         <PageSection>
-          <PagePanel className="flex min-h-[220px] items-center justify-center p-6 text-sm text-muted-foreground">
-            Loading intern profile...
+          {/* The panels below this one are decided by the intern's own record — which tabs
+              exist, whether there is a specialization, whether attendance applies — so the page
+              can't lay itself out yet. The 220px is kept so it doesn't grow underneath. */}
+          <PagePanel className="flex min-h-[220px] items-center justify-center p-6">
+            <Loader label="Loading intern profile…" />
           </PagePanel>
         </PageSection>
       </PageShell>

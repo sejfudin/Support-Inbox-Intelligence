@@ -10,6 +10,7 @@ import {
   formatAttendanceRate,
   isExemptToday,
 } from '@/helpers/attendance';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 /**
  * Admin-only read-only calendar view of one intern's attendance, opened from the
@@ -21,7 +22,9 @@ import {
  */
 export default function InternAttendanceModal({ intern, month, onClose }) {
   const open = Boolean(intern);
-  const { data, isPending, isError } = useInternAttendance(intern?.id, month);
+  const { data, isPending: isPendingRaw, isError } = useInternAttendance(intern?.id, month);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const monthLabel = month ? format(parseISO(`${month}-01`), 'MMMM yyyy') : '';
   const records = data?.records ?? [];
@@ -36,9 +39,7 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
 
   let content;
   if (isPending) {
-    content = (
-      <p className="py-10 text-center text-sm text-muted-foreground">Loading attendance…</p>
-    );
+    content = <Loader className="py-10" label="Loading attendance…" />;
   } else if (isError) {
     content = (
       <p className="py-10 text-center text-sm text-[hsl(var(--tone-danger-fg))]">

@@ -7,6 +7,8 @@ import { useMyDeclaredTechnologies } from '@/hooks/useMyDeclaredTechnologies';
 import { useUpdateMyTechnologies } from '@/queries/interns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay } from '@/components/ui/loader';
 
 // The chip column is fixed rather than auto so every level reads down one edge —
 // "Not assessed" is the widest label and would otherwise drag the chips of the
@@ -82,7 +84,9 @@ export function InternTechnologyDeclaration({ className }) {
       </div>
 
       {isLoadingTechnologies ? (
-        <p className={BODY_MESSAGE_CLASS}>Loading technologies…</p>
+        <LoadingOverlay size="sm" label="Loading technologies">
+          <PanelBodySkeleton rows={3} className="px-[18px] pb-5" />
+        </LoadingOverlay>
       ) : declaredTechnologies.length === 0 ? (
         <p className={BODY_MESSAGE_CLASS}>
           No technologies yet. Search above to add the ones you are working toward.

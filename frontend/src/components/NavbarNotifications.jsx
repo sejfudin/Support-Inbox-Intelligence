@@ -25,6 +25,8 @@ import { useStoredPreference } from '@/hooks/useStoredPreference';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
 import { resolveUserId } from '@/helpers/userIdentity';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay } from '@/components/ui/loader';
 
 export default function NavbarNotifications({ size = 'default', align = 'end' }) {
   const [open, setOpen] = useState(false);
@@ -126,10 +128,12 @@ export default function NavbarNotifications({ size = 'default', align = 'end' })
 
         <ScrollArea className="h-80">
           {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading…
-            </div>
+            /* Rows of the avatar-and-two-lines shape a notification resolves into. No
+               `useLoaderHold` here, for the same reason the ticket modal skips it: opening the
+               bell is a click someone is waiting on, and a floor would put a toll on every one. */
+            <LoadingOverlay size="sm" label="Loading notifications">
+              <PanelBodySkeleton people rows={4} className="px-3 pb-4" />
+            </LoadingOverlay>
           ) : isError ? (
             <p className="px-3 py-6 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
               Could not load notifications.

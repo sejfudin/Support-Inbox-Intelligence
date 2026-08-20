@@ -23,6 +23,7 @@ import {
 } from '@/helpers/attendance';
 import { useInternAttendance } from '@/queries/attendance';
 import { cn } from '@/lib/utils';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 const HEATMAP_MONTHS = 6;
 
@@ -71,7 +72,9 @@ const LEGEND = [
 export default function InternAttendancePanel({ internProfileId }) {
   const [monthDate, setMonthDate] = useState(() => startOfMonth(new Date()));
   const monthKey = format(monthDate, 'yyyy-MM');
-  const { data, isPending, isError } = useInternAttendance(internProfileId, monthKey);
+  const { data, isPending: isPendingRaw, isError } = useInternAttendance(internProfileId, monthKey);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const presentKeys = useMemo(
     () => new Set((data?.records || []).map((record) => record.date)),
@@ -158,7 +161,9 @@ export default function InternAttendancePanel({ internProfileId }) {
 
   if (isPending) {
     return (
-      <div className="app-card p-6 text-[12.5px] text-muted-foreground">Loading attendance…</div>
+      <div className="app-card p-6">
+        <Loader size="sm" label="Loading attendance…" />
+      </div>
     );
   }
 

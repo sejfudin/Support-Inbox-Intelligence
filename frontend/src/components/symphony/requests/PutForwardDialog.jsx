@@ -18,6 +18,7 @@ import { useTechnologies } from '@/queries/technologies';
 import { cn } from '@/lib/utils';
 import { getRequestTitle } from './requestPresentation';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 // How many technology chips stay on screen before the rest fold behind
 // "+N more". Chips the admin has switched on are always counted in, so a filter
@@ -192,10 +193,16 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
   const requestId = request?.id;
   const positionId = row?.id;
 
-  const { data, isPending, isError } = usePutForwardCandidates(
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = usePutForwardCandidates(
     { requestId, positionId },
     { enabled: open && Boolean(requestId && positionId) }
   );
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   // Only for the chip logos — a candidate's skills reach here as names, and the
   // icon map keys off slugs. Shared, long-cached query; no request of its own in
@@ -484,7 +491,7 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           {isPending ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Loading interns…</p>
+            <Loader className="py-8" label="Loading interns…" />
           ) : isError ? (
             <p className="py-8 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
               Could not load interns.

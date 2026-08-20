@@ -147,6 +147,23 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   the content column. Override a token under it and let the cascade do the work — never a JS
   resize listener or a measured width. The board's `--board-col-max` is the worked example: the
   column ceiling lifts when the rail collapses so the freed width lands in the columns.
+- **Loading is one pattern, not a choice per screen.** A skeleton says what shape is coming and the
+  brand mark says it is still coming, and they appear together: `LoadingOverlay`
+  (`components/ui/loader.jsx`) wraps the skeleton and lays the mark on top behind a translucent,
+  blurred veil. Only where the result has no shape to imitate — app boot, a record page that
+  branches on its own data, a modal body — does the mark stand alone (`Loader`, with
+  `variant="screen" | "panel" | "overlay"` or plain inline). The three-state trap to avoid is
+  mark → skeleton → content: if a loader lifts onto a screenful of skeletons it was never covering
+  the load, and the fix is to render the page *under* the loader rather than instead of it (see
+  `routes/ProtectedRoutes.jsx`). Every loader is gated through `useLoaderHold` — except a wait the person opened by clicking (the
+  ticket modal, the notifications dropdown), where a floor is a toll on the click. It holds it for
+  `MIN_VISIBLE_MS` and never lifts before the data arrives — wrap the query's own flag at the
+  source so every use in the file inherits the hold, and hand it the query's `isError` as
+  `release` so a failed load doesn't hold the mark over its own error banner. The floor is a
+  first-arrival effect: paging, filtering or stepping a month re-enters `isPending` on a screen
+  that has already introduced itself, and charging each of those another 1.5s is a toll rather
+  than a rhythm. Button spinners (`Loader2`) are a different sentence — "your click is working" —
+  and stay as they are.
 - **Forms**: React Hook Form + Zod.
 
 ## Formatting

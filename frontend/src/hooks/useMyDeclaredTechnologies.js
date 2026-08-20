@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useMyInternProfile, useMyInternReadiness } from '@/queries/interns';
 import { useTechnologies } from '@/queries/technologies';
+import { useLoaderHold } from '@/components/ui/loader';
 
 /**
  * The intern's own declared technologies, in catalog order, each joined to the
@@ -13,7 +14,10 @@ import { useTechnologies } from '@/queries/technologies';
  */
 export function useMyDeclaredTechnologies() {
   const { data: intern } = useMyInternProfile();
-  const { data: allTechnologies = [], isPending: isLoadingTechnologies } = useTechnologies();
+  const { data: allTechnologies = [], isPending, isError } = useTechnologies();
+  // Held here rather than at each caller: this is the flag both the declaration list and the
+  // readiness summary render their loaders off, so gating it once covers every use.
+  const isLoadingTechnologies = useLoaderHold(isPending, { release: isError });
   const { data: flags = [] } = useMyInternReadiness();
 
   // Set of declared tech IDs — fast lookup for "already declared?"

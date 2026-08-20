@@ -12,10 +12,13 @@ import {
 } from '@/components/ui/select';
 import PageHeading from '@/components/PageHeading';
 import { PageShell, PageSection } from '@/components/PageShell';
+import { Skeleton } from '@/components/ui/skeleton';
+import TableRowsSkeleton from '@/components/Skeletons/TableRowsSkeleton';
 import { useInterns } from '@/queries/interns';
 import { useHubs } from '@/queries/hubs';
 import { useInternshipTypes } from '@/queries/internshipTypes';
 import { INTERN_STATUSES } from '@/helpers/internProfile';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 
 export default function MentorInternsPage() {
   const navigate = useNavigate();
@@ -28,7 +31,11 @@ export default function MentorInternsPage() {
 
   const { data: hubs = [] } = useHubs();
   const { data: types = [] } = useInternshipTypes();
-  const { data, isPending, isError } = useInterns({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useInterns({
     page,
     limit: 20,
     search: debouncedSearch || undefined,
@@ -36,6 +43,8 @@ export default function MentorInternsPage() {
     internshipTypeId: internshipTypeId || undefined,
     profileStatus: profileStatus || undefined,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const interns = data?.interns ?? [];
   const pagination = data?.pagination;
@@ -120,7 +129,11 @@ export default function MentorInternsPage() {
           </div>
         </div>
 
-        <div className="app-card overflow-hidden">
+        {/* `relative` here, on the card, rather than on the scroll box below: an absolutely
+            positioned child of a scroller is sized to its visible width and then scrolls away with
+            the content, so on a narrow window the veil would cover the first screenful of a 720px
+            table and leave the rest bare. Same arrangement `ReferenceDataPanel` uses. */}
+        <div className="app-card relative overflow-hidden">
           {isError && (
             <p
               className="p-6 text-sm text-[hsl(var(--tone-danger-fg))]"
@@ -129,10 +142,10 @@ export default function MentorInternsPage() {
               Failed to load interns.
             </p>
           )}
-          {isPending && (
-            <p className="p-6 text-sm text-muted-foreground">Loading your interns...</p>
-          )}
-          {!isPending && !isError && (
+          {/* The header is static and the column widths are fixed, so both render straight
+              away and only the rows wait — this is a mentor's landing page, and it used to
+              open on one line of grey text. */}
+          {!isError && (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
                 <thead className="border-b border-border/60 bg-muted/40">
@@ -145,7 +158,8 @@ export default function MentorInternsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {interns.length === 0 && (
+                  {isPending && <TableRowsSkeleton rows={6} columns={5} firstColumn="person" />}
+                  {!isPending && interns.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-5 py-10 text-center text-muted-foreground">
                         No assigned interns match your filters.
@@ -189,7 +203,22 @@ export default function MentorInternsPage() {
               </table>
             </div>
           )}
-          {pagination && pagination.pages > 1 && (
+          {/* Beside the table, not inside it: a `div` cannot sit in a `tbody`, so the veil is the
+              scroller's sibling and the header stays legible through it. */}
+          {isPending && <Loader variant="overlay" label="Loading your interns" />}
+          {/* The pager's own height while the count is unknown. Without it the row appears out of
+              nowhere under the table the moment the page lands, which is the shift the skeleton
+              rows above are there to prevent. */}
+          {isPending && (
+            <div className="flex items-center justify-between border-t border-border/60 px-5 py-4">
+              <Skeleton className="h-5 w-28" />
+              <div className="flex gap-2">
+                <Skeleton className="h-8 w-20 rounded-[var(--r-control)]" />
+                <Skeleton className="h-8 w-20 rounded-[var(--r-control)]" />
+              </div>
+            </div>
+          )}
+          {!isPending && pagination && pagination.pages > 1 && (
             <div className="flex items-center justify-between border-t border-border/60 px-5 py-4">
               <p className="text-sm text-muted-foreground">
                 Page {pagination.page} of {pagination.pages}

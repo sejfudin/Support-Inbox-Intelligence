@@ -15,6 +15,8 @@ import {
   useRevokeAbsenceRequest,
 } from '@/queries/absenceRequests';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const STATUS_BADGE = {
   pending: { variant: 'warning', label: 'Pending' },
@@ -70,10 +72,16 @@ export default function AbsenceRequestQueue({ mode = 'queue' }) {
 
   // History asks for everything and drops what is still pending, because the API
   // filters on one status at a time and "decided" is four of them.
-  const { data, isPending, isError } = useAbsenceRequests({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useAbsenceRequests({
     status: isHistory ? 'all' : 'pending',
     ...(typeFilter ? { type: typeFilter } : {}),
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const { mutate: decide, isPending: isDeciding } = useDecideAbsenceRequest();
   const { mutate: revoke, isPending: isRevoking } = useRevokeAbsenceRequest();
 
@@ -124,7 +132,13 @@ export default function AbsenceRequestQueue({ mode = 'queue' }) {
           Failed to load requests.
         </p>
       )}
-      {isPending && <p className="px-4 py-6 text-sm text-muted-foreground md:px-5">Loading…</p>}
+      {/* A list of pending requests, so it fills with rows rather than waiting behind the
+          mark — the admin reads this queue by scanning it, and rows are what they scan. */}
+      {isPending && (
+        <LoadingOverlay size="sm" label="Loading requests">
+          <PanelBodySkeleton people rows={3} className="px-4 pb-5 md:px-5" />
+        </LoadingOverlay>
+      )}
 
       {!isPending && !isError && requests.length === 0 && (
         <p

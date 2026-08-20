@@ -15,6 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useArchiveTicket, useUnarchiveTicket } from '@/queries/tickets';
 import { ARCHIVE_DEFAULT_SORT } from '@/helpers/ticketSort';
 import { toast } from 'sonner';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export default function ArchivePage() {
   const [activeTab] = useState('all');
@@ -49,7 +50,7 @@ export default function ArchivePage() {
   const {
     tickets: normalizedTickets,
     pagination,
-    isLoading,
+    isLoading: isLoadingRaw,
     isError,
     isPlaceholderData,
     search,
@@ -64,6 +65,12 @@ export default function ArchivePage() {
     // sends the order to the API rather than reordering the page in the browser.
     defaultSort: ARCHIVE_DEFAULT_SORT,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw, { release: isError });
+
+  // Held for a full turn of the animation. This is the screen people open most, several times an
+  // hour, and a mark that appears and vanishes inside 200ms on a warm cache reads as a glitch
+  // rather than as loading. The skeleton behind it carries the shape either way.
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
@@ -100,10 +107,14 @@ export default function ArchivePage() {
             isLoading={isLoading}
             isError={isError}
             isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
+            loadingSlot={
+              <LoadingOverlay label="Loading archive">
+                <TableSkeleton />
+              </LoadingOverlay>
+            }
             emptyIcon={ArchiveIcon}
             emptyTitle="No archived tickets"
             emptyDescription="Archived tickets stay here; restore any one to bring it back to the active board."
-            loadingSlot={<TableSkeleton />}
           >
             <DataTable
               columns={columns}

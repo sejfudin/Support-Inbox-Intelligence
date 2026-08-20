@@ -7,6 +7,7 @@ import { AnalyticsEmptyCard } from '@/components/AnalyticsEmptyCard';
 import AnalyticsSection from '@/components/analytics/AnalyticsSection';
 import { AnalyticsStatRow } from '@/components/analytics/AnalyticsStatCard';
 import { cn } from '@/lib/utils';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 // Priority tones, per the mockup's donut: Critical → error, High → warning,
 // Medium → info, Low → disabled. `stroke` drives the arc via `currentColor`, so
@@ -75,7 +76,7 @@ function WorkloadDonut({ data, total }) {
 
 export default function PersonalAnalyticsSection({
   userAnalytics,
-  isLoading,
+  isLoading: isLoadingRaw,
   isError,
   days = 30,
   title = 'Personal Performance',
@@ -89,6 +90,8 @@ export default function PersonalAnalyticsSection({
     completedTickets: 0,
     activeTickets: 0,
   };
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw, { release: isError });
 
   const userPerformance = userAnalytics?.performanceMetrics || {
     averageCycleTimeDays: 0,
@@ -158,13 +161,15 @@ export default function PersonalAnalyticsSection({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
-        <AnalyticsCardSkeleton />
-        <AnalyticsCardSkeleton />
-        <div className="lg:col-span-2">
+      <LoadingOverlay label="Loading analytics">
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
           <AnalyticsCardSkeleton />
+          <AnalyticsCardSkeleton />
+          <div className="lg:col-span-2">
+            <AnalyticsCardSkeleton />
+          </div>
         </div>
-      </div>
+      </LoadingOverlay>
     );
   }
 

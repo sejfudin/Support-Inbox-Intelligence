@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 import { InternCommentsPanel } from '@/components/interns/InternCommentsPanel';
 import { InternEvaluationsPanel } from '@/components/interns/InternEvaluationsPanel';
 import { InternRecommendationsPanel } from '@/components/interns/InternRecommendationsPanel';
@@ -39,7 +40,9 @@ export default function LeadershipCandidatePage() {
   const [activeTab, setActiveTab] = useState(
     CANDIDATE_TABS.includes(tabParam) ? tabParam : 'overview'
   );
-  const { data: intern, isPending, isError } = useIntern(userId);
+  const { data: intern, isPending: isPendingRaw, isError } = useIntern(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   useDocumentTitle(intern?.user?.fullname);
   const canEditDocumentation = canManageInternDocumentationLinks(user, intern);
   const declaredPosition = intern?.declaredPosition;
@@ -59,7 +62,7 @@ export default function LeadershipCandidatePage() {
   }, [tabParam]);
 
   if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading candidate profile...</p>;
+    return <Loader variant="panel" label="Loading candidate profile…" />;
   }
 
   if (isError || !intern) {

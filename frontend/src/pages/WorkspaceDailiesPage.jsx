@@ -16,6 +16,7 @@ import { getAvailableInterns } from '@/helpers/dailyEntrants';
 import { Button } from '@/components/ui/button';
 import { PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const toDateKey = (date) => format(date, 'yyyy-MM-dd');
 
@@ -61,7 +62,9 @@ const WorkspaceDailiesPage = () => {
     }
   }, [dateKey, selectedDate, searchParams, setSearchParams]);
 
-  const { data: dailyResponse, isLoading } = useDaily(workspaceId, dateKey);
+  const { data: dailyResponse, isLoading: isLoadingRaw } = useDaily(workspaceId, dateKey);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw);
   const { data: historyResponse } = useDailyHistory(workspaceId);
   const startDailyMutation = useStartDaily(workspaceId);
   const removeEntryMutation = useRemoveDailyEntry(workspaceId);
@@ -143,7 +146,11 @@ const WorkspaceDailiesPage = () => {
           {!isLoading && daily ? <DailyHeader counts={daily.counts} /> : null}
         </section>
 
-        {isLoading && <DailySkeleton />}
+        {isLoading && (
+          <LoadingOverlay label="Loading standup">
+            <DailySkeleton />
+          </LoadingOverlay>
+        )}
         {!isLoading && daily && (
           <>
             {daily.entries.length === 0 ? (

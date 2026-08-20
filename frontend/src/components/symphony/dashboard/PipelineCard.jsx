@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
@@ -214,9 +215,26 @@ export function PipelineCard({
         )}
       </div>
       <div>
-        {isPending && (
-          <p className="px-4 py-6 text-sm text-muted-foreground sm:px-[26px]">Loading selection…</p>
-        )}
+        {/* Rows of the same 42px-avatar shape `PersonRow` draws, on the same rule between them,
+            so the card keeps its height and the header above it doesn't shift when the people
+            arrive. Four is what the list usually opens with. */}
+        {isPending &&
+          [0, 1, 2, 3].map((row) => (
+            <div
+              key={row}
+              className="flex items-center gap-3 border-b border-[hsl(var(--symphony-border)/0.6)] px-4 py-4 last:border-b-0 lg:gap-4 lg:px-[26px]"
+            >
+              <Skeleton className="h-[42px] w-[42px] shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-1.5 lg:min-w-[160px]">
+                <Skeleton className="h-3.5 w-36" />
+                <Skeleton className="h-2.5 w-28" />
+              </div>
+              <div className="hidden gap-1.5 lg:flex">
+                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-12 rounded-full" />
+              </div>
+            </div>
+          ))}
         {!isPending && activePipeline.length === 0 && (
           <p className="px-4 py-8 text-sm text-muted-foreground sm:px-[26px]">
             No active placement attempts. Ready candidates are waiting to be recommended.

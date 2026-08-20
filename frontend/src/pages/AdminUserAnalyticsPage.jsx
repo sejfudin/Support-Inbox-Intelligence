@@ -2,6 +2,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 import { useUser } from '@/queries/users';
 import { useUserAnalytics } from '@/queries/workspaces';
 import PersonalAnalyticsSection from '@/components/PersonalAnalyticsSection';
@@ -127,7 +128,9 @@ export default function AdminUserAnalyticsPage() {
   const [days, setDays] = useState(30);
   const [editingUser, setEditingUser] = useState(null);
 
-  const { data: loadedUser, isLoading, isError } = useUser(userId);
+  const { data: loadedUser, isLoading: isLoadingRaw, isError } = useUser(userId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw, { release: isError });
   const user = loadedUser || location.state?.user;
   useDocumentTitle(user?.fullname || user?.fullName);
 
@@ -256,8 +259,12 @@ export default function AdminUserAnalyticsPage() {
     return (
       <div className="app-page">
         <div className="app-page-content space-y-6">
-          <div className="app-card flex min-h-[220px] items-center justify-center px-6 text-sm text-muted-foreground">
-            Loading user details...
+          {/* The page branches on the user's role once it arrives — an intern gets the whole
+              `InternProfileView`, a staff account a different layout entirely — so there is no
+              shape to stand in for. The card keeps its 220px so the page doesn't grow under the
+              loader. */}
+          <div className="app-card flex min-h-[220px] items-center justify-center px-6">
+            <Loader label="Loading user details…" />
           </div>
         </div>
       </div>

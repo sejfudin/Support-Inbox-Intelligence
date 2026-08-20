@@ -32,13 +32,17 @@ import {
   ReferenceDataTableMessage,
   referenceDataActionClass,
   referenceDataRowActionClass,
+  ReferenceDataTableLoading,
 } from '@/components/reference-data/ReferenceDataPanel';
 import { toast } from 'sonner';
+import { useLoaderHold } from '@/components/ui/loader';
 
 const emptyForm = { name: '', description: '', isActive: true };
 
 export function ReferenceDataInternshipTypesPanel() {
-  const { data: types = [], isPending } = useInternshipTypes({ includeInactive: true });
+  const { data: types = [], isPending, isError } = useInternshipTypes({ includeInactive: true });
+  // Gated so the overlay mark and the skeleton rows keep the app's one loading rhythm.
+  const showLoader = useLoaderHold(isPending, { release: isError });
   const createMutation = useCreateInternshipType();
   const updateMutation = useUpdateInternshipType();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -83,6 +87,8 @@ export function ReferenceDataInternshipTypesPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={showLoader}
+        loadingLabel="Loading internship types"
         description="Program tracks such as FEP, Shadow, Industrial, and 1-on-1."
         action={
           <Button
@@ -109,10 +115,8 @@ export function ReferenceDataInternshipTypesPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isPending ? (
-              <ReferenceDataTableMessage colSpan={5}>
-                Loading internship types…
-              </ReferenceDataTableMessage>
+            {showLoader ? (
+              <ReferenceDataTableLoading colSpan={5} />
             ) : types.length === 0 ? (
               <ReferenceDataTableMessage colSpan={5}>
                 No internship types yet.

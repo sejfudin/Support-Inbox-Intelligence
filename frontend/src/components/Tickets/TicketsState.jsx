@@ -1,6 +1,7 @@
 import { Inbox } from 'lucide-react';
 
 import EmptyState from '@/components/EmptyState';
+import { Loader } from '@/components/ui/loader';
 
 /**
  * Loading / error / empty for every ticket list. The empty branch is the mockup's
@@ -21,12 +22,11 @@ export default function TicketsState({
   children,
 }) {
   if (isLoading) {
+    // A caller that knows the shape of its list passes `loadingSlot` — `TableSkeleton` on the
+    // paged screens. This is the fallback for the ones that don't, and a 16rem hole in the
+    // middle of the page is the case the mark is for.
     if (loadingSlot) return loadingSlot;
-    return (
-      <div className="flex h-64 items-center justify-center text-[12.5px] font-medium text-muted-foreground">
-        Loading tickets…
-      </div>
-    );
+    return <Loader className="h-64" label="Loading tickets" />;
   }
 
   if (isError) {

@@ -26,6 +26,7 @@ import { TicketTitleField } from './TicketDetailsModal/TicketTitleField';
 import { TicketDescriptionEditor } from './TicketDetailsModal/TicketDescriptionEditor';
 import { TicketMetaRail } from './TicketDetailsModal/TicketMetaRail';
 import { TicketPrAccordion } from './TicketDetailsModal/TicketPrAccordion';
+import { Loader } from '@/components/ui/loader';
 
 export const TicketDetailsModal = ({
   ticketId,
@@ -227,12 +228,31 @@ export const TicketDetailsModal = ({
 
   if (!isOpen || !ticketId) return null;
 
+  // The frame arrives first and the mark waits inside it, at the modal's own width — so opening a
+  // ticket puts the dialog on screen immediately and only its contents are pending. The previous
+  // version was a two-bar box pretending to be a title and a subtitle; the version before that
+  // covered the whole viewport, which made a modal read as a page transition.
+  // No `useLoaderHold` here, deliberately: opening a ticket is a click the person is waiting on,
+  // and padding it out to a full turn of the animation would put a two-second toll on every open.
+  // The frame arrives immediately and the mark waits inside it at the modal's own width, so this
+  // is the dialog with its contents pending rather than a separate loading screen. Both the
+  // overlay and the frame carry the real modal's classes verbatim — the width and insets have to
+  // match, or the dialog resizes under the cursor the moment the ticket lands.
   if (isLoading || usersLoading) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-        <div className="bg-card p-8 rounded-[var(--r-card)] shadow-elevated animate-pulse flex flex-col items-center gap-4">
-          <div className="h-6 w-48 bg-muted rounded"></div>
-          <div className="h-4 w-32 bg-muted rounded"></div>
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] transition-opacity sm:p-4 lg:p-8"
+        onClick={onClose}
+        role="presentation"
+      >
+        <div
+          className="flex max-h-full min-h-[420px] w-full max-w-[1020px] flex-col items-center justify-center overflow-hidden rounded-[var(--r-card)] border border-separator bg-card shadow-elevated duration-200 animate-in zoom-in-95"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Ticket details"
+        >
+          <Loader label="Loading ticket" />
         </div>
       </div>
     );

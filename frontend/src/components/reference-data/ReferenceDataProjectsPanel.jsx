@@ -34,6 +34,8 @@ import { PROJECT_TYPES } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 import { useTechnologies } from '@/queries/technologies';
 import { useCreateProject, useProjects, useUpdateProject } from '@/queries/projects';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { useLoaderHold } from '@/components/ui/loader';
 
 const STATUS_OPTIONS = [
   {
@@ -345,7 +347,9 @@ function ProjectEditForm({ project, technologies, onCancel, onSave, isSaving }) 
 }
 
 export function ReferenceDataProjectsPanel() {
-  const { data: projects = [], isPending } = useProjects({ includeAll: true });
+  const { data: projects = [], isPending, isError } = useProjects({ includeAll: true });
+  // Gated so the overlay mark and the skeleton rows keep the app's one loading rhythm.
+  const showLoader = useLoaderHold(isPending, { release: isError });
   const { data: technologies = [] } = useTechnologies();
   const createMutation = useCreateProject();
   const updateMutation = useUpdateProject();
@@ -415,6 +419,8 @@ export function ReferenceDataProjectsPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={showLoader}
+        loadingLabel="Loading projects"
         description="Every client engagement your workspace is running."
         action={
           <Button
@@ -428,10 +434,10 @@ export function ReferenceDataProjectsPanel() {
           </Button>
         }
       >
-        {isPending ? (
-          <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">
-            Loading projects…
-          </p>
+        {showLoader ? (
+          // Not a table on this tab — projects render as rows of cards — so the placeholder is
+          // lines of copy rather than table cells. The mark comes from the panel itself.
+          <PanelBodySkeleton rows={4} className="px-[18px] pb-6" />
         ) : projects.length === 0 ? (
           <p className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground">
             No projects yet.

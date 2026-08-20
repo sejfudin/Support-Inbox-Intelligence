@@ -17,6 +17,7 @@ import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useAuth } from '@/context/AuthContext';
 import { isAdmin, isMentor, isIntern } from '@/helpers/roles';
 import { BACKLOG_DEFAULT_SORT } from '@/helpers/ticketSort';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export default function BacklogPage() {
   const [activeTab] = useState('all');
@@ -27,7 +28,7 @@ export default function BacklogPage() {
   const {
     tickets: normalizedTickets,
     pagination,
-    isLoading,
+    isLoading: isLoadingRaw,
     isError,
     isPlaceholderData,
     search,
@@ -42,6 +43,12 @@ export default function BacklogPage() {
     // paginated, so ordering one page of it would not be an order.
     defaultSort: BACKLOG_DEFAULT_SORT,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw, { release: isError });
+
+  // Held for a full turn of the animation. This is the screen people open most, several times an
+  // hour, and a mark that appears and vanishes inside 200ms on a warm cache reads as a glitch
+  // rather than as loading. The skeleton behind it carries the shape either way.
 
   const {
     isNewOpen,
@@ -98,6 +105,11 @@ export default function BacklogPage() {
             isLoading={isLoading}
             isError={isError}
             isEmpty={!isLoading && !isError && normalizedTickets.length === 0}
+            loadingSlot={
+              <LoadingOverlay label="Loading backlog">
+                <TableSkeleton />
+              </LoadingOverlay>
+            }
             emptyIcon={ClipboardList}
             emptyTitle="No backlog tickets"
             emptyDescription="Tickets you park for later triage show up here before they enter the active flow."
@@ -112,7 +124,6 @@ export default function BacklogPage() {
                 </Button>
               ) : null
             }
-            loadingSlot={<TableSkeleton />}
           >
             <DataTable
               columns={columns}

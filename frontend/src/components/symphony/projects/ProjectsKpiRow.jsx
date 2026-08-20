@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { KpiCard } from '@/components/symphony/dashboard/KpiCard';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { InternsPlacedModal } from './InternsPlacedModal';
@@ -68,12 +69,24 @@ function SkillsInSelectionCard({ isPending, skills, internsInSelection, onClick 
     >
       <SymphonyCard variant="muted" className="h-full transition-shadow hover:shadow-md">
         <p className="text-[12.5px] font-semibold text-foreground/80">Skills in selection</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {isPending
-            ? 'Loading…'
-            : `Across ${internsInSelection} intern${internsInSelection === 1 ? '' : 's'} in selection`}
-        </p>
+        {/* A bar, not "Loading…": the four skill rows below already say the card is filling in,
+            and this line is a count — an unloaded count reads as a fact, not as a wait. */}
+        {isPending ? (
+          <Skeleton className="mt-1 h-4 w-44" />
+        ) : (
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {`Across ${internsInSelection} intern${internsInSelection === 1 ? '' : 's'} in selection`}
+          </p>
+        )}
         <div className="mt-3.5 space-y-2">
+          {isPending &&
+            [0, 1, 2, 3].map((row) => (
+              <div key={row} className="flex items-center gap-2">
+                <Skeleton className="h-3 w-16 shrink-0" />
+                <Skeleton className="h-2 flex-1 rounded-full" />
+                <Skeleton className="h-3 w-5 shrink-0" />
+              </div>
+            ))}
           {!isPending && top4.length === 0 && (
             <p className="text-xs text-muted-foreground">No data yet.</p>
           )}

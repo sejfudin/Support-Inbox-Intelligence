@@ -31,6 +31,7 @@ import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMen
 import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import { formatDate } from '@/helpers/date';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const STATUS_OPTIONS = [
   { value: 'specialized', label: 'Specialized' },
@@ -60,7 +61,12 @@ export default function SpecializationPage() {
   const { data: mentorsData } = useMentorCandidates({ hubScoped: false });
   const mentors = mentorsData?.users ?? [];
 
-  const { data, isPending, isFetching, isError } = useSpecializations({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isFetching,
+    isError,
+  } = useSpecializations({
     status,
     mentorId: mentorId || undefined,
     search: debouncedSearch || undefined,
@@ -68,6 +74,8 @@ export default function SpecializationPage() {
     page,
     limit: 20,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const clearMutation = useClearSpecialization();
 
@@ -213,7 +221,7 @@ export default function SpecializationPage() {
             data-test="specialization-result-count"
           >
             {isPending
-              ? 'Loading…'
+              ? '—'
               : `${totalMatching} intern${totalMatching === 1 ? '' : 's'}${
                   isFetching ? ' · updating…' : ''
                 }`}
@@ -246,7 +254,11 @@ export default function SpecializationPage() {
               Failed to load specializations.
             </p>
           )}
-          {isPending && <TableSkeleton columns={5} rows={8} minWidthClassName="min-w-[900px]" />}
+          {isPending && (
+            <LoadingOverlay label="Loading specializations">
+              <TableSkeleton columns={5} rows={8} minWidthClassName="min-w-[900px]" />
+            </LoadingOverlay>
+          )}
           {!isPending && !isError && (
             <div className={cn('transition-opacity', isFetching && 'opacity-60')}>
               <Table className="min-w-[900px]">

@@ -11,6 +11,7 @@ import PersonalSummaryTab from '@/components/analytics/PersonalSummaryTab';
 import WorkspaceAnalyticsTab from '@/components/analytics/WorkspaceAnalyticsTab';
 import PageHeading from '@/components/PageHeading';
 import { resolveUserId } from '@/helpers/userIdentity';
+import { LoadingOverlay } from '@/components/ui/loader';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
@@ -182,13 +183,15 @@ export default function AnalyticsDashboard() {
               Failed to load analytics. Please try again.
             </div>
           ) : isLoading ? (
-            <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
-              <AnalyticsCardSkeleton />
-              <AnalyticsCardSkeleton />
-              <div className="lg:col-span-2">
+            <LoadingOverlay label="Loading analytics">
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
                 <AnalyticsCardSkeleton />
+                <AnalyticsCardSkeleton />
+                <div className="lg:col-span-2">
+                  <AnalyticsCardSkeleton />
+                </div>
               </div>
-            </div>
+            </LoadingOverlay>
           ) : isPersonalTab ? (
             <PersonalSummaryTab
               userAnalytics={userAnalytics}

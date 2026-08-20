@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { SearchField } from '@/components/ui/search-field';
 import { Switcher } from '@/components/ui/switcher';
+import { Skeleton } from '@/components/ui/skeleton';
+import StatBandSkeleton from '@/components/Skeletons/StatBandSkeleton';
 import { AnalyticsStatCard } from '@/components/analytics/AnalyticsStatCard';
 import AttendanceRosterTable from '@/components/attendance/AttendanceRosterTable';
 import DailyAttendanceTable from '@/components/attendance/DailyAttendanceTable';
@@ -20,6 +22,7 @@ import {
   nonWorkingKeySet,
   DAY_STATUS,
 } from '@/helpers/attendance';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const LOW_ATTENDANCE_THRESHOLD = 75;
 const todayKey = () => format(new Date(), 'yyyy-MM-dd');
@@ -70,11 +73,17 @@ export default function AttendanceOverviewPage() {
     if (format(parseISO(day), 'yyyy-MM') !== month) setDay(defaultDayForMonth(month));
   }, [month]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data, isPending, isError } = useAttendanceRoster({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useAttendanceRoster({
     month,
     search: debouncedSearch || undefined,
     hub: hub || undefined,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const { data: hubs = [] } = useHubs();
   const hubNames = hubs.map((h) => h.name);
@@ -193,10 +202,34 @@ export default function AttendanceOverviewPage() {
                 Failed to load attendance.
               </div>
             )}
+            {/* The roster is the heaviest read in the app — every in-programme intern, a month
+                of attendance rows each, plus the non-working days and observances — and all of
+                it used to collapse into one 6px-padded card, so the page went from a sentence to
+                a KPI strip and a full month grid in one jump. Which tab is open is known before
+                any of that arrives, so each one gets its own shape. */}
             {isPending && (
-              <div className="app-card p-6 text-[12.5px] text-muted-foreground">
-                Loading attendance…
-              </div>
+              <LoadingOverlay label="Loading attendance" contentClassName="space-y-3.5">
+                {tab === 'month' ? (
+                  <StatBandSkeleton />
+                ) : (
+                  <Skeleton className="h-[76px] w-full rounded-[var(--r-card)]" />
+                )}
+                <div className="app-card overflow-hidden p-0">
+                  <div className="border-b border-separator px-4 py-3.5">
+                    <Skeleton className="h-3.5 w-48" />
+                  </div>
+                  <div className="space-y-3.5 p-4">
+                    {[0, 1, 2, 3, 4, 5, 6, 7].map((row) => (
+                      <div key={row} className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+                        <Skeleton className="h-3 w-40 shrink-0" />
+                        {/* The day cells, which is what makes this table as wide as it is. */}
+                        <Skeleton className="h-3 flex-1" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </LoadingOverlay>
             )}
 
             {!isPending && !isError && (

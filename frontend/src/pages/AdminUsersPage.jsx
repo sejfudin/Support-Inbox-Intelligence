@@ -9,6 +9,7 @@ import { useDebounce } from 'use-debounce';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import AdminUsersExpandableTable from '@/components/AdminUsersExpandableTable';
 import PageHeading from '@/components/PageHeading';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
@@ -18,13 +19,15 @@ export default function AdminUsersPage() {
   const navigate = useNavigate();
   const {
     data: usersData,
-    isPending,
+    isPending: isPendingRaw,
     isError,
     // Only this screen ever asks for test accounts back — every other picker in
     // the app (mentor assignment, specialization, ticket assignee, mentor-notes
     // audience) calls `useUsers`/`useMentorCandidates` without this flag and gets
     // them excluded by default. See `adminService.getUsers`.
   } = useUsers({ page, limit, search: debouncedSearch, includeTestAccounts: true });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const [editingUser, setEditingUser] = useState(null);
   const users =
     usersData?.users?.map((user) => ({
@@ -108,7 +111,9 @@ export default function AdminUsersPage() {
 
         <div className="app-card overflow-hidden">
           {isPending ? (
-            <TableSkeleton columns={5} rows={10} minWidthClassName="min-w-[760px]" />
+            <LoadingOverlay label="Loading users">
+              <TableSkeleton columns={5} rows={10} minWidthClassName="min-w-[760px]" />
+            </LoadingOverlay>
           ) : (
             <AdminUsersExpandableTable
               data={users}

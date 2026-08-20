@@ -25,14 +25,18 @@ import {
   ReferenceDataTableMessage,
   referenceDataActionClass,
   referenceDataRowActionClass,
+  ReferenceDataTableLoading,
 } from '@/components/reference-data/ReferenceDataPanel';
 import { useCreateHub, useHubs, useUpdateHub } from '@/queries/hubs';
 import { toast } from 'sonner';
+import { useLoaderHold } from '@/components/ui/loader';
 
 const emptyForm = { name: '', city: '', country: '', isActive: true };
 
 export function ReferenceDataHubsPanel() {
-  const { data: hubs = [], isPending } = useHubs({ includeInactive: true });
+  const { data: hubs = [], isPending, isError } = useHubs({ includeInactive: true });
+  // Gated so the overlay mark and the skeleton rows keep the app's one loading rhythm.
+  const showLoader = useLoaderHold(isPending, { release: isError });
   const createMutation = useCreateHub();
   const updateMutation = useUpdateHub();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,6 +82,8 @@ export function ReferenceDataHubsPanel() {
   return (
     <>
       <ReferenceDataPanel
+        loading={showLoader}
+        loadingLabel="Loading hubs"
         description="Company office locations used to assign every employee to a hub."
         action={
           <Button
@@ -104,8 +110,8 @@ export function ReferenceDataHubsPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isPending ? (
-              <ReferenceDataTableMessage colSpan={5}>Loading hubs…</ReferenceDataTableMessage>
+            {showLoader ? (
+              <ReferenceDataTableLoading colSpan={5} />
             ) : hubs.length === 0 ? (
               <ReferenceDataTableMessage colSpan={5}>No hubs yet.</ReferenceDataTableMessage>
             ) : (

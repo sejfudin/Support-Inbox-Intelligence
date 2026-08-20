@@ -35,6 +35,7 @@ import { useTechnologies } from '@/queries/technologies';
 import { formatDate } from '@/helpers/date';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 // The three pipeline stages, in order — the columns that used to carry a date
 // each and now live in the status chip's tooltip.
@@ -95,7 +96,11 @@ export default function MentorRecommendationsPage() {
 
   const { data: hubs = [] } = useHubs();
   const { data: technologies = [] } = useTechnologies();
-  const { data, isPending, isError } = useRecommendations({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useRecommendations({
     page,
     limit: 20,
     search: debouncedSearch || undefined,
@@ -104,6 +109,8 @@ export default function MentorRecommendationsPage() {
     technologyId: technologyId || undefined,
     hubId: hubId || undefined,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const recommendations = data?.recommendations ?? [];
   const pagination = data?.pagination;
@@ -208,9 +215,7 @@ export default function MentorRecommendationsPage() {
           <span className="flex-1" />
 
           <span className="text-[12px] text-muted-foreground/75" data-test="recommendations-count">
-            {isPending
-              ? 'Loading…'
-              : `${totalMatching} recommendation${totalMatching === 1 ? '' : 's'}`}
+            {isPending ? '—' : `${totalMatching} recommendation${totalMatching === 1 ? '' : 's'}`}
           </span>
         </div>
 
@@ -223,7 +228,11 @@ export default function MentorRecommendationsPage() {
               Failed to load recommendations.
             </p>
           )}
-          {isPending && <TableSkeleton columns={8} rows={8} minWidthClassName="min-w-[1080px]" />}
+          {isPending && (
+            <LoadingOverlay label="Loading recommendations">
+              <TableSkeleton columns={8} rows={8} minWidthClassName="min-w-[1080px]" />
+            </LoadingOverlay>
+          )}
           {!isPending && !isError && (
             <TooltipProvider delayDuration={150}>
               <Table className="min-w-[1120px]">

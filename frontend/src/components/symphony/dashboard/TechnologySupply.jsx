@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { buildArray } from '@/components/Skeletons/buildArray';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { cn } from '@/lib/utils';
 
@@ -51,7 +53,11 @@ function RankedRow({ rank, name, count, pct, color, max, highlighted }) {
   );
 }
 
-function RankedPool({ kicker, title, unit, rows, emptyLabel }) {
+// Five of the seven rows the pool opens with. Enough to fill the card without promising a
+// longer list than a small cohort will produce.
+const PENDING_ROWS = 5;
+
+function RankedPool({ kicker, title, unit, rows, emptyLabel, isPending = false }) {
   const [expanded, setExpanded] = useState(false);
   const total = rows.reduce((sum, r) => sum + r.count, 0);
   const max = Math.max(1, ...rows.map((r) => r.count));
@@ -65,12 +71,35 @@ function RankedPool({ kicker, title, unit, rows, emptyLabel }) {
           {kicker}
         </p>
         <h3 className="text-[19px] font-bold text-foreground">{title}</h3>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          {total} {unit} · {rows.length} {rows.length === 1 ? 'group' : 'groups'}
-        </p>
+        {/* Not "0 interns · 0 groups" while the query is out. That line is a count, and an
+            unloaded count is not zero — it stood there reading as an empty programme. */}
+        {isPending ? (
+          <Skeleton className="mt-1.5 h-3 w-32" />
+        ) : (
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {total} {unit} · {rows.length} {rows.length === 1 ? 'group' : 'groups'}
+          </p>
+        )}
       </div>
 
-      {rows.length === 0 ? (
+      {isPending ? (
+        <div className="mt-3 space-y-1 px-2 pb-2 sm:px-3">
+          {buildArray(PENDING_ROWS).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+              <Skeleton className="h-3 w-4 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-2.5 w-2.5 shrink-0 rounded-full" />
+                  <Skeleton className="h-3.5 flex-1" />
+                  <Skeleton className="h-3.5 w-6 shrink-0" />
+                  <Skeleton className="h-3 w-9 shrink-0" />
+                </div>
+                <Skeleton className="mt-1.5 h-2 w-full rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
         <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
           {emptyLabel}
         </div>
@@ -136,15 +165,17 @@ export function TechnologySupply({ isPending, technologySupply = [], positionSup
           kicker="BY TECHNOLOGY"
           title="Technologies"
           unit="interns"
+          isPending={isPending}
           rows={isPending ? [] : techRows}
-          emptyLabel={isPending ? 'Loading…' : 'No technology data yet.'}
+          emptyLabel="No technology data yet."
         />
         <RankedPool
           kicker="BY POSITION"
           title="Roles in the pool"
           unit="people"
+          isPending={isPending}
           rows={isPending ? [] : roleRows}
-          emptyLabel={isPending ? 'Loading…' : 'No role data yet.'}
+          emptyLabel="No role data yet."
         />
       </div>
     </div>
