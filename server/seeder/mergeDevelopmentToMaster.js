@@ -1,7 +1,8 @@
 /**
  * Runs, in order, every non-destructive migration/backfill needed to bring an
  * existing main-branch database up to date with the `development` schema
- * changes (Recommendation redesign, InternProfile.readyForPlacement removal).
+ * changes (Recommendation redesign, InternProfile.readyForPlacement removal,
+ * InternProfile.cvTechnologies removal).
  *
  * Deliberately does NOT include `backfillInternPositions.js` — that script
  * assigns a RANDOM Position to any intern profile missing `declaredPosition`,
@@ -72,6 +73,10 @@ const STEPS = [
   {
     file: 'unsetReadyForPlacement.js',
     why: 'Removes the orphaned `readyForPlacement` boolean now that InternProfile.status covers the same concept via the `ready` value.',
+  },
+  {
+    file: 'unsetCvTechnologies.js',
+    why: 'Removes the orphaned `cvTechnologies` array now that a CV scan only ever adds to `selfTechnologies` and has nothing left to reconcile.',
   },
 ];
 
