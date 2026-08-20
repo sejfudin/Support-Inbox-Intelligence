@@ -533,6 +533,21 @@ const officeMinute = (date = new Date()) => {
 };
 
 /**
+ * The daily-reminder window: 10:30 up to (but not including) 11:00 office time,
+ * the last half hour before check-in closes. Mirrors `REMINDER_WINDOW` in
+ * server/services/dailyReminderService.js — the server re-checks the clock
+ * itself, so this is only here to keep the client from asking outside the window.
+ */
+export const REMINDER_WINDOW = Object.freeze({ hour: 10, fromMinute: 30 });
+
+/** Whether `now` sits inside the daily-reminder window (weekday, office time). */
+export const isWithinReminderWindow = (now = new Date()) => {
+  if (isWeekend(now)) return false;
+  if (officeHour(now) !== REMINDER_WINDOW.hour) return false;
+  return officeMinute(now) >= REMINDER_WINDOW.fromMinute;
+};
+
+/**
  * Minutes until the check-in window's next boundary — until it opens while
  * 'before', until it closes while 'open', and `null` once it has closed, because
  * there is nothing left to count down to.

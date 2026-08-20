@@ -5,7 +5,8 @@ import { queryClient } from '@/lib/queryClient';
 import { NOTIFICATIONS_QUERY_KEY } from '@/queries/notifications';
 import { setActiveSocketId } from '@/lib/socketSession';
 import { invalidateScopes, invalidateUserScope } from '@/lib/invalidationScopes';
-import { maybeShowDesktopNotification } from '@/helpers/desktopNotifications';
+import { toast } from 'sonner';
+import { maybeShowDesktopNotification, drawsInForeground } from '@/helpers/desktopNotifications';
 import {
   patchMovedTicketInLists,
   removeTicketFromLists,
@@ -119,7 +120,21 @@ export const SocketProvider = ({ children }) => {
         // the real record either way.
         if (payload?.notification) {
           try {
-            maybeShowDesktopNotification(payload.notification);
+            maybeShowDesktopNotification(payload.notification, {
+              // The OS banner needs a device switch that defaults to off and a
+              // browser permission granted per device, so for most readers it
+              // never draws. For a time-boxed nudge that is a miss, not a quiet
+              // preference — fall back to an in-app toast so it still lands.
+              // Only the foreground types get this; everything else is content
+              // the bell can hold until the reader looks.
+              onBlocked: drawsInForeground(payload.notification)
+                ? (notification) =>
+                    toast.info(notification.title, {
+                      description: notification.body,
+                      duration: 10000,
+                    })
+                : undefined,
+            });
           } catch {
             /* ignore — a banner is never worth breaking the socket handler */
           }

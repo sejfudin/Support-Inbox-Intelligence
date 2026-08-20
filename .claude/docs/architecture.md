@@ -398,6 +398,18 @@ browser behind another app. It is best-effort throughout: a failure never costs 
 invalidation beside it, and the bell entry is the real record. The switch itself is per-device,
 see "UI preferences" below.
 
+Two deliberate exceptions, both only for `daily_attendance_reminder` (`FOREGROUND_TYPES` in
+`desktopNotifications.js`), because that nudge is time-boxed — the check-in window shuts at 11:00,
+so it has to interrupt rather than wait to be noticed:
+
+- It **skips the background gate**, so the banner draws over the app the reader is looking at.
+  The switch, the permission and the mutes all still apply.
+- When the banner cannot draw because the device switch is off or permission was never granted —
+  the common case, since the switch defaults to off and permission is per browser per device —
+  `maybeShowDesktopNotification` calls back through `onBlocked` and `SocketContext` raises an
+  in-app `sonner` toast instead. A **muted** group never reaches the fallback: mute means silence
+  everywhere.
+
 - **Ticketing** notifications live in `server/services/notificationService.js`
   (`notifyNewTicketComment`, `notifyTicketAssigned`, `notifyTicketMention`,
   `notifyTicketReviewRequested`, `notifyTicketReviewCompleted`), `await`ed from
@@ -434,11 +446,30 @@ see "UI preferences" below.
   transition into placed" snapshot taken before the write, so it fires at most once per real
   transition and never on a no-op re-save (e.g. nudging an already-placed recommendation's start
   date). The two paths can't both fire for the same request.
-- **Scheduled reminder** (`server/services/dailyReminderService.js`): a 10:30 Europe/Sarajevo,
+- **Daily reminder** (`server/services/dailyReminderService.js`): a 10:30–11:00 Europe/Sarajevo,
   weekday-only nudge — "check in" and/or "file today's standup" — for whichever of the two an
   intern hasn't done yet; nothing fires for one who's done both. Polled every 5 minutes via
   `setInterval` (started from `index.js` after `connectDB()`), gated by an in-memory
-  `lastRunDateKey` so the check body runs once per office day. No new dependency — reuses
+  `lastRunDateKey` so the check body runs once per office day.
+
+  The sweep only reaches interns who were signed in at that moment, so it has a second entry
+  point: `runDailyReminderCheckForUser` re-runs the same check for **one** intern, behind
+  `POST /api/notifications/daily-reminder-check`. The client half is `DailyReminderSync`
+  (mounted at app level in `App.jsx`, inside `SocketProvider`), which posts on mount, on the tab
+  becoming visible, and on a one-minute tick, once per day per device (`daily-reminder-checked` in
+  `localStorage`). So an intern who opens any page at 10:47 is nudged then instead of missing the
+  sweep. `Notification.dedupeKey` (`daily-reminder:<dateKey>:<userId>`) keeps the two entry points
+  from writing two rows.
+
+  The dedupe key alone would have made the on-arrival path a no-op, though, because the sweep
+  writes a row for **every** due intern at 10:30 whether they are signed in or not — so by the
+  time anyone arrives, the key is always spent. What that intern actually missed is not the record
+  but the **delivery**: the `new_notification` socket event fired while they were offline. So
+  `dispatch` takes `redeliverOnDuplicate` (set only by the on-arrival path, never by the sweep):
+  on a duplicate it loads the existing row and re-emits it with `unreadDelta: 0`, since the badge
+  already counts it. A row the reader has already **read** is not re-emitted — that is
+  `{ skipped: 'already-read' }`, and it is what stops the nudge from following someone who dealt
+  with it. No new dependency — reuses
   `attendanceTime.js`'s existing `Intl`-based, dependency-free timezone helpers (`officeHour`,
   `officeMinute`, `officeDateKey`, `isOfficeWeekend`) and skips `NonWorkingDay` entries. Attendance
   candidates mirror the roster `attendanceService.js#getRoster` already uses
