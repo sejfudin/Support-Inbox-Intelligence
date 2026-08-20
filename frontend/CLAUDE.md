@@ -54,17 +54,23 @@ Root rules and shared conventions apply — see ../CLAUDE.md and ../.claude/docs
 - **Gate every loader through `useLoaderHold`, and pass it the query's `isError`.** It keeps the
   mark up for `MIN_VISIBLE_MS` (1.5s) once shown and never lifts before the data is in, so the app
   has one loading rhythm. Wrap the query's own flag at the source — `const { isPending:
-  isPendingRaw, isError } = useX(); const isPending = useLoaderHold(isPendingRaw, { release:
-  isError });` — so every use in the file inherits it and no site can forget. Without `release` a
+isPendingRaw, isError } = useX(); const isPending = useLoaderHold(isPendingRaw, { release:
+isError });` — so every use in the file inherits it and no site can forget. Without `release` a
   failed query holds the mark over the error banner it just rendered. The floor applies to the
   first arrival only; paging, filtering and stepping a month re-enter `isPending` on a screen that
-  is already up, and those are not charged again.
+  is already up, and those are not charged again. A release also counts as a turn on screen, so a
+  query that fails and then succeeds on retry is not charged the floor a second time.
+- **One exception to the gate: a wait the person opened by clicking.** `Modals/TicketDetailsModal`
+  and `NavbarNotifications` render their loader off the raw query flag on purpose — a floor
+  on a click the person is waiting through is a toll, not a rhythm. Both put their real frame on
+  screen immediately and let only the contents be pending. Nothing else qualifies: a page the
+  person navigated to is gated.
 - **A skeleton's own spacing goes in `contentClassName`, not `className`.** On `LoadingOverlay`,
   `className` styles the positioned box and `contentClassName` styles the wrapper the skeletons sit
   in — `space-y-*` on the outer one lands on the inert wrapper and an absolutely positioned mark,
   and silently does nothing.
 - **`<Loader variant="overlay" />` needs a `relative` parent that does not scroll.** Put the class
-  on a wrapper *around* the scroll box, never on the scroll box itself: an absolutely positioned
+  on a wrapper _around_ the scroll box, never on the scroll box itself: an absolutely positioned
   child of a scroller is sized to its visible width and scrolls away with the content, so a wide
   table ends up half-covered.
 - **Spinners are for actions, not for arriving pages.** `Loader2` inside a button means "your click

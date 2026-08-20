@@ -26,7 +26,7 @@ import { TicketTitleField } from './TicketDetailsModal/TicketTitleField';
 import { TicketDescriptionEditor } from './TicketDetailsModal/TicketDescriptionEditor';
 import { TicketMetaRail } from './TicketDetailsModal/TicketMetaRail';
 import { TicketPrAccordion } from './TicketDetailsModal/TicketPrAccordion';
-import { Loader, useLoaderHold } from '@/components/ui/loader';
+import { Loader } from '@/components/ui/loader';
 
 export const TicketDetailsModal = ({
   ticketId,
@@ -40,9 +40,7 @@ export const TicketDetailsModal = ({
   const { user } = useAuth();
   const { socket, isConnected } = useSocket();
 
-  const { data: apiResponse, isLoading: isLoadingRaw, isError, error } = useTicket(ticketId);
-  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
-  const isLoading = useLoaderHold(isLoadingRaw, { release: isError });
+  const { data: apiResponse, isLoading, isError, error } = useTicket(ticketId);
   const updateTicketMutation = useUpdateTicket();
   const ticket = apiResponse?.data ?? apiResponse;
   const isArchived = Boolean(ticket?.isArchived);

@@ -30,11 +30,14 @@ import {
 } from '@/components/reference-data/ReferenceDataPanel';
 import { useCreatePosition, usePositions, useUpdatePosition } from '@/queries/positions';
 import { toast } from 'sonner';
+import { useLoaderHold } from '@/components/ui/loader';
 
 const emptyForm = { name: '', isActive: true };
 
 export function ReferenceDataPositionsPanel() {
-  const { data: positions = [], isPending } = usePositions({ includeInactive: true });
+  const { data: positions = [], isPending, isError } = usePositions({ includeInactive: true });
+  // Gated so the overlay mark and the skeleton rows keep the app's one loading rhythm.
+  const showLoader = useLoaderHold(isPending, { release: isError });
   const createMutation = useCreatePosition();
   const updateMutation = useUpdatePosition();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,7 +81,7 @@ export function ReferenceDataPositionsPanel() {
   return (
     <>
       <ReferenceDataPanel
-        loading={isPending}
+        loading={showLoader}
         loadingLabel="Loading positions"
         description="Specializations interns declare and get recommended for — kept separate from Technologies, which are the concrete tools, languages and frameworks they use."
         action={
@@ -105,7 +108,7 @@ export function ReferenceDataPositionsPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isPending ? (
+            {showLoader ? (
               <ReferenceDataTableLoading colSpan={4} />
             ) : positions.length === 0 ? (
               <ReferenceDataTableMessage colSpan={4}>No positions yet.</ReferenceDataTableMessage>

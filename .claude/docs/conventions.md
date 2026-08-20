@@ -155,7 +155,8 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   `variant="screen" | "panel" | "overlay"` or plain inline). The three-state trap to avoid is
   mark → skeleton → content: if a loader lifts onto a screenful of skeletons it was never covering
   the load, and the fix is to render the page *under* the loader rather than instead of it (see
-  `routes/ProtectedRoutes.jsx`). Every loader is gated through `useLoaderHold`, which holds it for
+  `routes/ProtectedRoutes.jsx`). Every loader is gated through `useLoaderHold` — except a wait the person opened by clicking (the
+  ticket modal, the notifications dropdown), where a floor is a toll on the click. It holds it for
   `MIN_VISIBLE_MS` and never lifts before the data arrives — wrap the query's own flag at the
   source so every use in the file inherits the hold, and hand it the query's `isError` as
   `release` so a failed load doesn't hold the mark over its own error banner. The floor is a

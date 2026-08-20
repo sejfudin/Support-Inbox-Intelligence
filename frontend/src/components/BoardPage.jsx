@@ -445,6 +445,7 @@ export default function BoardPage({
   queryFilters = {},
   enabled = true,
   statusesLoading = false,
+  statusesError = false,
   onNewTicket,
   onOpenTicket,
   onStatusChange,
@@ -455,7 +456,8 @@ export default function BoardPage({
   const [activeTaskView, setActiveTaskView] = useState(null);
   const [collapsedColumns, setCollapsedColumns] = useState(() => new Set());
   // Held for one full turn of the animation — same reasoning as the ticket list this sits next to.
-  const showBoardLoader = useLoaderHold(statusesLoading);
+  // Released on a failed statuses fetch: there is nothing arriving to hold the mark for.
+  const showBoardLoader = useLoaderHold(statusesLoading, { release: statusesError });
   // Any column still fetching means the board is still arriving. Scoped to the board's own key so
   // an unrelated background refetch elsewhere in the app cannot raise the mark over the columns.
   const columnsFetching = useIsFetching({ queryKey: [BOARD_COLUMN_QUERY_KEY] });

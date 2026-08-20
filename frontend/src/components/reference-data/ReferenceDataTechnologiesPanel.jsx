@@ -30,11 +30,20 @@ import {
 } from '@/components/reference-data/ReferenceDataPanel';
 import { useCreateTechnology, useTechnologies, useUpdateTechnology } from '@/queries/technologies';
 import { toast } from 'sonner';
+import { useLoaderHold } from '@/components/ui/loader';
 
 const emptyForm = { name: '', isActive: true };
 
 export function ReferenceDataTechnologiesPanel() {
-  const { data: technologies = [], isPending } = useTechnologies({ includeInactive: true });
+  const {
+    data: technologies = [],
+    isPending,
+    isError,
+  } = useTechnologies({
+    includeInactive: true,
+  });
+  // Gated so the overlay mark and the skeleton rows keep the app's one loading rhythm.
+  const showLoader = useLoaderHold(isPending, { release: isError });
   const createMutation = useCreateTechnology();
   const updateMutation = useUpdateTechnology();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,7 +87,7 @@ export function ReferenceDataTechnologiesPanel() {
   return (
     <>
       <ReferenceDataPanel
-        loading={isPending}
+        loading={showLoader}
         loadingLabel="Loading technologies"
         description="Skills and stacks used for intern profiles and readiness tracking."
         action={
@@ -105,7 +114,7 @@ export function ReferenceDataTechnologiesPanel() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isPending ? (
+            {showLoader ? (
               <ReferenceDataTableLoading colSpan={4} />
             ) : technologies.length === 0 ? (
               <ReferenceDataTableMessage colSpan={4}>

@@ -121,7 +121,9 @@ export const MIN_VISIBLE_MS = 1500;
  * month or retyping a filter re-enters `isPending` on a screen that has already introduced
  * itself; charging it another 1.5s each time is what the floor was meant to avoid the feeling
  * of. So once a hold has run its course the flag simply follows the query for the rest of the
- * mount, and navigating to the screen afresh arms it again.
+ * mount, and navigating to the screen afresh arms it again. A release counts as a turn on
+ * screen for the same reason: a query that fails and then succeeds on retry has already
+ * introduced its screen once.
  */
 export function useLoaderHold(active, { minVisibleMs = MIN_VISIBLE_MS, release = false } = {}) {
   const [holding, setHolding] = useState(active);
@@ -131,6 +133,9 @@ export function useLoaderHold(active, { minVisibleMs = MIN_VISIBLE_MS, release =
   useEffect(() => {
     if (release) {
       startedAt.current = null;
+      // The mark has had its turn on screen, so a retry that succeeds is not a first arrival and
+      // is not charged the floor again.
+      hasHeld.current = true;
       setHolding(false);
       return undefined;
     }

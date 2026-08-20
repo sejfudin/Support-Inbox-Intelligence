@@ -213,7 +213,11 @@ export default function TicketPage() {
   const [focusCommentId, setFocusCommentId] = useState(null);
   const [focusRequestToken, setFocusRequestToken] = useState(null);
 
-  const { helpers, isLoading: statusesLoading } = useTicketStatuses(effectiveWorkspaceId);
+  const {
+    helpers,
+    isLoading: statusesLoading,
+    isError: statusesError,
+  } = useTicketStatuses(effectiveWorkspaceId);
   const allowedTabKeys = useMemo(
     () => helpers.statusTabs.map((tab) => tab.key),
     [helpers.statusTabs]
@@ -818,6 +822,7 @@ export default function TicketPage() {
                 queryFilters={queryFilters}
                 enabled={isBoard && !!effectiveWorkspaceId}
                 statusesLoading={statusesLoading}
+                statusesError={statusesError}
                 onNewTicket={openNewTicket}
                 onOpenTicket={openTicketDetails}
                 onStatusChange={handleStatusChange}

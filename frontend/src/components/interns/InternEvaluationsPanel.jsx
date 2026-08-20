@@ -20,6 +20,7 @@ import { ROLES } from '@/helpers/roles';
 import { useCreateInternEvaluation, useInternEvaluations } from '@/queries/interns';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/user-avatar';
+import { useLoaderHold } from '@/components/ui/loader';
 
 const defaultScores = {
   technical: 3,
@@ -38,7 +39,8 @@ const getAverage = (evaluation) => {
 export function InternEvaluationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && user?.role === ROLES.ADMIN;
-  const { data: evaluations = [], isPending } = useInternEvaluations(userId);
+  const { data: evaluations = [], isPending, isError } = useInternEvaluations(userId);
+  const showLoader = useLoaderHold(isPending, { release: isError });
   const { mutate, isPending: isSaving } = useCreateInternEvaluation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -145,7 +147,7 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
         subtitle={subtitle}
         buttonLabel="New evaluation"
         canWrite={canWrite}
-        isLoading={isPending}
+        isLoading={showLoader}
         cards={cards}
         sortOptions={[
           { key: 'period', label: 'Period' },

@@ -36,9 +36,7 @@ export default function TableRowsSkeleton({
               </div>
             </div>
           ) : (
-            <Skeleton
-              className={cn('h-3', CELL_WIDTHS[(rowIdx + colIdx) % CELL_WIDTHS.length])}
-            />
+            <Skeleton className={cn('h-3', CELL_WIDTHS[(rowIdx + colIdx) % CELL_WIDTHS.length])} />
           )}
         </td>
       ))}
