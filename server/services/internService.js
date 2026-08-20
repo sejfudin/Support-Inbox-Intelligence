@@ -50,7 +50,10 @@ const PROFILE_POPULATE = [
 
 const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  const { internalCvUrl, ...rest } = plain;
+  // `cvTechnologies` was removed from the InternProfile schema, but Mongoose
+  // still echoes it from documents written before that change — strip it
+  // explicitly rather than relying on the schema to hide already-stored data.
+  const { internalCvUrl, cvTechnologies, ...rest } = plain;
   const canSeeInternalCv =
     Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
 

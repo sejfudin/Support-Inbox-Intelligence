@@ -1,12 +1,10 @@
 // Two independent concerns, both exercised with Mongo/Supabase mocked — no DB or network.
 //
-// 1. The CV-scan provenance prune in `updateSelfTechnologies`. This is the rule that makes the
-//    ownership model in helpers/cvTechnologySync.js work from the other direction: a technology
-//    the intern removes by hand stops being the scan's to manage, so re-adding it later counts
-//    as their own declaration and a future CV can never take it away. The reconciler itself is
-//    covered in helpers/cvTechnologySync.test.js and the upload wiring in
-//    services/internCvService.test.js — neither exercises this path, because nothing here goes
-//    through a CV at all.
+// 1. `updateSelfTechnologies` — the intern's own hand-edited list is the only path that can
+//    shorten `selfTechnologies`; a CV scan only ever adds to it (see helpers/cvTechnologySync.js,
+//    covered in helpers/cvTechnologySync.test.js) and never removes what's already there. The
+//    upload wiring is covered separately in services/internCvService.test.js — neither exercises
+//    this path, because nothing here goes through a CV at all.
 //
 // 2. The lifecycle-status transition rules in `updateInternProgramme` — who may change a
 //    status, and why "placed" specifically can't be picked by hand (it's the recommendation
