@@ -65,6 +65,15 @@ isError });` — so every use in the file inherits it and no site can forget. Wi
   on a click the person is waiting through is a toll, not a rhythm. Both put their real frame on
   screen immediately and let only the contents be pending. Nothing else qualifies: a page the
   person navigated to is gated.
+- **The boot wait is two splashes, and both have to be edited together.** The React splash
+  (`routes/ProtectedRoutes.jsx`) cannot cover the wait for the bundle that defines it, so
+  `index.html` carries a static `#boot-splash` with its own copy of the mark and the animation —
+  paint starts before any JS runs, and `createRoot().render()` clears it on React's first paint.
+  The copy is intentional (reusing `.logo-loader` would tie first paint to the render-blocking
+  stylesheet, and in dev that CSS arrives through the very bundle being waited on). If you change
+  the petal stagger, the timing curve, the `lg` size or the label, change it in **both**
+  `src/index.css` and `index.html` — they diverge silently, and the symptom is a visible blink at
+  the handover rather than an error.
 - **A skeleton's own spacing goes in `contentClassName`, not `className`.** On `LoadingOverlay`,
   `className` styles the positioned box and `contentClassName` styles the wrapper the skeletons sit
   in — `space-y-*` on the outer one lands on the inert wrapper and an absolutely positioned mark,
