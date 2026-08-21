@@ -156,10 +156,12 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   mark → skeleton → content: if a loader lifts onto a screenful of skeletons it was never covering
   the load, and the fix is to render the page *under* the loader rather than instead of it (see
   `routes/ProtectedRoutes.jsx`). Every loader is gated through `useLoaderHold` — except a wait the person opened by clicking (the
-  ticket modal, the notifications dropdown), where a floor is a toll on the click. It holds it for
-  `MIN_VISIBLE_MS` and never lifts before the data arrives — wrap the query's own flag at the
-  source so every use in the file inherits the hold, and hand it the query's `isError` as
-  `release` so a failed load doesn't hold the mark over its own error banner. The floor is a
+  ticket modal, the notifications dropdown), where a hold is a toll on the click. `TicketDetailsModal`
+  and `NavbarNotifications` render their loader off the raw query flag on purpose — no
+  `useLoaderHold`, no floor — so the real frame is on screen right away and only the contents wait.
+  Everywhere else, wrap the query's own flag at the source so every use in the file inherits the
+  hold, and hand it the query's `isError` as `release` so a failed load doesn't hold the mark over
+  its own error banner. The floor is a
   first-arrival effect: paging, filtering or stepping a month re-enters `isPending` on a screen
   that has already introduced itself, and charging each of those another 1.5s is a toll rather
   than a rhythm. Button spinners (`Loader2`) are a different sentence — "your click is working" —
