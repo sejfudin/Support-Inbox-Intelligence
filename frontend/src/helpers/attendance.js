@@ -167,6 +167,19 @@ export const isExemptToday = (placedAt, now = new Date()) => {
   return Boolean(exemptFrom) && officeDateKey(now) >= exemptFrom;
 };
 
+/**
+ * Whether today falls before the intern's first day in the programme.
+ *
+ * The mirror of `assertStarted` in `server/services/attendanceService.js`: the
+ * server refuses a check-in with a 422 until the start date arrives, so every
+ * surface that offers the button has to withdraw it on the same days. Read in
+ * office time, so the boundary flips on Sarajevo's calendar day.
+ */
+export const isBeforeStartToday = (startDate, now = new Date()) => {
+  if (!startDate) return false;
+  return officeDateKey(now) < officeDateKey(new Date(startDate));
+};
+
 const EMPTY_KEYS = new Set();
 const EMPTY_REQUESTED = Object.freeze({});
 

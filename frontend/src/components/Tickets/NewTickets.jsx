@@ -264,7 +264,7 @@ const NewTickets = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="flex h-[92vh] w-full max-w-[1040px] flex-col overflow-hidden rounded-[var(--r-card)] bg-card p-0 shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[min(88vh,760px)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-[var(--r-card)] [&>button]:hidden">
+      <DialogContent className="flex h-[calc(var(--app-vh)*0.92)] w-full max-w-[1040px] flex-col overflow-hidden rounded-[var(--r-card)] bg-card p-0 shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(var(--app-dvh)-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(var(--app-dvh)-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[min(calc(var(--app-vh)*0.88),760px)] sm:max-h-[calc(var(--app-dvh)-2rem)] sm:rounded-[var(--r-card)] [&>button]:hidden">
         <DialogTitle className="sr-only">New Ticket</DialogTitle>
 
         <form onSubmit={handleCreate} className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -410,7 +410,7 @@ const NewTickets = ({
                           </PopoverTrigger>
 
                           <PopoverContent
-                            className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[200]"
+                            className="w-[min(calc(var(--app-vw)-2rem),18rem)] p-2 z-[200]"
                             align="start"
                             sideOffset={8}
                             onWheel={(e) => e.stopPropagation()}

@@ -99,7 +99,7 @@ export function DetailModal({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
-        className={cn('max-h-[88vh] max-w-xl overflow-y-auto', className)}
+        className={cn('max-h-[calc(var(--app-vh)*0.88)] max-w-xl overflow-y-auto', className)}
         data-test={dataTest}
         hideCloseButton
       >

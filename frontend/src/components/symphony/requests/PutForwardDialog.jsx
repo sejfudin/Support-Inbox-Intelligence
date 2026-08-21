@@ -344,7 +344,7 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         portalContainer={portalContainer}
-        className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-3xl"
+        className="flex max-h-[calc(var(--app-vh)*0.9)] flex-col gap-0 p-0 sm:max-w-3xl"
         data-test="put-forward-dialog"
       >
         <DialogHeader className="gap-0 space-y-0 border-b border-border/60 px-6 pb-5 pt-6 text-left">

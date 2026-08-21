@@ -63,7 +63,7 @@ export function InSelectionModal({ open, onOpenChange, recommended = [], intervi
             Interns currently being pitched — recommended or interviewing.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-[65vh] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
+        <div className="grid max-h-[calc(var(--app-vh)*0.65)] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
           <SelectionColumn stage="recommended" title="Recommended" interns={recommended} />
           <SelectionColumn stage="interviewing" title="Interviewing" interns={interviewing} />
         </div>

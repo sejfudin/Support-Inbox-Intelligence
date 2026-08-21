@@ -29,7 +29,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex h-screen w-screen items-center justify-center overflow-y-auto bg-transparent p-4">
+    <div className="fixed inset-0 flex h-[var(--app-vh)] w-[var(--app-vw)] items-center justify-center overflow-y-auto bg-transparent p-4">
       <div className="grid w-full max-w-5xl gap-6 lg:grid-cols-[0.95fr_1.05fr]">
         <Card className="hidden border-primary/10 bg-foreground text-background shadow-elevated lg:block">
           <CardHeader className="p-10">

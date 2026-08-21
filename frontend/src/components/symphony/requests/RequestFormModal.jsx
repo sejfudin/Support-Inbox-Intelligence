@@ -516,7 +516,7 @@ export function RequestFormModal({
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-col">
-            <div className="flex max-h-[65vh] flex-col gap-6 overflow-y-auto px-6 py-5">
+            <div className="flex max-h-[calc(var(--app-vh)*0.65)] flex-col gap-6 overflow-y-auto px-6 py-5">
               {projectMode === 'draft' ? (
                 <div
                   className="flex flex-col gap-4 rounded-2xl border border-border/60 p-4"

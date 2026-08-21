@@ -317,7 +317,7 @@ export default function AdminStaffingRequestsPage() {
             <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_minmax(0,1fr)]">
               <div className={selected ? 'hidden lg:block' : 'block'}>
                 <ScrollFade
-                  viewportClassName="space-y-2.5 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto lg:pr-1"
+                  viewportClassName="space-y-2.5 lg:max-h-[calc(var(--app-vh)-16rem)] lg:overflow-y-auto lg:pr-1"
                   fadeClassName="from-background"
                 >
                   {visibleRequests.length === 0 ? (
@@ -339,7 +339,7 @@ export default function AdminStaffingRequestsPage() {
                 </ScrollFade>
               </div>
 
-              <div className="min-w-0 lg:max-h-[calc(100vh-16rem)] lg:overflow-y-auto lg:pr-1">
+              <div className="min-w-0 lg:max-h-[calc(var(--app-vh)-16rem)] lg:overflow-y-auto lg:pr-1">
                 {selected && (
                   <Button
                     type="button"

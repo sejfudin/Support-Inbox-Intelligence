@@ -130,7 +130,7 @@ export function InternDocumentationLinksPanel({ userId, links = [], canEdit = fa
         </ul>
       }
       editContent={
-        <div className="max-h-[min(24rem,50vh)] space-y-3 overflow-y-auto pr-1">
+        <div className="max-h-[min(24rem,calc(var(--app-vh)*0.5))] space-y-3 overflow-y-auto pr-1">
           {draftLinks.map((link, index) => (
             <div
               key={`draft-${index}`}

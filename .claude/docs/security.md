@@ -275,7 +275,11 @@ profile) is `requireRole(ADMIN, MENTOR)` — the role guard alone is not enough 
 `getInternAttendance` re-checks in the service: a non-admin must be `isAssignedMentor` for that
 profile or the read 403s. One mentor cannot read another mentor's intern. Not
 workspace-scoped (intern domain). The check-in time-window is enforced server-side
-(`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock.
+(`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock. It is one
+of several guards `attendanceService.checkIn` applies before it writes anything: placement, start
+date, a status an approval already wrote for today, a cohort non-working day, then the weekend and
+the window. Each refuses with 422 and a reason. The client withdraws the button on the same set,
+but that is UX only — this is where it is decided.
 
 Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/admin/entry` are
 `requireRole(ADMIN)`-guarded, cross-workspace reads (the workspace is passed explicitly via

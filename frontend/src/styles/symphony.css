@@ -60,7 +60,7 @@
 
 [data-surface='symphony'] .symphony-shell {
   display: flex;
-  min-height: 100vh;
+  min-height: var(--app-vh);
   flex-direction: column;
   background: hsl(var(--symphony-surface));
 }
@@ -121,7 +121,7 @@
   display: block;
   height: 1.75rem;
   width: auto;
-  max-width: min(9.5rem, 38vw);
+  max-width: min(9.5rem, calc(var(--app-vw) * 0.38));
   object-fit: contain;
   object-position: left center;
   filter: brightness(0);
