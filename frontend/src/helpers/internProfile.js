@@ -21,6 +21,19 @@ export const EVALUATION_CRITERIA = [
   { key: 'growth', label: 'Growth' },
 ];
 
+// The day-one value of every flag: not a verdict, but the absence of one.
+export const UNASSESSED_LEVEL = 'none';
+
+/**
+ * Whether a mentor has actually recorded a level for something.
+ *
+ * Lives here with the vocabulary so nothing has to spell out `=== 'learning' ||
+ * === 'ready'` and forget one of them — or forget to widen the test when a fourth
+ * level appears. Anything that is not the unassessed default counts as assessed,
+ * which is the safe default for a new level.
+ */
+export const isAssessedLevel = (level) => Boolean(level) && level !== UNASSESSED_LEVEL;
+
 export const getReadinessLabel = (level) =>
   READINESS_LEVELS.find((r) => r.value === level)?.label ?? level;
 

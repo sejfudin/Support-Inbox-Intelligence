@@ -127,6 +127,36 @@ describe('updateSelfTechnologies', () => {
     expect(Technology.countDocuments).not.toHaveBeenCalled();
   });
 
+  it('validates only what is being added, so a deactivated technology cannot block an edit', async () => {
+    const profile = mockProfile({ selfTechnologies: ['t-react', 't-python', 't-devops'] });
+    // `devops` was deactivated after the intern declared it. The page joins
+    // declarations against the *active* catalog, so the row is not on screen — and
+    // validating the whole array against `isActive` therefore rejected every edit
+    // because of an entry the intern could neither see nor drop.
+    Technology.countDocuments.mockImplementation(
+      async (filter) => filter._id.$in.filter((id) => id !== 't-devops').length
+    );
+
+    // The intern drops `react`; `devops` rides along untouched, as it must.
+    await updateSelfTechnologies(INTERN, ['t-python', 't-devops']);
+
+    expect(profile.selfTechnologies).toEqual(['t-python', 't-devops']);
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    // Nothing was added, so the catalog was never asked in the first place.
+    expect(Technology.countDocuments).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a technology the catalog does not offer', async () => {
+    const profile = mockProfile();
+    Technology.countDocuments.mockResolvedValue(0);
+
+    await expect(
+      updateSelfTechnologies(INTERN, ['t-react', 't-python', 't-retired'])
+    ).rejects.toThrow('One or more technologies are invalid');
+
+    expect(profile.save).not.toHaveBeenCalled();
+  });
+
   it('refuses to touch a profile that is not the caller’s', async () => {
     const profile = mockProfile({ user: 'someone-else' });
 
