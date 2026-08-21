@@ -18,6 +18,7 @@ import {
   checkInWindowState,
   checkInWindowMinutesLeft,
   formatMinutesLeft,
+  isBeforeStartToday,
   isExemptToday,
   isOfficeWeekend,
   nonWorkingKeySet,
@@ -46,8 +47,8 @@ const ACTION_CLASS = 'h-9 rounded-[var(--r-control)] px-4 text-[13px] font-mediu
  * Cancelling unchecks today; the intern can check in again until the window closes.
  * After it closes, a cancelled day counts as absent.
  *
- * Once the intern is on a real project (`placedAt`) the control is withdrawn
- * entirely — the server refuses check-in with a 422, so offering the button would
+ * Before the intern's first day (`startDate`) and once they are on a real project
+ * (`placedAt`) the control is withdrawn entirely — the server refuses check-in with a 422, so offering the button would
  * only produce an error on click. An approved day off (vacation, sick leave, a
  * religious holiday, a remote day) withdraws it too, and so does a cohort-wide
  * non-working day: there is nothing to check in for, and the badge says which kind
@@ -58,6 +59,9 @@ export default function AttendanceHeaderCard({
   records = [],
   cancelledDates = [],
   placedAt = null,
+  // First day in the programme. The server refuses check-in before it, so the
+  // control has to be withdrawn on those days too.
+  startDate = null,
   requestedDays = {},
   // Cohort-wide days off (public holiday, programme break, remote week). Without
   // them this card offered a check-in on a holiday, and the server accepted a row
@@ -89,6 +93,8 @@ export default function AttendanceHeaderCard({
   // On a project as of today. Back-dating `placedAt` flips this immediately, which
   // is the point: the intern stops being asked for something they no longer owe.
   const exempt = isExemptToday(placedAt, now);
+  // Not on the programme yet — accounts exist before the start date.
+  const beforeStart = isBeforeStartToday(startDate, now);
   const todayKey = officeDateKey(now);
   const cohortDayOff = nonWorkingKeySet(nonWorkingDays).has(todayKey);
 
@@ -103,7 +109,7 @@ export default function AttendanceHeaderCard({
   // (or not yet open), the intern can check in again.
   // Every "you are absent" state is suppressed on a day the intern owed nothing on —
   // on a project, an approved day off, a cohort non-working day. None is an absence.
-  const suppressed = exempt || onApprovedDay || cohortDayOff;
+  const suppressed = beforeStart || exempt || onApprovedDay || cohortDayOff;
   const lockedAbsent = !suppressed && cancelled && windowState === 'closed';
   const missed = !suppressed && !checkedIn && !cancelled && !weekend && windowState === 'closed';
   const canCheckInAgain = !suppressed && cancelled && !weekend && windowState !== 'closed';
@@ -118,45 +124,49 @@ export default function AttendanceHeaderCard({
     countdown ? ` · ${windowState === 'before' ? 'opens' : 'closes'} in ${countdown}` : ''
   }`;
 
-  const statusLine = exempt
-    ? "You're on a project — recording attendance is no longer required."
-    : onApprovedDay
-      ? `Approved ${dayStatusLabel(requestedToday).toLowerCase()} — no check-in needed today.`
-      : cohortDayOff
-        ? `${nonWorkingLabel(nonWorkingDays, todayKey) || 'A non-working day'} — nobody is expected in, and today is not counted as an absence.`
-        : lockedAbsent
-          ? 'Check-in cancelled — today counts as absent.'
-          : checkedIn
-            ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
-            : weekend
-              ? "It's the weekend — check-in isn't required today."
-              : missed
-                ? `Check-in window ${CHECK_IN_WINDOW_LABEL} has closed — today counts as absent.`
-                : canCheckInAgain
-                  ? `Check-in was cancelled — you can check in again. ${windowLine}`
-                  : windowLine;
+  const statusLine = beforeStart
+    ? `Your internship starts on ${format(new Date(startDate), 'MMMM d')} — check-in opens on your first day.`
+    : exempt
+      ? "You're on a project — recording attendance is no longer required."
+      : onApprovedDay
+        ? `Approved ${dayStatusLabel(requestedToday).toLowerCase()} — no check-in needed today.`
+        : cohortDayOff
+          ? `${nonWorkingLabel(nonWorkingDays, todayKey) || 'A non-working day'} — nobody is expected in, and today is not counted as an absence.`
+          : lockedAbsent
+            ? 'Check-in cancelled — today counts as absent.'
+            : checkedIn
+              ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
+              : weekend
+                ? "It's the weekend — check-in isn't required today."
+                : missed
+                  ? `Check-in window ${CHECK_IN_WINDOW_LABEL} has closed — today counts as absent.`
+                  : canCheckInAgain
+                    ? `Check-in was cancelled — you can check in again. ${windowLine}`
+                    : windowLine;
 
   // One pill, whichever state today is in. The check-in button replaces it when
   // there is actually something to do — an intern should never have to read a
   // sentence to find out whether they can act.
-  const badge = exempt
-    ? { label: 'On a project', tone: 'muted', Icon: CalendarOff, test: 'on-project' }
-    : onApprovedDay
-      ? {
-          label: dayStatusLabel(requestedToday),
-          tone: 'muted',
-          Icon: CalendarOff,
-          test: 'approved-day',
-        }
-      : cohortDayOff
-        ? { label: 'Non-working day', tone: 'muted', Icon: CalendarOff, test: 'non-working' }
-        : lockedAbsent
-          ? { label: 'Absent today', tone: 'danger', Icon: XCircle, test: 'cancelled' }
-          : weekend
-            ? { label: 'Weekend', tone: 'muted', Icon: CalendarOff, test: 'weekend' }
-            : missed
-              ? { label: 'Window closed', tone: 'danger', Icon: AlarmClockOff, test: 'missed' }
-              : null;
+  const badge = beforeStart
+    ? { label: 'Not started yet', tone: 'muted', Icon: CalendarOff, test: 'before-start' }
+    : exempt
+      ? { label: 'On a project', tone: 'muted', Icon: CalendarOff, test: 'on-project' }
+      : onApprovedDay
+        ? {
+            label: dayStatusLabel(requestedToday),
+            tone: 'muted',
+            Icon: CalendarOff,
+            test: 'approved-day',
+          }
+        : cohortDayOff
+          ? { label: 'Non-working day', tone: 'muted', Icon: CalendarOff, test: 'non-working' }
+          : lockedAbsent
+            ? { label: 'Absent today', tone: 'danger', Icon: XCircle, test: 'cancelled' }
+            : weekend
+              ? { label: 'Weekend', tone: 'muted', Icon: CalendarOff, test: 'weekend' }
+              : missed
+                ? { label: 'Window closed', tone: 'danger', Icon: AlarmClockOff, test: 'missed' }
+                : null;
 
   const confirmCancel = () => {
     onCancel();

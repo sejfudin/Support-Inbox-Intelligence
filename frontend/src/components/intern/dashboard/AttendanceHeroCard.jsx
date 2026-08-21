@@ -187,10 +187,13 @@ export function AttendanceHeroCard({
   const remote = todayStatus === DAY_STATUS.REMOTE;
   // A day nobody in the cohort owed: public holiday, programme break, remote week.
   const cohortDayOff = todayStatus === DAY_STATUS.NON_WORKING;
+  // Before the intern's first day in the programme. Placements and accounts are
+  // both created ahead of the start date, so this is a real state, not an edge.
+  const beforeStart = todayStatus === DAY_STATUS.BEFORE_START;
   // Every state where today is not the intern's to claim. The server refuses a
   // check-in on each of them with a 422, so offering the button here would do
   // nothing but produce a toast explaining why it did nothing.
-  const owesNothing = exempt || onLeave || remote || cohortDayOff;
+  const owesNothing = beforeStart || exempt || onLeave || remote || cohortDayOff;
   const checkedIn = !owesNothing && Boolean(today);
   const missed = !checkedIn && !weekend && !owesNothing && windowState === 'closed';
   const justCheckedIn = useJustCheckedIn(checkedIn);
@@ -225,23 +228,25 @@ export function AttendanceHeroCard({
   // clock, because "you are on vacation" answers the question and "the window
   // closed at 11:00" only restates the button. Mirrors the guard order the server
   // refuses in — see `checkIn` in services/attendanceService.js.
-  const statusLine = exempt
-    ? 'On a project'
-    : cohortDayOff
-      ? `${nonWorkingLabel(nonWorkingDays, todayCell.key) || 'Non-working day'} — no check-in needed`
-      : onLeave || remote
-        ? `Approved ${dayStatusLabel(todayStatus).toLowerCase()} — no check-in needed`
-        : checkedIn
-          ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
-          : weekend
-            ? 'Weekend — no check-in needed'
-            : missed
-              ? cancelled
-                ? 'Check-in cancelled — today counts as absent'
-                : 'Window closed — today counts as absent'
-              : windowState === 'before'
-                ? `Opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
-                : 'Not checked in yet';
+  const statusLine = beforeStart
+    ? 'Your internship has not started yet'
+    : exempt
+      ? 'On a project'
+      : cohortDayOff
+        ? `${nonWorkingLabel(nonWorkingDays, todayCell.key) || 'Non-working day'} — no check-in needed`
+        : onLeave || remote
+          ? `Approved ${dayStatusLabel(todayStatus).toLowerCase()} — no check-in needed`
+          : checkedIn
+            ? `Checked in at ${formatCheckInTime(today.checkedInAt)}`
+            : weekend
+              ? 'Weekend — no check-in needed'
+              : missed
+                ? cancelled
+                  ? 'Check-in cancelled — today counts as absent'
+                  : 'Window closed — today counts as absent'
+                : windowState === 'before'
+                  ? `Opens at ${CHECK_IN_WINDOW_LABEL.split('–')[0]}`
+                  : 'Not checked in yet';
 
   return (
     <section

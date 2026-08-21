@@ -5,6 +5,7 @@ import {
   isCheckedInToday,
   checkInWindowState,
   exemptFromKey,
+  isBeforeStartToday,
   isOfficeWeekend,
   nonWorkingKeySet,
   officeDateKey,
@@ -20,10 +21,11 @@ import {
  * or the window closes.
  *
  * Nobody is reminded to do something they cannot do. The banner is silent on
- * every day the server would refuse the check-in on: an intern already on a real
- * project (`placedAt`), a day an approval already spoke for (vacation, sick,
- * religious, or remote — remote is work and already counts), and a day the whole
- * cohort was excused (public holiday, programme break, remote week). Nagging
+ * every day the server would refuse the check-in on: a day before the intern's
+ * start date, an intern already on a real project (`placedAt`), a day an approval
+ * already spoke for (vacation, sick, religious, or remote — remote is work and
+ * already counts), and a day the whole cohort was excused (public holiday,
+ * programme break, remote week). Nagging
  * someone on approved leave to record attendance is worse than saying nothing.
  *
  * @returns {{ active: boolean, title: string, body: string, windowLabel: string }}
@@ -43,10 +45,13 @@ export function useCheckInReminder() {
   // counts as attended, so there is nothing left to remind anyone about.
   const onApprovedDay = Boolean(requestedStatusToday(data?.requestedDays));
   const cohortDayOff = nonWorkingKeySet(data?.nonWorkingDays).has(todayKey);
+  // Not on the programme yet: the server refuses check-in until the start date.
+  const beforeStart = isBeforeStartToday(data?.startDate);
 
   const windowState = checkInWindowState();
   const active =
     intern &&
+    !beforeStart &&
     !onProject &&
     !onApprovedDay &&
     !cohortDayOff &&
