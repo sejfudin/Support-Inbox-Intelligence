@@ -13,7 +13,7 @@ import {
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
-import { getReadinessLabel, isAssessedLevel } from '@/helpers/internProfile';
+import { getReadinessLabel, isAssessedLevel, UNASSESSED_LEVEL } from '@/helpers/internProfile';
 import { useMyDeclaredTechnologies } from '@/hooks/useMyDeclaredTechnologies';
 import { useUpdateMyTechnologies } from '@/queries/interns';
 import { cn } from '@/lib/utils';
@@ -130,7 +130,7 @@ export function InternTechnologyDeclaration({ className }) {
       ) : (
         <ul>
           {declaredTechnologies.map((tech) => {
-            const level = flagMap[tech._id]?.level || 'none';
+            const level = flagMap[tech._id]?.level || UNASSESSED_LEVEL;
             return (
               <li key={tech._id} className={ROW_CLASS}>
                 <span className="flex min-w-0 items-center gap-2.5">
