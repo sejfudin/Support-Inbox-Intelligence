@@ -1,7 +1,11 @@
 const express = require('express');
 const router = express.Router();
 
-const { getInternDashboard, summarizeMyStandup } = require('../controllers/internDashboard');
+const {
+  getInternDashboard,
+  getInternProgress,
+  summarizeMyStandup,
+} = require('../controllers/internDashboard');
 const { protect } = require('../middleware/auth');
 const { requireRole } = require('../middleware/role');
 const { ROLES } = require('../constants/roles');
@@ -14,6 +18,20 @@ const { ROLES } = require('../constants/roles');
  * evaluations, which no other role reads through here.
  */
 router.get('/me', protect, requireRole(ROLES.INTERN), getInternDashboard);
+
+/**
+ * "My progress" — everything the programme records about the caller: their
+ * evaluations (scores AND the mentor's written notes), their readiness by
+ * technology and by position, and every recommendation they have been part of.
+ *
+ * Read-only and parameterless for the same reason as the board above, and more
+ * so: this is the widest self-read on the platform, so the absence of any intern
+ * or workspace override is the whole authorization story. The admin surfaces for
+ * the same data (`/api/interns/:userId/evaluations`, `/:userId/readiness`,
+ * `/api/recommendations`) stay `requireRole(ADMIN)` and are where writes live —
+ * nothing here writes, and no other role may read through here.
+ */
+router.get('/me/progress', protect, requireRole(ROLES.INTERN), getInternProgress);
 
 /**
  * Summarise the caller's own standup note for today, for the dashboard card.

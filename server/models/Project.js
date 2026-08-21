@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 const PROJECT_STATUSES = ['active', 'on_hold', 'completed'];
 
+// Starting pair only — the full type list is still being settled with the
+// program leads. Values are stored slugs; display labels live in the frontend
+// (frontend/src/helpers/projects.js), so relabelling never needs a migration.
+const PROJECT_TYPES = ['client', 'internal'];
+
 const projectSchema = new mongoose.Schema(
   {
     slug: {
@@ -22,6 +27,15 @@ const projectSchema = new mongoose.Schema(
       trim: true,
       maxlength: 160,
       default: '',
+    },
+    // Required with no default on purpose: the admin must classify every
+    // project explicitly. Pre-existing docs are backfilled to 'client' by
+    // seeder/backfillProjectTypes.js — run it before anyone edits a project,
+    // since an unset type now fails validation on save.
+    type: {
+      type: String,
+      enum: PROJECT_TYPES,
+      required: true,
     },
     description: {
       type: String,
@@ -51,3 +65,4 @@ const projectSchema = new mongoose.Schema(
 
 module.exports = mongoose.model('Project', projectSchema);
 module.exports.PROJECT_STATUSES = PROJECT_STATUSES;
+module.exports.PROJECT_TYPES = PROJECT_TYPES;

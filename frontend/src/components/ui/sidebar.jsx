@@ -20,9 +20,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = '16rem';
+// 272px expanded / 64px collapsed. The overhaul spec (`handoff/TOKENS.md`) put
+// the rail at 244px, but that predates the bell moving out of the top bar and
+// into the header row — logo + bell + collapse toggle need more room or the
+// wordmark truncates. `development` went to 19rem for that; 17rem is the
+// narrowest that still fits the three without crowding, and `--board-col-max`
+// is sized against it.
+// The collapsed rail is wider than shadcn's 3rem default because its rows are
+// 34px tall with the same 10px side padding as expanded, so the icon stays on
+// the same optical centre in both states.
+const SIDEBAR_WIDTH = '17rem';
 const SIDEBAR_WIDTH_MOBILE = '18rem';
-const SIDEBAR_WIDTH_ICON = '3rem';
+const SIDEBAR_WIDTH_ICON = '4rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
 const EDITABLE_SHORTCUT_SELECTOR =
   'input, textarea, select, [contenteditable="true"], [role="textbox"]';
@@ -120,14 +129,20 @@ const SidebarProvider = React.forwardRef(
     return (
       <SidebarContext.Provider value={contextValue}>
         <TooltipProvider delayDuration={0}>
+          {/* `data-sidebar-state` is on the wrapper, not on the <Sidebar> itself:
+              the sidebar's own `data-state` sits on a sibling of the content
+              column, so page CSS cannot reach it. Here it is an ancestor of both,
+              which lets a page widen with the rail purely on the cascade — see
+              `--board-col-max` in index.css. */}
           <div
+            data-sidebar-state={state}
             style={{
               '--sidebar-width': SIDEBAR_WIDTH,
               '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
               ...style,
             }}
             className={cn(
-              'group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar',
+              'group/sidebar-wrapper flex min-h-[var(--app-svh)] w-full has-[[data-variant=inset]]:bg-sidebar',
               className
             )}
             ref={ref}
@@ -214,7 +229,7 @@ const Sidebar = React.forwardRef(
         />
         <div
           className={cn(
-            'fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)] md:flex',
+            'fixed inset-y-0 z-10 hidden h-[var(--app-svh)] w-[--sidebar-width] transition-[left,right,width] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)] md:flex',
             side === 'left'
               ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
               : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
@@ -299,7 +314,7 @@ const SidebarInset = React.forwardRef(({ className, ...props }, ref) => {
       ref={ref}
       className={cn(
         'relative flex w-full flex-1 flex-col bg-background',
-        'md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow',
+        'md:peer-data-[variant=inset]:m-2 md:peer-data-[state=collapsed]:peer-data-[variant=inset]:ml-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-[var(--r-card)] md:peer-data-[variant=inset]:shadow',
         className
       )}
       {...props}

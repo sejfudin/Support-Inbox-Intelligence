@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const { escapeRegex } = require('../helpers/escapeRegex');
+const { userSelect } = require('../constants/userSelect');
 
 const getUserWorkspaceMemberships = async (userId) => {
   const workspaces = await Workspace.find(
@@ -70,6 +71,7 @@ const getUsers = async ({
   roles,
   status,
   hubId,
+  includeTestAccounts = false,
 }) => {
   if (requireWorkspaceScope && !workspaceId) {
     return emptyUserResult({ pagination, page, limit });
@@ -109,9 +111,19 @@ const getUsers = async ({
     query.hub = hubId;
   }
 
+  // Excluded by default from every listing this function backs (mentor/
+  // specialization pickers, workspace-member/ticket-assignee pickers, the
+  // unscoped platform-wide list) — same idiom as `Project`'s `isSystem` sentinel.
+  // `includeTestAccounts` exists for exactly one caller, Platform Management's
+  // "All Users" screen, where an admin needs to find and manage the account
+  // itself; every other call site gets the exclusion for free by doing nothing.
+  if (!includeTestAccounts) {
+    query.isTestAccount = { $ne: true };
+  }
+
   if (pagination === 'false' || pagination === false) {
     const users = await User.find(query)
-      .select('fullname email role status workspaceId hub')
+      .select(userSelect('role', 'status', 'workspaceId', 'hub'))
       .populate('hub', 'name city country')
       .sort({ fullname: 1 });
     return { users };
@@ -172,7 +184,7 @@ const updateUserRole = async (userId, role) => {
 
 const getUserById = async (userId) => {
   const user = await User.findById(userId)
-    .select('fullname email role status workspaceId hub createdAt')
+    .select(userSelect('role', 'status', 'workspaceId', 'hub', 'createdAt'))
     .populate('hub', 'name city country');
 
   if (!user) {

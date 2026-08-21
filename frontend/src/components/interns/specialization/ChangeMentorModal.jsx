@@ -85,7 +85,10 @@ export function ChangeMentorModal({ specialization, onClose }) {
           </div>
 
           {error && (
-            <p className="text-sm text-destructive" data-test="change-mentor-error">
+            <p
+              className="text-sm text-[hsl(var(--tone-danger-fg))]"
+              data-test="change-mentor-error"
+            >
               {error}
             </p>
           )}

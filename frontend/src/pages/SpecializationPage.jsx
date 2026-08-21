@@ -1,18 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
-import { ArrowDown, ArrowRight, ArrowUp, MoreHorizontal, Plus } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,24 +21,28 @@ import {
 } from '@/components/ui/table';
 import PageHeading from '@/components/PageHeading';
 import { PageShell, PageSection } from '@/components/PageShell';
+import FilterSelect from '@/components/FilterSelect';
 import { useSpecializations, useClearSpecialization } from '@/queries/specializations';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import { useMentorCandidates } from '@/queries/users';
 import { AssignSpecializationModal } from '@/components/interns/specialization/AssignSpecializationModal';
 import { ReassignSpecializationDialog } from '@/components/interns/specialization/ReassignSpecializationDialog';
 import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMentorModal';
-import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import { formatDate } from '@/helpers/date';
-
-const tableHeadClass =
-  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
-const tableCellClass = 'px-4 py-4';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const STATUS_OPTIONS = [
   { value: 'specialized', label: 'Specialized' },
   { value: 'unspecialized', label: 'Unspecialized' },
   { value: 'all', label: 'All' },
 ];
+
+/** Hairline between two segments of the stat bar. */
+function BarDivider() {
+  return <span className="h-4 w-px shrink-0 bg-separator" aria-hidden="true" />;
+}
 
 export default function SpecializationPage() {
   const navigate = useNavigate();
@@ -65,7 +61,12 @@ export default function SpecializationPage() {
   const { data: mentorsData } = useMentorCandidates({ hubScoped: false });
   const mentors = mentorsData?.users ?? [];
 
-  const { data, isPending, isFetching, isError } = useSpecializations({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isFetching,
+    isError,
+  } = useSpecializations({
     status,
     mentorId: mentorId || undefined,
     search: debouncedSearch || undefined,
@@ -73,6 +74,8 @@ export default function SpecializationPage() {
     page,
     limit: 20,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const clearMutation = useClearSpecialization();
 
@@ -131,137 +134,164 @@ export default function SpecializationPage() {
 
   return (
     <PageShell>
-      <PageSection className="space-y-6">
+      <PageSection className="space-y-4">
         <PageHeading
-          kicker="Programme management"
+          crumb="Admin"
           title="Specialization"
           subtitle="Confirm an intern's focus position and pair them with a dedicated mentor."
           actions={
-            <Button
-              type="button"
-              onClick={() => openAssignModal()}
-              data-test="assign-specialization-button"
-            >
-              <Plus className="h-4 w-4" />
-              Assign specialization
-            </Button>
-          }
-          meta={
-            <div className="flex flex-wrap items-center gap-3">
-              <p
-                className="text-sm text-muted-foreground"
-                data-test="specialization-coverage-label"
+            <>
+              <div className="relative w-full md:w-[220px]">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70"
+                  aria-hidden="true"
+                />
+                <Input
+                  value={search}
+                  onChange={handleSearchChange}
+                  placeholder="Search interns..."
+                  className="pl-[30px] text-[12.5px] md:text-[12.5px]"
+                  aria-label="Search by name or email"
+                  data-test="specialization-search-input"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="h-9"
+                onClick={() => openAssignModal()}
+                data-test="assign-specialization-button"
               >
-                {specializedCount} of {totalCount} interns specialized
-              </p>
-              {unspecializedCount > 0 && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleGoToUnspecialized}
-                  data-test="specialization-need-one-chip"
-                >
-                  {unspecializedCount} need one
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </div>
+                <Plus className="h-4 w-4" />
+                Assign specialization
+              </Button>
+            </>
           }
         />
 
-        <div className="app-panel overflow-hidden pb-2">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5 pb-5 md:px-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={status} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-[160px]" data-test="specialization-status-filter">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Coverage first, filters second, on one bar. The page's whole job is
+            "how many interns still need a specialization" — that number belongs
+            above the table, not buried as a caption beside the dropdowns. */}
+        <div className="app-card flex flex-wrap items-center gap-x-3.5 gap-y-2 px-[18px] py-3">
+          <p
+            className="text-[13px] text-muted-foreground"
+            data-test="specialization-coverage-label"
+          >
+            <span className="font-semibold text-foreground">
+              {specializedCount} of {totalCount}
+            </span>{' '}
+            interns specialized
+          </p>
 
-              <Select value={mentorId || 'all'} onValueChange={handleMentorChange}>
-                <SelectTrigger className="w-[180px]" data-test="specialization-mentor-filter">
-                  <SelectValue placeholder="All mentors" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All mentors</SelectItem>
-                  {mentors.map((mentor) => (
-                    <SelectItem key={mentor._id} value={mentor._id}>
-                      {mentor.fullname}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {unspecializedCount > 0 && (
+            <>
+              <BarDivider />
+              {/* Amber text, not a filled button: it is a count that happens to be
+                  a shortcut into the unspecialized filter, and a solid button
+                  here read as the page's primary action next to the real one. */}
+              <button
+                type="button"
+                onClick={handleGoToUnspecialized}
+                className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[hsl(var(--tone-warning-fg))] underline-offset-2 transition-colors hover:underline dark:text-[hsl(var(--tone-warning-fg))]"
+                data-test="specialization-need-one-chip"
+              >
+                {unspecializedCount} need one
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </>
+          )}
 
-              {mentorId && (
-                <span
-                  className="text-sm text-muted-foreground"
-                  data-test="specialization-mentor-load"
-                >
-                  {stats?.mentorLoad ?? 0} specialization{stats?.mentorLoad === 1 ? '' : 's'}
-                </span>
-              )}
+          {mentorId && (
+            <>
+              <BarDivider />
+              <span
+                className="text-[12.5px] text-muted-foreground"
+                data-test="specialization-mentor-load"
+              >
+                {stats?.mentorLoad ?? 0} specialization{stats?.mentorLoad === 1 ? '' : 's'} for this
+                mentor
+              </span>
+            </>
+          )}
 
-              <Input
-                value={search}
-                onChange={handleSearchChange}
-                placeholder="Search by name or email"
-                className="w-[220px]"
-                data-test="specialization-search-input"
-              />
-            </div>
+          <span className="flex-1" />
 
-            <p className="text-sm text-muted-foreground" data-test="specialization-result-count">
-              {isPending
-                ? 'Loading...'
-                : `${totalMatching} intern${totalMatching === 1 ? '' : 's'}${
-                    isFetching ? ' · updating...' : ''
-                  }`}
-            </p>
-          </div>
+          <span
+            className="text-[12px] text-muted-foreground/75"
+            data-test="specialization-result-count"
+          >
+            {isPending
+              ? '—'
+              : `${totalMatching} intern${totalMatching === 1 ? '' : 's'}${
+                  isFetching ? ' · updating…' : ''
+                }`}
+          </span>
 
+          <FilterSelect
+            value={status}
+            options={STATUS_OPTIONS}
+            onChange={handleStatusChange}
+            // "Specialized" is the resting state, so only the other two count as
+            // a filter the reader put there.
+            active={status !== 'specialized'}
+            dataTest="specialization-status-filter"
+          />
+          <FilterSelect
+            value={mentorId}
+            options={mentors.map((mentor) => ({ value: mentor._id, label: mentor.fullname }))}
+            onChange={handleMentorChange}
+            allLabel="All mentors"
+            dataTest="specialization-mentor-filter"
+          />
+        </div>
+
+        <div className="app-card overflow-hidden">
           {isError && (
-            <p className="p-6 text-sm text-destructive" data-test="specializations-error">
+            <p
+              className="p-6 text-[12.5px] text-[hsl(var(--tone-danger-fg))]"
+              data-test="specializations-error"
+            >
               Failed to load specializations.
             </p>
           )}
-          {isPending && <TableSkeleton columns={5} minWidthClassName="min-w-[1040px]" />}
+          {isPending && (
+            <LoadingOverlay label="Loading specializations">
+              <TableSkeleton columns={5} rows={8} minWidthClassName="min-w-[900px]" />
+            </LoadingOverlay>
+          )}
           {!isPending && !isError && (
-            <div className={cn('overflow-x-auto transition-opacity', isFetching && 'opacity-60')}>
-              <Table className="min-w-[1040px]">
+            <div className={cn('transition-opacity', isFetching && 'opacity-60')}>
+              <Table className="min-w-[900px]">
                 <TableHeader>
-                  <TableRow className="bg-secondary/60">
-                    <TableHead className={tableHeadClass}>Intern</TableHead>
-                    <TableHead className={tableHeadClass}>Position</TableHead>
-                    <TableHead className={tableHeadClass}>Mentor</TableHead>
-                    <TableHead className={tableHeadClass}>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Intern</TableHead>
+                    <TableHead className="w-[210px]">Position</TableHead>
+                    <TableHead className="w-[190px]">Mentor</TableHead>
+                    <TableHead className="w-[140px]">
                       <button
                         type="button"
                         onClick={handleToggleAssignedSort}
-                        className="flex items-center gap-1 uppercase tracking-[0.12em] hover:text-foreground"
+                        className="inline-flex items-center gap-1.5 uppercase tracking-[0.07em] transition-colors hover:text-foreground"
                         data-test="specialization-assigned-sort"
                       >
                         Assigned
                         {assignedSortDirection === 'desc' ? (
-                          <ArrowDown className="h-3.5 w-3.5" />
+                          <ArrowDown className="h-3 w-3 shrink-0" aria-hidden="true" />
                         ) : (
-                          <ArrowUp className="h-3.5 w-3.5" />
+                          <ArrowUp className="h-3 w-3 shrink-0" aria-hidden="true" />
                         )}
                       </button>
                     </TableHead>
-                    <TableHead className={tableHeadClass}>Actions</TableHead>
+                    <TableHead className="w-[110px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {specializations.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={5}
+                        className="h-auto py-12 text-center text-[12.5px] text-muted-foreground"
+                      >
                         {status === 'unspecialized'
                           ? totalCount === 0
                             ? 'No interns yet.'
@@ -273,103 +303,124 @@ export default function SpecializationPage() {
                   {specializations.map((specialization) => {
                     const isSpecialized = Boolean(specialization.specializationAssignedAt);
                     const hasSecondary = Boolean(specialization.secondaryPosition);
+                    const fullname = specialization.user?.fullname || 'Unknown';
+
                     return (
                       <TableRow
                         key={specialization._id}
-                        className="cursor-pointer hover:bg-muted/30"
+                        className="cursor-pointer"
                         onClick={() => handleRowClick(specialization)}
                         data-test={`specialization-row-${specialization._id}`}
                       >
-                        <TableCell className={tableCellClass}>
-                          <p className="font-semibold text-foreground">
-                            {specialization.user?.fullname || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {specialization.user?.email || '-'}
-                          </p>
+                        <TableCell>
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <UserAvatar
+                              user={specialization.user}
+                              name={fullname}
+                              size="md"
+                              showTitle={false}
+                            />
+                            <div className="min-w-0 leading-[1.35]">
+                              <p className="truncate text-[13px] font-medium text-foreground">
+                                {fullname}
+                              </p>
+                              <p className="truncate text-[11.5px] text-muted-foreground/75">
+                                {specialization.user?.email || '—'}
+                              </p>
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell className={tableCellClass}>
+                        <TableCell>
                           {specialization.declaredPosition?.name ? (
-                            <Badge
-                              variant={isSpecialized ? 'default' : 'outline'}
+                            <span
+                              className="text-foreground"
                               data-test={`specialization-badge-${specialization._id}`}
                             >
                               {specialization.declaredPosition.name}
-                            </Badge>
+                            </span>
                           ) : (
-                            <span className="text-muted-foreground">no position declared yet</span>
+                            // Italic, because it is the absence of a value rather
+                            // than one — the row still needs an Assign button, and
+                            // a plain dash would not say why it is disabled.
+                            <span className="italic text-muted-foreground/75">
+                              No position declared yet
+                            </span>
                           )}
                           {specialization.secondaryPosition?.name && (
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-0.5 text-[11.5px] text-muted-foreground/75">
                               2nd: {specialization.secondaryPosition.name}
                             </p>
                           )}
                         </TableCell>
-                        <TableCell className={tableCellClass}>
+                        <TableCell className="text-muted-foreground">
                           {specialization.secondaryMentor?.fullname || (
-                            <span className="text-muted-foreground">-</span>
+                            <span className="text-muted-foreground/75">—</span>
                           )}
                         </TableCell>
-                        <TableCell
-                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
-                        >
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
                           {isSpecialized ? (
                             formatDate(specialization.specializationAssignedAt)
                           ) : (
-                            <span>-</span>
+                            <span className="text-muted-foreground/75">—</span>
                           )}
                         </TableCell>
-                        <TableCell
-                          className={tableCellClass}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {isSpecialized ? (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  data-test={`specialization-row-menu-${specialization._id}`}
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  disabled={!hasSecondary}
-                                  onClick={() => setReassignTarget(specialization)}
-                                  data-test={`specialization-reassign-${specialization._id}`}
-                                >
-                                  Reassign position
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setChangeMentorTarget(specialization)}
-                                  data-test={`specialization-change-mentor-${specialization._id}`}
-                                >
-                                  Change mentor
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => setClearTarget(specialization)}
-                                  data-test={`specialization-clear-${specialization._id}`}
-                                >
-                                  Clear specialization
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={!specialization.declaredPosition}
-                              onClick={() => openAssignModal(specialization.user?._id)}
-                              data-test={`specialization-assign-${specialization._id}`}
-                            >
-                              Assign
-                            </Button>
-                          )}
+                        <TableCell onClick={(event) => event.stopPropagation()}>
+                          <div className="flex justify-end">
+                            {isSpecialized ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7"
+                                    data-test={`specialization-row-menu-${specialization._id}`}
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    disabled={!hasSecondary}
+                                    onClick={() => setReassignTarget(specialization)}
+                                    data-test={`specialization-reassign-${specialization._id}`}
+                                  >
+                                    Reassign position
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setChangeMentorTarget(specialization)}
+                                    data-test={`specialization-change-mentor-${specialization._id}`}
+                                  >
+                                    Change mentor
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-[hsl(var(--tone-danger-fg))] focus:text-[hsl(var(--tone-danger-fg))]"
+                                    onClick={() => setClearTarget(specialization)}
+                                    data-test={`specialization-clear-${specialization._id}`}
+                                  >
+                                    Clear specialization
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 rounded-[var(--r-control)] px-3 text-[12px]"
+                                disabled={!specialization.declaredPosition}
+                                title={
+                                  specialization.declaredPosition
+                                    ? undefined
+                                    : 'This intern has to declare a position first.'
+                                }
+                                onClick={() => openAssignModal(specialization.user?._id)}
+                                data-test={`specialization-assign-${specialization._id}`}
+                              >
+                                Assign
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -379,8 +430,8 @@ export default function SpecializationPage() {
             </div>
           )}
           {pagination && pagination.pages > 1 && (
-            <div className="flex items-center justify-between border-t border-border/60 px-5 py-4">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-separator px-[18px] py-3">
+              <p className="text-[12px] text-muted-foreground/75">
                 Page {pagination.page} of {pagination.pages}
               </p>
               <div className="flex gap-2">
@@ -388,6 +439,7 @@ export default function SpecializationPage() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-8"
                   disabled={page <= 1}
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   data-test="specializations-prev-page-button"
@@ -398,6 +450,7 @@ export default function SpecializationPage() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-8"
                   disabled={page >= pagination.pages}
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   data-test="specializations-next-page-button"
@@ -426,7 +479,7 @@ export default function SpecializationPage() {
         onClose={() => setChangeMentorTarget(null)}
       />
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={Boolean(clearTarget)}
         onClose={() => setClearTarget(null)}
         onConfirm={handleConfirmClear}

@@ -2,8 +2,14 @@ import { Fragment } from 'react';
 import { format } from 'date-fns';
 import { Check, Lock, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { buttonVariants } from '@/components/ui/button';
+import { ScrollFade } from '@/components/ui/scroll-fade';
 import { cn } from '@/lib/utils';
-import { getRecommendationResultLabel } from '@/helpers/recommendations';
+import { CHIP } from '@/helpers/badgeTones';
+import {
+  getRecommendationResultLabel,
+  getRecommendationStatusLabel,
+} from '@/helpers/recommendations';
 
 // ---- Recommendations design tokens ----
 //
@@ -38,30 +44,47 @@ export const STATUS_COLORS = {
 // Status pill (view-modal header) tints, keyed by status.
 const STATUS_PILL_CLASSES = {
   recommended: 'bg-primary/10 text-primary dark:bg-primary/20',
-  interviewing: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
-  resulted: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+  interviewing:
+    'bg-[hsl(var(--tone-warning)/0.15)] text-[hsl(var(--tone-warning-fg))] dark:bg-[hsl(var(--tone-warning)/0.15)] dark:text-[hsl(var(--tone-warning-fg))]',
+  resulted:
+    'bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))] dark:bg-[hsl(var(--tone-success)/0.15)] dark:text-[hsl(var(--tone-success-fg))]',
 };
 
-export const INPUT_CLASS =
-  'w-full rounded-xl border border-input bg-card px-[14px] py-[11px] text-[14px] text-foreground outline-none transition placeholder:text-muted-foreground/80 focus:border-ring';
+// ---- Control presets ----
+//
+// This feature used to declare its own controls: buttons at radius 12 with 14px
+// labels and an 11px vertical pad, an input to match, a pill chip. That made it
+// the one screen in the app whose "Save" was a different size and shape from
+// every other "Save".
+//
+// They are named presets of the shared control now, not a second definition of
+// one — each is `buttonVariants(...)` with a variant and a size, so a change to
+// `ui/button` reaches them and none of them can drift from it. The names stay so
+// the modals keep reading the way they did.
+//
+// These are the modal-footer confirm case, which is the one place the design
+// gives a button `lg` (40px) and the one place a destructive action is allowed a
+// filled background — the view is itself the confirmation step.
+export const INPUT_CLASS = cn(
+  'ui-focus-ring w-full rounded-[var(--r-control)] border border-border bg-card px-[var(--px-md)] text-[length:var(--fs-control)] text-foreground transition-colors placeholder:text-muted-foreground/75',
+  'h-[var(--h-field)]'
+);
 
-export const BTN_PRIMARY_CLASS =
-  'rounded-xl bg-primary px-[18px] py-[11px] text-[14px] font-semibold text-primary-foreground shadow-[0_2px_8px_hsl(var(--primary)/.35)] transition hover:bg-primary/90';
+export const BTN_PRIMARY_CLASS = buttonVariants({ variant: 'primary', size: 'lg' });
 
 export const BTN_PRIMARY_DISABLED_CLASS =
-  'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:bg-muted';
+  'cursor-not-allowed border-separator bg-muted text-muted-foreground/50 shadow-none hover:bg-muted';
 
-export const BTN_SECONDARY_CLASS =
-  'rounded-xl border border-input bg-card px-[18px] py-[11px] text-[14px] font-semibold text-foreground/80 transition hover:bg-accent';
+export const BTN_SECONDARY_CLASS = buttonVariants({ variant: 'secondary', size: 'lg' });
 
-export const BTN_DANGER_CLASS =
-  'rounded-xl bg-destructive px-[18px] py-[11px] text-[14px] font-semibold text-destructive-foreground transition hover:bg-destructive/90';
+export const BTN_DANGER_CLASS = buttonVariants({ variant: 'destructive-solid', size: 'lg' });
 
-export const BTN_DANGER_GHOST_CLASS =
-  'inline-flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-[14px] font-semibold text-destructive transition hover:bg-destructive/10';
+export const BTN_DANGER_GHOST_CLASS = buttonVariants({
+  variant: 'ghost-destructive',
+  size: 'md',
+});
 
-export const CHIP_CLASS =
-  'inline-flex items-center rounded-full bg-muted px-3 py-[5px] text-[12.5px] font-semibold text-foreground/80';
+export const CHIP_CLASS = cn(CHIP, 'bg-muted text-muted-foreground');
 
 export const formatRecDate = (date) => {
   if (!date) return 'No date';
@@ -90,21 +113,22 @@ export function FieldLabel({ children, required = false, htmlFor, className }) {
       className={cn('block text-[14px] font-semibold text-foreground/90', className)}
     >
       {children}
-      {required && <span className="ml-1 text-destructive">*</span>}
+      {required && <span className="ml-1 text-[hsl(var(--tone-danger-fg))]">*</span>}
     </label>
   );
 }
 
-/** Uppercase status pill shown next to the view-modal title. */
+/** A recommendation's status, as the app's one chip. Sentence case, radius 6. */
 export function StatusPill({ status, label }) {
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 rounded-full px-[10px] py-1 text-[11px] font-bold uppercase tracking-wide',
+        CHIP,
+        'shrink-0',
         STATUS_PILL_CLASSES[status] || STATUS_PILL_CLASSES.recommended
       )}
     >
-      {label}
+      {label ?? getRecommendationStatusLabel(status)}
     </span>
   );
 }
@@ -123,7 +147,7 @@ export function DarkTooltip({ content, align = 'center', wrapperClassName, child
       {children}
       <span
         className={cn(
-          'pointer-events-none absolute bottom-full z-30 mb-2 w-max max-w-[280px] rounded-[10px] bg-foreground px-3 py-[7px] text-left text-[12.5px] font-medium leading-relaxed text-background opacity-0 shadow-elevated transition-opacity duration-[120ms] group-hover:opacity-100',
+          'pointer-events-none absolute bottom-full z-30 mb-2 w-max max-w-[280px] rounded-[var(--r-tile)] bg-foreground px-3 py-[7px] text-left text-[12.5px] font-medium leading-relaxed text-background opacity-0 shadow-elevated transition-opacity duration-[120ms] group-hover:opacity-100',
           align === 'center' ? 'left-1/2 -translate-x-1/2' : 'left-0'
         )}
         role="tooltip"
@@ -144,18 +168,16 @@ export function ResultChip({ result }) {
   const chip = outcome ? (
     <span
       className={cn(
-        'inline-flex rounded-full px-3 py-[5px] text-[12.5px] font-semibold',
+        CHIP,
         outcome === 'placed'
-          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
-          : 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+          ? 'bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))] dark:bg-[hsl(var(--tone-success)/0.15)] dark:text-[hsl(var(--tone-success-fg))]'
+          : 'bg-[hsl(var(--tone-danger)/0.15)] text-[hsl(var(--tone-danger-fg))] dark:bg-[hsl(var(--tone-danger)/0.2)] dark:text-[hsl(var(--tone-danger-fg))]'
       )}
     >
       {getRecommendationResultLabel(outcome)}
     </span>
   ) : (
-    <span className="inline-flex rounded-full bg-muted px-3 py-[5px] text-[12.5px] font-semibold text-muted-foreground">
-      Awaiting result
-    </span>
+    <span className={cn(CHIP, 'bg-muted text-muted-foreground')}>Awaiting result</span>
   );
 
   return (
@@ -244,9 +266,70 @@ function TimelineCircle({ step, size }) {
 }
 
 /**
- * Full status timeline (detailed card + modals): 26px circles joined by 2px
- * connectors, fixed step columns (120px card / 130px modal), labels + dates
- * (or "Pending" / italic "Skipped") under each step.
+ * The overhaul's stepper: the three stages as boxes side by side, each carrying
+ * its own dot, label and date. The current stage is marked with a primary bar on
+ * its leading edge — the same "you are here" device as the sidebar's active row,
+ * so one visual language covers both.
+ *
+ * Boxes rather than the circles-and-connectors timeline because this now sits in a
+ * table row rather than a 26px-tall card: a connector line needs horizontal room
+ * to read as a progression, and at row density it collapsed into the labels.
+ */
+export function RecommendationStepper({ steps }) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-3">
+      {steps.map((step) => {
+        const active = stepIsActive(step);
+        return (
+          <div
+            key={step.key}
+            className={cn(
+              'rounded-[var(--r-tile)] border border-separator px-3 py-2.5',
+              step.state === 'current' && 'shadow-[inset_2px_0_0_hsl(var(--primary))]'
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className={cn(
+                  'h-[7px] w-[7px] shrink-0 rounded-full',
+                  active ? 'bg-primary' : 'border border-muted-foreground/40'
+                )}
+                aria-hidden="true"
+              />
+              <span
+                className={cn(
+                  'truncate text-[12.5px] font-semibold',
+                  active ? 'text-foreground' : 'text-muted-foreground'
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+            <span
+              className={cn(
+                'mt-0.5 block text-[11.5px]',
+                step.state === 'skipped'
+                  ? 'italic text-muted-foreground/75'
+                  : 'text-muted-foreground/75'
+              )}
+            >
+              {step.state === 'skipped'
+                ? 'Skipped'
+                : step.state === 'pending'
+                  ? 'Pending'
+                  : step.date}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Full status timeline (modals): 26px circles joined by 2px connectors, fixed
+ * step columns (120px card / 130px modal), labels + dates (or "Pending" / italic
+ * "Skipped") under each step.
  */
 export function RecommendationTimeline({ steps, size = 'card', showCurrentTag = false }) {
   const column = size === 'modal' ? 'w-[130px]' : 'w-[120px]';
@@ -338,7 +421,7 @@ export function MiniTimeline({ steps }) {
 export function StatusSegmented({ statuses, value, onChange, lockedValues = [], lockedHint }) {
   return (
     <div
-      className="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1"
+      className="grid grid-cols-3 gap-1 rounded-[var(--r-card)] bg-muted p-1"
       role="radiogroup"
       aria-label="Status"
       data-test="recommendation-status-select"
@@ -355,7 +438,7 @@ export function StatusSegmented({ statuses, value, onChange, lockedValues = [], 
             disabled={locked}
             onClick={() => onChange(status.value)}
             className={cn(
-              'inline-flex w-full items-center justify-center gap-1.5 rounded-[9px] px-3 py-[9px] text-[14px] font-semibold transition',
+              'inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--r-control)] px-3 py-[9px] text-[14px] font-semibold transition',
               active
                 ? 'bg-primary text-primary-foreground shadow-[0_2px_8px_hsl(var(--primary)/.35)]'
                 : locked
@@ -388,7 +471,10 @@ export function StatusSegmented({ statuses, value, onChange, lockedValues = [], 
 /**
  * Modal shell for the recommendation dialogs: 680px, radius 20, structured
  * header (title / aside pill / subline / 32px ✕), scrollable body and bordered
- * footer. An optional `strip` paints the 4px status-color bar across the top.
+ * footer. The body is a `ScrollFade`: these modals are tall enough to overflow
+ * the 90%-of-viewport cap, and an overlay scrollbar stays hidden until you scroll, so the
+ * body looked cut off rather than scrollable. An optional `strip` paints the 4px
+ * status-color bar across the top.
  */
 export function RecModal({
   open,
@@ -427,16 +513,21 @@ export function RecModal({
         <button
           type="button"
           onClick={onClose}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-muted text-muted-foreground transition hover:bg-accent hover:text-foreground"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--r-control)] bg-muted text-muted-foreground transition hover:bg-accent hover:text-foreground"
           aria-label="Close"
           data-test="dialog-close-button"
         >
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-[26px] overflow-y-auto px-8 py-[26px]">
+      <ScrollFade
+        className="flex min-h-0 flex-1 flex-col"
+        viewportClassName="custom-scrollbar flex h-full flex-col gap-[26px] overflow-y-auto px-8 py-[26px]"
+        fadeClassName="from-card"
+        data-test="rec-modal-body"
+      >
         {children}
-      </div>
+      </ScrollFade>
       {footer && (
         <div className="flex shrink-0 items-center gap-3 border-t border-border/60 px-8 py-[18px]">
           {footer}
@@ -450,7 +541,7 @@ export function RecModal({
       <DialogContent
         hideCloseButton
         className={cn(
-          'flex max-h-[90vh] max-w-[680px] flex-col gap-0 overflow-hidden rounded-[20px] border-0 bg-card p-0 text-foreground shadow-elevated sm:rounded-[20px] sm:p-0',
+          'flex max-h-[calc(var(--app-vh)*0.9)] max-w-[680px] flex-col gap-0 overflow-hidden rounded-[var(--r-card)] border-0 bg-card p-0 text-foreground shadow-elevated sm:rounded-[var(--r-card)] sm:p-0',
           REC_FONT
         )}
         data-test={dataTest}

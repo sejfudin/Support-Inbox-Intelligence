@@ -31,10 +31,10 @@ export default function Register() {
   }
 
   return (
-    <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
+    <div className="fixed inset-0 h-[var(--app-vh)] w-[var(--app-vw)] overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <Card className="border-border/50 bg-[#F8F9FC] shadow-elevated dark:border-surface-border dark:bg-surface-elevated">
+          <Card className="border-border/50 bg-muted shadow-elevated dark:border-surface-border dark:bg-surface-elevated">
             <RegisterRoleGuide role={selectedRole} />
           </Card>
 
@@ -52,7 +52,7 @@ export default function Register() {
             <CardContent className="flex flex-1 flex-col px-6 pb-12 pt-6 md:px-12">
               {errorString && (
                 <div
-                  className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-center text-sm text-destructive"
+                  className="mb-6 rounded-[var(--r-control)] border border-destructive/30 bg-destructive/10 px-4 py-3 text-center text-sm text-[hsl(var(--tone-danger-fg))]"
                   data-test="register-error-alert"
                 >
                   {errorString}

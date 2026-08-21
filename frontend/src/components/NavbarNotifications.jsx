@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Loader2, CalendarClock, ArrowRight } from 'lucide-react';
+import { Bell, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,26 +15,38 @@ import {
 } from '@/queries/notifications';
 import { NotificationRow } from '@/components/NotificationRow';
 import { isMongoId } from '@/helpers/notificationUtils';
+import {
+  NOTIFICATION_MUTED_STORAGE_KEY,
+  filterNotifications,
+  isValidMutedGroups,
+  parseMutedGroups,
+} from '@/helpers/notificationPreferences';
+import { useStoredPreference } from '@/hooks/useStoredPreference';
 import { useAuth } from '@/context/AuthContext';
-import { useCheckInReminder } from '@/hooks/useCheckInReminder';
 import { cn } from '@/lib/utils';
+import { resolveUserId } from '@/helpers/userIdentity';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay } from '@/components/ui/loader';
 
-export default function NavbarNotifications({ size = 'default' }) {
+export default function NavbarNotifications({ size = 'default', align = 'end' }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useNotifications({
-    userId: user?._id || user?.id,
+    userId: resolveUserId(user),
   });
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
-  // Client-side check-in reminder (interns only). Shown until they check in /
-  // cancel / the window closes. Adds to the unread indicator like a real one.
-  const reminder = useCheckInReminder();
+  const [mutedRaw] = useStoredPreference(NOTIFICATION_MUTED_STORAGE_KEY, '', isValidMutedGroups);
+  const mutedGroups = parseMutedGroups(mutedRaw);
 
-  const items = data?.data ?? [];
-  const unreadCount = (data?.unreadCount ?? 0) + (reminder.active ? 1 : 0);
+  const items = filterNotifications(data?.data ?? [], mutedGroups);
+  // With a group muted, the server's count still includes what we just hid — so
+  // the dot is recomputed from what the reader can actually see. Without one, the
+  // server's number is the better answer: it counts past the page we fetched.
+  const unreadCount =
+    mutedGroups.length > 0 ? items.filter((item) => !item?.read).length : (data?.unreadCount ?? 0);
 
   useEffect(() => {
     if (open) {
@@ -55,6 +67,15 @@ export default function NavbarNotifications({ size = 'default' }) {
       params.set('focus', String(Date.now()));
 
       navigate(`/tickets?${params.toString()}`);
+    },
+    [navigate]
+  );
+
+  const goToLink = useCallback(
+    (link) => {
+      if (!link) return;
+      setOpen(false);
+      navigate(link);
     },
     [navigate]
   );
@@ -80,7 +101,7 @@ export default function NavbarNotifications({ size = 'default' }) {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-[min(100vw-2rem,22rem)] p-0">
+      <DropdownMenuContent align={align} className="w-[min(var(--app-vw)-2rem,22rem)] p-0">
         <div className="flex items-center justify-between border-b px-3 py-2">
           <span className="text-sm font-semibold">Notifications</span>
           {unreadCount > 0 ? (
@@ -106,44 +127,21 @@ export default function NavbarNotifications({ size = 'default' }) {
         </div>
 
         <ScrollArea className="h-80">
-          {reminder.active ? (
-            <button
-              type="button"
-              data-test="navbar-notification-check-in-reminder"
-              onClick={() => {
-                setOpen(false);
-                navigate('/my-attendance');
-              }}
-              className="flex w-full items-start gap-2 border-b bg-amber-500/[0.06] px-3 py-2.5 text-left transition-colors hover:bg-amber-500/10"
-            >
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                <CalendarClock className="h-4 w-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1 text-sm font-medium text-foreground">
-                  {reminder.title}
-                  <ArrowRight className="h-3 w-3 text-amber-600 dark:text-amber-400" />
-                </span>
-                <span className="line-clamp-2 text-xs text-muted-foreground">{reminder.body}</span>
-              </span>
-            </button>
-          ) : null}
-
           {isLoading ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading…
-            </div>
+            /* Rows of the avatar-and-two-lines shape a notification resolves into. No
+               `useLoaderHold` here, for the same reason the ticket modal skips it: opening the
+               bell is a click someone is waiting on, and a floor would put a toll on every one. */
+            <LoadingOverlay size="sm" label="Loading notifications">
+              <PanelBodySkeleton people rows={4} className="px-3 pb-4" />
+            </LoadingOverlay>
           ) : isError ? (
-            <p className="px-3 py-6 text-center text-sm text-destructive">
+            <p className="px-3 py-6 text-center text-sm text-[hsl(var(--tone-danger-fg))]">
               Could not load notifications.
             </p>
           ) : items.length === 0 ? (
-            reminder.active ? null : (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-                No notifications yet.
-              </p>
-            )
+            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+              No notifications yet.
+            </p>
           ) : (
             <ul className="divide-y divide-separator">
               {items.map((n) => (
@@ -153,6 +151,7 @@ export default function NavbarNotifications({ size = 'default' }) {
                   markReadPending={markRead.isPending}
                   onMarkRead={(id) => markRead.mutate(id)}
                   onOpenTicket={goToTicket}
+                  onOpenLink={goToLink}
                 />
               ))}
             </ul>

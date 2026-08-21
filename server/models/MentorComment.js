@@ -25,6 +25,18 @@ const mentorCommentSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    // A deliberate, separate axis from `visibleTo`: that array is staff sharing a
+    // note with staff peers, this is the author choosing — at write time, per note
+    // — to let the intern it's about read this one too. Keeping it a distinct
+    // field (rather than allowing the intern's own id inside `visibleTo`) means a
+    // bug or a future "share with everyone" shortcut on the staff picker can never
+    // accidentally expose a note to its subject. Defaults false: every note ever
+    // written before this field existed was authored under the expectation of
+    // staying internal, and must stay that way.
+    visibleToIntern: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

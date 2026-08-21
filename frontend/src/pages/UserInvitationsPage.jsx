@@ -54,12 +54,12 @@ export default function UserInvitationsPage() {
     <div className="app-page">
       <div className="app-page-content space-y-6">
         <PageHeading
-          kicker="Workspace"
+          crumb="Access"
           title="Invitations"
           subtitle="Review and respond to workspace invitations sent to you."
         />
 
-        <div className="app-panel">
+        <div className="app-card">
           <InvitationInbox
             invitations={invitations}
             isLoading={isLoading}

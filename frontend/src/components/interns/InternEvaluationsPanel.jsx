@@ -15,11 +15,12 @@ import { AutoTextarea } from '@/components/ui/auto-textarea';
 import { HistoryPanel } from '@/components/interns/HistoryPanel';
 import { DetailModal, DetailText, ScoreBanner, ScoreTiles } from '@/components/interns/DetailModal';
 import { EVALUATION_CRITERIA } from '@/helpers/internProfile';
-import { getInitials } from '@/helpers/getInitials';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import { useCreateInternEvaluation, useInternEvaluations } from '@/queries/interns';
 import { toast } from 'sonner';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import { useLoaderHold } from '@/components/ui/loader';
 
 const defaultScores = {
   technical: 3,
@@ -38,7 +39,8 @@ const getAverage = (evaluation) => {
 export function InternEvaluationsPanel({ userId, readOnly = false }) {
   const { user } = useAuth();
   const canWrite = !readOnly && user?.role === ROLES.ADMIN;
-  const { data: evaluations = [], isPending } = useInternEvaluations(userId);
+  const { data: evaluations = [], isPending, isError } = useInternEvaluations(userId);
+  const showLoader = useLoaderHold(isPending, { release: isError });
   const { mutate, isPending: isSaving } = useCreateInternEvaluation();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -93,28 +95,36 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
     (a, b) => new Date(b.periodStart) - new Date(a.periodStart)
   );
 
+  // The first evaluation on record is the baseline every later one reads against —
+  // "3.5 of 5" says little on its own, "3.5, up from a 3.0 baseline" says whether
+  // the programme is working.
+  const baseline = ordered.length ? getAverage(ordered[ordered.length - 1]) : null;
+
   const cards = ordered.map((evaluation, index) => {
     const avg = getAverage(evaluation);
     const isLatest = index === 0;
-    const prev = ordered[index + 1];
-    const delta = prev ? avg - getAverage(prev) : 0;
-    let trend = { kind: 'flat' };
-    if (prev && delta > 0.05) trend = { kind: 'up', delta };
-    else if (prev && delta < -0.05) trend = { kind: 'down', delta };
+    const isBaseline = index === ordered.length - 1;
     return {
       id: evaluation._id,
       raw: evaluation,
-      featured: isLatest,
-      tag: isLatest ? { label: 'Latest', color: 'green' } : undefined,
+      tag: isLatest ? { label: 'Latest', tone: 'success' } : undefined,
       title: formatPeriod(evaluation),
-      ring: { value: avg, label: 'Overall', trend },
+      score: {
+        value: avg,
+        label: 'Overall',
+        // Against the baseline, not against the previous evaluation: a single dip
+        // between two consecutive reviews is noise, and "down 0.5" beside a score
+        // that is still well above where the intern started reads as a problem
+        // when it isn't.
+        hint: isBaseline ? 'Baseline' : avg >= baseline ? 'On track' : 'Below baseline',
+      },
       avatar: {
-        initials: getInitials(evaluation.evaluator?.fullname),
+        user: evaluation.evaluator,
         name: evaluation.evaluator?.fullname ?? 'Unknown',
       },
       blocks: [
         {
-          kind: 'bars',
+          kind: 'meters',
           items: EVALUATION_CRITERIA.map((criterion) => ({
             label: criterion.label,
             score: evaluation.scores?.[criterion.key] ?? 0,
@@ -126,25 +136,18 @@ export function InternEvaluationsPanel({ userId, readOnly = false }) {
     };
   });
 
-  const latestDelta = cards.length > 1 ? cards[0].ring.value - getAverage(ordered[1]) : 0;
-  const trendLabel =
-    latestDelta > 0.05
-      ? ' · trending upward'
-      : latestDelta < -0.05
-        ? ' · trending down'
-        : ' · steady';
-  const subtitle = `${cards.length} evaluation${cards.length === 1 ? '' : 's'}${
-    cards.length > 1 ? trendLabel : ''
-  }`;
+  const subtitle = cards.length
+    ? `${cards.length} recorded${baseline === null ? '' : ` · baseline ${baseline.toFixed(1)} of 5`}`
+    : 'None recorded yet';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       <HistoryPanel
-        title="Evaluation history"
+        title="Evaluations"
         subtitle={subtitle}
         buttonLabel="New evaluation"
         canWrite={canWrite}
-        isLoading={isPending}
+        isLoading={showLoader}
         cards={cards}
         sortOptions={[
           { key: 'period', label: 'Period' },

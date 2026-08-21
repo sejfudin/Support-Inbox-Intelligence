@@ -16,10 +16,23 @@ router.get('/me', protect, requireRole(ROLES.INTERN), getMyAttendance);
 router.post('/me/check-in', protect, requireRole(ROLES.INTERN), checkIn);
 router.delete('/me/check-in', protect, requireRole(ROLES.INTERN), cancelCheckIn);
 
-// Read-only, admin-only. The roster lists all interns for a month; the per-intern
-// route returns one intern's full history for the calendar view. The `/:id`
-// route is declared last so it can't shadow `/me`.
+// Read-only. The roster lists all interns for a month and stays admin-only; the
+// per-intern route returns one intern's full history and is also read by the
+// mentor-facing Attendance tab on the intern profile — a mentor is the primary
+// reader of their intern's attendance, so ADMIN alone was too narrow.
+//
+// This widens *who may read*, nothing else: no write verb is added and the
+// response shape is unchanged. `getRoster` stays admin-only. The role guard here
+// is deliberately the coarse half of the check — `getInternAttendance` scopes a
+// mentor to their own interns in the service, so one mentor cannot read
+// another's intern through this route.
+// The `/:id` route is declared last so it can't shadow `/me`.
 router.get('/', protect, requireRole(ROLES.ADMIN), getRoster);
-router.get('/:internProfileId', protect, requireRole(ROLES.ADMIN), getInternAttendance);
+router.get(
+  '/:internProfileId',
+  protect,
+  requireRole(ROLES.ADMIN, ROLES.MENTOR),
+  getInternAttendance
+);
 
 module.exports = router;

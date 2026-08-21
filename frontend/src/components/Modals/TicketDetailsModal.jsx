@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Archive, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTicket, useUpdateTicket } from '@/queries/tickets';
@@ -15,15 +15,18 @@ import { useTicketPrActions } from '@/hooks/useTicketPrActions';
 import { useDescriptionImages } from '@/hooks/useDescriptionImages';
 import { useTicketDetailsFormState } from '@/hooks/useTicketDetailsFormState';
 import { exportTicketToCsv } from '@/helpers/ticketCsvExport';
+import { isBlockedStatusId, toBlockerPayload } from '@/helpers/ticketBlocker';
+import BlockedByField from '@/components/Tickets/BlockedByField';
+import { TicketReviewField } from '@/components/Tickets/TicketReviewField';
 import TicketComments from '@/components/Tickets/TicketComments';
 import TicketHistory from '@/components/Tickets/TicketHistory';
-import { DeleteConfirmModal } from './DeleteConfirmModal';
+import { ConfirmModal } from './ConfirmModal';
 import { TicketModalHeader } from './TicketDetailsModal/TicketModalHeader';
-import { TicketHeaderFields } from './TicketDetailsModal/TicketHeaderFields';
+import { TicketTitleField } from './TicketDetailsModal/TicketTitleField';
 import { TicketDescriptionEditor } from './TicketDetailsModal/TicketDescriptionEditor';
-import { TicketDetailsAccordion } from './TicketDetailsModal/TicketDetailsAccordion';
-import { TicketTrackingAccordion } from './TicketDetailsModal/TicketTrackingAccordion';
+import { TicketMetaRail } from './TicketDetailsModal/TicketMetaRail';
 import { TicketPrAccordion } from './TicketDetailsModal/TicketPrAccordion';
+import { Loader } from '@/components/ui/loader';
 
 export const TicketDetailsModal = ({
   ticketId,
@@ -32,6 +35,7 @@ export const TicketDetailsModal = ({
   focusCommentId = null,
   focusRequestToken = null,
   onFocusConsumed = null,
+  onOpenTicket = null,
 }) => {
   const { user } = useAuth();
   const { socket, isConnected } = useSocket();
@@ -75,6 +79,8 @@ export const TicketDetailsModal = ({
     setDueDateInput,
     currentCategory,
     setCurrentCategory,
+    currentBlocker,
+    setCurrentBlocker,
     priorityLockedByUser,
     storyPointsLockedByUser,
     updateField,
@@ -143,6 +149,23 @@ export const TicketDetailsModal = ({
     [helpers, currentStatus]
   );
 
+  // Follows the status picker, not the saved ticket: moving a ticket to Blocked
+  // reveals the panel straight away so the reason is recorded in the same edit.
+  const isBlockedSelected = isBlockedStatusId(helpers.allStatusOptions, currentStatus);
+
+  // Following the blocker swaps this modal onto the other ticket, which re-seeds
+  // the form — so an edit in progress is confirmed away rather than dropped.
+  const [pendingBlockerTicketId, setPendingBlockerTicketId] = useState(null);
+
+  const handleOpenBlockingTicket = (blockingTicketId) => {
+    if (!onOpenTicket || !blockingTicketId) return;
+    if (hasChanges) {
+      setPendingBlockerTicketId(blockingTicketId);
+      return;
+    }
+    onOpenTicket(blockingTicketId);
+  };
+
   useModalBehavior(isOpen, onClose);
 
   const archiveActions = useTicketArchiveActions(ticketId, onClose);
@@ -182,6 +205,9 @@ export const TicketDetailsModal = ({
           assignedTo: selectedAgents,
           dueDate: dueDateInput ? new Date(`${dueDateInput}T12:00:00`).toISOString() : null,
           category: currentCategory,
+          // Sent only while Blocked is selected. The server clears the stored
+          // blocker on any move out of Blocked, so there is nothing to send there.
+          ...(isBlockedSelected ? { blockedBy: toBlockerPayload(currentBlocker) } : {}),
         },
       },
       {
@@ -202,12 +228,31 @@ export const TicketDetailsModal = ({
 
   if (!isOpen || !ticketId) return null;
 
+  // The frame arrives first and the mark waits inside it, at the modal's own width — so opening a
+  // ticket puts the dialog on screen immediately and only its contents are pending. The previous
+  // version was a two-bar box pretending to be a title and a subtitle; the version before that
+  // covered the whole viewport, which made a modal read as a page transition.
+  // No `useLoaderHold` here, deliberately: opening a ticket is a click the person is waiting on,
+  // and padding it out to a full turn of the animation would put a two-second toll on every open.
+  // The frame arrives immediately and the mark waits inside it at the modal's own width, so this
+  // is the dialog with its contents pending rather than a separate loading screen. Both the
+  // overlay and the frame carry the real modal's classes verbatim — the width and insets have to
+  // match, or the dialog resizes under the cursor the moment the ticket lands.
   if (isLoading || usersLoading) {
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60">
-        <div className="bg-card p-8 rounded-xl shadow-xl animate-pulse flex flex-col items-center gap-4">
-          <div className="h-6 w-48 bg-muted rounded"></div>
-          <div className="h-4 w-32 bg-muted rounded"></div>
+      <div
+        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] transition-opacity sm:p-4 lg:p-8"
+        onClick={onClose}
+        role="presentation"
+      >
+        <div
+          className="flex max-h-full min-h-[420px] w-full max-w-[1020px] flex-col items-center justify-center overflow-hidden rounded-[var(--r-card)] border border-separator bg-card shadow-elevated duration-200 animate-in zoom-in-95"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Ticket details"
+        >
+          <Loader label="Loading ticket" />
         </div>
       </div>
     );
@@ -217,7 +262,7 @@ export const TicketDetailsModal = ({
   if (isError || usersError) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-        <div className="w-full max-w-md bg-card rounded-xl shadow-2xl overflow-hidden">
+        <div className="w-full max-w-md bg-card rounded-[var(--r-card)] shadow-elevated overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b">
             <div className="text-sm font-bold text-foreground uppercase tracking-widest">
               Ticket Details
@@ -245,7 +290,7 @@ export const TicketDetailsModal = ({
             </p>
 
             {error?.message && (
-              <div className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-md p-3">
+              <div className="text-xs text-muted-foreground bg-muted/50 border border-border rounded-[var(--r-control)] p-3">
                 {error.message}
               </div>
             )}
@@ -257,7 +302,7 @@ export const TicketDetailsModal = ({
                   e.stopPropagation();
                   onClose();
                 }}
-                className="px-4 py-2 rounded-lg text-sm font-semibold bg-muted hover:bg-muted text-foreground transition-colors"
+                className="px-4 py-2 rounded-[var(--r-control)] text-[12.5px] font-semibold bg-muted hover:bg-muted text-foreground transition-colors"
                 data-test="ticket-modal-error-dismiss-button"
               >
                 Close
@@ -271,12 +316,15 @@ export const TicketDetailsModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] sm:p-4 lg:p-8 transition-opacity"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] transition-opacity sm:p-4 lg:p-8"
       onClick={onClose}
       role="presentation"
     >
+      {/* 1020px and content-height, per the mockup — it was 1320×92vh, which left
+          the meta column stranded from the description and forced a tall empty
+          modal on short tickets. */}
       <div
-        className="flex h-[92vh] w-full max-w-[1320px] flex-col overflow-hidden rounded-[22px] bg-card shadow-2xl animate-in zoom-in-95 duration-200 max-sm:h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] max-sm:max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem)] sm:h-[90vh] sm:max-h-none sm:rounded-[28px]"
+        className="flex max-h-full w-full max-w-[1020px] flex-col overflow-hidden rounded-[var(--r-card)] border border-separator bg-card shadow-elevated duration-200 animate-in zoom-in-95"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -299,10 +347,14 @@ export const TicketDetailsModal = ({
           onRestore={archiveActions.handleRestore}
           isUnarchiving={archiveActions.isUnarchiving}
           onClose={onClose}
+          currentStatus={currentStatus}
+          onStatusChange={setCurrentStatus}
+          statusOptions={detailStatusOptions}
+          statusBadgeConfig={helpers.statusBadgeConfig}
         />
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
-          <DeleteConfirmModal
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <ConfirmModal
             isOpen={archiveActions.isActionModalOpen}
             onClose={() => archiveActions.setIsActionModalOpen(false)}
             onConfirm={archiveActions.handleConfirmAction}
@@ -314,7 +366,7 @@ export const TicketDetailsModal = ({
             loadingLabel="Archiving..."
           />
 
-          <DeleteConfirmModal
+          <ConfirmModal
             isOpen={prActions.isUnlinkModalOpen}
             onClose={() => prActions.setIsUnlinkModalOpen(false)}
             onConfirm={prActions.handleConfirmUnlink}
@@ -326,9 +378,22 @@ export const TicketDetailsModal = ({
             loadingLabel="Unlinking..."
           />
 
+          <ConfirmModal
+            isOpen={Boolean(pendingBlockerTicketId)}
+            onClose={() => setPendingBlockerTicketId(null)}
+            onConfirm={() => {
+              const nextTicketId = pendingBlockerTicketId;
+              setPendingBlockerTicketId(null);
+              onOpenTicket?.(nextTicketId);
+            }}
+            title="Unsaved changes"
+            description="Opening the blocking ticket will discard the changes you have not saved on this one."
+            confirmLabel="Discard & open"
+          />
+
           {isArchived && (
             <div
-              className="mb-6 flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
+              className="flex items-center gap-2 border-b border-separator bg-muted/50 px-5 py-3 text-[12.5px] text-muted-foreground"
               data-test="ticket-modal-archived-banner"
             >
               <Archive className="h-4 w-4 shrink-0" />
@@ -339,25 +404,12 @@ export const TicketDetailsModal = ({
             </div>
           )}
 
-          <TicketHeaderFields
-            ticket={ticket}
-            isArchived={isArchived}
-            title={title}
-            onTitleChange={setTitle}
-            users={users}
-            selectedAgents={selectedAgents}
-            setSelectedAgents={setSelectedAgents}
-            selectedUsersObjects={selectedUsersObjects}
-            currentStatus={currentStatus}
-            onStatusChange={setCurrentStatus}
-            statusOptions={detailStatusOptions}
-            statusBadgeConfig={helpers.statusBadgeConfig}
-            currentPriority={currentPriority}
-            onPriorityChange={handlePriorityChange}
-          />
+          {/* The mockup's body: a flexible content column beside a fixed 300px
+              meta rail, divided by the card outline. */}
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="flex min-w-0 flex-col gap-4 border-border px-5 pb-[22px] pt-[18px] lg:border-r">
+              <TicketTitleField title={title} onTitleChange={setTitle} isArchived={isArchived} />
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-8">
-            <div className="space-y-6 min-w-0">
               <TicketDescriptionEditor
                 isArchived={isArchived}
                 description={description}
@@ -388,24 +440,46 @@ export const TicketDetailsModal = ({
               <TicketHistory ticketId={ticketId} />
             </div>
 
-            <aside className="space-y-4 lg:sticky lg:top-0 lg:self-start">
-              <TicketDetailsAccordion
-                isArchived={isArchived}
-                dueDateInput={dueDateInput}
-                onDueDateChange={setDueDateInput}
-                currentStoryPoints={currentStoryPoints}
-                onStoryPointsChange={handleStoryPointsChange}
-                categories={categories}
-                currentCategory={currentCategory}
-                onCategoryChange={setCurrentCategory}
-              />
-
-              <TicketTrackingAccordion
-                ticket={ticket}
-                isArchived={isArchived}
-                statusTracksTime={helpers.statusTracksTime}
-              />
-
+            <TicketMetaRail
+              ticket={ticket}
+              isArchived={isArchived}
+              users={users}
+              selectedAgents={selectedAgents}
+              setSelectedAgents={setSelectedAgents}
+              selectedUsersObjects={selectedUsersObjects}
+              currentPriority={currentPriority}
+              onPriorityChange={handlePriorityChange}
+              currentStoryPoints={currentStoryPoints}
+              onStoryPointsChange={handleStoryPointsChange}
+              dueDateInput={dueDateInput}
+              onDueDateChange={setDueDateInput}
+              categories={categories}
+              currentCategory={currentCategory}
+              onCategoryChange={setCurrentCategory}
+              statusTracksTime={helpers.statusTracksTime}
+              lead={
+                <>
+                  {isBlockedSelected ? (
+                    <BlockedByField
+                      value={currentBlocker}
+                      onChange={setCurrentBlocker}
+                      workspaceId={workspaceId}
+                      currentTicketId={ticketId}
+                      disabled={isArchived}
+                      onOpenTicket={onOpenTicket ? handleOpenBlockingTicket : null}
+                      idPrefix={`ticket-${ticketId}-blocker`}
+                      variant="rail"
+                    />
+                  ) : null}
+                  <TicketReviewField
+                    ticket={ticket}
+                    ticketId={ticketId}
+                    currentUser={user}
+                    disabled={isArchived}
+                  />
+                </>
+              }
+            >
               {ticket?.linkedPullRequest && (
                 <TicketPrAccordion
                   linkedPullRequest={ticket.linkedPullRequest}
@@ -416,7 +490,7 @@ export const TicketDetailsModal = ({
                   isUnlinking={prActions.isUnlinkingPR}
                 />
               )}
-            </aside>
+            </TicketMetaRail>
           </div>
         </div>
       </div>

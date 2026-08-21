@@ -1,11 +1,5 @@
 const adminDashboardService = require('../services/adminDashboardService');
-
-const handleError = (res, error, next) => {
-  if (error.statusCode) {
-    return res.status(error.statusCode).json({ success: false, message: error.message });
-  }
-  next(error);
-};
+const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 exports.getAdminDashboard = async (req, res, next) => {
   try {

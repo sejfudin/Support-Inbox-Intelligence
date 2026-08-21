@@ -106,7 +106,7 @@ function ImageOptionsDropdown({ align, size, onAlignChange, onSizeChange }) {
         <button
           type="button"
           data-test="rte-image-options-trigger"
-          className="inline-flex h-8 w-10 items-center justify-center gap-1 rounded-md bg-muted/80 px-1 py-0 text-sm font-medium text-foreground shadow-none transition-colors hover:bg-muted dark:bg-transparent dark:text-foreground"
+          className="inline-flex h-8 w-10 items-center justify-center gap-1 rounded-[var(--r-control)] bg-muted/80 px-1 py-0 text-sm font-medium text-foreground shadow-none transition-colors hover:bg-muted dark:bg-transparent dark:text-foreground"
           aria-label={`Image options (${currentSummary})`}
         >
           <Images className="h-3.5 w-3.5" />

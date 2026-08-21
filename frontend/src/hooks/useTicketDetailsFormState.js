@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { extractStatusId } from '@/helpers/normalizeTicket';
 import { normalizeStoryPoints } from '@/helpers/storyPoints';
 import { dueDateToInputValue } from '@/helpers/ticketDueDate';
+import { blockerFromTicket, blockersEqual, emptyBlocker } from '@/helpers/ticketBlocker';
 
 const SUBJECT_PREFIX_RE = /^\s*(?:ticket\s*\d+|t\s*#?\s*\d+)\s*[:\-]\s*/i;
 
@@ -19,6 +20,7 @@ export const useTicketDetailsFormState = (ticket, isOpen, helpers) => {
   const [selectedAgents, setSelectedAgents] = useState([]);
   const [dueDateInput, setDueDateInput] = useState('');
   const [currentCategory, setCurrentCategory] = useState(null);
+  const [currentBlocker, setCurrentBlocker] = useState(emptyBlocker);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
 
@@ -58,6 +60,7 @@ export const useTicketDetailsFormState = (ticket, isOpen, helpers) => {
     setSelectedAgents(existingAgentIds);
     setDueDateInput(dueDateToInputValue(ticket.dueDate));
     setCurrentCategory(ticket.category?._id || ticket.category || null);
+    setCurrentBlocker(blockerFromTicket(ticket));
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
   }, [isOpen, ticket, helpers.defaultMainStatusId]);
@@ -91,6 +94,7 @@ export const useTicketDetailsFormState = (ticket, isOpen, helpers) => {
       currentStoryPoints !== initialStoryPoints ||
       dueDateInput !== initialDue ||
       currentCategory !== initialCategory ||
+      !blockersEqual(currentBlocker, blockerFromTicket(ticket)) ||
       JSON.stringify(initialAgents) !== JSON.stringify(currentAgents)
     );
   }, [
@@ -103,6 +107,7 @@ export const useTicketDetailsFormState = (ticket, isOpen, helpers) => {
     title,
     dueDateInput,
     currentCategory,
+    currentBlocker,
     helpers.defaultMainStatusId,
   ]);
 
@@ -121,6 +126,8 @@ export const useTicketDetailsFormState = (ticket, isOpen, helpers) => {
     setDueDateInput,
     currentCategory,
     setCurrentCategory,
+    currentBlocker,
+    setCurrentBlocker,
     priorityLockedByUser,
     storyPointsLockedByUser,
     updateField,

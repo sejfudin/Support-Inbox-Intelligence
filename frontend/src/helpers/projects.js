@@ -12,6 +12,18 @@ export const PROJECT_STATUSES = [
 export const getProjectStatusLabel = (status) =>
   PROJECT_STATUSES.find((option) => option.value === status)?.label ?? status;
 
+// Starting pair only — the full list is still being settled with the program
+// leads. The stored values are the server's enum slugs (server/models/Project.js
+// PROJECT_TYPES); these labels are display-only, so renaming what the team calls
+// a type never touches the database.
+export const PROJECT_TYPES = [
+  { value: 'client', label: 'Client' },
+  { value: 'internal', label: 'Internal' },
+];
+
+export const getProjectTypeLabel = (type) =>
+  PROJECT_TYPES.find((option) => option.value === type)?.label ?? type;
+
 // In-selection stage vocabulary is the same one recommendations already use
 // (Recommended / Interviewing) — reused rather than duplicated.
 export const getSelectionStageLabel = (stage) => getRecommendationStatusLabel(stage);
@@ -25,7 +37,7 @@ export const getOutcomeLabel = (outcome) => getRecommendationResultLabel(outcome
 // getRecommendationResultVariant, which is tuned for the admin table.
 export const getOutcomeHistoryTone = (outcome) =>
   outcome === 'placed'
-    ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+    ? 'border-[hsl(var(--tone-success)/0.35)] bg-[hsl(var(--tone-success)/0.1)] text-[hsl(var(--tone-success-fg))]'
     : 'border-border bg-muted/40 text-muted-foreground';
 
 // Shared with BreakdownDonut/TechnologySupply's palette family — ranking
@@ -44,9 +56,10 @@ export const SELECTION_STAGE_THEME = {
     badge: 'default',
   },
   interviewing: {
-    panel: 'border-amber-500/25 bg-amber-500/[0.05]',
-    dot: 'bg-amber-500',
-    avatar: 'bg-amber-500/15 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
+    panel: 'border-[hsl(var(--tone-warning)/0.25)] bg-[hsl(var(--tone-warning)/0.05)]',
+    dot: 'bg-[hsl(var(--tone-warning))]',
+    avatar:
+      'bg-[hsl(var(--tone-warning)/0.15)] text-[hsl(var(--tone-warning-fg))] dark:bg-[hsl(var(--tone-warning)/0.2)] dark:text-[hsl(var(--tone-warning-fg))]',
     badge: 'warning',
   },
 };

@@ -2,8 +2,15 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * `.app-table-scroll` on the wrapper is not decoration: it is what stops a wide
+ * table from squeezing its first column to nothing on a narrow window. Pair it
+ * with a `min-w-[…]` on the table, and give the name column a real floor —
+ * `minmax(180px, 1fr)` on a grid, `min-w-[180px]` on a cell. `minmax(0, 1fr)`
+ * collapses to zero and the label ends up overlapping the next cell.
+ */
 const Table = React.forwardRef(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  <div className="app-table-scroll relative">
     <table ref={ref} className={cn('w-full caption-bottom text-sm', className)} {...props} />
   </div>
 ));
@@ -31,10 +38,7 @@ TableFooter.displayName = 'TableFooter';
 const TableRow = React.forwardRef(({ className, ...props }, ref) => (
   <tr
     ref={ref}
-    className={cn(
-      'border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted',
-      className
-    )}
+    className={cn('app-table-row data-[state=selected]:bg-muted', className)}
     {...props}
   />
 ));
@@ -44,7 +48,7 @@ const TableHead = React.forwardRef(({ className, ...props }, ref) => (
   <th
     ref={ref}
     className={cn(
-      'h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0',
+      'app-table-head px-[var(--px-lg)] text-left align-middle [&:has([role=checkbox])]:pr-0',
       className
     )}
     {...props}
@@ -55,7 +59,7 @@ TableHead.displayName = 'TableHead';
 const TableCell = React.forwardRef(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn('p-4 align-middle [&:has([role=checkbox])]:pr-0', className)}
+    className={cn('app-table-cell [&:has([role=checkbox])]:pr-0', className)}
     {...props}
   />
 ));

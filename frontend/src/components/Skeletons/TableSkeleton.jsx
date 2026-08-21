@@ -44,11 +44,14 @@ export default function TableSkeleton({
         </Table>
       </div>
 
-      <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      {/* The pager placeholders track `--h-md`, so the skeleton is the same height
+          as the buttons that replace it — at a fixed 32px the row would jump when
+          the real pager landed under compact density. */}
+      <div className="flex flex-col gap-3 border-t border-separator px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <Skeleton className="h-4 w-48" />
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="h-8 w-8" />
+        <div className="flex items-center gap-[var(--control-gap)] self-end sm:self-auto">
+          <Skeleton className="h-[var(--h-md)] w-[var(--h-md)] rounded-[var(--r-control)]" />
+          <Skeleton className="h-[var(--h-md)] w-[var(--h-md)] rounded-[var(--r-control)]" />
         </div>
       </div>
     </div>

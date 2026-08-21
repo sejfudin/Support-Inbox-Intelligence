@@ -53,5 +53,14 @@ not JSON — guard your parsing.
 - `GET /interns/stats` aggregates InternProfile/Recommendation collections directly; `GET /interns`
   joins through `User` with `role: 'intern'` — totals can legitimately differ (orphaned profiles,
   KPI counts recommendations not distinct interns).
+- **The what's-new tour will cover the screen.** It opens itself on the first load after a
+  `TOUR_VERSION` bump and its scrim swallows every click until the script is walked to the end, so
+  a browser pass on an account that has not seen the current version stalls on it. Two ways past,
+  in order of preference: drive as an account already marked seen (the seen-state is
+  `User.whatsNewSeenVersion`, so it survives a fresh browser profile — a `PATCH
+  /api/users/me/whats-new-seen` with the current `TOUR_VERSION` sets it), or flip `TOUR_ENABLED` to
+  `false` in `frontend/src/components/onboarding/whatsNewSteps.js` for the run. It is a plain
+  constant precisely so that this is a one-line edit. Walking the tour to the end also works and
+  marks it seen for good.
 - GUI verification needs a browser (Playwright MCP) — confirm the user allows it in the session
   before driving; otherwise verify the API surface and flag the click-through as manual.

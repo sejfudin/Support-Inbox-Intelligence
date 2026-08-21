@@ -21,15 +21,28 @@ export const EVALUATION_CRITERIA = [
   { key: 'growth', label: 'Growth' },
 ];
 
+// The day-one value of every flag: not a verdict, but the absence of one.
+export const UNASSESSED_LEVEL = 'none';
+
+/**
+ * Whether a mentor has actually recorded a level for something.
+ *
+ * Lives here with the vocabulary so nothing has to spell out `=== 'learning' ||
+ * === 'ready'` and forget one of them — or forget to widen the test when a fourth
+ * level appears. Anything that is not the unassessed default counts as assessed,
+ * which is the safe default for a new level.
+ */
+export const isAssessedLevel = (level) => Boolean(level) && level !== UNASSESSED_LEVEL;
+
 export const getReadinessLabel = (level) =>
   READINESS_LEVELS.find((r) => r.value === level)?.label ?? level;
 
 export const getReadinessBadgeClassName = (level) => {
   switch (level) {
     case 'ready':
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400';
+      return 'border-[hsl(var(--tone-success)/0.3)] bg-[hsl(var(--tone-success)/0.1)] text-[hsl(var(--tone-success-fg))]';
     case 'learning':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300';
+      return 'border-[hsl(var(--tone-warning)/0.3)] bg-[hsl(var(--tone-warning)/0.1)] text-[hsl(var(--tone-warning-fg))]';
     default:
       return 'border-border/60 bg-muted/30 text-muted-foreground';
   }

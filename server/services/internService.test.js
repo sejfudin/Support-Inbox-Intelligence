@@ -1,11 +1,14 @@
-// Cover for the CV-scan provenance prune in `updateSelfTechnologies`.
+// Two independent concerns, both exercised with Mongo/Supabase mocked — no DB or network.
 //
-// This is the rule that makes the ownership model in helpers/cvTechnologySync.js work from the
-// other direction: a technology the intern removes by hand stops being the scan's to manage, so
-// re-adding it later counts as their own declaration and a future CV can never take it away.
-// The reconciler itself is covered in helpers/cvTechnologySync.test.js and the upload wiring in
-// services/internCvService.test.js — neither exercises this path, because nothing here goes
-// through a CV at all. Mongo and Supabase are mocked; no DB or network.
+// 1. `updateSelfTechnologies` — the intern's own hand-edited list is the only path that can
+//    shorten `selfTechnologies`; a CV scan only ever adds to it (see helpers/cvTechnologySync.js,
+//    covered in helpers/cvTechnologySync.test.js) and never removes what's already there. The
+//    upload wiring is covered separately in services/internCvService.test.js — neither exercises
+//    this path, because nothing here goes through a CV at all.
+//
+// 2. The lifecycle-status transition rules in `updateInternProgramme` — who may change a
+//    status, and why "placed" specifically can't be picked by hand (it's the recommendation
+//    outcome's job; see recommendationService.updateRecommendation).
 
 jest.mock('../config/supabase', () => ({
   supabase: { storage: { from: () => ({}) } },
@@ -22,28 +25,67 @@ jest.mock('../models/InternProfile', () => {
 });
 jest.mock('../models/Technology', () => ({ countDocuments: jest.fn() }));
 jest.mock('../socket/events', () => ({ emitInternDataChanged: jest.fn() }));
+jest.mock('./recommendationService', () => ({
+  closeActiveRecommendationsForIntern: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock('./internNotificationService', () => ({
+  notifyInternPlaced: jest.fn(),
+  notifyInternStatusChanged: jest.fn(),
+  notifyExpectedEndDateChanged: jest.fn(),
+}));
 
 const InternProfile = require('../models/InternProfile');
 const Technology = require('../models/Technology');
-const { updateSelfTechnologies } = require('./internService');
+const { closeActiveRecommendationsForIntern } = require('./recommendationService');
+const internNotificationService = require('./internNotificationService');
+const { updateInternProgramme, updateSelfTechnologies } = require('./internService');
 
 const INTERN = { _id: 'u1', role: 'intern' };
+const ADMIN = { _id: 'a1', role: 'admin' };
+const MENTOR = { _id: 'm1', role: 'mentor' };
 
-// `react` came from a CV scan, `python` the intern declared by hand.
+// `react` came from a CV scan, `python` the intern declared by hand — the profile records no
+// difference between the two, because neither source can remove an entry.
 const mockProfile = (overrides = {}) => {
   const profile = {
     _id: 'p1',
     user: 'u1',
     cvPath: null,
     selfTechnologies: ['t-react', 't-python'],
-    cvTechnologies: ['t-react'],
     save: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 
   // First call is the mutable document `updateSelfTechnologies` works on; the second comes from
-  // the `getMyInternProfile` re-read it returns, which populates.
+  // the `getMyInternProfile` re-read it returns, which populates. `mockReset` first: a test that
+  // throws before the second call leaves it queued, and it would otherwise leak into whichever
+  // test runs next.
   InternProfile.findOne
+    .mockReset()
+    .mockReturnValueOnce(Promise.resolve(profile))
+    .mockReturnValueOnce({ populate: async () => ({ ...profile }) });
+
+  return profile;
+};
+
+// Same two-call shape and leak hazard as `mockProfile` above: the mutable document
+// `updateInternProgramme` works on, then the populated re-read `getInternByUserId` returns at
+// the end.
+const mockProgrammeProfile = (overrides = {}) => {
+  const profile = {
+    _id: 'p1',
+    user: { _id: 'u1' },
+    cvPath: null,
+    status: 'active',
+    expectedEndDate: null,
+    primaryMentor: 'm1',
+    secondaryMentor: null,
+    save: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+
+  InternProfile.findOne
+    .mockReset()
     .mockReturnValueOnce(Promise.resolve(profile))
     .mockReturnValueOnce({ populate: async () => ({ ...profile }) });
 
@@ -55,47 +97,64 @@ beforeEach(() => {
   Technology.countDocuments.mockImplementation(async (filter) => filter._id.$in.length);
 });
 
-describe('updateSelfTechnologies — CV provenance prune', () => {
-  it('hands a technology back to the intern when they remove it by hand', async () => {
+describe('updateSelfTechnologies', () => {
+  it('is the one path that shortens the list — a CV scan never does', async () => {
     const profile = mockProfile();
 
-    // Intern drops the CV-added `react`, keeps their own `python`.
+    // Intern drops the CV-added `react`, keeps their own `python`. A later CV that mentions
+    // React puts it back (it is a fresh add), which is the intended cost of scans never removing.
     await updateSelfTechnologies(INTERN, ['t-python']);
 
     expect(profile.selfTechnologies).toEqual(['t-python']);
-    // The prune: react is no longer declared, so the scan no longer owns it. Re-adding it later
-    // therefore counts as a manual declaration that a future CV cannot remove.
-    expect(profile.cvTechnologies).toEqual([]);
     expect(profile.save).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves a CV-added technology scan-owned while it is still declared', async () => {
+  it('saves an added technology alongside the existing ones', async () => {
     const profile = mockProfile();
 
     await updateSelfTechnologies(INTERN, ['t-react', 't-python', 't-vue']);
 
     expect(profile.selfTechnologies).toEqual(['t-react', 't-python', 't-vue']);
-    // Merely keeping it is not an act of ownership — a later CV may still drop it.
-    expect(profile.cvTechnologies).toEqual(['t-react']);
   });
 
-  it('keeps cvTechnologies a subset when the whole list is cleared', async () => {
+  it('accepts clearing the list outright', async () => {
     const profile = mockProfile();
 
     await updateSelfTechnologies(INTERN, []);
 
     expect(profile.selfTechnologies).toEqual([]);
-    expect(profile.cvTechnologies).toEqual([]);
     // Nothing to validate against the catalog when the list is empty.
     expect(Technology.countDocuments).not.toHaveBeenCalled();
   });
 
-  it('tolerates a legacy profile that predates the cvTechnologies field', async () => {
-    const profile = mockProfile({ cvTechnologies: undefined });
+  it('validates only what is being added, so a deactivated technology cannot block an edit', async () => {
+    const profile = mockProfile({ selfTechnologies: ['t-react', 't-python', 't-devops'] });
+    // `devops` was deactivated after the intern declared it. The page joins
+    // declarations against the *active* catalog, so the row is not on screen — and
+    // validating the whole array against `isActive` therefore rejected every edit
+    // because of an entry the intern could neither see nor drop.
+    Technology.countDocuments.mockImplementation(
+      async (filter) => filter._id.$in.filter((id) => id !== 't-devops').length
+    );
 
-    await expect(updateSelfTechnologies(INTERN, ['t-python'])).resolves.toBeDefined();
+    // The intern drops `react`; `devops` rides along untouched, as it must.
+    await updateSelfTechnologies(INTERN, ['t-python', 't-devops']);
 
-    expect(profile.cvTechnologies).toEqual([]);
+    expect(profile.selfTechnologies).toEqual(['t-python', 't-devops']);
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    // Nothing was added, so the catalog was never asked in the first place.
+    expect(Technology.countDocuments).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a technology the catalog does not offer', async () => {
+    const profile = mockProfile();
+    Technology.countDocuments.mockResolvedValue(0);
+
+    await expect(
+      updateSelfTechnologies(INTERN, ['t-react', 't-python', 't-retired'])
+    ).rejects.toThrow('One or more technologies are invalid');
+
+    expect(profile.save).not.toHaveBeenCalled();
   });
 
   it('refuses to touch a profile that is not the caller’s', async () => {
@@ -104,6 +163,92 @@ describe('updateSelfTechnologies — CV provenance prune', () => {
     await expect(updateSelfTechnologies(INTERN, ['t-python'])).rejects.toThrow('Not authorized');
 
     expect(profile.save).not.toHaveBeenCalled();
-    expect(profile.cvTechnologies).toEqual(['t-react']);
+    expect(profile.selfTechnologies).toEqual(['t-react', 't-python']);
+  });
+});
+
+describe('updateInternProgramme — lifecycle status', () => {
+  it('refuses a non-admin changing status at all, even an assigned mentor', async () => {
+    const profile = mockProgrammeProfile({ status: 'active', primaryMentor: 'm1' });
+
+    await expect(updateInternProgramme(MENTOR, 'u1', { status: 'ready' })).rejects.toThrow(
+      'Only admins can change'
+    );
+
+    expect(profile.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown status value', async () => {
+    mockProgrammeProfile({ status: 'active' });
+
+    await expect(updateInternProgramme(ADMIN, 'u1', { status: 'on-leave' })).rejects.toThrow(
+      'Invalid status'
+    );
+  });
+
+  it('refuses to set "placed" by hand — that is the recommendation outcome\'s job', async () => {
+    const profile = mockProgrammeProfile({ status: 'ready' });
+
+    await expect(updateInternProgramme(ADMIN, 'u1', { status: 'placed' })).rejects.toThrow(
+      'set automatically'
+    );
+
+    expect(profile.status).toBe('ready');
+    expect(profile.save).not.toHaveBeenCalled();
+    expect(closeActiveRecommendationsForIntern).not.toHaveBeenCalled();
+    expect(internNotificationService.notifyInternPlaced).not.toHaveBeenCalled();
+  });
+
+  it('allows re-saving while already placed (no-op, not a transition)', async () => {
+    const profile = mockProgrammeProfile({ status: 'placed' });
+
+    await updateInternProgramme(ADMIN, 'u1', { status: 'placed' });
+
+    expect(profile.status).toBe('placed');
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    // Unchanged from `previousStatus`, so this isn't a fresh placement notification.
+    expect(internNotificationService.notifyInternPlaced).not.toHaveBeenCalled();
+    // Still fires — this cascade runs off the target status, not off whether it changed.
+    expect(closeActiveRecommendationsForIntern).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets an admin move an intern back out of placed manually', async () => {
+    const profile = mockProgrammeProfile({ status: 'placed' });
+
+    await updateInternProgramme(ADMIN, 'u1', { status: 'discontinued' });
+
+    expect(profile.status).toBe('discontinued');
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    expect(closeActiveRecommendationsForIntern).not.toHaveBeenCalled();
+    expect(internNotificationService.notifyInternStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ newStatus: 'discontinued' })
+    );
+  });
+
+  it.each([
+    ['active', 'ready'],
+    ['ready', 'completed'],
+    ['active', 'discontinued'],
+    ['ready', 'active'],
+  ])('allows the manual transition %s -> %s', async (from, to) => {
+    const profile = mockProgrammeProfile({ status: from });
+
+    await updateInternProgramme(ADMIN, 'u1', { status: to });
+
+    expect(profile.status).toBe(to);
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    expect(internNotificationService.notifyInternStatusChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ newStatus: to })
+    );
+    expect(closeActiveRecommendationsForIntern).not.toHaveBeenCalled();
+  });
+
+  it('does not notify when saving the same status twice', async () => {
+    mockProgrammeProfile({ status: 'ready' });
+
+    await updateInternProgramme(ADMIN, 'u1', { status: 'ready' });
+
+    expect(internNotificationService.notifyInternStatusChanged).not.toHaveBeenCalled();
+    expect(internNotificationService.notifyInternPlaced).not.toHaveBeenCalled();
   });
 });

@@ -13,24 +13,24 @@ import { cn } from '@/lib/utils';
 // Band-keyed tone maps (shared thresholds via scoreBand) so the banner and the
 // tiles in the same modal never disagree on a value like 4.0.
 const BANNER_TONE = {
-  high: 'bg-emerald-500/15 ring-1 ring-inset ring-emerald-500/30 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+  high: 'bg-[hsl(var(--tone-success)/0.15)] ring-1 ring-inset ring-[hsl(var(--tone-success)/0.3)] text-[hsl(var(--tone-success-fg))] dark:bg-[hsl(var(--tone-success)/0.2)] dark:text-[hsl(var(--tone-success-fg))]',
   mid: 'bg-primary/15 ring-1 ring-inset ring-primary/30 text-primary',
-  low: 'bg-amber-500/15 ring-1 ring-inset ring-amber-500/30 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+  low: 'bg-[hsl(var(--tone-warning)/0.15)] ring-1 ring-inset ring-[hsl(var(--tone-warning)/0.3)] text-[hsl(var(--tone-warning-fg))] dark:bg-[hsl(var(--tone-warning)/0.2)] dark:text-[hsl(var(--tone-warning-fg))]',
 };
 const TILE_TONE = {
-  high: 'bg-emerald-500/12 ring-1 ring-inset ring-emerald-500/25 dark:bg-emerald-500/15',
+  high: 'bg-[hsl(var(--tone-success)/0.12)] ring-1 ring-inset ring-[hsl(var(--tone-success)/0.25)] dark:bg-[hsl(var(--tone-success)/0.15)]',
   mid: 'bg-primary/12 ring-1 ring-inset ring-primary/25',
-  low: 'bg-amber-500/12 ring-1 ring-inset ring-amber-500/25 dark:bg-amber-500/15',
+  low: 'bg-[hsl(var(--tone-warning)/0.12)] ring-1 ring-inset ring-[hsl(var(--tone-warning)/0.25)] dark:bg-[hsl(var(--tone-warning)/0.15)]',
 };
 const TILE_VALUE_TONE = {
-  high: 'text-emerald-600 dark:text-emerald-400',
+  high: 'text-[hsl(var(--tone-success-fg))]',
   mid: 'text-primary',
-  low: 'text-amber-600 dark:text-amber-400',
+  low: 'text-[hsl(var(--tone-warning-fg))]',
 };
 const TILE_LABEL_TONE = {
-  high: 'text-emerald-700/80 dark:text-emerald-300/80',
+  high: 'text-[hsl(var(--tone-success-fg)/0.8)]',
   mid: 'text-primary/80',
-  low: 'text-amber-700/80 dark:text-amber-300/80',
+  low: 'text-[hsl(var(--tone-warning-fg)/0.8)]',
 };
 
 /**
@@ -99,7 +99,7 @@ export function DetailModal({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent
-        className={cn('max-h-[88vh] max-w-xl overflow-y-auto', className)}
+        className={cn('max-h-[calc(var(--app-vh)*0.88)] max-w-xl overflow-y-auto', className)}
         data-test={dataTest}
         hideCloseButton
       >
@@ -123,7 +123,7 @@ export function DetailModal({
 
 // Shared tag/pill tones (mirror HistoryPanel's tag colors) for status chips.
 export const TAG_TONE = {
-  green: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  green: 'bg-[hsl(var(--tone-success)/0.15)] text-[hsl(var(--tone-success-fg))]',
   indigo: 'bg-primary/10 text-primary',
   slate: 'bg-muted text-muted-foreground',
 };
@@ -135,7 +135,7 @@ export function ScoreBanner({ label = 'Average score', value }) {
   return (
     <div
       className={cn(
-        'flex items-center justify-between rounded-xl px-4 py-3.5',
+        'flex items-center justify-between rounded-[var(--r-card)] px-4 py-3.5',
         BANNER_TONE[scoreBand(value)]
       )}
     >
@@ -157,7 +157,7 @@ export function ScoreTiles({ items }) {
           <div
             key={item.label}
             className={cn(
-              'flex items-center justify-between rounded-xl px-4 py-3',
+              'flex items-center justify-between rounded-[var(--r-card)] px-4 py-3',
               TILE_TONE[band]
             )}
           >
@@ -183,7 +183,7 @@ export function Chips({ items, emptyLabel = '—' }) {
       {items.map((item, index) => (
         <span
           key={`${item}-${index}`}
-          className="rounded-lg bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
+          className="rounded-[var(--r-control)] bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
         >
           {item}
         </span>

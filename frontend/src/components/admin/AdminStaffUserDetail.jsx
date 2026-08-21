@@ -15,17 +15,31 @@ import {
 import { useInterns } from '@/queries/interns';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { getRoleLabel, ROLES } from '@/helpers/roles';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 function MentorInternsPanel({ mentorUserId }) {
-  const { data, isPending, isError } = useInterns({ mentorId: mentorUserId, limit: 50 });
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useInterns({ mentorId: mentorUserId, limit: 50 });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const interns = data?.interns ?? [];
 
   if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading assigned interns...</p>;
+    return (
+      <LoadingOverlay size="sm" label="Loading interns">
+        <PanelBodySkeleton people rows={3} />
+      </LoadingOverlay>
+    );
   }
 
   if (isError) {
-    return <p className="text-sm text-destructive">Failed to load assigned interns.</p>;
+    return (
+      <p className="text-sm text-[hsl(var(--tone-danger-fg))]">Failed to load assigned interns.</p>
+    );
   }
 
   if (interns.length === 0) {
@@ -148,28 +162,28 @@ export function AdminStaffUserDetail({ user, userId, backButton, editUserButton 
     <PageShell>
       <PageSection className="space-y-6">
         <PageHeading
-          kicker="User profile"
+          crumb="Admin"
           title={userName}
           subtitle={user?.email}
-          beforeKicker={backButton}
+          beforeTitle={backButton}
           actions={editUserButton}
         >
           <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Role</p>
               <p className="font-medium text-foreground">{getRoleLabel(user.role)}</p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Status</p>
               <p className="font-medium text-foreground">
                 {capitalizeFirst(user.status || 'active')}
               </p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Hub</p>
               <p className="font-medium text-foreground">{user?.hub?.name || '—'}</p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-background/60 px-4 py-3">
+            <div className="rounded-[var(--r-card)] border border-border/70 bg-background/60 px-4 py-3">
               <p className="text-xs text-muted-foreground">Active workspace</p>
               <p className="font-medium text-foreground">
                 {activeWorkspace?.name || (activeWorkspaceId ? 'Assigned workspace' : '—')}

@@ -1,7 +1,9 @@
 import { cn } from '@/lib/utils';
 
 export function PageShell({ children, className }) {
-  return <div className={cn('app-page flex min-h-screen flex-col', className)}>{children}</div>;
+  return (
+    <div className={cn('app-page flex min-h-[var(--app-vh)] flex-col', className)}>{children}</div>
+  );
 }
 
 export function PageSection({ children, className }) {
@@ -9,5 +11,5 @@ export function PageSection({ children, className }) {
 }
 
 export function PagePanel({ children, className }) {
-  return <div className={cn('app-panel overflow-hidden', className)}>{children}</div>;
+  return <div className={cn('app-card overflow-hidden', className)}>{children}</div>;
 }

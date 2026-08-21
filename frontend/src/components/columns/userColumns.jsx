@@ -60,7 +60,6 @@ export const columns = [
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
         onClick={(e) => {
           e.stopPropagation();
           table.options.meta?.onRowClick?.(row.original.id, row.original);

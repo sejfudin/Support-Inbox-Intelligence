@@ -7,9 +7,9 @@ import {
 } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { getInitials } from '@/helpers/initials';
 import { getSelectionStageTheme } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 function SelectionColumn({ stage, title, interns }) {
   const theme = getSelectionStageTheme(stage);
@@ -33,11 +33,11 @@ function SelectionColumn({ stage, title, interns }) {
               key={intern.recommendationId}
               className="flex items-center gap-2.5 rounded-lg bg-background/60 px-2.5 py-2"
             >
-              <Avatar className="h-8 w-8 shrink-0">
-                <AvatarFallback className={cn('text-[11px] font-semibold', theme.avatar)}>
-                  {getInitials(intern.fullname)}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                user={intern}
+                className={cn('h-8 w-8 text-[11px] font-semibold', theme.avatar)}
+                showTitle={false}
+              />
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{intern.fullname}</p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -63,7 +63,7 @@ export function InSelectionModal({ open, onOpenChange, recommended = [], intervi
             Interns currently being pitched — recommended or interviewing.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid max-h-[65vh] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
+        <div className="grid max-h-[calc(var(--app-vh)*0.65)] gap-4 overflow-y-auto pr-1 sm:grid-cols-2">
           <SelectionColumn stage="recommended" title="Recommended" interns={recommended} />
           <SelectionColumn stage="interviewing" title="Interviewing" interns={interviewing} />
         </div>

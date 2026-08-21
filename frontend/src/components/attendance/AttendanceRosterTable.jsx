@@ -1,58 +1,97 @@
 import { useMemo, useState } from 'react';
-import { ArrowUpDown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CHIP, badgeTone } from '@/helpers/badgeTones';
 import {
+  attendanceRateFillClass,
   attendanceRateTextClass,
   formatAttendanceRate,
   hasAttendanceRate,
   formatCheckInDate,
-  isCheckedInToday,
+  internStatusOnDate,
   isExemptToday,
+  dayStatusLabel,
+  DAY_STATUS,
 } from '@/helpers/attendance';
+import { DayStatusGlyph } from '@/components/attendance/dayStatusVisuals';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 const columnsFor = (rateLabel) => [
   { key: 'name', label: 'Intern', sortable: true },
-  { key: 'hub', label: 'Hub', sortable: true },
-  { key: 'rate', label: rateLabel, sortable: true },
-  { key: 'present', label: 'Present / working', sortable: true },
-  { key: 'last', label: 'Last check-in', sortable: true },
+  { key: 'hub', label: 'Hub', sortable: true, className: 'w-[130px]' },
+  { key: 'rate', label: rateLabel, sortable: true, className: 'w-[230px]' },
+  { key: 'present', label: 'Present', sortable: true, className: 'w-[90px]' },
+  { key: 'last', label: 'Last check-in', sortable: true, className: 'w-[130px]' },
 ];
+
+// How today reads in the last column. Absent is deliberately quieter than a
+// filled chip — it is the absence of an action, and a red badge on every intern
+// who has not come in yet turns the column into a wall of alarm.
+const TODAY_TONE = {
+  [DAY_STATUS.PRESENT]: { chip: 'success', label: 'In' },
+  [DAY_STATUS.REMOTE]: { chip: 'info' },
+  [DAY_STATUS.VACATION]: { chip: 'info' },
+  [DAY_STATUS.RELIGIOUS]: { chip: 'info' },
+  [DAY_STATUS.SICK]: { chip: 'info' },
+  [DAY_STATUS.TODAY_PENDING]: { chip: 'neutral', label: 'Not yet' },
+};
 
 function RateBar({ rate, exempt = false }) {
   // Nothing was owed (the intern is on a project): render an empty track and a dash
   // rather than a 0% bar, which would read as a month of absences.
-  if (!hasAttendanceRate(rate)) {
-    return (
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted/50" />
-        <span className="text-sm font-semibold tabular-nums text-muted-foreground">—</span>
-        {exempt && <span className="text-xs text-muted-foreground">on project</span>}
-      </div>
-    );
-  }
+  const known = hasAttendanceRate(rate);
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            'h-full rounded-full',
-            rate >= 90
-              ? 'bg-emerald-500'
-              : rate >= 75
-                ? 'bg-primary'
-                : rate >= 60
-                  ? 'bg-amber-500'
-                  : 'bg-red-500'
-          )}
-          style={{ width: `${Math.min(100, rate)}%` }}
-        />
+    <div className="flex items-center gap-2.5">
+      <div className="h-[6px] w-[150px] shrink-0 overflow-hidden rounded-full bg-muted">
+        {known && (
+          <div
+            className={cn('h-full rounded-full', attendanceRateFillClass(rate))}
+            style={{ width: `${Math.min(100, rate)}%` }}
+          />
+        )}
       </div>
-      <span className={cn('text-sm font-semibold tabular-nums', attendanceRateTextClass(rate))}>
+      <span
+        className={cn(
+          'shrink-0 text-[12.5px] font-semibold tabular-nums',
+          attendanceRateTextClass(rate)
+        )}
+      >
         {formatAttendanceRate(rate)}
       </span>
+      {!known && exempt && <span className="text-[11px] text-muted-foreground/75">on project</span>}
     </div>
+  );
+}
+
+function SortableHead({ col, sort, onToggle }) {
+  const active = sort.key === col.key;
+  const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
+
+  if (!col.sortable) return col.label;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(col.key)}
+      className={cn(
+        'group inline-flex items-center gap-1.5 uppercase tracking-[0.07em] transition-colors hover:text-foreground',
+        active && 'text-foreground'
+      )}
+      data-test={`attendance-sort-${col.key}`}
+    >
+      {col.label}
+      {/* Faint until it is the active sort — an arrow on every header reads as
+          "all of these are sorted", but hiding them entirely hides which columns
+          can be sorted at all. */}
+      <Icon
+        className={cn(
+          'h-3 w-3 shrink-0 transition-opacity',
+          active ? 'opacity-100' : 'opacity-35 group-hover:opacity-70'
+        )}
+        aria-hidden
+      />
+    </button>
   );
 }
 
@@ -65,12 +104,14 @@ function RateBar({ rate, exempt = false }) {
  *   roster: Array<object>,
  *   rateLabel?: string,
  *   showToday?: boolean,   // the "Today" column only makes sense for the current month
+ *   nonWorkingKeys?: Set<string>,
  * }} props
  */
 export default function AttendanceRosterTable({
   roster = [],
   rateLabel = 'Attendance',
   showToday = true,
+  nonWorkingKeys,
   onSelectIntern,
 }) {
   const [sort, setSort] = useState({ key: 'rate', dir: 'asc' });
@@ -135,77 +176,97 @@ export default function AttendanceRosterTable({
   const colSpan = columns.length + (showToday ? 1 : 0);
 
   return (
-    <div className="app-panel overflow-hidden" data-test="attendance-roster-table">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="border-b border-border/60 bg-muted/40">
-            <tr>
+    <div className="app-card overflow-hidden" data-test="attendance-roster-table">
+      <div className="app-table-scroll">
+        <table className="w-full min-w-[860px] text-left">
+          <thead>
+            <tr className="app-table-head border-b border-separator">
               {columns.map((col) => (
-                <th key={col.key} className="px-5 py-3 font-semibold text-foreground">
-                  {col.sortable ? (
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(col.key)}
-                      className="inline-flex items-center gap-1 hover:text-primary"
-                      data-test={`attendance-sort-${col.key}`}
-                    >
-                      {col.label}
-                      <ArrowUpDown
-                        className={cn(
-                          'h-3 w-3',
-                          sort.key === col.key ? 'text-primary' : 'text-muted-foreground/50'
-                        )}
-                      />
-                    </button>
-                  ) : (
-                    col.label
-                  )}
+                <th key={col.key} className={cn('px-[18px] font-semibold', col.className)}>
+                  <SortableHead col={col} sort={sort} onToggle={toggleSort} />
                 </th>
               ))}
-              {showToday && <th className="px-5 py-3 font-semibold text-foreground">Today</th>}
+              {showToday && <th className="w-[100px] px-[18px] font-semibold">Today</th>}
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={colSpan} className="px-5 py-10 text-center text-muted-foreground">
+                <td
+                  colSpan={colSpan}
+                  className="px-[18px] py-10 text-center text-[12.5px] text-muted-foreground"
+                >
                   No interns match your filters.
                 </td>
               </tr>
             )}
             {sorted.map((row) => {
-              const inToday = isCheckedInToday(row.records);
+              // The real classification, not "is there a record today": an approved
+              // remote day IS in `records`, so a naive check reports working from
+              // home as an office check-in; approved leave is not in `records` at
+              // all, and would otherwise read as "Not yet" — a prompt to go and
+              // chase someone who is on holiday. It also tells apart a closed
+              // window (Absent) from one still open (Not yet).
+              const todayStatus = showToday
+                ? internStatusOnDate(row, new Date(), nonWorkingKeys).status
+                : null;
+              const tone = TODAY_TONE[todayStatus];
+
               return (
                 <tr
                   key={row.intern.id}
                   onClick={() => onSelectIntern?.(row.intern)}
                   className={cn(
-                    'border-t border-border/60',
-                    onSelectIntern && 'cursor-pointer transition-colors hover:bg-muted/40'
+                    'border-b border-separator last:border-b-0',
+                    onSelectIntern && 'cursor-pointer transition-colors hover:bg-accent/60'
                   )}
                   title={onSelectIntern ? 'View attendance calendar' : undefined}
                   data-test={`attendance-roster-row-${row.intern.id}`}
                 >
-                  <td className="px-5 py-4">
-                    <p className="font-semibold text-foreground">{row.intern.fullname}</p>
-                    <p className="text-xs text-muted-foreground">{row.intern.email}</p>
+                  <td className="px-[18px] py-2.5">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <UserAvatar user={row.intern} size="md" showTitle={false} />
+                      <div className="min-w-0 leading-[1.35]">
+                        <p className="truncate text-[13px] font-medium text-foreground">
+                          {row.intern.fullname}
+                        </p>
+                        <p className="truncate text-[11.5px] text-muted-foreground/75">
+                          {row.intern.email}
+                        </p>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-5 py-4 text-muted-foreground">{row.intern.hub}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-[18px] py-2.5 text-[12.5px] text-muted-foreground">
+                    {row.intern.hub}
+                  </td>
+                  <td className="px-[18px] py-2.5">
                     <RateBar rate={row.stat.rate} exempt={row.stat.exempt} />
                   </td>
-                  <td className="px-5 py-4 tabular-nums text-muted-foreground">
+                  <td className="px-[18px] py-2.5 text-[12.5px] tabular-nums text-muted-foreground">
                     {row.stat.present} / {row.stat.working}
                   </td>
-                  <td className="px-5 py-4 text-muted-foreground">
+                  <td className="px-[18px] py-2.5 text-[12.5px] text-muted-foreground">
                     {formatCheckInDate(row.lastCheckIn)}
                   </td>
                   {showToday && (
-                    <td className="px-5 py-4">
-                      {inToday ? (
-                        <Badge variant="success">Checked in</Badge>
+                    <td className="px-[18px] py-2.5">
+                      {tone ? (
+                        <span className={cn(CHIP, 'gap-1.5 border-0', badgeTone(tone.chip))}>
+                          {!tone.label && <DayStatusGlyph status={todayStatus} />}
+                          {tone.label ?? dayStatusLabel(todayStatus)}
+                        </span>
                       ) : (
-                        <Badge variant="outline">Not yet</Badge>
+                        // Absent, weekend, before-start: no chip, just the word.
+                        <span
+                          className={cn(
+                            'text-[12.5px] font-medium',
+                            todayStatus === DAY_STATUS.ABSENT
+                              ? 'text-[hsl(var(--tone-danger-fg))]'
+                              : 'text-muted-foreground/75'
+                          )}
+                        >
+                          {dayStatusLabel(todayStatus)}
+                        </span>
                       )}
                     </td>
                   )}

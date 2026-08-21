@@ -17,7 +17,7 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
   };
 
   return (
-    <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
+    <div className="fixed inset-0 h-[var(--app-vh)] w-[var(--app-vw)] overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-5xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
           <Card className="border-border/50 bg-card shadow-elevated">
@@ -40,7 +40,7 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
+              <div className="rounded-[var(--r-card)] border border-border/60 bg-muted/40 p-4">
                 <p className="text-sm font-semibold text-foreground">What happens next</p>
                 <ol className="mt-4 space-y-3 text-sm text-muted-foreground">
                   <li className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
                 Share activation instructions
               </CardTitle>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-muted/40 p-4">
+                <div className="rounded-[var(--r-card)] border border-border bg-muted/40 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     User
                   </p>
@@ -81,7 +81,7 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">{createdUser.email}</p>
                 </div>
-                <div className="rounded-2xl border border-border bg-muted/40 p-4">
+                <div className="rounded-[var(--r-card)] border border-border bg-muted/40 p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Access
                   </p>
@@ -105,14 +105,14 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
             </CardHeader>
 
             <CardContent className="space-y-6 p-6 md:p-8">
-              <div className="rounded-2xl border border-border bg-muted/40 p-5">
+              <div className="rounded-[var(--r-card)] border border-border bg-muted/40 p-5">
                 <p className="text-sm font-semibold text-foreground">Next step for the user</p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   Ask them to go to the login area and select{' '}
                   <span className="font-medium text-foreground">Set password</span>. They should use
                   the email address below.
                 </p>
-                <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+                <div className="mt-4 rounded-[var(--r-card)] border border-border bg-card p-4">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     Email to use
                   </p>

@@ -10,11 +10,13 @@ import { DailyHeader } from '@/components/dailies/DailyHeader';
 import { DailyEmptyState } from '@/components/dailies/DailyEmptyState';
 import { DailyEntryCard } from '@/components/dailies/DailyEntryCard';
 import { AddEntryModal } from '@/components/dailies/AddEntryModal';
-import { DeleteConfirmModal } from '@/components/Modals/DeleteConfirmModal';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import DailySkeleton from '@/components/Skeletons/DailySkeleton';
 import { getAvailableInterns } from '@/helpers/dailyEntrants';
 import { Button } from '@/components/ui/button';
-import { PagePanel, PageSection, PageShell } from '@/components/PageShell';
+import { PageSection, PageShell } from '@/components/PageShell';
+import PageHeading from '@/components/PageHeading';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const toDateKey = (date) => format(date, 'yyyy-MM-dd');
 
@@ -60,7 +62,9 @@ const WorkspaceDailiesPage = () => {
     }
   }, [dateKey, selectedDate, searchParams, setSearchParams]);
 
-  const { data: dailyResponse, isLoading } = useDaily(workspaceId, dateKey);
+  const { data: dailyResponse, isLoading: isLoadingRaw } = useDaily(workspaceId, dateKey);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw);
   const { data: historyResponse } = useDailyHistory(workspaceId);
   const startDailyMutation = useStartDaily(workspaceId);
   const removeEntryMutation = useRemoveDailyEntry(workspaceId);
@@ -106,8 +110,17 @@ const WorkspaceDailiesPage = () => {
 
   return (
     <PageShell>
-      <PageSection>
-        <PagePanel className="flex flex-col gap-4 p-6">
+      <PageSection className="flex flex-col gap-3.5">
+        <PageHeading
+          crumb="Workspace"
+          title="Dailies"
+          subtitle="Daily standup for everyone in this workspace."
+        />
+
+        {/* The date row and the four counts are one card in the mockup — they read
+            as a single "which day, and how did it go" band. The standup cards are
+            siblings below it, not nested inside a second panel. */}
+        <section className="rounded-[var(--r-card)] border border-border bg-card px-4 pb-3.5 pt-[13px]">
           <DailyDateNav
             date={selectedDate}
             scribeName={daily?.scribe?.fullname}
@@ -122,78 +135,84 @@ const WorkspaceDailiesPage = () => {
                   onClick={() => setIsAddEntryOpen(true)}
                   disabled={availableInterns.length === 0}
                   data-test="add-entry-button"
+                  className="h-[30px] rounded-[var(--r-control)] px-3 text-[12px]"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Plus className="mr-1 h-3.5 w-3.5" />
                   Add entry
                 </Button>
               )
             }
           />
-          {isLoading && <DailySkeleton />}
-          {!isLoading && daily && (
-            <>
-              <DailyHeader counts={daily.counts} />
-              {daily.entries.length === 0 ? (
-                <p className="py-8 text-center text-sm text-muted-foreground">
-                  No entries yet — add the first standup entry.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {sortedEntries.map((entry) => (
-                    <DailyEntryCard
-                      key={entry._id}
-                      entry={entry}
-                      isEditable={daily.isEditable}
-                      onEdit={setEditingEntry}
-                      onRemove={setEntryToDelete}
-                    />
-                  ))}
-                </div>
-              )}
-              {daily.isEditable && availableInterns.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddEntryOpen(true)}
-                  data-test="add-entry-footer-button"
-                  className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border/70 py-4 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add entry for another member
-                </button>
-              )}
-              <AddEntryModal
-                open={isAddEntryOpen || Boolean(editingEntry)}
-                onOpenChange={(nextOpen) => {
-                  if (!nextOpen) {
-                    setIsAddEntryOpen(false);
-                    setEditingEntry(null);
-                  }
-                }}
-                workspaceId={workspaceId}
-                daily={daily}
-                entry={editingEntry}
-                date={selectedDate}
-              />
-              <DeleteConfirmModal
-                isOpen={Boolean(entryToDelete)}
-                onClose={() => setEntryToDelete(null)}
-                onConfirm={handleConfirmRemove}
-                isLoading={removeEntryMutation.isPending}
-                title="Remove entry"
-                description={`Remove ${entryToDelete?.member?.fullname ?? 'this'}'s entry for this daily? This can't be undone.`}
-                confirmLabel="Remove"
-                loadingLabel="Removing..."
-              />
-            </>
-          )}
-          {!isLoading && !daily && (
-            <DailyEmptyState
-              canStart={canStartSelectedDate}
-              onStart={handleStart}
-              isStarting={startDailyMutation.isPending}
+          {!isLoading && daily ? <DailyHeader counts={daily.counts} /> : null}
+        </section>
+
+        {isLoading && (
+          <LoadingOverlay label="Loading standup">
+            <DailySkeleton />
+          </LoadingOverlay>
+        )}
+        {!isLoading && daily && (
+          <>
+            {daily.entries.length === 0 ? (
+              <p className="rounded-[var(--r-card)] border border-dashed border-border py-8 text-center text-[12.5px] text-muted-foreground/75">
+                No entries yet — add the first standup entry.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3.5">
+                {sortedEntries.map((entry) => (
+                  <DailyEntryCard
+                    key={entry._id}
+                    entry={entry}
+                    isEditable={daily.isEditable}
+                    onEdit={setEditingEntry}
+                    onRemove={setEntryToDelete}
+                  />
+                ))}
+              </div>
+            )}
+            {daily.isEditable && availableInterns.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsAddEntryOpen(true)}
+                data-test="add-entry-footer-button"
+                className="flex h-11 items-center justify-center gap-1.5 rounded-[var(--r-card)] border border-dashed border-border text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add entry for another member
+              </button>
+            )}
+            <AddEntryModal
+              open={isAddEntryOpen || Boolean(editingEntry)}
+              onOpenChange={(nextOpen) => {
+                if (!nextOpen) {
+                  setIsAddEntryOpen(false);
+                  setEditingEntry(null);
+                }
+              }}
+              workspaceId={workspaceId}
+              daily={daily}
+              entry={editingEntry}
+              date={selectedDate}
             />
-          )}
-        </PagePanel>
+            <ConfirmModal
+              isOpen={Boolean(entryToDelete)}
+              onClose={() => setEntryToDelete(null)}
+              onConfirm={handleConfirmRemove}
+              isLoading={removeEntryMutation.isPending}
+              title="Remove entry"
+              description={`Remove ${entryToDelete?.member?.fullname ?? 'this'}'s entry for this daily? This can't be undone.`}
+              confirmLabel="Remove"
+              loadingLabel="Removing..."
+            />
+          </>
+        )}
+        {!isLoading && !daily && (
+          <DailyEmptyState
+            canStart={canStartSelectedDate}
+            onStart={handleStart}
+            isStarting={startDailyMutation.isPending}
+          />
+        )}
       </PageSection>
     </PageShell>
   );

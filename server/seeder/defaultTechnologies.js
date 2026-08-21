@@ -2,8 +2,13 @@
 // exist here (see helpers/cvTechnologyMatcher.js), so this list is what decides how much of
 // a real CV gets recognized — keep it broad enough to cover the mainstream stacks interns
 // actually list. A skill with no entry below is invisible to the CV scan no matter how it is
-// written. Languages and tooling sit alongside frameworks and disciplines on purpose: interns
-// list all of them on a CV, and a mentor can meaningfully assess readiness on any of them.
+// written. Languages and tooling sit alongside frameworks on purpose: interns list all of
+// them on a CV, and a mentor can meaningfully assess readiness on any of them. Whole-discipline
+// entries that duplicate a Position name ("DevOps", "Data Engineering", "Data Science",
+// "Machine Learning") do NOT belong here — those are specializations (server/models/Position.js),
+// not technologies, and createTechnology/createPosition now reject that overlap going forward
+// (see helpers/roleCatalog.js). Narrower practice labels that don't name a specialization
+// outright ("Manual QA", "Test Automation") are still fine.
 //
 // Adding an entry: give it an explicit `slug` whenever slugify(name) would be lossy or
 // collide (`C#` and `C++` both slugify to `c`). Then add the CV aliases for that slug in
@@ -89,8 +94,6 @@ module.exports = [
   { name: 'Xamarin' },
 
   // —— Data & analytics ——
-  { name: 'Data Engineering', slug: 'data-engineering' },
-  { name: 'Data Science', slug: 'data-science' },
   { name: 'Pandas' },
   { name: 'NumPy' },
   { name: 'Apache Spark', slug: 'apache-spark' },
@@ -100,7 +103,6 @@ module.exports = [
   { name: 'Tableau' },
 
   // —— ML ——
-  { name: 'Machine Learning', slug: 'machine-learning' },
   { name: 'TensorFlow' },
   { name: 'PyTorch' },
   { name: 'scikit-learn', slug: 'scikit-learn' },
@@ -116,7 +118,6 @@ module.exports = [
   { name: 'Postman' },
 
   // —— DevOps & cloud ——
-  { name: 'DevOps' },
   { name: 'Docker' },
   { name: 'Kubernetes' },
   { name: 'AWS' },

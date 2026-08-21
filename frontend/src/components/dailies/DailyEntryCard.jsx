@@ -1,49 +1,34 @@
 import { Link } from 'react-router-dom';
-import { Check, Circle, Pencil, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { getInitials } from '@/helpers/getInitials';
-import { getAvatarColor } from '@/helpers/avatarColor';
+import { Pencil, Trash2 } from 'lucide-react';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
+import { CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
+/**
+ * One of the card's three columns. The mockup gives each a 10.5px/600 uppercase
+ * caption tinted by its meaning — done/todo/blockers — over 12.5px body copy, and
+ * nothing else: no dots, no bullets, no tinted fill behind the blockers column.
+ */
 export const ItemColumn = ({
   title,
-  dotColor,
+  captionClassName,
   items,
   emptyLabel,
-  emptyIsPositive,
-  marker,
   renderItem = (item) => item,
-  tinted = false,
+  className,
 }) => (
-  <div
-    className={cn(
-      'flex flex-col gap-2 rounded-lg px-3 py-2',
-      tinted && 'bg-red-50/60 dark:bg-red-950/10'
-    )}
-  >
-    <div className="flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-      <span className={cn('h-2 w-2 shrink-0 rounded-full', dotColor)} />
+  <div className={cn('flex flex-col gap-1.5 px-4 py-3', className)}>
+    <span className={cn('text-[10.5px] font-semibold tracking-[0.07em]', captionClassName)}>
       {title}
-    </div>
+    </span>
     {items.length === 0 ? (
-      <p
-        className={cn(
-          'flex items-center gap-1.5 text-base',
-          emptyIsPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
-        )}
-      >
-        {emptyIsPositive && <Check className="h-4 w-4 shrink-0" />}
-        {emptyLabel}
-      </p>
+      <p className="text-[12.5px] leading-[1.5] text-muted-foreground/75">{emptyLabel}</p>
     ) : (
-      <ul className="flex flex-col gap-2 text-base">
+      <ul className="flex flex-col gap-1.5">
         {items.map((item, index) => (
-          <li key={index} className="flex items-start gap-2 leading-snug">
-            {marker}
-            <span className="flex-1">{renderItem(item)}</span>
+          <li key={index} className="text-pretty text-[12.5px] leading-[1.5] text-foreground/90">
+            {renderItem(item)}
           </li>
         ))}
       </ul>
@@ -60,32 +45,29 @@ export const BlockerItem = ({ blocker }) => {
   const archived = ticket.isArchived;
 
   return (
-    <div className="flex flex-col gap-1">
+    <span className="flex flex-col gap-1">
       <span>{blocker.text}</span>
       <Link
         to={`/tickets?ticket=${ticket._id}`}
         data-test={`daily-blocker-ticket-chip-${ticket._id}`}
         className={cn(
-          'inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs transition-colors',
+          'inline-flex w-fit max-w-full items-center gap-1.5 rounded-[var(--r-badge)] border px-1.5 py-px text-[10.5px] transition-colors',
           archived
             ? 'border-dashed border-muted-foreground/40 text-muted-foreground'
-            : 'border-input hover:bg-muted'
+            : 'border-separator hover:bg-accent'
         )}
       >
-        <span className="font-medium">#{ticket.taskNumber}</span>
+        <span className="font-semibold tabular-nums">#{ticket.taskNumber}</span>
         <span className="max-w-[140px] truncate">{ticket.subject}</span>
         {archived ? (
-          <span className="text-[10px] uppercase tracking-wide">Archived</span>
+          <span className="uppercase tracking-wide">Archived</span>
         ) : (
           ticket.status?.label && (
             <span
-              className="rounded px-1 text-[10px] font-semibold"
+              className="rounded-[var(--r-badge)] px-1 font-semibold"
               style={
                 ticket.status.color
-                  ? {
-                      color: ticket.status.color,
-                      backgroundColor: `${ticket.status.color}1a`,
-                    }
+                  ? { color: ticket.status.color, backgroundColor: `${ticket.status.color}1f` }
                   : undefined
               }
             >
@@ -94,7 +76,7 @@ export const BlockerItem = ({ blocker }) => {
           )
         )}
       </Link>
-    </div>
+    </span>
   );
 };
 
@@ -103,85 +85,81 @@ export const DailyEntryCard = ({ entry, isEditable = false, onEdit, onRemove }) 
   const fullname = entry.member?.fullname || '';
 
   return (
-    <Card data-test={`daily-entry-card-${entry._id}`} className="group overflow-hidden">
-      <CardHeader className="flex flex-row items-start justify-between gap-2 border-b border-border/60 bg-muted/40 py-5 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div
-            className={cn(
-              'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold',
-              getAvatarColor(fullname)
-            )}
-          >
-            {getInitials(fullname)}
-          </div>
-          <div className="flex flex-col">
-            <CardTitle className="text-xl">{fullname}</CardTitle>
-            {entry.member?.role && (
-              <span className="text-sm text-muted-foreground">
-                {capitalizeFirst(entry.member.role)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {blockerCount > 0 && (
-            <Badge className="gap-1.5 border-transparent bg-red-50 px-3 py-1 text-sm text-red-600 hover:bg-red-50 dark:bg-red-950/40 dark:text-red-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+    <section
+      data-test={`daily-entry-card-${entry._id}`}
+      className="group overflow-hidden rounded-[var(--r-card)] border border-border bg-card"
+    >
+      {/* Identity band — 28px avatar, name over role, time flush right. */}
+      <div className="flex items-center gap-2.5 border-b border-separator px-4 py-[11px]">
+        <UserAvatar user={entry.member} size="sm" showTitle={false} />
+        <span className="flex min-w-0 flex-col leading-[1.3]">
+          <span className="truncate text-[13px] font-semibold text-foreground">{fullname}</span>
+          {entry.member?.role ? (
+            <span className="text-[11px] text-muted-foreground/75">
+              {capitalizeFirst(entry.member.role)}
+            </span>
+          ) : null}
+        </span>
+
+        <span className="ml-auto flex flex-none items-center gap-2">
+          {blockerCount > 0 ? (
+            <span
+              className={cn(
+                CHIP,
+                'bg-[hsl(var(--tone-danger)/0.15)] text-[hsl(var(--tone-danger-fg))]'
+              )}
+            >
               {blockerCount} blocker{blockerCount === 1 ? '' : 's'}
-            </Badge>
-          )}
-          {isEditable && (
-            <div className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-              <Button
-                variant="ghost"
-                size="icon"
+            </span>
+          ) : null}
+          {isEditable ? (
+            <span className="flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+              <button
+                type="button"
                 data-test={`daily-entry-edit-${entry._id}`}
                 aria-label="Edit entry"
                 onClick={() => onEdit?.(entry)}
+                className="flex h-[22px] w-[22px] items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
               >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
                 data-test={`daily-entry-remove-${entry._id}`}
                 aria-label="Remove entry"
                 onClick={() => onRemove?.(entry)}
+                className="flex h-[22px] w-[22px] items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="grid divide-y divide-border/50 pt-6 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ) : null}
+        </span>
+      </div>
+
+      {/* Three equal columns, divided by the card's own outline colour — that is
+          what the mockup uses here, not the lighter inner hairline. */}
+      <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <ItemColumn
-          title="Done"
-          dotColor="bg-emerald-500"
+          title="DONE"
+          captionClassName="text-[hsl(var(--tone-success-fg))]"
           items={entry.done ?? []}
           emptyLabel="Nothing yet"
-          marker={
-            <Check className="mt-1 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-          }
         />
         <ItemColumn
-          title="To do"
-          dotColor="bg-blue-500"
+          title="TO DO"
+          captionClassName="text-[hsl(var(--tone-info-fg))]"
           items={entry.todo ?? []}
           emptyLabel="Nothing planned"
-          marker={<Circle className="mt-1 h-4 w-4 shrink-0 text-blue-500" />}
         />
         <ItemColumn
-          title="Blockers"
-          dotColor="bg-red-500"
+          title="BLOCKERS"
+          captionClassName="text-[hsl(var(--tone-danger-fg))]"
           items={entry.blockers ?? []}
           emptyLabel="No blockers"
-          emptyIsPositive
-          marker={<span className="mt-2 h-2 w-2 shrink-0 rounded-[2px] bg-red-500" />}
           renderItem={(blocker) => <BlockerItem blocker={blocker} />}
-          tinted={blockerCount > 0}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 };

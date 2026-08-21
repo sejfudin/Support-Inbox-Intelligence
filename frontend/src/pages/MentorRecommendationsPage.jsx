@@ -1,16 +1,9 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
-import { Badge } from '@/components/ui/badge';
+import { Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -19,27 +12,76 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import PageHeading from '@/components/PageHeading';
 import { PageShell, PageSection } from '@/components/PageShell';
+import TableSkeleton from '@/components/Skeletons/TableSkeleton';
+import FilterSelect from '@/components/FilterSelect';
+import RecommendationTechnologies from '@/components/interns/recommendations/RecommendationTechnologies';
+import { CHIP, badgeTone } from '@/helpers/badgeTones';
 import {
   getRecommendationResultLabel,
-  getRecommendationResultVariant,
+  getRecommendationResultTone,
   getRecommendationStatusLabel,
-  getRecommendationStatusVariant,
+  getRecommendationStatusTone,
   RECOMMENDATION_RESULTS,
   RECOMMENDATION_STATUSES,
 } from '@/helpers/recommendations';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
-import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { useHubs } from '@/queries/hubs';
 import { useRecommendations } from '@/queries/recommendations';
 import { useTechnologies } from '@/queries/technologies';
 import { formatDate } from '@/helpers/date';
+import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
-const tableHeadClass =
-  'h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground';
-const tableCellClass = 'px-4 py-4';
+// The three pipeline stages, in order — the columns that used to carry a date
+// each and now live in the status chip's tooltip.
+const STAGES = [
+  { key: 'recommended', label: 'Recommended' },
+  { key: 'interviewing', label: 'Interviewing' },
+  { key: 'resulted', label: 'Resulted' },
+];
+
+/** Per-stage dates, shown on hover over the status chip. */
+function StatusChip({ recommendation }) {
+  const dates = recommendation.statusDates || {};
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={cn(
+            CHIP,
+            'cursor-default border',
+            badgeTone(getRecommendationStatusTone(recommendation.status))
+          )}
+        >
+          {getRecommendationStatusLabel(recommendation.status)}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="px-3 py-2">
+        <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-1 text-[12px]">
+          {STAGES.map((stage) => (
+            <Fragment key={stage.key}>
+              <span className="text-muted-foreground">{stage.label}</span>
+              <span
+                className={cn(
+                  'text-right tabular-nums',
+                  dates[stage.key] ? 'font-medium text-foreground' : 'text-muted-foreground/70'
+                )}
+              >
+                {dates[stage.key] ? formatDate(dates[stage.key]) : '—'}
+              </span>
+            </Fragment>
+          ))}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export default function MentorRecommendationsPage() {
   const navigate = useNavigate();
@@ -54,7 +96,11 @@ export default function MentorRecommendationsPage() {
 
   const { data: hubs = [] } = useHubs();
   const { data: technologies = [] } = useTechnologies();
-  const { data, isPending, isError } = useRecommendations({
+  const {
+    data,
+    isPending: isPendingRaw,
+    isError,
+  } = useRecommendations({
     page,
     limit: 20,
     search: debouncedSearch || undefined,
@@ -63,250 +109,244 @@ export default function MentorRecommendationsPage() {
     technologyId: technologyId || undefined,
     hubId: hubId || undefined,
   });
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   const recommendations = data?.recommendations ?? [];
   const pagination = data?.pagination;
   const totalMatching = pagination?.total ?? 0;
+  const hasFilters = Boolean(search || status || result || technologyId || hubId);
+
+  // Straight to the intern's Recommendations tab, not their Overview. A row here
+  // IS a recommendation, so the question the click asks is "what else has been
+  // tried for this person" — and landing on Overview made the reader find the tab
+  // themselves every time.
   const profilePathFor = (userId) =>
-    user?.role === ROLES.ADMIN ? `/user/${userId}` : `/my-interns/${userId}`;
+    `${user?.role === ROLES.ADMIN ? `/user/${userId}` : `/my-interns/${userId}`}?tab=recommendations`;
+
+  // Every filter change resets to page 1 — page 3 of the old result set is a
+  // different, usually empty, page of the new one.
+  const onFilterChange = (setter) => (value) => {
+    setter(value === 'all' ? '' : value);
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setStatus('');
+    setResult('');
+    setTechnologyId('');
+    setHubId('');
+    setPage(1);
+  };
 
   return (
     <PageShell>
-      <PageSection className="space-y-6">
+      <PageSection className="space-y-4">
         <PageHeading
-          kicker="Placement flow"
+          crumb="Admin"
           title="Recommendations"
-          subtitle="Manage recommendation attempts and placement results."
+          subtitle="Recommendation attempts and placement results."
+          actions={
+            <div className="relative w-full md:w-[240px]">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70"
+                aria-hidden="true"
+              />
+              <Input
+                className="pl-[30px] text-[12.5px] md:text-[12.5px]"
+                placeholder="Search interns..."
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                aria-label="Search intern name or email"
+                data-test="recommendations-search-input"
+              />
+            </div>
+          }
         />
 
-        <div className="app-panel space-y-4 p-5 md:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-muted-foreground">
-              {isPending
-                ? 'Loading recommendations...'
-                : `${totalMatching} recommendation${totalMatching === 1 ? '' : 's'}`}
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <Input
-              placeholder="Search intern name or email..."
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setPage(1);
-              }}
-              data-test="recommendations-search-input"
-            />
-            <Select
-              value={hubId || 'all'}
-              onValueChange={(value) => {
-                setHubId(value === 'all' ? '' : value);
-                setPage(1);
-              }}
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect
+            value={hubId}
+            allLabel="All hubs"
+            options={hubs.map((hub) => ({ value: hub._id, label: hub.name }))}
+            onChange={onFilterChange(setHubId)}
+            dataTest="recommendations-hub-filter"
+          />
+          <FilterSelect
+            value={status}
+            allLabel="All statuses"
+            options={RECOMMENDATION_STATUSES}
+            onChange={onFilterChange(setStatus)}
+            dataTest="recommendations-status-filter"
+          />
+          <FilterSelect
+            value={result}
+            allLabel="All results"
+            options={RECOMMENDATION_RESULTS}
+            onChange={onFilterChange(setResult)}
+            dataTest="recommendations-result-filter"
+          />
+          <FilterSelect
+            value={technologyId}
+            allLabel="All technologies"
+            options={technologies.map((technology) => ({
+              value: technology._id,
+              label: technology.name,
+            }))}
+            onChange={onFilterChange(setTechnologyId)}
+            dataTest="recommendations-technology-filter"
+          />
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex h-8 items-center gap-1.5 rounded-[var(--r-control)] px-2.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              data-test="recommendations-clear-filters"
             >
-              <SelectTrigger data-test="recommendations-hub-filter">
-                <SelectValue placeholder="All hubs" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All hubs</SelectItem>
-                {hubs.map((hub) => (
-                  <SelectItem key={hub._id} value={hub._id}>
-                    {hub.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={status || 'all'}
-              onValueChange={(value) => {
-                setStatus(value === 'all' ? '' : value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger data-test="recommendations-status-filter">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {RECOMMENDATION_STATUSES.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={result || 'all'}
-              onValueChange={(value) => {
-                setResult(value === 'all' ? '' : value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger data-test="recommendations-result-filter">
-                <SelectValue placeholder="All results" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All results</SelectItem>
-                {RECOMMENDATION_RESULTS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={technologyId || 'all'}
-              onValueChange={(value) => {
-                setTechnologyId(value === 'all' ? '' : value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger data-test="recommendations-technology-filter">
-                <SelectValue placeholder="All technologies" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All technologies</SelectItem>
-                {technologies.map((technology) => (
-                  <SelectItem key={technology._id} value={technology._id}>
-                    {technology.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <X className="h-3.5 w-3.5" aria-hidden="true" />
+              Clear
+            </button>
+          )}
+
+          <span className="flex-1" />
+
+          <span className="text-[12px] text-muted-foreground/75" data-test="recommendations-count">
+            {isPending ? '—' : `${totalMatching} recommendation${totalMatching === 1 ? '' : 's'}`}
+          </span>
         </div>
 
-        <div className="app-panel overflow-hidden pb-2">
+        <div className="app-card overflow-hidden">
           {isError && (
-            <p className="p-6 text-sm text-destructive" data-test="recommendations-error">
+            <p
+              className="p-6 text-[12.5px] text-[hsl(var(--tone-danger-fg))]"
+              data-test="recommendations-error"
+            >
               Failed to load recommendations.
             </p>
           )}
           {isPending && (
-            <p className="p-6 text-sm text-muted-foreground">Loading recommendations...</p>
+            <LoadingOverlay label="Loading recommendations">
+              <TableSkeleton columns={8} rows={8} minWidthClassName="min-w-[1080px]" />
+            </LoadingOverlay>
           )}
           {!isPending && !isError && (
-            <div className="overflow-x-auto">
-              <Table className="min-w-[1480px]">
+            <TooltipProvider delayDuration={150}>
+              <Table className="min-w-[1120px]">
                 <TableHeader>
-                  <TableRow className="bg-secondary/60">
-                    <TableHead className={tableHeadClass}>Intern</TableHead>
-                    <TableHead className={tableHeadClass}>Hub</TableHead>
-                    <TableHead className={tableHeadClass}>Position</TableHead>
-                    <TableHead className={tableHeadClass}>Project</TableHead>
-                    <TableHead className={tableHeadClass}>Technologies</TableHead>
-                    <TableHead className={tableHeadClass}>Status</TableHead>
-                    <TableHead className={tableHeadClass}>Recommended</TableHead>
-                    <TableHead className={tableHeadClass}>Interviewing</TableHead>
-                    <TableHead className={tableHeadClass}>Resulted</TableHead>
-                    <TableHead className={tableHeadClass}>Result</TableHead>
-                    <TableHead className={tableHeadClass}>Updated</TableHead>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Intern</TableHead>
+                    <TableHead className="w-[110px]">Hub</TableHead>
+                    <TableHead className="w-[140px]">Position</TableHead>
+                    <TableHead className="w-[160px]">Project</TableHead>
+                    {/* The widest of the fixed columns: two chips plus the +N pill
+                        only stay on one line if the whole trio fits, and a
+                        technology name like "Data Engineering" is 130px of it. */}
+                    <TableHead className="w-[320px]">Technologies</TableHead>
+                    <TableHead className="w-[120px]">Status</TableHead>
+                    <TableHead className="w-[120px]">Result</TableHead>
+                    <TableHead className="w-[110px] text-right">Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {recommendations.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={8}
+                        className="h-auto py-12 text-center text-[12.5px] text-muted-foreground"
+                      >
                         No recommendations match your filters.
+                        {hasFilters && (
+                          <button
+                            type="button"
+                            onClick={clearFilters}
+                            className="ml-1.5 font-medium text-primary underline-offset-2 hover:underline"
+                          >
+                            Clear them
+                          </button>
+                        )}
                       </TableCell>
                     </TableRow>
                   )}
                   {recommendations.map((recommendation) => {
                     const intern = recommendation.internProfile;
                     const userId = intern?.user?._id;
+                    const fullname = intern?.user?.fullname || 'Unknown';
+                    const outcome = recommendation.result?.outcome;
 
                     return (
                       <TableRow
                         key={recommendation._id}
-                        className="cursor-pointer hover:bg-muted/30"
+                        className="cursor-pointer"
                         onClick={() => userId && navigate(profilePathFor(userId))}
                         data-test={`recommendation-row-${recommendation._id}`}
                       >
-                        <TableCell className={tableCellClass}>
-                          <p className="font-semibold text-foreground">
-                            {intern?.user?.fullname || 'Unknown'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {intern?.user?.email || '-'}
-                          </p>
-                        </TableCell>
-                        <TableCell className={`${tableCellClass} text-muted-foreground`}>
-                          {intern?.user?.hub?.name || '-'}
-                        </TableCell>
-                        <TableCell className={tableCellClass}>
-                          {recommendation.position?.name ? (
-                            <Badge variant="outline">{recommendation.position.name}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={`${tableCellClass} max-w-[220px] text-foreground [overflow-wrap:anywhere]`}
-                        >
-                          {recommendation.project?.name || (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className={tableCellClass}>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(recommendation.technologies || []).length === 0 && (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                            {(recommendation.technologies || []).slice(0, 3).map((technology) => (
-                              <Badge
-                                key={technology._id}
-                                variant="outline"
-                                className="gap-1.5 pl-2"
-                              >
-                                <TechnologyIcon
-                                  technology={technology}
-                                  size={13}
-                                  className="shrink-0"
-                                />
-                                {technology.name}
-                              </Badge>
-                            ))}
-                            {(recommendation.technologies || []).length > 3 && (
-                              <Badge variant="outline">
-                                +{recommendation.technologies.length - 3}
-                              </Badge>
-                            )}
+                        {/* Avatar + email under the name: the same intern cell as the
+                            attendance roster, so a person reads identically wherever
+                            they are listed. */}
+                        <TableCell>
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <UserAvatar
+                              user={intern?.user}
+                              name={fullname}
+                              size="md"
+                              showTitle={false}
+                            />
+                            <div className="min-w-0 leading-[1.35]">
+                              <p className="truncate text-[13px] font-medium text-foreground">
+                                {fullname}
+                              </p>
+                              <p className="truncate text-[11.5px] text-muted-foreground/75">
+                                {intern?.user?.email || '—'}
+                              </p>
+                            </div>
                           </div>
                         </TableCell>
-                        <TableCell className={tableCellClass}>
-                          <Badge variant={getRecommendationStatusVariant(recommendation.status)}>
-                            {getRecommendationStatusLabel(recommendation.status)}
-                          </Badge>
+                        <TableCell className="text-muted-foreground">
+                          {intern?.user?.hub?.name || '—'}
                         </TableCell>
-                        <TableCell
-                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
-                        >
-                          {formatDate(recommendation.statusDates?.recommended)}
-                        </TableCell>
-                        <TableCell
-                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
-                        >
-                          {formatDate(recommendation.statusDates?.interviewing)}
-                        </TableCell>
-                        <TableCell
-                          className={`${tableCellClass} whitespace-nowrap text-muted-foreground`}
-                        >
-                          {formatDate(recommendation.statusDates?.resulted)}
-                        </TableCell>
-                        <TableCell className={tableCellClass}>
-                          {recommendation.result?.outcome ? (
-                            <Badge
-                              variant={getRecommendationResultVariant(
-                                recommendation.result.outcome
-                              )}
-                            >
-                              {getRecommendationResultLabel(recommendation.result.outcome)}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
+                        <TableCell className="text-foreground">
+                          {recommendation.position?.name || (
+                            <span className="text-muted-foreground/75">—</span>
                           )}
                         </TableCell>
-                        <TableCell className={`${tableCellClass} text-muted-foreground`}>
+                        <TableCell className="text-muted-foreground">
+                          <span className="line-clamp-2 [overflow-wrap:anywhere]">
+                            {recommendation.project?.name || (
+                              <span className="text-muted-foreground/75">—</span>
+                            )}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <RecommendationTechnologies
+                            technologies={recommendation.technologies}
+                            intern={intern?.user}
+                            internName={fullname}
+                            subtitle={recommendation.position?.name}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <StatusChip recommendation={recommendation} />
+                        </TableCell>
+                        <TableCell>
+                          {outcome ? (
+                            <span
+                              className={cn(
+                                CHIP,
+                                'border',
+                                badgeTone(getRecommendationResultTone(outcome))
+                              )}
+                            >
+                              {getRecommendationResultLabel(outcome)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/75">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right text-muted-foreground">
                           {formatDate(recommendation.updatedAt)}
                         </TableCell>
                       </TableRow>
@@ -314,11 +354,11 @@ export default function MentorRecommendationsPage() {
                   })}
                 </TableBody>
               </Table>
-            </div>
+            </TooltipProvider>
           )}
           {pagination && pagination.pages > 1 && (
-            <div className="flex items-center justify-between border-t border-border/60 px-5 py-4">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between border-t border-separator px-[18px] py-3">
+              <p className="text-[12px] text-muted-foreground/75">
                 Page {pagination.page} of {pagination.pages}
               </p>
               <div className="flex gap-2">
@@ -326,6 +366,7 @@ export default function MentorRecommendationsPage() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-8"
                   disabled={page <= 1}
                   onClick={() => setPage((currentPage) => currentPage - 1)}
                   data-test="recommendations-prev-page-button"
@@ -336,6 +377,7 @@ export default function MentorRecommendationsPage() {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="h-8"
                   disabled={page >= pagination.pages}
                   onClick={() => setPage((currentPage) => currentPage + 1)}
                   data-test="recommendations-next-page-button"

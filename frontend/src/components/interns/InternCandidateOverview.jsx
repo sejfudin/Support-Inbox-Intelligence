@@ -1,15 +1,18 @@
 import { InternDocumentationLinksPanel } from '@/components/interns/InternDocumentationLinksPanel';
 import { InternInternalCvPanel } from '@/components/interns/InternInternalCvPanel';
 import { InternDeclaredTechnologies } from '@/components/interns/InternDeclaredTechnologies';
+import { InternCvSummaryPanel } from '@/components/interns/InternCvSummaryPanel';
 import { cn } from '@/lib/utils';
 
 function OverviewSection({ title, description, children, className, action }) {
   return (
-    <section className={cn('space-y-4', className)}>
+    <section className={cn('space-y-3', className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
-          {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+          <h3 className="app-card-title">{title}</h3>
+          {description ? (
+            <p className="mt-0.5 text-[12.5px] text-muted-foreground">{description}</p>
+          ) : null}
         </div>
         {action}
       </div>
@@ -23,20 +26,33 @@ export function InternCandidateOverview({
   userId,
   canEditDocumentation = false,
   canEditInternalCv = false,
+  canGenerateCvSummary = false,
   className,
 }) {
   return (
-    <div className={cn('space-y-8', className)}>
+    <div className={cn('space-y-4', className)}>
       <OverviewSection
         title="Declared technologies"
         description="Stacks the candidate selected on their profile."
+        className="pb-4"
       >
         <InternDeclaredTechnologies technologies={intern.selfTechnologies || []} />
       </OverviewSection>
 
-      <div className="border-t border-border/60" />
+      <div className="border-t border-separator" />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Above the link panels rather than beside them: it is prose that runs the
+          width of the card, and the two link panels are a matched pair that
+          should not be split up to make room for it. */}
+      <InternCvSummaryPanel
+        userId={userId}
+        cvUrl={intern.cvUrl}
+        canGenerate={canGenerateCvSummary}
+      />
+
+      <div className="border-t border-separator" />
+
+      <div className="grid gap-3 md:grid-cols-2">
         <InternInternalCvPanel
           userId={userId}
           internalCvUrl={intern.internalCvUrl}

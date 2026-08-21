@@ -38,19 +38,22 @@ export function InternProgrammeControls({ intern, className }) {
   };
 
   return (
-    <InternPanel className={cn('flex flex-col', className)}>
-      <h3 className="text-lg font-semibold text-foreground">Programme controls</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Update the lifecycle status for this intern. The ready status marks them as ready for
-        placement.
+    <InternPanel dense className={cn('flex flex-col', className)}>
+      <h3 className="app-card-title">Programme controls</h3>
+      <p className="mt-0.5 text-[12.5px] leading-[1.5] text-muted-foreground">
+        Update the lifecycle status for this intern. Ready marks them as available for placement.
+        Placed is set automatically when a recommendation records them as placed — it can’t be
+        picked here.
       </p>
-      <div className="mt-5 space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="intern-status-select">Lifecycle status</Label>
+      <div className="mt-3 space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="intern-status-select" className="text-[11.5px] font-medium">
+            Lifecycle status
+          </Label>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger
               id="intern-status-select"
-              className="w-full capitalize"
+              className="w-full rounded-[var(--r-control)] text-[13px] capitalize"
               data-test="intern-status-select"
             >
               <SelectValue />
@@ -60,6 +63,7 @@ export function InternProgrammeControls({ intern, className }) {
                 <SelectItem
                   key={s}
                   value={s}
+                  disabled={s === 'placed'}
                   className="capitalize"
                   data-test={`intern-status-${s}`}
                 >
@@ -71,7 +75,7 @@ export function InternProgrammeControls({ intern, className }) {
         </div>
         <Button
           type="button"
-          className="w-full"
+          className="w-full rounded-[var(--r-control)] text-[12.5px]"
           disabled={isPending}
           onClick={handleSave}
           data-test="intern-programme-controls-save-button"

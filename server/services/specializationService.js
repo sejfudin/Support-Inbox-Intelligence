@@ -12,19 +12,21 @@ const {
 } = require('../helpers/specializationRules');
 const { emitInternDataChanged } = require('../socket/events');
 const { httpError } = require('../helpers/httpError');
+const internNotificationService = require('./internNotificationService');
+const { userSelect } = require('../constants/userSelect');
 
 const STATUSES = ['specialized', 'unspecialized', 'all'];
 
 const PROFILE_POPULATE = [
   {
     path: 'user',
-    select: 'fullname email status role hub',
+    select: userSelect('role', 'status', 'hub'),
     populate: { path: 'hub', select: 'name city country' },
   },
   { path: 'declaredPosition', select: 'name slug' },
   { path: 'secondaryPosition', select: 'name slug' },
-  { path: 'primaryMentor', select: 'fullname email role' },
-  { path: 'secondaryMentor', select: 'fullname email role' },
+  { path: 'primaryMentor', select: userSelect('role') },
+  { path: 'secondaryMentor', select: userSelect('role') },
 ];
 
 // Only a platform admin may view or manage specializations — mentors receive
@@ -43,6 +45,7 @@ const formatUser = (user) => {
     fullname: user.fullname,
     email: user.email,
     role: user.role,
+    avatarUrl: user.avatarUrl || null,
     hub: user.hub || null,
   };
 };
@@ -191,6 +194,14 @@ const assignSpecialization = async (user, payload = {}) => {
   await profile.populate(PROFILE_POPULATE);
 
   emitInternDataChanged();
+
+  internNotificationService.notifySpecializationAssigned({
+    internUserId: profile.user,
+    internProfileId: profile._id,
+    positionLabel: profile.declaredPosition?.name,
+    mentorName: profile.secondaryMentor?.fullname,
+  });
+
   return formatSpecialization(profile);
 };
 
@@ -202,12 +213,15 @@ const loadSpecializedProfile = async (internUserId) => {
   return profile;
 };
 
-const persistAndFormat = async (profile, changes) => {
+// `notify` lets each caller send its own event copy off the same persist +
+// populate + cache-invalidate path, rather than three near-identical blocks.
+const persistAndFormat = async (profile, changes, notify) => {
   Object.assign(profile, changes);
   await profile.save();
   await profile.populate(PROFILE_POPULATE);
 
   emitInternDataChanged();
+  if (notify) notify(profile);
   return formatSpecialization(profile);
 };
 
@@ -223,7 +237,13 @@ const reassignSpecialization = async (user, internUserId) => {
     throw httpError(error.message, 400);
   }
 
-  return persistAndFormat(profile, changes);
+  return persistAndFormat(profile, changes, (updated) =>
+    internNotificationService.notifySpecializationReassigned({
+      internUserId: updated.user,
+      internProfileId: updated._id,
+      positionLabel: updated.declaredPosition?.name,
+    })
+  );
 };
 
 const changeSpecializationMentor = async (user, internUserId, mentorId) => {
@@ -244,7 +264,13 @@ const changeSpecializationMentor = async (user, internUserId, mentorId) => {
     throw httpError(error.message, 400);
   }
 
-  return persistAndFormat(profile, changes);
+  return persistAndFormat(profile, changes, (updated) =>
+    internNotificationService.notifySpecializationMentorChanged({
+      internUserId: updated.user,
+      internProfileId: updated._id,
+      mentorName: updated.secondaryMentor?.fullname,
+    })
+  );
 };
 
 const clearSpecialization = async (user, internUserId) => {
@@ -253,7 +279,12 @@ const clearSpecialization = async (user, internUserId) => {
   const profile = await loadSpecializedProfile(internUserId);
   const changes = clearSpecializationRule(profile);
 
-  return persistAndFormat(profile, changes);
+  return persistAndFormat(profile, changes, (updated) =>
+    internNotificationService.notifySpecializationCleared({
+      internUserId: updated.user,
+      internProfileId: updated._id,
+    })
+  );
 };
 
 module.exports = {

@@ -46,7 +46,7 @@ const TemplateEditor = ({ value, onChange, categoryId }) => (
     value={value}
     onChange={onChange}
     placeholder="Ticket description template"
-    className="mt-3 min-h-40 overflow-hidden rounded-lg bg-card"
+    className="mt-3 min-h-40 overflow-hidden rounded-[var(--r-control)] bg-card"
   >
     <div className="border-b border-border/60 bg-muted/60 px-3 py-2">
       <RichTextEditorToolbar className="flex-wrap p-0" />
@@ -128,7 +128,7 @@ export default function CreateWorkspacePage() {
     const hasInvitations = invitations.length > 0;
 
     return (
-      <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
+      <div className="fixed inset-0 h-[var(--app-vh)] w-[var(--app-vw)] overflow-y-auto bg-transparent p-4">
         <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col items-center justify-center py-6 sm:py-10">
           <div className="text-center">
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground shadow-sm">
@@ -142,7 +142,7 @@ export default function CreateWorkspacePage() {
             <div className="mt-10 grid w-full gap-6 lg:grid-cols-[0.78fr_1.12fr]">
               <Card className="border-border/50 bg-card shadow-elevated">
                 <CardHeader className="space-y-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[var(--r-card)] bg-primary/10 text-primary">
                     <Building2 className="h-6 w-6" />
                   </div>
                   <div>
@@ -157,7 +157,7 @@ export default function CreateWorkspacePage() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  <div className="rounded-2xl border border-border/70 bg-secondary/70 p-4">
+                  <div className="rounded-[var(--r-card)] border border-border/70 bg-secondary/70 p-4">
                     <div className="flex items-start gap-3">
                       <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
                       <div>
@@ -178,7 +178,7 @@ export default function CreateWorkspacePage() {
                     ].map((step, index) => (
                       <div
                         key={step}
-                        className="flex items-center gap-3 rounded-xl border border-border px-4 py-3"
+                        className="flex items-center gap-3 rounded-[var(--r-card)] border border-border px-4 py-3"
                       >
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
                           {index + 1}
@@ -236,7 +236,7 @@ export default function CreateWorkspacePage() {
                     your invitation will appear here and you&apos;ll be able to join in one step.
                   </p>
 
-                  <div className="mt-8 rounded-2xl border border-border/70 bg-secondary/70 p-5">
+                  <div className="mt-8 rounded-[var(--r-card)] border border-border/70 bg-secondary/70 p-5">
                     <div className="flex items-start gap-3">
                       <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
                       <div>
@@ -364,7 +364,7 @@ export default function CreateWorkspacePage() {
   };
 
   return (
-    <div className="fixed inset-0 h-screen w-screen overflow-y-auto bg-transparent p-4">
+    <div className="fixed inset-0 h-[var(--app-vh)] w-[var(--app-vw)] overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <Card className="border-primary/10 bg-foreground text-background shadow-elevated">
@@ -386,20 +386,20 @@ export default function CreateWorkspacePage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <div className="rounded-2xl border border-primary-foreground/10 bg-primary-foreground/5 p-4">
+              <div className="rounded-[var(--r-card)] border border-primary-foreground/10 bg-primary-foreground/5 p-4">
                 <p className="text-sm font-semibold text-background">What you unlock next</p>
                 <div className="mt-4 space-y-3">
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <Building2 className="h-4 w-4 text-blue-300" />A dedicated workspace for
-                    tickets, members, and workflows
+                    <Building2 className="h-4 w-4 text-[hsl(var(--tone-info-fg))]" />A dedicated
+                    workspace for tickets, members, and workflows
                   </div>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <ShieldCheck className="h-4 w-4 text-blue-300" />
+                    <ShieldCheck className="h-4 w-4 text-[hsl(var(--tone-info-fg))]" />
                     Admin controls for inviting users and assigning access
                   </div>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <ArrowRight className="h-4 w-4 text-blue-300" />A clear starting point for your
-                    team to begin collaborating
+                    <ArrowRight className="h-4 w-4 text-[hsl(var(--tone-info-fg))]" />A clear
+                    starting point for your team to begin collaborating
                   </div>
                 </div>
               </div>
@@ -419,7 +419,7 @@ export default function CreateWorkspacePage() {
 
             <CardContent className="p-6 md:p-8">
               {error && (
-                <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                <div className="mb-5 rounded-[var(--r-card)] border border-[hsl(var(--tone-danger)/0.3)] bg-[hsl(var(--tone-danger)/0.15)] px-4 py-3 text-sm font-medium text-[hsl(var(--tone-danger-fg))]">
                   {error}
                 </div>
               )}
@@ -513,7 +513,7 @@ export default function CreateWorkspacePage() {
                   />
                 </div>
 
-                <div className="rounded-2xl border border-border bg-muted p-4">
+                <div className="rounded-[var(--r-card)] border border-border bg-muted p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-semibold text-foreground">Initial categories</p>
@@ -540,7 +540,7 @@ export default function CreateWorkspacePage() {
                       {categories.map((category, index) => (
                         <div
                           key={category.id}
-                          className="rounded-xl border border-border bg-card p-3"
+                          className="rounded-[var(--r-card)] border border-border bg-card p-3"
                         >
                           <div className="flex items-start gap-2">
                             <Input
@@ -554,7 +554,7 @@ export default function CreateWorkspacePage() {
                               maxLength={50}
                               data-test={`create-workspace-category-${category.id}-name-input`}
                             />
-                            <div className="flex h-10 shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2">
+                            <div className="flex h-10 shrink-0 items-center gap-1 rounded-[var(--r-control)] border border-border bg-card px-2">
                               {CATEGORY_COLORS.map((color) => (
                                 <button
                                   key={color}
@@ -564,7 +564,9 @@ export default function CreateWorkspacePage() {
                                   style={{
                                     backgroundColor: color,
                                     borderColor:
-                                      category.color === color ? '#1e293b' : 'transparent',
+                                      category.color === color
+                                        ? 'hsl(var(--foreground))'
+                                        : 'transparent',
                                   }}
                                   aria-label={`Use ${color}`}
                                   data-test={`create-workspace-category-${category.id}-color-${color.replace('#', '')}-button`}
@@ -574,7 +576,7 @@ export default function CreateWorkspacePage() {
                             <button
                               type="button"
                               onClick={() => removeCategoryDraft(category.id)}
-                              className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                              className="rounded-[var(--r-control)] p-2 text-muted-foreground transition-colors hover:bg-[hsl(var(--tone-danger)/0.15)] hover:text-[hsl(var(--tone-danger-fg))]"
                               aria-label="Remove category"
                               data-test={`create-workspace-category-${category.id}-remove-button`}
                             >

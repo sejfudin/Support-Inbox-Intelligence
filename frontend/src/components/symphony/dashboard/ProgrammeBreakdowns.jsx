@@ -1,3 +1,4 @@
+import { Skeleton } from '@/components/ui/skeleton';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { BreakdownDonut } from '@/components/symphony/dashboard/BreakdownDonut';
 import { INTERN_STATUSES } from '@/helpers/internProfile';
@@ -53,10 +54,23 @@ export function ProgrammeBreakdowns({
 
       {isPending ? (
         <div className="grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
+          {/* The three cards were already the right size, with a centred "Loading…" inside
+              them. Same box, but standing in for what each one actually holds: kicker, title,
+              then the donut's rows of label / meter / count. */}
           {[0, 1, 2].map((i) => (
             <SymphonyCard key={i} className="px-[22px] pb-[18px] pt-[22px]">
-              <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-                Loading…
+              <Skeleton className="mb-1 h-2.5 w-24" />
+              <Skeleton className="mb-4 h-4 w-36" />
+              <div className="flex h-[240px] flex-col gap-4">
+                {[0, 1, 2, 3].map((row) => (
+                  <div key={row} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <Skeleton className="h-3 w-28" />
+                      <Skeleton className="h-3 w-8" />
+                    </div>
+                    <Skeleton className="h-2 w-full rounded-full" />
+                  </div>
+                ))}
               </div>
             </SymphonyCard>
           ))}

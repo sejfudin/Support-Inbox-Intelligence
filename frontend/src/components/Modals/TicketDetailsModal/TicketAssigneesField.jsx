@@ -40,7 +40,7 @@ export function TicketAssigneesField({
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex w-full items-center gap-2 px-3 py-2 rounded-md text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between"
+          className="flex w-full items-center gap-2 px-3 py-2 rounded-[var(--r-control)] text-xs font-bold uppercase transition-colors outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-muted text-foreground hover:bg-muted justify-between"
           aria-label="Change assignees"
           data-test="ticket-modal-assignees-trigger"
         >
@@ -74,7 +74,7 @@ export function TicketAssigneesField({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
+        className="w-[min(calc(var(--app-vw)-2rem),18rem)] p-2 z-[110]"
         align="center"
         sideOffset={8}
       >
@@ -87,7 +87,7 @@ export function TicketAssigneesField({
               <button
                 type="button"
                 onClick={() => setSelectedAgents([])}
-                className="text-[10px] text-red-500 hover:underline font-bold"
+                className="text-[10px] text-[hsl(var(--tone-danger))] hover:underline font-bold"
                 data-test="ticket-modal-assignees-clear-button"
               >
                 Clear all
@@ -107,7 +107,7 @@ export function TicketAssigneesField({
                         isSelected ? prev.filter((id) => id !== agent._id) : [...prev, agent._id]
                       );
                     }}
-                    className="flex items-center gap-3 p-2 hover:bg-blue-50/50 rounded-lg cursor-pointer transition-colors group"
+                    className="flex items-center gap-3 p-2 hover:bg-[hsl(var(--tone-info)/0.5)] rounded-[var(--r-control)] cursor-pointer transition-colors group"
                     data-test={`ticket-modal-assignee-option-${agent._id}`}
                   >
                     <Checkbox
@@ -117,7 +117,7 @@ export function TicketAssigneesField({
                       data-test={`ticket-modal-assignee-checkbox-${agent._id}`}
                     />
                     <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-semibold text-foreground truncate group-hover:text-blue-700">
+                      <span className="text-sm font-semibold text-foreground truncate group-hover:text-[hsl(var(--tone-info-fg))]">
                         {agent.fullName || agent.fullname || agent.email}
                       </span>
                       <span className="text-[10px] text-muted-foreground truncate">

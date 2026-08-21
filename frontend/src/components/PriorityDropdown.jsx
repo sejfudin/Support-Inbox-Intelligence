@@ -20,7 +20,7 @@ export default function PriorityDropdown({ priority, onChange, disabled = false,
           disabled={disabled}
           data-test="ticket-priority-trigger"
           className={cn(
-            'flex items-center gap-2 px-3 py-2.5 rounded-md text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2',
+            'flex items-center gap-2 px-3 py-2.5 rounded-[var(--r-control)] text-xs font-bold uppercase transition-colors outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2',
             disabled && 'cursor-not-allowed opacity-60',
             className,
             currentConfig.badge

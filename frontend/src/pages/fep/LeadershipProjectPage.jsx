@@ -1,14 +1,18 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
-import { ArrowLeft, History, UserCheck, Users } from 'lucide-react';
+import { ArrowLeft, History, UserCheck, UserPlus, Users } from 'lucide-react';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { SymphonyStatusBadge } from '@/components/symphony/SymphonyStatusBadge';
+import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge';
+import { RequestFormModal } from '@/components/symphony/requests/RequestFormModal';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Loader, useLoaderHold } from '@/components/ui/loader';
 import { useProjectOverview } from '@/queries/projects';
-import { getInitials } from '@/helpers/initials';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import {
   getOutcomeHistoryTone,
   getOutcomeLabel,
@@ -17,6 +21,7 @@ import {
   getSelectionStageTheme,
 } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 // Clicking a tile scrolls to its section below — it never filters, unlike
 // the list page's KPI cards (see LeadershipProjectsPage). `dot` gives each
@@ -51,19 +56,24 @@ function SectionHeading({ icon: Icon, tint, title, subtitle }) {
   );
 }
 
-function PersonAvatar({ fullname, className }) {
+function PersonAvatar({ user, fullname, className }) {
   return (
-    <Avatar className="h-9 w-9 shrink-0">
-      <AvatarFallback className={cn('text-xs font-semibold', className)}>
-        {getInitials(fullname)}
-      </AvatarFallback>
-    </Avatar>
+    <UserAvatar
+      user={user}
+      name={fullname}
+      className={cn('h-9 w-9 text-xs font-semibold', className)}
+      showTitle={false}
+    />
   );
 }
 
 export default function LeadershipProjectPage() {
   const { id } = useParams();
-  const { data, isPending, isError } = useProjectOverview(id);
+  const { data, isPending: isPendingRaw, isError } = useProjectOverview(id);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
+  useDocumentTitle(data?.project?.name);
+  const [requestOpen, setRequestOpen] = useState(false);
 
   const placedRef = useRef(null);
   const selectionRef = useRef(null);
@@ -72,13 +82,13 @@ export default function LeadershipProjectPage() {
   const scrollTo = (ref) => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   if (isPending) {
-    return <p className="text-sm text-muted-foreground">Loading project...</p>;
+    return <Loader variant="panel" label="Loading project…" />;
   }
 
   if (isError || !data?.project) {
     return (
       <SymphonyCard className="space-y-4">
-        <p className="text-sm text-destructive">Unable to load this project.</p>
+        <p className="text-sm text-[hsl(var(--tone-danger-fg))]">Unable to load this project.</p>
         <Link to="/projects" className="text-sm font-medium text-primary hover:underline">
           Back to projects
         </Link>
@@ -107,10 +117,24 @@ export default function LeadershipProjectPage() {
         title={project.name}
         subtitle={project.description || undefined}
         actions={
-          <SymphonyStatusBadge
-            status={project.status}
-            label={getProjectStatusLabel(project.status)}
-          />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <ProjectTypeBadge type={project.type} />
+            <SymphonyStatusBadge
+              status={project.status}
+              label={getProjectStatusLabel(project.status)}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setRequestOpen(true)}
+              data-test="project-request-interns-button"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Request interns
+            </Button>
+          </div>
         }
       >
         {project.technologies?.length > 0 && (
@@ -126,6 +150,8 @@ export default function LeadershipProjectPage() {
           </div>
         )}
       </SymphonyPageHeader>
+
+      <RequestFormModal open={requestOpen} onOpenChange={setRequestOpen} initialProject={project} />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <SectionStatTile
@@ -172,6 +198,7 @@ export default function LeadershipProjectPage() {
                   className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.04] px-3 py-2.5 dark:border-emerald-500/15"
                 >
                   <PersonAvatar
+                    user={intern}
                     fullname={intern.fullname}
                     className="bg-emerald-500/15 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400"
                   />
@@ -214,7 +241,11 @@ export default function LeadershipProjectPage() {
                       theme.panel
                     )}
                   >
-                    <PersonAvatar fullname={intern.fullname} className={theme.avatar} />
+                    <PersonAvatar
+                      user={intern}
+                      fullname={intern.fullname}
+                      className={theme.avatar}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
                         {intern.fullname}

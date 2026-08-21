@@ -113,7 +113,7 @@ const seedTestingData = async () => {
       const slug = slugify(name);
       let project = await Project.findOne({ slug });
       if (!project) {
-        project = await Project.create({ name, slug, status: 'active' });
+        project = await Project.create({ name, slug, status: 'active', type: 'client' });
       }
       return project;
     };
@@ -683,7 +683,7 @@ const seedTestingData = async () => {
         secondaryIdx: 2,
         status: 'active',
         endDays: 15,
-        techs: ['devops', 'go'],
+        techs: ['docker', 'go'],
       },
       {
         email: 'intern.ready.unpitched@symphony.is',
@@ -756,8 +756,8 @@ const seedTestingData = async () => {
         mentorIdx: 2,
         status: 'ready',
         endDays: 5,
-        techs: ['data-engineering'],
-        readiness: { 'data-engineering': 'ready' },
+        techs: ['sql'],
+        readiness: { sql: 'ready' },
         rec: 'interviewing',
         interviewInDays: null,
       },
@@ -769,8 +769,8 @@ const seedTestingData = async () => {
         mentorIdx: 3,
         status: 'ready',
         endDays: 2,
-        techs: ['fastapi', 'data-science'],
-        readiness: { fastapi: 'ready', 'data-science': 'learning' },
+        techs: ['fastapi', 'pandas'],
+        readiness: { fastapi: 'ready', pandas: 'learning' },
         rec: 'recommended',
         recAgeDays: 5,
       },
@@ -783,8 +783,8 @@ const seedTestingData = async () => {
         secondaryIdx: 1,
         status: 'ready',
         endDays: 14,
-        techs: ['react', 'node-js', 'devops'],
-        readiness: { react: 'ready', 'node-js': 'ready', devops: 'learning' },
+        techs: ['react', 'node-js', 'docker'],
+        readiness: { react: 'ready', 'node-js': 'ready', docker: 'learning' },
         rec: 'interviewing',
         interviewInDays: 2,
       },

@@ -1,55 +1,59 @@
 import { format } from 'date-fns';
-import { PagePanel } from '@/components/PageShell';
+import { ProfileMetaCard } from '@/components/profile/ProfileMetaCard';
+import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { useMyInternProfile } from '@/queries/interns';
+import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
+/**
+ * The intern's own view of their programme, in the profile page's right-hand
+ * column. Read-only by design — every field on it is mentor- or admin-owned.
+ *
+ * The hub is read off the intern profile's own populated user rather than the
+ * signed-in viewer: this card is the programme record, and it should say what
+ * that record says.
+ */
 export function InternSelfServicePanel() {
-  const { data: intern, isPending, isError } = useMyInternProfile();
+  const { data: intern, isPending: isPendingRaw, isError } = useMyInternProfile();
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isPending = useLoaderHold(isPendingRaw, { release: isError });
 
   if (isPending) {
     return (
-      <PagePanel className="px-5 py-6 text-sm text-muted-foreground md:px-6">
-        Loading internship profile...
-      </PagePanel>
+      <section className="app-card px-[18px] py-[15px]">
+        <LoadingOverlay size="sm" label="Loading profile">
+          <PanelBodySkeleton rows={4} className="pt-0" />
+        </LoadingOverlay>
+      </section>
     );
   }
 
   if (isError || !intern) {
     return (
-      <PagePanel className="px-5 py-6 text-sm text-destructive md:px-6">
+      <section className="app-card px-[18px] py-[15px] text-[12.5px] text-[hsl(var(--tone-danger-fg))]">
         No internship profile found. Contact your programme admin.
-      </PagePanel>
+      </section>
     );
   }
 
-  return (
-    <PagePanel className="px-5 py-6 md:px-6">
-      <h2 className="text-lg font-semibold text-foreground">Internship programme</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Your internship programme details.</p>
+  const rows = [
+    { label: 'Type', value: intern.internshipType?.name },
+    { label: 'Status', value: capitalizeFirst(intern.status || '') || null },
+    {
+      label: 'Start date',
+      value: intern.startDate ? format(new Date(intern.startDate), 'MMM d, yyyy') : null,
+    },
+    { label: 'Hub', value: intern.user?.hub?.name },
+    { label: 'Primary mentor', value: intern.primaryMentor?.fullname },
+    { label: 'Secondary mentor', value: intern.secondaryMentor?.fullname },
+  ];
 
-      <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
-        <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
-          <dt className="text-muted-foreground">Type</dt>
-          <dd className="font-medium text-foreground">{intern.internshipType?.name}</dd>
-        </div>
-        <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
-          <dt className="text-muted-foreground">Status</dt>
-          <dd className="font-medium capitalize text-foreground">{intern.status}</dd>
-        </div>
-        <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
-          <dt className="text-muted-foreground">Start date</dt>
-          <dd className="font-medium text-foreground">
-            {intern.startDate ? format(new Date(intern.startDate), 'MMM d, yyyy') : '—'}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3">
-          <dt className="text-muted-foreground">Primary mentor</dt>
-          <dd className="font-medium text-foreground">{intern.primaryMentor?.fullname || '—'}</dd>
-        </div>
-        <div className="flex justify-between gap-4 rounded-xl border border-border/60 px-4 py-3 sm:col-span-2">
-          <dt className="text-muted-foreground">Secondary mentor</dt>
-          <dd className="font-medium text-foreground">{intern.secondaryMentor?.fullname || '—'}</dd>
-        </div>
-      </dl>
-    </PagePanel>
+  return (
+    <ProfileMetaCard
+      title="Internship programme"
+      description="Managed by your mentor — read-only here."
+      rows={rows}
+      dataTest="profile-internship-panel"
+    />
   );
 }

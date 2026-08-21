@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, Pencil, Shield } from 'lucide-react';
+import React from 'react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -11,17 +11,10 @@ import {
 } from '@/components/ui/table';
 import { RoleBadge } from '@/components/RoleBadge';
 import { UserStatusBadge } from '@/components/UserStatusBadge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
-
-function getInitials(name) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
+import { badgeTone, CHIP } from '@/helpers/badgeTones';
+import { cn } from '@/lib/utils';
+import { UserAvatar } from '@/components/ui/user-avatar';
 
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
@@ -32,26 +25,12 @@ function formatDate(dateString) {
   });
 }
 
-export default function AdminUsersExpandableTable({
-  data,
-  pagination,
-  onPageChange,
-  onEditUser,
-  onRowClick,
-  isLoading,
-}) {
-  const [expandedRows, setExpandedRows] = useState(new Set());
+function membershipLabel(count) {
+  if (!count) return 'No workspace';
+  return count === 1 ? 'In 1 workspace' : `In ${count} workspaces`;
+}
 
-  const toggleRow = (userId) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(userId)) {
-      newExpanded.delete(userId);
-    } else {
-      newExpanded.add(userId);
-    }
-    setExpandedRows(newExpanded);
-  };
-
+export default function AdminUsersExpandableTable({ data, pagination, onPageChange, onRowClick }) {
   const handleNext = () => {
     if (pagination && pagination.page < pagination.pages) {
       onPageChange(pagination.page + 1);
@@ -71,205 +50,98 @@ export default function AdminUsersExpandableTable({
   const to = Math.min(currentPage * limit, totalResults);
 
   return (
-    <div className="w-full space-y-4">
-      <div className="w-full overflow-x-auto rounded-lg border border-border/70">
-        <Table className="min-w-full">
-          <TableHeader>
-            <TableRow className="bg-secondary/60">
-              <TableHead className="w-[5%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground"></TableHead>
-              <TableHead className="w-[35%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                User
-              </TableHead>
-              <TableHead className="w-[15%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Global Role
-              </TableHead>
-              <TableHead className="w-[20%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Memberships
-              </TableHead>
-              <TableHead className="w-[15%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Status
-              </TableHead>
-              <TableHead className="w-[10%] h-14 px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Actions
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+    <div className="w-full">
+      {/* 760px is the mockup's floor for these columns — below it the name column
+          would be squeezed past the point where an email still fits, so the card
+          scrolls sideways instead. */}
+      <Table className="min-w-[760px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="min-w-[200px]">User</TableHead>
+            <TableHead className="w-[130px]">Role</TableHead>
+            <TableHead className="w-[150px]">Memberships</TableHead>
+            <TableHead className="w-[110px]">Status</TableHead>
+          </TableRow>
+        </TableHeader>
 
-          <TableBody>
-            {data?.length ? (
-              data.map((user) => (
-                <React.Fragment key={user.id}>
-                  <TableRow
-                    className="border-b border-border/70 transition-colors hover:bg-secondary/50 cursor-pointer"
-                    onClick={() => onRowClick?.(user.id)}
-                    data-test={`admin-users-row-${user.id}-card`}
-                  >
-                    <TableCell className="w-[5%] py-4 px-4">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleRow(user.id);
-                        }}
-                        className="inline-flex items-center justify-center rounded p-1 hover:bg-secondary"
-                        data-test={`admin-users-row-${user.id}-expand-button`}
-                      >
-                        {expandedRows.has(user.id) ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </button>
-                    </TableCell>
-
-                    <TableCell className="w-[35%] py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className="text-xs font-semibold">
-                            {getInitials(user.fullName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-foreground truncate">
+        <TableBody>
+          {data?.length ? (
+            data.map((user) => (
+              <React.Fragment key={user.id}>
+                <TableRow
+                  className="cursor-pointer"
+                  onClick={() => onRowClick?.(user.id)}
+                  data-test={`admin-users-row-${user.id}-card`}
+                >
+                  <TableCell className="min-w-[200px]">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      {/* A face where there is one, and initials tinted from the
+                          name where there is not: in a directory of 54 people the
+                          picture — or failing that the colour — is what lets you
+                          re-find a row you scrolled past. Both are deterministic,
+                          so a person looks the same on every screen. */}
+                      <UserAvatar user={user} size="md" showTitle={false} />
+                      <div className="flex min-w-0 flex-col leading-[1.35]">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate text-[13px] font-medium text-foreground">
                             {user.fullName}
                           </span>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {user.email}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell className="w-[15%] py-4 px-4">
-                      <RoleBadge role={user.role} />
-                    </TableCell>
-
-                    <TableCell className="w-[20%] py-4 px-4">
-                      <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/60 px-3 py-1.5 text-sm">
-                        <Shield className="h-3.5 w-3.5 text-primary" />
-                        <span>
-                          {user.workspaceCount === 1
-                            ? 'In 1 Workspace'
-                            : `In ${user.workspaceCount} Workspaces`}
+                          {user.isTestAccount && (
+                            <span
+                              className={cn(CHIP, 'shrink-0 border-0', badgeTone('warning'))}
+                              title="Internal QA account — excluded from mentor/leadership pickers and every other user-facing listing"
+                            >
+                              Test account
+                            </span>
+                          )}
+                        </span>
+                        <span className="truncate text-[11.5px] text-muted-foreground/75">
+                          {user.email}
                         </span>
                       </div>
-                    </TableCell>
+                    </div>
+                  </TableCell>
 
-                    <TableCell className="w-[15%] py-4 px-4">
-                      <UserStatusBadge status={user.status} />
-                    </TableCell>
+                  <TableCell className="w-[130px]">
+                    <RoleBadge role={user.role} />
+                  </TableCell>
 
-                    <TableCell className="w-[10%] py-4 px-4">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEditUser?.(user);
-                        }}
-                        data-test={`admin-users-row-${user.id}-edit-button`}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  {/* Plain text, not a pill: the count is a fact about the row, and
+                      a third chip beside the role and status ones turns the line
+                      into a row of badges with no hierarchy. */}
+                  <TableCell className="w-[150px] text-muted-foreground">
+                    {membershipLabel(user.workspaceCount)}
+                  </TableCell>
 
-                  {expandedRows.has(user.id) && (
-                    <TableRow className="border-b border-border/70 bg-muted/30">
-                      <TableCell colSpan={6} className="py-0">
-                        <div className="px-4 py-4">
-                          <div className="mb-3 text-sm font-semibold text-foreground">
-                            Workspace Memberships
-                          </div>
-                          <div className="overflow-x-auto rounded-lg border border-border/50 bg-background">
-                            <Table className="min-w-full text-sm">
-                              <TableHeader>
-                                <TableRow className="bg-secondary/30">
-                                  <TableHead className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                    Workspace Name
-                                  </TableHead>
-                                  <TableHead className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                    Role
-                                  </TableHead>
-                                  <TableHead className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                    Status
-                                  </TableHead>
-                                  <TableHead className="px-4 py-2 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                                    Date Joined
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {user.workspaces && user.workspaces.length > 0 ? (
-                                  user.workspaces.map((workspace, idx) => (
-                                    <TableRow key={idx} className="border-t border-border/30">
-                                      <TableCell className="px-4 py-2.5">
-                                        {workspace.name}
-                                      </TableCell>
-                                      <TableCell className="px-4 py-2.5">
-                                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
-                                          {capitalizeFirst(workspace.role || 'member')}
-                                        </span>
-                                      </TableCell>
-                                      <TableCell className="px-4 py-2.5">
-                                        <span
-                                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                                            workspace.status === 'active'
-                                              ? 'bg-green/10 text-green-700'
-                                              : 'bg-yellow/10 text-yellow-700'
-                                          }`}
-                                        >
-                                          {capitalizeFirst(workspace.status)}
-                                        </span>
-                                      </TableCell>
-                                      <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">
-                                        {formatDate(workspace.joinedAt || workspace.createdAt)}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))
-                                ) : (
-                                  <TableRow>
-                                    <TableCell
-                                      colSpan={4}
-                                      className="py-6 text-center text-xs text-muted-foreground"
-                                    >
-                                      No workspace memberships
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No users found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                  <TableCell className="w-[110px]">
+                    <UserStatusBadge status={user.status} />
+                  </TableCell>
+                </TableRow>
+              </React.Fragment>
+            ))
+          ) : (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                No users found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
 
-      <div className="flex flex-col gap-3 border-t px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-3 border-t border-separator px-[18px] py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-[12px] text-muted-foreground/75">
           Showing <span className="font-medium">{from}</span> to{' '}
           <span className="font-medium">{to}</span> of{' '}
-          <span className="font-medium">{pagination?.total || 0}</span> results
+          <span className="font-medium">{totalResults}</span> users
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        <div className="flex items-center gap-1.5 self-end sm:self-auto">
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-7 w-7 rounded-[var(--r-control)]"
+            aria-label="Previous page"
             onClick={handlePrevious}
             disabled={!pagination || pagination.page <= 1}
             data-test="admin-users-pagination-prev-button"
@@ -280,7 +152,8 @@ export default function AdminUsersExpandableTable({
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-7 w-7 rounded-[var(--r-control)]"
+            aria-label="Next page"
             onClick={handleNext}
             disabled={!pagination || pagination.page >= pagination.pages}
             data-test="admin-users-pagination-next-button"

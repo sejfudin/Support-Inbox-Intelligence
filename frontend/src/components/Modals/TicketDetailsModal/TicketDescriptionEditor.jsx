@@ -27,7 +27,7 @@ export function TicketDescriptionEditor({
   return (
     <section
       ref={descriptionSectionRef}
-      className="relative rounded-2xl border border-border bg-card shadow-md overflow-hidden"
+      className="relative rounded-[var(--r-card)] border border-border bg-card shadow-md overflow-hidden"
       onMouseMove={handleDescriptionImageHover}
       onMouseLeave={clearDescriptionImageHover}
     >
@@ -60,7 +60,7 @@ export function TicketDescriptionEditor({
                 type="button"
                 onClick={() => descriptionInputRef.current?.click()}
                 disabled={uploadDescriptionImagesMutation.isPending}
-                className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-[var(--r-control)] border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
                 data-test="ticket-modal-description-upload-button"
               >
                 <ImagePlus className="w-3.5 h-3.5" />
@@ -115,7 +115,7 @@ export function TicketDescriptionEditor({
           <img
             src={previewImageUrl}
             alt="Description preview"
-            className="max-h-[90vh] max-w-[95vw] object-contain rounded-lg"
+            className="max-h-[calc(var(--app-vh)*0.9)] max-w-[calc(var(--app-vw)*0.95)] object-contain rounded-[var(--r-tile)]"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

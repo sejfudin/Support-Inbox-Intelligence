@@ -22,7 +22,7 @@ export function SkillsInSelectionModal({ open, onOpenChange, skills = [], onView
             Every technology covered by interns currently in selection.
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[60vh] space-y-1 overflow-y-auto pr-1">
+        <div className="max-h-[calc(var(--app-vh)*0.6)] space-y-1 overflow-y-auto pr-1">
           {skills.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">No data yet.</p>
           )}

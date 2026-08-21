@@ -8,6 +8,9 @@ const STATUS_TONE = {
   discontinued: 'symphony-status-muted',
   // Project statuses (active/completed already covered above).
   on_hold: 'symphony-status-ready',
+  // Staffing-request close-reason tones (helpers/staffingRequests.js).
+  warning: 'symphony-status-warning',
+  danger: 'symphony-status-danger',
 };
 
 // `label` overrides the displayed text (default: the raw `status` value) —

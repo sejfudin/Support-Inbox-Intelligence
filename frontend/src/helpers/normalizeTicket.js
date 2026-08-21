@@ -72,11 +72,17 @@ export const normalizeTicket = (ticket = {}) => {
       ? [ticket.assignedTo]
       : [];
   const taskNumber = ticket.taskNumber ?? null;
+  // Kept as the API returned it — the list endpoints populate only the blocker's
+  // number and subject, the single-ticket read populates more. Consumers read
+  // `blockedBy.ticket` through `helpers/ticketBlocker.js` either way.
+  const blockedBy = ticket.blockedBy ?? null;
+  const reviewRequest = ticket.reviewRequest ?? null;
   const dueDate = ticket.dueDate ?? ticket.due ?? null;
   const totalTimeSpent = ticket.totalTimeSpent ?? 0;
   const inProgressAt = ticket.inProgressAt ?? null;
   const doneAt = ticket.doneAt ?? null;
   const archivedAt = ticket.archivedAt ?? null;
+  const createdAt = ticket.createdAt ?? null;
 
   return {
     id,
@@ -92,7 +98,13 @@ export const normalizeTicket = (ticket = {}) => {
     inProgressAt,
     doneAt,
     archivedAt,
+    createdAt,
     taskNumber,
+    blockedBy,
+    reviewRequest,
+    // Comes from the list endpoint (see `attachCommentCounts`), so the table can
+    // show a thread's size without fetching its comments.
+    commentCount: ticket.commentCount ?? 0,
     raw: ticket,
   };
 };

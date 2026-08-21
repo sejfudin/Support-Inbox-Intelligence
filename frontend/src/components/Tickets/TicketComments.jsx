@@ -4,7 +4,7 @@ import { MessageSquare } from 'lucide-react';
 import { useComments, useDeleteComment } from '@/queries/comments';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { DeleteConfirmModal } from '../Modals/DeleteConfirmModal';
+import { ConfirmModal } from '../Modals/ConfirmModal';
 import { CommentItem } from './CommentItem';
 import { CommentInput } from './CommentInput';
 import CommentsSkeleton from '../Skeletons/CommentsSkeleton';
@@ -14,6 +14,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 export default function TicketComments({
   ticketId,
@@ -25,7 +26,14 @@ export default function TicketComments({
 }) {
   const { user } = useAuth();
   const [commentToDelete, setCommentToDelete] = useState(null);
-  const { data: comments = [], isLoading, isFetching, refetch } = useComments(ticketId);
+  const {
+    data: comments = [],
+    isLoading: isLoadingRaw,
+    isFetching,
+    refetch,
+  } = useComments(ticketId);
+  // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
+  const isLoading = useLoaderHold(isLoadingRaw);
   const deleteMutation = useDeleteComment(ticketId);
   const onFocusConsumedRef = useRef(onFocusConsumed);
   const lastFocusRefetchTokenRef = useRef(null);
@@ -34,14 +42,11 @@ export default function TicketComments({
   const [highlightedCommentId, setHighlightedCommentId] = useState(null);
 
   const commentCount = comments?.length ?? 0;
+  // `max-h`, not a fixed `h`: the old ladder reserved 260px for a single comment
+  // and up to 480px for five, so the section was mostly empty space and pushed
+  // the composer off-screen. Now it grows with the thread and caps at 260px.
   const commentsAreaHeightClass =
-    commentCount === 0
-      ? 'h-[150px]'
-      : commentCount <= 2
-        ? 'h-[260px]'
-        : commentCount <= 4
-          ? 'h-[340px]'
-          : 'h-[420px] sm:h-[480px]';
+    commentCount === 0 ? 'max-h-[64px]' : commentCount <= 2 ? 'max-h-[180px]' : 'max-h-[260px]';
 
   const handleConfirmDelete = () => {
     deleteMutation.mutate(commentToDelete, {
@@ -88,7 +93,12 @@ export default function TicketComments({
     refetch();
   }, [focusCommentId, focusRequestToken, comments, isLoading, isFetching, refetch]);
 
-  if (isLoading) return <CommentsSkeleton />;
+  if (isLoading)
+    return (
+      <LoadingOverlay size="sm" label="Loading comments">
+        <CommentsSkeleton />
+      </LoadingOverlay>
+    );
 
   return (
     <Accordion
@@ -96,42 +106,36 @@ export default function TicketComments({
       collapsible
       value={openSection}
       onValueChange={(v) => setOpenSection(v || '')}
-      className="bg-card rounded-2xl border border-border shadow-md"
+      className="w-full"
     >
+      {/* No card of its own: in the mockup comments are a labelled block inside
+          the modal's content column, not a bordered panel nested in one. */}
       <AccordionItem value="activity" className="border-none">
         <AccordionTrigger
-          className="gap-2 border-b border-separator bg-muted/30 px-4 py-3 hover:bg-muted/60 hover:no-underline"
+          className="gap-2 py-0 pb-2 hover:no-underline"
           data-test="ticket-comments-accordion-trigger"
         >
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              Comments
-            </span>
-            {commentCount > 0 && (
-              <span className="ml-1 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground border border-border">
-                {commentCount}
-              </span>
-            )}
-          </div>
+          <span className="flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.07em] text-muted-foreground/75">
+            <MessageSquare className="h-3 w-3" aria-hidden />
+            COMMENTS
+            {commentCount > 0 ? ` · ${commentCount}` : ''}
+          </span>
         </AccordionTrigger>
 
         <AccordionContent className="p-0 data-[state=closed]:hidden">
           <ScrollArea className={commentsAreaHeightClass}>
-            <div className="p-6">
+            <div className="pr-2">
               {comments.length === 0 ? (
-                <div className="flex items-center justify-center text-sm text-muted-foreground italic py-8">
-                  No comments yet.
-                </div>
+                <p className="py-2 text-[12.5px] text-muted-foreground/75">No comments yet.</p>
               ) : (
-                <div className="space-y-6">
+                <div className="flex flex-col gap-2.5">
                   {comments.map((comment) => (
                     <div
                       key={comment._id}
                       data-comment-id={comment._id}
                       className={
                         highlightedCommentId === String(comment._id)
-                          ? 'rounded-md ring-2 ring-blue-300 bg-blue-50/40 transition'
+                          ? 'rounded-[var(--r-tile)] ring-2 ring-[hsl(var(--tone-info)/0.3)] bg-[hsl(var(--tone-info)/0.4)] transition'
                           : ''
                       }
                     >
@@ -150,11 +154,15 @@ export default function TicketComments({
             </div>
           </ScrollArea>
 
-          {!isArchived && <CommentInput ticketId={ticketId} users={users} />}
+          {!isArchived && (
+            <div className="pt-2.5">
+              <CommentInput ticketId={ticketId} users={users} />
+            </div>
+          )}
         </AccordionContent>
       </AccordionItem>
 
-      <DeleteConfirmModal
+      <ConfirmModal
         isOpen={!!commentToDelete}
         onClose={() => setCommentToDelete(null)}
         onConfirm={handleConfirmDelete}

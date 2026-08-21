@@ -1,20 +1,19 @@
 import { ChartNoAxesCombined } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AnalyticsSection from '@/components/analytics/AnalyticsSection';
 
+/**
+ * The empty counterpart of `AnalyticsSection` — same card, same title block, with
+ * the mockup's dashed empty slot where the chart would be. It keeps its own 150px
+ * body so a row with one empty panel still lines up with the populated one.
+ */
 export function AnalyticsEmptyCard({ title, description }) {
   return (
-    <Card className="app-panel">
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex h-[260px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border/80 bg-muted/30 text-muted-foreground">
-          <ChartNoAxesCombined className="h-8 w-8 opacity-50" />
-          <p className="text-sm font-medium">No activity in selected period</p>
-          <p className="text-xs">Try a longer date range or create/update tickets.</p>
-        </div>
-      </CardContent>
-    </Card>
+    <AnalyticsSection title={title} description={description}>
+      <div className="flex h-[150px] flex-col items-center justify-center gap-1.5 rounded-[var(--r-tile)] border border-dashed border-border text-muted-foreground/75">
+        <ChartNoAxesCombined className="h-6 w-6 opacity-50" aria-hidden />
+        <p className="text-[12.5px] font-medium">No activity in selected period</p>
+        <p className="text-[11px]">Try a longer date range or create/update tickets.</p>
+      </div>
+    </AnalyticsSection>
   );
 }

@@ -1,7 +1,8 @@
 /**
  * Runs, in order, every non-destructive migration/backfill needed to bring an
  * existing main-branch database up to date with the `development` schema
- * changes (Recommendation redesign, InternProfile.readyForPlacement removal).
+ * changes (Recommendation redesign, InternProfile.readyForPlacement removal,
+ * InternProfile.cvTechnologies removal).
  *
  * Deliberately does NOT include `backfillInternPositions.js` — that script
  * assigns a RANDOM Position to any intern profile missing `declaredPosition`,
@@ -17,7 +18,7 @@
  *
  * Usage: NODE_ENV=production node seeder/mergeDevelopmentToMaster.js
  *
- * The 4 underlying scripts don't agree on how they load env: some read plain
+ * The underlying scripts don't agree on how they load env: some read plain
  * `.env`, `migrateRecommendationProjects.js` reads `.env.${NODE_ENV}`. Left
  * alone, that split could point different steps at different databases. This
  * wrapper resolves `.env.${NODE_ENV}` itself and loads it into `process.env`
@@ -66,8 +67,16 @@ const STEPS = [
     why: 'Rewrites retired `draft` status to `recommended`, backfills the now-required `position`, drops stale history rows, and tops up status History for old records.',
   },
   {
+    file: 'backfillProjectTypes.js',
+    why: 'Sets the now-required `Project.type` on projects created before the field existed (client, or internal for the sentinel). Must run after migrateRecommendationProjects so the sentinel it creates gets typed too.',
+  },
+  {
     file: 'unsetReadyForPlacement.js',
     why: 'Removes the orphaned `readyForPlacement` boolean now that InternProfile.status covers the same concept via the `ready` value.',
+  },
+  {
+    file: 'unsetCvTechnologies.js',
+    why: 'Removes the orphaned `cvTechnologies` array now that a CV scan only ever adds to `selfTechnologies` and has nothing left to reconcile.',
   },
 ];
 

@@ -2,12 +2,10 @@ const Evaluation = require('../models/Evaluation');
 const InternProfile = require('../models/InternProfile');
 const { ROLES } = require('../constants/roles');
 const { assertInternAccess } = require('../helpers/internAccess');
-
-const averageOf = (scores = {}) => {
-  const values = Object.values(scores);
-  if (values.length === 0) return null;
-  return Math.round((values.reduce((sum, n) => sum + n, 0) / values.length) * 10) / 10;
-};
+const internNotificationService = require('./internNotificationService');
+const { EVALUATION_CRITERIA, averageScore } = require('../helpers/evaluationTrend');
+const { emitInternDataChanged } = require('../socket/events');
+const { userSelect } = require('../constants/userSelect');
 
 const formatEvaluation = (evaluation) => {
   const plain = evaluation.toObject ? evaluation.toObject() : evaluation;
@@ -15,23 +13,34 @@ const formatEvaluation = (evaluation) => {
   return {
     ...plain,
     id: plain._id,
-    averageScore: averageOf(plain.scores),
+    averageScore: averageScore(plain.scores),
   };
 };
 
 /**
- * The redacted shape an intern sees of their *own* evaluation — scores, period,
- * and who wrote it. `notes` is deliberately dropped: it is written by an admin
- * for an internal audience, not addressed to the intern, and nothing in the
- * intern dashboard renders it. Built by picking fields rather than deleting
- * them, so a field added to the model later isn't exposed by accident.
+ * The redacted shape an intern sees of their *own* evaluation — the period, the
+ * four scores, who wrote it, and the write-up that goes with them.
+ *
+ * **`notes` used to be withheld here and now is not.** The reasoning for hiding
+ * it was that it is written for an internal audience; the reasoning for showing
+ * it is that an evaluation without its write-up is a number with no explanation,
+ * and an intern being scored 3/5 on ownership cannot act on the digit alone. It
+ * is the mentor's feedback *to* them, unlike the three fields still withheld from
+ * the recommendation shape (`recommendationNote`, `interviews[].feedback`,
+ * `result.note`), which are written *about* them for a placement decision. Anyone
+ * needing a channel that stays internal has `MentorComment`, which has its own
+ * `visibleTo` list and remains invisible to the intern.
+ *
+ * Still built by picking fields rather than deleting them, so a field added to the
+ * model later is absent by default instead of leaking.
  */
 const formatOwnEvaluation = (evaluation) => ({
   id: evaluation._id,
   periodStart: evaluation.periodStart,
   periodEnd: evaluation.periodEnd,
   scores: evaluation.scores,
-  averageScore: averageOf(evaluation.scores),
+  averageScore: averageScore(evaluation.scores),
+  notes: evaluation.notes || '',
   evaluator: evaluation.evaluator?.fullname || '',
   createdAt: evaluation.createdAt,
 });
@@ -47,7 +56,7 @@ const listEvaluations = async (user, internUserId) => {
   }
 
   const evaluations = await Evaluation.find({ internProfile: profile._id })
-    .populate('evaluator', 'fullname email role')
+    .populate('evaluator', userSelect('role'))
     .sort({ periodEnd: -1 });
 
   return evaluations.map(formatEvaluation);
@@ -65,8 +74,7 @@ const createEvaluation = async (user, internUserId, payload) => {
   const { periodStart, periodEnd, scores, notes } = payload;
   if (!periodStart || !periodEnd) throw new Error('Evaluation period is required');
 
-  const requiredScores = ['technical', 'communication', 'ownership', 'growth'];
-  for (const key of requiredScores) {
+  for (const key of EVALUATION_CRITERIA) {
     const value = scores?.[key];
     if (!Number.isInteger(value) || value < 1 || value > 5) {
       throw new Error(`Score for ${key} must be between 1 and 5`);
@@ -82,7 +90,21 @@ const createEvaluation = async (user, internUserId, payload) => {
     notes: notes?.trim() || '',
   });
 
-  await evaluation.populate('evaluator', 'fullname email role');
+  await evaluation.populate('evaluator', userSelect('role'));
+
+  internNotificationService.notifyEvaluationCreated({
+    internUserId: profile.user,
+    internProfileId: profile._id,
+    periodStart: evaluation.periodStart,
+    periodEnd: evaluation.periodEnd,
+  });
+
+  // The intern reads this about themselves on their own board and on "My
+  // progress", and neither is reachable by any workspace scope — programme data
+  // is not workspace data. Without this the new evaluation is invisible to them
+  // until a refetch, which for a page they may be sitting on is indefinitely.
+  emitInternDataChanged();
+
   return formatEvaluation(evaluation);
 };
 
