@@ -434,7 +434,6 @@ export default function TicketPage() {
     page: 1,
     archived: false,
     workspaceId: effectiveWorkspaceId,
-    archived: false,
     queryFilters,
   }).board;
 
