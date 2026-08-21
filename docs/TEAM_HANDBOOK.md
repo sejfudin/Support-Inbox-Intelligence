@@ -26,6 +26,10 @@
 - Only role that manages reference data (hubs, positions, technologies, internship types) —
   positions (specializations like "Frontend Engineer") and technologies (concrete tools like
   "React") are kept as separate catalogs on purpose
+- Switching a technology off takes it out of the catalog, so nobody new can declare it — but it
+  stays on the profiles that already declared it rather than being stripped from them. Those
+  interns no longer see it in their own list, and it no longer stands in the way of the rest of
+  the list being edited
 - Only role that adds and edits projects — and must pick each project's type (client or internal) when creating it; the type can be changed later
 - Doesn't see programme-wide statistics
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
@@ -150,7 +154,9 @@
 
 **Intern**
 - Sees and edits only their own profile
-- Declares their own technologies
+- Declares their own technologies, and can drop one again. Dropping one a mentor has already
+  assessed (Learning or Ready) asks for confirmation first and names the level; an unassessed one
+  goes straight out. Either way the readiness is kept, so re-declaring brings the level back
 - Uploads their own CV
 - Has a read-only "My Progress" page with everything the programme records about them: where they stand in the programme (status, dates, mentors, hub), every evaluation, their readiness, and every recommendation. Read-only throughout — nothing there is theirs to add, change, or delete
 - Sees their own readiness, both by position and per declared technology, including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
