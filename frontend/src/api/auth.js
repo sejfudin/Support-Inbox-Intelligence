@@ -57,13 +57,3 @@ export const deleteMyAvatar = async () => {
   const { data } = await apiClient.delete('/auth/me/avatar');
   return data;
 };
-
-/**
- * Step down as admin, handing the role to another admin who becomes your
- * mentor. Takes no id — the server reads the caller from the token, so this
- * can only ever act on your own account.
- */
-export const stepDownAsAdmin = async ({ newAdminMentorId }) => {
-  const response = await apiClient.post('/auth/me/step-down', { newAdminMentorId });
-  return response.data;
-};

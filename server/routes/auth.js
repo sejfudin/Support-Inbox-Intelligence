@@ -7,7 +7,6 @@ const {
   refresh,
   logout,
   changePassword,
-  stepDownAsAdmin,
   setMyAvatar,
   removeMyAvatar,
   updateUser,
@@ -28,9 +27,6 @@ router.post('/logout', logout);
 // rule is the endpoint's, not the form's. Declared above `/:id` so it can never
 // be shadowed by a user id.
 router.patch('/me/password', protect, changePassword);
-// Self-serve, admin-only: the caller steps down and hands the role to another
-// admin. Declared above `/:id` for the same reason the password route is.
-router.post('/me/step-down', protect, requireRole(ROLES.ADMIN), stepDownAsAdmin);
 // Self-serve only, and declared above `/:id` for the same reason the password
 // route is: `/me/avatar` must never be shadowed by a user id. There is
 // deliberately no admin-sets-another-user's-picture endpoint — see

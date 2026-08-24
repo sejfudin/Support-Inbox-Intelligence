@@ -8,7 +8,6 @@ import {
   changePassword,
   uploadMyAvatar,
   deleteMyAvatar,
-  stepDownAsAdmin,
 } from '@/api/auth';
 import { useNavigate } from 'react-router-dom';
 import { clearSessionQueries } from '@/lib/sessionQueryCache';
@@ -168,28 +167,5 @@ export const useDeleteMyAvatar = () => {
   return useMutation({
     mutationFn: deleteMyAvatar,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: authKeys.me() }),
-  });
-};
-
-/**
- * Step down as admin. The server bumps `tokenVersion` and kills every refresh
- * token for the account, so the tokens already in storage — including the one
- * that made this request — are dead the moment it succeeds. There is no fresh
- * pair to swap in this time (unlike `useChangePassword`): the point is to land
- * back on the login screen and re-authenticate into the intern experience,
- * not to keep limping along on a session built for a role that's gone.
- */
-export const useStepDownAsAdmin = () => {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-
-  return useMutation({
-    mutationFn: stepDownAsAdmin,
-    onSuccess: () => {
-      clearSessionQueries(queryClient);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
-    },
   });
 };

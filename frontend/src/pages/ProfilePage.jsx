@@ -10,7 +10,6 @@ import { PageSection, PageShell } from '@/components/PageShell';
 import PageHeading from '@/components/PageHeading';
 import { InternSelfServicePanel } from '@/components/interns/InternSelfServicePanel';
 import { ChangePasswordPanel } from '@/components/profile/ChangePasswordPanel';
-import { StepDownAdminPanel } from '@/components/profile/StepDownAdminPanel';
 import { ProfileActivityPanel } from '@/components/profile/ProfileActivityPanel';
 import { ProfileIdentityCard } from '@/components/profile/ProfileIdentityCard';
 import { ProfileMetaCard } from '@/components/profile/ProfileMetaCard';
@@ -22,7 +21,7 @@ import { useMyAbsenceRequests } from '@/queries/absenceRequests';
 import { useMyTickets } from '@/queries/tickets';
 import { useMyWorkspaces, useUserAnalytics } from '@/queries/workspaces';
 import { buildProfileActivity } from '@/helpers/profileActivity';
-import { getRoleLabel, isAdmin as isAdminRole, isIntern as isInternRole } from '@/helpers/roles';
+import { getRoleLabel, isIntern as isInternRole } from '@/helpers/roles';
 import { resolveUserId } from '@/helpers/userIdentity';
 import { LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
@@ -257,8 +256,6 @@ const ProfilePage = () => {
             </section>
 
             <ChangePasswordPanel />
-
-            {isAdminRole(user?.role) && <StepDownAdminPanel user={user} />}
 
             <ProfileActivityPanel items={activity} isLoading={!!workspaceId && isTicketsLoading} />
           </div>
