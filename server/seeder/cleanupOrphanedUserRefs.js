@@ -67,6 +67,16 @@ const User = mongoose.model('User');
 const InternProfile = mongoose.model('InternProfile');
 
 /**
+ * The model, or null when this branch does not have it. The tables below name
+ * models by string so the cascade is readable in one glance, but not every
+ * branch carries every model — `master` has no Attendance or AbsenceRequest —
+ * and `mongoose.model()` throws on an unregistered name. Skipping what is not
+ * there beats maintaining a per-branch copy of this script.
+ */
+const modelIfPresent = (name) =>
+  mongoose.modelNames().includes(name) ? mongoose.model(name) : null;
+
+/**
  * Records keyed to an InternProfile. When the profile goes, these go with it —
  * each one describes that intern and nothing else, and a recommendation or an
  * attendance row pointing at a profile that no longer exists is the same ghost
@@ -201,14 +211,16 @@ const buildDeletionPlan = async (liveUserIds) => {
 
   for (const [modelName, field] of PROFILE_DEPENDENTS) {
     if (orphanProfileIds.length === 0) continue;
-    const count = await mongoose
-      .model(modelName)
-      .countDocuments({ [field]: { $in: orphanProfileIds } });
+    const Model = modelIfPresent(modelName);
+    if (!Model) continue;
+    const count = await Model.countDocuments({ [field]: { $in: orphanProfileIds } });
     if (count) plan.dependents.push({ modelName, field, count });
   }
 
   for (const [modelName, field] of USER_OWNED) {
-    const docs = await mongoose.model(modelName).find({}).select(field).lean();
+    const Model = modelIfPresent(modelName);
+    if (!Model) continue;
+    const docs = await Model.find({}).select(field).lean();
     const ids = docs
       .filter((doc) => {
         const value = readPath(doc, field);
