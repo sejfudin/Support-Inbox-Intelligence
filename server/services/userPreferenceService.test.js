@@ -8,8 +8,12 @@ jest.mock('../models/User', () => ({
   findByIdAndUpdate: jest.fn(),
 }));
 
-const { buildUpdate, withDefaults, storedKeysOf } = require('./userPreferenceService');
-const { DEFAULT_USER_PREFERENCES } = require('../constants/userPreferences');
+const { buildUpdate, buildUnset, withDefaults, storedKeysOf } = require('./userPreferenceService');
+const {
+  DEFAULT_USER_PREFERENCES,
+  QUICK_ACTION_KEYS,
+  QUICK_ACTIONS_MAX,
+} = require('../constants/userPreferences');
 
 describe('buildUpdate', () => {
   it('writes only the keys the patch carries, dot-noted so the merge is partial', () => {
@@ -36,6 +40,60 @@ describe('buildUpdate', () => {
     });
     expect(() => buildUpdate({ mutedNotificationGroups: ['nope'] })).toThrow(/Unknown/);
     expect(() => buildUpdate({ mutedNotificationGroups: 'mentions' })).toThrow(/must be an array/);
+  });
+
+  it('stores a quick-action order as sent, since order is the whole point', () => {
+    expect(buildUpdate({ quickActions: ['add-intern', 'assign-ticket'] })).toEqual({
+      'preferences.quickActions': ['add-intern', 'assign-ticket'],
+    });
+  });
+
+  it('collapses a repeated quick action to its first position', () => {
+    // First-occurrence order is what `Set` keeps, and for an ordered list that is
+    // the only defensible answer: a key sent twice was meant to sit where it
+    // first appeared.
+    expect(buildUpdate({ quickActions: ['add-intern', 'assign-ticket', 'add-intern'] })).toEqual({
+      'preferences.quickActions': ['add-intern', 'assign-ticket'],
+    });
+  });
+
+  it('refuses an action key we do not ship, and a non-array order', () => {
+    expect(() => buildUpdate({ quickActions: ['delete-everything'] })).toThrow(/Unknown/);
+    expect(() => buildUpdate({ quickActions: 'assign-ticket' })).toThrow(/must be an array/);
+  });
+
+  // The cap is off today (`QUICK_ACTIONS_MAX === null`), deliberately and
+  // temporarily, so every action can be tested on the card at once. This asserts
+  // the state we are actually in rather than a cap that is not armed — and the
+  // `maxLength` mechanism it would use has its own test below.
+  it('accepts a selection of every action while the cap is off', () => {
+    expect(QUICK_ACTIONS_MAX).toBeNull();
+    expect(
+      buildUpdate({ quickActions: QUICK_ACTION_KEYS })['preferences.quickActions']
+    ).toHaveLength(QUICK_ACTION_KEYS.length);
+  });
+
+  it('counts members, not entries — a list that repeats itself is not too long', () => {
+    const repeated = [...QUICK_ACTION_KEYS.slice(0, 3), ...QUICK_ACTION_KEYS.slice(0, 3)];
+    expect(buildUpdate({ quickActions: repeated })['preferences.quickActions']).toHaveLength(3);
+  });
+
+  it('stores an empty selection — "no quick actions" is a choice', () => {
+    expect(buildUpdate({ quickActions: [] })).toEqual({ 'preferences.quickActions': [] });
+  });
+
+  it('still lets the muted list run to every group — the cap is per preference', () => {
+    expect(
+      buildUpdate({
+        mutedNotificationGroups: ['mentions', 'assignments', 'reviews', 'programme', 'reminders'],
+      })['preferences.mutedNotificationGroups']
+    ).toHaveLength(5);
+  });
+
+  it('does not write a value for a preference being reset', () => {
+    expect(buildUpdate({ quickActions: null, density: 'compact' })).toEqual({
+      'preferences.density': 'compact',
+    });
   });
 
   it('ignores a key that only exists on Object.prototype', () => {
@@ -100,5 +158,50 @@ describe('storedKeysOf', () => {
   it('does not count an inherited key or an explicit null', () => {
     expect(storedKeysOf({ density: null })).toEqual([]);
     expect(storedKeysOf(Object.create({ density: 'compact' }))).toEqual([]);
+  });
+});
+
+describe('buildUnset', () => {
+  // Reset is a deletion, not a write of today's default: an absent preference
+  // means "as shipped", so a later change to the shipped order still reaches an
+  // account that has reset.
+  it('removes a preference sent as null', () => {
+    expect(buildUnset({ quickActions: null })).toEqual({ 'preferences.quickActions': '' });
+  });
+
+  it('leaves alone every key that carries a value', () => {
+    expect(buildUnset({ quickActions: ['assign-ticket'], density: 'compact' })).toEqual({});
+  });
+
+  it('ignores a null for a key we do not ship', () => {
+    expect(buildUnset({ retiredSetting: null, toString: null })).toEqual({});
+  });
+
+  it('resets a single-valued preference too, not only the lists', () => {
+    expect(buildUnset({ density: null })).toEqual({ 'preferences.density': '' });
+  });
+});
+
+describe('the maxLength mechanism', () => {
+  // `quickActions` currently declares no cap, so this exercises the branch
+  // through a stubbed definition. It is what will refuse the sixth action the day
+  // `QUICK_ACTIONS_MAX` goes back to 5 — a truncating save would report success
+  // and leave the caller believing in a row nothing will ever draw.
+  const {
+    USER_LIST_PREFERENCE_DEFINITIONS,
+    QUICK_ACTION_KEYS: keys,
+  } = require('../constants/userPreferences');
+
+  it('refuses a list longer than the declared maximum', () => {
+    const definition = USER_LIST_PREFERENCE_DEFINITIONS.quickActions;
+    definition.maxLength = 5;
+    try {
+      expect(() => buildUpdate({ quickActions: keys.slice(0, 6) })).toThrow(/At most 5/);
+      expect(
+        buildUpdate({ quickActions: keys.slice(0, 5) })['preferences.quickActions']
+      ).toHaveLength(5);
+    } finally {
+      definition.maxLength = null;
+    }
   });
 });

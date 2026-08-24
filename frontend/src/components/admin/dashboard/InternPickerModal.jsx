@@ -27,7 +27,24 @@ const SHORT_REASONS = {
   discontinued: 'Left',
 };
 
-export function InternPickerModal({ open, onClose, onSelect, title, description, actionLabel }) {
+/**
+ * `restrictToRecommendable` is the eligibility rule, and it is a prop because it
+ * is not the same question for every action. Recommending someone who has left
+ * the programme or is already placed makes no sense, so those rows are greyed
+ * out. Writing a *note* about them, or assessing their readiness, is legitimate —
+ * the server's own guard (`canWriteMentorData`) says nothing about status — so
+ * those callers pass `false` rather than inheriting a rule that belongs to
+ * recommendations.
+ */
+export function InternPickerModal({
+  open,
+  onClose,
+  onSelect,
+  title,
+  description,
+  actionLabel,
+  restrictToRecommendable = true,
+}) {
   const [search, setSearch] = useState('');
 
   // Every intern on the PLATFORM, not just this workspace's — deliberate, and the
@@ -61,7 +78,7 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
           avatarUrl: profile.user?.avatarUrl || null,
           position: profile.declaredPosition?.name || '',
           status: profile.status,
-          blocked: isRecommendBlockedByProfileStatus(profile.status),
+          blocked: restrictToRecommendable && isRecommendBlockedByProfileStatus(profile.status),
           shortReason: SHORT_REASONS[profile.status] || 'Unavailable',
           fullReason: recommendBlockedReason(profile.status),
         }))
@@ -80,7 +97,7 @@ export function InternPickerModal({ open, onClose, onSelect, title, description,
           return a.fullname.localeCompare(b.fullname);
         })
     );
-  }, [data, search]);
+  }, [data, search, restrictToRecommendable]);
 
   const blockedCount = rows.filter((row) => row.blocked).length;
 

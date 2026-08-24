@@ -21,6 +21,10 @@
 **Admin**
 - Only role with the admin dashboard as their landing page — reports on the workspace they're currently in (switch it from the sidebar): who's present today, each intern's open workload and monthly attendance, and today's standup coverage. The two placement cards are the exception: they show the latest placements across every workspace, not just the current one
 - Creates, deletes, and views all workspaces
+- Chooses which quick actions sit on their own dashboard, and in what order — **Settings → Quick actions**, or the **Customize** link on the card itself. Two lists side by side: drag an action from *Available* onto *On your dashboard* to add it, drag it back out to take it off, and drag inside the first list to order it. The `+` and `×` on each row do the same thing if you would rather click than drag. **Reset** puts the card back to the standard set
+- The choice follows your account, not the browser, so the card is the same wherever you sign in. A new admin starts with the standard five; there is **no limit on how many you can add** at the moment, and taking every action off is allowed too — the card then says so rather than quietly refilling itself
+- The actions now go beyond creating things: the two queues (Absence requests and Staffing requests, each showing how many are waiting), Specialization, Attendance today, Daily insights, All users, Platform management and New workspace are one click away. Two more open on the dashboard itself without leaving it — writing a note about an intern, and setting their readiness
+- **Mark absence / excuse** is still the one quick action that does nothing but say "Soon". Nothing in the app can record an absence for an intern yet: absence is the lack of a check-in, and only interns check in
 - Creates user accounts, invites new users (mentors, interns, leadership, other admins), and changes their role
 - Views and edits all intern profiles
 - Only role that manages reference data (hubs, positions, technologies, internship types) —

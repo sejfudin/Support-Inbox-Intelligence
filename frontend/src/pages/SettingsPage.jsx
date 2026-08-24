@@ -15,12 +15,14 @@ import {
   SlidersHorizontal,
   Sun,
   UserRound,
+  Zap,
 } from 'lucide-react';
 
 import PageHeading from '@/components/PageHeading';
 import { PageSection, PageShell } from '@/components/PageShell';
 import SettingsSection, { SettingsRow } from '@/components/settings/SettingsSection';
 import DesktopNotificationsRow from '@/components/settings/DesktopNotificationsRow';
+import QuickActionsRows from '@/components/settings/QuickActionsRows';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -30,6 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
+import { quickActionsForRole } from '@/helpers/quickActions';
+import { ROLES } from '@/helpers/roles';
 import { useThemeConfig } from '@/context/ThemeConfigContext';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import {
@@ -276,6 +280,10 @@ export default function SettingsPage() {
 
   const mutedGroups = parseMutedGroups(mutedRaw);
 
+  // Admin today; the catalog is what decides, so this needs no edit when the
+  // mentor dashboard grows a card.
+  const hasQuickActions = user?.role === ROLES.ADMIN && quickActionsForRole(user?.role).length > 0;
+
   const toggleNotificationGroup = (key) =>
     setMutedRaw(
       serializeMutedGroups(
@@ -471,6 +479,21 @@ export default function SettingsPage() {
             />
           </div>
         </SettingsSection>
+
+        {/* Only for a role that actually has the card. The mentor catalog exists
+            (`helpers/quickActions.js`) but nothing renders it yet — their
+            `/dashboard` is still the assigned-tickets table — and offering to
+            configure a card they cannot see would be a settings page lying to
+            them. Widen this when the mentor dashboard lands. */}
+        {hasQuickActions && (
+          <SettingsSection
+            icon={Zap}
+            title="Quick actions"
+            description="The shortcut list on your dashboard — which ones, and in what order."
+          >
+            <QuickActionsRows role={user?.role} />
+          </SettingsSection>
+        )}
 
         <SettingsSection
           icon={Bell}

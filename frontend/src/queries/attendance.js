@@ -6,11 +6,13 @@ import {
   cancelTodayCheckIn,
   fetchAttendanceRoster,
   fetchInternAttendance,
+  fetchTodayAttendance,
 } from '@/api/attendance';
 
 export const MY_ATTENDANCE_QUERY_KEY = ['attendance', 'me'];
 export const ATTENDANCE_ROSTER_QUERY_KEY = ['attendance', 'roster'];
 export const INTERN_ATTENDANCE_QUERY_KEY = ['attendance', 'intern'];
+export const ATTENDANCE_TODAY_QUERY_KEY = ['attendance', 'today'];
 
 /**
  * Surface a server rejection instead of failing silently, and re-sync the cache
@@ -83,6 +85,17 @@ export const useAttendanceRoster = (params = {}, options = {}) =>
     queryKey: [...ATTENDANCE_ROSTER_QUERY_KEY, params],
     queryFn: () => fetchAttendanceRoster(params),
     placeholderData: keepPreviousData,
+    ...options,
+  });
+
+/**
+ * Fetched when the dialog opens rather than with the dashboard: it is a different
+ * scope (platform-wide) and nobody pays for it until they ask the question.
+ */
+export const useTodayAttendance = (options = {}) =>
+  useQuery({
+    queryKey: ATTENDANCE_TODAY_QUERY_KEY,
+    queryFn: fetchTodayAttendance,
     ...options,
   });
 

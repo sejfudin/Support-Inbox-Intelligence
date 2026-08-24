@@ -34,7 +34,9 @@ export function PresenceHeroCard({ presence }) {
 
   const presentToday = presence?.presentToday ?? 0;
   const totalInterns = presence?.totalInterns ?? 0;
-  const absentToday = presence?.absentToday ?? [];
+  // Derived from the one `today` list the payload carries, so this card and the
+  // "Attendance today" dialog can never disagree about who is missing.
+  const absentToday = (presence?.today ?? []).filter((intern) => intern.status === 'absent');
   const badge = windowBadge(presence?.checkInWindow);
   const pct = totalInterns > 0 ? Math.round((presentToday / totalInterns) * 100) : 0;
 
