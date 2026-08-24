@@ -303,10 +303,20 @@ recognize technologies that already exist as `Technology` documents. Adding a te
 three files in one change: the catalog entry, its CV aliases in the matcher, and (optionally) a
 brand logo in `frontend/src/helpers/technologyIcons.jsx`.
 
+**Know which database you are seeding.** `.env.development`'s `MONGODB_URI` carries **no database
+name** (it ends `mongodb.net/?appName=Cluster0`) and `config/db.js` passes no `dbName`, so Mongoose
+falls back to its default and both the API and every seeder land in a database literally called
+`test` on the dev cluster. That is the database `npm run dev` serves and the one `/my-technologies`
+reads — it only looks like a stray. The banner every seeder prints is the thing to trust.
+
 **Check what is already there before seeding.** The catalog drifts per environment (admins can
-create technologies, and retired rows stay behind), so the number added is not the same
-everywhere and the database row count can exceed the catalog — `taskmanager_dev` was holding one
-extra row, the retired `html-css`. Read the `--dry-run` list, and watch for existing rows that
+create technologies, and retired rows stay behind), so the number added is not the same everywhere
+and the database row count can exceed the catalog. As of the 302-entry expansion the dev database
+holds 306 rows: the catalog plus four **active** discipline rows — `devops`, `data-engineering`,
+`data-science`, `machine-learning` — that duplicate Position titles and were never retired there.
+`createTechnology` blocks new ones (`assertNotAPosition`), but the existing four still show in the
+intern's picker; `npm run cleanup:discipline-technologies` is what retires them, and eight intern
+declarations hang off three of them. Read the `--dry-run` list, and watch for existing rows that
 overlap an incoming one.
 
 **The catalog is 302 entries and was 90 until recently.** It grew in one change that added the
