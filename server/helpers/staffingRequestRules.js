@@ -46,6 +46,13 @@ const projectNames = (recommendations) => [
   ),
 ];
 
+// Whether any recommendation in the set has no project yet. `project` is null
+// rather than absent, so this is a plain falsy check — no id comparison, since
+// a null project can never be confirmed to be (or not be) the same one as
+// anything else.
+const hasUnknownProject = (recommendations) =>
+  recommendations.some((recommendation) => !recommendation.project);
+
 // "You may not do this", as opposed to "this is not a legal thing to do" — the
 // two refusals this module makes, and they map to different statuses. A plain
 // `Error` means the move is illegal (400); this one means the caller is the
@@ -170,24 +177,37 @@ const partitionPickerCandidates = (
     // conflict, and flagging it would put a warning on most of the programme.
     // The projects come from the recommendations because the profile only
     // records that they are placed, never where.
-    const placedOn =
+    const placedRecs =
       candidate.status === 'placed'
-        ? projectNames(
-            recommendations.filter((recommendation) => recommendation.result?.outcome === 'placed')
-          )
+        ? recommendations.filter((recommendation) => recommendation.result?.outcome === 'placed')
         : [];
+    const placedOn = projectNames(placedRecs);
+    const placedOnUnknown = hasUnknownProject(placedRecs);
     // Being in selection for the project being staffed is this request's own
     // pipeline, not a double-booking worth flagging.
-    const inSelectionOn = projectNames(
-      recommendations.filter(
-        (recommendation) =>
-          IN_SELECTION_STATUSES.includes(recommendation.status) &&
-          !(projectId && idEquals(recommendation.project, projectId))
-      )
+    const inSelectionRecs = recommendations.filter(
+      (recommendation) =>
+        IN_SELECTION_STATUSES.includes(recommendation.status) &&
+        !(projectId && idEquals(recommendation.project, projectId))
     );
+    const inSelectionOn = projectNames(inSelectionRecs);
+    const inSelectionUnknown = hasUnknownProject(inSelectionRecs);
 
-    if (placedOn.length > 0) flags.push({ type: 'placed', projects: placedOn });
-    if (inSelectionOn.length > 0) flags.push({ type: 'in-selection', projects: inSelectionOn });
+    // A recommendation with no project still counts as a conflict — it is
+    // just one `projectNames` cannot name, since null is neither equal to nor
+    // different from anything. `unknownProject` tells the client there is an
+    // unnamed one behind the flag, so the warning it writes can admit the
+    // ambiguity instead of silently dropping the conflict.
+    if (placedOn.length > 0 || placedOnUnknown) {
+      flags.push({ type: 'placed', projects: placedOn, unknownProject: placedOnUnknown });
+    }
+    if (inSelectionOn.length > 0 || inSelectionUnknown) {
+      flags.push({
+        type: 'in-selection',
+        projects: inSelectionOn,
+        unknownProject: inSelectionUnknown,
+      });
+    }
 
     const bucket = flags.length > 0 ? result.warned : result.clean;
     bucket.push({

@@ -7,6 +7,7 @@ const {
   buildStaffUpdatePrompt,
   buildPlacementCelebrationPrompt,
 } = require('../prompts/internNotificationPrompts');
+const { PROJECT_TO_BE_CONFIRMED_PHRASE } = require('../helpers/recommendationProjectRules');
 
 /**
  * Notifications for the intern-programme domain — the counterpart to
@@ -142,6 +143,7 @@ const safe = (fn) => (args) =>
 
 const notifyRecommendationCreated = safe(
   async ({ internUserId, internProfileId, position, project }) => {
+    project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
     await dispatch({
       internUserId,
       internProfileId,
@@ -164,6 +166,7 @@ const RECOMMENDATION_STAGE_LABELS = { interviewing: 'Interviewing', resulted: 'R
 
 const notifyRecommendationStatusChanged = safe(
   async ({ internUserId, internProfileId, project, newStatus }) => {
+    project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
     const label = RECOMMENDATION_STAGE_LABELS[newStatus] || newStatus;
     await dispatch({
       internUserId,
@@ -184,6 +187,7 @@ const notifyRecommendationStatusChanged = safe(
 );
 
 const notifyRecommendationNotPlaced = safe(async ({ internUserId, internProfileId, project }) => {
+  project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
   await dispatch({
     internUserId,
     internProfileId,
@@ -203,6 +207,7 @@ const notifyRecommendationNotPlaced = safe(async ({ internUserId, internProfileI
 
 const notifyInternPlaced = safe(
   async ({ internUserId, internProfileId, position, project, startDate }) => {
+    project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
     const startLabel = formatDate(startDate);
     await dispatch({
       internUserId,
@@ -211,9 +216,9 @@ const notifyInternPlaced = safe(
       link: '/dashboard#my-selection-process',
       fallback: {
         title: "You've been placed on a project!",
-        body: `Congratulations — you're now placed as ${position || 'your role'} on ${
-          project || 'a project'
-        }${startLabel ? `, starting ${startLabel}` : ''}.`,
+        body: `Congratulations — you're now placed as ${position || 'your role'} on ${project}${
+          startLabel ? `, starting ${startLabel}` : ''
+        }.`,
       },
       promptBuilder: buildPlacementCelebrationPrompt,
       promptArgs: { position, project, startDate: startLabel },

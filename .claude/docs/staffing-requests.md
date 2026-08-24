@@ -57,7 +57,12 @@ re-derive them:
 - `partitionPickerCandidates` — intern profiles + their recommendations → `excluded` (discontinued,
   completed, or already put forward for this requested position) / `warned` (already placed, or in
   selection on another project, flagged with which) / `clean`. Excluded interns are dropped by the
-  service rather than returned; warned ones are shown and selectable.
+  service rather than returned; warned ones are shown and selectable. A `placed`/`in-selection` flag
+  carries `unknownProject: true` when one of the conflicting recommendations has no project of its
+  own — `Recommendation.project` is nullable, and two nulls are neither equal nor different, so no id
+  comparison can say whether that recommendation is the same opportunity as the one now being staffed
+  or a second one. The flag still fires (an unnamed conflict is not the same as no conflict), and the
+  client writes copy that admits the ambiguity instead of naming a project.
 - `assertCanPutForward` — admin only, request open, project resolved. The last is not about
   `Recommendation.project` being required (it isn't) — it's that the request's own project is what
   pre-fills every recommendation a submit creates, so there has to be one to pre-fill from.

@@ -8,10 +8,11 @@ import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import {
   activeRecommendationsOnOtherProjects,
+  activeUnknownProjectRecommendations,
   getRecommendationStatusLabel,
   isRecommendBlockedByProfileStatus,
   recommendBlockedReason,
-  recommendationProjectName,
+  recommendationProjectLabel,
   RECOMMENDATION_STATUSES,
 } from '@/helpers/recommendations';
 import { useIntern } from '@/queries/interns';
@@ -356,19 +357,29 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     const payload = buildPayload();
 
     // Soft warn when pitching someone who already has an open recommendation
-    // on a different project — create is still allowed after confirm. Not
-    // meaningful when the project isn't known yet, so there is nothing to
-    // compare against.
-    if (!isEditing && !form.projectUnknown) {
-      const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
-      if (conflicts.length > 0) {
-        const targetProject =
-          projects.find((project) => project._id === form.projectId)?.name || 'this project';
-        const existingProjectNames = [
-          ...new Set(conflicts.map((recommendation) => recommendationProjectName(recommendation))),
-        ];
-        setDuplicateWarn({ payload, existingProjectNames, targetProjectName: targetProject });
-        return;
+    // on a different project — create is still allowed after confirm.
+    if (!isEditing) {
+      if (form.projectUnknown) {
+        // Both the new pitch and the existing recommendation are unknown, so
+        // there is no id to compare — no way to tell if this is the same
+        // opportunity twice or two real ones. Warn and admit the ambiguity
+        // rather than silently dropping the check.
+        const ambiguousConflicts = activeUnknownProjectRecommendations(recommendations);
+        if (ambiguousConflicts.length > 0) {
+          setDuplicateWarn({ payload, isAmbiguous: true });
+          return;
+        }
+      } else {
+        const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
+        if (conflicts.length > 0) {
+          const targetProject =
+            projects.find((project) => project._id === form.projectId)?.name || 'this project';
+          const existingProjectNames = [
+            ...new Set(conflicts.map((recommendation) => recommendationProjectLabel(recommendation))),
+          ];
+          setDuplicateWarn({ payload, existingProjectNames, targetProjectName: targetProject });
+          return;
+        }
       }
     }
 
@@ -585,6 +596,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
         internName={internName}
         existingProjectNames={duplicateWarn?.existingProjectNames}
         targetProjectName={duplicateWarn?.targetProjectName}
+        isAmbiguous={duplicateWarn?.isAmbiguous}
         isSaving={isCreating}
         onCancel={() => setDuplicateWarn(null)}
         onConfirm={handleDuplicateWarnConfirm}

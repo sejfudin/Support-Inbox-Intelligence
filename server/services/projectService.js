@@ -192,12 +192,24 @@ const getProjectsOverview = async (user) => {
     .lean();
   const projectIds = projects.map((project) => project._id);
 
-  const recommendations = await Recommendation.find({ project: { $in: projectIds } })
+  // A recommendation with no project (the "unknown project" state) is fetched
+  // alongside the rest so its placed/in-selection counts can feed the
+  // "Project not known yet" bucket below — otherwise the page KPIs (summed
+  // here) would silently omit interns this overview doesn't yet know where to
+  // put.
+  const recommendations = await Recommendation.find({
+    $or: [{ project: { $in: projectIds } }, { project: null }],
+  })
     .populate(RECOMMENDATION_INTERN_POPULATE)
     .lean();
 
   const recsByProject = new Map();
+  const unknownProjectRecs = [];
   recommendations.forEach((rec) => {
+    if (!rec.project) {
+      unknownProjectRecs.push(rec);
+      return;
+    }
     const key = rec.project.toString();
     if (!recsByProject.has(key)) recsByProject.set(key, []);
     recsByProject.get(key).push(rec);
@@ -279,6 +291,47 @@ const getProjectsOverview = async (user) => {
     return { ...project, placedCount, inSelectionCount: selectionRecs.length };
   });
 
+  // A computed bucket, never a document — there is no project to open, so it
+  // carries its own counts alongside the project rows rather than living in
+  // `annotatedProjects`. Folded into the page KPI totals below so those
+  // reconcile against the rows *plus* this bucket, not just the rows.
+  const UNKNOWN_PROJECT_BUCKET_LABEL = 'Project not known yet';
+  const unknownProjectPlacedRecs = unknownProjectRecs.filter(
+    (rec) => rec.result?.outcome === 'placed'
+  );
+  const unknownProjectSelectionRecs = unknownProjectRecs.filter((rec) =>
+    ['recommended', 'interviewing'].includes(rec.status)
+  );
+  const unknownProjectBucket = {
+    placedCount: unknownProjectPlacedRecs.length,
+    inSelectionCount: unknownProjectSelectionRecs.length,
+  };
+
+  internsPlaced += unknownProjectPlacedRecs.length;
+  unknownProjectPlacedRecs.forEach((rec) => {
+    placedInterns.push({
+      ...internSummary(rec),
+      projectId: null,
+      projectName: UNKNOWN_PROJECT_BUCKET_LABEL,
+      placedAt: resolvePlacementStart(rec),
+    });
+  });
+  unknownProjectSelectionRecs.forEach((rec) => {
+    const entry = {
+      ...internSummary(rec),
+      projectId: null,
+      projectName: UNKNOWN_PROJECT_BUCKET_LABEL,
+      projectClient: '',
+    };
+    if (rec.status === 'recommended') {
+      recommendedCount += 1;
+      recommendedInterns.push(entry);
+    } else {
+      interviewingCount += 1;
+      interviewingInterns.push(entry);
+    }
+  });
+
   // Full list, sorted by intern count — the KPI card shows only the top 4,
   // the "see all" modal shows the rest, both slicing the same source list.
   const skillsInSelection = [...skillInternMap.entries()]
@@ -301,6 +354,7 @@ const getProjectsOverview = async (user) => {
 
   return {
     projects: annotatedProjects,
+    unknownProjectBucket,
     kpis: {
       totalProjects: projects.length,
       byStatus,

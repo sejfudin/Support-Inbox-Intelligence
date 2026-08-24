@@ -7,9 +7,10 @@ import {
 } from '@/components/interns/recommendations/RecommendationModals';
 import {
   activeRecommendationsOnOtherProjects,
+  activeUnknownProjectRecommendations,
   isRecommendBlockedByProfileStatus,
   recommendBlockedReason,
-  recommendationProjectName,
+  recommendationProjectLabel,
   RECOMMENDATION_STATUSES,
 } from '@/helpers/recommendations';
 import { useIntern } from '@/queries/interns';
@@ -125,20 +126,29 @@ export function NewRecommendationDialog({ internUserId, open, onClose }) {
 
     // Same soft warning as the profile panel: pitching someone who already has an
     // open recommendation on a different project is allowed, but not silently.
-    // Not meaningful when the project isn't known yet.
-    const conflicts = form.projectUnknown
-      ? []
-      : activeRecommendationsOnOtherProjects(recommendations, form.projectId);
-    if (conflicts.length > 0) {
-      setDuplicateWarn({
-        payload,
-        existingProjectNames: [
-          ...new Set(conflicts.map((recommendation) => recommendationProjectName(recommendation))),
-        ],
-        targetProjectName:
-          projects.find((project) => project._id === form.projectId)?.name || 'this project',
-      });
-      return;
+    if (form.projectUnknown) {
+      // Both the new pitch and the existing recommendation are unknown, so
+      // there is no id to compare — no way to tell if this is the same
+      // opportunity twice or two real ones. Warn and admit the ambiguity
+      // rather than silently dropping the check.
+      const ambiguousConflicts = activeUnknownProjectRecommendations(recommendations);
+      if (ambiguousConflicts.length > 0) {
+        setDuplicateWarn({ payload, isAmbiguous: true });
+        return;
+      }
+    } else {
+      const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
+      if (conflicts.length > 0) {
+        setDuplicateWarn({
+          payload,
+          existingProjectNames: [
+            ...new Set(conflicts.map((recommendation) => recommendationProjectLabel(recommendation))),
+          ],
+          targetProjectName:
+            projects.find((project) => project._id === form.projectId)?.name || 'this project',
+        });
+        return;
+      }
     }
 
     save(payload);
@@ -169,6 +179,7 @@ export function NewRecommendationDialog({ internUserId, open, onClose }) {
         internName={internName}
         existingProjectNames={duplicateWarn?.existingProjectNames}
         targetProjectName={duplicateWarn?.targetProjectName}
+        isAmbiguous={duplicateWarn?.isAmbiguous}
         isSaving={isSaving}
         onCancel={() => setDuplicateWarn(null)}
         onConfirm={() => save(duplicateWarn.payload)}

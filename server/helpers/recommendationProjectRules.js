@@ -10,6 +10,16 @@
 
 const idEquals = (a, b) => String(a ?? '') === String(b ?? '');
 
+// The two intern-facing spellings of "we don't know the project yet" — the
+// server formatter emits the label form, notifications interpolate the phrase
+// form mid-sentence with its article already in place. Kept together so every
+// surface an intern reaches says the same thing. Internal (admin/mentor) copy
+// is a separate helper, `recommendationProjectLabel` in
+// `frontend/src/helpers/recommendations.js` — deliberately worded softer here,
+// since this is what an intern reads rather than an admin's note to themself.
+const PROJECT_TO_BE_CONFIRMED_LABEL = 'Project to be confirmed';
+const PROJECT_TO_BE_CONFIRMED_PHRASE = 'a project to be confirmed';
+
 // A create (ad-hoc or via a staffing request) must assert one of the two.
 // `rawValue` is exactly what the payload carried for the project field —
 // `undefined` means the field was left out entirely.
@@ -34,4 +44,9 @@ const assertCanEditProject = ({ status, currentProjectId, nextProjectId }) => {
   }
 };
 
-module.exports = { assertProjectFieldAsserted, assertCanEditProject };
+module.exports = {
+  assertProjectFieldAsserted,
+  assertCanEditProject,
+  PROJECT_TO_BE_CONFIRMED_LABEL,
+  PROJECT_TO_BE_CONFIRMED_PHRASE,
+};

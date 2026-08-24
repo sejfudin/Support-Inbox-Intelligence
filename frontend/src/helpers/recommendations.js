@@ -38,9 +38,6 @@ export const recommendBlockedReason = (status) => {
 export const recommendationProjectId = (recommendation) =>
   recommendation?.project?._id || recommendation?.project || '';
 
-export const recommendationProjectName = (recommendation) =>
-  recommendation?.project?.name || 'an unspecified project';
-
 // The one place a null project becomes display text — every internal surface
 // (cards, modals, the mentor recommendations table) reads a recommendation's
 // project through this, so the "we don't know yet" signal is decided once and
@@ -49,9 +46,12 @@ export const recommendationProjectLabel = (recommendation) =>
   recommendation?.project?.name || 'Not known yet';
 
 /**
- * Active (recommended / interviewing) recommendations aimed at a different
- * project than `projectId` — used to warn before pitching the same intern
- * elsewhere.
+ * Active (recommended / interviewing) recommendations aimed at a different,
+ * *known* project than `projectId` — used to warn before pitching the same
+ * intern elsewhere. A recommendation with no project is never a match here:
+ * it says nothing about whether it targets the same opportunity as
+ * `projectId`, so it cannot be named as "the other project" this warning
+ * describes. See `activeUnknownProjectRecommendations` for that case.
  */
 export const activeRecommendationsOnOtherProjects = (recommendations = [], projectId) =>
   recommendations.filter(
@@ -59,6 +59,20 @@ export const activeRecommendationsOnOtherProjects = (recommendations = [], proje
       isActivePipelineRecommendation(recommendation) &&
       recommendationProjectId(recommendation) &&
       recommendationProjectId(recommendation) !== projectId
+  );
+
+/**
+ * Active (recommended / interviewing) recommendations whose project isn't
+ * known yet. Pitching an intern who already has one of these, itself for an
+ * unknown project, can't be checked against `activeRecommendationsOnOtherProjects`
+ * — two nulls are neither equal nor different, so no id comparison can say
+ * whether it's the same opportunity or a second one. Surfaced instead as an
+ * explicit, separately-worded warning that admits the ambiguity.
+ */
+export const activeUnknownProjectRecommendations = (recommendations = []) =>
+  recommendations.filter(
+    (recommendation) =>
+      isActivePipelineRecommendation(recommendation) && !recommendationProjectId(recommendation)
   );
 
 export const getRecommendationStatusLabel = (status) =>

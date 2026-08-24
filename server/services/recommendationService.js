@@ -14,6 +14,7 @@ const { selectCloseOutRecommendations } = require('../helpers/staffingRequestRul
 const {
   assertProjectFieldAsserted,
   assertCanEditProject,
+  PROJECT_TO_BE_CONFIRMED_LABEL,
 } = require('../helpers/recommendationProjectRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
@@ -1129,7 +1130,11 @@ const formatOwnRecommendation = (recommendation, historyDates = {}) => {
       resulted: dates.resulted || null,
     },
     position: recommendation.position?.name || '',
-    project: recommendation.project?.name || '',
+    // `recommendation.project` is populated by `listOwnRecommendations` above,
+    // so a `null` here means the project genuinely isn't known yet, not a
+    // failed populate. An intern reads this as a stated fact about the
+    // record, never a blank field.
+    project: recommendation.project?.name || PROJECT_TO_BE_CONFIRMED_LABEL,
     technologies: (recommendation.technologies || []).map((tech) => ({
       id: tech._id,
       name: tech.name,

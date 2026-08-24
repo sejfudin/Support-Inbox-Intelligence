@@ -681,6 +681,7 @@ export function RecommendationDuplicateWarnDialog({
   internName,
   existingProjectNames = [],
   targetProjectName,
+  isAmbiguous = false,
   isSaving = false,
   onCancel,
   onConfirm,
@@ -710,13 +711,23 @@ export function RecommendationDuplicateWarnDialog({
           <AlertTriangle className="h-5 w-5 text-[hsl(var(--tone-warning-fg))]" />
         </div>
         <DialogTitle className="mt-4 text-[18px] font-bold text-foreground">
-          Already recommended elsewhere
+          {isAmbiguous ? "Can't confirm this isn't a duplicate" : 'Already recommended elsewhere'}
         </DialogTitle>
         <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-          <span className="font-bold text-foreground">{name}</span> is already recommended on{' '}
-          <span className="font-bold text-foreground">{existingLabel}</span>. Are you sure you want
-          to recommend them on <span className="font-bold text-foreground">{targetLabel}</span> as
-          well?
+          {isAmbiguous ? (
+            <>
+              <span className="font-bold text-foreground">{name}</span> already has an open
+              recommendation with a project not known yet. This may be the same opportunity or a
+              different one — there's no way to tell automatically. Recommend them again?
+            </>
+          ) : (
+            <>
+              <span className="font-bold text-foreground">{name}</span> is already recommended on{' '}
+              <span className="font-bold text-foreground">{existingLabel}</span>. Are you sure you
+              want to recommend them on{' '}
+              <span className="font-bold text-foreground">{targetLabel}</span> as well?
+            </>
+          )}
         </DialogDescription>
         <div className="mt-6 flex justify-end gap-3">
           <button
