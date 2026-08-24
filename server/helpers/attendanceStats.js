@@ -205,10 +205,12 @@ const placementExemptKeys = (placementExemptions = []) => {
 };
 
 /**
- * Close the intern's open placement stretch, because they are rejoining the
- * programme today. Mutates `profile`: appends `[placedAt, today)` to
- * `placementExemptions` and clears `placedAt`. Save is the caller's job — every
- * caller is already mid-mutation and saves once.
+ * The two fields a profile needs written to close its open placement stretch,
+ * because the intern is rejoining the programme today: `placedAt` cleared, and
+ * `[placedAt, today)` appended to `placementExemptions`. Pure — reads `profile`,
+ * returns the next values, writes nothing. The caller assigns both fields and
+ * saves; every caller is already mid-mutation and saves once anyway, e.g.
+ * `Object.assign(profile, closePlacementExemption(profile))`.
  *
  * Call this on EVERY path back onto the programme. Clearing `placedAt` on its own
  * is the bug this exists to prevent: it hands the intern retroactive absence for
@@ -216,7 +218,7 @@ const placementExemptKeys = (placementExemptions = []) => {
  *
  * Records nothing when there is no stretch to record — no `placedAt`, or a
  * `placedAt` that has not arrived yet (placed on paper, never actually left). Both
- * are a plain clear, and both are idempotent, so a second call is safe.
+ * are a plain clear, and both are idempotent, so applying the result twice is safe.
  *
  * Deliberately NOT used when an admin sets `placedAt` to null by hand: that path
  * means "this exemption was a mistake", and a correction should leave no trace of
@@ -224,17 +226,14 @@ const placementExemptKeys = (placementExemptions = []) => {
  */
 const closePlacementExemption = (profile, now = new Date()) => {
   const from = profile.placedAt;
-  if (!from) return profile;
+  if (!from) return { placedAt: null, placementExemptions: profile.placementExemptions || [] };
 
   const todayKey = officeDateKey(now);
-  if (officeDateKey(from) < todayKey) {
-    profile.placementExemptions = [
-      ...(profile.placementExemptions || []),
-      { from, to: keyToDate(todayKey) },
-    ];
-  }
-  profile.placedAt = null;
-  return profile;
+  const placementExemptions =
+    officeDateKey(from) < todayKey
+      ? [...(profile.placementExemptions || []), { from, to: keyToDate(todayKey) }]
+      : profile.placementExemptions || [];
+  return { placedAt: null, placementExemptions };
 };
 
 /**

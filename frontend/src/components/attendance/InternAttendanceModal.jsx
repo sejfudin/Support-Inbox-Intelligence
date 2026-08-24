@@ -6,6 +6,7 @@ import AttendanceStat from '@/components/attendance/AttendanceStat';
 import { useInternAttendance } from '@/queries/attendance';
 import {
   computeStreak,
+  placementExemptKeySet,
   attendanceRateTextClass,
   formatAttendanceRate,
   isExemptToday,
@@ -36,7 +37,7 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
   const requestedDays = data?.requestedDays ?? {};
   const observances = data?.observances ?? [];
   const placementExemptions = data?.placementExemptions ?? [];
-  const streak = computeStreak(records, placedAt);
+  const streak = computeStreak(records, placedAt, placementExemptKeySet(placementExemptions));
 
   let content;
   if (isPending) {

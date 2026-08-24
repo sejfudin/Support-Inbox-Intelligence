@@ -787,7 +787,7 @@ const returnInternsToBench = async (internProfileIds) => {
     profile.status = READY_STATUS;
     // Records the stretch they were away before lifting the exemption — clearing
     // `placedAt` alone would reopen those days as absences they never owed.
-    closePlacementExemption(profile);
+    Object.assign(profile, closePlacementExemption(profile));
     await profile.save();
   }
 };
@@ -978,7 +978,7 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
     // but only from today. The stretch they already spent on the project is closed
     // out and stays exempt, or undoing the placement would bill them for every day
     // of it.
-    closePlacementExemption(profile);
+    Object.assign(profile, closePlacementExemption(profile));
     await profile.save();
   }
 
@@ -1066,7 +1066,7 @@ const deleteRecommendation = async (user, recommendationId) => {
       // spent on the project were owed by nobody, and deleting the paperwork does
       // not turn them into absences.
       if (nextPlacedAt) profile.placedAt = nextPlacedAt;
-      else closePlacementExemption(profile);
+      else Object.assign(profile, closePlacementExemption(profile));
       await profile.save();
 
       if (nextStatus !== previousStatus) {

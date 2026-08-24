@@ -433,38 +433,50 @@ describe('placementExemptKeys', () => {
 describe('closePlacementExemption', () => {
   const NOW = new Date('2026-06-22T09:00:00Z');
 
+  it('is pure — the input profile is never written to', () => {
+    // A helper this file documents as "pure cross-cutting logic" (server/CLAUDE.md)
+    // must return the next values rather than mutate its argument; every call site
+    // does `Object.assign(profile, closePlacementExemption(profile))` itself.
+    const profile = { placedAt: new Date('2026-06-08'), placementExemptions: [] };
+    const snapshot = { ...profile };
+
+    closePlacementExemption(profile, NOW);
+
+    expect(profile).toEqual(snapshot);
+  });
+
   it('records the stretch and clears the open boundary', () => {
     const from = new Date('2026-06-08');
     const profile = { placedAt: from, placementExemptions: [] };
 
-    closePlacementExemption(profile, NOW);
+    const next = closePlacementExemption(profile, NOW);
 
-    expect(profile.placedAt).toBeNull();
-    expect(profile.placementExemptions).toHaveLength(1);
-    expect(profile.placementExemptions[0].from).toBe(from);
+    expect(next.placedAt).toBeNull();
+    expect(next.placementExemptions).toHaveLength(1);
+    expect(next.placementExemptions[0].from).toBe(from);
     // `to` is the day they came back, which they owe — so it is the exclusive end.
-    expect(placementExemptKeys(profile.placementExemptions).has('2026-06-22')).toBe(false);
-    expect(placementExemptKeys(profile.placementExemptions).has('2026-06-19')).toBe(true);
+    expect(placementExemptKeys(next.placementExemptions).has('2026-06-22')).toBe(false);
+    expect(placementExemptKeys(next.placementExemptions).has('2026-06-19')).toBe(true);
   });
 
   it('appends rather than replacing, so an earlier stretch survives', () => {
     const earlier = { from: new Date('2026-03-02'), to: new Date('2026-03-16') };
     const profile = { placedAt: new Date('2026-06-08'), placementExemptions: [earlier] };
 
-    closePlacementExemption(profile, NOW);
+    const next = closePlacementExemption(profile, NOW);
 
-    expect(profile.placementExemptions).toHaveLength(2);
-    expect(profile.placementExemptions[0]).toBe(earlier);
+    expect(next.placementExemptions).toHaveLength(2);
+    expect(next.placementExemptions[0]).toBe(earlier);
   });
 
   it('records nothing for a placement that never started', () => {
     // Placed on paper with a future start date, then brought back before it arrived.
     const profile = { placedAt: new Date('2026-07-01'), placementExemptions: [] };
 
-    closePlacementExemption(profile, NOW);
+    const next = closePlacementExemption(profile, NOW);
 
-    expect(profile.placedAt).toBeNull();
-    expect(profile.placementExemptions).toEqual([]);
+    expect(next.placedAt).toBeNull();
+    expect(next.placementExemptions).toEqual([]);
   });
 
   it('records nothing when today is the first day of the placement', () => {
@@ -472,37 +484,37 @@ describe('closePlacementExemption', () => {
     // [today, today) is empty.
     const profile = { placedAt: new Date('2026-06-22'), placementExemptions: [] };
 
-    closePlacementExemption(profile, NOW);
+    const next = closePlacementExemption(profile, NOW);
 
-    expect(profile.placedAt).toBeNull();
-    expect(profile.placementExemptions).toEqual([]);
+    expect(next.placedAt).toBeNull();
+    expect(next.placementExemptions).toEqual([]);
   });
 
   it('is a no-op for an intern who was never placed', () => {
     const profile = { placedAt: null, placementExemptions: [] };
 
-    closePlacementExemption(profile, NOW);
+    const next = closePlacementExemption(profile, NOW);
 
-    expect(profile.placedAt).toBeNull();
-    expect(profile.placementExemptions).toEqual([]);
+    expect(next.placedAt).toBeNull();
+    expect(next.placementExemptions).toEqual([]);
   });
 
-  it('is idempotent — a second call adds nothing', () => {
+  it('is idempotent — applying its own result again adds nothing', () => {
     const profile = { placedAt: new Date('2026-06-08'), placementExemptions: [] };
 
-    closePlacementExemption(profile, NOW);
-    closePlacementExemption(profile, NOW);
+    const once = closePlacementExemption(profile, NOW);
+    const twice = closePlacementExemption(Object.assign({ ...profile }, once), NOW);
 
-    expect(profile.placementExemptions).toHaveLength(1);
+    expect(twice.placementExemptions).toHaveLength(1);
   });
 
   it('tolerates a profile with no placementExemptions array yet', () => {
     // Every document written before the field existed.
     const profile = { placedAt: new Date('2026-06-08') };
 
-    closePlacementExemption(profile, NOW);
+    const next = closePlacementExemption(profile, NOW);
 
-    expect(profile.placementExemptions).toHaveLength(1);
+    expect(next.placementExemptions).toHaveLength(1);
   });
 });
 

@@ -206,16 +206,15 @@ export const placementExemptKeySet = (placementExemptions = []) => {
     if (!stint?.from || !stint?.to) continue;
     const endKey = officeDateKey(new Date(stint.to));
     // Walked on local-noon Dates and compared as keys: noon cannot slip a day across
-    // a DST boundary, and 'yyyy-MM-dd' strings compare correctly as strings. Guarded
-    // so a malformed stint (`to` before `from`, a bad date) cannot spin forever.
+    // a DST boundary, and 'yyyy-MM-dd' strings compare correctly as strings. No
+    // iteration cap: `to` before or equal to `from` already fails the loop condition
+    // on the first check, so an inverted or empty stint just expands to nothing.
     let cursor = parseKey(officeDateKey(new Date(stint.from)));
-    for (let guard = 0; guard < 3650; guard += 1) {
-      const key = toKey(cursor);
-      if (key >= endKey) break;
+    while (toKey(cursor) < endKey) {
       // Weekends stay out: they were nobody's working day to begin with, and a set
       // that held them would say a Saturday inside a placement was excused work.
       // `classifyDay` skips its placement rungs on a weekend for the same reason.
-      if (!isWeekend(cursor)) keys.add(key);
+      if (!isWeekend(cursor)) keys.add(toKey(cursor));
       cursor = addDays(cursor, 1);
     }
   }
@@ -384,8 +383,16 @@ export const buildMonthGrid = (
 /**
  * Current consecutive-present-working-day streak ending at the most recent
  * working day (skips weekends). Counts back from today.
+ * @param {Array<{date:string}>} [records]
+ * @param {string|Date|null} [placedAt] - the placement the intern is on now, if any
+ * @param {Set<string>} [placementExemptKeys] - days inside a placement already
+ *   returned from (`placementExemptKeySet`). Skipped like a weekend rather than
+ *   breaking the streak: a returning intern owed nothing on those days, and
+ *   without this the walk-back hits the last day of the old stint, finds no
+ *   attendance row there (there never could be one), and reads the whole streak
+ *   as broken at the placement instead of continuing through it to before.
  */
-export const computeStreak = (records = [], placedAt = null) => {
+export const computeStreak = (records = [], placedAt = null, placementExemptKeys = EMPTY_KEYS) => {
   const presentKeys = new Set(records.map((r) => r.date));
   let streak = 0;
   // A placed intern's streak is historical: count back from their last owed day,
@@ -401,6 +408,7 @@ export const computeStreak = (records = [], placedAt = null) => {
     const day = new Date(cursor);
     day.setDate(day.getDate() - i);
     if (isWeekend(day)) continue;
+    if (placementExemptKeys.has(toKey(day))) continue; // owed nothing that day either
     if (isOfficeToday(day) && !presentKeys.has(toKey(day))) continue; // today not yet in — don't break streak
     if (presentKeys.has(toKey(day))) streak += 1;
     else break;

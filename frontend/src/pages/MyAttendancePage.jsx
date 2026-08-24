@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { useMyAttendance, useCheckInToday, useCancelTodayCheckIn } from '@/queries/attendance';
 import {
   computeStreak,
+  placementExemptKeySet,
   attendanceRateTextClass,
   formatAttendanceRate,
   isExemptToday,
@@ -40,7 +41,7 @@ export default function MyAttendancePage() {
     presentDays = 0,
     workingDays: workingDaysElapsed = 0,
   } = data?.month ?? {};
-  const streak = computeStreak(records, placedAt);
+  const streak = computeStreak(records, placedAt, placementExemptKeySet(placementExemptions));
   const monthLabel = format(new Date(), 'MMMM');
   // Already on the project as of today (a future placedAt still owes attendance).
   const onProject = isExemptToday(placedAt);

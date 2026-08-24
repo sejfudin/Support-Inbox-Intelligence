@@ -364,7 +364,7 @@ const updateInternProgramme = async (user, internUserId, payload) => {
     // `closePlacementExemption`, not a bare `placedAt = null`: the days they spent on
     // the project were owed by nobody, and clearing the open boundary alone would
     // reopen every one of them as an absence. It records the closed stretch first.
-    closePlacementExemption(profile);
+    Object.assign(profile, closePlacementExemption(profile));
   }
 
   await profile.save();

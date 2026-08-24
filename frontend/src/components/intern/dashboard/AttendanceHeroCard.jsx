@@ -162,7 +162,8 @@ export function AttendanceHeroCard({
   const today = todayRecord(records);
   const cancelled = isCancelledToday(cancelledDates);
   const windowState = checkInWindowState(now);
-  const streak = computeStreak(records, placedAt);
+  const placementKeys = placementExemptKeySet(placementExemptions);
+  const streak = computeStreak(records, placedAt, placementKeys);
 
   const week = buildWeekStrip(
     records,
@@ -172,7 +173,7 @@ export function AttendanceHeroCard({
     nonWorkingKeySet(nonWorkingDays),
     startDate,
     requestedDays,
-    placementExemptKeySet(placementExemptions)
+    placementKeys
   );
   const { present: weekPresent, elapsed: weekElapsed } = stripAttendance(week);
 
