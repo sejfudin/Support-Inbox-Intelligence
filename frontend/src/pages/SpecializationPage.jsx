@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
-import { ArrowDown, ArrowRight, ArrowUp, MoreHorizontal, Plus, Search } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -371,12 +371,12 @@ export default function SpecializationPage() {
                                 <DropdownMenuTrigger asChild>
                                   <Button
                                     type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 rounded-[var(--r-control)] px-3 text-[12px]"
                                     data-test={`specialization-row-menu-${specialization._id}`}
                                   >
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    Edit
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">

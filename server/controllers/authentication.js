@@ -126,6 +126,25 @@ const changePassword = async (req, res, next) => {
 };
 
 /**
+ * An admin steps down, handing the role to another admin who becomes their
+ * mentor. Self-only — the account comes from the token, same shape as
+ * `changePassword` — so this can never be aimed at somebody else's account.
+ */
+const stepDownAsAdmin = async (req, res, next) => {
+  try {
+    const result = await authService.stepDownFromAdmin(req.user._id, {
+      newAdminMentorId: req.body.newAdminMentorId,
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ success: false, message: error.message });
+    }
+    next(error);
+  }
+};
+
+/**
  * Set or replace your own profile picture. As with `changePassword`, the account
  * comes from the token and never from the URL, so there is no id here that a
  * caller could point at somebody else.
@@ -270,6 +289,7 @@ module.exports = {
   removeMyAvatar,
   logout,
   changePassword,
+  stepDownAsAdmin,
   updateUser,
   verifyInvite,
   setPasswordFromInvite,

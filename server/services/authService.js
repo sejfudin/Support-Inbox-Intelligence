@@ -3,6 +3,7 @@ const Hub = require('../models/Hub');
 const { ROLES, isValidRole } = require('../constants/roles');
 const { createInternProfile } = require('./internProfileService');
 const InternProfile = require('../models/InternProfile');
+const InternshipType = require('../models/InternshipType');
 const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const RefreshToken = require('../models/RefreshToken');
@@ -284,6 +285,73 @@ const changeOwnPassword = async (userId, { currentPassword, newPassword } = {}) 
   };
 };
 
+/**
+ * An admin steps down and hands the role to another admin, who becomes their
+ * mentor going forward. The caller becomes an `intern` with a brand-new
+ * `InternProfile` — this is always their *first* one, since an account created
+ * straight into `admin` never had one, so there is nothing to reconcile beyond
+ * the defensive `deleteOne` `register()` also does.
+ *
+ * Deliberately narrow: `newAdminMentorId` must name an existing, active
+ * `admin` — not a `mentor` — because the whole point is that platform
+ * responsibility (not just a mentoring relationship) moves to another admin.
+ * `assertMentorUser` inside `createInternProfile` would accept a `mentor` role
+ * too, so the stricter check happens here first.
+ *
+ * No id parameter for the caller — `userId` always comes from the token, the
+ * same shape as `changeOwnPassword`. Bumping `tokenVersion` and clearing
+ * refresh tokens forces a fresh login, so the caller (and any other open tab)
+ * re-authenticates into the intern experience rather than limping along on a
+ * cached admin session that will 403 on its next admin-only call.
+ */
+const stepDownFromAdmin = async (userId, { newAdminMentorId } = {}) => {
+  const caller = await User.findById(userId);
+  if (!caller || caller.role !== ROLES.ADMIN || !caller.active) {
+    throw httpError('Only an active admin can do this.', 403);
+  }
+
+  if (!newAdminMentorId) {
+    throw httpError('Choose another admin to take over.', 400);
+  }
+  if (String(newAdminMentorId) === String(caller._id)) {
+    throw httpError("You can't hand this over to yourself.", 400);
+  }
+
+  const newAdmin = await User.findById(newAdminMentorId).select('role status');
+  if (!newAdmin || newAdmin.role !== ROLES.ADMIN || newAdmin.status !== 'active') {
+    throw httpError('Selected user is not an active admin.', 400);
+  }
+
+  // Prefer the "1-on-1" track — a personal mentor pairing is the closest
+  // semantic match for this handoff — and fall back to whichever active type
+  // sorts first, so a firm that renamed/removed that seeded default still has
+  // a working handoff instead of a hard failure.
+  const internshipType =
+    (await InternshipType.findOne({ slug: 'one-on-one', isActive: true })) ||
+    (await InternshipType.findOne({ isActive: true }).sort({ name: 1 }));
+  if (!internshipType) {
+    throw httpError('No active internship type is configured for this handoff.', 400);
+  }
+
+  await InternProfile.deleteOne({ user: caller._id });
+  await createInternProfile({
+    userId: caller._id,
+    internshipTypeId: internshipType._id,
+    primaryMentorId: newAdminMentorId,
+    startDate: new Date(),
+  });
+
+  caller.role = ROLES.INTERN;
+  caller.tokenVersion = (caller.tokenVersion || 0) + 1;
+  await caller.save();
+  await RefreshToken.deleteMany({ user: caller._id });
+
+  return {
+    success: true,
+    message: 'You have stepped down. Log back in to continue as an intern.',
+  };
+};
+
 const updateUser = async (userId, updateData) => {
   const updateOperation = { $set: updateData };
 
@@ -451,6 +519,7 @@ module.exports = {
   refresh,
   logout,
   changeOwnPassword,
+  stepDownFromAdmin,
   updateUser,
   createUserInvite,
   verifyInvite,
