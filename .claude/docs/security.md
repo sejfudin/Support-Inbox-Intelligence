@@ -275,7 +275,11 @@ profile) is `requireRole(ADMIN, MENTOR)` — the role guard alone is not enough 
 `getInternAttendance` re-checks in the service: a non-admin must be `isAssignedMentor` for that
 profile or the read 403s. One mentor cannot read another mentor's intern. Not
 workspace-scoped (intern domain). The check-in time-window is enforced server-side
-(`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock.
+(`server/helpers/attendanceTime.js`, `Europe/Sarajevo`) — never trust the client clock. It is one
+of several guards `attendanceService.checkIn` applies before it writes anything: placement, start
+date, a status an approval already wrote for today, a cohort non-working day, then the weekend and
+the window. Each refuses with 422 and a reason. The client withdraws the button on the same set,
+but that is UX only — this is where it is decided.
 
 Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/admin/entry` are
 `requireRole(ADMIN)`-guarded, cross-workspace reads (the workspace is passed explicitly via
@@ -572,6 +576,12 @@ exactly like a real one, but never appear in a listing meant for real users.
   500. Keep both properties if you touch the validator.
 - Preferences are UI taste, not authorization. Nothing may read them to decide what a
   caller can see or do.
+- `PATCH /api/users/me/whats-new-seen` is the same shape again: the account comes from
+  `req.user._id`, so one person can never mark another's tour read. What it stores is an
+  opaque release string, so it is bounded (non-empty, trimmed, length-capped) rather than
+  enum-checked — the server holds no copy of `TOUR_VERSION` on purpose. Nothing may read
+  `whatsNewSeenVersion` to decide what a caller can see or do; like preferences, it is UI
+  state, not authorization.
 - `POST`/`DELETE /api/auth/me/avatar` follow the same shape — the account comes from
   `req.user._id`, so there is no id to aim at somebody else's record. `PATCH /auth/:id`
   builds its update from an explicit allow-list and so cannot write `avatarUrl` or

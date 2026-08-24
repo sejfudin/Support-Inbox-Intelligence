@@ -40,6 +40,22 @@ const officeDateKey = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+/**
+ * A calendar day written the way a person says it — "3 September 2026".
+ *
+ * For messages the intern reads: a refusal that names the day it is talking about
+ * ("your internship starts on 3 September 2026") is answerable, where a bare
+ * 'YYYY-MM-DD' reads like a database key that leaked into a toast. Rendered in
+ * office time so the named day is the same one the stored key means.
+ */
+const officeDateLabel = (date = new Date()) =>
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: OFFICE_TIMEZONE,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date instanceof Date ? date : new Date(date));
+
 /** Office-local hour (0–23). */
 const officeHour = (date = new Date()) => Number(officeParts(date).hour);
 
@@ -156,6 +172,7 @@ module.exports = {
   CHECK_IN_WINDOW,
   CHECK_IN_WINDOW_LABEL,
   officeDateKey,
+  officeDateLabel,
   officeHour,
   officeMinute,
   isOfficeWeekend,

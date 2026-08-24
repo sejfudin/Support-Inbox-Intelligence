@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { formatDate } from '@/helpers/date';
-import { getReadinessBadgeClassName } from '@/helpers/internProfile';
+import { getReadinessBadgeClassName, isAssessedLevel } from '@/helpers/internProfile';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { ProgressGroupLabel, ProgressPanel } from './ProgressPanel';
@@ -23,7 +23,7 @@ const ACTION_CLASS = 'h-[34px] shrink-0 rounded-[var(--r-control)] px-3.5 text-[
  * a distinction the intern has no use for.
  */
 function AssessmentLine({ row }) {
-  if (row.level === 'none') {
+  if (!isAssessedLevel(row.level)) {
     return <span className="text-[11.5px] text-muted-foreground">Not assessed yet</span>;
   }
 

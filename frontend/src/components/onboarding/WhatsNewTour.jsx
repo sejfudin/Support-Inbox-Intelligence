@@ -324,9 +324,13 @@ export function WhatsNewTour() {
   // Opening while dashboard data is still in flight is safe now: no step is
   // dropped for a missing target, so the only effect of an early open is that the
   // first card or two are centred until their element lands.
-  // `TOUR_ENABLED` is off for now so the overlay cannot block the automation suite —
-  // see the flag's note in `whatsNewSteps.js`. With no auto-open and no replay, the
-  // tour stays `dismissed`, `step` is null, and this component renders nothing.
+  //
+  // `!user` is the gate that matters since the seen-state moved to the account: the
+  // stored version arrives on the same `/me` payload as the user, so by the time this
+  // can fire, `seen` is already the account's answer and not just this browser's.
+  // Without that, a returning viewer would be re-interrupted on every single login.
+  // With `TOUR_ENABLED` off there is no auto-open and no replay, so the tour stays
+  // `dismissed`, `step` is null, and this component renders nothing.
   useEffect(() => {
     if (!TOUR_ENABLED) return;
     if (autoOpenedRef.current || seen || !user || loading || steps.length === 0) return;
@@ -547,7 +551,7 @@ export function WhatsNewTour() {
           overlapping && 'rounded-[var(--r-card)] bg-slate-950/85 p-5 ring-1 ring-white/10',
           '[text-shadow:0_1px_14px_rgba(2,6,23,0.95)]'
         )}
-        style={{ ...cardPosition, maxWidth: cardPosition.maxWidth ?? 'calc(100vw - 2rem)' }}
+        style={{ ...cardPosition, maxWidth: cardPosition.maxWidth ?? 'calc(var(--app-vw) - 2rem)' }}
       >
         <div className="flex items-center gap-2 text-white/70">
           <Sparkles className="h-[18px] w-[18px] shrink-0" />

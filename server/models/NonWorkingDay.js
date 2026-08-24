@@ -41,11 +41,12 @@ const nonWorkingDaySchema = new mongoose.Schema(
       trim: true,
       maxlength: 120,
     },
-    // Which sort of non-working day this is. Purely presentational — all three
-    // kinds leave the attendance denominator in exactly the same way, and nothing
-    // in the maths branches on it. It exists so the calendar can colour a remote
-    // week differently from a public holiday, which the free-text `label` cannot
-    // be relied on to do. Rows written before this field read as 'holiday'.
+    // Which sort of non-working day this is. All three kinds leave the attendance
+    // denominator in exactly the same way — the maths never branches on it. Only
+    // wording does: the calendar colours a remote week differently from a public
+    // holiday, and `checkIn` refuses a remote day with a different sentence than
+    // a holiday. Neither can be driven off the free-text `label`. Rows written
+    // before this field read as 'holiday'.
     kind: {
       type: String,
       enum: ['holiday', 'break', 'remote'],

@@ -26,6 +26,10 @@
 - Only role that manages reference data (hubs, positions, technologies, internship types) —
   positions (specializations like "Frontend Engineer") and technologies (concrete tools like
   "React") are kept as separate catalogs on purpose
+- Switching a technology off takes it out of the catalog, so nobody new can declare it — but it
+  stays on the profiles that already declared it rather than being stripped from them. Those
+  interns no longer see it in their own list, and it no longer stands in the way of the rest of
+  the list being edited
 - Only role that adds and edits projects — and must pick each project's type (client or internal) when creating it; the type can be changed later
 - Doesn't see programme-wide statistics
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
@@ -150,7 +154,9 @@
 
 **Intern**
 - Sees and edits only their own profile
-- Declares their own technologies
+- Declares their own technologies, and can drop one again. Dropping one a mentor has already
+  assessed (Learning or Ready) asks for confirmation first and names the level; an unassessed one
+  goes straight out. Either way the readiness is kept, so re-declaring brings the level back
 - Uploads their own CV
 - Has a read-only "My Progress" page with everything the programme records about them: where they stand in the programme (status, dates, mentors, hub), every evaluation, their readiness, and every recommendation. Read-only throughout — nothing there is theirs to add, change, or delete
 - Sees their own readiness, both by position and per declared technology, including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
@@ -175,6 +181,7 @@
 - Those four numbers are the starting values, not fixed rules — an admin can raise or lower how many days one request may cover, and the yearly vacation and religious allowances, from their profile. Remote work and sick days have no yearly limit and won't be given one
 - Vacation, religious holidays and sick days are **not counted against attendance** — the day leaves the sum entirely, so a week off reads as nothing owed and nothing missed rather than as a week of absences. Remote work is different: it's still work, so it counts as an attended day. Each kind shows in its own colour with its own mark on the calendar
 - Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then
+- Can only check in on a day that is actually theirs to claim. On a day off already approved for them, on a cohort non-working day (public holiday, programme break, remote week), before their start date, at the weekend or outside the 07:00–11:00 window, the check-in control is not offered at all — and if they reach it anyway, they get a message saying which of those it is rather than a button that appears to do nothing. None of those days counts as an absence
 - No access to other interns', mentors', or admin/leadership data or functions
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 

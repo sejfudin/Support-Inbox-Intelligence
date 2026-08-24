@@ -74,7 +74,7 @@ export function TicketAssigneesField({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[min(calc(100vw-2rem),18rem)] p-2 z-[110]"
+        className="w-[min(calc(var(--app-vw)-2rem),18rem)] p-2 z-[110]"
         align="center"
         sideOffset={8}
       >

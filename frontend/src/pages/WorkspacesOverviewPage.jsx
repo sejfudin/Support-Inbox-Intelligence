@@ -344,7 +344,7 @@ export default function WorkspacesOverviewPage() {
           setLogoFile(null);
         }}
       >
-        <DialogContent className="flex max-h-[min(90vh,840px)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+        <DialogContent className="flex max-h-[min(calc(var(--app-vh)*0.9),840px)] w-[calc(var(--app-vw)-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
           <DialogHeader className="shrink-0 space-y-2 border-b border-border/60 px-6 py-5 text-left">
             <DialogTitle className="text-xl">Create a new workspace</DialogTitle>
             <DialogDescription className="text-sm leading-6">

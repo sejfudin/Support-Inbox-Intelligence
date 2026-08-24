@@ -65,6 +65,12 @@ AI: `AISummary`.
   Read/written by their owner only, at `GET|PATCH /api/users/me/preferences` — the PATCH is a
   dot-notation partial merge, last-write-wins. **UI scale is deliberately not in it** and stays
   per-device in the browser. See "UI preferences" below.
+- `User.whatsNewSeenVersion` — the `TOUR_VERSION` of the what's-new tour this account has
+  finished, or `null` for "never seen one". A top-level field rather than a `preferences` row
+  because `preferences` validates every write against an enum table and a release string has no
+  such list; it is the same shape as `staffingRequestsLastSeenAt` — a marker the app writes, not a
+  setting the user picks. Written by its owner only, at `PATCH /api/users/me/whats-new-seen`. See
+  "The what's-new tour" below.
 - `User.isTestAccount` — marks an internal QA login (seeded by `seedTestAccounts.js`, safe on
   production) that must work exactly like a real account but is excluded, at the query, from
   every listing that surfaces mentors/leadership. See `.claude/docs/security.md` § Test accounts.
@@ -307,6 +313,30 @@ two browsers changing two different preferences do not clobber each other.
   of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
   defaults so the auth screens never wear the last user's accent or accessibility settings.
 
+## The what's-new tour
+
+A full-screen walkthrough that announces a release by spotlighting the controls that changed. It
+lives entirely in `frontend/src/components/onboarding/` — `whatsNewSteps.js` is the script plus
+every read and write of the seen-state, `WhatsNewTour.jsx` is the overlay, and `WhatsNewButton.jsx`
+is the pulsing way back in from the sidebar footer.
+
+- **Versioned, not boolean, everywhere — server included.** Shipping a release through it is two
+  steps: edit the steps, then bump `TOUR_VERSION`. The bump is what re-announces to everyone
+  exactly once. The server deliberately holds **no copy** of that constant (it validates only that
+  the version is a plausible string), because a mirrored constant would make it three steps and a
+  forgotten bump would reject every save.
+- **`User.whatsNewSeenVersion` is the source of truth; `localStorage` is the backstop.** The
+  account field is what makes reading the tour in one browser mean not meeting it in another. It
+  arrives on the `GET /api/auth/me` payload — `getMe` spreads the whole user document — so it costs
+  no extra request and needs no hydration gate: the tour was already gated on having a user. The
+  per-account local key (`whatsNewTour:<userId>`) is written first and synchronously, and is what
+  keeps a failed or offline PATCH from turning into a tour that reopens on every load. **Where the
+  two disagree, seen wins.**
+- `TOUR_ENABLED` in `whatsNewSteps.js` is the master switch and is a plain constant on purpose —
+  flipping it is how you get an automated run past the scrim, the alternative being to drive as an
+  account already marked seen. It gates both ways in, so `false` means the overlay cannot mount and
+  the button renders nothing.
+
 ## Real-time (Socket.IO, `server/socket/`)
 
 - `socketServer.js` — server setup, authenticated handshake (same JWT + tokenVersion check),
@@ -347,20 +377,17 @@ effect as a manual add, no `ReadinessFlag` created, so each reads "Not assessed"
 assesses it. Best-effort by design: an unreadable PDF adds nothing and never fails the upload.
 See `services/internCvService.js#syncTechnologiesFromCv`.
 
-- **A re-upload replaces the previous scan, it does not accumulate.** `selfTechnologies` mixes
-  manual and scanned entries, so `InternProfile.cvTechnologies` records the subset the scan added
-  (always a subset of `selfTechnologies`, stripped from responses in `formatProfile`).
-  Reconciliation is pure — `helpers/cvTechnologySync.js#reconcileCvTechnologies`, covered by
-  `cvTechnologySync.test.js`. Its four rules:
-  - **Manual declarations are never removed** — only what a scan added is CV-owned.
-    `updateSelfTechnologies` prunes `cvTechnologies` to what is still declared, so removing a
-    CV-added technology by hand hands it back to the intern.
-  - **A readable CV that matches nothing still clears the previous scan** — a real result, not a
-    failure.
-  - **An unreadable CV changes nothing.** Text we could not extract is not evidence a skill was
-    dropped. Removal also leaves any existing `ReadinessFlag` alone.
-  - Profiles that last uploaded before `cvTechnologies` existed add without removing on their first
-    re-upload, then self-correct. No backfill is possible.
+- **A scan only ever adds — it never removes, and a re-upload accumulates.** A CV that omits a
+  section, spells a skill differently, matches nothing, or cannot be read is not evidence the
+  intern lost anything, so nothing already declared is touched. The merge is pure —
+  `helpers/cvTechnologySync.js#mergeCvTechnologies`, covered by `cvTechnologySync.test.js` — and
+  reports only genuine additions, so a technology that was already on the list is not announced
+  as newly added. It follows that:
+  - **No CV-vs-manual provenance is recorded.** `selfTechnologies` is one list from two sources;
+    nothing needs to tell them apart, because neither can shorten it.
+  - **`updateSelfTechnologies` is the only path that removes** — the intern's own act, on the
+    technologies screen. A later CV that still mentions the technology adds it back as a fresh
+    add; that is the accepted cost of scans never removing.
 - **The catalog is the ceiling.** A skill with no `Technology` row is invisible to the scan however
   it is spelled, so a thin catalog reads as a broken scanner. Adding one takes three steps in the
   same change: `seeder/defaultTechnologies.js` (the entry), `helpers/cvTechnologyMatcher.js`

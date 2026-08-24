@@ -25,17 +25,14 @@ export function InternCvPanel({ className }) {
     if (!file) return;
     uploadCv(file, {
       onSuccess: (data) => {
+        // A scan only ever adds, so there is nothing but additions to report — and naming them
+        // matters, because they appear in the technologies list on this page unannounced.
         const added = data?.addedTechnologies || [];
-        // Replacing a CV drops what the previous scan added and the new one no longer mentions,
-        // so say what went away too — otherwise technologies vanish from the list beside this
-        // card with no explanation.
-        const removed = data?.removedTechnologies || [];
-        const changes = [];
-        if (added.length) changes.push(`added ${countLabel(added.length)}: ${nameList(added)}`);
-        if (removed.length) {
-          changes.push(`removed ${countLabel(removed.length)}: ${nameList(removed)}`);
-        }
-        toast.success(changes.length ? `CV uploaded — ${changes.join('; ')}` : 'CV uploaded');
+        toast.success(
+          added.length
+            ? `CV uploaded — added ${countLabel(added.length)}: ${nameList(added)}`
+            : 'CV uploaded'
+        );
       },
       onError: (err) => toast.error(err?.response?.data?.message || 'Failed to upload CV'),
     });
@@ -68,8 +65,8 @@ export function InternCvPanel({ className }) {
       </div>
 
       <p className="mt-3 text-[12.5px] leading-[1.5] text-muted-foreground">
-        We scan your PDF and add the technologies we recognise. Replacing it re-scans — anything you
-        added yourself stays.
+        We scan your PDF and add the technologies we recognise. Replacing it re-scans and only ever
+        adds — nothing already on your list is removed.
       </p>
 
       <input

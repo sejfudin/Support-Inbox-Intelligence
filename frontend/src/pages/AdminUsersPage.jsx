@@ -68,7 +68,7 @@ export default function AdminUsersPage() {
 
   if (isError) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-[hsl(var(--tone-danger))]">
+      <div className="flex items-center justify-center min-h-[var(--app-vh)] text-[hsl(var(--tone-danger))]">
         Failed to load users
       </div>
     );

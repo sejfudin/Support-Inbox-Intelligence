@@ -3,7 +3,7 @@ import { SymphonyNav } from '@/components/symphony/SymphonyNav';
 
 export default function SymphonyLayout() {
   return (
-    <div data-surface="symphony" className="symphony-shell min-h-screen">
+    <div data-surface="symphony" className="symphony-shell min-h-[var(--app-vh)]">
       <SymphonyNav />
       <main className="symphony-main">
         <div className="symphony-page pb-10 pt-5 md:pt-6">

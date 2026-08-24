@@ -25,6 +25,7 @@ const { createInternProfile } = require('./internProfileService');
 const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 const internNotificationService = require('./internNotificationService');
 const { userSelect } = require('../constants/userSelect');
+const { httpError } = require('../helpers/httpError');
 
 const PROFILE_POPULATE = [
   {
@@ -50,8 +51,9 @@ const PROFILE_POPULATE = [
 
 const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  // `cvTechnologies` is internal CV-scan provenance, not part of the API surface — it only
-  // tells the server which of `selfTechnologies` a re-upload may replace.
+  // `cvTechnologies` was removed from the InternProfile schema, but Mongoose
+  // still echoes it from documents written before that change — strip it
+  // explicitly rather than relying on the schema to hide already-stored data.
   const { internalCvUrl, cvTechnologies, ...rest } = plain;
   const canSeeInternalCv =
     Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
@@ -206,19 +208,32 @@ const updateSelfTechnologies = async (user, technologyIds = []) => {
     throw err;
   }
 
-  const ids = [...new Set(technologyIds)];
-  if (ids.length > 0) {
-    const count = await Technology.countDocuments({ _id: { $in: ids }, isActive: true });
-    if (count !== ids.length) throw new Error('One or more technologies are invalid');
+  // Normalised to strings so an ObjectId off the profile and an id off the wire
+  // compare as equal — the whole diff below turns on that.
+  const ids = [...new Set((technologyIds || []).map(String))];
+  const current = new Set((profile.selfTechnologies || []).map(String));
+  const added = ids.filter((id) => !current.has(id));
+
+  // **Only what is being added is validated.** Checking the whole array is what
+  // broke removal: the intern may only ever add a technology the catalog still
+  // offers, but one an admin deactivates *later* stays on the profiles that had
+  // already declared it — and is invisible on the page, which joins the
+  // declarations against the active catalog. A single such entry failed the count
+  // for the entire list, so every add and every remove was rejected because of a
+  // row the intern could not see, never mind un-declare.
+  //
+  // Deactivating a technology therefore no longer bricks the list of everyone who
+  // declared it, and it still cannot be picked up by anyone new.
+  if (added.length > 0) {
+    const count = await Technology.countDocuments({ _id: { $in: added }, isActive: true });
+    if (count !== added.length) {
+      throw httpError('One or more technologies are invalid', 400);
+    }
   }
 
+  // The only place the list ever gets shorter: a CV scan only adds to it
+  // (helpers/cvTechnologySync.js), so removing a technology is always the intern's own act here.
   profile.selfTechnologies = ids;
-  // Keep the CV-scan provenance a subset of what is actually declared: a technology the intern
-  // just removed by hand stops being the scan's to manage, so re-adding it later counts as
-  // their own declaration and a future CV can no longer take it away. See
-  // helpers/cvTechnologySync.js.
-  const declared = new Set(ids.map((id) => String(id)));
-  profile.cvTechnologies = (profile.cvTechnologies || []).filter((id) => declared.has(String(id)));
   await profile.save();
   return getMyInternProfile(user);
 };

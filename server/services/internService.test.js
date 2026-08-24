@@ -1,12 +1,10 @@
 // Two independent concerns, both exercised with Mongo/Supabase mocked — no DB or network.
 //
-// 1. The CV-scan provenance prune in `updateSelfTechnologies`. This is the rule that makes the
-//    ownership model in helpers/cvTechnologySync.js work from the other direction: a technology
-//    the intern removes by hand stops being the scan's to manage, so re-adding it later counts
-//    as their own declaration and a future CV can never take it away. The reconciler itself is
-//    covered in helpers/cvTechnologySync.test.js and the upload wiring in
-//    services/internCvService.test.js — neither exercises this path, because nothing here goes
-//    through a CV at all.
+// 1. `updateSelfTechnologies` — the intern's own hand-edited list is the only path that can
+//    shorten `selfTechnologies`; a CV scan only ever adds to it (see helpers/cvTechnologySync.js,
+//    covered in helpers/cvTechnologySync.test.js) and never removes what's already there. The
+//    upload wiring is covered separately in services/internCvService.test.js — neither exercises
+//    this path, because nothing here goes through a CV at all.
 //
 // 2. The lifecycle-status transition rules in `updateInternProgramme` — who may change a
 //    status, and why "placed" specifically can't be picked by hand (it's the recommendation
@@ -46,14 +44,14 @@ const INTERN = { _id: 'u1', role: 'intern' };
 const ADMIN = { _id: 'a1', role: 'admin' };
 const MENTOR = { _id: 'm1', role: 'mentor' };
 
-// `react` came from a CV scan, `python` the intern declared by hand.
+// `react` came from a CV scan, `python` the intern declared by hand — the profile records no
+// difference between the two, because neither source can remove an entry.
 const mockProfile = (overrides = {}) => {
   const profile = {
     _id: 'p1',
     user: 'u1',
     cvPath: null,
     selfTechnologies: ['t-react', 't-python'],
-    cvTechnologies: ['t-react'],
     save: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -99,47 +97,64 @@ beforeEach(() => {
   Technology.countDocuments.mockImplementation(async (filter) => filter._id.$in.length);
 });
 
-describe('updateSelfTechnologies — CV provenance prune', () => {
-  it('hands a technology back to the intern when they remove it by hand', async () => {
+describe('updateSelfTechnologies', () => {
+  it('is the one path that shortens the list — a CV scan never does', async () => {
     const profile = mockProfile();
 
-    // Intern drops the CV-added `react`, keeps their own `python`.
+    // Intern drops the CV-added `react`, keeps their own `python`. A later CV that mentions
+    // React puts it back (it is a fresh add), which is the intended cost of scans never removing.
     await updateSelfTechnologies(INTERN, ['t-python']);
 
     expect(profile.selfTechnologies).toEqual(['t-python']);
-    // The prune: react is no longer declared, so the scan no longer owns it. Re-adding it later
-    // therefore counts as a manual declaration that a future CV cannot remove.
-    expect(profile.cvTechnologies).toEqual([]);
     expect(profile.save).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves a CV-added technology scan-owned while it is still declared', async () => {
+  it('saves an added technology alongside the existing ones', async () => {
     const profile = mockProfile();
 
     await updateSelfTechnologies(INTERN, ['t-react', 't-python', 't-vue']);
 
     expect(profile.selfTechnologies).toEqual(['t-react', 't-python', 't-vue']);
-    // Merely keeping it is not an act of ownership — a later CV may still drop it.
-    expect(profile.cvTechnologies).toEqual(['t-react']);
   });
 
-  it('keeps cvTechnologies a subset when the whole list is cleared', async () => {
+  it('accepts clearing the list outright', async () => {
     const profile = mockProfile();
 
     await updateSelfTechnologies(INTERN, []);
 
     expect(profile.selfTechnologies).toEqual([]);
-    expect(profile.cvTechnologies).toEqual([]);
     // Nothing to validate against the catalog when the list is empty.
     expect(Technology.countDocuments).not.toHaveBeenCalled();
   });
 
-  it('tolerates a legacy profile that predates the cvTechnologies field', async () => {
-    const profile = mockProfile({ cvTechnologies: undefined });
+  it('validates only what is being added, so a deactivated technology cannot block an edit', async () => {
+    const profile = mockProfile({ selfTechnologies: ['t-react', 't-python', 't-devops'] });
+    // `devops` was deactivated after the intern declared it. The page joins
+    // declarations against the *active* catalog, so the row is not on screen — and
+    // validating the whole array against `isActive` therefore rejected every edit
+    // because of an entry the intern could neither see nor drop.
+    Technology.countDocuments.mockImplementation(
+      async (filter) => filter._id.$in.filter((id) => id !== 't-devops').length
+    );
 
-    await expect(updateSelfTechnologies(INTERN, ['t-python'])).resolves.toBeDefined();
+    // The intern drops `react`; `devops` rides along untouched, as it must.
+    await updateSelfTechnologies(INTERN, ['t-python', 't-devops']);
 
-    expect(profile.cvTechnologies).toEqual([]);
+    expect(profile.selfTechnologies).toEqual(['t-python', 't-devops']);
+    expect(profile.save).toHaveBeenCalledTimes(1);
+    // Nothing was added, so the catalog was never asked in the first place.
+    expect(Technology.countDocuments).not.toHaveBeenCalled();
+  });
+
+  it('still refuses a technology the catalog does not offer', async () => {
+    const profile = mockProfile();
+    Technology.countDocuments.mockResolvedValue(0);
+
+    await expect(
+      updateSelfTechnologies(INTERN, ['t-react', 't-python', 't-retired'])
+    ).rejects.toThrow('One or more technologies are invalid');
+
+    expect(profile.save).not.toHaveBeenCalled();
   });
 
   it('refuses to touch a profile that is not the caller’s', async () => {
@@ -148,7 +163,7 @@ describe('updateSelfTechnologies — CV provenance prune', () => {
     await expect(updateSelfTechnologies(INTERN, ['t-python'])).rejects.toThrow('Not authorized');
 
     expect(profile.save).not.toHaveBeenCalled();
-    expect(profile.cvTechnologies).toEqual(['t-react']);
+    expect(profile.selfTechnologies).toEqual(['t-react', 't-python']);
   });
 });
 

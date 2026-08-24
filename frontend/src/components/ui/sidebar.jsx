@@ -142,7 +142,7 @@ const SidebarProvider = React.forwardRef(
               ...style,
             }}
             className={cn(
-              'group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar',
+              'group/sidebar-wrapper flex min-h-[var(--app-svh)] w-full has-[[data-variant=inset]]:bg-sidebar',
               className
             )}
             ref={ref}
@@ -229,7 +229,7 @@ const Sidebar = React.forwardRef(
         />
         <div
           className={cn(
-            'fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)] md:flex',
+            'fixed inset-y-0 z-10 hidden h-[var(--app-svh)] w-[--sidebar-width] transition-[left,right,width] duration-300 ease-[cubic-bezier(0.65,0,0.35,1)] md:flex',
             side === 'left'
               ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
               : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
