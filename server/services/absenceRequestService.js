@@ -328,7 +328,10 @@ const listRequests = async (_user, { status = PENDING, type } = {}) => {
 
   return {
     requests: requests
-      .filter((request) => request.intern) // drop orphans, as the roster does
+      // Drop orphans, as the roster does — and check the User too, not just the
+      // profile: deleting a user straight from the database leaves the profile
+      // behind, so `intern` is present while `intern.user` populates as null.
+      .filter((request) => request.intern?.user)
       .map((request) => ({
         ...toRequestSummary(request),
         intern: toInternSummary(request.intern),
