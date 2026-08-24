@@ -47,7 +47,7 @@ function BarDivider() {
 export default function SpecializationPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState('specialized');
+  const [status, setStatus] = useState('all');
   const [mentorId, setMentorId] = useState('');
   const [search, setSearch] = useState('');
   const [assignedSortDirection, setAssignedSortDirection] = useState('desc');
@@ -231,9 +231,9 @@ export default function SpecializationPage() {
             value={status}
             options={STATUS_OPTIONS}
             onChange={handleStatusChange}
-            // "Specialized" is the resting state, so only the other two count as
-            // a filter the reader put there.
-            active={status !== 'specialized'}
+            // "All" is the resting state, so only the other two count as a
+            // filter the reader put there.
+            active={status !== 'all'}
             dataTest="specialization-status-filter"
           />
           <FilterSelect
