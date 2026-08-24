@@ -19,8 +19,12 @@ import { TransferPrimaryMentorModal } from '@/components/interns/TransferPrimary
 import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMentorModal';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
-import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
-import { resolveUserId } from '@/helpers/userIdentity';
+import {
+  ROLES,
+  canViewComments,
+  canManageInternDocumentationLinks,
+  isPrimaryMentor,
+} from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 import { Loader, useLoaderHold } from '@/components/ui/loader';
 
@@ -50,7 +54,7 @@ export function InternProfileView({
   // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
   const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const [transferMentorOpen, setTransferMentorOpen] = useState(false);
-  const [changeSecondaryMentorTarget, setChangeSecondaryMentorTarget] = useState(null);
+  const [changeSecondaryMentorOpen, setChangeSecondaryMentorOpen] = useState(false);
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
   // Editing the internal CV link is admin-only; mentors keep read access to
@@ -73,9 +77,7 @@ export function InternProfileView({
   // internService.js#transferPrimaryMentor: only the admin who currently *is*
   // this intern's primary mentor sees the hand-off action, not every admin.
   const canTransferPrimaryMentor =
-    !readOnly &&
-    user?.role === ROLES.ADMIN &&
-    resolveUserId(intern?.primaryMentor) === resolveUserId(user);
+    !readOnly && user?.role === ROLES.ADMIN && isPrimaryMentor(user, intern);
   // Not self-scoped, unlike the primary-mentor transfer above: this is the
   // same admin-only "Change mentor" action the Specialization page already
   // offers (`PATCH /:internUserId/mentor`), just triggered from here too.
@@ -274,7 +276,7 @@ export function InternProfileView({
                   variant="ghost"
                   size="sm"
                   className="h-5 shrink-0 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
-                  onClick={() => setChangeSecondaryMentorTarget(intern)}
+                  onClick={() => setChangeSecondaryMentorOpen(true)}
                   data-test="intern-change-secondary-mentor-button"
                 >
                   Change
@@ -373,8 +375,11 @@ export function InternProfileView({
 
       {canChangeSecondaryMentor && (
         <ChangeMentorModal
-          specialization={changeSecondaryMentorTarget}
-          onClose={() => setChangeSecondaryMentorTarget(null)}
+          open={changeSecondaryMentorOpen}
+          internUserId={intern.user?._id}
+          internFullname={intern.user?.fullname}
+          currentMentorId={intern.primaryMentor?._id}
+          onClose={() => setChangeSecondaryMentorOpen(false)}
         />
       )}
     </PageShell>

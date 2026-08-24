@@ -18,12 +18,16 @@ const {
   canEditOwnInternProfile,
   isAssignedMentor,
 } = require('../helpers/internAccess');
-const { canInternEditDeclaredPosition } = require('../helpers/specializationRules');
+const {
+  canInternEditDeclaredPosition,
+  mentorSlotsCollide,
+} = require('../helpers/specializationRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
 const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 const internNotificationService = require('./internNotificationService');
+const { assertActiveAdmin } = require('../helpers/assertActiveAdmin');
 const { userSelect } = require('../constants/userSelect');
 const { httpError } = require('../helpers/httpError');
 
@@ -213,25 +217,39 @@ const transferPrimaryMentor = async (user, internUserId, { newAdminId } = {}) =>
     throw httpError("You're already this intern's primary mentor.", 400);
   }
 
-  const newAdmin = await User.findById(newAdminId).select('role status');
-  if (!newAdmin || newAdmin.role !== ROLES.ADMIN || newAdmin.status !== 'active') {
-    throw httpError('Selected user is not an active admin.', 400);
-  }
+  await assertActiveAdmin(newAdminId, 'Selected user is not an active admin.');
   // Mirrors the invariant `specializationRules.js` enforces from the other
   // direction (`Secondary mentor must differ from primary mentor`) — without
   // this, transferring primaryMentor onto whoever already holds
   // secondaryMentor collapses a specialized intern's two distinct mentors
-  // into one, which is exactly what that rule exists to prevent.
-  if (profile.secondaryMentor && String(profile.secondaryMentor) === String(newAdminId)) {
+  // into one, which is exactly what that rule exists to prevent. Shared
+  // predicate, not a re-implementation — see `mentorSlotsCollide`.
+  if (mentorSlotsCollide(newAdminId, profile.secondaryMentor)) {
     throw httpError('This admin is already the secondary mentor — pick someone else.', 400);
   }
 
   profile.primaryMentor = newAdminId;
   await profile.save();
+  // Reuse the document already in hand rather than a second
+  // `getInternByUserId` round trip — that also re-checks view access, which
+  // is already guaranteed true (the caller passed the `role === ADMIN` check
+  // above, and every admin can view every intern).
+  await profile.populate(PROFILE_POPULATE);
 
   emitInternDataChanged();
 
-  return getInternByUserId(user, internUserId);
+  // Fire-and-forget, same as every other mutation-triggered notification in
+  // this file — never awaited, and `notifyPrimaryMentorTransferred` catches
+  // its own errors (see `internNotificationService.js#safe`).
+  internNotificationService.notifyPrimaryMentorTransferred({
+    recipientUserId: newAdminId,
+    internUserId,
+    internProfileId: profile._id,
+    internName: profile.user?.fullname || 'an intern',
+    previousMentorName: user.fullname,
+  });
+
+  return formatProfile(profile, user);
 };
 
 const getMyInternProfile = async (user) => {

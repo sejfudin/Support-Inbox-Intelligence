@@ -19,7 +19,20 @@ import { Button } from '@/components/ui/button';
 import { useChangeSpecializationMentor } from '@/queries/specializations';
 import { useMentorCandidates } from '@/queries/users';
 
-export function ChangeMentorModal({ specialization, onClose }) {
+/**
+ * Explicit primitive props rather than a `specialization` object, on purpose:
+ * this modal now has two callers (`SpecializationPage`'s list row, and
+ * `InternProfileView`'s full intern record) that carry the needed fields
+ * under different backend shapes. Passing primitives means neither caller has
+ * to match the other's shape — each maps its own data down to this contract.
+ */
+export function ChangeMentorModal({
+  open,
+  internUserId,
+  internFullname,
+  currentMentorId,
+  onClose,
+}) {
   const [mentorId, setMentorId] = useState('');
   const [error, setError] = useState('');
 
@@ -27,10 +40,7 @@ export function ChangeMentorModal({ specialization, onClose }) {
   const mentors = mentorsData?.users ?? [];
   const changeMentorMutation = useChangeSpecializationMentor();
 
-  const open = Boolean(specialization);
-  const eligibleMentors = mentors.filter(
-    (mentor) => mentor._id !== specialization?.primaryMentor?._id
-  );
+  const eligibleMentors = mentors.filter((mentor) => mentor._id !== currentMentorId);
 
   const resetAndClose = () => {
     setMentorId('');
@@ -43,7 +53,7 @@ export function ChangeMentorModal({ specialization, onClose }) {
     setError('');
     try {
       await changeMentorMutation.mutateAsync({
-        internUserId: specialization.user?._id,
+        internUserId,
         mentorId,
       });
       resetAndClose();
@@ -59,8 +69,8 @@ export function ChangeMentorModal({ specialization, onClose }) {
           <DialogHeader>
             <DialogTitle>Change specialization mentor</DialogTitle>
             <DialogDescription>
-              Re-pair {specialization?.user?.fullname || 'this intern'} with a different 1-on-1
-              mentor. Their position doesn&apos;t change.
+              Re-pair {internFullname || 'this intern'} with a different 1-on-1 mentor. Their
+              position doesn&apos;t change.
             </DialogDescription>
           </DialogHeader>
 

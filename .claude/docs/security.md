@@ -267,6 +267,19 @@ endpoint is unaffected (stays intern-writable). Reassign/change-mentor/clear add
 `loadSpecializedProfile` if the target intern has no specialization to manage — there's no way to
 reach these mutations for an unspecialized intern even with a crafted request.
 
+Primary mentor transfer. `PATCH /api/interns/:userId/primary-mentor`
+(`internService.js#transferPrimaryMentor`) carries only `protect` at the route — role and self-scope
+are both enforced in the service, same idiom as `updateIntern` next to it. Self-scoped by design:
+the caller must be `ROLES.ADMIN` **and** already be that intern's `primaryMentor` — an admin who
+isn't currently holding that role gets the same 403 a mentor editing someone else's intern would,
+even though every admin can otherwise read/write any intern. The target is validated via
+`assertActiveAdmin` (active, `role: admin`, not `isTestAccount`) — narrower than the general
+`primaryMentor` rule (`assertMentorUser`, admin or mentor), because this is platform responsibility
+for the intern moving between admins, not an ordinary mentor pairing. Also refuses a target that
+already holds `secondaryMentor` on that profile (`mentorSlotsCollide`, shared with
+`specializationRules.js`'s "must differ from primary mentor" check from the other direction) — the
+two mentor slots may never hold the same person.
+
 Attendance. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)` and always resolves the
 caller's **own** `InternProfile` — an intern can only ever read or write their own attendance. The
 roster `GET /api/attendance` is **admin-only** (`requireRole(ADMIN)`). The per-intern

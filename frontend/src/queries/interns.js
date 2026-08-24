@@ -144,6 +144,7 @@ export const useTransferInternPrimaryMentor = () => {
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: internDetailKey(userId) });
       queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INTERN_STATS_QUERY_KEY });
     },
   });
 };

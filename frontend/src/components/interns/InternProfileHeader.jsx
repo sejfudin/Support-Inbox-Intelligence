@@ -7,7 +7,7 @@ function MetaField({ label, value, action }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="app-crumb">{label}</dt>
-      <dd className="flex items-center gap-1.5 truncate text-[13px] font-medium text-foreground">
+      <dd className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
         <span className="truncate">{value || '—'}</span>
         {action}
       </dd>

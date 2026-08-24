@@ -33,7 +33,11 @@ export function TransferPrimaryMentorModal({ intern, open, onClose }) {
   const [newAdminId, setNewAdminId] = useState('');
   const [error, setError] = useState('');
 
-  const { data: adminsData } = useAdminCandidates();
+  const {
+    data: adminsData,
+    isPending: isAdminsPending,
+    isError: isAdminsError,
+  } = useAdminCandidates();
   const admins = adminsData?.users ?? [];
   const currentMentorId = resolveUserId(intern?.primaryMentor);
   // The secondary mentor is excluded too: the server refuses a primary mentor
@@ -71,8 +75,15 @@ export function TransferPrimaryMentorModal({ intern, open, onClose }) {
     }
   };
 
+  // Guarded on `isPending`, not just on the Cancel button: closing while the
+  // PATCH is still in flight (Cancel, Escape, or an outside click) would let
+  // the request finish and land after the admin believes they backed out —
+  // it stays open until the response comes back either way.
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && resetAndClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => !next && !transferMutation.isPending && resetAndClose()}
+    >
       <DialogContent data-test="transfer-primary-mentor-dialog">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
@@ -84,7 +95,13 @@ export function TransferPrimaryMentorModal({ intern, open, onClose }) {
 
           <div className="space-y-2">
             <Label htmlFor="transfer-primary-mentor-select">New admin</Label>
-            {eligibleAdmins.length > 0 ? (
+            {isAdminsPending ? (
+              <p className="text-sm text-muted-foreground">Loading admins…</p>
+            ) : isAdminsError ? (
+              <p className="text-sm text-[hsl(var(--tone-danger-fg))]">
+                Couldn't load admins. Try again.
+              </p>
+            ) : eligibleAdmins.length > 0 ? (
               <Select value={newAdminId} onValueChange={setNewAdminId}>
                 <SelectTrigger
                   id="transfer-primary-mentor-select"
@@ -131,7 +148,12 @@ export function TransferPrimaryMentorModal({ intern, open, onClose }) {
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={resetAndClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetAndClose}
+              disabled={transferMutation.isPending}
+            >
               Cancel
             </Button>
             <Button

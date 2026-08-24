@@ -50,6 +50,16 @@ export const isAssignedMentor = (user, intern) => {
   );
 };
 
+// Narrower than `isAssignedMentor` above: specifically the PRIMARY slot, not
+// either. Used to gate the primary-mentor transfer action, which is
+// self-scoped to whoever currently holds that specific slot.
+export const isPrimaryMentor = (user, intern) => {
+  if (!user || !intern) return false;
+  const userId = resolveUserId(user);
+  if (!userId) return false;
+  return resolveUserId(intern.primaryMentor) === userId;
+};
+
 // Documentation links can be managed by admins, leadership, and the intern's assigned mentor.
 export const canManageInternDocumentationLinks = (user, intern) =>
   user?.role === ROLES.ADMIN ||

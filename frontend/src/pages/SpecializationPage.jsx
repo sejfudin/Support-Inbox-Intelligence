@@ -296,7 +296,11 @@ export default function SpecializationPage() {
                           ? totalCount === 0
                             ? 'No interns yet.'
                             : 'No unspecialized interns left — everyone has a specialization.'
-                          : 'No specializations assigned yet.'}
+                          : debouncedSearch || mentorId
+                            ? 'No specializations match your filters.'
+                            : totalCount === 0
+                              ? 'No interns yet.'
+                              : 'No specializations assigned yet.'}
                       </TableCell>
                     </TableRow>
                   )}
@@ -475,7 +479,10 @@ export default function SpecializationPage() {
       />
 
       <ChangeMentorModal
-        specialization={changeMentorTarget}
+        open={Boolean(changeMentorTarget)}
+        internUserId={changeMentorTarget?.user?._id}
+        internFullname={changeMentorTarget?.user?.fullname}
+        currentMentorId={changeMentorTarget?.primaryMentor?._id}
         onClose={() => setChangeMentorTarget(null)}
       />
 

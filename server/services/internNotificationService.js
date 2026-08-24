@@ -541,6 +541,30 @@ const notifyAbsenceRequestPending = safe(
   }
 );
 
+/**
+ * Staff-facing: an admin who was an intern's primary mentor hands that role
+ * to another admin — the recipient is the *new* admin, never the intern.
+ */
+const notifyPrimaryMentorTransferred = safe(
+  async ({ recipientUserId, internUserId, internProfileId, internName, previousMentorName }) => {
+    await dispatch({
+      internUserId: recipientUserId,
+      internProfileId,
+      type: 'primary_mentor_transferred',
+      link: STAFF_INTERN_LINK.admin(internUserId),
+      fallback: {
+        title: 'You are now a primary mentor',
+        body: `${previousMentorName} handed you primary-mentor responsibility for ${internName}.`,
+      },
+      promptBuilder: buildStaffUpdatePrompt,
+      promptArgs: {
+        summary: 'An admin handed primary-mentor responsibility for an intern to this admin.',
+        details: `Intern: ${internName}. Previous primary mentor: ${previousMentorName}.`,
+      },
+    });
+  }
+);
+
 /** Staff-facing: someone was named in a mentor note's visibility list — never sent to the intern. */
 const notifyMentorNoteMention = safe(
   async ({
@@ -590,4 +614,5 @@ module.exports = {
   notifyInternMentorNoteShared,
   notifyAbsenceRequestPending,
   notifyAbsenceRequestDecided,
+  notifyPrimaryMentorTransferred,
 };

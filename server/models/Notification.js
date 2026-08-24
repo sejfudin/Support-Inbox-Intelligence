@@ -46,6 +46,7 @@ const notificationSchema = new mongoose.Schema(
         'mentor_note_mention',
         'intern_request_from_leadership',
         'absence_request_pending',
+        'primary_mentor_transferred',
       ],
       required: true,
     },
