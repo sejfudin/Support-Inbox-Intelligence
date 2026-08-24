@@ -229,6 +229,119 @@ describe('everyday words that are also technology names', () => {
   });
 });
 
+// The four tracks the catalog was blind to — Design & UX, Security, Game development and
+// Embedded & hardware — brought in a second wave of names that are ordinary English words.
+// Each one is in AMBIGUOUS_MATCHERS rather than TECHNOLOGY_ALIASES, and this is what that
+// buys: the tool matches in a skills list, the word does not match in prose.
+describe('everyday words from the four newly covered tracks', () => {
+  it.each([
+    ['Unity', 'Engines: Unity, Godot', 'The team worked in unity towards one goal.'],
+    ['Assembly', 'Languages: C, Assembly', 'Worked on the assembly line during the summer.'],
+    ['Helm', 'Kubernetes: Helm, Argo CD', 'She was at the helm of the redesign.'],
+    ['Sketch', 'Design: Figma, Sketch', 'I like to sketch ideas before building them.'],
+    ['Bun', 'Runtimes: Node.js, Bun', 'We shared a cinnamon bun at the retro.'],
+    ['Less', 'Styling: Sass, Less', 'It took me less time than expected.'],
+    ['Expo', 'Mobile: React Native, Expo', 'Presented at the student career expo.'],
+    ['Capacitor', 'Mobile: Ionic, Capacitor', 'Replaced a blown capacitor on the board.'],
+    ['Julia', 'Languages: Python, Julia', 'Mentored by Julia during the placement.'],
+  ])('matches %s in a skills list but not in prose', (name, list, prose) => {
+    expect(names(list)).toContain(name);
+    expect(names(prose)).not.toContain(name);
+  });
+
+  it('reads the long forms anywhere, not only next to list punctuation', () => {
+    expect(slugsIn('Built a mobile game in Unity3D over one semester.')).toContain('unity');
+    expect(slugsIn('Comfortable with x86 assembly language.')).toContain('assembly');
+    expect(slugsIn('Packaged the service as Helm charts.')).toContain('helm');
+  });
+
+  it('does not read Unreal out of ordinary prose', () => {
+    expect(slugsIn('The whole experience felt unreal.')).not.toContain('unreal-engine');
+    expect(slugsIn('Engines: Unreal Engine, Godot')).toContain('unreal-engine');
+  });
+
+  it('does not read REST API out of "REST endpoints" prose or "the rest of"', () => {
+    expect(slugsIn('Documented the rest of the service.')).not.toContain('rest-api');
+    expect(slugsIn('Designed a REST API for the booking flow.')).toContain('rest-api');
+  });
+
+  it('does not read AWS Lambda out of a lambda expression', () => {
+    expect(slugsIn('Refactored the loops into lambda expressions.')).not.toContain('aws-lambda');
+    expect(slugsIn('Serverless: AWS Lambda, DynamoDB')).toContain('aws-lambda');
+  });
+});
+
+// Entries whose text legitimately implies another catalog entry. Asserted rather than left
+// implicit, because the catalog header warns that one CV line matching two technologies is
+// normally a bug — these are the cases where it is not.
+describe('deliberate overlaps', () => {
+  it('reads Kali Linux as both Kali Linux and Linux', () => {
+    expect(slugsIn('Security: Kali Linux, Nmap')).toEqual(
+      expect.arrayContaining(['kali-linux', 'linux'])
+    );
+  });
+
+  it('reads Keras on its own and no longer as TensorFlow', () => {
+    expect(slugsIn('ML: Keras')).toEqual(['keras']);
+    expect(slugsIn('ML: TensorFlow')).toEqual(['tensorflow']);
+  });
+
+  // "SQL Server" reads as SQL as well because a space follows; "SQLite" does not, because
+  // the right boundary rejects the trailing letter. Both are correct, and the asymmetry is
+  // easy to get backwards — hence the assertion.
+  it('reads SQL out of SQL Server but not out of SQLite', () => {
+    expect(slugsIn('Databases: Microsoft SQL Server')).toEqual(
+      expect.arrayContaining(['sql', 'sql-server'])
+    );
+    expect(slugsIn('Databases: SQLite')).toEqual(['sqlite']);
+  });
+});
+
+// The gap that started this: an intern on one of these tracks could not declare a single
+// relevant skill, and the CV scan surfaced nothing for them either.
+describe('the four tracks that had no technologies at all', () => {
+  it('reads a designer CV', () => {
+    expect(
+      names('Tools: Figma, Adobe XD, InVision. Wireframing, prototyping, user research.').sort()
+    ).toEqual(
+      ['Adobe XD', 'Figma', 'InVision', 'Prototyping', 'User Research', 'Wireframing'].sort()
+    );
+  });
+
+  it('reads a security CV', () => {
+    expect(slugsIn('Wireshark, Burp Suite, Nmap, Metasploit; penetration testing')).toEqual(
+      expect.arrayContaining([
+        'wireshark',
+        'burp-suite',
+        'nmap',
+        'metasploit',
+        'penetration-testing',
+      ])
+    );
+  });
+
+  it('reads a game-development CV', () => {
+    expect(slugsIn('Engines: Unity, Unreal Engine, Godot. Modelling in Blender.')).toEqual(
+      expect.arrayContaining(['unity', 'unreal-engine', 'godot', 'blender'])
+    );
+  });
+
+  it('reads an embedded CV', () => {
+    expect(slugsIn('Arduino, Raspberry Pi, STM32, ESP32, FreeRTOS, VHDL, CAN bus, MATLAB')).toEqual(
+      expect.arrayContaining([
+        'arduino',
+        'raspberry-pi',
+        'stm32',
+        'esp32',
+        'freertos',
+        'vhdl',
+        'can-bus',
+        'matlab',
+      ])
+    );
+  });
+});
+
 describe('spelling variants', () => {
   it('matches versioned spellings', () => {
     expect(slugsIn('Skills: HTML5, CSS3, Python3')).toEqual(

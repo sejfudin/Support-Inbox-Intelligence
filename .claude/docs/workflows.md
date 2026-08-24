@@ -305,9 +305,16 @@ brand logo in `frontend/src/helpers/technologyIcons.jsx`.
 
 **Check what is already there before seeding.** The catalog drifts per environment (admins can
 create technologies, and retired rows stay behind), so the number added is not the same
-everywhere and the database row count can exceed the catalog — `taskmanager_dev` holds 95 rows
-against the 94 in `defaultTechnologies.js`, the extra being the retired `html-css`. Read the
-`--dry-run` list, and watch for existing rows that overlap an incoming one.
+everywhere and the database row count can exceed the catalog — `taskmanager_dev` was holding one
+extra row, the retired `html-css`. Read the `--dry-run` list, and watch for existing rows that
+overlap an incoming one.
+
+**The catalog is 302 entries and was 90 until recently.** It grew in one change that added the
+Design & UX, Security, Game development and Embedded & hardware groups, because
+`seeder/defaultPositions.js` names those four tracks and the catalog held nothing an intern on
+any of them could declare. Any environment seeded before that is ~212 rows behind, so
+`seed:technologies` has real work to do everywhere — expect a long `--dry-run` list rather than
+the handful the earlier wording implies.
 
 ### `npm run cleanup:superseded-technologies`
 
