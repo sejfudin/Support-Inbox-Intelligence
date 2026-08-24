@@ -58,8 +58,9 @@ re-derive them:
   completed, or already put forward for this requested position) / `warned` (already placed, or in
   selection on another project, flagged with which) / `clean`. Excluded interns are dropped by the
   service rather than returned; warned ones are shown and selectable.
-- `assertCanPutForward` — admin only, request open, project resolved. The last is not cosmetic:
-  `Recommendation.project` is a required reference.
+- `assertCanPutForward` — admin only, request open, project resolved. The last is not about
+  `Recommendation.project` being required (it isn't) — it's that the request's own project is what
+  pre-fills every recommendation a submit creates, so there has to be one to pre-fill from.
 - `assertCanClose` / `applyClose` — close legality in one sentence: **leadership withdraws, admin
   answers**. Also takes `inSelectionCount` and requires a `notPlacedReason` exactly when that is
   above zero. The per-reason permission split, which reasons demand a stated one, and the
@@ -123,8 +124,11 @@ deliberately different shapes:
   never out of one flat list), returning rows already partitioned by `partitionPickerCandidates`
   plus the position's technologies.
 - `POST /:id/put-forward` is **request-level** and takes the whole staged cart in one body:
-  `{ groups: [{ positionId, internProfileIds }] }`. The position is still never a free choice — it is
-  the key of the group and must be one the request asked for.
+  `{ groups: [{ positionId, internProfileIds }], projectId? }`. The position is still never a free
+  choice — it is the key of the group and must be one the request asked for. Every recommendation
+  the submit creates is pre-filled with the request's own resolved `project`; sending an explicit
+  `projectId: null` deliberately discards that pre-fill for the whole submit (the admin ticked
+  "unknown" on the form) — any other value is not a legal override and is ignored.
   `createRecommendationsForStaffingRequest` `insertMany`s one recommendation per pick across every
   group in a single write, tagged with `staffingRequest`, logs each one's initial status event, and
   emits `emitInternDataChanged()`. The request itself is never written (`docs/adr/0006`).

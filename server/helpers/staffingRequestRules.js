@@ -201,9 +201,11 @@ const partitionPickerCandidates = (
 };
 
 // Whether an admin may put interns forward against this request. Both refusals
-// are enforced here rather than only hidden in the UI: `Recommendation.project`
-// is a required reference, so an unresolved draft project has nothing to create
-// a recommendation against.
+// are enforced here rather than only hidden in the UI. `Recommendation.project`
+// is optional (an admin may still mark a specific pick's project unknown at
+// put-forward time), but the request itself must be resolved first — the
+// pre-fill every recommendation this submit creates has to come from
+// somewhere, even if a pick then deliberately discards it.
 const assertCanPutForward = (request, { isAdmin }) => {
   if (!isAdmin) {
     throw new StaffingRequestForbiddenError(
@@ -219,11 +221,11 @@ const assertCanPutForward = (request, { isAdmin }) => {
 };
 
 // A request has no real project yet — filed with `draftProject` only, and
-// nobody can be put forward against it (`Recommendation.project` is a
-// required reference). This is the one display state derived here rather
-// than left as a plain comparison in the client: `assertCanClose` below
-// enforces it can never resolve to `fulfilled`, so the definition needs to
-// live in exactly one place.
+// nobody can be put forward against it, because every recommendation a submit
+// creates pre-fills from the request's own resolved project. This is the one
+// display state derived here rather than left as a plain comparison in the
+// client: `assertCanClose` below enforces it can never resolve to
+// `fulfilled`, so the definition needs to live in exactly one place.
 const needsProject = (request) => !request.project;
 
 // Whether an unresolved request may be linked to a project. Resolving twice

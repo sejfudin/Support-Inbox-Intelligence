@@ -41,6 +41,13 @@ export const recommendationProjectId = (recommendation) =>
 export const recommendationProjectName = (recommendation) =>
   recommendation?.project?.name || 'an unspecified project';
 
+// The one place a null project becomes display text — every internal surface
+// (cards, modals, the mentor recommendations table) reads a recommendation's
+// project through this, so the "we don't know yet" signal is decided once and
+// read everywhere, never an em dash.
+export const recommendationProjectLabel = (recommendation) =>
+  recommendation?.project?.name || 'Not known yet';
+
 /**
  * Active (recommended / interviewing) recommendations aimed at a different
  * project than `projectId` — used to warn before pitching the same intern

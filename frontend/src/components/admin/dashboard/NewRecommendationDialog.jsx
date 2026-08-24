@@ -23,6 +23,7 @@ const todayInputDate = () => format(new Date(), 'yyyy-MM-dd');
 const createEmptyForm = () => ({
   positionId: '',
   projectId: '',
+  projectUnknown: false,
   technologyIds: [],
   recommendationNote: '',
   status: 'recommended',
@@ -107,15 +108,15 @@ export function NewRecommendationDialog({ internUserId, open, onClose }) {
       toast.error('Select a position for this recommendation');
       return;
     }
-    if (!form.projectId) {
-      toast.error('Select a project for this recommendation');
+    if (!form.projectUnknown && !form.projectId) {
+      toast.error('Select a project, or mark it not known yet');
       return;
     }
 
     const payload = {
       internUserId,
       positionId: form.positionId,
-      projectId: form.projectId,
+      projectId: form.projectUnknown ? null : form.projectId,
       technologyIds: form.technologyIds,
       recommendationNote: form.recommendationNote,
       status: form.status,
@@ -124,7 +125,10 @@ export function NewRecommendationDialog({ internUserId, open, onClose }) {
 
     // Same soft warning as the profile panel: pitching someone who already has an
     // open recommendation on a different project is allowed, but not silently.
-    const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
+    // Not meaningful when the project isn't known yet.
+    const conflicts = form.projectUnknown
+      ? []
+      : activeRecommendationsOnOtherProjects(recommendations, form.projectId);
     if (conflicts.length > 0) {
       setDuplicateWarn({
         payload,

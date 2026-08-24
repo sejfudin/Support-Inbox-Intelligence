@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AutoTextarea } from '@/components/ui/auto-textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
   TechnologyMultiSelect,
@@ -18,6 +19,7 @@ import {
   getRecommendationResultLabel,
   getRecommendationStatusLabel,
   RECOMMENDATION_RESULTS,
+  recommendationProjectLabel,
 } from '@/helpers/recommendations';
 import {
   BTN_DANGER_CLASS,
@@ -75,7 +77,7 @@ export function RecommendationViewModal({
         <>
           Project{' '}
           <span className="font-semibold text-foreground/90">
-            {recommendation.project?.name || '—'}
+            {recommendationProjectLabel(recommendation)}
           </span>{' '}
           · Updated {formatRecDate(recommendation.updatedAt)} by{' '}
           {recommendation.updatedBy?.fullname || 'Unknown'}
@@ -199,6 +201,14 @@ export function RecommendationFormModal({
       ? [{ ...currentProject, _inactive: true }, ...projects]
       : projects;
 
+  // Once resulted, the project is locked — except a project that was never
+  // known can still be filled in. So the lock only ever applies when the
+  // record already carries a known project; a null one leaves the field open
+  // regardless of status. Mirrors `assertCanEditProject` server-side.
+  const projectLocked =
+    isEditing && activeRecommendation?.status === 'resulted' && Boolean(currentProject);
+  const projectFieldDisabled = form.projectUnknown || projectLocked;
+
   // Moving the status forward defaults each newly reached stage's date to
   // today; jumping Recommended → Resulted with no Interviewing date marks
   // Interviewing as Skipped automatically.
@@ -238,7 +248,10 @@ export function RecommendationFormModal({
   // Saving a Resulted recommendation requires a concrete placement result;
   // while "--" is selected the primary action stays disabled.
   const outcomeMissing = isEditing && form.status === 'resulted' && form.resultOutcome === 'none';
-  const submitDisabled = isSaving || outcomeMissing;
+  // One of project-or-unknown is required — the admin must assert one, never
+  // leave both blank.
+  const projectMissing = !form.projectUnknown && !form.projectId;
+  const submitDisabled = isSaving || outcomeMissing || projectMissing;
 
   const submitLabel = isSaving
     ? 'Saving...'
@@ -254,7 +267,7 @@ export function RecommendationFormModal({
       title={isEditing ? 'Edit recommendation' : 'New recommendation'}
       subtitle={
         isEditing
-          ? `${positionName(activeRecommendation)} · ${activeRecommendation?.project?.name || '—'}`
+          ? `${positionName(activeRecommendation)} · ${recommendationProjectLabel(activeRecommendation)}`
           : 'Available to Mentor and Admin roles · visible to Leadership'
       }
       footer={
@@ -313,6 +326,7 @@ export function RecommendationFormModal({
           <Select
             value={form.projectId}
             onValueChange={(projectId) => setForm((prev) => ({ ...prev, projectId }))}
+            disabled={projectFieldDisabled}
           >
             <SelectTrigger
               id="recommendation-project"
@@ -330,6 +344,22 @@ export function RecommendationFormModal({
               ))}
             </SelectContent>
           </Select>
+          <label className="mt-2 flex items-center gap-2 text-[12.5px] text-muted-foreground">
+            <Checkbox
+              checked={form.projectUnknown}
+              disabled={projectLocked}
+              onCheckedChange={(checked) =>
+                setForm((prev) => ({ ...prev, projectUnknown: Boolean(checked) }))
+              }
+              data-test="recommendation-project-unknown-checkbox"
+            />
+            Project not known yet
+          </label>
+          {projectLocked && (
+            <p className="mt-1.5 text-[12px] text-muted-foreground/80">
+              Project is locked once a recommendation is resulted.
+            </p>
+          )}
         </div>
       </div>
 
@@ -608,7 +638,8 @@ export function RecommendationDeleteDialog({
         <DialogDescription className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
           Are you sure you want to delete{' '}
           <span className="font-bold text-foreground">
-            &quot;{positionName(recommendation)} · {recommendation.project?.name || '—'}&quot;
+            &quot;{positionName(recommendation)} · {recommendationProjectLabel(recommendation)}
+            &quot;
           </span>
           ? The full status history and placement outcome will be removed. This can&apos;t be
           undone.

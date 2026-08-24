@@ -432,7 +432,8 @@ same exception as `Project`/`Recommendation` above).
   `POST /:id/put-forward`) is **admin-only** at the route and re-asserted in
   `assertCanPutForward` — leadership files demand, admins answer it, and there is no author
   carve-out. Both routes also refuse a closed request and one that still needs its project; that
-  second refusal is structural, not cosmetic (`Recommendation.project` is required). The read is
+  second refusal is not about `Recommendation.project` being required (it isn't) — it's that the
+  request's own project is what pre-fills every recommendation a submit creates. The read is
   scoped to one requested position by **path segment**; the write is request-level and takes
   `{ groups: [{ positionId, internProfileIds }] }`, but the position is still never free — every
   group's `positionId` must be one the request actually asked for (`findRequestedPosition`, which

@@ -198,6 +198,38 @@ describe('putInternsForward', () => {
     expect(createRecommendationsForStaffingRequest).toHaveBeenCalled();
   });
 
+  // Ticking "unknown" on the form sends an explicit `projectId: null`,
+  // deliberately discarding the request's own project for this submit.
+  it('overrides the pre-filled project when the payload sends an explicit null', async () => {
+    const doc = arrange(mockRequest());
+    arrangeCandidates([{ _id: PROFILE_ID, status: 'ready' }]);
+
+    await putInternsForward(admin, REQUEST_ID, { groups: oneGroup, projectId: null });
+
+    expect(createRecommendationsForStaffingRequest).toHaveBeenCalledWith(
+      admin,
+      expect.objectContaining({ projectId: null })
+    );
+    expect(doc.project).not.toBeNull();
+  });
+
+  // Only an explicit `null` is a legal override — the project comes from the
+  // request, not from a free choice on this form.
+  it('ignores any other projectId sent on the payload and keeps the pre-fill', async () => {
+    const doc = arrange(mockRequest());
+    arrangeCandidates([{ _id: PROFILE_ID, status: 'ready' }]);
+
+    await putInternsForward(admin, REQUEST_ID, {
+      groups: oneGroup,
+      projectId: '507f1f77bcf86cd79943901c',
+    });
+
+    expect(createRecommendationsForStaffingRequest).toHaveBeenCalledWith(
+      admin,
+      expect.objectContaining({ projectId: doc.project })
+    );
+  });
+
   it('refuses a non-admin with a 403', async () => {
     arrange(mockRequest());
     await expectHttpError(putInternsForward(author, REQUEST_ID, { groups: oneGroup }), 403);

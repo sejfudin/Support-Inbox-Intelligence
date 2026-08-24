@@ -649,6 +649,17 @@ ticketing domain's, not intern/recommendation reference data's).
   `seeder/removeUnspecifiedProjectSentinel.js` repoints every recommendation still pointing at it
   to `null` and deletes it.) The `unspecified` slug is not reserved — a real project can be named
   "Unspecified".
+- **A create must assert one of the two** — an explicit project id, or an explicit `null` for
+  "unknown" — never omit the field (`helpers/recommendationProjectRules.js#assertProjectFieldAsserted`),
+  so a dropped field or a stale client can't produce an indistinguishable, legitimate-looking
+  "unknown". Every path that creates a recommendation (ad-hoc, and putting interns forward against
+  a staffing request) goes through this. **Editing** is free while `recommended`/`interviewing`;
+  once `resulted` the field is locked, with one exception — a project that was never known can
+  still be filled in (`assertCanEditProject`). Clearing or swapping a known project once resulted
+  is refused, because that silently changes recorded placement figures a roster already counted.
+  Internal surfaces read a recommendation's project through one shared display helper,
+  `frontend/src/helpers/recommendations.js#recommendationProjectLabel`, which renders "Not known
+  yet" for a null project rather than an em dash.
 - **"Which interns are on project X" is a derived read** (query `Recommendation` by `project`), not
   a stored roster — there is no members/roster field by design.
 - **Leadership-facing Projects page** (`/projects`, `/projects/:id`) reads two additive,

@@ -74,6 +74,7 @@ const toInputDate = (date) => (date ? format(new Date(date), 'yyyy-MM-dd') : '')
 const createEmptyForm = () => ({
   positionId: '',
   projectId: '',
+  projectUnknown: false,
   technologyIds: [],
   recommendationNote: '',
   status: 'recommended',
@@ -101,6 +102,9 @@ const formFromRecommendation = (recommendation) => {
   return {
     positionId: recommendation.position?._id || recommendation.position || '',
     projectId: recommendation.project?._id || recommendation.project || '',
+    // Reflects the record's actual state: unticking is how the admin declares
+    // it now known and reveals the select to fill it in.
+    projectUnknown: !recommendation.project,
     technologyIds: (recommendation.technologies || []).map((technology) => technology._id),
     recommendationNote: recommendation.recommendationNote || '',
     status,
@@ -249,7 +253,9 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     const payload = {
       internUserId: userId,
       positionId: form.positionId,
-      projectId: form.projectId,
+      // An explicit null asserts "not known yet" — never omitted, so the
+      // server can tell a deliberate unknown from a dropped field.
+      projectId: form.projectUnknown ? null : form.projectId,
       technologyIds: form.technologyIds,
       recommendationNote: form.recommendationNote,
       status: form.status,
@@ -322,8 +328,8 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
       toast.error('Select a position for this recommendation');
       return;
     }
-    if (!form.projectId) {
-      toast.error('Select a project for this recommendation');
+    if (!form.projectUnknown && !form.projectId) {
+      toast.error('Select a project, or mark it not known yet');
       return;
     }
 
@@ -350,8 +356,10 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     const payload = buildPayload();
 
     // Soft warn when pitching someone who already has an open recommendation
-    // on a different project — create is still allowed after confirm.
-    if (!isEditing) {
+    // on a different project — create is still allowed after confirm. Not
+    // meaningful when the project isn't known yet, so there is nothing to
+    // compare against.
+    if (!isEditing && !form.projectUnknown) {
       const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
       if (conflicts.length > 0) {
         const targetProject =
