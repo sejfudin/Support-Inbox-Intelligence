@@ -710,9 +710,13 @@ Frontend: `pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/att
 - **The obligation ends when an intern goes onto a real project.** `InternProfile.placedAt` (Date,
   nullable) is their **first day on the project** and is **inclusive-from**: that day is already
   exempt, so the last owed day is `previousDayKey(placedAt)`. From `placedAt` on, days leave the
-  denominator and render as `DAY_STATUS.EXEMPT` in their own amber — grey made them
-  indistinguishable from a weekend, and blue is the remote-day colour. `checkIn()` is refused (422)
-  so the exemption isn't merely cosmetic.
+  denominator and render as `DAY_STATUS.EXEMPT`. That cell is **hue-free on purpose** — a colour
+  here would have to be answered for in both colourblind palettes, for a state that means "no
+  obligation". It separates from the weekend by weight instead: denser fill, full-strength text, a
+  neutral inset ring no other not-owed status has, and the briefcase glyph. **A weekend is never
+  EXEMPT** — `classifyDay` skips both placement rungs on Sat/Sun, because "On project" on a Saturday
+  reads as a day the intern worked. `checkIn()` is refused (422) so the exemption isn't merely
+  cosmetic.
   - It mirrors the placement's **`result.startDate`** and nothing else (`placementExemptionDate`) —
     **not** `statusDates.resulted` (when the decision was recorded) and **not** `result.decidedAt`
     (when someone got around to clicking it). An intern placed today who starts in ten days owes
@@ -720,6 +724,39 @@ Frontend: `pages/{MyAttendancePage,AttendanceOverviewPage}.jsx`, `components/att
     the exemption in either direction.
   - **A placement with no start date yet exempts nothing** (`placedAt` stays null): placed on paper,
     still owes attendance. Cleared when an outcome flips back to `not_placed`.
+  - **Every path back onto the programme must clear it**, or the intern silently stays off
+    attendance for good — 0 present of 0 owed forever, check-in refused (422), absence requests
+    refused, no daily reminder. Four paths reset it: a `not_placed` outcome; deleting the placing
+    recommendation (recomputed from the newest remaining record); the close-out cascade
+    (`returnInternsToBench`); and an admin moving the lifecycle status out of `placed` by hand into
+    `active` or `ready` (`internService.updateInternProgramme`). Moving to `completed` or
+    `discontinued` **keeps** it — those interns are not coming back to owe anything.
+  - **Clear it only via `closePlacementExemption`, never by assigning null.** `placedAt` is one
+    *open-ended* boundary, so clearing it does not reopen the placed stretch — it reopens every day
+    from the placement to today, and those days hold no attendance rows, because absence is stored
+    as the **lack** of a row. A bare `placedAt = null` therefore hands a returning intern a wall of
+    fabricated absence. `closePlacementExemption` records the stretch first (see below), then
+    clears. It is idempotent, and records nothing for a placement whose start date never arrived.
+- **`InternProfile.placementExemptions`** is the closed half of the same fact: placements the intern
+  has already **returned from**, as half-open ranges `[{from, to}]` — `from` is the `placedAt` they
+  were exempt from (inclusive), `to` is the day they rejoined and owed attendance again (exclusive).
+  A list, because an intern can be placed, come back, and be placed again.
+  - Those days leave the denominator exactly the way approved leave and a cohort-wide
+    `NonWorkingDay` do: nothing owed, nothing missed. `placementExemptKeys` expands them and
+    **`computeMonthStats` is the only thing that may act on them** — it takes them as its 7th
+    argument, so callers pass the field and nothing has to remember how to merge it.
+  - **`isExemptOn` / `isExemptToday` deliberately ignore them.** Those answer "may this intern check
+    in, must they be reminded", which is about the placement they are on *now* — `placedAt`. A
+    finished placement has no bearing on it.
+  - A second `placedAt`-style date field cannot express this. Clamping the range *start* to the
+    return date would erase every month before the placement, which had real obligation and real
+    check-ins. The exemption is a range; only a range stores it.
+  - Sent to the client on all three attendance payloads and expanded there by
+    `placementExemptKeySet`, so the calendar classifies those days `DAY_STATUS.EXEMPT` instead of
+    drawing a finished placement as absences. The two expansions must agree, or the cells contradict
+    the percentage printed above them — including the weekend rule: **both sides leave Sat/Sun out
+    of the set.** It changes no denominator (`countWorkingDays` never counted one), but a weekend in
+    the set renders as "On project".
   - An intern with no recommendation at all is exempted by setting `placedAt` directly via
     `internService.updateInternProfile` — but for anyone who *has* a placement record that value is
     overwritten on the next update, so edit the start date instead.

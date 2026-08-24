@@ -9,7 +9,7 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { escapeRegex } = require('../helpers/escapeRegex');
-const { placementExemptionDate } = require('../helpers/attendanceStats');
+const { placementExemptionDate, closePlacementExemption } = require('../helpers/attendanceStats');
 const { selectCloseOutRecommendations } = require('../helpers/staffingRequestRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
@@ -785,7 +785,9 @@ const returnInternsToBench = async (internProfileIds) => {
 
   for (const profile of profiles) {
     profile.status = READY_STATUS;
-    profile.placedAt = null;
+    // Records the stretch they were away before lifting the exemption — clearing
+    // `placedAt` alone would reopen those days as absences they never owed.
+    Object.assign(profile, closePlacementExemption(profile));
     await profile.save();
   }
 };
@@ -972,8 +974,11 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
     // untouched — each recommendation is resolved individually by the mentor.
   } else if (outcome === 'not_placed' && ['active', 'placed'].includes(profile.status)) {
     profile.status = READY_STATUS;
-    // Back on the bench: they owe attendance again, so the exemption is lifted.
-    profile.placedAt = null;
+    // Back on the bench: they owe attendance again, so the exemption is lifted —
+    // but only from today. The stretch they already spent on the project is closed
+    // out and stays exempt, or undoing the placement would bill them for every day
+    // of it.
+    Object.assign(profile, closePlacementExemption(profile));
     await profile.save();
   }
 
@@ -1056,7 +1061,12 @@ const deleteRecommendation = async (user, recommendationId) => {
     if (profile.status !== nextStatus || !sameInstant(profile.placedAt, nextPlacedAt)) {
       const previousStatus = profile.status;
       profile.status = nextStatus;
-      profile.placedAt = nextPlacedAt;
+      // Losing the exemption closes the stretch it covered; gaining or moving one
+      // is a straight re-derive. Same reason as everywhere else: the days already
+      // spent on the project were owed by nobody, and deleting the paperwork does
+      // not turn them into absences.
+      if (nextPlacedAt) profile.placedAt = nextPlacedAt;
+      else Object.assign(profile, closePlacementExemption(profile));
       await profile.save();
 
       if (nextStatus !== previousStatus) {

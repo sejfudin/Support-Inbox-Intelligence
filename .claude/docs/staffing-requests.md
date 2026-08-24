@@ -152,8 +152,9 @@ untag/delete/third-outcome) and `docs/adr/0005` (no reopen).
   staffingRequestId, positionIds, reason, action })` — a reusable unit, called from both the close
   and the edit path. Per record it writes the result, stamps `statusDates.resulted`, and appends its
   own `recommendation` history row (shared with the placement auto-close via `resolveAsNotPlaced`);
-  then it returns each intern to the ready bench (`status: 'ready'`, `placedAt: null`) **unless they
-  hold a placement elsewhere**, and emits `emitInternDataChanged()`. It returns
+  then it returns each intern to the ready bench (`status: 'ready'`, exemption lifted via
+  `closePlacementExemption` — never a bare `placedAt = null`, see `.claude/docs/architecture.md`)
+  **unless they hold a placement elsewhere**, and emits `emitInternDataChanged()`. It returns
   `{ closedOutCount }`, which the caller names in the trail.
 - The cascade runs **after** the request is saved, so a failure leaves a closed request with a
   retryable close-out rather than a dozen resolved people on a still-open one.

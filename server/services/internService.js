@@ -26,6 +26,12 @@ const { closeActiveRecommendationsForIntern } = require('./recommendationService
 const internNotificationService = require('./internNotificationService');
 const { userSelect } = require('../constants/userSelect');
 const { httpError } = require('../helpers/httpError');
+const { closePlacementExemption } = require('../helpers/attendanceStats');
+
+// The statuses that mean "back on the programme, owing attendance again". Moving
+// into one of these out of `placed` lifts the attendance exemption — see
+// `updateInternProgramme`. The terminal statuses are deliberately absent.
+const RETURNED_TO_PROGRAMME_STATUSES = ['active', READY_STATUS];
 
 const PROFILE_POPULATE = [
   {
@@ -340,6 +346,25 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   // at all. Clearing it puts them back on the hook for attendance.
   if (payload.placedAt !== undefined) {
     profile.placedAt = payload.placedAt ? new Date(payload.placedAt) : null;
+  } else if (
+    previousStatus === 'placed' &&
+    RETURNED_TO_PROGRAMME_STATUSES.includes(profile.status)
+  ) {
+    // Brought back onto the programme by hand. The exemption has to go with the
+    // status, or the intern silently stays off attendance for good: the rate reads
+    // 0 present of 0 owed forever, check-in is refused with a 422, absence requests
+    // are refused, and the daily reminder skips them. Same reset
+    // `recommendationService` runs for a `not_placed` outcome — this is the one
+    // path back out of placed that had no reset at all.
+    //
+    // Scoped to the two statuses that mean "on the programme again". `completed`
+    // and `discontinued` keep their `placedAt`: those interns did leave for a real
+    // project, and they are not coming back to owe anything.
+    //
+    // `closePlacementExemption`, not a bare `placedAt = null`: the days they spent on
+    // the project were owed by nobody, and clearing the open boundary alone would
+    // reopen every one of them as an absence. It records the closed stretch first.
+    Object.assign(profile, closePlacementExemption(profile));
   }
 
   await profile.save();
