@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getSpecializationAction,
   isAssessedLevel,
+  isSpecialized,
   SPECIALIZATION_ACTIONS,
   UNASSESSED_LEVEL,
 } from './internProfile';
@@ -26,6 +27,19 @@ describe('isAssessedLevel', () => {
   // so a new one does not silently read as "not assessed yet".
   it('counts an unknown future level as assessed', () => {
     expect(isAssessedLevel('blocked')).toBe(true);
+  });
+});
+
+describe('isSpecialized', () => {
+  it('reads the assigned marker, not the position', () => {
+    expect(isSpecialized({ specializationAssignedAt: '2026-01-01' })).toBe(true);
+    expect(isSpecialized({ declaredPosition: { _id: 'p1' } })).toBe(false);
+  });
+
+  it('treats a missing record as not specialized', () => {
+    expect(isSpecialized(null)).toBe(false);
+    expect(isSpecialized(undefined)).toBe(false);
+    expect(isSpecialized({})).toBe(false);
   });
 });
 

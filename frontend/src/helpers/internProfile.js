@@ -59,8 +59,12 @@ export const SPECIALIZATION_ACTIONS = {
   BLOCKED: 'blocked',
 };
 
+// `specializationAssignedAt` is the whole marker — set means `declaredPosition`
+// IS the specialization, with no separate field (ADR 0002). Asking the record
+// directly, rather than inferring it back out of which action was offered.
+export const isSpecialized = (intern) => Boolean(intern?.specializationAssignedAt);
+
 export const getSpecializationAction = (intern) => {
-  if (!intern) return SPECIALIZATION_ACTIONS.BLOCKED;
-  if (intern.specializationAssignedAt) return SPECIALIZATION_ACTIONS.CHANGE_MENTOR;
-  return intern.declaredPosition ? SPECIALIZATION_ACTIONS.ASSIGN : SPECIALIZATION_ACTIONS.BLOCKED;
+  if (isSpecialized(intern)) return SPECIALIZATION_ACTIONS.CHANGE_MENTOR;
+  return intern?.declaredPosition ? SPECIALIZATION_ACTIONS.ASSIGN : SPECIALIZATION_ACTIONS.BLOCKED;
 };

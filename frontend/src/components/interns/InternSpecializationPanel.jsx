@@ -4,7 +4,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { InternOverviewSection } from '@/components/interns/InternOverviewSection';
 import { AssignSpecializationModal } from '@/components/interns/specialization/AssignSpecializationModal';
 import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMentorModal';
-import { getSpecializationAction, SPECIALIZATION_ACTIONS } from '@/helpers/internProfile';
+import {
+  getSpecializationAction,
+  isSpecialized,
+  SPECIALIZATION_ACTIONS,
+} from '@/helpers/internProfile';
 
 function Field({ label, value }) {
   return (
@@ -13,6 +17,62 @@ function Field({ label, value }) {
       <dd className="text-[12.5px] font-medium text-foreground">{value}</dd>
     </div>
   );
+}
+
+// The one place the action enum is read. Kept as a switch so a new action has
+// exactly one arm to add and the compiler-less default still resolves.
+function renderControl(action, { onAssign, onChangeMentor }) {
+  switch (action) {
+    case SPECIALIZATION_ACTIONS.CHANGE_MENTOR:
+      return (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onChangeMentor}
+          data-test="profile-change-specialization-mentor-button"
+        >
+          Change mentor
+        </Button>
+      );
+    case SPECIALIZATION_ACTIONS.ASSIGN:
+      return (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onAssign}
+          data-test="profile-assign-specialization-button"
+        >
+          Assign specialization
+        </Button>
+      );
+    default:
+      // Disabled rather than absent: an admin who cannot specialize somebody
+      // needs to know it is the missing position blocking them, not that the
+      // control lives somewhere else. `span` wrapper because a disabled button
+      // fires no pointer events for the tooltip to hang off.
+      return (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} data-test="profile-assign-specialization-blocked">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="pointer-events-none"
+                >
+                  Assign specialization
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>This intern has not declared a position yet.</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+  }
 }
 
 /**
@@ -31,54 +91,15 @@ export function InternSpecializationPanel({ intern, className }) {
   const [assignOpen, setAssignOpen] = useState(false);
   const [changeMentorOpen, setChangeMentorOpen] = useState(false);
 
-  const action = getSpecializationAction(intern);
-  const isSpecialized = action === SPECIALIZATION_ACTIONS.CHANGE_MENTOR;
+  // No record, nothing to say about it. The blocked control below asserts the
+  // intern declared no position, and that is a claim about data — saying it
+  // while the record is absent would be a guess dressed as a fact.
+  if (!intern) return null;
 
-  const control =
-    action === SPECIALIZATION_ACTIONS.CHANGE_MENTOR ? (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => setChangeMentorOpen(true)}
-        data-test="profile-change-specialization-mentor-button"
-      >
-        Change mentor
-      </Button>
-    ) : action === SPECIALIZATION_ACTIONS.ASSIGN ? (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => setAssignOpen(true)}
-        data-test="profile-assign-specialization-button"
-      >
-        Assign specialization
-      </Button>
-    ) : (
-      // Disabled rather than absent: an admin who cannot specialize somebody
-      // needs to know it is the missing position blocking them, not that the
-      // control lives somewhere else. `span` wrapper because a disabled button
-      // fires no pointer events for the tooltip to hang off.
-      <TooltipProvider delayDuration={200}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span tabIndex={0} data-test="profile-assign-specialization-blocked">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled
-                className="pointer-events-none"
-              >
-                Assign specialization
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>This intern has not declared a position yet.</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
+  const control = renderControl(getSpecializationAction(intern), {
+    onAssign: () => setAssignOpen(true),
+    onChangeMentor: () => setChangeMentorOpen(true),
+  });
 
   return (
     <>
@@ -88,7 +109,7 @@ export function InternSpecializationPanel({ intern, className }) {
         action={control}
         className={className}
       >
-        {isSpecialized ? (
+        {isSpecialized(intern) ? (
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Field label="Specialization" value={intern.declaredPosition?.name || '—'} />
             <Field label="Specialization mentor" value={intern.secondaryMentor?.fullname || '—'} />
@@ -109,7 +130,8 @@ export function InternSpecializationPanel({ intern, className }) {
         intern={intern}
       />
       <ChangeMentorModal
-        specialization={changeMentorOpen ? intern : null}
+        open={changeMentorOpen}
+        specialization={intern}
         onClose={() => setChangeMentorOpen(false)}
       />
     </>
