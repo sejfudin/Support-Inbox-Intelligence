@@ -111,6 +111,13 @@ const RECOMMENDATION_INTERN_POPULATE = [
   { path: 'technologies', select: 'name slug' },
 ];
 
+// A recommendation whose intern's User was deleted straight from the database
+// still loads fine — `internProfile.user` just populates as `null`, and every
+// field below falls back to the literal "Unknown". Dropping those rows at the
+// point they are read keeps both the project rosters and the counts derived
+// from them free of people who no longer exist. See `helpers/orphanedProfiles.js`.
+const hasLiveIntern = (recommendation) => Boolean(recommendation.internProfile?.user);
+
 const internSummary = (recommendation) => ({
   recommendationId: recommendation._id,
   userId: recommendation.internProfile?.user?._id || null,
@@ -149,10 +156,12 @@ const getProjectOverview = async (id, user) => {
   assertLeadershipReadAccess(user);
   const project = await getProjectById(id);
 
-  const recommendations = await Recommendation.find({ project: id })
-    .populate(RECOMMENDATION_INTERN_POPULATE)
-    .sort({ updatedAt: -1 })
-    .lean();
+  const recommendations = (
+    await Recommendation.find({ project: id })
+      .populate(RECOMMENDATION_INTERN_POPULATE)
+      .sort({ updatedAt: -1 })
+      .lean()
+  ).filter(hasLiveIntern);
 
   const placed = recommendations
     .filter((rec) => rec.result?.outcome === 'placed')
@@ -194,9 +203,11 @@ const getProjectsOverview = async (user) => {
     .lean();
   const projectIds = projects.map((project) => project._id);
 
-  const recommendations = await Recommendation.find({ project: { $in: projectIds } })
-    .populate(RECOMMENDATION_INTERN_POPULATE)
-    .lean();
+  const recommendations = (
+    await Recommendation.find({ project: { $in: projectIds } })
+      .populate(RECOMMENDATION_INTERN_POPULATE)
+      .lean()
+  ).filter(hasLiveIntern);
 
   const recsByProject = new Map();
   recommendations.forEach((rec) => {
