@@ -371,6 +371,11 @@ dangling authorship and membership refs (`updatedBy`, `evaluator`, `author`, wor
 ticket watchers) — those records still describe something that happened; `--prune-refs` clears
 just those fields while keeping the records.
 
+`--prune-refs` refuses to touch a **required** scalar (`Workspace.owner`, `Ticket.creator`,
+`InternProfile.primaryMentor`) and lists what it skipped. `updateMany` does not run validators, so
+the `$unset` would otherwise succeed silently and leave a workspace with no owner — worse than the
+dangling id. Reassign those in the app.
+
 Dry-run is the default. Unlike the seeders this one does **not** refuse a production-looking
 database name — repairing production is the reason it exists — so the guard is that every write
 needs the database name asserted out loud.

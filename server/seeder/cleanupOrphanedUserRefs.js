@@ -269,7 +269,9 @@ const printBanner = (target, plan, findings, options) => {
       options.pruneRefs
         ? '  --prune-refs: authorship/membership refs above will also be cleared.\n'
         : '  Authorship/membership refs above are KEPT (records describe real events).\n' +
-            '  Re-run with --prune-refs to clear those individual fields too.\n'
+            '  Re-run with --prune-refs to clear those individual fields too — note it\n' +
+            '  skips REQUIRED fields (Workspace.owner, Ticket.creator, InternProfile.\n' +
+            '  primaryMentor), which have to be reassigned in the app instead.\n'
     );
   }
 };
@@ -354,6 +356,7 @@ const applyPlan = async (plan) => {
  */
 const prunePlainRefs = async (findings, liveUserIds) => {
   let touched = 0;
+  const skipped = [];
 
   for (const { modelName, refPath, isArray, dangling } of findings) {
     // Already handled by the deletion plan — the whole record is going.
@@ -361,6 +364,21 @@ const prunePlainRefs = async (findings, liveUserIds) => {
     if (USER_OWNED.some(([name, field]) => name === modelName && field === refPath)) continue;
 
     const Model = mongoose.model(modelName);
+
+    // A required scalar cannot be cleared without corrupting the record.
+    // `updateMany` does not run validators, so the $unset would silently
+    // succeed and leave a Workspace with no owner or a Ticket with no creator —
+    // a worse state than the dangling id it was meant to repair. Reassigning
+    // those is a decision for a person, not for this script.
+    if (!isArray && Model.schema.path(refPath)?.isRequired) {
+      console.log(
+        `  ⏭️  ${modelName}.${refPath}: ${dangling.length} record(s) SKIPPED — field is required, ` +
+          'reassign it in the app instead.'
+      );
+      skipped.push({ modelName, refPath, count: dangling.length });
+      continue;
+    }
+
     const missingIds = [...new Set(dangling.map((entry) => entry.userId))].map(
       (id) => new mongoose.Types.ObjectId(id)
     );
@@ -383,10 +401,20 @@ const prunePlainRefs = async (findings, liveUserIds) => {
       !(modelName === 'InternProfile' && refPath === 'user') &&
       !USER_OWNED.some(([name, field]) => name === modelName && field === refPath)
   );
-  if (stillDangling.length) {
-    console.log('\n  ⚠️  Still dangling after prune (required fields cannot be unset):');
-    stillDangling.forEach(({ modelName, refPath, dangling }) =>
+  const unexpected = stillDangling.filter(
+    ({ modelName, refPath }) =>
+      !skipped.some((entry) => entry.modelName === modelName && entry.refPath === refPath)
+  );
+  if (unexpected.length) {
+    console.log('\n  ⚠️  Still dangling after prune, and not deliberately skipped:');
+    unexpected.forEach(({ modelName, refPath, dangling }) =>
       console.log(`      ${modelName}.${refPath} — ${dangling.length}`)
+    );
+  }
+  if (skipped.length) {
+    console.log('\n  Left alone because the field is required (reassign these in the app):');
+    skipped.forEach(({ modelName, refPath, count }) =>
+      console.log(`      ${modelName}.${refPath} — ${count}`)
     );
   }
 
