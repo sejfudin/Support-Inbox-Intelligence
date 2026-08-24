@@ -60,6 +60,10 @@ const buildSummary = async (profile) => {
     // colour remote apart from vacation apart from sick.
     requestedDays,
     placedAt: profile.placedAt || null,
+    // Placement stretches already returned from. Sent for the same reason `placedAt`
+    // and `startDate` are: the client classifies days itself, and without these it
+    // draws every day of a finished placement as an absence.
+    placementExemptions: profile.placementExemptions || [],
     // The calendar pages back through the intern's whole history client-side, so it
     // needs the start date too — without it every month before they joined renders
     // as a wall of absences for days they could not have attended.
@@ -74,7 +78,8 @@ const buildSummary = async (profile) => {
         profile.startDate,
         profile.placedAt,
         nonWorking.keys,
-        exemptDates
+        exemptDates,
+        profile.placementExemptions
       ),
     },
   };
@@ -305,6 +310,10 @@ const buildRosterEntry = (profile, rows, monthKey, nonWorkingKeys) => {
     cancelledDates,
     requestedDays,
     placedAt: profile.placedAt || null,
+    // Placement stretches already returned from. Sent for the same reason `placedAt`
+    // and `startDate` are: the client classifies days itself, and without these it
+    // draws every day of a finished placement as an absence.
+    placementExemptions: profile.placementExemptions || [],
     startDate: profile.startDate || null,
     ...computeMonthStats(
       records,
@@ -312,7 +321,8 @@ const buildRosterEntry = (profile, rows, monthKey, nonWorkingKeys) => {
       profile.startDate,
       profile.placedAt,
       nonWorkingKeys,
-      exemptDates
+      exemptDates,
+      profile.placementExemptions
     ),
     lastCheckIn: lastCheckIn || null,
   };
@@ -416,6 +426,10 @@ const getInternAttendance = async (actor, internProfileId, month) => {
     cancelledDates,
     requestedDays,
     placedAt: profile.placedAt || null,
+    // Placement stretches already returned from. Sent for the same reason `placedAt`
+    // and `startDate` are: the client classifies days itself, and without these it
+    // draws every day of a finished placement as an absence.
+    placementExemptions: profile.placementExemptions || [],
     startDate: profile.startDate || null,
     nonWorkingDays: nonWorking.list,
     observances,
@@ -427,7 +441,8 @@ const getInternAttendance = async (actor, internProfileId, month) => {
         profile.startDate,
         profile.placedAt,
         nonWorking.keys,
-        exemptDates
+        exemptDates,
+        profile.placementExemptions
       ),
     },
   };

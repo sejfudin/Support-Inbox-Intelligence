@@ -11,6 +11,7 @@ import {
   stripAttendance,
   computeStreak,
   nonWorkingKeySet,
+  placementExemptKeySet,
   nonWorkingKind,
   nonWorkingLabel,
   isLeaveStatus,
@@ -147,6 +148,10 @@ export function AttendanceHeroCard({
   // only colours them; the three leave statuses are not in `records` at all and
   // drop out of the tally's denominator, which `stripAttendance` handles.
   requestedDays = {},
+  // Placements the intern has already come back from, `[{from, to}]`. Only matters
+  // in the week they returned — the days before that day are inside the stint and
+  // must grey out rather than read as a week of absences.
+  placementExemptions = [],
   onCheckIn,
   isCheckingIn,
   className,
@@ -166,7 +171,8 @@ export function AttendanceHeroCard({
     placedAt,
     nonWorkingKeySet(nonWorkingDays),
     startDate,
-    requestedDays
+    requestedDays,
+    placementExemptKeySet(placementExemptions)
   );
   const { present: weekPresent, elapsed: weekElapsed } = stripAttendance(week);
 

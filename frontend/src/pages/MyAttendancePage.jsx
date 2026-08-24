@@ -30,6 +30,7 @@ export default function MyAttendancePage() {
   const startDate = data?.startDate ?? null;
   const requestedDays = data?.requestedDays ?? {};
   const observances = data?.observances ?? [];
+  const placementExemptions = data?.placementExemptions ?? [];
   // Current-month stats come from the server (start-date-prorated, and clamped at
   // `placedAt`); the calendar and streak are derived client-side from the full
   // record history. `attendanceRate` is null when nothing was owed — do NOT default
@@ -144,6 +145,7 @@ export default function MyAttendancePage() {
                 nonWorkingDays={nonWorkingDays}
                 startDate={startDate}
                 requestedDays={requestedDays}
+                placementExemptions={placementExemptions}
                 observances={observances}
               />
 

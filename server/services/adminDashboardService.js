@@ -247,7 +247,11 @@ const getAdminDashboard = async ({ workspaceId }) => {
         user: { $in: internUserIds },
         status: { $in: IN_PROGRAMME_STATUSES },
       })
-        .select('_id user startDate declaredPosition')
+        // `placedAt` and `placementExemptions` both feed `computeMonthStats` below.
+        // `placedAt` is near-always null here (IN_PROGRAMME_STATUSES excludes
+        // `placed`), but `placementExemptions` is not: an intern who came back from a
+        // project is `active` again and still carries the stretch they were away.
+        .select('_id user startDate declaredPosition placedAt placementExemptions')
         .populate({ path: 'declaredPosition', select: 'name' })
         .lean()
     : [];
@@ -285,7 +289,8 @@ const getAdminDashboard = async ({ workspaceId }) => {
         profile.startDate,
         profile.placedAt,
         nonWorking.keys,
-        exemptDates
+        exemptDates,
+        profile.placementExemptions
       );
       const counts = workloadByUser.get(String(user._id)) || {};
 

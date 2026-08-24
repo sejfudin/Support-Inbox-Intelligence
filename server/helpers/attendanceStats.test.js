@@ -3,6 +3,8 @@ const {
   computeMonthStats,
   averageAttendanceRate,
   placementExemptionDate,
+  placementExemptKeys,
+  closePlacementExemption,
 } = require('./attendanceStats');
 
 // A fully elapsed month keeps these deterministic: once the month is in the past
@@ -259,6 +261,248 @@ describe('computeMonthStats — non-working days (holidays, breaks, remote weeks
     );
 
     expect(stats.workingDays).toBe(9);
+  });
+});
+
+// The intern who was placed on a project and then brought back to the programme.
+// `placedAt` is one open-ended boundary, so clearing it on return reopens every day
+// from the placement onward — and those days hold no attendance rows, because absence
+// is stored as the lack of a row. Closed stints are what keeps that stretch out of the
+// denominator instead of billing it as absence.
+describe('computeMonthStats — placementExemptions (stretches already returned from)', () => {
+  // 8–19 June 2026 on a project (Mon–Fri, Mon–Fri = 10 working days), back on the 22nd.
+  const RETURNED_STINT = [{ from: new Date('2026-06-08'), to: new Date('2026-06-22') }];
+
+  it('drops the days of a finished placement from the denominator', () => {
+    const stats = computeMonthStats(
+      [],
+      PAST_MONTH,
+      null,
+      null,
+      undefined,
+      undefined,
+      RETURNED_STINT
+    );
+
+    expect(stats.workingDays).toBe(PAST_MONTH_WORKING_DAYS - 10);
+  });
+
+  it('does not bill the stretch as absence — the whole point', () => {
+    // Present every working day they actually owed: 1–5 June, then 22–30 June.
+    const attended = records(
+      '2026-06-01',
+      '2026-06-02',
+      '2026-06-03',
+      '2026-06-04',
+      '2026-06-05',
+      '2026-06-22',
+      '2026-06-23',
+      '2026-06-24',
+      '2026-06-25',
+      '2026-06-26',
+      '2026-06-29',
+      '2026-06-30'
+    );
+
+    const stats = computeMonthStats(
+      attended,
+      PAST_MONTH,
+      null,
+      null,
+      undefined,
+      undefined,
+      RETURNED_STINT
+    );
+
+    expect(stats).toEqual({ presentDays: 12, workingDays: 12, attendanceRate: 100 });
+  });
+
+  it('keeps the months either side of the stretch fully owed', () => {
+    // The bug a second `placedAt`-style field would have introduced: clamping the
+    // range start to the return date would erase every month before the placement.
+    const may = computeMonthStats([], '2026-05', null, null, undefined, undefined, RETURNED_STINT);
+
+    expect(may.workingDays).toBeGreaterThan(0);
+  });
+
+  it('reads the day they returned as owed — the stint is half-open', () => {
+    const stats = computeMonthStats(
+      records('2026-06-22'),
+      PAST_MONTH,
+      null,
+      null,
+      undefined,
+      undefined,
+      RETURNED_STINT
+    );
+
+    expect(stats.presentDays).toBe(1);
+  });
+
+  it('ignores a stray check-in inside the stretch so the rate cannot exceed 100%', () => {
+    const stats = computeMonthStats(
+      records('2026-06-10'),
+      PAST_MONTH,
+      null,
+      null,
+      undefined,
+      undefined,
+      RETURNED_STINT
+    );
+
+    expect(stats.presentDays).toBe(0);
+  });
+
+  it('handles more than one stretch — placed, back, placed, back', () => {
+    const stints = [
+      { from: new Date('2026-06-08'), to: new Date('2026-06-12') }, // 4 working days
+      { from: new Date('2026-06-22'), to: new Date('2026-06-26') }, // 4 working days
+    ];
+
+    const stats = computeMonthStats([], PAST_MONTH, null, null, undefined, undefined, stints);
+
+    expect(stats.workingDays).toBe(PAST_MONTH_WORKING_DAYS - 8);
+  });
+
+  it('stacks with the open placement and with approved leave', () => {
+    // Returned-from stint 8–12 June (4 working days), one sick day, then placed again
+    // on 22 June — three different exclusions, one denominator.
+    const stats = computeMonthStats(
+      [],
+      PAST_MONTH,
+      null,
+      new Date('2026-06-22'),
+      undefined,
+      ['2026-06-03'],
+      [{ from: new Date('2026-06-08'), to: new Date('2026-06-12') }]
+    );
+
+    // Owed 1–19 June = 15 working days, minus the sick day, minus the 4-day stint.
+    expect(stats.workingDays).toBe(10);
+  });
+
+  it('behaves exactly as before with no stints', () => {
+    expect(
+      computeMonthStats(records('2026-06-01'), PAST_MONTH, null, null, undefined, undefined, [])
+    ).toEqual(computeMonthStats(records('2026-06-01'), PAST_MONTH, null));
+  });
+});
+
+describe('placementExemptKeys', () => {
+  it('expands a stint as half-open [from, to)', () => {
+    const keys = placementExemptKeys([
+      { from: new Date('2026-06-08'), to: new Date('2026-06-11') },
+    ]);
+
+    expect([...keys].sort()).toEqual(['2026-06-08', '2026-06-09', '2026-06-10']);
+  });
+
+  it('leaves weekends out — they were never anyone’s working day', () => {
+    // 8–15 June 2026 spans the Sat/Sun of 13–14. They change no denominator, but the
+    // Set reaches the client, where a weekend must not render as "On project".
+    const keys = placementExemptKeys([
+      { from: new Date('2026-06-08'), to: new Date('2026-06-15') },
+    ]);
+
+    expect([...keys].sort()).toEqual([
+      '2026-06-08',
+      '2026-06-09',
+      '2026-06-10',
+      '2026-06-11',
+      '2026-06-12',
+    ]);
+  });
+
+  it('expands nothing for a stint that never began', () => {
+    // Placed on paper and brought back before the start date arrived: no day of
+    // theirs was ever excused.
+    const keys = placementExemptKeys([
+      { from: new Date('2026-06-08'), to: new Date('2026-06-08') },
+    ]);
+
+    expect(keys.size).toBe(0);
+  });
+
+  it('skips malformed stints rather than throwing', () => {
+    expect(placementExemptKeys([{ from: null, to: new Date('2026-06-08') }]).size).toBe(0);
+    expect(placementExemptKeys([{ from: new Date('2026-06-08'), to: null }]).size).toBe(0);
+    expect(placementExemptKeys(undefined).size).toBe(0);
+  });
+});
+
+describe('closePlacementExemption', () => {
+  const NOW = new Date('2026-06-22T09:00:00Z');
+
+  it('records the stretch and clears the open boundary', () => {
+    const from = new Date('2026-06-08');
+    const profile = { placedAt: from, placementExemptions: [] };
+
+    closePlacementExemption(profile, NOW);
+
+    expect(profile.placedAt).toBeNull();
+    expect(profile.placementExemptions).toHaveLength(1);
+    expect(profile.placementExemptions[0].from).toBe(from);
+    // `to` is the day they came back, which they owe — so it is the exclusive end.
+    expect(placementExemptKeys(profile.placementExemptions).has('2026-06-22')).toBe(false);
+    expect(placementExemptKeys(profile.placementExemptions).has('2026-06-19')).toBe(true);
+  });
+
+  it('appends rather than replacing, so an earlier stretch survives', () => {
+    const earlier = { from: new Date('2026-03-02'), to: new Date('2026-03-16') };
+    const profile = { placedAt: new Date('2026-06-08'), placementExemptions: [earlier] };
+
+    closePlacementExemption(profile, NOW);
+
+    expect(profile.placementExemptions).toHaveLength(2);
+    expect(profile.placementExemptions[0]).toBe(earlier);
+  });
+
+  it('records nothing for a placement that never started', () => {
+    // Placed on paper with a future start date, then brought back before it arrived.
+    const profile = { placedAt: new Date('2026-07-01'), placementExemptions: [] };
+
+    closePlacementExemption(profile, NOW);
+
+    expect(profile.placedAt).toBeNull();
+    expect(profile.placementExemptions).toEqual([]);
+  });
+
+  it('records nothing when today is the first day of the placement', () => {
+    // Nothing has been excused yet: `placedAt` is inclusive-from, so the stint
+    // [today, today) is empty.
+    const profile = { placedAt: new Date('2026-06-22'), placementExemptions: [] };
+
+    closePlacementExemption(profile, NOW);
+
+    expect(profile.placedAt).toBeNull();
+    expect(profile.placementExemptions).toEqual([]);
+  });
+
+  it('is a no-op for an intern who was never placed', () => {
+    const profile = { placedAt: null, placementExemptions: [] };
+
+    closePlacementExemption(profile, NOW);
+
+    expect(profile.placedAt).toBeNull();
+    expect(profile.placementExemptions).toEqual([]);
+  });
+
+  it('is idempotent — a second call adds nothing', () => {
+    const profile = { placedAt: new Date('2026-06-08'), placementExemptions: [] };
+
+    closePlacementExemption(profile, NOW);
+    closePlacementExemption(profile, NOW);
+
+    expect(profile.placementExemptions).toHaveLength(1);
+  });
+
+  it('tolerates a profile with no placementExemptions array yet', () => {
+    // Every document written before the field existed.
+    const profile = { placedAt: new Date('2026-06-08') };
+
+    closePlacementExemption(profile, NOW);
+
+    expect(profile.placementExemptions).toHaveLength(1);
   });
 });
 

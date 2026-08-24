@@ -78,6 +78,7 @@ const mockProgrammeProfile = (overrides = {}) => {
     cvPath: null,
     status: 'active',
     expectedEndDate: null,
+    placementExemptions: [],
     primaryMentor: 'm1',
     secondaryMentor: null,
     save: jest.fn().mockResolvedValue(undefined),
@@ -241,6 +242,130 @@ describe('updateInternProgramme — lifecycle status', () => {
       expect.objectContaining({ newStatus: to })
     );
     expect(closeActiveRecommendationsForIntern).not.toHaveBeenCalled();
+  });
+
+  // Regression: an intern placed on a project and then brought back to the programme
+  // kept `placedAt`, so `computeMonthStats` clamped their denominator to the day before
+  // it — every later month read 0 present of 0 owed, and check-in itself was refused.
+  // The recommendation paths already reset it; this manual one did not.
+  describe('placedAt (the attendance exemption)', () => {
+    const PLACED_AT = new Date('2026-06-08T00:00:00.000Z');
+
+    it.each(['active', 'ready'])(
+      'clears placedAt when an admin brings a placed intern back as %s',
+      async (to) => {
+        const profile = mockProgrammeProfile({ status: 'placed', placedAt: PLACED_AT });
+
+        await updateInternProgramme(ADMIN, 'u1', { status: to });
+
+        expect(profile.status).toBe(to);
+        expect(profile.placedAt).toBeNull();
+        expect(profile.save).toHaveBeenCalledTimes(1);
+      }
+    );
+
+    it.each(['active', 'ready'])(
+      'records the stretch they were away as a closed exemption (back as %s)',
+      async (to) => {
+        // Clearing `placedAt` on its own would reopen every day since the placement
+        // as an absence — absence is stored as the *lack* of an attendance row, so
+        // the whole stretch would read as missed. The closed stint is what keeps
+        // those days out of the denominator instead.
+        const profile = mockProgrammeProfile({ status: 'placed', placedAt: PLACED_AT });
+
+        await updateInternProgramme(ADMIN, 'u1', { status: to });
+
+        expect(profile.placementExemptions).toHaveLength(1);
+        expect(profile.placementExemptions[0].from).toBe(PLACED_AT);
+        expect(profile.placementExemptions[0].to).toBeInstanceOf(Date);
+      }
+    );
+
+    it('keeps stretches already recorded from an earlier placement', async () => {
+      const earlier = { from: new Date('2026-03-02'), to: new Date('2026-03-16') };
+      const profile = mockProgrammeProfile({
+        status: 'placed',
+        placedAt: PLACED_AT,
+        placementExemptions: [earlier],
+      });
+
+      await updateInternProgramme(ADMIN, 'u1', { status: 'active' });
+
+      expect(profile.placementExemptions).toHaveLength(2);
+      expect(profile.placementExemptions[0]).toBe(earlier);
+    });
+
+    it('records no stretch for a placement that never started', async () => {
+      // Placed with a start date still in the future, then brought back before it
+      // arrived: they never stopped owing attendance, so nothing is excused.
+      const future = new Date('2099-01-04');
+      const profile = mockProgrammeProfile({ status: 'placed', placedAt: future });
+
+      await updateInternProgramme(ADMIN, 'u1', { status: 'active' });
+
+      expect(profile.placedAt).toBeNull();
+      expect(profile.placementExemptions).toEqual([]);
+    });
+
+    it('records no stretch when an admin clears placedAt by hand', async () => {
+      // An explicit null is a correction — "this exemption was a mistake" — and a
+      // correction should leave no trace of the thing it corrected. Distinct from
+      // the status move above, which means "they came back", and that did happen.
+      const profile = mockProgrammeProfile({
+        status: 'placed',
+        placedAt: PLACED_AT,
+        placementExemptions: [],
+      });
+
+      await updateInternProgramme(ADMIN, 'u1', { status: 'active', placedAt: null });
+
+      expect(profile.placedAt).toBeNull();
+      expect(profile.placementExemptions).toEqual([]);
+    });
+
+    it.each(['completed', 'discontinued'])(
+      'keeps placedAt when a placed intern moves to %s',
+      async (to) => {
+        const profile = mockProgrammeProfile({ status: 'placed', placedAt: PLACED_AT });
+
+        await updateInternProgramme(ADMIN, 'u1', { status: to });
+
+        expect(profile.status).toBe(to);
+        expect(profile.placedAt).toBe(PLACED_AT);
+      }
+    );
+
+    it('keeps placedAt when re-saving an already-placed intern as placed', async () => {
+      const profile = mockProgrammeProfile({ status: 'placed', placedAt: PLACED_AT });
+
+      await updateInternProgramme(ADMIN, 'u1', { status: 'placed' });
+
+      expect(profile.placedAt).toBe(PLACED_AT);
+    });
+
+    it('leaves placedAt alone on an edit that does not touch the status', async () => {
+      const profile = mockProgrammeProfile({ status: 'placed', placedAt: PLACED_AT });
+
+      await updateInternProgramme(ADMIN, 'u1', { expectedEndDate: '2026-09-01' });
+
+      expect(profile.placedAt).toBe(PLACED_AT);
+    });
+
+    it('does not invent a reset for an intern who was never placed', async () => {
+      const profile = mockProgrammeProfile({ status: 'ready', placedAt: PLACED_AT });
+
+      await updateInternProgramme(ADMIN, 'u1', { status: 'active' });
+
+      expect(profile.placedAt).toBe(PLACED_AT);
+    });
+
+    it('still honours an explicit placedAt in the payload over the reset', async () => {
+      const profile = mockProgrammeProfile({ status: 'placed', placedAt: PLACED_AT });
+
+      await updateInternProgramme(ADMIN, 'u1', { status: 'active', placedAt: '2026-07-01' });
+
+      expect(profile.placedAt).toEqual(new Date('2026-07-01'));
+    });
   });
 
   it('does not notify when saving the same status twice', async () => {

@@ -35,6 +35,7 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
   const startDate = data?.startDate ?? null;
   const requestedDays = data?.requestedDays ?? {};
   const observances = data?.observances ?? [];
+  const placementExemptions = data?.placementExemptions ?? [];
   const streak = computeStreak(records, placedAt);
 
   let content;
@@ -78,6 +79,7 @@ export default function InternAttendanceModal({ intern, month, onClose }) {
           nonWorkingDays={nonWorkingDays}
           startDate={startDate}
           requestedDays={requestedDays}
+          placementExemptions={placementExemptions}
           observances={observances}
         />
       </div>
