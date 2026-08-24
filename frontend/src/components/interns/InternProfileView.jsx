@@ -16,7 +16,12 @@ import { InternPanel } from '@/components/interns/InternPanel';
 import InternAttendancePanel from '@/components/interns/InternAttendancePanel';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
-import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
+import {
+  ROLES,
+  canViewComments,
+  canManageInternDocumentationLinks,
+  canManageSpecialization,
+} from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 import { Loader, useLoaderHold } from '@/components/ui/loader';
 
@@ -56,6 +61,9 @@ export function InternProfileView({
   // assigned mentor, same as every other mentor write here.
   const canGenerateCvSummary =
     !readOnly && (user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR);
+  // Admin-only, and the same view serves mentors — so the Overview section has to
+  // be gated here rather than by which page mounted the view.
+  const showSpecializationControls = !readOnly && canManageSpecialization(user?.role);
   const showComments = canViewComments(user?.role);
   const showEvaluations = user?.role === ROLES.ADMIN;
   const showReadiness = user?.role === ROLES.ADMIN;
@@ -254,6 +262,7 @@ export function InternProfileView({
                     canEditDocumentation={canEditDocumentation}
                     canEditInternalCv={canEditInternalCv}
                     canGenerateCvSummary={canGenerateCvSummary}
+                    canManageSpecialization={showSpecializationControls}
                   />
                 </InternPanel>
 

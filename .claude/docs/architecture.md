@@ -594,9 +594,16 @@ separate field), the mentor is the repurposed `InternProfile.secondaryMentor` (m
 `primaryMentor`), and confirming the secondary slot **swaps** the two positions.
 
 Backend: `server/{helpers/specializationRules.js, services/specializationService.js,
-controllers/specializations.js, routes/specializations.js}`. Frontend: `pages/SpecializationPage.jsx`
-+ `components/interns/specialization/AssignSpecializationModal.jsx`. Not workspace-scoped — same
+controllers/specializations.js, routes/specializations.js}`. Not workspace-scoped — same
 firm-global intern domain as Recommendations (see `.claude/docs/security.md`).
+
+Two frontend entry points, both admin-only and both driving the dialogs in
+`components/interns/specialization/`. `pages/SpecializationPage.jsx` is the management surface and
+the only one with all four verbs. An intern's own profile
+(`components/interns/InternSpecializationPanel.jsx`, first section of the Overview tab) carries just
+assign and change-mentor for the one intern on screen — the state it offers comes from
+`getSpecializationAction` in `helpers/internProfile.js`, gated by `canManageSpecialization`, since
+`InternProfileView` also serves mentors.
 
 `specializationRules.js` is pure and holds every state transition (`applySpecialization`,
 `reassignSpecialization`, `changeSpecializationMentor`, `clearSpecialization`,
@@ -606,7 +613,7 @@ firm-global intern domain as Recommendations (see `.claude/docs/security.md`).
 |---|---|
 | `POST /api/specializations` | Assign. Requires an existing `declaredPosition`; validates the mentor via `internProfileService#assertMentorUser` (active `admin`/`mentor`). |
 | `GET /api/specializations` | The one filterable/paginated read backing the whole tab — `status` (`specialized` default \| `unspecialized` \| `all`), `mentorId`, `search`, `page`/`limit`. |
-| `GET /api/specializations/candidates` | Every *un*specialized intern for the assign modal's picker, including ones with no declared position (shown disabled, not hidden). |
+| `GET /api/specializations/candidates` | Every *un*specialized intern for the assign modal's picker, including ones with no declared position (shown disabled, not hidden). Only fetched when the modal opens *without* a target — opened from a profile it is handed the intern record instead, and skips this call. |
 | `PATCH /:internUserId/reassign` | Correct to the intern's other position — swaps again; mentor and marker untouched. Throws if there is no secondary position. |
 | `PATCH /:internUserId/mentor` | Re-pair with a different mentor; position and marker untouched. |
 | `DELETE /:internUserId` | Clear. **No un-swap** — the position stays where the last assign/reassign left it. |

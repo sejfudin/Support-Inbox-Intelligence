@@ -2,24 +2,9 @@ import { InternDocumentationLinksPanel } from '@/components/interns/InternDocume
 import { InternInternalCvPanel } from '@/components/interns/InternInternalCvPanel';
 import { InternDeclaredTechnologies } from '@/components/interns/InternDeclaredTechnologies';
 import { InternCvSummaryPanel } from '@/components/interns/InternCvSummaryPanel';
+import { InternOverviewSection } from '@/components/interns/InternOverviewSection';
+import { InternSpecializationPanel } from '@/components/interns/InternSpecializationPanel';
 import { cn } from '@/lib/utils';
-
-function OverviewSection({ title, description, children, className, action }) {
-  return (
-    <section className={cn('space-y-3', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="app-card-title">{title}</h3>
-          {description ? (
-            <p className="mt-0.5 text-[12.5px] text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 export function InternCandidateOverview({
   intern,
@@ -27,17 +12,28 @@ export function InternCandidateOverview({
   canEditDocumentation = false,
   canEditInternalCv = false,
   canGenerateCvSummary = false,
+  canManageSpecialization = false,
   className,
 }) {
   return (
     <div className={cn('space-y-4', className)}>
-      <OverviewSection
+      {/* First, and only for an admin: it is the one section here carrying a
+          write action, and the programme decision the rest of the profile hangs
+          off. Mentors read the pairing from the header band instead. */}
+      {canManageSpecialization && (
+        <>
+          <InternSpecializationPanel intern={intern} className="pb-4" />
+          <div className="border-t border-separator" />
+        </>
+      )}
+
+      <InternOverviewSection
         title="Declared technologies"
         description="Stacks the candidate selected on their profile."
         className="pb-4"
       >
         <InternDeclaredTechnologies technologies={intern.selfTechnologies || []} />
-      </OverviewSection>
+      </InternOverviewSection>
 
       <div className="border-t border-separator" />
 
