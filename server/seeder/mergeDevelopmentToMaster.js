@@ -2,7 +2,8 @@
  * Runs, in order, every non-destructive migration/backfill needed to bring an
  * existing main-branch database up to date with the `development` schema
  * changes (Recommendation redesign, InternProfile.readyForPlacement removal,
- * InternProfile.cvTechnologies removal).
+ * InternProfile.cvTechnologies removal, Recommendation.project becoming
+ * optional and the "Unspecified" sentinel project going away).
  *
  * Deliberately does NOT include `backfillInternPositions.js` — that script
  * assigns a RANDOM Position to any intern profile missing `declaredPosition`,
@@ -73,6 +74,10 @@ const STEPS = [
   {
     file: 'unsetReadyForPlacement.js',
     why: 'Removes the orphaned `readyForPlacement` boolean now that InternProfile.status covers the same concept via the `ready` value.',
+  },
+  {
+    file: 'removeUnspecifiedProjectSentinel.js',
+    why: '`Recommendation.project` is no longer required — repoints any recommendation still pointing at the locked "Unspecified" sentinel to null, then deletes the sentinel. Must run after migrateRecommendationProjects and backfillProjectTypes.',
   },
   {
     file: 'unsetCvTechnologies.js',

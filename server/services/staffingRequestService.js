@@ -644,7 +644,6 @@ const resolveStaffingRequestProjectByCreating = async (user, requestId, payload 
   if (!PROJECT_STATUSES.includes(status)) throw httpError('Invalid project status', 400);
 
   const slug = slugify(name);
-  if (slug === 'unspecified') throw httpError('This project name is reserved', 400);
 
   const collision = await Project.findOne({ slug }).select('_id name slug').lean();
   if (collision) {

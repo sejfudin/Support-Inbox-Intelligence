@@ -55,7 +55,6 @@ const createProject = async ({ name, type, client, description, technologyIds })
   if (!name?.trim()) throw new Error('Project name is required');
   assertProjectType(type);
   const resolvedSlug = slugify(name);
-  if (resolvedSlug === 'unspecified') throw new Error('This project name is reserved');
 
   const project = await Project.create({
     name: name.trim(),
@@ -78,7 +77,6 @@ const updateProject = async (id, { name, type, client, description, status, tech
     // rename that collides with another project now hits the unique index
     // (→ 409) instead of silently creating a duplicate display name.
     const resolvedSlug = slugify(name);
-    if (resolvedSlug === 'unspecified') throw new Error('This project name is reserved');
     project.name = name.trim();
     project.slug = resolvedSlug;
   }

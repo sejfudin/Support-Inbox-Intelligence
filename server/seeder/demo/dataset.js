@@ -566,8 +566,8 @@ const categories = [
   { key: 'qaAutomation', workspaceKey: 'qa', name: 'Test Automation', color: '#3b82f6' },
 ];
 
-// Client projects the placement pipeline points at. The locked `unspecified`
-// sentinel is preserved by the wipe and used where no project is known yet.
+// Client projects the placement pipeline points at. A recommendation spec
+// with no `projectKey` gets a `null` project — "no client known yet".
 const projects = [
   {
     key: 'meridian',
@@ -1340,7 +1340,7 @@ const recommendations = [
     key: 'amarOpen',
     internKey: 'amar',
     positionSlug: 'ml-engineer',
-    // No client yet — points at the locked `unspecified` sentinel.
+    // No client yet.
     projectKey: null,
     technologies: ['pytorch', 'pandas'],
     status: 'recommended',

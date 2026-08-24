@@ -642,10 +642,13 @@ ticketing domain's, not intern/recommendation reference data's).
   since an unset `type` fails validation on any `save()`.
 - Only `status: active` projects are offered in the recommendation form's picker; `on_hold` /
   `completed` stay on existing recommendations but drop out for new ones.
-- A locked sentinel project (`slug: 'unspecified'`, `isSystem: true`) exists because
-  `Recommendation.project` used to be free text; `seeder/migrateRecommendationProjects.js` repointed
-  every pre-existing recommendation at it (old free-text values discarded, not preserved). It can't
-  be edited or deleted and never appears in the picker.
+- `Recommendation.project` is optional. `null` **is** the stored meaning of "we don't know the
+  project yet" — there is no separate boolean flag and no sentinel document. (A locked sentinel
+  project, `slug: 'unspecified'`, existed briefly for this same purpose back when `project` was
+  free text; `seeder/migrateRecommendationProjects.js` is the historical record of that, and
+  `seeder/removeUnspecifiedProjectSentinel.js` repoints every recommendation still pointing at it
+  to `null` and deletes it.) The `unspecified` slug is not reserved — a real project can be named
+  "Unspecified".
 - **"Which interns are on project X" is a derived read** (query `Recommendation` by `project`), not
   a stored roster — there is no members/roster field by design.
 - **Leadership-facing Projects page** (`/projects`, `/projects/:id`) reads two additive,
