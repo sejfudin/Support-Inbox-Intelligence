@@ -13,10 +13,16 @@ import { InternRecommendationsPanel } from '@/components/interns/InternRecommend
 import { InternCandidateOverview } from '@/components/interns/InternCandidateOverview';
 import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
 import { InternPanel } from '@/components/interns/InternPanel';
+import { InternSpecializationPanel } from '@/components/interns/InternSpecializationPanel';
 import InternAttendancePanel from '@/components/interns/InternAttendancePanel';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
-import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
+import {
+  ROLES,
+  canViewComments,
+  canManageInternDocumentationLinks,
+  canManageSpecialization,
+} from '@/helpers/roles';
 import { cn } from '@/lib/utils';
 import { Loader, useLoaderHold } from '@/components/ui/loader';
 
@@ -56,6 +62,9 @@ export function InternProfileView({
   // assigned mentor, same as every other mentor write here.
   const canGenerateCvSummary =
     !readOnly && (user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR);
+  // Admin-only, and the same view serves mentors — so the Overview section has to
+  // be gated here rather than by which page mounted the view.
+  const showSpecializationControls = !readOnly && canManageSpecialization(user?.role);
   const showComments = canViewComments(user?.role);
   const showEvaluations = user?.role === ROLES.ADMIN;
   const showReadiness = user?.role === ROLES.ADMIN;
@@ -145,7 +154,9 @@ export function InternProfileView({
   // Lifecycle status changes are admin-only. This mirrors the backend guard
   // in updateInternProgramme.
   const canChangeStatus = !readOnly && user?.role === ROLES.ADMIN;
-  const hasOverviewSidebar = canChangeStatus;
+  // Both rail cards are admin-only today, so either one alone still earns the
+  // two-column layout.
+  const hasOverviewSidebar = canChangeStatus || showSpecializationControls;
   const formattedStartDate = intern.startDate
     ? format(new Date(intern.startDate), 'MMM d, yyyy')
     : '—';
@@ -257,8 +268,11 @@ export function InternProfileView({
                   />
                 </InternPanel>
 
-                {hasOverviewSidebar && canChangeStatus && (
-                  <InternProgrammeControls intern={intern} />
+                {hasOverviewSidebar && (
+                  <div className="space-y-3.5">
+                    {showSpecializationControls && <InternSpecializationPanel intern={intern} />}
+                    {canChangeStatus && <InternProgrammeControls intern={intern} />}
+                  </div>
                 )}
               </div>
             </TabsContent>
