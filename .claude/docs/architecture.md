@@ -600,7 +600,8 @@ firm-global intern domain as Recommendations (see `.claude/docs/security.md`).
 Two frontend entry points, both admin-only and both driving the dialogs in
 `components/interns/specialization/`. `pages/SpecializationPage.jsx` is the management surface and
 the only one with all four verbs. An intern's own profile
-(`components/interns/InternSpecializationPanel.jsx`, first section of the Overview tab) carries just
+(`components/interns/InternSpecializationPanel.jsx`, its own card in the Overview tab's right rail,
+above the programme controls) carries just
 assign and change-mentor for the one intern on screen — the state it offers comes from
 `getSpecializationAction` in `helpers/internProfile.js`, gated by `canManageSpecialization`, since
 `InternProfileView` also serves mentors.

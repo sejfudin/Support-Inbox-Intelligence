@@ -3,7 +3,6 @@ import { InternInternalCvPanel } from '@/components/interns/InternInternalCvPane
 import { InternDeclaredTechnologies } from '@/components/interns/InternDeclaredTechnologies';
 import { InternCvSummaryPanel } from '@/components/interns/InternCvSummaryPanel';
 import { InternOverviewSection } from '@/components/interns/InternOverviewSection';
-import { InternSpecializationPanel } from '@/components/interns/InternSpecializationPanel';
 import { cn } from '@/lib/utils';
 
 export function InternCandidateOverview({
@@ -12,21 +11,13 @@ export function InternCandidateOverview({
   canEditDocumentation = false,
   canEditInternalCv = false,
   canGenerateCvSummary = false,
-  canManageSpecialization = false,
   className,
 }) {
   return (
     <div className={cn('space-y-4', className)}>
-      {/* First, and only for an admin: it is the one section here carrying a
-          write action, and the programme decision the rest of the profile hangs
-          off. Mentors read the pairing from the header band instead. */}
-      {canManageSpecialization && (
-        <>
-          <InternSpecializationPanel intern={intern} className="pb-4" />
-          <div className="border-t border-separator" />
-        </>
-      )}
-
+      {/* Specialization is not here: it is an admin write about the placement,
+          so it sits in the Overview sidebar with the programme controls. This
+          card carries the candidate's own material. */}
       <InternOverviewSection
         title="Declared technologies"
         description="Stacks the candidate selected on their profile."
