@@ -181,6 +181,59 @@ const getInternByUserId = async (user, internUserId) => {
   return formatProfile(profile, user);
 };
 
+/**
+ * An admin hands off one intern they currently primary-mentor to a different
+ * admin, who becomes the new primary mentor. Self-scoped by design: the
+ * caller must currently *be* this intern's `primaryMentor` — this is "give
+ * away one of mine", not a general "reassign anyone's mentor" tool, so an
+ * admin who isn't already this intern's primary mentor gets the same 403 a
+ * mentor editing someone else's intern would.
+ *
+ * The new mentor must hold the `admin` role specifically. `assertMentorUser`
+ * (used at intern creation) allows `admin` or `mentor` for `primaryMentor` in
+ * general — this handoff is narrower on purpose, because the point is
+ * platform responsibility for the intern moving from one admin to another,
+ * not a mentor pairing change (that's `changeSpecializationMentor`, which
+ * touches `secondaryMentor` and does allow either role).
+ */
+const transferPrimaryMentor = async (user, internUserId, { newAdminId } = {}) => {
+  const profile = await InternProfile.findOne({ user: internUserId });
+  if (!profile) throw httpError('Intern profile not found', 404);
+
+  if (user.role !== ROLES.ADMIN) {
+    throw httpError('Only admins can transfer a primary mentor.', 403);
+  }
+  if (String(profile.primaryMentor) !== String(user._id)) {
+    throw httpError('You can only transfer interns you are the primary mentor for.', 403);
+  }
+  if (!newAdminId) {
+    throw httpError('Choose the admin to take over.', 400);
+  }
+  if (String(newAdminId) === String(user._id)) {
+    throw httpError("You're already this intern's primary mentor.", 400);
+  }
+
+  const newAdmin = await User.findById(newAdminId).select('role status');
+  if (!newAdmin || newAdmin.role !== ROLES.ADMIN || newAdmin.status !== 'active') {
+    throw httpError('Selected user is not an active admin.', 400);
+  }
+  // Mirrors the invariant `specializationRules.js` enforces from the other
+  // direction (`Secondary mentor must differ from primary mentor`) — without
+  // this, transferring primaryMentor onto whoever already holds
+  // secondaryMentor collapses a specialized intern's two distinct mentors
+  // into one, which is exactly what that rule exists to prevent.
+  if (profile.secondaryMentor && String(profile.secondaryMentor) === String(newAdminId)) {
+    throw httpError('This admin is already the secondary mentor — pick someone else.', 400);
+  }
+
+  profile.primaryMentor = newAdminId;
+  await profile.save();
+
+  emitInternDataChanged();
+
+  return getInternByUserId(user, internUserId);
+};
+
 const getMyInternProfile = async (user) => {
   if (user.role !== ROLES.INTERN) {
     const err = new Error('Only interns have an intern profile');
@@ -1188,6 +1241,7 @@ module.exports = {
   updateSelfPosition,
   updateSelfSecondaryPosition,
   updateInternProgramme,
+  transferPrimaryMentor,
   updateDocumentationLinks,
   updateInternalCvLink,
   createInternProfile,

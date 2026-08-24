@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ArrowLeft } from 'lucide-react';
@@ -14,9 +15,11 @@ import { InternCandidateOverview } from '@/components/interns/InternCandidateOve
 import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
 import { InternPanel } from '@/components/interns/InternPanel';
 import InternAttendancePanel from '@/components/interns/InternAttendancePanel';
+import { TransferPrimaryMentorModal } from '@/components/interns/TransferPrimaryMentorModal';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
+import { resolveUserId } from '@/helpers/userIdentity';
 import { cn } from '@/lib/utils';
 import { Loader, useLoaderHold } from '@/components/ui/loader';
 
@@ -45,6 +48,7 @@ export function InternProfileView({
   const { data: intern, isPending: isPendingRaw, isError } = useIntern(userId);
   // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
   const isPending = useLoaderHold(isPendingRaw, { release: isError });
+  const [transferMentorOpen, setTransferMentorOpen] = useState(false);
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
   // Editing the internal CV link is admin-only; mentors keep read access to
@@ -63,6 +67,13 @@ export function InternProfileView({
   // Admin and mentor: a mentor is the primary reader of their intern's
   // attendance, and `GET /attendance/:internProfileId` admits both roles.
   const showAttendance = user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR;
+  // Self-scoped, mirroring the server check in
+  // internService.js#transferPrimaryMentor: only the admin who currently *is*
+  // this intern's primary mentor sees the hand-off action, not every admin.
+  const canTransferPrimaryMentor =
+    !readOnly &&
+    user?.role === ROLES.ADMIN &&
+    resolveUserId(intern?.primaryMentor) === resolveUserId(user);
 
   // Which tab is open lives in the URL, so a link can point at one — the
   // recommendations table sends an admin straight to the intern's own
@@ -230,6 +241,20 @@ export function InternProfileView({
             hub={intern.user?.hub?.name}
             startDate={formattedStartDate}
             primaryMentor={intern.primaryMentor?.fullname}
+            primaryMentorAction={
+              canTransferPrimaryMentor ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 shrink-0 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  onClick={() => setTransferMentorOpen(true)}
+                  data-test="intern-transfer-primary-mentor-button"
+                >
+                  Transfer
+                </Button>
+              ) : null
+            }
             secondaryMentor={intern.secondaryMentor?.fullname}
             backButton={backButton}
             titleAdornment={headingActions}
@@ -312,6 +337,14 @@ export function InternProfileView({
           </div>
         </Tabs>
       </PageSection>
+
+      {canTransferPrimaryMentor && (
+        <TransferPrimaryMentorModal
+          intern={intern}
+          open={transferMentorOpen}
+          onClose={() => setTransferMentorOpen(false)}
+        />
+      )}
     </PageShell>
   );
 }
