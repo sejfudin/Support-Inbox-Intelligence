@@ -644,7 +644,6 @@ const resolveStaffingRequestProjectByCreating = async (user, requestId, payload 
   if (!PROJECT_STATUSES.includes(status)) throw httpError('Invalid project status', 400);
 
   const slug = slugify(name);
-  if (slug === 'unspecified') throw httpError('This project name is reserved', 400);
 
   const collision = await Project.findOne({ slug }).select('_id name slug').lean();
   if (collision) {
@@ -948,9 +947,16 @@ const putInternsForward = async (user, requestId, payload = {}) => {
     throw new StagedPickRejectionError(rejections);
   }
 
+  // The request's own project pre-fills every recommendation this submit
+  // creates. An admin who ticks "unknown" on the form sends an explicit
+  // `projectId: null`, deliberately discarding that pre-fill; any other value
+  // is not a legal override on this path — the project comes from the request,
+  // not from a free choice — so it is ignored rather than trusted.
+  const projectId = payload.projectId === null ? null : request.project;
+
   await createRecommendationsForStaffingRequest(user, {
     groups,
-    projectId: request.project,
+    projectId,
     staffingRequestId: request._id,
   });
 

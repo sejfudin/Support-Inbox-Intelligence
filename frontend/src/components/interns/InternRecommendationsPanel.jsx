@@ -8,10 +8,11 @@ import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
 import {
   activeRecommendationsOnOtherProjects,
+  activeUnknownProjectRecommendations,
   getRecommendationStatusLabel,
   isRecommendBlockedByProfileStatus,
   recommendBlockedReason,
-  recommendationProjectName,
+  recommendationProjectLabel,
   RECOMMENDATION_STATUSES,
 } from '@/helpers/recommendations';
 import { useIntern } from '@/queries/interns';
@@ -74,6 +75,7 @@ const toInputDate = (date) => (date ? format(new Date(date), 'yyyy-MM-dd') : '')
 const createEmptyForm = () => ({
   positionId: '',
   projectId: '',
+  projectUnknown: false,
   technologyIds: [],
   recommendationNote: '',
   status: 'recommended',
@@ -101,6 +103,9 @@ const formFromRecommendation = (recommendation) => {
   return {
     positionId: recommendation.position?._id || recommendation.position || '',
     projectId: recommendation.project?._id || recommendation.project || '',
+    // Reflects the record's actual state: unticking is how the admin declares
+    // it now known and reveals the select to fill it in.
+    projectUnknown: !recommendation.project,
     technologyIds: (recommendation.technologies || []).map((technology) => technology._id),
     recommendationNote: recommendation.recommendationNote || '',
     status,
@@ -249,7 +254,9 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     const payload = {
       internUserId: userId,
       positionId: form.positionId,
-      projectId: form.projectId,
+      // An explicit null asserts "not known yet" — never omitted, so the
+      // server can tell a deliberate unknown from a dropped field.
+      projectId: form.projectUnknown ? null : form.projectId,
       technologyIds: form.technologyIds,
       recommendationNote: form.recommendationNote,
       status: form.status,
@@ -322,8 +329,8 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
       toast.error('Select a position for this recommendation');
       return;
     }
-    if (!form.projectId) {
-      toast.error('Select a project for this recommendation');
+    if (!form.projectUnknown && !form.projectId) {
+      toast.error('Select a project, or mark it not known yet');
       return;
     }
 
@@ -352,15 +359,27 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
     // Soft warn when pitching someone who already has an open recommendation
     // on a different project — create is still allowed after confirm.
     if (!isEditing) {
-      const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
-      if (conflicts.length > 0) {
-        const targetProject =
-          projects.find((project) => project._id === form.projectId)?.name || 'this project';
-        const existingProjectNames = [
-          ...new Set(conflicts.map((recommendation) => recommendationProjectName(recommendation))),
-        ];
-        setDuplicateWarn({ payload, existingProjectNames, targetProjectName: targetProject });
-        return;
+      if (form.projectUnknown) {
+        // Both the new pitch and the existing recommendation are unknown, so
+        // there is no id to compare — no way to tell if this is the same
+        // opportunity twice or two real ones. Warn and admit the ambiguity
+        // rather than silently dropping the check.
+        const ambiguousConflicts = activeUnknownProjectRecommendations(recommendations);
+        if (ambiguousConflicts.length > 0) {
+          setDuplicateWarn({ payload, isAmbiguous: true });
+          return;
+        }
+      } else {
+        const conflicts = activeRecommendationsOnOtherProjects(recommendations, form.projectId);
+        if (conflicts.length > 0) {
+          const targetProject =
+            projects.find((project) => project._id === form.projectId)?.name || 'this project';
+          const existingProjectNames = [
+            ...new Set(conflicts.map((recommendation) => recommendationProjectLabel(recommendation))),
+          ];
+          setDuplicateWarn({ payload, existingProjectNames, targetProjectName: targetProject });
+          return;
+        }
       }
     }
 
@@ -577,6 +596,7 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
         internName={internName}
         existingProjectNames={duplicateWarn?.existingProjectNames}
         targetProjectName={duplicateWarn?.targetProjectName}
+        isAmbiguous={duplicateWarn?.isAmbiguous}
         isSaving={isCreating}
         onCancel={() => setDuplicateWarn(null)}
         onConfirm={handleDuplicateWarnConfirm}

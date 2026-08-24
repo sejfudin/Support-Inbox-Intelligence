@@ -53,8 +53,14 @@ export const fetchPutForwardCandidates = async (id, positionId) => {
 // with the position forced to the group it was staged under, and applied
 // all-or-nothing — a pick that went stale while it was staged rejects the whole
 // submit with `data.rejections` naming which rows. Returns the request.
-export const putInternsForward = async (id, groups) => {
-  const { data } = await apiClient.post(`/staffing-requests/${id}/put-forward`, { groups });
+//
+// Every recommendation created is pre-filled with the request's own resolved
+// project; `projectUnknown` sends an explicit `projectId: null` instead,
+// deliberately discarding that pre-fill for the whole submit.
+export const putInternsForward = async (id, groups, { projectUnknown = false } = {}) => {
+  const body = { groups };
+  if (projectUnknown) body.projectId = null;
+  const { data } = await apiClient.post(`/staffing-requests/${id}/put-forward`, body);
   return data.data;
 };
 

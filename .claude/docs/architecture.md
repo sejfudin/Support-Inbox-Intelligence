@@ -650,10 +650,24 @@ ticketing domain's, not intern/recommendation reference data's).
   since an unset `type` fails validation on any `save()`.
 - Only `status: active` projects are offered in the recommendation form's picker; `on_hold` /
   `completed` stay on existing recommendations but drop out for new ones.
-- A locked sentinel project (`slug: 'unspecified'`, `isSystem: true`) exists because
-  `Recommendation.project` used to be free text; `seeder/migrateRecommendationProjects.js` repointed
-  every pre-existing recommendation at it (old free-text values discarded, not preserved). It can't
-  be edited or deleted and never appears in the picker.
+- `Recommendation.project` is optional. `null` **is** the stored meaning of "we don't know the
+  project yet" — there is no separate boolean flag and no sentinel document. (A locked sentinel
+  project, `slug: 'unspecified'`, existed briefly for this same purpose back when `project` was
+  free text; `seeder/migrateRecommendationProjects.js` is the historical record of that, and
+  `seeder/removeUnspecifiedProjectSentinel.js` repoints every recommendation still pointing at it
+  to `null` and deletes it.) The `unspecified` slug is not reserved — a real project can be named
+  "Unspecified".
+- **A create must assert one of the two** — an explicit project id, or an explicit `null` for
+  "unknown" — never omit the field (`helpers/recommendationProjectRules.js#assertProjectFieldAsserted`),
+  so a dropped field or a stale client can't produce an indistinguishable, legitimate-looking
+  "unknown". Every path that creates a recommendation (ad-hoc, and putting interns forward against
+  a staffing request) goes through this. **Editing** is free while `recommended`/`interviewing`;
+  once `resulted` the field is locked, with one exception — a project that was never known can
+  still be filled in (`assertCanEditProject`). Clearing or swapping a known project once resulted
+  is refused, because that silently changes recorded placement figures a roster already counted.
+  Internal surfaces read a recommendation's project through one shared display helper,
+  `frontend/src/helpers/recommendations.js#recommendationProjectLabel`, which renders "Not known
+  yet" for a null project rather than an em dash.
 - **"Which interns are on project X" is a derived read** (query `Recommendation` by `project`), not
   a stored roster — there is no members/roster field by design.
 - **Leadership-facing Projects page** (`/projects`, `/projects/:id`) reads two additive,

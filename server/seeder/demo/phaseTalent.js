@@ -2,9 +2,9 @@
  * Phase 3 — talent management: readiness flags, evaluations, mentor comments,
  * and the placement pipeline (recommendations + interviews + outcomes).
  *
- * Runs after phaseWorkspace because Recommendation.project is required and
- * points at the client projects created there (falling back to the locked
- * `unspecified` sentinel, which the wipe preserves).
+ * Runs after phaseWorkspace because a recommendation's project, when known,
+ * points at one of the client projects created there (falling back to `null`
+ * when the dataset spec has no `projectKey`).
  */
 
 const ReadinessFlag = require('../../models/ReadinessFlag');
@@ -116,15 +116,13 @@ const createRecommendations = async (ctx) => {
 
   for (const spec of data.recommendations) {
     const author = ctx.users.get(spec.createdByKey);
-    const project = spec.projectKey
-      ? ctx.projects.get(spec.projectKey)
-      : ctx.ref.unspecifiedProject;
+    const project = spec.projectKey ? ctx.projects.get(spec.projectKey) : null;
 
     const { doc, statusDates } = buildRecommendationDoc(spec, clock, {
       internProfileId: ctx.profiles.get(spec.internKey)._id,
       authorId: author._id,
       positionId: ctx.ref.positionBySlug(spec.positionSlug)._id,
-      projectId: project._id,
+      projectId: project?._id || null,
       technologyIds: (spec.technologies || []).map((slug) => ctx.ref.techBySlug(slug)._id),
       decidedById: spec.result ? ctx.users.get(spec.result.decidedByKey)._id : undefined,
     });

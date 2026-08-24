@@ -11,6 +11,11 @@ const { ROLES } = require('../constants/roles');
 const { escapeRegex } = require('../helpers/escapeRegex');
 const { placementExemptionDate, closePlacementExemption } = require('../helpers/attendanceStats');
 const { selectCloseOutRecommendations } = require('../helpers/staffingRequestRules');
+const {
+  assertProjectFieldAsserted,
+  assertCanEditProject,
+  PROJECT_TO_BE_CONFIRMED_LABEL,
+} = require('../helpers/recommendationProjectRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
@@ -185,10 +190,11 @@ const ensurePositionId = async (positionId) => {
   return positionId;
 };
 
+// `null` is a legal, deliberate value here — "project not known yet". Callers
+// that must not accept an omitted field call `assertProjectFieldAsserted`
+// first; this only validates a non-null value against the reference data.
 const ensureProjectId = async (projectId) => {
-  if (!projectId) {
-    throw httpError('Project is required', 400);
-  }
+  if (projectId === null) return null;
 
   assertValidObjectId(projectId, 'Project');
 
@@ -506,6 +512,11 @@ const createRecommendation = async (user, payload = {}) => {
     throw httpError('A new recommendation must start as Recommended', 400);
   }
   const position = await ensurePositionId(payload.positionId);
+  try {
+    assertProjectFieldAsserted(payload.projectId);
+  } catch (error) {
+    throw httpError(error.message, 400);
+  }
   const project = await ensureProjectId(payload.projectId);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
   const interviews = normalizeInterviews(payload.interviews || []);
@@ -570,6 +581,11 @@ const createRecommendationsForStaffingRequest = async (
   { groups = [], projectId, staffingRequestId }
 ) => {
   assertRecommendationWriteAccess(user);
+  try {
+    assertProjectFieldAsserted(projectId);
+  } catch (error) {
+    throw httpError(error.message, 400);
+  }
 
   const recommendedAt = new Date();
   const pending = groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
@@ -890,7 +906,17 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   }
 
   if (payload.projectId !== undefined) {
-    recommendation.project = await ensureProjectId(payload.projectId);
+    const nextProjectId = await ensureProjectId(payload.projectId);
+    try {
+      assertCanEditProject({
+        status: previousStatus,
+        currentProjectId: recommendation.project,
+        nextProjectId,
+      });
+    } catch (error) {
+      throw httpError(error.message, 400);
+    }
+    recommendation.project = nextProjectId;
   }
 
   if (payload.technologyIds !== undefined) {
@@ -1114,7 +1140,11 @@ const formatOwnRecommendation = (recommendation, historyDates = {}) => {
       resulted: dates.resulted || null,
     },
     position: recommendation.position?.name || '',
-    project: recommendation.project?.name || '',
+    // `recommendation.project` is populated by `listOwnRecommendations` above,
+    // so a `null` here means the project genuinely isn't known yet, not a
+    // failed populate. An intern reads this as a stated fact about the
+    // record, never a blank field.
+    project: recommendation.project?.name || PROJECT_TO_BE_CONFIRMED_LABEL,
     technologies: (recommendation.technologies || []).map((tech) => ({
       id: tech._id,
       name: tech.name,
