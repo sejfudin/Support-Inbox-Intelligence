@@ -16,6 +16,7 @@ import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
 import { InternPanel } from '@/components/interns/InternPanel';
 import InternAttendancePanel from '@/components/interns/InternAttendancePanel';
 import { TransferPrimaryMentorModal } from '@/components/interns/TransferPrimaryMentorModal';
+import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMentorModal';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, canViewComments, canManageInternDocumentationLinks } from '@/helpers/roles';
@@ -49,6 +50,7 @@ export function InternProfileView({
   // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
   const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const [transferMentorOpen, setTransferMentorOpen] = useState(false);
+  const [changeSecondaryMentorTarget, setChangeSecondaryMentorTarget] = useState(null);
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
   // Editing the internal CV link is admin-only; mentors keep read access to
@@ -74,6 +76,15 @@ export function InternProfileView({
     !readOnly &&
     user?.role === ROLES.ADMIN &&
     resolveUserId(intern?.primaryMentor) === resolveUserId(user);
+  // Not self-scoped, unlike the primary-mentor transfer above: this is the
+  // same admin-only "Change mentor" action the Specialization page already
+  // offers (`PATCH /:internUserId/mentor`), just triggered from here too.
+  // Only shown once a specialization mentor actually exists to change — the
+  // backend 400s on an unspecialized intern (`loadSpecializedProfile`), and
+  // the header only renders the Secondary mentor field under the same
+  // condition.
+  const canChangeSecondaryMentor =
+    !readOnly && user?.role === ROLES.ADMIN && Boolean(intern?.secondaryMentor);
 
   // Which tab is open lives in the URL, so a link can point at one — the
   // recommendations table sends an admin straight to the intern's own
@@ -256,6 +267,20 @@ export function InternProfileView({
               ) : null
             }
             secondaryMentor={intern.secondaryMentor?.fullname}
+            secondaryMentorAction={
+              canChangeSecondaryMentor ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 shrink-0 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  onClick={() => setChangeSecondaryMentorTarget(intern)}
+                  data-test="intern-change-secondary-mentor-button"
+                >
+                  Change
+                </Button>
+              ) : null
+            }
             backButton={backButton}
             titleAdornment={headingActions}
             tabs={tabStrip}
@@ -343,6 +368,13 @@ export function InternProfileView({
           intern={intern}
           open={transferMentorOpen}
           onClose={() => setTransferMentorOpen(false)}
+        />
+      )}
+
+      {canChangeSecondaryMentor && (
+        <ChangeMentorModal
+          specialization={changeSecondaryMentorTarget}
+          onClose={() => setChangeSecondaryMentorTarget(null)}
         />
       )}
     </PageShell>
