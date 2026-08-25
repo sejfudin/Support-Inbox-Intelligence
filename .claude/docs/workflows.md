@@ -100,6 +100,7 @@ npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
 npm run cleanup:superseded-technologies # retire legacy combined catalog rows, see below
 npm run cleanup:stale-workspace-pointers # clear User.workspaceId that no membership backs, see below
+npm run cleanup:orphaned-user-refs       # remove records left behind by a user deleted in the DB, see below
 ```
 
 ### `npm run seed:demo` — the one to reach for
@@ -367,6 +368,55 @@ npm run cleanup:stale-workspace-pointers -- --dry-run   # report only, change no
 npm run cleanup:stale-workspace-pointers                # prompts before writing
 npm run cleanup:stale-workspace-pointers -- --yes       # non-interactive
 ```
+
+### `npm run cleanup:orphaned-user-refs`
+
+There is no in-app "delete user" path (see `.claude/docs/security.md`), so a User only ever leaves
+the database by hand — and nothing cascades when it does. The InternProfile survives, and with it
+every recommendation, evaluation, attendance row and absence request hanging off that profile. Each
+one renders as a row reading "Unknown", counted in the total beside it.
+
+`server/helpers/orphanedProfiles.js` and `server/repository/liveUserFilter.js` are the read-side
+guards that keep those rows off screen (see `.claude/docs/security.md`); this script removes the
+records, which is the only thing that also repairs the raw counts.
+
+It **reports** every dangling `ref: 'User'` in every model, found by walking the Mongoose schemas —
+a ref added later shows up without editing the script. It **deletes** only records with no subject
+left: an orphaned InternProfile, everything keyed to one, and the per-user rows (refresh tokens,
+notifications, AI summaries, invitations) that mean nothing without their owner. It **keeps**
+dangling authorship and membership refs (`updatedBy`, `evaluator`, `author`, `Ticket.assignedTo`,
+workspace members, ticket message senders) — those records still describe something that happened;
+`--prune-refs` clears just those fields while keeping the records.
+
+The schema walk descends into embedded documents and document arrays, and reads a ref declared as
+`[{ type: ObjectId, ref: 'User' }]`. It has to: `eachPath` reports a sub-document as one node and
+never yields the paths inside it, and it leaves `caster.options` empty for an array of ids. A walk
+that only reads top-level `options.ref` misses eight refs in the current schema set — among them
+`Workspace.members[].user`, `Ticket.messages[].sender`, `Ticket.assignedTo` and
+`Ticket.reviewRequest.reviewer` — and reports "no dangling refs" while they dangle.
+
+`--prune-refs` refuses two kinds of field and lists what it skipped:
+
+- a **required** scalar (`Workspace.owner`, `Ticket.creator`, `InternProfile.primaryMentor`).
+  `updateMany` does not run validators, so the `$unset` would otherwise succeed silently and leave
+  a workspace with no owner — worse than the dangling id. Reassign those in the app.
+- a ref **inside a document array** (`Workspace.members[].user`, `Ticket.messages[].sender`,
+  `Daily.entries[].member`). The dotted path is not writable, and the one-operator alternative is
+  `$pull`ing the whole element — which deletes a membership or a message instead of repairing it.
+
+Dry-run is the default. Unlike the seeders this one does **not** refuse a production-looking
+database name — repairing production is the reason it exists — so the guard is that every write
+needs the database name asserted out loud.
+
+```bash
+npm run cleanup:orphaned-user-refs                          # report only, change nothing
+npm run cleanup:orphaned-user-refs -- --apply               # prompts for the database name
+npm run cleanup:orphaned-user-refs -- --apply --yes=<dbname> # non-interactive (assertion required)
+npm run cleanup:orphaned-user-refs -- --apply --prune-refs  # also clear authorship/membership refs
+```
+
+To point it at a database other than the one in `server/.env.development`, set `MONGODB_URI` for
+the run. Always do a plain (dry-run) pass first and read the plan.
 
 ### `npm run backfill:legacy-secondary-mentor` — run-when-ready, revokes access
 

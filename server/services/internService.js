@@ -30,6 +30,7 @@ const internNotificationService = require('./internNotificationService');
 const { assertActiveAdmin } = require('../helpers/assertActiveAdmin');
 const { userSelect } = require('../constants/userSelect');
 const { httpError } = require('../helpers/httpError');
+const { excludeOrphanedProfileStages } = require('../helpers/orphanedProfiles');
 const { closePlacementExemption } = require('../helpers/attendanceStats');
 
 // The statuses that mean "back on the programme, owing attendance again". Moving
@@ -690,21 +691,6 @@ const averageEvaluationScore = (scores) => {
   if (values.length === 0) return null;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 };
-
-// Every InternProfile-rooted aggregate in getProgrammeStats must exclude a
-// profile whose User was removed outside the app — there is no in-app
-// "delete user" path (see .claude/docs/security.md), so nothing ever cleans
-// such a profile up, and it lingers forever inflating every leadership-
-// dashboard count built on top of it. `userLocalField` is the dotted path to
-// the InternProfile's `user` ref at whatever point in the pipeline this is
-// spliced in: 'user' when InternProfile is the aggregation root, or
-// 'profile.user' once an earlier stage has already $lookup'd/$unwind'd the
-// profile in under that alias.
-const excludeOrphanedProfileStages = (userLocalField = 'user') => [
-  { $lookup: { from: 'users', localField: userLocalField, foreignField: '_id', as: '_userDoc' } },
-  { $match: { _userDoc: { $ne: [] } } },
-  { $project: { _userDoc: 0 } },
-];
 
 const buildFunnel = (rows) => {
   const funnel = Object.fromEntries(INTERN_STATUSES.map((status) => [status, 0]));

@@ -7,6 +7,7 @@ const { ROLES } = require('../constants/roles');
 const { slugify } = require('../helpers/slugify');
 const { httpError } = require('../helpers/httpError');
 const { userSelect } = require('../constants/userSelect');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
 
 // Same two-role read gate as recommendations (recommendationService.js
 // READ_ROLES) — leadership is stakeholder-facing read access, everyone else
@@ -109,6 +110,12 @@ const RECOMMENDATION_INTERN_POPULATE = [
   { path: 'technologies', select: 'name slug' },
 ];
 
+// A recommendation whose intern's User was deleted straight from the database
+// still loads fine — `internProfile.user` just populates as `null`, and every
+// field in `internSummary` falls back to the literal "Unknown". Dropping those
+// rows at the point they are read keeps both the project rosters and the counts
+// derived from them free of people who no longer exist. The two `hasLiveUser`
+// filters below are that guard; see `helpers/orphanedProfiles.js`.
 const internSummary = (recommendation) => ({
   recommendationId: recommendation._id,
   userId: recommendation.internProfile?.user?._id || null,
@@ -147,10 +154,12 @@ const getProjectOverview = async (id, user) => {
   assertLeadershipReadAccess(user);
   const project = await getProjectById(id);
 
-  const recommendations = await Recommendation.find({ project: id })
-    .populate(RECOMMENDATION_INTERN_POPULATE)
-    .sort({ updatedAt: -1 })
-    .lean();
+  const recommendations = (
+    await Recommendation.find({ project: id })
+      .populate(RECOMMENDATION_INTERN_POPULATE)
+      .sort({ updatedAt: -1 })
+      .lean()
+  ).filter((recommendation) => hasLiveUser(recommendation.internProfile));
 
   const placed = recommendations
     .filter((rec) => rec.result?.outcome === 'placed')
@@ -197,11 +206,13 @@ const getProjectsOverview = async (user) => {
   // "Project not known yet" bucket below — otherwise the page KPIs (summed
   // here) would silently omit interns this overview doesn't yet know where to
   // put.
-  const recommendations = await Recommendation.find({
-    $or: [{ project: { $in: projectIds } }, { project: null }],
-  })
-    .populate(RECOMMENDATION_INTERN_POPULATE)
-    .lean();
+  const recommendations = (
+    await Recommendation.find({
+      $or: [{ project: { $in: projectIds } }, { project: null }],
+    })
+      .populate(RECOMMENDATION_INTERN_POPULATE)
+      .lean()
+  ).filter((recommendation) => hasLiveUser(recommendation.internProfile));
 
   const recsByProject = new Map();
   const unknownProjectRecs = [];

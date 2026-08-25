@@ -21,6 +21,8 @@ const {
   isRequestType,
 } = require('../constants/absenceRequestTypes');
 const { httpError } = require('../helpers/httpError');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 const { loadMyProfile } = require('./attendanceService');
 const { getEffectiveLimits, getPrimaryAdminId } = require('./absenceSettingsService');
 const adminService = require('./adminService');
@@ -314,21 +316,36 @@ const listRequests = async (_user, { status = PENDING, type } = {}) => {
     .sort({ dates: 1, createdAt: 1 })
     .lean();
 
-  // Counted unfiltered on purpose — the nav dot and the tab badge mean "anything
-  // waiting", and would otherwise go dark whenever a type filter was applied.
-  const pendingCount = await AbsenceRequest.countDocuments({ status: PENDING });
+  // Ignores the caller's `type` on purpose — the nav dot and the tab badge mean
+  // "anything waiting", and would go dark whenever a type filter was applied.
+  //
+  // Orphans are excluded, though. The rows below drop a request whose intern's
+  // user is gone; a badge that still counted it would promise work the queue
+  // beneath it does not show. `countDocuments` cannot reach through `intern` to
+  // the User, so the live profiles are resolved first and counted by id.
+  const liveInterns = await InternProfile.find(await restrictProfileFilterToLiveUsers({}))
+    .select('_id')
+    .lean();
+  const pendingFilter = {
+    status: PENDING,
+    intern: { $in: liveInterns.map((profile) => profile._id) },
+  };
+  const pendingCount = await AbsenceRequest.countDocuments(pendingFilter);
   const pendingByType = Object.fromEntries(
     await Promise.all(
       REQUEST_TYPES.map(async (t) => [
         t,
-        await AbsenceRequest.countDocuments({ status: PENDING, type: t }),
+        await AbsenceRequest.countDocuments({ ...pendingFilter, type: t }),
       ])
     )
   );
 
   return {
     requests: requests
-      .filter((request) => request.intern) // drop orphans, as the roster does
+      // Drop orphans, as the roster does — and check the User too, not just the
+      // profile: deleting a user straight from the database leaves the profile
+      // behind, so `intern` is present while `intern.user` populates as null.
+      .filter((request) => hasLiveUser(request.intern))
       .map((request) => ({
         ...toRequestSummary(request),
         intern: toInternSummary(request.intern),

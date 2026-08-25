@@ -22,6 +22,7 @@ const historyService = require('./historyService');
 const { httpError } = require('../helpers/httpError');
 const internNotificationService = require('./internNotificationService');
 const { userSelect } = require('../constants/userSelect');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 
 // The status milestones tracked in the append-only history log — the status
 // lifecycle itself (recommended → interviewing → resulted). The placement
@@ -406,12 +407,13 @@ const buildAccessibleProfileIds = async (query = {}) => {
     }
   }
 
-  const needsProfileFilter =
-    Boolean(query.internUserId) || Boolean(query.search) || Boolean(query.hubId);
-
-  if (!needsProfileFilter) return null;
-
-  const profiles = await InternProfile.find(profileFilter).select('_id').lean();
+  // Always resolves to a concrete id list, never `null`. It used to short-circuit
+  // to "no filter at all" when the caller passed no search/hub/intern, which left
+  // the default listing — the one leadership and admin actually open — matching
+  // recommendations whose intern's User had been deleted straight from the
+  // database. Those rendered as "Unknown" rows and were counted in `total`.
+  const liveFilter = await restrictProfileFilterToLiveUsers(profileFilter);
+  const profiles = await InternProfile.find(liveFilter).select('_id').lean();
   return profiles.map((profile) => profile._id);
 };
 

@@ -550,6 +550,40 @@ same exception as `Project`/`Recommendation` above).
 - Not covered by any of this: `POST /api/auth/invite/set-password`, which is guarded by the
   single-use invite token instead — there is no old password at that point.
 
+## There is no "delete user" endpoint
+
+Nothing in the API deletes a `User`. An account is retired by setting `status: 'disabled'`
+(login rejected, row still listed in the admin directory); `DELETE /api/workspaces/:id/members/:userId`
+removes a **membership**, not the person. Deactivation is deliberately the only supported path,
+because a user id is referenced from a dozen collections and none of them cascade.
+
+The consequence, and it has bitten production: a User removed straight from the database leaves
+every one of those references dangling. The `InternProfile` survives, and with it the
+recommendations, evaluations, attendance rows and absence requests keyed to that profile. Read
+paths `populate` the ref, get `null`, fall back to the literal "Unknown", and render a person who
+does not exist — counted in the total beside them.
+
+Two defences, and both are needed:
+
+- **Read side** — three guards, one per shape of read. Any new listing or count rooted at
+  `InternProfile` needs one of them.
+  - `restrictProfileFilterToLiveUsers` (`server/repository/liveUserFilter.js`) narrows a filter's
+    `user` clause to users that still exist. Use it for the page *and* the `countDocuments` beside
+    it, or the two disagree. It refuses a clause it cannot narrow — `{ $ne: ... }`, `{ $nin: [...] }`
+    — rather than collapsing to a filter that silently matches nothing.
+  - `excludeOrphanedProfileStages` (`server/helpers/orphanedProfiles.js`) is the aggregation
+    equivalent.
+  - `hasLiveUser` (same helper) is the post-`populate` check, for rows already read: an orphaned
+    profile arrives with `user` populated as `null`, so the profile is truthy and the person is not.
+
+  The helper is pure — filter shaping and stage building only. Reading which users are live is data
+  access and lives in the repository module, which pairs the read with the shaping.
+- **Data side** — `npm run cleanup:orphaned-user-refs` (see `.claude/docs/workflows.md`). Dry-run
+  by default. Only this repairs the raw counts, since the read guards hide rows rather than
+  removing them.
+
+If a delete-user path is ever added, it must cascade over the same set the cleanup script deletes.
+
 ## Test accounts
 
 `User.isTestAccount` marks an internal QA account (created by `server/seeder/seedTestAccounts.js`,
