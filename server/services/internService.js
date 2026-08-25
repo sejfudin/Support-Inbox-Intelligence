@@ -18,12 +18,16 @@ const {
   canEditOwnInternProfile,
   isAssignedMentor,
 } = require('../helpers/internAccess');
-const { canInternEditDeclaredPosition } = require('../helpers/specializationRules');
+const {
+  canInternEditDeclaredPosition,
+  mentorSlotsCollide,
+} = require('../helpers/specializationRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
 const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 const internNotificationService = require('./internNotificationService');
+const { assertActiveAdmin } = require('../helpers/assertActiveAdmin');
 const { userSelect } = require('../constants/userSelect');
 const { httpError } = require('../helpers/httpError');
 const { closePlacementExemption } = require('../helpers/attendanceStats');
@@ -183,6 +187,73 @@ const getInternByUserId = async (user, internUserId) => {
     err.statusCode = 403;
     throw err;
   }
+
+  return formatProfile(profile, user);
+};
+
+/**
+ * An admin hands off one intern they currently primary-mentor to a different
+ * admin, who becomes the new primary mentor. Self-scoped by design: the
+ * caller must currently *be* this intern's `primaryMentor` — this is "give
+ * away one of mine", not a general "reassign anyone's mentor" tool, so an
+ * admin who isn't already this intern's primary mentor gets the same 403 a
+ * mentor editing someone else's intern would.
+ *
+ * The new mentor must hold the `admin` role specifically. `assertMentorUser`
+ * (used at intern creation) allows `admin` or `mentor` for `primaryMentor` in
+ * general — this handoff is narrower on purpose, because the point is
+ * platform responsibility for the intern moving from one admin to another,
+ * not a mentor pairing change (that's `changeSpecializationMentor`, which
+ * touches `secondaryMentor` and does allow either role).
+ */
+const transferPrimaryMentor = async (user, internUserId, { newAdminId } = {}) => {
+  const profile = await InternProfile.findOne({ user: internUserId });
+  if (!profile) throw httpError('Intern profile not found', 404);
+
+  if (user.role !== ROLES.ADMIN) {
+    throw httpError('Only admins can transfer a primary mentor.', 403);
+  }
+  if (String(profile.primaryMentor) !== String(user._id)) {
+    throw httpError('You can only transfer interns you are the primary mentor for.', 403);
+  }
+  if (!newAdminId) {
+    throw httpError('Choose the admin to take over.', 400);
+  }
+  if (String(newAdminId) === String(user._id)) {
+    throw httpError("You're already this intern's primary mentor.", 400);
+  }
+
+  await assertActiveAdmin(newAdminId, 'Selected user is not an active admin.');
+  // Mirrors the invariant `specializationRules.js` enforces from the other
+  // direction (`Secondary mentor must differ from primary mentor`) — without
+  // this, transferring primaryMentor onto whoever already holds
+  // secondaryMentor collapses a specialized intern's two distinct mentors
+  // into one, which is exactly what that rule exists to prevent. Shared
+  // predicate, not a re-implementation — see `mentorSlotsCollide`.
+  if (mentorSlotsCollide(newAdminId, profile.secondaryMentor)) {
+    throw httpError('This admin is already the secondary mentor — pick someone else.', 400);
+  }
+
+  profile.primaryMentor = newAdminId;
+  await profile.save();
+  // Reuse the document already in hand rather than a second
+  // `getInternByUserId` round trip — that also re-checks view access, which
+  // is already guaranteed true (the caller passed the `role === ADMIN` check
+  // above, and every admin can view every intern).
+  await profile.populate(PROFILE_POPULATE);
+
+  emitInternDataChanged();
+
+  // Fire-and-forget, same as every other mutation-triggered notification in
+  // this file — never awaited, and `notifyPrimaryMentorTransferred` catches
+  // its own errors (see `internNotificationService.js#safe`).
+  internNotificationService.notifyPrimaryMentorTransferred({
+    recipientUserId: newAdminId,
+    internUserId,
+    internProfileId: profile._id,
+    internName: profile.user?.fullname || 'an intern',
+    previousMentorName: user.fullname,
+  });
 
   return formatProfile(profile, user);
 };
@@ -1213,6 +1284,7 @@ module.exports = {
   updateSelfPosition,
   updateSelfSecondaryPosition,
   updateInternProgramme,
+  transferPrimaryMentor,
   updateDocumentationLinks,
   updateInternalCvLink,
   createInternProfile,

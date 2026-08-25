@@ -104,6 +104,17 @@ exports.updateIntern = async (req, res, next) => {
   }
 };
 
+exports.transferPrimaryMentor = async (req, res, next) => {
+  try {
+    const intern = await internService.transferPrimaryMentor(req.user, req.params.userId, {
+      newAdminId: req.body.newAdminId,
+    });
+    res.json({ intern });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
 exports.updateDocumentationLinks = async (req, res, next) => {
   try {
     const intern = await internService.updateDocumentationLinks(
