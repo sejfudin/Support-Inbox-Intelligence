@@ -33,7 +33,16 @@ const entrySchema = z.object({
   member: z.string().min(1, 'Select an intern'),
   done: z.array(z.object({ value: z.string() })),
   todo: z.array(z.object({ value: z.string() })),
-  blockers: z.array(z.object({ text: z.string(), linkedTicket: z.string().nullable() })),
+  blockers: z.array(
+    z.object({
+      // Required even when a ticket is linked — a blocker whose text is empty
+      // used to be dropped silently on both sides of the wire and rendered as
+      // nothing. The ticket picker prefills this, so linking a ticket still
+      // costs no typing.
+      text: z.string().trim().min(1, 'Describe the blocker'),
+      linkedTicket: z.string().nullable(),
+    })
+  ),
 });
 
 const defaultValues = { member: '', done: [], todo: [], blockers: [] };
@@ -93,60 +102,88 @@ const RepeatableList = ({ label, dotColor, name, control, register, addLabel, pl
 
 const NO_TICKET = 'none';
 
-const BlockersField = ({ control, register, workspaceId }) => {
+// The ticket picker prefills the text field, so linking a ticket needs no
+// typing — but only into an empty field, so it never overwrites what the intern
+// wrote. Switching tickets afterwards therefore leaves the earlier text in
+// place; the intern edits it if it no longer fits.
+const blockerTicketText = (ticket) => `Blocked by ticket #${ticket.taskNumber}`;
+
+const BlockersField = ({ control, register, workspaceId, errors, getValues, setValue }) => {
   const { fields, append, remove } = useFieldArray({ control, name: 'blockers' });
   const { data } = useTickets({ workspaceId, limit: 200 }, { enabled: Boolean(workspaceId) });
   const tickets = data?.data ?? [];
+
+  const prefillText = (index, ticketId) => {
+    if (!ticketId) return;
+    if (getValues(`blockers.${index}.text`)?.trim()) return;
+    const ticket = tickets.find((item) => item._id === ticketId);
+    if (!ticket) return;
+    setValue(`blockers.${index}.text`, blockerTicketText(ticket), { shouldValidate: true });
+  };
 
   return (
     <div className="flex flex-col gap-2">
       <SectionLabel dotColor="bg-[hsl(var(--tone-danger))]">Blockers</SectionLabel>
       {fields.map((field, index) => (
-        <div key={field.id} className="flex items-center gap-2">
-          <Input
-            {...register(`blockers.${index}.text`)}
-            data-test={`daily-entry-blockers-input-${index}`}
-            placeholder="Describe the blocker…"
-            className="flex-1"
-          />
-          <Controller
-            name={`blockers.${index}.linkedTicket`}
-            control={control}
-            render={({ field: ticketField }) => (
-              <Select
-                value={ticketField.value ?? NO_TICKET}
-                onValueChange={(value) => ticketField.onChange(value === NO_TICKET ? null : value)}
-              >
-                <SelectTrigger
-                  className="w-44 shrink-0"
-                  data-test={`daily-entry-blockers-ticket-${index}`}
+        <div key={field.id} className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Input
+              {...register(`blockers.${index}.text`)}
+              data-test={`daily-entry-blockers-input-${index}`}
+              placeholder="Describe the blocker…"
+              className="flex-1"
+            />
+            <Controller
+              name={`blockers.${index}.linkedTicket`}
+              control={control}
+              render={({ field: ticketField }) => (
+                <Select
+                  value={ticketField.value ?? NO_TICKET}
+                  onValueChange={(value) => {
+                    const ticketId = value === NO_TICKET ? null : value;
+                    ticketField.onChange(ticketId);
+                    prefillText(index, ticketId);
+                  }}
                 >
-                  <SelectValue placeholder="Link ticket" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_TICKET}>No ticket</SelectItem>
-                  {tickets.map((ticket) => (
-                    <SelectItem
-                      key={ticket._id}
-                      value={ticket._id}
-                      data-test={`daily-entry-blockers-ticket-option-${ticket._id}`}
-                    >
-                      #{ticket.taskNumber} {ticket.subject}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            data-test={`daily-entry-blockers-remove-${index}`}
-            onClick={() => remove(index)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+                  <SelectTrigger
+                    className="w-44 shrink-0"
+                    data-test={`daily-entry-blockers-ticket-${index}`}
+                  >
+                    <SelectValue placeholder="Link ticket" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_TICKET}>No ticket</SelectItem>
+                    {tickets.map((ticket) => (
+                      <SelectItem
+                        key={ticket._id}
+                        value={ticket._id}
+                        data-test={`daily-entry-blockers-ticket-option-${ticket._id}`}
+                      >
+                        #{ticket.taskNumber} {ticket.subject}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              data-test={`daily-entry-blockers-remove-${index}`}
+              onClick={() => remove(index)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          {errors?.blockers?.[index]?.text && (
+            <p
+              data-test={`daily-entry-blockers-error-${index}`}
+              className="text-xs text-[hsl(var(--tone-danger-fg))]"
+            >
+              {errors.blockers[index].text.message}
+            </p>
+          )}
         </div>
       ))}
       <AddItemLink
@@ -180,6 +217,8 @@ export const AddEntryModal = ({
     handleSubmit,
     control,
     reset,
+    getValues,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(entrySchema),
@@ -206,9 +245,12 @@ export const AddEntryModal = ({
   const onSubmit = (values) => {
     const done = values.done.map((item) => item.value.trim()).filter(Boolean);
     const todo = values.todo.map((item) => item.value.trim()).filter(Boolean);
-    const blockers = values.blockers
-      .map((item) => ({ text: item.text.trim(), linkedTicket: item.linkedTicket ?? null }))
-      .filter((item) => item.text);
+    // No .filter() on text here: the schema requires it, so an empty blocker
+    // surfaces as a field error instead of disappearing on the way out.
+    const blockers = values.blockers.map((item) => ({
+      text: item.text.trim(),
+      linkedTicket: item.linkedTicket ?? null,
+    }));
 
     const payload = isEditing
       ? { dailyId: daily._id, entryId: entry._id, done, todo, blockers }
@@ -297,7 +339,14 @@ export const AddEntryModal = ({
             addLabel="Add item"
             placeholder="Planned for today…"
           />
-          <BlockersField control={control} register={register} workspaceId={workspaceId} />
+          <BlockersField
+            control={control}
+            register={register}
+            workspaceId={workspaceId}
+            errors={errors}
+            getValues={getValues}
+            setValue={setValue}
+          />
 
           <DialogFooter>
             <Button
