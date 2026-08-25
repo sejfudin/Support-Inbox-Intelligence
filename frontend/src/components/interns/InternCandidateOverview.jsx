@@ -2,24 +2,8 @@ import { InternDocumentationLinksPanel } from '@/components/interns/InternDocume
 import { InternInternalCvPanel } from '@/components/interns/InternInternalCvPanel';
 import { InternDeclaredTechnologies } from '@/components/interns/InternDeclaredTechnologies';
 import { InternCvSummaryPanel } from '@/components/interns/InternCvSummaryPanel';
+import { InternOverviewSection } from '@/components/interns/InternOverviewSection';
 import { cn } from '@/lib/utils';
-
-function OverviewSection({ title, description, children, className, action }) {
-  return (
-    <section className={cn('space-y-3', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="app-card-title">{title}</h3>
-          {description ? (
-            <p className="mt-0.5 text-[12.5px] text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
 
 export function InternCandidateOverview({
   intern,
@@ -31,13 +15,16 @@ export function InternCandidateOverview({
 }) {
   return (
     <div className={cn('space-y-4', className)}>
-      <OverviewSection
+      {/* Specialization is not here: it is an admin write about the placement,
+          so it sits in the Overview sidebar with the programme controls. This
+          card carries the candidate's own material. */}
+      <InternOverviewSection
         title="Declared technologies"
         description="Stacks the candidate selected on their profile."
         className="pb-4"
       >
         <InternDeclaredTechnologies technologies={intern.selfTechnologies || []} />
-      </OverviewSection>
+      </InternOverviewSection>
 
       <div className="border-t border-separator" />
 

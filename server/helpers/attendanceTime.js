@@ -104,6 +104,23 @@ const isWeekendKey = (key) => {
  */
 const previousDayKey = (key) => new Date(keyToUtcNoon(key) - DAY_MS).toISOString().slice(0, 10);
 
+/**
+ * The 'YYYY-MM-DD' key for the day after `key`. The mirror of `previousDayKey`, and
+ * the walk step for anything that iterates a half-open key range — see
+ * `placementExemptKeys`.
+ */
+const nextDayKey = (key) => new Date(keyToUtcNoon(key) + DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * A 'YYYY-MM-DD' key back to a Date, at UTC noon.
+ *
+ * Noon rather than midnight for the usual reason: a midnight Date renders as the
+ * previous day in any timezone west of UTC, and these values are stored and read
+ * back as calendar days. Used where a key has to be persisted into a Date field
+ * (`placementExemptions`).
+ */
+const keyToDate = (key) => new Date(keyToUtcNoon(key));
+
 const NO_EXCLUSIONS = new Set();
 
 /**
@@ -180,6 +197,8 @@ module.exports = {
   isWithinCheckInWindow,
   isWeekendKey,
   previousDayKey,
+  nextDayKey,
+  keyToDate,
   previousWorkingDayKey,
   countWorkingDays,
   officeMonthKey,

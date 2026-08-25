@@ -11,7 +11,7 @@
  * DESTRUCTIVE. It deletes users, workspaces, tickets, comments, intern
  * profiles, attendance, dailies, recommendations, evaluations and refresh
  * tokens. It PRESERVES reference data (hubs, internship types, technologies,
- * positions) and the locked "Unspecified" project.
+ * positions).
  *
  * Safe to re-run: nothing uses Math.random(), all dates are working-day offsets
  * from one frozen anchor, and the _id of every user, workspace, intern profile,
@@ -95,7 +95,7 @@ const WIPE_PLAN = [
   ['Workspace', {}],
   ['RefreshToken', {}],
   ['User', {}],
-  // Keep the locked sentinel (and any future system project).
+  // Keep any system project (none exist today, but the model still supports one).
   ['Project', { isSystem: { $ne: true } }],
 ];
 
@@ -156,8 +156,7 @@ const printBanner = (target) => {
   DELETES  every user, workspace, ticket, comment, intern profile,
            attendance record, daily, recommendation, evaluation and
            refresh token in this database.
-  PRESERVES hubs, internship types, technologies, positions, and the
-           locked "Unspecified" project.
+  PRESERVES hubs, internship types, technologies, and positions.
 
   Anyone else using "${target.db}" loses their data, and open browser
   sessions against it will break (every user id changes).
@@ -220,12 +219,11 @@ const confirm = async (target, options) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const loadReferenceData = async () => {
-  const [hubs, programmes, technologies, positions, unspecifiedProject] = await Promise.all([
+  const [hubs, programmes, technologies, positions] = await Promise.all([
     Hub.find().lean(),
     InternshipType.find().lean(),
     Technology.find().lean(),
     Position.find().lean(),
-    Project.findOne({ slug: 'unspecified' }).lean(),
   ]);
 
   const lookup = (list, field, label) => (value) => {
@@ -234,14 +232,11 @@ const loadReferenceData = async () => {
     return found;
   };
 
-  if (!unspecifiedProject) throw new Error('The locked "unspecified" project is missing.');
-
   return {
     hubByName: lookup(hubs, 'name', 'Hub'),
     programmeBySlug: lookup(programmes, 'slug', 'Internship type'),
     techBySlug: lookup(technologies, 'slug', 'Technology'),
     positionBySlug: lookup(positions, 'slug', 'Position'),
-    unspecifiedProject,
   };
 };
 
@@ -636,7 +631,7 @@ const main = async () => {
 
   if (options.dryRun) {
     await runWipe({ dryRun: true });
-    console.log(`   Preserved untouched: ${PRESERVED.join(', ')} (+ the "unspecified" project).\n`);
+    console.log(`   Preserved untouched: ${PRESERVED.join(', ')}.\n`);
     await mongoose.disconnect();
     return;
   }

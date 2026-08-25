@@ -20,27 +20,22 @@ import { useChangeSpecializationMentor } from '@/queries/specializations';
 import { useMentorCandidates } from '@/queries/users';
 
 /**
- * Explicit primitive props rather than a `specialization` object, on purpose:
- * this modal now has two callers (`SpecializationPage`'s list row, and
- * `InternProfileView`'s full intern record) that carry the needed fields
- * under different backend shapes. Passing primitives means neither caller has
- * to match the other's shape — each maps its own data down to this contract.
+ * `open` defaults to "there is a record to act on", which is how the
+ * Specialization tab drives this — it holds one nullable target and lets that
+ * double as the open flag. A caller that always has its record on hand (an
+ * intern's own profile) passes `open` separately instead, so it does not have to
+ * blank out the record it is still displaying just to close the dialog.
  */
-export function ChangeMentorModal({
-  open,
-  internUserId,
-  internFullname,
-  currentMentorId,
-  onClose,
-}) {
+export function ChangeMentorModal({ specialization, onClose, open = Boolean(specialization) }) {
   const [mentorId, setMentorId] = useState('');
   const [error, setError] = useState('');
 
   const { data: mentorsData } = useMentorCandidates({ hubScoped: false });
   const mentors = mentorsData?.users ?? [];
   const changeMentorMutation = useChangeSpecializationMentor();
-
-  const eligibleMentors = mentors.filter((mentor) => mentor._id !== currentMentorId);
+  const eligibleMentors = mentors.filter(
+    (mentor) => mentor._id !== specialization?.primaryMentor?._id
+  );
 
   const resetAndClose = () => {
     setMentorId('');
@@ -53,7 +48,7 @@ export function ChangeMentorModal({
     setError('');
     try {
       await changeMentorMutation.mutateAsync({
-        internUserId,
+        internUserId: specialization.user?._id,
         mentorId,
       });
       resetAndClose();
@@ -69,8 +64,8 @@ export function ChangeMentorModal({
           <DialogHeader>
             <DialogTitle>Change specialization mentor</DialogTitle>
             <DialogDescription>
-              Re-pair {internFullname || 'this intern'} with a different 1-on-1 mentor. Their
-              position doesn&apos;t change.
+              Re-pair {specialization?.user?.fullname || 'this intern'} with a different 1-on-1
+              mentor. Their position doesn&apos;t change.
             </DialogDescription>
           </DialogHeader>
 

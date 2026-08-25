@@ -479,10 +479,7 @@ export default function SpecializationPage() {
       />
 
       <ChangeMentorModal
-        open={Boolean(changeMentorTarget)}
-        internUserId={changeMentorTarget?.user?._id}
-        internFullname={changeMentorTarget?.user?.fullname}
-        currentMentorId={changeMentorTarget?.primaryMentor?._id}
+        specialization={changeMentorTarget}
         onClose={() => setChangeMentorTarget(null)}
       />
 

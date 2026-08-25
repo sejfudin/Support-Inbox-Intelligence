@@ -85,6 +85,33 @@ const internProfileSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Placement stretches the intern has already come BACK from, as closed
+    // half-open ranges `[from, to)`: `from` is the `placedAt` they were exempt from,
+    // `to` is the day they rejoined the programme and started owing attendance again.
+    //
+    // `placedAt` alone cannot express this. It is a single open-ended boundary, so
+    // clearing it on return does not reopen just the placed stretch — it reopens
+    // every day from the placement onward, and those days hold no attendance rows
+    // (absence is the *lack* of a row). Without this field a returning intern is
+    // handed a wall of fabricated absence for days they were legitimately on a
+    // project. See `.claude/docs/architecture.md`.
+    //
+    // Each closed stint leaves the denominator exactly the way an approved vacation
+    // day or a cohort-wide `NonWorkingDay` does: nothing owed, nothing missed.
+    // `placementExemptKeys` expands them; `computeMonthStats` is the only place that
+    // acts on them. A list rather than one range because an intern can be placed,
+    // come back, and be placed again.
+    //
+    // Only CLOSED stints live here. The stretch the intern is on right now stays
+    // `placedAt` — every "is this intern exempt today?" check reads that field and
+    // must keep working unchanged.
+    placementExemptions: [
+      {
+        _id: false,
+        from: { type: Date, required: true },
+        to: { type: Date, required: true },
+      },
+    ],
     // Everything the intern has declared, from both sources: what they added by hand and what a
     // CV scan recognised for them. No provenance is kept alongside it, because neither source can
     // remove an entry — a CV scan only adds (helpers/cvTechnologySync.js) and only the intern

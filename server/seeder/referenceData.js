@@ -2,7 +2,6 @@ const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
 const Technology = require('../models/Technology');
 const Position = require('../models/Position');
-const Project = require('../models/Project');
 const { slugify } = require('../helpers/slugify');
 const DEFAULT_TECHNOLOGIES = require('./defaultTechnologies');
 const DEFAULT_POSITIONS = require('./defaultPositions');
@@ -76,33 +75,11 @@ const seedPositions = async () => {
   }
 };
 
-// Only the locked sentinel is seeded here — real projects are admin-created,
-// never seeded. Upsert is safe to run repeatedly (never wiped by seed.js).
-const seedUnspecifiedProject = async () => {
-  await Project.updateOne(
-    { slug: 'unspecified' },
-    {
-      // `internal`: the sentinel is platform plumbing, not client work. It is
-      // hidden from every list, so the value is only there to satisfy the
-      // required `type`.
-      $setOnInsert: {
-        name: 'Unspecified',
-        slug: 'unspecified',
-        isSystem: true,
-        status: 'active',
-        type: 'internal',
-      },
-    },
-    { upsert: true }
-  );
-};
-
 const seedReferenceData = async () => {
   await seedHubs();
   await seedInternshipTypes();
   await seedTechnologies();
   await seedPositions();
-  await seedUnspecifiedProject();
 };
 
 module.exports = {
@@ -110,6 +87,5 @@ module.exports = {
   seedInternshipTypes,
   seedTechnologies,
   seedPositions,
-  seedUnspecifiedProject,
   seedReferenceData,
 };

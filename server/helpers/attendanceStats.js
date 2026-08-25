@@ -3,6 +3,9 @@ const {
   monthBounds,
   countWorkingDays,
   previousDayKey,
+  nextDayKey,
+  keyToDate,
+  isWeekendKey,
 } = require('./attendanceTime');
 
 const EMPTY_SET = new Set();
@@ -99,6 +102,15 @@ const splitRows = (rows) => {
  * absent would punish leave an admin approved. Leaving the sum on both sides reads
  * as what it is: nothing owed, nothing missed.
  *
+ * `placementExemptions` is the same idea applied backwards in time: placement
+ * stretches the intern has already RETURNED from (`InternProfile.placementExemptions`).
+ * `placedAt` covers the stretch they are on now, but it is a single open boundary and
+ * says nothing about one that ended — so without this a returning intern is billed
+ * for every day they were legitimately on a project, since absence is the absence of
+ * a record. Expanded here rather than merged into `exemptDates` by each caller: this
+ * is the only function that may act on it, so it is also the only one that should
+ * have to know how.
+ *
  * Lives here rather than in attendanceService because both the admin roster and
  * the admin dashboard derive the same numbers from their own record sets.
  */
@@ -108,7 +120,8 @@ const computeMonthStats = (
   startDate,
   placedAt = null,
   nonWorkingDays = EMPTY_SET,
-  exemptDates = EMPTY_SET
+  exemptDates = EMPTY_SET,
+  placementExemptions = []
 ) => {
   const { start, end } = monthBounds(monthKey);
   const todayKey = officeDateKey();
@@ -122,7 +135,11 @@ const computeMonthStats = (
   // Cohort-wide and personal exclusions do the same job, so the denominator sees
   // one set. Built per call because the personal half differs per intern.
   const exemptKeys = exemptDates instanceof Set ? exemptDates : new Set(exemptDates);
-  const excluded = exemptKeys.size ? new Set([...nonWorkingDays, ...exemptKeys]) : nonWorkingDays;
+  const placementKeys = placementExemptKeys(placementExemptions);
+  const excluded =
+    exemptKeys.size || placementKeys.size
+      ? new Set([...nonWorkingDays, ...exemptKeys, ...placementKeys])
+      : nonWorkingDays;
 
   const workingDays = rangeStart <= rangeEnd ? countWorkingDays(rangeStart, rangeEnd, excluded) : 0;
   // A check-in on an excluded day is dropped too, not just from the denominator:
@@ -149,8 +166,75 @@ const averageAttendanceRate = (rates) => {
 /**
  * Whether the intern is exempt from recording attendance on `dateKey` because they
  * are already on a real project. Inclusive-from `placedAt`.
+ *
+ * Reads the OPEN stretch only — the placement the intern is on right now. Stretches
+ * they have already come back from live in `placementExemptions` and are deliberately
+ * not consulted here: this answers "may they check in / must they be reminded", and
+ * a finished placement has no bearing on that. Only the historical arithmetic
+ * (`computeMonthStats`, via `placementExemptKeys`) cares about those.
  */
 const isExemptOn = (placedAt, dateKey) => Boolean(placedAt) && dateKey >= officeDateKey(placedAt);
+
+/**
+ * Expand `InternProfile.placementExemptions` into the 'YYYY-MM-DD' keys they cover,
+ * ready to be merged into the exempt days handed to `computeMonthStats`.
+ *
+ * Each stint is half-open `[from, to)`: `from` is the day the intern left for the
+ * project and is already exempt (inclusive, matching `placedAt`), `to` is the day
+ * they rejoined and owed attendance again, so it is NOT exempt. A stint whose
+ * bounds touch or cross expands to nothing — that is the intern who was placed on
+ * paper and brought back before the start date ever arrived, and no day of theirs
+ * was ever excused.
+ *
+ * Weekends are left out. They change no arithmetic either way — `countWorkingDays`
+ * never counted one — but this Set is also sent to the client, where a weekend inside
+ * a placement would render as "On project" rather than as a weekend, reading as a day
+ * the intern worked. The client's `placementExemptKeySet` applies the same rule.
+ */
+const placementExemptKeys = (placementExemptions = []) => {
+  const keys = new Set();
+  for (const stint of placementExemptions) {
+    if (!stint?.from || !stint?.to) continue;
+    const fromKey = officeDateKey(stint.from);
+    const toKey = officeDateKey(stint.to);
+    for (let key = fromKey; key < toKey; key = nextDayKey(key)) {
+      if (!isWeekendKey(key)) keys.add(key);
+    }
+  }
+  return keys;
+};
+
+/**
+ * The two fields a profile needs written to close its open placement stretch,
+ * because the intern is rejoining the programme today: `placedAt` cleared, and
+ * `[placedAt, today)` appended to `placementExemptions`. Pure — reads `profile`,
+ * returns the next values, writes nothing. The caller assigns both fields and
+ * saves; every caller is already mid-mutation and saves once anyway, e.g.
+ * `Object.assign(profile, closePlacementExemption(profile))`.
+ *
+ * Call this on EVERY path back onto the programme. Clearing `placedAt` on its own
+ * is the bug this exists to prevent: it hands the intern retroactive absence for
+ * the whole stretch they were legitimately away.
+ *
+ * Records nothing when there is no stretch to record — no `placedAt`, or a
+ * `placedAt` that has not arrived yet (placed on paper, never actually left). Both
+ * are a plain clear, and both are idempotent, so applying the result twice is safe.
+ *
+ * Deliberately NOT used when an admin sets `placedAt` to null by hand: that path
+ * means "this exemption was a mistake", and a correction should leave no trace of
+ * the thing it corrected. This one means "they came back", which did happen.
+ */
+const closePlacementExemption = (profile, now = new Date()) => {
+  const from = profile.placedAt;
+  if (!from) return { placedAt: null, placementExemptions: profile.placementExemptions || [] };
+
+  const todayKey = officeDateKey(now);
+  const placementExemptions =
+    officeDateKey(from) < todayKey
+      ? [...(profile.placementExemptions || []), { from, to: keyToDate(todayKey) }]
+      : profile.placementExemptions || [];
+  return { placedAt: null, placementExemptions };
+};
 
 /**
  * The day a placement stops the intern owing attendance, or null if it doesn't
@@ -215,6 +299,8 @@ module.exports = {
   loadObservances,
   averageAttendanceRate,
   isExemptOn,
+  placementExemptKeys,
+  closePlacementExemption,
   placementExemptionDate,
   loadNonWorkingDays,
 };

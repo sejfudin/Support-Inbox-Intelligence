@@ -14,15 +14,16 @@ import { InternRecommendationsPanel } from '@/components/interns/InternRecommend
 import { InternCandidateOverview } from '@/components/interns/InternCandidateOverview';
 import { InternProfileHeader } from '@/components/interns/InternProfileHeader';
 import { InternPanel } from '@/components/interns/InternPanel';
+import { InternSpecializationPanel } from '@/components/interns/InternSpecializationPanel';
 import InternAttendancePanel from '@/components/interns/InternAttendancePanel';
 import { TransferPrimaryMentorModal } from '@/components/interns/TransferPrimaryMentorModal';
-import { ChangeMentorModal } from '@/components/interns/specialization/ChangeMentorModal';
 import { useIntern } from '@/queries/interns';
 import { useAuth } from '@/context/AuthContext';
 import {
   ROLES,
   canViewComments,
   canManageInternDocumentationLinks,
+  canManageSpecialization,
   isPrimaryMentor,
 } from '@/helpers/roles';
 import { cn } from '@/lib/utils';
@@ -54,7 +55,6 @@ export function InternProfileView({
   // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
   const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const [transferMentorOpen, setTransferMentorOpen] = useState(false);
-  const [changeSecondaryMentorOpen, setChangeSecondaryMentorOpen] = useState(false);
 
   const canEditDocumentation = !readOnly && canManageInternDocumentationLinks(user, intern);
   // Editing the internal CV link is admin-only; mentors keep read access to
@@ -66,6 +66,9 @@ export function InternProfileView({
   // assigned mentor, same as every other mentor write here.
   const canGenerateCvSummary =
     !readOnly && (user?.role === ROLES.ADMIN || user?.role === ROLES.MENTOR);
+  // Admin-only, and the same view serves mentors — so the Overview section has to
+  // be gated here rather than by which page mounted the view.
+  const showSpecializationControls = !readOnly && canManageSpecialization(user?.role);
   const showComments = canViewComments(user?.role);
   const showEvaluations = user?.role === ROLES.ADMIN;
   const showReadiness = user?.role === ROLES.ADMIN;
@@ -78,15 +81,6 @@ export function InternProfileView({
   // this intern's primary mentor sees the hand-off action, not every admin.
   const canTransferPrimaryMentor =
     !readOnly && user?.role === ROLES.ADMIN && isPrimaryMentor(user, intern);
-  // Not self-scoped, unlike the primary-mentor transfer above: this is the
-  // same admin-only "Change mentor" action the Specialization page already
-  // offers (`PATCH /:internUserId/mentor`), just triggered from here too.
-  // Only shown once a specialization mentor actually exists to change — the
-  // backend 400s on an unspecialized intern (`loadSpecializedProfile`), and
-  // the header only renders the Secondary mentor field under the same
-  // condition.
-  const canChangeSecondaryMentor =
-    !readOnly && user?.role === ROLES.ADMIN && Boolean(intern?.secondaryMentor);
 
   // Which tab is open lives in the URL, so a link can point at one — the
   // recommendations table sends an admin straight to the intern's own
@@ -169,7 +163,9 @@ export function InternProfileView({
   // Lifecycle status changes are admin-only. This mirrors the backend guard
   // in updateInternProgramme.
   const canChangeStatus = !readOnly && user?.role === ROLES.ADMIN;
-  const hasOverviewSidebar = canChangeStatus;
+  // Both rail cards are admin-only today, so either one alone still earns the
+  // two-column layout.
+  const hasOverviewSidebar = canChangeStatus || showSpecializationControls;
   const formattedStartDate = intern.startDate
     ? format(new Date(intern.startDate), 'MMM d, yyyy')
     : '—';
@@ -269,20 +265,6 @@ export function InternProfileView({
               ) : null
             }
             secondaryMentor={intern.secondaryMentor?.fullname}
-            secondaryMentorAction={
-              canChangeSecondaryMentor ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-5 shrink-0 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
-                  onClick={() => setChangeSecondaryMentorOpen(true)}
-                  data-test="intern-change-secondary-mentor-button"
-                >
-                  Change
-                </Button>
-              ) : null
-            }
             backButton={backButton}
             titleAdornment={headingActions}
             tabs={tabStrip}
@@ -309,8 +291,11 @@ export function InternProfileView({
                   />
                 </InternPanel>
 
-                {hasOverviewSidebar && canChangeStatus && (
-                  <InternProgrammeControls intern={intern} />
+                {hasOverviewSidebar && (
+                  <div className="space-y-3.5">
+                    {showSpecializationControls && <InternSpecializationPanel intern={intern} />}
+                    {canChangeStatus && <InternProgrammeControls intern={intern} />}
+                  </div>
                 )}
               </div>
             </TabsContent>
@@ -370,16 +355,6 @@ export function InternProfileView({
           intern={intern}
           open={transferMentorOpen}
           onClose={() => setTransferMentorOpen(false)}
-        />
-      )}
-
-      {canChangeSecondaryMentor && (
-        <ChangeMentorModal
-          open={changeSecondaryMentorOpen}
-          internUserId={intern.user?._id}
-          internFullname={intern.user?.fullname}
-          currentMentorId={intern.primaryMentor?._id}
-          onClose={() => setChangeSecondaryMentorOpen(false)}
         />
       )}
     </PageShell>

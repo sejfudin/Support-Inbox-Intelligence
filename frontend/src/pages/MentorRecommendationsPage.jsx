@@ -26,6 +26,7 @@ import {
   getRecommendationStatusTone,
   RECOMMENDATION_RESULTS,
   RECOMMENDATION_STATUSES,
+  recommendationProjectLabel,
 } from '@/helpers/recommendations';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES } from '@/helpers/roles';
@@ -315,9 +316,7 @@ export default function MentorRecommendationsPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           <span className="line-clamp-2 [overflow-wrap:anywhere]">
-                            {recommendation.project?.name || (
-                              <span className="text-muted-foreground/75">—</span>
-                            )}
+                            {recommendationProjectLabel(recommendation)}
                           </span>
                         </TableCell>
                         <TableCell>

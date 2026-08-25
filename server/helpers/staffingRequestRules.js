@@ -46,6 +46,13 @@ const projectNames = (recommendations) => [
   ),
 ];
 
+// Whether any recommendation in the set has no project yet. `project` is null
+// rather than absent, so this is a plain falsy check — no id comparison, since
+// a null project can never be confirmed to be (or not be) the same one as
+// anything else.
+const hasUnknownProject = (recommendations) =>
+  recommendations.some((recommendation) => !recommendation.project);
+
 // "You may not do this", as opposed to "this is not a legal thing to do" — the
 // two refusals this module makes, and they map to different statuses. A plain
 // `Error` means the move is illegal (400); this one means the caller is the
@@ -170,24 +177,37 @@ const partitionPickerCandidates = (
     // conflict, and flagging it would put a warning on most of the programme.
     // The projects come from the recommendations because the profile only
     // records that they are placed, never where.
-    const placedOn =
+    const placedRecs =
       candidate.status === 'placed'
-        ? projectNames(
-            recommendations.filter((recommendation) => recommendation.result?.outcome === 'placed')
-          )
+        ? recommendations.filter((recommendation) => recommendation.result?.outcome === 'placed')
         : [];
+    const placedOn = projectNames(placedRecs);
+    const placedOnUnknown = hasUnknownProject(placedRecs);
     // Being in selection for the project being staffed is this request's own
     // pipeline, not a double-booking worth flagging.
-    const inSelectionOn = projectNames(
-      recommendations.filter(
-        (recommendation) =>
-          IN_SELECTION_STATUSES.includes(recommendation.status) &&
-          !(projectId && idEquals(recommendation.project, projectId))
-      )
+    const inSelectionRecs = recommendations.filter(
+      (recommendation) =>
+        IN_SELECTION_STATUSES.includes(recommendation.status) &&
+        !(projectId && idEquals(recommendation.project, projectId))
     );
+    const inSelectionOn = projectNames(inSelectionRecs);
+    const inSelectionUnknown = hasUnknownProject(inSelectionRecs);
 
-    if (placedOn.length > 0) flags.push({ type: 'placed', projects: placedOn });
-    if (inSelectionOn.length > 0) flags.push({ type: 'in-selection', projects: inSelectionOn });
+    // A recommendation with no project still counts as a conflict — it is
+    // just one `projectNames` cannot name, since null is neither equal to nor
+    // different from anything. `unknownProject` tells the client there is an
+    // unnamed one behind the flag, so the warning it writes can admit the
+    // ambiguity instead of silently dropping the conflict.
+    if (placedOn.length > 0 || placedOnUnknown) {
+      flags.push({ type: 'placed', projects: placedOn, unknownProject: placedOnUnknown });
+    }
+    if (inSelectionOn.length > 0 || inSelectionUnknown) {
+      flags.push({
+        type: 'in-selection',
+        projects: inSelectionOn,
+        unknownProject: inSelectionUnknown,
+      });
+    }
 
     const bucket = flags.length > 0 ? result.warned : result.clean;
     bucket.push({
@@ -201,9 +221,11 @@ const partitionPickerCandidates = (
 };
 
 // Whether an admin may put interns forward against this request. Both refusals
-// are enforced here rather than only hidden in the UI: `Recommendation.project`
-// is a required reference, so an unresolved draft project has nothing to create
-// a recommendation against.
+// are enforced here rather than only hidden in the UI. `Recommendation.project`
+// is optional (an admin may still mark a specific pick's project unknown at
+// put-forward time), but the request itself must be resolved first — the
+// pre-fill every recommendation this submit creates has to come from
+// somewhere, even if a pick then deliberately discards it.
 const assertCanPutForward = (request, { isAdmin }) => {
   if (!isAdmin) {
     throw new StaffingRequestForbiddenError(
@@ -219,11 +241,11 @@ const assertCanPutForward = (request, { isAdmin }) => {
 };
 
 // A request has no real project yet — filed with `draftProject` only, and
-// nobody can be put forward against it (`Recommendation.project` is a
-// required reference). This is the one display state derived here rather
-// than left as a plain comparison in the client: `assertCanClose` below
-// enforces it can never resolve to `fulfilled`, so the definition needs to
-// live in exactly one place.
+// nobody can be put forward against it, because every recommendation a submit
+// creates pre-fills from the request's own resolved project. This is the one
+// display state derived here rather than left as a plain comparison in the
+// client: `assertCanClose` below enforces it can never resolve to
+// `fulfilled`, so the definition needs to live in exactly one place.
 const needsProject = (request) => !request.project;
 
 // Whether an unresolved request may be linked to a project. Resolving twice

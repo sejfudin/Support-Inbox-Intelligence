@@ -41,7 +41,6 @@ export function InternProfileHeader({
   primaryMentor,
   primaryMentorAction,
   secondaryMentor,
-  secondaryMentorAction,
   backButton,
   titleAdornment,
   tabs,
@@ -93,13 +92,7 @@ export function InternProfileHeader({
         <MetaField label="Hub" value={hub} />
         <MetaField label="Start date" value={startDate} />
         <MetaField label="Primary mentor" value={primaryMentor} action={primaryMentorAction} />
-        {secondaryMentor ? (
-          <MetaField
-            label="Secondary mentor"
-            value={secondaryMentor}
-            action={secondaryMentorAction}
-          />
-        ) : null}
+        {secondaryMentor ? <MetaField label="Secondary mentor" value={secondaryMentor} /> : null}
       </dl>
 
       {tabs}

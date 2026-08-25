@@ -65,6 +65,10 @@ export const canManageInternDocumentationLinks = (user, intern) =>
   user?.role === ROLES.ADMIN ||
   user?.role === ROLES.LEADERSHIP ||
   (user?.role === ROLES.MENTOR && isAssignedMentor(user, intern));
+// Specializations are admin-only everywhere — every `/api/specializations` route
+// is `requireRole(ADMIN)`, and the service re-checks. Mentors receive the pairing
+// but get no control over it, on the profile or anywhere else.
+export const canManageSpecialization = (role) => role === ROLES.ADMIN;
 export const canViewFepDirectory = (role) => role === ROLES.LEADERSHIP;
 export const canWriteInternMentorData = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
 export const canViewComments = (role) =>

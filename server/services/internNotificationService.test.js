@@ -10,7 +10,13 @@ jest.mock('./groqAiClient', () => ({
 
 const Notification = require('../models/Notification');
 const { sendToUser } = require('../socket/socketServer');
-const { notifyDailyReminder } = require('./internNotificationService');
+const {
+  notifyDailyReminder,
+  notifyRecommendationCreated,
+  notifyRecommendationStatusChanged,
+  notifyRecommendationNotPlaced,
+  notifyInternPlaced,
+} = require('./internNotificationService');
 
 describe('notifyDailyReminder', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -93,5 +99,80 @@ describe('notifyDailyReminder', () => {
       })
     ).resolves.toEqual({ skipped: 'already-read' });
     expect(sendToUser).not.toHaveBeenCalled();
+  });
+});
+
+// A recommendation with no project reaches these functions as `project:
+// undefined` (the caller always reads `recommendation.project?.name`), and
+// the notification still has to read as a grammatical sentence.
+describe('recommendation notifications with an unknown project', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('notifyRecommendationCreated falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyRecommendationCreated({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      position: 'Backend Developer',
+      project: undefined,
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "You're being considered for Backend Developer on a project to be confirmed.",
+      })
+    );
+  });
+
+  it('notifyRecommendationStatusChanged falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyRecommendationStatusChanged({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      project: undefined,
+      newStatus: 'interviewing',
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: 'Your recommendation for a project to be confirmed is now at the Interviewing stage.',
+      })
+    );
+  });
+
+  it('notifyRecommendationNotPlaced falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyRecommendationNotPlaced({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      project: undefined,
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "You weren't placed on a project to be confirmed this time. New opportunities come up regularly.",
+      })
+    );
+  });
+
+  it('notifyInternPlaced falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyInternPlaced({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      position: 'Backend Developer',
+      project: undefined,
+      startDate: null,
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "Congratulations — you're now placed as Backend Developer on a project to be confirmed.",
+      })
+    );
   });
 });
