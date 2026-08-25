@@ -21,7 +21,8 @@ const {
   isRequestType,
 } = require('../constants/absenceRequestTypes');
 const { httpError } = require('../helpers/httpError');
-const { restrictProfileFilterToLiveUsers, hasLiveUser } = require('../helpers/orphanedProfiles');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 const { loadMyProfile } = require('./attendanceService');
 const { getEffectiveLimits, getPrimaryAdminId } = require('./absenceSettingsService');
 const adminService = require('./adminService');

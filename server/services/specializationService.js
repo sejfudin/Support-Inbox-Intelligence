@@ -14,7 +14,7 @@ const { emitInternDataChanged } = require('../socket/events');
 const { httpError } = require('../helpers/httpError');
 const internNotificationService = require('./internNotificationService');
 const { userSelect } = require('../constants/userSelect');
-const { restrictProfileFilterToLiveUsers } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 
 const STATUSES = ['specialized', 'unspecialized', 'all'];
 

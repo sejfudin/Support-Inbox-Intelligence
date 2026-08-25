@@ -1,110 +1,98 @@
-// `restrictProfileFilterToLiveUsers` is the read-side guard that stops a record
-// whose User was deleted straight from the database rendering as an "Unknown"
-// row. The invariant worth pinning down is that it only ever NARROWS: whatever
-// the caller already asked for must survive, minus the ids that no longer
-// resolve. Widening it would reintroduce the ghost rows it exists to prevent.
+// `narrowUserClauseToLiveIds` is the read-side guard that stops a record whose
+// User was deleted straight from the database rendering as an "Unknown" row. The
+// invariant worth pinning down is that it only ever NARROWS: whatever the caller
+// already asked for must survive, minus the ids that no longer resolve. Widening
+// it would reintroduce the ghost rows it exists to prevent.
 //
-// Mongo is mocked — this is a filter-shaping function, not a query.
+// Nothing is mocked. The live ids arrive as an argument, because reading them is
+// a data-access concern and lives in `repository/liveUserFilter.js` — which has
+// its own test for the pairing.
 
-jest.mock('../models/User', () => ({ find: jest.fn() }));
-
-const User = require('../models/User');
 const {
-  restrictProfileFilterToLiveUsers,
+  narrowUserClauseToLiveIds,
+  assertNarrowableUserClause,
   excludeOrphanedProfileStages,
   hasLiveUser,
 } = require('./orphanedProfiles');
 
-const liveUsers = (...ids) => {
-  User.find.mockReturnValue({
-    select: () => ({ lean: () => Promise.resolve(ids.map((_id) => ({ _id }))) }),
-  });
-};
-
-beforeEach(() => {
-  jest.clearAllMocks();
-});
-
-describe('restrictProfileFilterToLiveUsers', () => {
-  it('constrains an unfiltered query to every live user', async () => {
-    liveUsers('a', 'b');
-
-    expect(await restrictProfileFilterToLiveUsers({})).toEqual({ user: { $in: ['a', 'b'] } });
+describe('narrowUserClauseToLiveIds', () => {
+  it('constrains an unfiltered query to every live user', () => {
+    expect(narrowUserClauseToLiveIds({}, ['a', 'b'])).toEqual({ user: { $in: ['a', 'b'] } });
   });
 
-  it('keeps the rest of the filter untouched', async () => {
-    liveUsers('a');
-
-    expect(
-      await restrictProfileFilterToLiveUsers({ status: 'ready', secondaryMentor: 'm1' })
-    ).toEqual({ status: 'ready', secondaryMentor: 'm1', user: { $in: ['a'] } });
-  });
-
-  it('defaults a missing filter argument to the live-user constraint', async () => {
-    liveUsers('a');
-
-    expect(await restrictProfileFilterToLiveUsers()).toEqual({ user: { $in: ['a'] } });
-  });
-
-  it('intersects an existing $in rather than replacing it', async () => {
-    liveUsers('a', 'b');
-
-    expect(await restrictProfileFilterToLiveUsers({ user: { $in: ['b', 'gone'] } })).toEqual({
-      user: { $in: ['b'] },
-    });
-  });
-
-  it('keeps a single requested id that still resolves', async () => {
-    liveUsers('a', 'b');
-
-    expect(await restrictProfileFilterToLiveUsers({ user: 'a' })).toEqual({ user: { $in: ['a'] } });
-  });
-
-  // The whole point: asking for a deleted user matches nothing, instead of the
-  // empty `user` clause that would have matched everybody.
-  it('matches nothing when the only requested id is gone', async () => {
-    liveUsers('a', 'b');
-
-    expect(await restrictProfileFilterToLiveUsers({ user: 'gone' })).toEqual({ user: { $in: [] } });
-  });
-
-  it('compares ids by value, not by identity', async () => {
-    const id = { toString: () => 'a' };
-    liveUsers(id);
-
-    expect(await restrictProfileFilterToLiveUsers({ user: { toString: () => 'a' } })).toEqual({
-      user: { $in: [{ toString: expect.any(Function) }] },
-    });
-  });
-
-  it('treats an explicit null user clause as unfiltered', async () => {
-    liveUsers('a');
-
-    expect(await restrictProfileFilterToLiveUsers({ user: null })).toEqual({
+  it('keeps the rest of the filter untouched', () => {
+    expect(narrowUserClauseToLiveIds({ status: 'ready', secondaryMentor: 'm1' }, ['a'])).toEqual({
+      status: 'ready',
+      secondaryMentor: 'm1',
       user: { $in: ['a'] },
     });
   });
 
-  // An operator clause cannot be intersected with a list of ids. Left to itself
-  // it would stringify to "[object Object]", match no live id, and collapse to
-  // `{ $in: [] }` — a filter returning nothing, with nothing to say why.
+  it('defaults a missing filter argument to the live-user constraint', () => {
+    expect(narrowUserClauseToLiveIds(undefined, ['a'])).toEqual({ user: { $in: ['a'] } });
+  });
+
+  it('matches nothing when there are no live users at all', () => {
+    expect(narrowUserClauseToLiveIds({}, [])).toEqual({ user: { $in: [] } });
+    expect(narrowUserClauseToLiveIds({})).toEqual({ user: { $in: [] } });
+  });
+
+  it('intersects an existing $in rather than replacing it', () => {
+    expect(narrowUserClauseToLiveIds({ user: { $in: ['b', 'gone'] } }, ['a', 'b'])).toEqual({
+      user: { $in: ['b'] },
+    });
+  });
+
+  it('keeps a single requested id that still resolves', () => {
+    expect(narrowUserClauseToLiveIds({ user: 'a' }, ['a', 'b'])).toEqual({ user: { $in: ['a'] } });
+  });
+
+  // The whole point: asking for a deleted user matches nothing, instead of the
+  // empty `user` clause that would have matched everybody.
+  it('matches nothing when the only requested id is gone', () => {
+    expect(narrowUserClauseToLiveIds({ user: 'gone' }, ['a', 'b'])).toEqual({ user: { $in: [] } });
+  });
+
+  it('compares ids by value, not by identity', () => {
+    expect(
+      narrowUserClauseToLiveIds({ user: { toString: () => 'a' } }, [{ toString: () => 'a' }])
+    ).toEqual({ user: { $in: [{ toString: expect.any(Function) }] } });
+  });
+
+  it('treats an explicit null user clause as unfiltered', () => {
+    expect(narrowUserClauseToLiveIds({ user: null }, ['a'])).toEqual({ user: { $in: ['a'] } });
+  });
+
+  it('refuses a clause it cannot narrow rather than shaping it wrong', () => {
+    expect(() => narrowUserClauseToLiveIds({ user: { $ne: null } }, ['a'])).toThrow(
+      /Cannot narrow user clause/
+    );
+  });
+});
+
+// An operator clause cannot be intersected with a list of ids. Left to itself it
+// would stringify to "[object Object]", match no live id, and collapse to
+// `{ $in: [] }` — a filter returning nothing, with nothing to say why.
+describe('assertNarrowableUserClause', () => {
+  it.each([
+    ['no filter at all', undefined],
+    ['no user clause', { status: 'ready' }],
+    ['an explicit null', { user: null }],
+    ['a plain id', { user: 'a' }],
+    ['an ObjectId-like object', { user: { toString: () => 'a' } }],
+    ['an $in list', { user: { $in: ['a'] } }],
+    ['an empty $in list', { user: { $in: [] } }],
+  ])('accepts %s', (_label, filter) => {
+    expect(() => assertNarrowableUserClause(filter)).not.toThrow();
+  });
+
   it.each([
     ['$ne', { $ne: null }],
     ['$nin', { $nin: ['a'] }],
     ['$exists', { $exists: true }],
-  ])('refuses a %s user clause instead of silently matching nothing', async (_label, clause) => {
-    liveUsers('a', 'b');
-
-    await expect(restrictProfileFilterToLiveUsers({ user: clause })).rejects.toThrow(
-      /cannot narrow user clause/
-    );
-  });
-
-  it('refuses before reading the users collection', async () => {
-    liveUsers('a');
-
-    await expect(restrictProfileFilterToLiveUsers({ user: { $ne: null } })).rejects.toThrow();
-    expect(User.find).not.toHaveBeenCalled();
+    ['$in holding a non-array', { $in: 'a' }],
+  ])('refuses a %s clause', (_label, clause) => {
+    expect(() => assertNarrowableUserClause({ user: clause })).toThrow(/Cannot narrow user clause/);
   });
 });
 

@@ -32,7 +32,8 @@ const {
 const { emitStaffingNewsChanged, emitInternDataChanged } = require('../socket/events');
 const InternProfile = require('../models/InternProfile');
 const { userSelect } = require('../constants/userSelect');
-const { restrictProfileFilterToLiveUsers, hasLiveUser } = require('../helpers/orphanedProfiles');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 
 // This is the platform's first leadership write path: no existing route
 // admits ROLES.LEADERSHIP for a write, so every guard below is explicit

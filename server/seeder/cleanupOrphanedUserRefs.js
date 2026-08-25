@@ -12,9 +12,10 @@
  * hanging off that profile.
  *
  * On screen those became rows reading "Unknown" — a person who does not exist,
- * counted in the totals beside them. `helpers/orphanedProfiles.js` is the
- * read-side defence that stops them rendering; this script removes the records
- * themselves, which is the only thing that also repairs the raw counts.
+ * counted in the totals beside them. `helpers/orphanedProfiles.js` and
+ * `repository/liveUserFilter.js` are the read-side defence that stops them
+ * rendering; this script removes the records themselves, which is the only thing
+ * that also repairs the raw counts.
  *
  * WHAT IT DOES
  *

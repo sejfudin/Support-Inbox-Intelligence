@@ -360,8 +360,9 @@ the database by hand — and nothing cascades when it does. The InternProfile su
 every recommendation, evaluation, attendance row and absence request hanging off that profile. Each
 one renders as a row reading "Unknown", counted in the total beside it.
 
-`server/helpers/orphanedProfiles.js` is the read-side guard that keeps those rows off screen; this
-script removes the records, which is the only thing that also repairs the raw counts.
+`server/helpers/orphanedProfiles.js` and `server/repository/liveUserFilter.js` are the read-side
+guards that keep those rows off screen (see `.claude/docs/security.md`); this script removes the
+records, which is the only thing that also repairs the raw counts.
 
 It **reports** every dangling `ref: 'User'` in every model, found by walking the Mongoose schemas —
 a ref added later shows up without editing the script. It **deletes** only records with no subject

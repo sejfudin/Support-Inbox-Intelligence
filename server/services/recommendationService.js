@@ -17,7 +17,7 @@ const historyService = require('./historyService');
 const { httpError } = require('../helpers/httpError');
 const internNotificationService = require('./internNotificationService');
 const { userSelect } = require('../constants/userSelect');
-const { restrictProfileFilterToLiveUsers } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 
 // The status milestones tracked in the append-only history log — the status
 // lifecycle itself (recommended → interviewing → resulted). The placement
