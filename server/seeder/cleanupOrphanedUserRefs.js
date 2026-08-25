@@ -26,11 +26,12 @@
  * AI summaries, invitations) that mean nothing without their owner.
  *
  * LEAVES, and only reports, dangling refs in *authorship* and *membership* fields —
- * `updatedBy`, `evaluator`, `author`, `decidedBy`, workspace members, ticket
- * watchers. Those records still describe something that really happened; losing
- * them would erase history rather than repair it. Pass `--prune-refs` to also
- * clear those individual fields (unset scalars, $pull from arrays) while keeping
- * the records.
+ * `updatedBy`, `evaluator`, `author`, `decidedBy`, `Ticket.assignedTo`, workspace
+ * members, ticket message senders. Those records still describe something that
+ * really happened; losing them would erase history rather than repair it. Pass
+ * `--prune-refs` to also clear those individual fields (unset scalars, $pull from
+ * arrays of ids) while keeping the records. A ref inside a sub-document array, and
+ * any required field, is reported and skipped instead — see `prunePlainRefs`.
  *
  * Dry-run is the default. Nothing is written without `--apply`.
  *
@@ -133,20 +134,76 @@ const describeTarget = () => {
   return { host, db, isLocal: ['localhost', '127.0.0.1', '::1'].includes(host) };
 };
 
-/** Every schema path on `Model` that is a `ref: 'User'`, scalar or array. */
-const userRefPaths = (schema) => {
+/**
+ * Every schema path on `Model` that is a `ref: 'User'` — scalar, array of ids,
+ * or buried in a sub-document. Recurses, because `eachPath` reports an embedded
+ * document or a document array as a single node and never yields the paths
+ * inside it: without the descent, `Workspace.members[].user`,
+ * `Ticket.messages[].sender` and `Ticket.reviewRequest.reviewer` are all invisible
+ * and the script reports "no dangling refs" while they dangle.
+ *
+ * Each entry carries what the prune step needs to decide, resolved here where the
+ * SchemaType is in hand: `Model.schema.path()` does not resolve a dotted
+ * sub-document path, so a lookup after the fact reads `undefined` and silently
+ * loses the `required` flag.
+ *
+ * - `isArray`    — the field itself holds a list of ids (`$pull`, not `$unset`).
+ * - `inDocArray` — the field sits inside a document array, so its dotted path is
+ *                  not directly writable; the prune step skips these.
+ * - `isRequired` — clearing it would leave the record invalid.
+ */
+const userRefPaths = (schema, prefix = '') => {
   const paths = [];
+
   schema.eachPath((pathName, type) => {
-    const direct = type.options?.ref === 'User';
-    const inArray = type.caster?.options?.ref === 'User';
-    if (direct || inArray) paths.push({ path: pathName, isArray: Boolean(inArray) });
+    const fullPath = prefix ? `${prefix}.${pathName}` : pathName;
+
+    // Embedded document (`instance === 'Embedded'`) or document array
+    // (`instance === 'Array'` with a schema) — descend.
+    if (type.schema) {
+      const isDocArray = type.instance === 'Array';
+      paths.push(
+        ...userRefPaths(type.schema, fullPath).map((entry) => ({
+          ...entry,
+          inDocArray: entry.inDocArray || isDocArray,
+        }))
+      );
+      return;
+    }
+
+    // `[{ type: ObjectId, ref: 'User' }]` declares its ref on the array's
+    // element options. Mongoose leaves `caster.options` empty for that form, so
+    // read the declared type as well — checking only the caster misses it.
+    const elementOptions = Array.isArray(type.options?.type) ? type.options.type[0] : null;
+    const isScalarRef = type.options?.ref === 'User';
+    const isArrayRef = type.caster?.options?.ref === 'User' || elementOptions?.ref === 'User';
+
+    if (isScalarRef || isArrayRef) {
+      paths.push({
+        path: fullPath,
+        isArray: Boolean(isArrayRef),
+        inDocArray: false,
+        isRequired: Boolean(type.isRequired),
+      });
+    }
   });
+
   return paths;
 };
 
-/** Read a possibly-dotted path out of a lean document. */
+/**
+ * Read a possibly-dotted path out of a lean document. Walking through an array
+ * — `members.user` over `members: [...]` — collects the key from every element,
+ * which is how a ref inside a document array is read at all.
+ */
 const readPath = (doc, pathName) =>
-  pathName.split('.').reduce((value, key) => (value == null ? value : value[key]), doc);
+  pathName.split('.').reduce((value, key) => {
+    if (value == null) return value;
+    if (Array.isArray(value)) {
+      return value.flatMap((entry) => (entry == null ? [] : [entry[key]]));
+    }
+    return value[key];
+  }, doc);
 
 /**
  * Every dangling `ref: 'User'` in the database, grouped by model and path.
@@ -158,7 +215,7 @@ const scanDanglingUserRefs = async (liveUserIds) => {
 
   for (const modelName of mongoose.modelNames()) {
     const Model = mongoose.model(modelName);
-    for (const { path: refPath, isArray } of userRefPaths(Model.schema)) {
+    for (const { path: refPath, isArray, inDocArray, isRequired } of userRefPaths(Model.schema)) {
       const docs = await Model.find({ [refPath]: { $ne: null } })
         .select(refPath)
         .lean();
@@ -174,7 +231,8 @@ const scanDanglingUserRefs = async (liveUserIds) => {
         }
       }
 
-      if (dangling.length) findings.push({ modelName, refPath, isArray, dangling });
+      if (dangling.length)
+        findings.push({ modelName, refPath, isArray, inDocArray, isRequired, dangling });
     }
   }
 
@@ -283,20 +341,22 @@ const printBanner = (target, plan, findings, options) => {
         : '  Authorship/membership refs above are KEPT (records describe real events).\n' +
             '  Re-run with --prune-refs to clear those individual fields too — note it\n' +
             '  skips REQUIRED fields (Workspace.owner, Ticket.creator, InternProfile.\n' +
-            '  primaryMentor), which have to be reassigned in the app instead.\n'
+            '  primaryMentor) and refs inside sub-document arrays (Workspace.members[].user,\n' +
+            '  Ticket.messages[].sender), which have to be fixed in the app instead.\n'
     );
   }
 };
 
 const confirm = async (target, options) => {
+  // No bare `--yes`, local or not. The whole guard on this script is that a write
+  // names its own target out loud — it is the only check standing in for the
+  // production-name refusal the seeders have and this one deliberately does not.
+  // A localhost exemption is how the habit of typing `--yes` gets built, and the
+  // habit is what eventually meets a remote URI.
   if (options.yes === true) {
-    if (!target.isLocal) {
-      console.error('❌ Bare --yes is only allowed against localhost.');
-      console.error(`   For a remote target, assert the name:  --yes=${target.db}`);
-      process.exit(1);
-    }
-    console.log('  --yes: skipping prompt (local target).\n');
-    return;
+    console.error('❌ Bare --yes is not accepted. Assert the database name:');
+    console.error(`   npm run cleanup:orphaned-user-refs -- --apply --yes=${target.db}`);
+    process.exit(1);
   }
 
   if (typeof options.yes === 'string') {
@@ -370,24 +430,43 @@ const prunePlainRefs = async (findings, liveUserIds) => {
   let touched = 0;
   const skipped = [];
 
-  for (const { modelName, refPath, isArray, dangling } of findings) {
+  for (const { modelName, refPath, isArray, inDocArray, isRequired, dangling } of findings) {
     // Already handled by the deletion plan — the whole record is going.
     if (modelName === 'InternProfile' && refPath === 'user') continue;
     if (USER_OWNED.some(([name, field]) => name === modelName && field === refPath)) continue;
 
     const Model = mongoose.model(modelName);
 
+    // A ref inside a document array — `Workspace.members[].user`,
+    // `Ticket.messages[].sender`. The dotted path is not writable: `$unset` on
+    // it errors, and the only single-operator alternative is `$pull`ing the
+    // whole element, which deletes a membership or a message rather than
+    // repairing it. Removing history is exactly what this script refuses to do.
+    if (inDocArray) {
+      console.log(
+        `  ⏭️  ${modelName}.${refPath}: ${dangling.length} record(s) SKIPPED — ref sits inside a ` +
+          'sub-document array; clearing it would delete the whole entry.'
+      );
+      skipped.push({
+        modelName,
+        refPath,
+        count: dangling.length,
+        reason: 'inside a sub-document array',
+      });
+      continue;
+    }
+
     // A required scalar cannot be cleared without corrupting the record.
     // `updateMany` does not run validators, so the $unset would silently
     // succeed and leave a Workspace with no owner or a Ticket with no creator —
     // a worse state than the dangling id it was meant to repair. Reassigning
     // those is a decision for a person, not for this script.
-    if (!isArray && Model.schema.path(refPath)?.isRequired) {
+    if (!isArray && isRequired) {
       console.log(
         `  ⏭️  ${modelName}.${refPath}: ${dangling.length} record(s) SKIPPED — field is required, ` +
           'reassign it in the app instead.'
       );
-      skipped.push({ modelName, refPath, count: dangling.length });
+      skipped.push({ modelName, refPath, count: dangling.length, reason: 'field is required' });
       continue;
     }
 
@@ -424,9 +503,9 @@ const prunePlainRefs = async (findings, liveUserIds) => {
     );
   }
   if (skipped.length) {
-    console.log('\n  Left alone because the field is required (reassign these in the app):');
-    skipped.forEach(({ modelName, refPath, count }) =>
-      console.log(`      ${modelName}.${refPath} — ${count}`)
+    console.log('\n  Left alone deliberately (fix these in the app):');
+    skipped.forEach(({ modelName, refPath, count, reason }) =>
+      console.log(`      ${modelName}.${refPath} — ${count}   (${reason})`)
     );
   }
 

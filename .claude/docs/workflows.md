@@ -367,14 +367,25 @@ It **reports** every dangling `ref: 'User'` in every model, found by walking the
 a ref added later shows up without editing the script. It **deletes** only records with no subject
 left: an orphaned InternProfile, everything keyed to one, and the per-user rows (refresh tokens,
 notifications, AI summaries, invitations) that mean nothing without their owner. It **keeps**
-dangling authorship and membership refs (`updatedBy`, `evaluator`, `author`, workspace members,
-ticket watchers) — those records still describe something that happened; `--prune-refs` clears
-just those fields while keeping the records.
+dangling authorship and membership refs (`updatedBy`, `evaluator`, `author`, `Ticket.assignedTo`,
+workspace members, ticket message senders) — those records still describe something that happened;
+`--prune-refs` clears just those fields while keeping the records.
 
-`--prune-refs` refuses to touch a **required** scalar (`Workspace.owner`, `Ticket.creator`,
-`InternProfile.primaryMentor`) and lists what it skipped. `updateMany` does not run validators, so
-the `$unset` would otherwise succeed silently and leave a workspace with no owner — worse than the
-dangling id. Reassign those in the app.
+The schema walk descends into embedded documents and document arrays, and reads a ref declared as
+`[{ type: ObjectId, ref: 'User' }]`. It has to: `eachPath` reports a sub-document as one node and
+never yields the paths inside it, and it leaves `caster.options` empty for an array of ids. A walk
+that only reads top-level `options.ref` misses eight refs in the current schema set — among them
+`Workspace.members[].user`, `Ticket.messages[].sender`, `Ticket.assignedTo` and
+`Ticket.reviewRequest.reviewer` — and reports "no dangling refs" while they dangle.
+
+`--prune-refs` refuses two kinds of field and lists what it skipped:
+
+- a **required** scalar (`Workspace.owner`, `Ticket.creator`, `InternProfile.primaryMentor`).
+  `updateMany` does not run validators, so the `$unset` would otherwise succeed silently and leave
+  a workspace with no owner — worse than the dangling id. Reassign those in the app.
+- a ref **inside a document array** (`Workspace.members[].user`, `Ticket.messages[].sender`,
+  `Daily.entries[].member`). The dotted path is not writable, and the one-operator alternative is
+  `$pull`ing the whole element — which deletes a membership or a message instead of repairing it.
 
 Dry-run is the default. Unlike the seeders this one does **not** refuse a production-looking
 database name — repairing production is the reason it exists — so the guard is that every write
