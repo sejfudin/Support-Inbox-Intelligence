@@ -83,8 +83,22 @@ const TECHNOLOGY_ALIASES = {
   elixir: ['elixir', 'phoenix framework'],
   dart: ['dart'],
   // 'sql' cannot leak from "mysql"/"postgresql"/"nosql": the left boundary rejects the
-  // preceding letter. "pl/sql" still matches — the slash normalizes to a space.
+  // preceding letter. "pl/sql" still matches — the slash normalizes to a space. It does
+  // match the "SQL" of "SQL Server" (a space follows) but not of "SQLite" (a letter does).
   sql: ['sql'],
+  'objective-c': ['objective c', 'objc'],
+  perl: ['perl'],
+  lua: ['lua'],
+  haskell: ['haskell'],
+  clojure: ['clojure', 'clojurescript'],
+  erlang: ['erlang'],
+  fsharp: ['f#', 'fsharp', 'f sharp'],
+  groovy: ['groovy'],
+  solidity: ['solidity'],
+  matlab: ['matlab', 'simulink'],
+  bash: ['bash', 'shell scripting', 'shell script'],
+  powershell: ['powershell', 'power shell'],
+  'visual-basic': ['visual basic', 'vb.net', 'vba'],
 
   // —— Frontend ——
   react: ['react', 'react.js', 'reactjs'],
@@ -103,6 +117,34 @@ const TECHNOLOGY_ALIASES = {
   'tailwind-css': ['tailwind', 'tailwindcss', 'tailwind css'],
   bootstrap: ['bootstrap'],
   'material-ui': ['material ui', 'materialui', 'mui'],
+  // Bare "remix" is safe: the right boundary rejects a following letter, so "remixed" and
+  // "remixing" do not match.
+  remix: ['remix', 'remix.js', 'remix run'],
+  gatsby: ['gatsby', 'gatsby.js', 'gatsbyjs'],
+  qwik: ['qwik'],
+  preact: ['preact'],
+  // Bare "ember" is a common noun and a given name; the suffixed spellings carry the signal.
+  'ember-js': ['ember.js', 'emberjs', 'ember js'],
+  'alpine-js': ['alpine.js', 'alpinejs', 'alpine js'],
+  'web-components': ['web components'],
+  webassembly: ['webassembly', 'web assembly', 'wasm'],
+  'progressive-web-apps': ['progressive web apps', 'progressive web app', 'pwa'],
+  electron: ['electron', 'electron.js'],
+  zustand: ['zustand'],
+  'tanstack-query': ['tanstack query', 'tanstack', 'react query'],
+  'react-router': ['react router'],
+  rxjs: ['rxjs', 'rx.js'],
+  'styled-components': ['styled components'],
+  'chakra-ui': ['chakra ui', 'chakra'],
+  'ant-design': ['ant design', 'antd'],
+  'shadcn-ui': ['shadcn ui', 'shadcn'],
+  'radix-ui': ['radix ui', 'radix'],
+  // Bare "d3" is omitted — it reads as a part number or a grade as often as the library.
+  'd3-js': ['d3.js', 'd3js', 'd3 js'],
+  'chart-js': ['chart.js', 'chartjs'],
+  // "Framer Motion" also matches `framer` below. That overlap is deliberate and matches the
+  // established behaviour of "GitHub Actions" also matching GitHub.
+  'framer-motion': ['framer motion'],
 
   // —— Backend ——
   'node-js': ['node.js', 'nodejs', 'node js'],
@@ -117,6 +159,31 @@ const TECHNOLOGY_ALIASES = {
   // Bare "ruby" belongs to the `ruby` language above, not to Rails.
   'ruby-on-rails': ['ruby on rails', 'rails', 'ror'],
   graphql: ['graphql'],
+  fastify: ['fastify'],
+  koa: ['koa', 'koa.js', 'koajs'],
+  deno: ['deno'],
+  trpc: ['trpc', 't rpc'],
+  quarkus: ['quarkus'],
+  micronaut: ['micronaut'],
+  blazor: ['blazor'],
+  hibernate: ['hibernate', 'jpa'],
+  'entity-framework': ['entity framework', 'ef core'],
+  prisma: ['prisma'],
+  sequelize: ['sequelize'],
+  typeorm: ['typeorm'],
+  strapi: ['strapi'],
+  wordpress: ['wordpress'],
+  drupal: ['drupal'],
+  shopify: ['shopify'],
+  // Bare "rest" is omitted on purpose — "rest of the team", "REST endpoints" is prose.
+  'rest-api': ['rest api', 'rest apis', 'restful', 'restful api', 'restful apis'],
+  grpc: ['grpc'],
+  websockets: ['websockets', 'websocket', 'web sockets'],
+  'socket-io': ['socket.io', 'socketio', 'socket io'],
+  rabbitmq: ['rabbitmq', 'rabbit mq'],
+  'apache-tomcat': ['apache tomcat', 'tomcat'],
+  'apache-http-server': ['apache http server', 'apache httpd', 'httpd'],
+  // Bare "swagger" is ambiguous (a confident walk/manner) — see AMBIGUOUS_MATCHERS.
 
   // —— Databases ——
   postgresql: ['postgresql', 'postgres', 'postgre sql', 'psql'],
@@ -126,6 +193,19 @@ const TECHNOLOGY_ALIASES = {
   'sql-server': ['sql server', 'mssql', 't sql', 'tsql'],
   'oracle-database': ['oracle database', 'oracle db', 'pl sql', 'plsql'],
   elasticsearch: ['elasticsearch', 'elastic search', 'elk stack'],
+  sqlite: ['sqlite', 'sqlite3'],
+  mariadb: ['mariadb', 'maria db'],
+  'apache-cassandra': ['apache cassandra', 'cassandra'],
+  neo4j: ['neo4j'],
+  dynamodb: ['dynamodb', 'amazon dynamodb', 'dynamo db'],
+  firebase: ['firebase', 'firestore'],
+  supabase: ['supabase'],
+  clickhouse: ['clickhouse', 'click house'],
+  influxdb: ['influxdb', 'influx db'],
+  couchdb: ['couchdb', 'couch db'],
+  snowflake: ['snowflake'],
+  bigquery: ['bigquery', 'google bigquery', 'big query'],
+  redshift: ['redshift', 'amazon redshift'],
 
   // —— Mobile ——
   kotlin: ['kotlin'],
@@ -136,6 +216,7 @@ const TECHNOLOGY_ALIASES = {
   flutter: ['flutter'],
   ionic: ['ionic'],
   xamarin: ['xamarin', '.net maui'],
+  'kotlin-multiplatform': ['kotlin multiplatform', 'kmp', 'kmm'],
 
   // —— Data & analytics ——
   pandas: ['pandas'],
@@ -146,11 +227,43 @@ const TECHNOLOGY_ALIASES = {
   'apache-kafka': ['kafka', 'apache kafka'],
   'power-bi': ['power bi', 'powerbi'],
   tableau: ['tableau'],
+  'apache-hadoop': ['apache hadoop', 'hadoop'],
+  'apache-flink': ['apache flink', 'flink'],
+  databricks: ['databricks'],
+  dbt: ['dbt'],
+  looker: ['looker', 'lookml'],
+  'qlik-sense': ['qlik sense', 'qlik', 'qlikview'],
+  matplotlib: ['matplotlib'],
+  scipy: ['scipy'],
 
-  // —— ML ——
-  tensorflow: ['tensorflow', 'tensor flow', 'keras'],
+  // —— ML & AI ——
+  // "keras" used to be an alias of tensorflow. It is its own catalog entry now — leaving it
+  // on both would auto-declare one CV line as two technologies.
+  tensorflow: ['tensorflow', 'tensor flow'],
   pytorch: ['pytorch', 'py torch'],
   'scikit-learn': ['scikit learn', 'scikit', 'sklearn'],
+  keras: ['keras'],
+  opencv: ['opencv', 'open cv'],
+  'hugging-face': ['hugging face', 'huggingface'],
+  langchain: ['langchain', 'lang chain'],
+  'openai-api': ['openai api', 'openai', 'open ai'],
+  mlflow: ['mlflow', 'ml flow'],
+  xgboost: ['xgboost', 'xg boost'],
+  'large-language-models': ['large language models', 'large language model', 'llm', 'llms'],
+  // Bare "rag" is ambiguous (a piece of cloth, "rags to riches") — see AMBIGUOUS_MATCHERS.
+  'prompt-engineering': ['prompt engineering'],
+  'computer-vision': ['computer vision'],
+  nlp: ['natural language processing', 'nlp'],
+  'stable-diffusion': ['stable diffusion'],
+  ollama: ['ollama'],
+  'vector-databases': [
+    'vector databases',
+    'vector database',
+    'pinecone',
+    'pgvector',
+    'weaviate',
+    'qdrant',
+  ],
 
   // —— QA ——
   'manual-qa': ['manual qa', 'manual testing', 'manual tester'],
@@ -167,6 +280,20 @@ const TECHNOLOGY_ALIASES = {
   jest: ['jest'],
   junit: ['junit', 'junit5'],
   postman: ['postman'],
+  vitest: ['vitest'],
+  mocha: ['mocha', 'mocha.js', 'mochajs'],
+  'testing-library': ['testing library', 'react testing library'],
+  testng: ['testng'],
+  cucumber: ['cucumber', 'gherkin'],
+  'rest-assured': ['rest assured', 'restassured'],
+  appium: ['appium'],
+  'robot-framework': ['robot framework'],
+  jmeter: ['jmeter', 'apache jmeter'],
+  k6: ['k6'],
+  // Bare "insomnia" is ambiguous (sleeplessness) — see AMBIGUOUS_MATCHERS.
+  sonarqube: ['sonarqube', 'sonar qube', 'sonarcloud'],
+  'performance-testing': ['performance testing', 'load testing', 'stress testing'],
+  'api-testing': ['api testing'],
 
   // —— DevOps & cloud ——
   docker: ['docker', 'dockerfile', 'docker compose'],
@@ -181,11 +308,122 @@ const TECHNOLOGY_ALIASES = {
   'gitlab-ci': ['gitlab ci', 'gitlab pipelines', 'gitlab runner'],
   linux: ['linux', 'ubuntu', 'debian'],
   nginx: ['nginx'],
+  'argo-cd': ['argo cd', 'argocd'],
+  prometheus: ['prometheus'],
+  grafana: ['grafana'],
+  kibana: ['kibana'],
+  logstash: ['logstash'],
+  datadog: ['datadog', 'data dog'],
+  splunk: ['splunk'],
+  sentry: ['sentry'],
+  'new-relic': ['new relic', 'newrelic'],
+  circleci: ['circleci', 'circle ci'],
+  'azure-devops': ['azure devops', 'azure pipelines'],
+  'bitbucket-pipelines': ['bitbucket pipelines'],
+  vagrant: ['vagrant'],
+  pulumi: ['pulumi'],
+  'serverless-framework': ['serverless framework', 'serverless'],
+  // Bare "lambda" is omitted — it is a language construct ("lambda expressions") far more
+  // often than it is the AWS product.
+  'aws-lambda': ['aws lambda', 'lambda functions'],
+  cloudflare: ['cloudflare', 'cloud flare'],
+  vercel: ['vercel'],
+  netlify: ['netlify'],
+  heroku: ['heroku'],
+  digitalocean: ['digitalocean', 'digital ocean'],
+
+  // —— Design & UX ——
+  figma: ['figma'],
+  // Bare "xd" is omitted — two letters, and it reads as an emoticon.
+  'adobe-xd': ['adobe xd'],
+  'adobe-photoshop': ['adobe photoshop', 'photoshop'],
+  'adobe-illustrator': ['adobe illustrator', 'illustrator'],
+  'adobe-after-effects': ['adobe after effects', 'after effects'],
+  invision: ['invision'],
+  framer: ['framer'],
+  canva: ['canva'],
+  miro: ['miro'],
+  'axure-rp': ['axure rp', 'axure'],
+  wireframing: ['wireframing', 'wireframes', 'wireframe'],
+  prototyping: ['prototyping', 'prototypes'],
+  'user-research': ['user research'],
+  'usability-testing': ['usability testing'],
+  'design-systems': ['design systems', 'design system'],
+  // Bare "accessibility" is omitted so it does not swallow every mention of the word; the
+  // explicit spellings are what an intern with the skill actually writes.
+  'web-accessibility': ['web accessibility', 'wcag', 'a11y'],
+
+  // —— Security ——
+  wireshark: ['wireshark'],
+  'burp-suite': ['burp suite', 'burpsuite', 'burp'],
+  // "Kali Linux" also matches `linux`. Deliberate — Kali is a Linux distribution, the same
+  // way "Ubuntu" is already a linux alias.
+  'kali-linux': ['kali linux', 'kali'],
+  nmap: ['nmap'],
+  metasploit: ['metasploit', 'meterpreter'],
+  'owasp-zap': ['owasp zap', 'owasp', 'zap proxy'],
+  ghidra: ['ghidra'],
+  'hashicorp-vault': ['hashicorp vault'],
+  keycloak: ['keycloak'],
+  oauth: ['oauth 2.0', 'oauth2', 'oauth', 'openid connect'],
+  'penetration-testing': ['penetration testing', 'pentesting', 'pen testing', 'pentester'],
+  'network-security': ['network security'],
+  cryptography: ['cryptography'],
+  siem: ['siem'],
+  'incident-response': ['incident response'],
+  'threat-modeling': ['threat modeling', 'threat modelling'],
+  'malware-analysis': ['malware analysis', 'reverse engineering'],
+  'vulnerability-assessment': ['vulnerability assessment', 'vulnerability scanning'],
+
+  // —— Game development ——
+  // Bare "unreal" is omitted — it is an ordinary adjective.
+  'unreal-engine': ['unreal engine', 'unreal editor', 'ue4', 'ue5'],
+  godot: ['godot'],
+  blender: ['blender'],
+  'three-js': ['three.js', 'threejs', 'three js'],
+  phaser: ['phaser'],
+  pixijs: ['pixijs', 'pixi.js'],
+
+  // —— Embedded & hardware ——
+  arduino: ['arduino'],
+  'raspberry-pi': ['raspberry pi'],
+  stm32: ['stm32'],
+  esp32: ['esp32', 'esp8266'],
+  freertos: ['freertos', 'free rtos'],
+  'zephyr-rtos': ['zephyr rtos', 'zephyr'],
+  vhdl: ['vhdl'],
+  verilog: ['verilog', 'systemverilog'],
+  'can-bus': ['can bus', 'canbus'],
+  'plc-programming': ['plc programming', 'plc', 'ladder logic'],
+  'embedded-c': ['embedded c'],
+  mqtt: ['mqtt'],
 
   // —— Tooling ——
   // 'git' cannot leak from "github"/"gitlab"/"gitignore" (right boundary rejects the
   // following letter) or from "digit" (left boundary rejects the preceding one).
   git: ['git'],
+  github: ['github'],
+  gitlab: ['gitlab'],
+  bitbucket: ['bitbucket'],
+  jira: ['jira'],
+  // Bare "confluence" is ambiguous (where things come together) — see AMBIGUOUS_MATCHERS.
+  trello: ['trello'],
+  vite: ['vite', 'vitejs', 'vite.js'],
+  webpack: ['webpack', 'web pack'],
+  babel: ['babel', 'babel.js'],
+  eslint: ['eslint'],
+  storybook: ['storybook'],
+  maven: ['maven', 'apache maven'],
+  gradle: ['gradle'],
+  nx: ['nx'],
+  turborepo: ['turborepo', 'turbo repo'],
+
+  // —— Practices ——
+  microservices: ['microservices', 'microservice', 'micro services'],
+  'ci-cd': ['ci cd', 'continuous integration', 'continuous delivery', 'continuous deployment'],
+  tdd: ['test driven development', 'tdd'],
+  scrum: ['scrum'],
+  kanban: ['kanban'],
 
   // —— Specialized engineering ——
   cpp: ['c++', 'cpp'],
@@ -237,6 +475,77 @@ const AMBIGUOUS_MATCHERS = {
       /(?<![a-z0-9])express\s+framework(?![a-z0-9])/,
     ],
     cased: buildListContextRegexes('Express', { flags: 'i' }),
+  },
+  // "Unity" — "in unity with", "unity of purpose".
+  unity: {
+    lower: ['unity3d', 'unity 3d', 'unity engine'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Unity'),
+  },
+  // "Assembly" — "assembly line", "general assembly".
+  assembly: {
+    lower: ['assembly language', 'x86 assembly', 'arm assembly'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Assembly'),
+  },
+  // "Julia" — a given name, and CVs carry names.
+  julia: {
+    lower: ['julia lang', 'julia programming'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Julia'),
+  },
+  // "Helm" — "at the helm of".
+  helm: {
+    lower: ['helm charts', 'helm chart'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Helm'),
+  },
+  // "Sketch" — "sketch designs", "sketch out". The right boundary already rejects
+  // "sketching"/"sketches", but the bare verb stays too common for a plain alias.
+  sketch: {
+    lower: ['sketch app'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Sketch'),
+  },
+  // "Bun" — an everyday noun.
+  bun: {
+    lower: ['bun.js', 'bunjs', 'bun runtime'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Bun'),
+  },
+  // "Less" — one of the commonest words in English, so capitalization carries real signal
+  // here and the cased matcher is deliberately NOT case-insensitive.
+  less: {
+    lower: ['less css', 'lesscss'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Less'),
+  },
+  // "Expo" — "career expo", "tech expo".
+  expo: {
+    lower: ['expo go', 'expo cli', 'react native expo'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Expo'),
+  },
+  // "Capacitor" — an electronic component, and the embedded technologies above mean those
+  // CVs now reach this matcher.
+  capacitor: {
+    lower: ['ionic capacitor', 'capacitor.js', 'capacitorjs'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Capacitor'),
+  },
+  // "Swagger" — a confident walk or manner ("presented with real swagger").
+  swagger: {
+    lower: ['swagger ui', 'swaggerhub', 'openapi', 'open api'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Swagger'),
+  },
+  // "RAG" — a piece of cloth, and "rags to riches" is common CV-adjacent phrasing.
+  rag: {
+    lower: ['retrieval augmented generation'].map(buildAliasRegex),
+    cased: buildListContextRegexes('RAG'),
+  },
+  // "Insomnia" — sleeplessness, and shows up in personal-statement prose more than the
+  // Unity/Assembly names above ever do. No safe unambiguous long form, so list shape alone
+  // carries the signal.
+  insomnia: {
+    lower: [],
+    cased: buildListContextRegexes('Insomnia'),
+  },
+  // "Confluence" — an ordinary word for where things come together ("a confluence of good
+  // timing and hard work").
+  confluence: {
+    lower: [],
+    cased: buildListContextRegexes('Confluence'),
   },
 };
 
