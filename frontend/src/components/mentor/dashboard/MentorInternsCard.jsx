@@ -1,16 +1,20 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserRound } from 'lucide-react';
+import { ChevronLeft, ChevronRight, UserRound } from 'lucide-react';
 import { DashboardCard, DashboardCardEmpty } from '@/components/dashboard/DashboardCard';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { useInterns } from '@/queries/interns';
 
-const ROW_LIMIT = 5;
+// Kept low on purpose: this card has a fixed height budget on a page that
+// never scrolls (see MentorDashboardPage) — more interns page through
+// instead of growing the row count or the card.
+const ROW_LIMIT = 4;
 
 /**
  * The mentor's own interns — primary or secondary — same server-side scope
  * `MentorInternsPage.jsx` uses (`GET /api/interns` filters by
- * `primaryMentor`/`secondaryMentor` for a mentor caller), just the first
- * five with a link to the full list.
+ * `primaryMentor`/`secondaryMentor` for a mentor caller), paged 4 at a time
+ * with a link to the full, filterable list.
  *
  * Renders its own header rather than `DashboardCard`'s `title` prop (14px) —
  * matched to `QuickActionsCard`'s 16px header instead, since the two sit
@@ -20,9 +24,11 @@ const ROW_LIMIT = 5;
  */
 export function MentorInternsCard() {
   const navigate = useNavigate();
-  const { data, isPending, isError } = useInterns({ page: 1, limit: ROW_LIMIT });
+  const [page, setPage] = useState(1);
+  const { data, isPending, isError } = useInterns({ page, limit: ROW_LIMIT });
   const interns = data?.interns ?? [];
   const total = data?.pagination?.total ?? 0;
+  const pages = data?.pagination?.pages ?? 0;
 
   return (
     <DashboardCard data-tour="mentor-dashboard-interns">
@@ -90,11 +96,37 @@ export function MentorInternsCard() {
               })}
             </ul>
 
-            {total > ROW_LIMIT && (
-              <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
-                <span className="text-[11px] text-muted-foreground">
-                  {total} interns assigned to you
-                </span>
+            <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
+              <span className="text-[11px] text-muted-foreground">
+                {pages > 1
+                  ? `Page ${page} of ${pages}`
+                  : `${total} intern${total === 1 ? '' : 's'} assigned to you`}
+              </span>
+              <div className="flex items-center gap-2.5">
+                {pages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      aria-label="Previous page"
+                      data-test="mentor-dashboard-interns-prev"
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                      disabled={page >= pages}
+                      aria-label="Next page"
+                      data-test="mentor-dashboard-interns-next"
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
                 <Link
                   to="/my-interns"
                   className="text-[11px] font-semibold text-primary hover:underline"
@@ -103,7 +135,7 @@ export function MentorInternsCard() {
                   View all →
                 </Link>
               </div>
-            )}
+            </div>
           </>
         )}
       </div>

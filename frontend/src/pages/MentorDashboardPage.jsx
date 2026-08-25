@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PageSection, PageShell } from '@/components/PageShell';
 import { useAuth } from '@/context/AuthContext';
@@ -68,11 +69,18 @@ export default function MentorDashboardPage() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <PageShell>
-        <PageSection className="space-y-5">
+      {/* Capped to the viewport, not just floored at it (PageShell's own
+          min-height): a mentor's board is meant to be read at a glance, not
+          scrolled through. There is no scroll fallback here on purpose — the
+          two list cards below page through their rows (4 at a time) instead
+          of growing, so the content is meant to always fit; `overflow-hidden`
+          is the backstop if it somehow doesn't, rather than a scrollbar
+          appearing and dragging the fixed sidebar's account footer with it. */}
+      <PageShell className="max-h-[var(--app-vh)] overflow-hidden">
+        <PageSection className="flex min-h-0 flex-1 flex-col gap-5">
           <DashboardHeader user={user} />
 
-          <div className={GRID_CLASS}>
+          <div className={cn(GRID_CLASS, 'min-h-0 flex-1')}>
             <div className="flex min-w-0 flex-col gap-4 xl:col-span-2">
               <MentorInternsCard />
               <MentorTicketsCard

@@ -1,9 +1,14 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DashboardCard, DashboardCardEmpty } from '@/components/dashboard/DashboardCard';
 import { useMyTickets } from '@/queries/tickets';
 
-const ROW_LIMIT = 5;
+// Kept low on purpose: this card has a fixed height budget on a page that
+// never scrolls (see MentorDashboardPage) — more tickets page through
+// instead of growing the row count or the card.
+const ROW_LIMIT = 4;
 
 const formatDue = (dueDate) => (dueDate ? format(new Date(dueDate), 'MMM d') : null);
 
@@ -37,14 +42,16 @@ function StatusBadge({ status }) {
  * either one's natural content happens to reach the same height.
  */
 export function MentorTicketsCard({ hasWorkspace, onOpenTicket }) {
+  const [page, setPage] = useState(1);
   const { data, isPending, isError } = useMyTickets(
-    { page: 1, limit: ROW_LIMIT },
+    { page, limit: ROW_LIMIT },
     { enabled: hasWorkspace }
   );
   // getMyTickets responds `{ success, data: [...tickets], pagination }` — the
   // list is the envelope's own `data`, not a nested `tickets` field.
   const tickets = data?.data ?? [];
   const total = data?.pagination?.total ?? 0;
+  const pages = data?.pagination?.pages ?? 0;
 
   return (
     <DashboardCard data-tour="mentor-dashboard-tickets" className="min-h-0 flex-1">
@@ -114,15 +121,43 @@ export function MentorTicketsCard({ hasWorkspace, onOpenTicket }) {
 
             <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
               <span className="text-[11px] text-muted-foreground">
-                {total} ticket{total === 1 ? '' : 's'} assigned to you
+                {pages > 1
+                  ? `Page ${page} of ${pages}`
+                  : `${total} ticket${total === 1 ? '' : 's'} assigned to you`}
               </span>
-              <Link
-                to="/tickets?assignee=me"
-                className="text-[11px] font-semibold text-primary hover:underline"
-                data-test="mentor-dashboard-tickets-link"
-              >
-                View all →
-              </Link>
+              <div className="flex items-center gap-2.5">
+                {pages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      aria-label="Previous page"
+                      data-test="mentor-dashboard-tickets-prev"
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                      disabled={page >= pages}
+                      aria-label="Next page"
+                      data-test="mentor-dashboard-tickets-next"
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+                <Link
+                  to="/tickets?assignee=me"
+                  className="text-[11px] font-semibold text-primary hover:underline"
+                  data-test="mentor-dashboard-tickets-link"
+                >
+                  View all →
+                </Link>
+              </div>
             </div>
           </>
         )}
