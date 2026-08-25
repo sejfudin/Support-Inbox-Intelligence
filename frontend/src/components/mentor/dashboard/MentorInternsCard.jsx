@@ -33,7 +33,7 @@ export function MentorInternsCard() {
         </p>
       </header>
 
-      <div className="mt-3">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col">
         {isPending && (
           <ul className="space-y-3">
             {[0, 1, 2].map((row) => (

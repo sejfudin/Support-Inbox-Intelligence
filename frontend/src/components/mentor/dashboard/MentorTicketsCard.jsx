@@ -29,6 +29,12 @@ function StatusBadge({ status }) {
  *
  * Header styled to match `QuickActionsCard` (16px) rather than
  * `DashboardCard`'s own 14px `title` — see the note on `MentorInternsCard`.
+ *
+ * `min-h-0 flex-1`, same as `MentorNotesCard`: it's the last card in the
+ * left column, so it stretches to match the right column's height rather
+ * than leaving a gap when both columns are near-empty — the two columns'
+ * bottom edges line up because both their last cards stretch, not because
+ * either one's natural content happens to reach the same height.
  */
 export function MentorTicketsCard({ hasWorkspace, onOpenTicket }) {
   const { data, isPending, isError } = useMyTickets(
@@ -41,7 +47,7 @@ export function MentorTicketsCard({ hasWorkspace, onOpenTicket }) {
   const total = data?.pagination?.total ?? 0;
 
   return (
-    <DashboardCard data-tour="mentor-dashboard-tickets">
+    <DashboardCard data-tour="mentor-dashboard-tickets" className="min-h-0 flex-1">
       <header>
         <h2 className="text-base font-semibold leading-6 text-foreground">My ticket work</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -49,7 +55,7 @@ export function MentorTicketsCard({ hasWorkspace, onOpenTicket }) {
         </p>
       </header>
 
-      <div className="mt-3">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col">
         {!hasWorkspace && (
           <DashboardCardEmpty>
             No active workspace — switch into one from the sidebar to see your ticket work.
