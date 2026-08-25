@@ -26,6 +26,31 @@ const { userSelect } = require('../constants/userSelect');
 
 const { PRESENT, CANCELLED, REMOTE, VACATION, RELIGIOUS, SICK } = Attendance;
 
+// The three fields every attendance payload sends so the client can classify days
+// itself: `placedAt` (the open placement), `placementExemptions` (closed ones) and
+// `startDate`. One place to default all three, rather than the same three lines
+// repeated at every call site that builds a payload.
+const placementFields = (profile) => ({
+  placedAt: profile.placedAt || null,
+  placementExemptions: profile.placementExemptions || [],
+  startDate: profile.startDate || null,
+});
+
+// `computeMonthStats` needs four values off the profile in a fixed order — easy to
+// get wrong by hand, and every caller here wants the same four. Centralising the
+// call is also the one place that has to change if the exemption shape ever grows
+// a new kind of stretch.
+const monthStatsFor = (profile, records, monthKey, nonWorkingKeys, exemptDates) =>
+  computeMonthStats(
+    records,
+    monthKey,
+    profile.startDate,
+    profile.placedAt,
+    nonWorkingKeys,
+    exemptDates,
+    profile.placementExemptions
+  );
+
 // Which interns appear on the admin roster. Attendance is only meaningful for
 // interns currently in the programme, so terminal states (placed/completed/
 // discontinued) are excluded. The list lives on the model because the admin
@@ -59,23 +84,14 @@ const buildSummary = async (profile) => {
     // Every day an approved request wrote, as date → status, so the calendar can
     // colour remote apart from vacation apart from sick.
     requestedDays,
-    placedAt: profile.placedAt || null,
-    // The calendar pages back through the intern's whole history client-side, so it
-    // needs the start date too — without it every month before they joined renders
-    // as a wall of absences for days they could not have attended.
-    startDate: profile.startDate || null,
+    // `startDate` also carries the comment above about paging through history —
+    // `placementFields` gives it back the same as before.
+    ...placementFields(profile),
     nonWorkingDays: nonWorking.list,
     observances,
     month: {
       key: monthKey,
-      ...computeMonthStats(
-        records,
-        monthKey,
-        profile.startDate,
-        profile.placedAt,
-        nonWorking.keys,
-        exemptDates
-      ),
+      ...monthStatsFor(profile, records, monthKey, nonWorking.keys, exemptDates),
     },
   };
 };
@@ -304,16 +320,8 @@ const buildRosterEntry = (profile, rows, monthKey, nonWorkingKeys) => {
     records,
     cancelledDates,
     requestedDays,
-    placedAt: profile.placedAt || null,
-    startDate: profile.startDate || null,
-    ...computeMonthStats(
-      records,
-      monthKey,
-      profile.startDate,
-      profile.placedAt,
-      nonWorkingKeys,
-      exemptDates
-    ),
+    ...placementFields(profile),
+    ...monthStatsFor(profile, records, monthKey, nonWorkingKeys, exemptDates),
     lastCheckIn: lastCheckIn || null,
   };
 };
@@ -415,20 +423,12 @@ const getInternAttendance = async (actor, internProfileId, month) => {
     records,
     cancelledDates,
     requestedDays,
-    placedAt: profile.placedAt || null,
-    startDate: profile.startDate || null,
+    ...placementFields(profile),
     nonWorkingDays: nonWorking.list,
     observances,
     month: {
       key: monthKey,
-      ...computeMonthStats(
-        records,
-        monthKey,
-        profile.startDate,
-        profile.placedAt,
-        nonWorking.keys,
-        exemptDates
-      ),
+      ...monthStatsFor(profile, records, monthKey, nonWorking.keys, exemptDates),
     },
   };
 };

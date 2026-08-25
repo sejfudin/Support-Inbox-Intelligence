@@ -47,3 +47,24 @@ export const getReadinessBadgeClassName = (level) => {
       return 'border-border/60 bg-muted/30 text-muted-foreground';
   }
 };
+
+// Which specialization control an admin gets on an intern's profile. A profile
+// shows one intern, so the tab's four verbs collapse to one: the marker decides
+// whether there is a specialization to maintain or one to create, and a missing
+// `declaredPosition` is what makes the create case impossible — `POST
+// /api/specializations` rejects it, so the profile refuses before the dialog.
+export const SPECIALIZATION_ACTIONS = {
+  ASSIGN: 'assign',
+  CHANGE_MENTOR: 'change-mentor',
+  BLOCKED: 'blocked',
+};
+
+// `specializationAssignedAt` is the whole marker — set means `declaredPosition`
+// IS the specialization, with no separate field (ADR 0002). Asking the record
+// directly, rather than inferring it back out of which action was offered.
+export const isSpecialized = (intern) => Boolean(intern?.specializationAssignedAt);
+
+export const getSpecializationAction = (intern) => {
+  if (isSpecialized(intern)) return SPECIALIZATION_ACTIONS.CHANGE_MENTOR;
+  return intern?.declaredPosition ? SPECIALIZATION_ACTIONS.ASSIGN : SPECIALIZATION_ACTIONS.BLOCKED;
+};

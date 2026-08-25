@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { useMyAttendance, useCheckInToday, useCancelTodayCheckIn } from '@/queries/attendance';
 import {
   computeStreak,
+  placementExemptKeySet,
   attendanceRateTextClass,
   formatAttendanceRate,
   isExemptToday,
@@ -30,6 +31,7 @@ export default function MyAttendancePage() {
   const startDate = data?.startDate ?? null;
   const requestedDays = data?.requestedDays ?? {};
   const observances = data?.observances ?? [];
+  const placementExemptions = data?.placementExemptions ?? [];
   // Current-month stats come from the server (start-date-prorated, and clamped at
   // `placedAt`); the calendar and streak are derived client-side from the full
   // record history. `attendanceRate` is null when nothing was owed — do NOT default
@@ -39,7 +41,7 @@ export default function MyAttendancePage() {
     presentDays = 0,
     workingDays: workingDaysElapsed = 0,
   } = data?.month ?? {};
-  const streak = computeStreak(records, placedAt);
+  const streak = computeStreak(records, placedAt, placementExemptKeySet(placementExemptions));
   const monthLabel = format(new Date(), 'MMMM');
   // Already on the project as of today (a future placedAt still owes attendance).
   const onProject = isExemptToday(placedAt);
@@ -144,6 +146,7 @@ export default function MyAttendancePage() {
                 nonWorkingDays={nonWorkingDays}
                 startDate={startDate}
                 requestedDays={requestedDays}
+                placementExemptions={placementExemptions}
                 observances={observances}
               />
 

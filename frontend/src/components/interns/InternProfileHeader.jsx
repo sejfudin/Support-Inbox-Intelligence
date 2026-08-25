@@ -3,11 +3,14 @@ import { CHIP } from '@/helpers/badgeTones';
 import { cn } from '@/lib/utils';
 import { UserAvatar } from '@/components/ui/user-avatar';
 
-function MetaField({ label, value }) {
+function MetaField({ label, value, action }) {
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <dt className="app-crumb">{label}</dt>
-      <dd className="truncate text-[13px] font-medium text-foreground">{value || '—'}</dd>
+      <dd className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
+        <span className="truncate">{value || '—'}</span>
+        {action}
+      </dd>
     </div>
   );
 }
@@ -36,6 +39,7 @@ export function InternProfileHeader({
   hub,
   startDate,
   primaryMentor,
+  primaryMentorAction,
   secondaryMentor,
   backButton,
   titleAdornment,
@@ -87,7 +91,7 @@ export function InternProfileHeader({
         <MetaField label="Programme" value={programme} />
         <MetaField label="Hub" value={hub} />
         <MetaField label="Start date" value={startDate} />
-        <MetaField label="Primary mentor" value={primaryMentor} />
+        <MetaField label="Primary mentor" value={primaryMentor} action={primaryMentorAction} />
         {secondaryMentor ? <MetaField label="Secondary mentor" value={secondaryMentor} /> : null}
       </dl>
 

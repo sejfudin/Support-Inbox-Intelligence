@@ -16,6 +16,7 @@ import {
   fetchMyInternProfile,
   fetchMyInternReadiness,
   updateIntern,
+  transferInternPrimaryMentor,
   updateInternDocumentationLinks,
   updateInternalCvLink,
   updateMyTechnologies,
@@ -128,6 +129,18 @@ export const useUpdateIntern = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ userId, payload }) => updateIntern(userId, payload),
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: internDetailKey(userId) });
+      queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: INTERN_STATS_QUERY_KEY });
+    },
+  });
+};
+
+export const useTransferInternPrimaryMentor = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, newAdminId }) => transferInternPrimaryMentor(userId, newAdminId),
     onSuccess: (_, { userId }) => {
       queryClient.invalidateQueries({ queryKey: internDetailKey(userId) });
       queryClient.invalidateQueries({ queryKey: INTERNS_QUERY_KEY });

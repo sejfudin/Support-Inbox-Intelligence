@@ -35,6 +35,7 @@
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
 - Only role that can assign a specialization (confirm an intern's main or secondary declared position and pair them with a dedicated mentor) — mentors receive the pairing but never create or manage it, and have no view of the Specialization tab
 - Only role that can reassign a specialization to the intern's other position, change the specialization mentor, or clear a specialization entirely
+- Can hand off their own **primary mentor** role for a specific intern to another admin, from that intern's profile — the only way `primaryMentor` changes after the account is created. Only the admin currently holding that role can start the hand-off, and the receiving admin must be an active admin (not a mentor) who isn't already that intern's specialization mentor. There's no automatic way back — reversing it means the new admin transferring the intern back the same way
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth) — note the intern now reads their own scores **and the written notes** on their My Progress page, so write them as feedback addressed to the intern
 - Only role that can set readiness (by technology or by position) for an intern — the intern now sees their own levels, and who set them, on My Progress
 - Can answer a review request an intern sent them, same as a mentor — whenever they're the primary or specialization mentor named on it

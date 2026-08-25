@@ -128,7 +128,8 @@ export const usePutForwardCandidates = ({ requestId, positionId }, options = {})
 export const usePutInternsForward = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, groups }) => putInternsForward(id, groups),
+    mutationFn: ({ id, groups, projectUnknown }) =>
+      putInternsForward(id, groups, { projectUnknown }),
     onSuccess: (_data, { id }) => {
       invalidateRequests(queryClient);
       queryClient.invalidateQueries({ queryKey: RECOMMENDATIONS_QUERY_KEY });

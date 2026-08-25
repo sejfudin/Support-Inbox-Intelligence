@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDebounce } from 'use-debounce';
-import { ArrowDown, ArrowRight, ArrowUp, MoreHorizontal, Plus, Search } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUp, Plus, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,7 +47,7 @@ function BarDivider() {
 export default function SpecializationPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState('specialized');
+  const [status, setStatus] = useState('all');
   const [mentorId, setMentorId] = useState('');
   const [search, setSearch] = useState('');
   const [assignedSortDirection, setAssignedSortDirection] = useState('desc');
@@ -231,9 +231,9 @@ export default function SpecializationPage() {
             value={status}
             options={STATUS_OPTIONS}
             onChange={handleStatusChange}
-            // "Specialized" is the resting state, so only the other two count as
-            // a filter the reader put there.
-            active={status !== 'specialized'}
+            // "All" is the resting state, so only the other two count as a
+            // filter the reader put there.
+            active={status !== 'all'}
             dataTest="specialization-status-filter"
           />
           <FilterSelect
@@ -296,7 +296,11 @@ export default function SpecializationPage() {
                           ? totalCount === 0
                             ? 'No interns yet.'
                             : 'No unspecialized interns left — everyone has a specialization.'
-                          : 'No specializations assigned yet.'}
+                          : debouncedSearch || mentorId
+                            ? 'No specializations match your filters.'
+                            : totalCount === 0
+                              ? 'No interns yet.'
+                              : 'No specializations assigned yet.'}
                       </TableCell>
                     </TableRow>
                   )}
@@ -371,12 +375,12 @@ export default function SpecializationPage() {
                                 <DropdownMenuTrigger asChild>
                                   <Button
                                     type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7"
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 rounded-[var(--r-control)] px-3 text-[12px]"
                                     data-test={`specialization-row-menu-${specialization._id}`}
                                   >
-                                    <MoreHorizontal className="h-4 w-4" />
+                                    Edit
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">

@@ -134,8 +134,7 @@ which is a _different_ cluster.
   notifications, intern profiles, attendance, dailies, recommendations, readiness flags,
   evaluations, mentor comments, integrations, invitations, AI summaries, refresh tokens, and
   non-system projects.
-- **Preserves**: hubs, internship types, technologies, positions, and the locked `unspecified`
-  project.
+- **Preserves**: hubs, internship types, technologies, and positions.
 
 ```bash
 npm run seed:demo -- --dry-run          # print the target + per-collection counts, change nothing
@@ -410,6 +409,9 @@ to date with the current model set:
    so the sentinel that step creates gets typed too.
 5. `cleanup:ready-for-placement` — removes the orphaned `readyForPlacement` boolean now that
    `InternProfile.status` covers the same concept via the `ready` value.
+6. `migrate:remove-unspecified-sentinel` — `Recommendation.project` is no longer required;
+   repoints any recommendation still pointing at the locked "Unspecified" sentinel to `null`, then
+   deletes the sentinel. Runs after steps 2 and 4, which both depend on the sentinel still existing.
 
 ```bash
 npm run migrate:development-merge

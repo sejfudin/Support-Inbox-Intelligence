@@ -19,6 +19,7 @@ import {
   isLeaveStatus,
   nonWorkingKeySet,
   officeDateKey,
+  placementExemptKeySet,
   stripAttendance,
 } from '@/helpers/attendance';
 import { useInternAttendance } from '@/queries/attendance';
@@ -85,6 +86,13 @@ export default function InternAttendancePanel({ internProfileId }) {
     () => nonWorkingKeySet(data?.nonWorkingDays || []),
     [data?.nonWorkingDays]
   );
+  // Placements this intern already came back from. Without them every day of a
+  // finished placement classifies as an absence, and the six-month strips below
+  // (which derive their own rate) would disagree with the server's percentage.
+  const placementKeys = useMemo(
+    () => placementExemptKeySet(data?.placementExemptions || []),
+    [data?.placementExemptions]
+  );
 
   const classify = useMemo(() => {
     const requestedDays = data?.requestedDays || {};
@@ -97,12 +105,14 @@ export default function InternAttendancePanel({ internProfileId }) {
         data?.placedAt || null,
         nonWorkingKeys,
         data?.startDate || null,
-        requestedDays
+        requestedDays,
+        placementKeys
       );
   }, [
     presentKeys,
     cancelledKeys,
     nonWorkingKeys,
+    placementKeys,
     data?.placedAt,
     data?.startDate,
     data?.requestedDays,
