@@ -183,7 +183,7 @@ const TECHNOLOGY_ALIASES = {
   rabbitmq: ['rabbitmq', 'rabbit mq'],
   'apache-tomcat': ['apache tomcat', 'tomcat'],
   'apache-http-server': ['apache http server', 'apache httpd', 'httpd'],
-  swagger: ['swagger', 'openapi', 'open api'],
+  // Bare "swagger" is ambiguous (a confident walk/manner) — see AMBIGUOUS_MATCHERS.
 
   // —— Databases ——
   postgresql: ['postgresql', 'postgres', 'postgre sql', 'psql'],
@@ -250,7 +250,7 @@ const TECHNOLOGY_ALIASES = {
   mlflow: ['mlflow', 'ml flow'],
   xgboost: ['xgboost', 'xg boost'],
   'large-language-models': ['large language models', 'large language model', 'llm', 'llms'],
-  rag: ['retrieval augmented generation', 'rag'],
+  // Bare "rag" is ambiguous (a piece of cloth, "rags to riches") — see AMBIGUOUS_MATCHERS.
   'prompt-engineering': ['prompt engineering'],
   'computer-vision': ['computer vision'],
   nlp: ['natural language processing', 'nlp'],
@@ -290,7 +290,7 @@ const TECHNOLOGY_ALIASES = {
   'robot-framework': ['robot framework'],
   jmeter: ['jmeter', 'apache jmeter'],
   k6: ['k6'],
-  insomnia: ['insomnia'],
+  // Bare "insomnia" is ambiguous (sleeplessness) — see AMBIGUOUS_MATCHERS.
   sonarqube: ['sonarqube', 'sonar qube', 'sonarcloud'],
   'performance-testing': ['performance testing', 'load testing', 'stress testing'],
   'api-testing': ['api testing'],
@@ -406,7 +406,7 @@ const TECHNOLOGY_ALIASES = {
   gitlab: ['gitlab'],
   bitbucket: ['bitbucket'],
   jira: ['jira'],
-  confluence: ['confluence'],
+  // Bare "confluence" is ambiguous (where things come together) — see AMBIGUOUS_MATCHERS.
   trello: ['trello'],
   vite: ['vite', 'vitejs', 'vite.js'],
   webpack: ['webpack', 'web pack'],
@@ -523,6 +523,29 @@ const AMBIGUOUS_MATCHERS = {
   capacitor: {
     lower: ['ionic capacitor', 'capacitor.js', 'capacitorjs'].map(buildAliasRegex),
     cased: buildListContextRegexes('Capacitor'),
+  },
+  // "Swagger" — a confident walk or manner ("presented with real swagger").
+  swagger: {
+    lower: ['swagger ui', 'swaggerhub', 'openapi', 'open api'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Swagger'),
+  },
+  // "RAG" — a piece of cloth, and "rags to riches" is common CV-adjacent phrasing.
+  rag: {
+    lower: ['retrieval augmented generation'].map(buildAliasRegex),
+    cased: buildListContextRegexes('RAG'),
+  },
+  // "Insomnia" — sleeplessness, and shows up in personal-statement prose more than the
+  // Unity/Assembly names above ever do. No safe unambiguous long form, so list shape alone
+  // carries the signal.
+  insomnia: {
+    lower: [],
+    cased: buildListContextRegexes('Insomnia'),
+  },
+  // "Confluence" — an ordinary word for where things come together ("a confluence of good
+  // timing and hard work").
+  confluence: {
+    lower: [],
+    cased: buildListContextRegexes('Confluence'),
   },
 };
 

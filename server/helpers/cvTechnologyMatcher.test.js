@@ -244,6 +244,22 @@ describe('everyday words from the four newly covered tracks', () => {
     ['Expo', 'Mobile: React Native, Expo', 'Presented at the student career expo.'],
     ['Capacitor', 'Mobile: Ionic, Capacitor', 'Replaced a blown capacitor on the board.'],
     ['Julia', 'Languages: Python, Julia', 'Mentored by Julia during the placement.'],
+    [
+      'Swagger',
+      'API tooling: Swagger, Postman',
+      'The presentation carried real confidence and swagger.',
+    ],
+    [
+      'Retrieval-Augmented Generation',
+      'ML: LangChain, RAG',
+      'She wiped the table with an old rag before the meeting.',
+    ],
+    ['Insomnia', 'Tools: Postman, Insomnia', 'Dealt with chronic insomnia during finals week.'],
+    [
+      'Confluence',
+      'Docs: Jira, Confluence',
+      'The two rivers meet at a confluence outside the city.',
+    ],
   ])('matches %s in a skills list but not in prose', (name, list, prose) => {
     expect(names(list)).toContain(name);
     expect(names(prose)).not.toContain(name);
@@ -253,6 +269,8 @@ describe('everyday words from the four newly covered tracks', () => {
     expect(slugsIn('Built a mobile game in Unity3D over one semester.')).toContain('unity');
     expect(slugsIn('Comfortable with x86 assembly language.')).toContain('assembly');
     expect(slugsIn('Packaged the service as Helm charts.')).toContain('helm');
+    expect(slugsIn('Documented the API with SwaggerHub.')).toContain('swagger');
+    expect(slugsIn('Built a chatbot using retrieval augmented generation.')).toContain('rag');
   });
 
   it('does not read Unreal out of ordinary prose', () => {
