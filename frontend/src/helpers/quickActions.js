@@ -194,15 +194,11 @@ export const QUICK_ACTION_CATALOG = Object.freeze([
     pending: true,
   },
 
-  // Mentor-only rows. Nothing renders them yet: the mentor's `/dashboard` is
-  // still `UserDashboard.jsx`, the pre-overhaul assigned-tickets table, with no
-  // rail to hang a card on. They are declared now so the rebuild mounts the card
-  // instead of inventing a second list.
-  //
-  // One thing that rebuild has to supply: `InternPickerModal` on the admin
-  // dashboard lists the workspace's interns. A mentor's card needs a picker
-  // scoped to *their* interns, or every `opens` row above ends in a 403 they
-  // could not have predicted.
+  // Mentor-only rows, mounted on `MentorDashboardPage`'s `QuickActionsCard`.
+  // `assign-ticket`/`write-note` above are shared with admin's rows and need no
+  // mentor-specific handling: `InternPickerModal` calls `useInterns()` with no
+  // id/role param, and `GET /api/interns` already scopes to the caller's own
+  // primary/secondary interns server-side — the same picker just works.
   {
     key: 'my-interns',
     label: 'My interns',

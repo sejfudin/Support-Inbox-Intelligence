@@ -21,7 +21,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 | Role | Lands on | Capability |
 |---|---|---|
 | Admin | `/dashboard` (admin dashboard) if they have an active workspace, else `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
-| Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
+| Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. `/dashboard` (`MentorDashboardPage`) is their own board — assigned interns, ticket work, quick actions, and notes sent to them by admin/leadership (see security.md, "Sending a note to a mentor"). |
 | Leadership | `/programme` | Read-oriented stakeholder view, plus the one leadership write path (staffing requests). No ticket/workspace workflow — redirected to `/programme`. |
 | Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. Reads — read-only, self only — their own evaluations (notes included), readiness and recommendations on `/my-progress`. |
 
@@ -1032,11 +1032,11 @@ The admin landing board: one workspace at a time — the caller's **active** wor
 
 - **`/dashboard` is role-split three ways**, not separate routes: `DashboardRoute` in
   `routes/AppRoutes.jsx` renders `AdminDashboardPage` for admins, `InternDashboardPage` for interns,
-  and `UserDashboard` (assigned tickets) for mentors. It sits **outside `WorkspaceGuard`** so neither
-  an admin nor an intern without an active workspace is redirected to `/create-workspace` — each
-  board explains the state instead. The guard's redirects are repeated inside `DashboardRoute` for
-  the mentor branch only. **Don't widen `WorkspaceGuard` instead**: `/tickets`, `/dailies` and
-  `/analytics` all assume a resolved `user.workspaceId`.
+  and `MentorDashboardPage` for mentors. It sits **outside `WorkspaceGuard`** so no role without an
+  active workspace is redirected to `/create-workspace` — each board explains the state instead
+  (the mentor board only for its ticket-work card and "Assign a ticket" action; its other cards need
+  no workspace). **Don't widen `WorkspaceGuard` instead**: `/tickets`, `/dailies` and `/analytics`
+  all assume a resolved `user.workspaceId`.
 - **The page has no workspace picker of its own** — it reads `user.workspaceId`; switching is the
   sidebar's `WorkspaceSwitcher`, which already `refetchUser()`s and navigates to `/dashboard`, so the
   board re-keys and refetches by itself. The switcher lists only workspaces the caller is a *member*
@@ -1129,9 +1129,10 @@ The admin landing board: one workspace at a time — the caller's **active** wor
     to its copy and the form its pick opens; `InternPickerModal` takes `restrictToRecommendable`,
     because "already placed / has left" disqualifies an intern from being *recommended* and from
     nothing else — a note or a readiness assessment about them is legitimate.
-  - **The mentor's rows are declared but nothing renders them yet.** The mentor's `/dashboard` is
-    still `UserDashboard` (assigned tickets), so the card has nowhere to live; the rebuild mounts this
-    one instead of inventing a second list, and must supply a picker scoped to *its* interns.
+  - **The mentor's rows are mounted on `MentorDashboardPage`**, the same `QuickActionsCard` the
+    admin board uses (`role={ROLES.MENTOR}`). No mentor-specific picker was needed: `InternPickerModal`
+    calls `useInterns()` with no id/role param, and `GET /api/interns` already scopes to the caller's
+    own primary/secondary interns server-side for a mentor caller.
 - **Not implemented**: the *Mark absence / excuse* quick action is a "Soon" placeholder — `Attendance`
   has no write path for absence at all (absence is the lack of a check-in, and only interns check in),
   and `POST /api/absence-requests/me` is intern-only too, so an admin cannot even file on someone's

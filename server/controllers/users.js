@@ -1,5 +1,6 @@
 const userPreferenceService = require('../services/userPreferenceService');
 const onboardingTourService = require('../services/onboardingTourService');
+const mentorNoteService = require('../services/mentorNoteService');
 const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 /**
@@ -35,6 +36,25 @@ exports.markWhatsNewSeen = async (req, res, next) => {
   try {
     const result = await onboardingTourService.markWhatsNewSeen(req.user._id, req.body?.version);
     res.json({ success: true, message: 'Tour marked as seen', data: result });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+/**
+ * The one exception to "the subject is always `req.user`" above: admin/
+ * leadership sending a note to a specific mentor, whose id comes from the
+ * path. `requireRole` on the route gates the sender; the target's own role
+ * is re-checked in `mentorNoteService`.
+ */
+exports.sendMentorNote = async (req, res, next) => {
+  try {
+    const notification = await mentorNoteService.sendMentorNoteFromStaff({
+      actor: req.user,
+      targetUserId: req.params.userId,
+      body: req.body?.body,
+    });
+    res.json({ success: true, message: 'Note sent', data: notification });
   } catch (error) {
     handleError(res, error, next);
   }

@@ -504,6 +504,33 @@ same exception as `Project`/`Recommendation` above).
   friendly shape. The admin chooses `type`, `status` and `technologies` fresh; none are seeded from
   the request even though `name`/`client`/`description` are prefilled from the draft on the client.
 
+## Sending a note to a mentor — second leadership write path
+
+`POST /api/users/:userId/mentor-notes` (`server/routes/users.js`, `server/services/
+mentorNoteService.js`) is the **second** route to admit `ROLES.LEADERSHIP` for a write (the first
+is staffing requests, above) — same reasoning applies: no shared middleware default covers this,
+so the route guards explicitly.
+
+- **Sender gate is at the route**: `requireRole(ADMIN, LEADERSHIP)`. Neither mentor nor intern may
+  call it — a 403 for both, same as everyone else who isn't admin/leadership.
+- **Target gate is service-layer only**, since `requireRole` can express who is *calling*, never who
+  they're calling *about*. `mentorNoteService.sendMentorNoteFromStaff` loads the target user and
+  400s unless `target.role === ROLES.MENTOR` — an admin/leadership caller cannot use this route to
+  message another admin, an intern, or a colleague in leadership.
+- **No workspace scope, no author scope.** Any admin or any leadership user may note any active
+  mentor on the platform — there is no "must be their assigned admin" narrowing, unlike the
+  staffing-request author rule above. The note is staff-to-staff, not tied to a shared intern or
+  workspace.
+- **The read side is the existing self-scoped `GET /api/notifications`** (`?type=
+mentor_note_from_staff`) — no new id-based read route was added, and none was needed: a
+  notification's `recipient` already is the caller, resolved off `req.user._id`, so there is
+  nothing here for the "self-only endpoints carry no id" rule further down this file to guard
+  against.
+- **Delivered verbatim, not AI-paraphrased** — unlike every other notifier in
+  `internNotificationService.js`, `notifyMentorNoteFromStaff` has no `promptBuilder`. The point is
+  passing on the sender's own words to a specific colleague; rewriting them would be a correctness
+  problem here, not a style one.
+
 ## Middleware guards (`server/middleware/`)
 
 - `auth.js` `protect` — required on every authenticated route. Verifies JWT + `tokenVersion`.

@@ -26,10 +26,16 @@ const toRecipientId = (value) => {
   return null;
 };
 
-const listForUser = async (userId, { limit = 30 } = {}) => {
+// `type` narrows the feed to one notification type (e.g. the mentor dashboard's
+// "notes for me" card, which only wants `mentor_note_from_staff`). Optional —
+// omitted, this returns the caller's normal mixed feed. `unreadCount` stays
+// unfiltered either way: it backs the bell badge, a global count, not a
+// per-type one.
+const listForUser = async (userId, { limit = 30, type } = {}) => {
   const safeLimit = Math.min(Math.max(Number(limit) || 30, 1), MAX_LIST);
+  const filter = { recipient: userId, ...(type ? { type } : {}) };
   const [items, unreadCount] = await Promise.all([
-    Notification.find({ recipient: userId }).sort({ createdAt: -1 }).limit(safeLimit).lean(),
+    Notification.find(filter).sort({ createdAt: -1 }).limit(safeLimit).lean(),
     Notification.countDocuments({ recipient: userId, read: false }),
   ]);
   return { items, unreadCount };

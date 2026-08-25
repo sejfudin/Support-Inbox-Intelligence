@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, MessageSquarePlus, Pencil } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader, useLoaderHold } from '@/components/ui/loader';
@@ -17,6 +17,7 @@ import { ANALYTICS_PERIODS } from '@/helpers/analyticsFormatters';
 import { InternProfileView } from '@/components/interns/InternProfileView';
 import { AdminStaffUserDetail } from '@/components/admin/AdminStaffUserDetail';
 import UserEditModal from '@/components/UserEditModal';
+import { SendMentorNoteModal } from '@/components/SendMentorNoteModal';
 import { ROLES } from '@/helpers/roles';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
@@ -127,6 +128,7 @@ export default function AdminUserAnalyticsPage() {
   const location = useLocation();
   const [days, setDays] = useState(30);
   const [editingUser, setEditingUser] = useState(null);
+  const [sendingNote, setSendingNote] = useState(false);
 
   const { data: loadedUser, isLoading: isLoadingRaw, isError } = useUser(userId);
   // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
@@ -232,15 +234,28 @@ export default function AdminUserAnalyticsPage() {
   );
 
   const editUserButton = (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={() => setEditingUser(editModalUser)}
-      data-test="admin-user-analytics-edit-button"
-    >
-      <Pencil className="mr-2 h-4 w-4" />
-      Edit user
-    </Button>
+    <div className="flex items-center gap-2">
+      {user.role === ROLES.MENTOR && (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setSendingNote(true)}
+          data-test="admin-user-analytics-send-note-button"
+        >
+          <MessageSquarePlus className="mr-2 h-4 w-4" />
+          Send a note
+        </Button>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setEditingUser(editModalUser)}
+        data-test="admin-user-analytics-edit-button"
+      >
+        <Pencil className="mr-2 h-4 w-4" />
+        Edit user
+      </Button>
+    </div>
   );
 
   if (isError) {
@@ -295,6 +310,12 @@ export default function AdminUserAnalyticsPage() {
         editUserButton={editUserButton}
       />
       {editingUser && <UserEditModal user={editingUser} onClose={() => setEditingUser(null)} />}
+      <SendMentorNoteModal
+        open={sendingNote}
+        onClose={() => setSendingNote(false)}
+        targetUserId={user._id || userId}
+        targetName={user.fullname || user.fullName}
+      />
     </>
   );
 }

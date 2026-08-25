@@ -31,3 +31,8 @@ export const getUser = async (id) => {
   const response = await apiClient.get(`/admin/users/${id}`);
   return response.data;
 };
+
+export const sendMentorNote = async (userId, body) => {
+  const response = await apiClient.post(`/users/${userId}/mentor-notes`, { body });
+  return response.data;
+};
