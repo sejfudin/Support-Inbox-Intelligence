@@ -32,7 +32,7 @@ const {
 const { emitStaffingNewsChanged, emitInternDataChanged } = require('../socket/events');
 const InternProfile = require('../models/InternProfile');
 const { userSelect } = require('../constants/userSelect');
-const { restrictProfileFilterToLiveUsers } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers, hasLiveUser } = require('../helpers/orphanedProfiles');
 
 // This is the platform's first leadership write path: no existing route
 // admits ROLES.LEADERSHIP for a write, so every guard below is explicit
@@ -222,7 +222,9 @@ const formatRequest = (request, recommendations = []) => {
     // counts it: those counts are about how much of the request has been filled,
     // and a put-forward that happened does not un-happen because the person's
     // account was removed. See `helpers/orphanedProfiles.js`.
-    suggestions: recommendations.filter((rec) => rec.internProfile?.user).map(formatSuggestion),
+    suggestions: recommendations
+      .filter((rec) => hasLiveUser(rec.internProfile))
+      .map(formatSuggestion),
   };
 };
 

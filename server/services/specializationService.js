@@ -146,14 +146,14 @@ const coverageStats = async (mentorId) => {
   // ("N of M specialized"), and a profile left behind by a user deleted straight
   // from the database would otherwise inflate the denominator against a cohort
   // that no longer contains that person.
-  const liveUsers = await restrictProfileFilterToLiveUsers({});
+  const liveUserFilter = await restrictProfileFilterToLiveUsers({});
 
   const [specializedCount, totalCount, mentorLoad] = await Promise.all([
-    InternProfile.countDocuments({ ...liveUsers, specializationAssignedAt: { $ne: null } }),
-    InternProfile.countDocuments({ ...liveUsers }),
+    InternProfile.countDocuments({ ...liveUserFilter, specializationAssignedAt: { $ne: null } }),
+    InternProfile.countDocuments({ ...liveUserFilter }),
     mentorId
       ? InternProfile.countDocuments({
-          ...liveUsers,
+          ...liveUserFilter,
           specializationAssignedAt: { $ne: null },
           secondaryMentor: mentorId,
         })

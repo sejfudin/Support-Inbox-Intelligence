@@ -32,6 +32,15 @@ const excludeOrphanedProfileStages = (userLocalField = 'user') => [
 ];
 
 /**
+ * Whether a populated InternProfile still has its User. The post-`populate`
+ * counterpart to the two filters below: a profile left behind by a deleted user
+ * arrives with `user` populated as `null`, so the profile is truthy and the
+ * person is not. Takes the profile itself rather than the record holding it —
+ * callers reach it under different names (`internProfile`, `intern`).
+ */
+const hasLiveUser = (profile) => Boolean(profile?.user);
+
+/**
  * Whether a `user` clause is a Mongo operator object rather than an id. Keyed on
  * a leading `$`, so an ObjectId — an object too, but with no such key — reads as
  * the plain id it is.
@@ -84,4 +93,4 @@ const restrictProfileFilterToLiveUsers = async (profileFilter = {}) => {
   return { ...profileFilter, user: { $in: asked.filter((id) => live.has(String(id))) } };
 };
 
-module.exports = { excludeOrphanedProfileStages, restrictProfileFilterToLiveUsers };
+module.exports = { excludeOrphanedProfileStages, restrictProfileFilterToLiveUsers, hasLiveUser };

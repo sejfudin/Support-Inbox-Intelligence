@@ -12,6 +12,7 @@ const User = require('../models/User');
 const {
   restrictProfileFilterToLiveUsers,
   excludeOrphanedProfileStages,
+  hasLiveUser,
 } = require('./orphanedProfiles');
 
 const liveUsers = (...ids) => {
@@ -104,6 +105,24 @@ describe('restrictProfileFilterToLiveUsers', () => {
 
     await expect(restrictProfileFilterToLiveUsers({ user: { $ne: null } })).rejects.toThrow();
     expect(User.find).not.toHaveBeenCalled();
+  });
+});
+
+describe('hasLiveUser', () => {
+  it('accepts a profile whose user populated', () => {
+    expect(hasLiveUser({ _id: 'p1', user: { _id: 'u1' } })).toBe(true);
+  });
+
+  // The orphan case: the profile survives its user, so `populate` yields null
+  // and the profile is truthy while the person is not.
+  it('rejects a profile whose user populated as null', () => {
+    expect(hasLiveUser({ _id: 'p1', user: null })).toBe(false);
+  });
+
+  it('rejects a profile that was never populated or is missing', () => {
+    expect(hasLiveUser({ _id: 'p1' })).toBe(false);
+    expect(hasLiveUser(null)).toBe(false);
+    expect(hasLiveUser(undefined)).toBe(false);
   });
 });
 

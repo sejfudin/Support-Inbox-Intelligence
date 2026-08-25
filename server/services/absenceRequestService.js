@@ -21,7 +21,7 @@ const {
   isRequestType,
 } = require('../constants/absenceRequestTypes');
 const { httpError } = require('../helpers/httpError');
-const { restrictProfileFilterToLiveUsers } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers, hasLiveUser } = require('../helpers/orphanedProfiles');
 const { loadMyProfile } = require('./attendanceService');
 const { getEffectiveLimits, getPrimaryAdminId } = require('./absenceSettingsService');
 const adminService = require('./adminService');
@@ -344,7 +344,7 @@ const listRequests = async (_user, { status = PENDING, type } = {}) => {
       // Drop orphans, as the roster does — and check the User too, not just the
       // profile: deleting a user straight from the database leaves the profile
       // behind, so `intern` is present while `intern.user` populates as null.
-      .filter((request) => request.intern?.user)
+      .filter((request) => hasLiveUser(request.intern))
       .map((request) => ({
         ...toRequestSummary(request),
         intern: toInternSummary(request.intern),

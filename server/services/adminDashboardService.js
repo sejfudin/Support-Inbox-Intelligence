@@ -6,6 +6,7 @@ const Ticket = require('../models/Ticket');
 const Workspace = require('../models/Workspace');
 const { resolveWorkloadBuckets } = require('../helpers/workloadBuckets');
 const { getActiveWorkspaceInterns } = require('../helpers/workspaceInterns');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
 const {
   splitRows,
   computeMonthStats,
@@ -152,7 +153,7 @@ const loadPlacements = async () => {
     .lean();
 
   return placements
-    .filter((placement) => placement.internProfile?.user)
+    .filter((placement) => hasLiveUser(placement.internProfile))
     .map((placement) => {
       const decidedAt = placement.result?.decidedAt || placement.updatedAt || null;
       return {

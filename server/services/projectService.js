@@ -7,6 +7,7 @@ const { ROLES } = require('../constants/roles');
 const { slugify } = require('../helpers/slugify');
 const { httpError } = require('../helpers/httpError');
 const { userSelect } = require('../constants/userSelect');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
 
 // Same two-role read gate as recommendations (recommendationService.js
 // READ_ROLES) — leadership is stakeholder-facing read access, everyone else
@@ -113,11 +114,10 @@ const RECOMMENDATION_INTERN_POPULATE = [
 
 // A recommendation whose intern's User was deleted straight from the database
 // still loads fine — `internProfile.user` just populates as `null`, and every
-// field below falls back to the literal "Unknown". Dropping those rows at the
-// point they are read keeps both the project rosters and the counts derived
-// from them free of people who no longer exist. See `helpers/orphanedProfiles.js`.
-const hasLiveIntern = (recommendation) => Boolean(recommendation.internProfile?.user);
-
+// field in `internSummary` falls back to the literal "Unknown". Dropping those
+// rows at the point they are read keeps both the project rosters and the counts
+// derived from them free of people who no longer exist. The two `hasLiveUser`
+// filters below are that guard; see `helpers/orphanedProfiles.js`.
 const internSummary = (recommendation) => ({
   recommendationId: recommendation._id,
   userId: recommendation.internProfile?.user?._id || null,
@@ -161,7 +161,7 @@ const getProjectOverview = async (id, user) => {
       .populate(RECOMMENDATION_INTERN_POPULATE)
       .sort({ updatedAt: -1 })
       .lean()
-  ).filter(hasLiveIntern);
+  ).filter((recommendation) => hasLiveUser(recommendation.internProfile));
 
   const placed = recommendations
     .filter((rec) => rec.result?.outcome === 'placed')
@@ -207,7 +207,7 @@ const getProjectsOverview = async (user) => {
     await Recommendation.find({ project: { $in: projectIds } })
       .populate(RECOMMENDATION_INTERN_POPULATE)
       .lean()
-  ).filter(hasLiveIntern);
+  ).filter((recommendation) => hasLiveUser(recommendation.internProfile));
 
   const recsByProject = new Map();
   recommendations.forEach((rec) => {

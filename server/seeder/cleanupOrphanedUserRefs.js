@@ -104,6 +104,17 @@ const USER_OWNED = [
   ['Invitation', 'user'],
 ];
 
+/**
+ * Whether a finding is one the deletion plan deliberately leaves alone — an
+ * authorship or membership ref, as opposed to `InternProfile.user` (the profile
+ * itself goes) or a `USER_OWNED` row (the whole record goes). The banner, the
+ * prune step and the post-prune recheck all have to agree on this, so they ask
+ * here rather than each restating it.
+ */
+const isAuthorshipRef = ({ modelName, refPath }) =>
+  !(modelName === 'InternProfile' && refPath === 'user') &&
+  !USER_OWNED.some(([name, field]) => name === modelName && field === refPath);
+
 const parseArgs = (argv) => {
   const options = { apply: false, pruneRefs: false, yes: undefined };
   for (const arg of argv) {
@@ -329,11 +340,7 @@ const printBanner = (target, plan, findings, options) => {
     console.log('');
   }
 
-  const authorship = findings.filter(
-    ({ modelName, refPath }) =>
-      !(modelName === 'InternProfile' && refPath === 'user') &&
-      !USER_OWNED.some(([name, field]) => name === modelName && field === refPath)
-  );
+  const authorship = findings.filter(isAuthorshipRef);
   if (authorship.length) {
     console.log(
       options.pruneRefs
@@ -430,11 +437,11 @@ const prunePlainRefs = async (findings, liveUserIds) => {
   let touched = 0;
   const skipped = [];
 
-  for (const { modelName, refPath, isArray, inDocArray, isRequired, dangling } of findings) {
+  for (const finding of findings) {
     // Already handled by the deletion plan — the whole record is going.
-    if (modelName === 'InternProfile' && refPath === 'user') continue;
-    if (USER_OWNED.some(([name, field]) => name === modelName && field === refPath)) continue;
+    if (!isAuthorshipRef(finding)) continue;
 
+    const { modelName, refPath, isArray, inDocArray, isRequired, dangling } = finding;
     const Model = mongoose.model(modelName);
 
     // A ref inside a document array — `Workspace.members[].user`,
@@ -487,11 +494,7 @@ const prunePlainRefs = async (findings, liveUserIds) => {
 
   // Guard against a required-field schema rejecting the unset silently.
   const recheck = await scanDanglingUserRefs(liveUserIds);
-  const stillDangling = recheck.filter(
-    ({ modelName, refPath }) =>
-      !(modelName === 'InternProfile' && refPath === 'user') &&
-      !USER_OWNED.some(([name, field]) => name === modelName && field === refPath)
-  );
+  const stillDangling = recheck.filter(isAuthorshipRef);
   const unexpected = stillDangling.filter(
     ({ modelName, refPath }) =>
       !skipped.some((entry) => entry.modelName === modelName && entry.refPath === refPath)
