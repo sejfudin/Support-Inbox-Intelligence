@@ -4,6 +4,14 @@
 
 const SLOTS = ['main', 'secondary'];
 
+// The two mentor slots on an InternProfile (`primaryMentor`/`secondaryMentor`)
+// may never hold the same person. Shared in both directions: this file checks
+// it when setting `secondaryMentor`, and `internService.js#transferPrimaryMentor`
+// checks it when setting `primaryMentor` — one predicate so a change to the
+// rule can't update one direction and miss the other.
+const mentorSlotsCollide = (candidateId, otherMentorId) =>
+  Boolean(otherMentorId) && String(candidateId) === String(otherMentorId);
+
 // Confirming a specialization decision. `slot === 'secondary'` swaps the
 // confirmed position into `declaredPosition` and the old main into
 // `secondaryPosition`; `slot === 'main'` keeps both positions as-is. Returns
@@ -18,7 +26,7 @@ const applySpecialization = (profile, { slot, mentorId, assignedAt }) => {
   if (!mentorId) {
     throw new Error('mentorId is required');
   }
-  if (String(mentorId) === String(profile.primaryMentor)) {
+  if (mentorSlotsCollide(mentorId, profile.primaryMentor)) {
     throw new Error('Secondary mentor must differ from primary mentor');
   }
 
@@ -51,7 +59,7 @@ const changeSpecializationMentor = (profile, { mentorId }) => {
   if (!mentorId) {
     throw new Error('mentorId is required');
   }
-  if (String(mentorId) === String(profile.primaryMentor)) {
+  if (mentorSlotsCollide(mentorId, profile.primaryMentor)) {
     throw new Error('Secondary mentor must differ from primary mentor');
   }
   return { secondaryMentor: mentorId };
@@ -74,4 +82,5 @@ module.exports = {
   changeSpecializationMentor,
   clearSpecialization,
   canInternEditDeclaredPosition,
+  mentorSlotsCollide,
 };

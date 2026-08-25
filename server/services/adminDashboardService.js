@@ -248,7 +248,11 @@ const getAdminDashboard = async ({ workspaceId }) => {
         user: { $in: internUserIds },
         status: { $in: IN_PROGRAMME_STATUSES },
       })
-        .select('_id user startDate declaredPosition')
+        // `placedAt` and `placementExemptions` both feed `computeMonthStats` below.
+        // `placedAt` is near-always null here (IN_PROGRAMME_STATUSES excludes
+        // `placed`), but `placementExemptions` is not: an intern who came back from a
+        // project is `active` again and still carries the stretch they were away.
+        .select('_id user startDate declaredPosition placedAt placementExemptions')
         .populate({ path: 'declaredPosition', select: 'name' })
         .lean()
     : [];
@@ -286,7 +290,8 @@ const getAdminDashboard = async ({ workspaceId }) => {
         profile.startDate,
         profile.placedAt,
         nonWorking.keys,
-        exemptDates
+        exemptDates,
+        profile.placementExemptions
       );
       const counts = workloadByUser.get(String(user._id)) || {};
 
@@ -323,9 +328,24 @@ const getAdminDashboard = async ({ workspaceId }) => {
         state: checkInWindowState(now),
       },
       awayToday: rows.filter((row) => row.awayToday).length,
-      absentToday: rows
-        .filter((row) => !row.presentToday && !row.awayToday)
-        .map(({ id, fullname, email, position }) => ({ id, fullname, email, position })),
+      // One list carrying today's state per intern, rather than an absent list
+      // beside two counts. The dashboard's "Attendance today" quick action reports
+      // present, away and absent together, and the presence hero derives its
+      // absent list from the same rows — two lists built from one source are two
+      // things that can disagree after somebody edits one of them.
+      //
+      // `avatarUrl` rides along deliberately: every list of people in the app is
+      // drawn with `UserAvatar`, which falls back to initials only when there is
+      // genuinely no picture. A payload that drops the field makes every face on
+      // that screen a monogram.
+      today: rows.map(({ id, fullname, email, position, avatarUrl, presentToday, awayToday }) => ({
+        id,
+        fullname,
+        email,
+        position,
+        avatarUrl,
+        status: presentToday ? 'present' : awayToday ? 'away' : 'absent',
+      })),
     },
     lastPlacement: recentPlacements[0] || null,
     recentPlacements,

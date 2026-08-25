@@ -11,6 +11,7 @@ const {
   updateMyPosition,
   updateMySecondaryPosition,
   updateIntern,
+  transferPrimaryMentor,
   updateDocumentationLinks,
   updateInternalCv,
   uploadMyCv,
@@ -41,6 +42,10 @@ router.get('/stats', protect, getProgrammeStats);
 
 router.get('/:userId', protect, getIntern);
 router.patch('/:userId', protect, updateIntern);
+// Role check (admin) and the self-scoped "must be this intern's current
+// primary mentor" check both live in the service, same as `updateIntern`
+// above — this file doesn't gate by role at the route.
+router.patch('/:userId/primary-mentor', protect, transferPrimaryMentor);
 router.put('/:userId/documentation-links', protect, updateDocumentationLinks);
 router.put('/:userId/internal-cv', protect, updateInternalCv);
 

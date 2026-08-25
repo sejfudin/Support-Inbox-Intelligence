@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Ban, FolderPlus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import {
   getPositionProgressRows,
@@ -74,6 +75,8 @@ export function RequestDetailPane({
   onSubmit,
   isSubmitting,
   rejections,
+  projectUnknown,
+  onProjectUnknownChange,
 }) {
   const [resolveOpen, setResolveOpen] = useState(false);
   // Which close dialog is open, if any: 'fulfilled' | 'declined' | null. The
@@ -206,20 +209,30 @@ export function RequestDetailPane({
               Resolve project
             </Button>
           ) : (
-            <Button
-              type="button"
-              onClick={onSubmit}
-              disabled={stagedCount === 0 || isSubmitting}
-              className="gap-2"
-              data-test="submit-picks"
-            >
-              <Send className="h-4 w-4" aria-hidden="true" />
-              {isSubmitting
-                ? 'Sending…'
-                : stagedCount === 0
-                  ? 'Submit to leadership'
-                  : `Submit ${stagedCount} ${stagedCount === 1 ? 'pick' : 'picks'} to leadership`}
-            </Button>
+            <div className="flex flex-col items-end gap-2">
+              <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                <Checkbox
+                  checked={projectUnknown}
+                  onCheckedChange={(checked) => onProjectUnknownChange(Boolean(checked))}
+                  data-test="request-project-unknown-checkbox"
+                />
+                Project not known yet (ignore {request.project?.name || 'this request'}'s project)
+              </label>
+              <Button
+                type="button"
+                onClick={onSubmit}
+                disabled={stagedCount === 0 || isSubmitting}
+                className="gap-2"
+                data-test="submit-picks"
+              >
+                <Send className="h-4 w-4" aria-hidden="true" />
+                {isSubmitting
+                  ? 'Sending…'
+                  : stagedCount === 0
+                    ? 'Submit to leadership'
+                    : `Submit ${stagedCount} ${stagedCount === 1 ? 'pick' : 'picks'} to leadership`}
+              </Button>
+            </div>
           )}
         </div>
       </div>

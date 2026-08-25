@@ -31,6 +31,7 @@
     "backfill:legacy-secondary-mentor": "node seeder/backfillLegacySecondaryMentor.js",
     "backfill:project-types": "node seeder/backfillProjectTypes.js",
     "migrate:recommendation-projects": "node seeder/migrateRecommendationProjects.js",
+    "migrate:remove-unspecified-sentinel": "node seeder/removeUnspecifiedProjectSentinel.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
     "cleanup:orphaned-user-refs": "node seeder/cleanupOrphanedUserRefs.js",
     "cleanup:ready-for-placement": "node seeder/unsetReadyForPlacement.js",

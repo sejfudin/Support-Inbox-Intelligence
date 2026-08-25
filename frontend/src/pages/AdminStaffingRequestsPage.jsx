@@ -86,6 +86,10 @@ export default function AdminStaffingRequestsPage() {
   // A pick can go stale while it is staged, and the admin needs to know which
   // pick — not that something, somewhere, was wrong.
   const [rejections, setRejections] = useState({});
+  // Every recommendation a submit creates pre-fills from the request's own
+  // project. Ticking this discards that pre-fill for the whole submit,
+  // asserting the picks' project as not known yet instead.
+  const [projectUnknown, setProjectUnknown] = useState(false);
 
   const { data: requests = [], isPending: isPendingRaw, isError } = useStaffingRequests();
   // Global hold: keeps the mark up for MIN_VISIBLE_MS once it appears, and until the data is in.
@@ -140,6 +144,7 @@ export default function AdminStaffingRequestsPage() {
   useEffect(() => {
     setPickerRow(null);
     setRejections({});
+    setProjectUnknown(false);
   }, [selectedId]);
 
   // Only the row that was touched loses its marker. Clearing them all would
@@ -200,9 +205,10 @@ export default function AdminStaffingRequestsPage() {
     const total = countStagedPicks(cart);
     setRejections({});
     try {
-      await submitMutation.mutateAsync({ id: selectedId, groups });
+      await submitMutation.mutateAsync({ id: selectedId, groups, projectUnknown });
       clearRequest(selectedId);
       setPickerRow(null);
+      setProjectUnknown(false);
       toast.success(total === 1 ? '1 intern put forward' : `${total} interns put forward`);
     } catch (error) {
       const rows = error?.response?.data?.data?.rejections;
@@ -362,6 +368,8 @@ export default function AdminStaffingRequestsPage() {
                     onSubmit={onSubmit}
                     isSubmitting={submitMutation.isPending}
                     rejections={rejections}
+                    projectUnknown={projectUnknown}
+                    onProjectUnknownChange={setProjectUnknown}
                   />
                 ) : (
                   <div className="app-card py-16 text-center text-[12.5px] text-muted-foreground">

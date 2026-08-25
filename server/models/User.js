@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { ROLE_VALUES } = require('../constants/roles');
 const {
   USER_PREFERENCE_DEFINITIONS,
-  MUTED_NOTIFICATION_GROUP_VALUES,
+  USER_LIST_PREFERENCE_DEFINITIONS,
 } = require('../constants/userPreferences');
 
 /**
@@ -22,10 +22,17 @@ const userPreferencesSchema = new mongoose.Schema(
         { type: String, enum: definition.values },
       ])
     ),
-    mutedNotificationGroups: {
-      type: [{ type: String, enum: MUTED_NOTIFICATION_GROUP_VALUES }],
-      default: undefined,
-    },
+    // Every list-valued preference, built from the same table the service
+    // validates against. `default: undefined` on each is load-bearing, not
+    // decoration: presence is how `storedKeysOf` tells "the user chose this"
+    // from "never touched", and a schema default would make every account look
+    // like it had picked an order it never dragged.
+    ...Object.fromEntries(
+      Object.entries(USER_LIST_PREFERENCE_DEFINITIONS).map(([key, definition]) => [
+        key,
+        { type: [{ type: String, enum: definition.values }], default: undefined },
+      ])
+    ),
   },
   { _id: false }
 );

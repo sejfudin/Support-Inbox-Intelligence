@@ -25,14 +25,31 @@ const SLOT_OPTIONS = [
   { value: 'secondary', label: 'Secondary position' },
 ];
 
-export function AssignSpecializationModal({ open, onClose, initialInternUserId = '' }) {
+/**
+ * Assigning a specialization, from two places with different starting points.
+ *
+ * The tab opens this with nothing chosen, so it fetches every unspecialized
+ * intern and the picker is the whole point. A profile opens it for the one
+ * intern already on screen and passes `intern` — the profile record carries the
+ * positions and the primary mentor this form needs, so the candidates request
+ * is skipped and the picker collapses to a label. That is not only a saved
+ * request: a live picker on a profile would let an admin assign somebody other
+ * than the person whose page they are looking at.
+ */
+export function AssignSpecializationModal({
+  open,
+  onClose,
+  initialInternUserId = '',
+  intern = null,
+}) {
   const [internUserId, setInternUserId] = useState('');
   const [slot, setSlot] = useState('main');
   const [mentorId, setMentorId] = useState('');
   const [error, setError] = useState('');
 
+  const internLocked = Boolean(intern);
   const { data: candidates = [], isPending: candidatesLoading } = useUnspecializedCandidates({
-    enabled: open,
+    enabled: open && !internLocked,
   });
   const { data: mentorsData } = useMentorCandidates({ hubScoped: false });
   const mentors = mentorsData?.users ?? [];
@@ -45,10 +62,12 @@ export function AssignSpecializationModal({ open, onClose, initialInternUserId =
   }, [open, initialInternUserId]);
 
   const selectedIntern = useMemo(
-    () => candidates.find((candidate) => candidate.user?._id === internUserId) || null,
-    [candidates, internUserId]
+    () => intern || candidates.find((candidate) => candidate.user?._id === internUserId) || null,
+    [intern, candidates, internUserId]
   );
 
+  // The locked case has no picker to read, so the target comes off the record.
+  const targetInternUserId = internLocked ? intern.user?._id || '' : internUserId;
   const hasSecondary = Boolean(selectedIntern?.secondaryPosition);
   const canAssign = Boolean(selectedIntern?.declaredPosition);
 
@@ -77,14 +96,14 @@ export function AssignSpecializationModal({ open, onClose, initialInternUserId =
     event.preventDefault();
     setError('');
     try {
-      await assignMutation.mutateAsync({ internUserId, slot, mentorId });
+      await assignMutation.mutateAsync({ internUserId: targetInternUserId, slot, mentorId });
       resetAndClose();
     } catch (submitError) {
       setError(submitError?.response?.data?.message || 'Failed to assign specialization.');
     }
   };
 
-  const submitDisabled = !internUserId || !canAssign || !mentorId || assignMutation.isPending;
+  const submitDisabled = !targetInternUserId || !canAssign || !mentorId || assignMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && resetAndClose()}>
@@ -98,27 +117,33 @@ export function AssignSpecializationModal({ open, onClose, initialInternUserId =
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="specialization-intern">Intern</Label>
-            <Select value={internUserId} onValueChange={handleInternChange}>
-              <SelectTrigger id="specialization-intern" data-test="specialization-intern-select">
-                <SelectValue
-                  placeholder={candidatesLoading ? 'Loading interns...' : 'Select an intern'}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {candidates.map((candidate) => (
-                  <SelectItem
-                    key={candidate.user?._id}
-                    value={candidate.user?._id}
-                    disabled={!candidate.declaredPosition}
-                    data-test={`specialization-intern-option-${candidate.user?._id}`}
-                  >
-                    {candidate.user?.fullname || 'Unknown'}
-                    {!candidate.declaredPosition ? ' (no position declared yet)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor={internLocked ? undefined : 'specialization-intern'}>Intern</Label>
+            {internLocked ? (
+              <p className="text-sm font-medium" data-test="specialization-intern-locked">
+                {intern.user?.fullname || 'Unknown'}
+              </p>
+            ) : (
+              <Select value={internUserId} onValueChange={handleInternChange}>
+                <SelectTrigger id="specialization-intern" data-test="specialization-intern-select">
+                  <SelectValue
+                    placeholder={candidatesLoading ? 'Loading interns...' : 'Select an intern'}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {candidates.map((candidate) => (
+                    <SelectItem
+                      key={candidate.user?._id}
+                      value={candidate.user?._id}
+                      disabled={!candidate.declaredPosition}
+                      data-test={`specialization-intern-option-${candidate.user?._id}`}
+                    >
+                      {candidate.user?.fullname || 'Unknown'}
+                      {!candidate.declaredPosition ? ' (no position declared yet)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {selectedIntern && (

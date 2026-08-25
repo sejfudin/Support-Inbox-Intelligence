@@ -224,7 +224,7 @@ describe('partitionPickerCandidates', () => {
       {
         internProfile: 'profile-1',
         eligibility: 'warned',
-        flags: [{ type: 'placed', projects: ['Borealis'] }],
+        flags: [{ type: 'placed', projects: ['Borealis'], unknownProject: false }],
       },
     ]);
   });
@@ -233,7 +233,9 @@ describe('partitionPickerCandidates', () => {
     const { warned } = partitionPickerCandidates([
       candidate({ recommendations: [onProject(BOREALIS)] }),
     ]);
-    expect(warned[0].flags).toEqual([{ type: 'in-selection', projects: ['Borealis'] }]);
+    expect(warned[0].flags).toEqual([
+      { type: 'in-selection', projects: ['Borealis'], unknownProject: false },
+    ]);
   });
 
   // The picker is scoped to one project, so being in selection for that same
@@ -252,7 +254,9 @@ describe('partitionPickerCandidates', () => {
         recommendations: [onProject(BOREALIS), onProject(BOREALIS), onProject(KESTREL)],
       }),
     ]);
-    expect(warned[0].flags).toEqual([{ type: 'in-selection', projects: ['Borealis', 'Kestrel'] }]);
+    expect(warned[0].flags).toEqual([
+      { type: 'in-selection', projects: ['Borealis', 'Kestrel'], unknownProject: false },
+    ]);
   });
 
   it('carries both flags for an intern who is placed and in selection elsewhere', () => {
@@ -266,8 +270,37 @@ describe('partitionPickerCandidates', () => {
       }),
     ]);
     expect(warned[0].flags).toEqual([
-      { type: 'placed', projects: ['Kestrel'] },
-      { type: 'in-selection', projects: ['Borealis'] },
+      { type: 'placed', projects: ['Kestrel'], unknownProject: false },
+      { type: 'in-selection', projects: ['Borealis'], unknownProject: false },
+    ]);
+  });
+
+  // Two nulls are neither equal nor different — `projectNames` can't name an
+  // unknown project, but the conflict still has to surface rather than
+  // silently vanish because there was nothing to name.
+  it('warns about an intern already in selection for an unknown project, without a name', () => {
+    const { warned } = partitionPickerCandidates([
+      candidate({ recommendations: [onProject(null)] }),
+    ]);
+    expect(warned[0].flags).toEqual([{ type: 'in-selection', projects: [], unknownProject: true }]);
+  });
+
+  it('warns about an intern already placed on an unknown project, without a name', () => {
+    const { warned } = partitionPickerCandidates([
+      candidate({
+        status: 'placed',
+        recommendations: [onProject(null, { status: 'resulted', result: { outcome: 'placed' } })],
+      }),
+    ]);
+    expect(warned[0].flags).toEqual([{ type: 'placed', projects: [], unknownProject: true }]);
+  });
+
+  it('names the known projects and flags the unknown one when both are present', () => {
+    const { warned } = partitionPickerCandidates([
+      candidate({ recommendations: [onProject(BOREALIS), onProject(null)] }),
+    ]);
+    expect(warned[0].flags).toEqual([
+      { type: 'in-selection', projects: ['Borealis'], unknownProject: true },
     ]);
   });
 

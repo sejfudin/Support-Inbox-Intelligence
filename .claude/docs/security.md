@@ -267,6 +267,19 @@ endpoint is unaffected (stays intern-writable). Reassign/change-mentor/clear add
 `loadSpecializedProfile` if the target intern has no specialization to manage — there's no way to
 reach these mutations for an unspecialized intern even with a crafted request.
 
+Primary mentor transfer. `PATCH /api/interns/:userId/primary-mentor`
+(`internService.js#transferPrimaryMentor`) carries only `protect` at the route — role and self-scope
+are both enforced in the service, same idiom as `updateIntern` next to it. Self-scoped by design:
+the caller must be `ROLES.ADMIN` **and** already be that intern's `primaryMentor` — an admin who
+isn't currently holding that role gets the same 403 a mentor editing someone else's intern would,
+even though every admin can otherwise read/write any intern. The target is validated via
+`assertActiveAdmin` (active, `role: admin`, not `isTestAccount`) — narrower than the general
+`primaryMentor` rule (`assertMentorUser`, admin or mentor), because this is platform responsibility
+for the intern moving between admins, not an ordinary mentor pairing. Also refuses a target that
+already holds `secondaryMentor` on that profile (`mentorSlotsCollide`, shared with
+`specializationRules.js`'s "must differ from primary mentor" check from the other direction) — the
+two mentor slots may never hold the same person.
+
 Attendance. `/api/attendance/me` (GET/POST/DELETE) is `requireRole(INTERN)` and always resolves the
 caller's **own** `InternProfile` — an intern can only ever read or write their own attendance. The
 roster `GET /api/attendance` is **admin-only** (`requireRole(ADMIN)`). The per-intern
@@ -280,6 +293,11 @@ of several guards `attendanceService.checkIn` applies before it writes anything:
 date, a status an approval already wrote for today, a cohort non-working day, then the weekend and
 the window. Each refuses with 422 and a reason. The client withdraws the button on the same set,
 but that is UX only — this is where it is decided.
+
+`GET /api/attendance/today` (the dashboard's "Attendance today" dialog) is admin-only
+(`requireRole(ADMIN)`) and platform-wide, not workspace- or mentor-scoped — it names every
+in-programme intern and says who is on sick leave today. Declared above `/:internProfileId` in
+`server/routes/attendance.js` so the id route cannot shadow it.
 
 Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/admin/entry` are
 `requireRole(ADMIN)`-guarded, cross-workspace reads (the workspace is passed explicitly via
@@ -432,7 +450,8 @@ same exception as `Project`/`Recommendation` above).
   `POST /:id/put-forward`) is **admin-only** at the route and re-asserted in
   `assertCanPutForward` — leadership files demand, admins answer it, and there is no author
   carve-out. Both routes also refuse a closed request and one that still needs its project; that
-  second refusal is structural, not cosmetic (`Recommendation.project` is required). The read is
+  second refusal is not about `Recommendation.project` being required (it isn't) — it's that the
+  request's own project is what pre-fills every recommendation a submit creates. The read is
   scoped to one requested position by **path segment**; the write is request-level and takes
   `{ groups: [{ positionId, internProfileIds }] }`, but the position is still never free — every
   group's `positionId` must be one the request actually asked for (`findRequestedPosition`, which
@@ -610,6 +629,25 @@ exactly like a real one, but never appear in a listing meant for real users.
   500. Keep both properties if you touch the validator.
 - Preferences are UI taste, not authorization. Nothing may read them to decide what a
   caller can see or do.
+- **The quick-action order is a preference like any other**, and that is the whole point:
+  it is a list of action keys written through the same self-only PATCH, so the subject
+  comes from the token and nobody can reorder anybody else's card. The keys are enum-checked
+  against `QUICK_ACTION_KEYS` because a stored value should be a real action, **not** because
+  the list grants anything — an order naming an action the account's role cannot see is junk
+  in a list, not an escalation.
+  - The catalog's `roles` field (`frontend/src/helpers/quickActions.js`) is a **display**
+    filter. It decides which rows are painted, and nothing more. Every action reaches its own
+    guarded route or mutation, so a row shown to the wrong role produces a 403, not a leak.
+    Do not add a role check to the preference write, and do not treat a filtered catalog as a
+    permission model.
+  - Two of those guards live in a service rather than on a route, which is what makes them
+    easy to get wrong from a catalog edit: `readinessFlagService.upsertReadinessFlag` refuses
+    anyone who is not an admin — an assigned mentor included — and `POST /api/recommendations`
+    is `requireRole(ADMIN)`. Evaluations and mentor notes are the shared ones, through
+    `canWriteMentorData` (admin or the assigned mentor).
+  - `null` for a preference **deletes** it (`buildUnset` → `$unset`). It is still the same
+    self-only subject and the same enum table; nothing about reset widens what a caller may
+    write, only what they may remove from their own record.
 - `PATCH /api/users/me/whats-new-seen` is the same shape again: the account comes from
   `req.user._id`, so one person can never mark another's tour read. What it stores is an
   opaque release string, so it is bounded (non-empty, trimmed, length-capped) rather than

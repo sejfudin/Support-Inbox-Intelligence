@@ -54,6 +54,11 @@ export const updateIntern = async (userId, payload) => {
   return data.intern;
 };
 
+export const transferInternPrimaryMentor = async (userId, newAdminId) => {
+  const { data } = await apiClient.patch(`/interns/${userId}/primary-mentor`, { newAdminId });
+  return data.intern;
+};
+
 export const updateInternDocumentationLinks = async (userId, links) => {
   const { data } = await apiClient.put(`/interns/${userId}/documentation-links`, { links });
   return data.intern;

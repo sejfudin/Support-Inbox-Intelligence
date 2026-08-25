@@ -12,6 +12,7 @@ import {
   nonWorkingKind,
   nonWorkingLabel,
   officeDateKey,
+  placementExemptKeySet,
 } from '@/helpers/attendance';
 import {
   dayStatusClass,
@@ -57,6 +58,9 @@ function LegendItem({ dotClass, label, Glyph }) {
  *     (remote | vacation | religious | sick). Remote days are already in `records`
  *     because they count; the three leave statuses are not in `records` at all,
  *     because they leave the denominator instead.
+ *   placementExemptions - `[{from, to}]` placements the intern has already come back
+ *     from. `placedAt` covers only the one they are on now, so without these the
+ *     calendar draws every day of a finished placement as an absence.
  *   observances - religious holidays to mark. Notices only: they change nothing
  *     about attendance, so they are drawn under the date rather than as a fill.
  */
@@ -69,12 +73,17 @@ export default function AttendanceCalendar({
   nonWorkingDays = [],
   startDate = null,
   requestedDays = {},
+  placementExemptions = [],
   observances = [],
 }) {
   const [cursor, setCursor] = useState(() =>
     initialMonth ? parseISO(`${initialMonth}-01`) : new Date()
   );
   const nonWorkingKeys = useMemo(() => nonWorkingKeySet(nonWorkingDays), [nonWorkingDays]);
+  const placementKeys = useMemo(
+    () => placementExemptKeySet(placementExemptions),
+    [placementExemptions]
+  );
   const { weeks, monthLabel } = useMemo(
     () =>
       buildMonthGrid(
@@ -84,9 +93,19 @@ export default function AttendanceCalendar({
         placedAt,
         nonWorkingKeys,
         startDate,
-        requestedDays
+        requestedDays,
+        placementKeys
       ),
-    [cursor, records, cancelledDates, placedAt, nonWorkingKeys, startDate, requestedDays]
+    [
+      cursor,
+      records,
+      cancelledDates,
+      placedAt,
+      nonWorkingKeys,
+      startDate,
+      requestedDays,
+      placementKeys,
+    ]
   );
 
   // One date can carry more than one observance — the two Easters coincide some

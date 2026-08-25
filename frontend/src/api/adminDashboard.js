@@ -10,7 +10,8 @@ import apiClient from './axios';
  * → {
  *     workspace: { name },
  *     presence: { presentToday, totalInterns, monthAttendanceRate,
- *                 checkInWindow: { label, endHour, state }, absentToday: [...] },
+ *                 checkInWindow: { label, endHour, state },
+ *                 today: [{ id, fullname, email, position, avatarUrl, status }] },
  *     lastPlacement: { intern, project, position, decidedAt, daysAgo, dayOfCycle } | null,
  *     recentPlacements: [ ...same shape ],
  *     recentSpecializations: [{ id, intern: { fullname }, specialization,

@@ -1,5 +1,8 @@
 import { cn } from '@/lib/utils';
-import { getRecommendationStatusLabel } from '@/helpers/recommendations';
+import {
+  getRecommendationStatusLabel,
+  recommendationProjectLabel,
+} from '@/helpers/recommendations';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
 import {
   MiniTimeline,
@@ -64,7 +67,9 @@ export function RecommendationCard({
             }}
             aria-hidden="true"
           />
-          <span className="[overflow-wrap:anywhere]">{recommendation.project?.name || '—'}</span>
+          <span className="[overflow-wrap:anywhere]">
+            {recommendationProjectLabel(recommendation)}
+          </span>
         </p>
         <p className="text-[11.5px] leading-[1.4] text-muted-foreground/75">
           {metaLine(recommendation, canWrite)}
@@ -156,7 +161,7 @@ export function RecommendationCompactRow({ recommendation, steps, positionName, 
             }}
             aria-hidden="true"
           />
-          {recommendation.project?.name || '—'}
+          {recommendationProjectLabel(recommendation)}
         </p>
       </div>
 

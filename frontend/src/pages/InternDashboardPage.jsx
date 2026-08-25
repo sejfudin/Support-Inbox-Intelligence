@@ -168,6 +168,7 @@ export default function InternDashboardPage() {
                     nonWorkingDays={attendance?.nonWorkingDays}
                     startDate={attendance?.startDate}
                     requestedDays={attendance?.requestedDays}
+                    placementExemptions={attendance?.placementExemptions}
                     onCheckIn={() => checkIn()}
                     isCheckingIn={isCheckingIn}
                   />

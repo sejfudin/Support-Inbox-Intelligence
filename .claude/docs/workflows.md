@@ -135,8 +135,7 @@ which is a _different_ cluster.
   notifications, intern profiles, attendance, dailies, recommendations, readiness flags,
   evaluations, mentor comments, integrations, invitations, AI summaries, refresh tokens, and
   non-system projects.
-- **Preserves**: hubs, internship types, technologies, positions, and the locked `unspecified`
-  project.
+- **Preserves**: hubs, internship types, technologies, and positions.
 
 ```bash
 npm run seed:demo -- --dry-run          # print the target + per-collection counts, change nothing
@@ -304,11 +303,28 @@ recognize technologies that already exist as `Technology` documents. Adding a te
 three files in one change: the catalog entry, its CV aliases in the matcher, and (optionally) a
 brand logo in `frontend/src/helpers/technologyIcons.jsx`.
 
+**Know which database you are seeding.** `.env.development`'s `MONGODB_URI` carries **no database
+name** (it ends `mongodb.net/?appName=Cluster0`) and `config/db.js` passes no `dbName`, so Mongoose
+falls back to its default and both the API and every seeder land in a database literally called
+`test` on the dev cluster. That is the database `npm run dev` serves and the one `/my-technologies`
+reads — it only looks like a stray. The banner every seeder prints is the thing to trust.
+
 **Check what is already there before seeding.** The catalog drifts per environment (admins can
-create technologies, and retired rows stay behind), so the number added is not the same
-everywhere and the database row count can exceed the catalog — `taskmanager_dev` holds 95 rows
-against the 94 in `defaultTechnologies.js`, the extra being the retired `html-css`. Read the
-`--dry-run` list, and watch for existing rows that overlap an incoming one.
+create technologies, and retired rows stay behind), so the number added is not the same everywhere
+and the database row count can exceed the catalog. As of the 302-entry expansion the dev database
+holds 306 rows: the catalog plus four **active** discipline rows — `devops`, `data-engineering`,
+`data-science`, `machine-learning` — that duplicate Position titles and were never retired there.
+`createTechnology` blocks new ones (`assertNotAPosition`), but the existing four still show in the
+intern's picker; `npm run cleanup:discipline-technologies` is what retires them, and eight intern
+declarations hang off three of them. Read the `--dry-run` list, and watch for existing rows that
+overlap an incoming one.
+
+**The catalog is 302 entries and was 90 until recently.** It grew in one change that added the
+Design & UX, Security, Game development and Embedded & hardware groups, because
+`seeder/defaultPositions.js` names those four tracks and the catalog held nothing an intern on
+any of them could declare. Any environment seeded before that is ~212 rows behind, so
+`seed:technologies` has real work to do everywhere — expect a long `--dry-run` list rather than
+the handful the earlier wording implies.
 
 ### `npm run cleanup:superseded-technologies`
 
@@ -443,6 +459,9 @@ to date with the current model set:
    so the sentinel that step creates gets typed too.
 5. `cleanup:ready-for-placement` — removes the orphaned `readyForPlacement` boolean now that
    `InternProfile.status` covers the same concept via the `ready` value.
+6. `migrate:remove-unspecified-sentinel` — `Recommendation.project` is no longer required;
+   repoints any recommendation still pointing at the locked "Unspecified" sentinel to `null`, then
+   deletes the sentinel. Runs after steps 2 and 4, which both depend on the sentinel still existing.
 
 ```bash
 npm run migrate:development-merge

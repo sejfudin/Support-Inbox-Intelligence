@@ -9,8 +9,13 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { ROLES } = require('../constants/roles');
 const { escapeRegex } = require('../helpers/escapeRegex');
-const { placementExemptionDate } = require('../helpers/attendanceStats');
+const { placementExemptionDate, closePlacementExemption } = require('../helpers/attendanceStats');
 const { selectCloseOutRecommendations } = require('../helpers/staffingRequestRules');
+const {
+  assertProjectFieldAsserted,
+  assertCanEditProject,
+  PROJECT_TO_BE_CONFIRMED_LABEL,
+} = require('../helpers/recommendationProjectRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const historyService = require('./historyService');
@@ -186,10 +191,11 @@ const ensurePositionId = async (positionId) => {
   return positionId;
 };
 
+// `null` is a legal, deliberate value here — "project not known yet". Callers
+// that must not accept an omitted field call `assertProjectFieldAsserted`
+// first; this only validates a non-null value against the reference data.
 const ensureProjectId = async (projectId) => {
-  if (!projectId) {
-    throw httpError('Project is required', 400);
-  }
+  if (projectId === null) return null;
 
   assertValidObjectId(projectId, 'Project');
 
@@ -508,6 +514,11 @@ const createRecommendation = async (user, payload = {}) => {
     throw httpError('A new recommendation must start as Recommended', 400);
   }
   const position = await ensurePositionId(payload.positionId);
+  try {
+    assertProjectFieldAsserted(payload.projectId);
+  } catch (error) {
+    throw httpError(error.message, 400);
+  }
   const project = await ensureProjectId(payload.projectId);
   const technologies = await ensureTechnologyIds(payload.technologyIds);
   const interviews = normalizeInterviews(payload.interviews || []);
@@ -572,6 +583,11 @@ const createRecommendationsForStaffingRequest = async (
   { groups = [], projectId, staffingRequestId }
 ) => {
   assertRecommendationWriteAccess(user);
+  try {
+    assertProjectFieldAsserted(projectId);
+  } catch (error) {
+    throw httpError(error.message, 400);
+  }
 
   const recommendedAt = new Date();
   const pending = groups.flatMap(({ positionId, internProfileIds, technologyIds = [] }) =>
@@ -787,7 +803,9 @@ const returnInternsToBench = async (internProfileIds) => {
 
   for (const profile of profiles) {
     profile.status = READY_STATUS;
-    profile.placedAt = null;
+    // Records the stretch they were away before lifting the exemption — clearing
+    // `placedAt` alone would reopen those days as absences they never owed.
+    Object.assign(profile, closePlacementExemption(profile));
     await profile.save();
   }
 };
@@ -890,7 +908,17 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
   }
 
   if (payload.projectId !== undefined) {
-    recommendation.project = await ensureProjectId(payload.projectId);
+    const nextProjectId = await ensureProjectId(payload.projectId);
+    try {
+      assertCanEditProject({
+        status: previousStatus,
+        currentProjectId: recommendation.project,
+        nextProjectId,
+      });
+    } catch (error) {
+      throw httpError(error.message, 400);
+    }
+    recommendation.project = nextProjectId;
   }
 
   if (payload.technologyIds !== undefined) {
@@ -974,8 +1002,11 @@ const updateRecommendation = async (user, recommendationId, payload = {}) => {
     // untouched — each recommendation is resolved individually by the mentor.
   } else if (outcome === 'not_placed' && ['active', 'placed'].includes(profile.status)) {
     profile.status = READY_STATUS;
-    // Back on the bench: they owe attendance again, so the exemption is lifted.
-    profile.placedAt = null;
+    // Back on the bench: they owe attendance again, so the exemption is lifted —
+    // but only from today. The stretch they already spent on the project is closed
+    // out and stays exempt, or undoing the placement would bill them for every day
+    // of it.
+    Object.assign(profile, closePlacementExemption(profile));
     await profile.save();
   }
 
@@ -1058,7 +1089,12 @@ const deleteRecommendation = async (user, recommendationId) => {
     if (profile.status !== nextStatus || !sameInstant(profile.placedAt, nextPlacedAt)) {
       const previousStatus = profile.status;
       profile.status = nextStatus;
-      profile.placedAt = nextPlacedAt;
+      // Losing the exemption closes the stretch it covered; gaining or moving one
+      // is a straight re-derive. Same reason as everywhere else: the days already
+      // spent on the project were owed by nobody, and deleting the paperwork does
+      // not turn them into absences.
+      if (nextPlacedAt) profile.placedAt = nextPlacedAt;
+      else Object.assign(profile, closePlacementExemption(profile));
       await profile.save();
 
       if (nextStatus !== previousStatus) {
@@ -1106,7 +1142,11 @@ const formatOwnRecommendation = (recommendation, historyDates = {}) => {
       resulted: dates.resulted || null,
     },
     position: recommendation.position?.name || '',
-    project: recommendation.project?.name || '',
+    // `recommendation.project` is populated by `listOwnRecommendations` above,
+    // so a `null` here means the project genuinely isn't known yet, not a
+    // failed populate. An intern reads this as a stated fact about the
+    // record, never a blank field.
+    project: recommendation.project?.name || PROJECT_TO_BE_CONFIRMED_LABEL,
     technologies: (recommendation.technologies || []).map((tech) => ({
       id: tech._id,
       name: tech.name,
