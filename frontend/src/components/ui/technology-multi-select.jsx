@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronsUpDown, Plus, Search, X } from 'lucide-react';
+import { Check, ChevronsUpDown, Plus, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
 
@@ -100,23 +100,21 @@ export function TechnologyMultiSelect({
     [selectedIds, technologies]
   );
 
-  // Only show technologies not already picked — selecting one removes it from
-  // the pool; removal returns it to the pool.
+  // Picked technologies stay in the list (checked) instead of disappearing —
+  // removing a row shifts every row below it, which throws off your scroll
+  // position after each pick in a long list. Search still narrows the list;
+  // only that should move rows around.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return technologies.filter(
-      (technology) =>
-        !selectedIds.includes(technology._id) && (!q || technology.name.toLowerCase().includes(q))
-    );
-  }, [query, technologies, selectedIds]);
+    if (!q) return technologies;
+    return technologies.filter((technology) => technology.name.toLowerCase().includes(q));
+  }, [query, technologies]);
 
-  const add = (technologyId) => {
-    if (!selectedIds.includes(technologyId)) onChange([...selectedIds, technologyId]);
-    // Picking an item shrinks the filtered pool — re-anchor at the top rather
-    // than risk pointing past the new end of the list.
-    setHighlightedIndex(0);
-  };
   const remove = (technologyId) => onChange(selectedIds.filter((id) => id !== technologyId));
+  const toggle = (technologyId) => {
+    if (selectedIds.includes(technologyId)) remove(technologyId);
+    else onChange([...selectedIds, technologyId]);
+  };
 
   const handleQueryChange = (value) => {
     setQuery(value);
@@ -155,11 +153,14 @@ export function TechnologyMultiSelect({
 
   // The trigger opens the dropdown below itself, but a trigger sitting near
   // the bottom of a scrollable dialog can leave it clipped/barely visible.
-  // A callback ref fires as soon as the node mounts, so this scrolls it into
-  // view (within whatever ancestor actually scrolls) without an effect.
-  const scrollDropdownIntoView = (node) => {
-    if (node) node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  };
+  // Scroll it into view (within whatever ancestor actually scrolls) once,
+  // when it opens — not a bare inline function passed as `ref`, which React
+  // treats as a new ref identity every render and re-fires on each keystroke
+  // or selection, fighting the list's own scroll position.
+  const dropdownRef = useRef(null);
+  useEffect(() => {
+    if (open) dropdownRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [open]);
 
   const handleSearchKeyDown = (event) => {
     if (event.key === 'ArrowDown') {
@@ -173,13 +174,13 @@ export function TechnologyMultiSelect({
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const technology = filtered[highlightedIndex];
-      if (technology) add(technology._id);
+      if (technology) toggle(technology._id);
     }
   };
 
   const dropdown = open && (
     <div
-      ref={scrollDropdownIntoView}
+      ref={dropdownRef}
       className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-[var(--r-card)] border border-border bg-popover shadow-lg"
     >
       <div className="flex items-center gap-2 border-b border-border px-3">
@@ -198,28 +199,33 @@ export function TechnologyMultiSelect({
       <div className="max-h-[240px] overflow-y-auto overscroll-contain p-1">
         {filtered.length === 0 && (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">
-            {selectedIds.length === technologies.length
-              ? 'All technologies added.'
-              : 'No technologies found.'}
+            No technologies found.
           </p>
         )}
-        {filtered.map((technology, index) => (
-          <button
-            key={technology._id}
-            type="button"
-            onClick={() => add(technology._id)}
-            onMouseEnter={() => setHighlightedIndex(index)}
-            className={cn(
-              'flex w-full items-center gap-2.5 rounded-[var(--r-control)] px-2.5 py-2 text-left text-sm text-foreground transition',
-              index === highlightedIndex ? 'bg-secondary' : 'hover:bg-secondary'
-            )}
-            data-test={`technology-multi-select-option-${technology.slug}`}
-          >
-            <TechnologyIcon technology={technology} size={16} className="shrink-0" />
-            <span className="flex-1 truncate">{technology.name}</span>
-            <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
-        ))}
+        {filtered.map((technology, index) => {
+          const isSelected = selectedIds.includes(technology._id);
+          return (
+            <button
+              key={technology._id}
+              type="button"
+              onClick={() => toggle(technology._id)}
+              onMouseEnter={() => setHighlightedIndex(index)}
+              className={cn(
+                'flex w-full items-center gap-2.5 rounded-[var(--r-control)] px-2.5 py-2 text-left text-sm text-foreground transition',
+                index === highlightedIndex ? 'bg-secondary' : 'hover:bg-secondary'
+              )}
+              data-test={`technology-multi-select-option-${technology.slug}`}
+            >
+              <TechnologyIcon technology={technology} size={16} className="shrink-0" />
+              <span className="flex-1 truncate">{technology.name}</span>
+              {isSelected ? (
+                <Check className="h-4 w-4 shrink-0 text-primary" />
+              ) : (
+                <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
