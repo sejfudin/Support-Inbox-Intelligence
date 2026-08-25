@@ -188,17 +188,22 @@ export function SearchableSelect({
             {results.map((item) => {
               const key = getKey(item);
               const picked = isSelected?.(item);
+              // `selectByKey` already no-ops a click while `busy` — this just makes
+              // the row look like what it is, instead of staying hoverable/clickable
+              // while a save from the previous pick is still in flight (easy to hit
+              // now that `keepOpenOnSelect` invites picking several in a row).
+              const rowDisabled = picked || busy;
               return (
                 <div
                   key={key}
                   role="button"
-                  tabIndex={picked ? -1 : 0}
-                  aria-disabled={picked || undefined}
+                  tabIndex={rowDisabled ? -1 : 0}
+                  aria-disabled={rowDisabled || undefined}
                   data-item-key={String(key)}
                   data-test={getItemDataTest?.(item)}
                   className={cn(
                     'flex items-center justify-between gap-2 px-4 py-2.5 text-sm outline-none first:rounded-t-xl last:rounded-b-xl',
-                    picked
+                    rowDisabled
                       ? 'cursor-default text-muted-foreground'
                       : 'cursor-pointer hover:bg-muted/50 focus:bg-muted/50'
                   )}
