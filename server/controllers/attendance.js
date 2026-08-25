@@ -40,6 +40,15 @@ exports.getRoster = async (req, res, next) => {
   }
 };
 
+exports.getToday = async (req, res, next) => {
+  try {
+    const today = await attendanceService.getTodayAttendance();
+    res.json({ success: true, message: "Today's attendance retrieved", data: today });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
 exports.getInternAttendance = async (req, res, next) => {
   try {
     const attendance = await attendanceService.getInternAttendance(

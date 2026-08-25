@@ -38,7 +38,15 @@ const sortTechnologiesByReadiness = (technologyList, flagMap) =>
     return a.name.localeCompare(b.name);
   });
 
-export function InternReadinessPanel({ userId, declaredTechnologies = [], readOnly = false }) {
+// `className` lands on the panel shell so a caller can flatten it — the
+// dashboard's "Update readiness" dialog renders this same panel without its card
+// chrome. Same escape hatch `InternPanel` already documents for `data-tour`.
+export function InternReadinessPanel({
+  userId,
+  declaredTechnologies = [],
+  readOnly = false,
+  className,
+}) {
   const { user } = useAuth();
   const canWrite = !readOnly && user?.role === ROLES.ADMIN;
   const { data: flags = [], isPending: isPendingRaw } = useInternReadiness(userId);
@@ -75,7 +83,7 @@ export function InternReadinessPanel({ userId, declaredTechnologies = [], readOn
   };
 
   return (
-    <InternPanel dense>
+    <InternPanel dense className={className}>
       <h3 className="app-card-title">Readiness by technology</h3>
       <p className="mt-0.5 text-[12.5px] text-muted-foreground">
         Mentor-assessed readiness for client placement tracks.

@@ -6,14 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -25,6 +17,7 @@ import {
   TechnologyViewChips,
 } from '@/components/ui/technology-multi-select';
 import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge';
+import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import {
   ReferenceDataPanel,
   referenceDataActionClass,
@@ -33,7 +26,7 @@ import { CHIP } from '@/helpers/badgeTones';
 import { PROJECT_TYPES } from '@/helpers/projects';
 import { cn } from '@/lib/utils';
 import { useTechnologies } from '@/queries/technologies';
-import { useCreateProject, useProjects, useUpdateProject } from '@/queries/projects';
+import { useProjects, useUpdateProject } from '@/queries/projects';
 import PanelBodySkeleton from '@/components/Skeletons/PanelBodySkeleton';
 import { useLoaderHold } from '@/components/ui/loader';
 
@@ -127,15 +120,6 @@ function ProjectTypeSelect({ id, value, onChange }) {
     </Select>
   );
 }
-
-const emptyForm = {
-  name: '',
-  description: '',
-  client: '',
-  type: '',
-  status: 'active',
-  technologyIds: [],
-};
 
 const formFromProject = (project) => ({
   name: project.name || '',
@@ -351,13 +335,11 @@ export function ReferenceDataProjectsPanel() {
   // Gated so the overlay mark and the skeleton rows keep the app's one loading rhythm.
   const showLoader = useLoaderHold(isPending, { release: isError });
   const { data: technologies = [] } = useTechnologies();
-  const createMutation = useCreateProject();
   const updateMutation = useUpdateProject();
 
   const [view, setView] = useState('list'); // 'list' | 'project'
   const [selectedId, setSelectedId] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState(emptyForm);
 
   const selectedProject = projects.find((project) => project._id === selectedId) || null;
 
@@ -369,25 +351,6 @@ export function ReferenceDataProjectsPanel() {
     () => [...projects].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     [projects]
   );
-
-  const openCreate = () => {
-    setCreateForm(emptyForm);
-    setCreateOpen(true);
-  };
-
-  const handleCreateSubmit = async (event) => {
-    event.preventDefault();
-    const toastId = toast.loading('Creating project...');
-    try {
-      await createMutation.mutateAsync(createForm);
-      toast.dismiss(toastId);
-      toast.success('Project created');
-      setCreateOpen(false);
-    } catch (error) {
-      toast.dismiss(toastId);
-      toast.error(error.response?.data?.message || 'Failed to create project');
-    }
-  };
 
   const handleEditSave = async (form) => {
     const toastId = toast.loading('Saving project...');
@@ -425,7 +388,7 @@ export function ReferenceDataProjectsPanel() {
         action={
           <Button
             type="button"
-            onClick={openCreate}
+            onClick={() => setCreateOpen(true)}
             className={referenceDataActionClass}
             data-test="platform-management-projects-add-button"
           >
@@ -458,79 +421,13 @@ export function ReferenceDataProjectsPanel() {
         )}
       </ReferenceDataPanel>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent data-test="platform-management-projects-create-dialog">
-          <DialogHeader>
-            <DialogTitle>New project</DialogTitle>
-            <DialogDescription>Add a client engagement to this workspace.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="project-create-name">Title</Label>
-              <Input
-                id="project-create-name"
-                value={createForm.name}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g. Northwind billing platform"
-                required
-                data-test="platform-management-projects-name-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="project-create-type">Project type</Label>
-              <ProjectTypeSelect
-                id="project-create-type"
-                value={createForm.type}
-                onChange={(type) => setCreateForm((prev) => ({ ...prev, type }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="project-create-description">Description</Label>
-              <Textarea
-                id="project-create-description"
-                value={createForm.description}
-                onChange={(e) =>
-                  setCreateForm((prev) => ({ ...prev, description: e.target.value }))
-                }
-                placeholder="What is the client trying to achieve, the scope, and the outcome you're aiming for…"
-                rows={4}
-                data-test="platform-management-projects-description-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="project-create-client">Client</Label>
-              <Input
-                id="project-create-client"
-                value={createForm.client}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, client: e.target.value }))}
-                placeholder="Client or company name"
-                data-test="platform-management-projects-client-input"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Technologies</Label>
-              <TechnologyMultiSelect
-                technologies={technologies}
-                selectedIds={createForm.technologyIds}
-                onChange={(technologyIds) => setCreateForm((prev) => ({ ...prev, technologyIds }))}
-                variant="box"
-              />
-            </div>
-            <DialogFooter>
-              {/* The type dropdown starts empty on purpose (see ProjectTypeSelect),
-                  so the admin can reach here without having picked one. */}
-              <Button
-                type="submit"
-                disabled={!createForm.type}
-                data-test="platform-management-projects-save-button"
-              >
-                <Plus className="mr-1.5 h-4 w-4" />
-                Create project
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* The same dialog the dashboard's "Add project" quick action opens — one
+          create form, one mutation. See `components/projects/NewProjectDialog`. */}
+      <NewProjectDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        dataTestPrefix="platform-management-projects"
+      />
     </>
   );
 }

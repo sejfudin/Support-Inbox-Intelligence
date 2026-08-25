@@ -433,11 +433,97 @@ const getInternAttendance = async (actor, internProfileId, month) => {
   };
 };
 
+/**
+ * Today, for every intern in the programme — the dashboard's "Attendance today"
+ * dialog.
+ *
+ * **Deliberately global**, unlike the admin dashboard's own presence card: the
+ * question this answers is "who is in today", and an intern is in the office or
+ * not regardless of which workspace's board an admin happens to be looking at.
+ * Same set as the roster (`IN_PROGRAMME_STATUSES`) and the same reasoning — a
+ * placed, completed or discontinued intern owes no attendance, so a state for
+ * them would be noise.
+ *
+ * Every state is reported by name rather than folded into present/absent, because
+ * they are not the same fact and an admin acts differently on each:
+ *
+ * - `present` — checked in.
+ * - `remote` — an approved work-from-home day. Counts as attended, so it is not
+ *   absence, but it is also not "in the office".
+ * - `vacation` / `religious` / `sick` — approved leave. Neither present nor
+ *   absent: chasing somebody whose day off you signed is the exact mistake this
+ *   split exists to prevent.
+ * - `not-started` — their start date is in the future, so today is not a day they
+ *   owe. Reported rather than hidden, so nobody wonders where they went.
+ * - `absent` — owed today, nothing recorded.
+ *
+ * `nonWorkingDay` rides along because on a cohort holiday nobody owes anything
+ * and a screen full of "absent" would otherwise read as a catastrophe.
+ */
+const getTodayAttendance = async () => {
+  const date = officeDateKey(new Date());
+
+  const profiles = (
+    await InternProfile.find({ status: { $in: IN_PROGRAMME_STATUSES } })
+      .populate({
+        path: 'user',
+        select: userSelect('hub'),
+        populate: { path: 'hub', select: 'name' },
+      })
+      .populate('declaredPosition', 'name')
+      .lean()
+  ).filter((profile) => profile.user); // drop orphaned profiles, as the roster does
+
+  const rows = profiles.length
+    ? await Attendance.find({
+        intern: { $in: profiles.map((profile) => profile._id) },
+        date,
+      }).lean()
+    : [];
+
+  const statusByIntern = new Map(
+    rows
+      // A cancelled row is a check-in the intern took back, so it means "no
+      // record", not a state of its own.
+      .filter((row) => row.status !== CANCELLED)
+      .map((row) => [row.intern.toString(), row.status])
+  );
+
+  const nonWorking = await loadNonWorkingDays();
+  const holiday = nonWorking.list.find((entry) => entry.date === date) || null;
+
+  const interns = profiles
+    .map((profile) => {
+      const recorded = statusByIntern.get(profile._id.toString());
+      const notStarted = profile.startDate && officeDateKey(profile.startDate) > date;
+
+      return {
+        id: profile.user._id,
+        fullname: profile.user.fullname || '',
+        email: profile.user.email || '',
+        avatarUrl: profile.user.avatarUrl || null,
+        position: profile.declaredPosition?.name || '',
+        hub: profile.user.hub?.name || '',
+        status: recorded || (notStarted ? 'not-started' : 'absent'),
+      };
+    })
+    .sort((a, b) => a.fullname.localeCompare(b.fullname));
+
+  return {
+    date,
+    label: officeDateLabel(new Date()),
+    nonWorkingDay: holiday,
+    isWeekend: isOfficeWeekend(new Date()),
+    interns,
+  };
+};
+
 module.exports = {
   getMyAttendance,
   checkIn,
   cancelCheckIn,
   getRoster,
+  getTodayAttendance,
   getInternAttendance,
   // Exported for remoteWorkService, which anchors requests on the same profile
   // this module does. One-directional: nothing here reaches back into it.

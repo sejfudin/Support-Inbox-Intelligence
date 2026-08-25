@@ -68,13 +68,17 @@ function NoteAvatar({ user, name }) {
  * the only bulk action left is "Admins only" (clear to empty), which narrows the
  * audience rather than widening it to a role.
  *
+ * Exported because the dashboard's "Write a note" dialog composes the same note
+ * against the same two fields. One audience control, one set of rules about who a
+ * note can reach — a second copy is how the two drift.
+ *
  * The intern themselves is a separate, pinned toggle above the staff list, not
  * one more checkbox in it: picking them isn't "share with a colleague", it's the
  * author's write-time choice to let the note's subject read this specific note
  * (`visibleToIntern` on the model) — a different field from `visibleTo`, kept
  * that way so a future "select all" on the staff list can never touch it.
  */
-function SharedWithMenu({
+export function SharedWithMenu({
   viewers,
   visibleTo,
   onToggle,

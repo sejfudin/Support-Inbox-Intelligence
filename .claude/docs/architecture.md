@@ -284,6 +284,29 @@ two browsers changing two different preferences do not clobber each other.
   it, and its frontend twin is the preference table in `src/context/ThemeConfigContext.jsx`
   (`DOM_PREFERENCES` + `VALUE_PREFERENCES`, joined into the exported `ACCOUNT_PREFERENCES`). A new
   preference costs a row in each; nothing else enumerates them.
+- **Two halves to that table.** `USER_PREFERENCE_DEFINITIONS` holds the single-valued preferences
+  (one enum, one default). `USER_LIST_PREFERENCE_DEFINITIONS` holds the list-valued ones — muted
+  notification groups, and the quick-action order — each an enum for its *members*. Both halves are
+  read by the model, `buildUpdate` and `DEFAULT_USER_PREFERENCES`, so a list preference costs a row
+  rather than a branch. Every list is validated against its enum and de-duplicated, which is
+  also what bounds its length: a list of unique members from a fixed enum cannot outgrow the enum.
+- **A list preference stores keys, never a resolved list**, so a retired member is ignored on read
+  and a renamed label costs nothing. What *absence* means is per preference: an unmuted notification
+  group defaults to "on", while an action missing from a five-slot quick-action selection stays off
+  the card — five picks were deliberate, and evicting one for a newcomer would be worse than not
+  showing it.
+- **Three states, not two, for the quick-action selection.** Key absent = never chosen (show the
+  shipped default); stored `[]` = chose to have none; stored list = chose these. The client cache is
+  one string, so the empty selection needs a sentinel (`'none'`): `readStoredPreference` reads an
+  empty cached string as "nothing cached" and hands back the fallback, which would make removing the
+  last action snap the default back and read as a bug.
+- **`maxLength` on a list preference** bounds it more tightly than its enum does — the quick-action
+  selection is capped at five because that is what the card has room for.
+- **A preference sent as `null` is deleted, not written.** `buildUnset` turns it into a `$unset`,
+  and the PATCH carries `$set` and `$unset` together. Reset therefore means "as shipped" rather
+  than "pinned to today's default" — the same reasoning as `AbsenceRequestSettings`, which stores
+  only differences. On the client, the quick-actions row maps the empty cached string to `null` for
+  exactly this.
 - **Not every preference is account-level.** `PREFERENCE_SCOPE.DEVICE` marks the rows that stay in
   the browser: UI scale (a function of screen size, not taste) and the desktop-notification switch
   (`notify-desktop` — browser notification permission is granted per browser per device, so a
@@ -1051,8 +1074,68 @@ The admin landing board: one workspace at a time — the caller's **active** wor
   can read "1 intern" in the table and "0 / 3 notes in" on the standup card. Fixing it means
   filtering `getWorkspaceDailyOverview`'s roster to in-programme interns, which also changes the
   existing Daily Insights page — deliberately left alone.
+- **The quick actions are one catalog, selected per account.** `frontend/src/helpers/quickActions.js`
+  holds every action for every role that has a card (`roles` per entry) plus the pure functions that
+  turn a stored selection into rows; `components/admin/dashboard/QuickActionsCard.jsx` only draws
+  them. An action is one of three kinds — `to` (navigate), `opens` (the page's single `openAction`
+  state raises a modal), `pending` (says out loud that it is not built).
+  - **It is a selection, not a fold.** An account picks the actions it wants; the rest are simply
+    not on the dashboard, which is cheap because everything in the catalog is also in the sidebar.
+    `QUICK_ACTIONS_DEFAULT_COUNT` (5) is what a card opens with; `QUICK_ACTIONS_MAX` (5) is the
+    ceiling — the card is a rail card beside the standup, and more rows push that column past the
+    interns panel it is meant to end level with. The two constants must move together —
+    `frontend/src/helpers/quickActions.js` and its mirror in `server/constants/userPreferences.js`
+    (which feeds `maxLength`) — and everything downstream already reads the number: the editor's
+    counter and refusal, the client validation, the server's 400, and the tests, which pass a cap
+    explicitly so they pin both behaviours.
+  - **The card has no editor.** Which actions, and in what order, is
+    `components/settings/QuickActionsRows.jsx` — a Settings section with **two dnd-kit zones**: *On
+    your dashboard* (sortable, the card's order) and *Available* (the rest of the role's catalog).
+    Dragging across adds or removes, dragging inside the first orders, and `+` / `×` on each tile do
+    the same thing without a drag — cross-zone keyboard dragging works, but an operation only a drag
+    can perform is one some people cannot perform at all. The card stays a plain list of click
+    targets and its header links to Settings: every row there is a `Link` or a `button`, so an editor
+    sharing those rows means dnd-kit listeners fighting the click and swallowing Enter.
+  - **Collision detection is pointer-first** (`pointerWithin`, falling back to `closestCorners`).
+    Distance-based detection answers with the zone the tile is still *in* — its own container
+    surrounds it — so a drag from Available into the dashboard list landed on nothing at all: no
+    error, no move, a tile springing back. The fallback is not optional: a keyboard drag has no
+    pointer. Zones are droppable in their own right, or an empty one could never be dropped into.
+    Pointer activation is distance-6, keyboard reorder goes through a named grip, and the sortable
+    transition is dropped when the account's `motion` preference is `reduced`.
+  - **The stored value has three states, and they are not interchangeable** — see "UI preferences".
+    Absent means "never chosen", so the card shows the first five of the role's catalog and a later
+    change to that catalog still reaches everyone who has not chosen. A stored list means exactly
+    those, in that order: an action added later does **not** evict one of five deliberate picks. A
+    stored *empty* list means "no quick actions", and the card says so rather than quietly refilling.
+  - The cap, when armed, is enforced on both sides. The client's `isValidQuickActionOrder` refuses
+    to cache one over the limit (which is what stops the editor saving it), and `buildUpdate` refuses
+    the write with a 400 rather than truncating — storing five of six and reporting success would
+    leave the caller believing in a row nothing will ever draw. Both take the cap as an argument
+    defaulting to the constant, so the tests pin both behaviours whichever way it is currently set.
+  - **Two actions do not point where you would guess, and both learned it the hard way.**
+    *New workspace* goes to `/admin/workspaces?new=1`, **not** `/create-workspace`: that page is the
+    first-workspace flow and `AppRoutes.jsx` redirects an admin who already has one straight back to
+    the dashboard, so the action appeared to do nothing. *Attendance today* goes to
+    `/attendance?view=day`, because the By-day switcher is what starts on the current day. Both pages
+    seed a local UI state from the query string once, on mount, and the control owns it afterwards —
+    flipping back to Month does not fight the URL.
+  - **`roles` is a display filter, not authorization.** Every action's target keeps its own server
+    guard — see `.claude/docs/security.md`. Two rules there are enforced in a *service* rather than on
+    a route, so they are easy to get wrong from the catalog: readiness is admin-only
+    (`readinessFlagService.upsertReadinessFlag`) and so is creating a recommendation, while
+    evaluations and notes go through `canWriteMentorData` (admin **or** the assigned mentor).
+  - **Two-stage actions share one picker.** `PICKER_FLOWS` in `AdminDashboardPage.jsx` maps an action
+    to its copy and the form its pick opens; `InternPickerModal` takes `restrictToRecommendable`,
+    because "already placed / has left" disqualifies an intern from being *recommended* and from
+    nothing else — a note or a readiness assessment about them is legitimate.
+  - **The mentor's rows are declared but nothing renders them yet.** The mentor's `/dashboard` is
+    still `UserDashboard` (assigned tickets), so the card has nowhere to live; the rebuild mounts this
+    one instead of inventing a second list, and must supply a picker scoped to *its* interns.
 - **Not implemented**: the *Mark absence / excuse* quick action is a "Soon" placeholder — `Attendance`
-  has no write path for absence at all (absence is the lack of a check-in, and only interns check in).
+  has no write path for absence at all (absence is the lack of a check-in, and only interns check in),
+  and `POST /api/absence-requests/me` is intern-only too, so an admin cannot even file on someone's
+  behalf. It is deliberately the *only* pending row.
 
 ## Intern dashboard (self-scoped)
 
