@@ -83,6 +83,28 @@ describe('restrictProfileFilterToLiveUsers', () => {
       user: { $in: ['a'] },
     });
   });
+
+  // An operator clause cannot be intersected with a list of ids. Left to itself
+  // it would stringify to "[object Object]", match no live id, and collapse to
+  // `{ $in: [] }` — a filter returning nothing, with nothing to say why.
+  it.each([
+    ['$ne', { $ne: null }],
+    ['$nin', { $nin: ['a'] }],
+    ['$exists', { $exists: true }],
+  ])('refuses a %s user clause instead of silently matching nothing', async (_label, clause) => {
+    liveUsers('a', 'b');
+
+    await expect(restrictProfileFilterToLiveUsers({ user: clause })).rejects.toThrow(
+      /cannot narrow user clause/
+    );
+  });
+
+  it('refuses before reading the users collection', async () => {
+    liveUsers('a');
+
+    await expect(restrictProfileFilterToLiveUsers({ user: { $ne: null } })).rejects.toThrow();
+    expect(User.find).not.toHaveBeenCalled();
+  });
 });
 
 describe('excludeOrphanedProfileStages', () => {

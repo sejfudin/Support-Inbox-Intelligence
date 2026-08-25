@@ -32,6 +32,17 @@ const excludeOrphanedProfileStages = (userLocalField = 'user') => [
 ];
 
 /**
+ * Whether a `user` clause is a Mongo operator object rather than an id. Keyed on
+ * a leading `$`, so an ObjectId — an object too, but with no such key — reads as
+ * the plain id it is.
+ */
+const isOperatorClause = (clause) =>
+  typeof clause === 'object' &&
+  clause !== null &&
+  !Array.isArray(clause) &&
+  Object.keys(clause).some((key) => key.startsWith('$'));
+
+/**
  * The `find`-side counterpart: narrows a filter's `user` clause to users that
  * still exist, so the paged query and the `countDocuments` beside it agree.
  *
@@ -43,18 +54,33 @@ const excludeOrphanedProfileStages = (userLocalField = 'user') => [
  *
  * An empty `$in` is the natural "matches nothing" result, which is what a
  * caller asking only for deleted users should get.
+ *
+ * Any other operator clause (`{ $ne: ... }`, `{ $nin: [...] }`) throws. Those
+ * cannot be intersected with a list of ids, and the alternative is worse than an
+ * error: the clause stringifies to `"[object Object]"`, matches no live id, and
+ * collapses to `{ $in: [] }` — a filter that silently returns nothing at all.
+ * Failing loudly here beats an empty page nobody can explain.
  */
 const restrictProfileFilterToLiveUsers = async (profileFilter = {}) => {
+  const requested = profileFilter.user;
+  const isPlainId = requested === undefined || requested === null || !isOperatorClause(requested);
+
+  if (!isPlainId && !Array.isArray(requested.$in)) {
+    throw new Error(
+      `restrictProfileFilterToLiveUsers cannot narrow user clause ${JSON.stringify(requested)}. ` +
+        'Pass an id, a { $in: [...] }, or no user clause at all.'
+    );
+  }
+
   const liveUsers = await User.find({}).select('_id').lean();
   const liveIds = liveUsers.map((user) => user._id);
-  const requested = profileFilter.user;
 
   if (requested === undefined || requested === null) {
     return { ...profileFilter, user: { $in: liveIds } };
   }
 
   const live = new Set(liveIds.map(String));
-  const asked = Array.isArray(requested?.$in) ? requested.$in : [requested];
+  const asked = isPlainId ? [requested] : requested.$in;
   return { ...profileFilter, user: { $in: asked.filter((id) => live.has(String(id))) } };
 };
 
