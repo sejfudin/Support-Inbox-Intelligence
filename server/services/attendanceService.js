@@ -433,7 +433,6 @@ const getInternAttendance = async (actor, internProfileId, month) => {
   };
 };
 
-
 /**
  * Today, for every intern in the programme — the dashboard's "Attendance today"
  * dialog.

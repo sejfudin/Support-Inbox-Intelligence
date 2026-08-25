@@ -1022,16 +1022,13 @@ The admin landing board: one workspace at a time — the caller's **active** wor
   state raises a modal), `pending` (says out loud that it is not built).
   - **It is a selection, not a fold.** An account picks the actions it wants; the rest are simply
     not on the dashboard, which is cheap because everything in the catalog is also in the sidebar.
-    `QUICK_ACTIONS_DEFAULT_COUNT` (5) is what a card opens with; `QUICK_ACTIONS_MAX` is the ceiling.
-  - ⚠️ **`QUICK_ACTIONS_MAX` is currently `null` — no limit — and that is a temporary state, not the
-    design.** It was turned off so every action could be tested on a card one by one, and it **must go
-    back to `5` before this ships**: the card is a rail card beside the standup, and fifteen rows push
-    that column past the interns panel it is meant to end level with. Two lines re-arm it — the
-    constant in `frontend/src/helpers/quickActions.js` and its mirror in
-    `server/constants/userPreferences.js` (which feeds `maxLength`). Everything downstream is written
-    for a number already: the editor's counter and refusal, the client validation, the server's 400,
-    and the tests, which pass a cap explicitly so they pin both behaviours.
-    `grep -rn "QUICK_ACTIONS_MAX"` finds every site; `grep -rn "TODO(quick-actions)"` finds the notes.
+    `QUICK_ACTIONS_DEFAULT_COUNT` (5) is what a card opens with; `QUICK_ACTIONS_MAX` (5) is the
+    ceiling — the card is a rail card beside the standup, and more rows push that column past the
+    interns panel it is meant to end level with. The two constants must move together —
+    `frontend/src/helpers/quickActions.js` and its mirror in `server/constants/userPreferences.js`
+    (which feeds `maxLength`) — and everything downstream already reads the number: the editor's
+    counter and refusal, the client validation, the server's 400, and the tests, which pass a cap
+    explicitly so they pin both behaviours.
   - **The card has no editor.** Which actions, and in what order, is
     `components/settings/QuickActionsRows.jsx` — a Settings section with **two dnd-kit zones**: *On
     your dashboard* (sortable, the card's order) and *Available* (the rest of the role's catalog).

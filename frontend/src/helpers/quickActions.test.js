@@ -81,11 +81,11 @@ describe('isValidQuickActionOrder', () => {
     expect(isValidQuickActionOrder(keys.slice(0, 5).join(','), 5)).toBe(true);
   });
 
-  // Shipped state today: the cap is off, so the whole catalog is a legal choice.
-  it('accepts every action while the cap is off', () => {
-    expect(QUICK_ACTIONS_MAX).toBeNull();
+  // Shipped state: the cap is armed at 5, so the whole catalog is over it.
+  it('rejects the whole catalog against the shipped cap', () => {
+    expect(QUICK_ACTIONS_MAX).toBe(5);
     const everything = QUICK_ACTION_CATALOG.map((a) => a.key).join(',');
-    expect(isValidQuickActionOrder(everything)).toBe(true);
+    expect(isValidQuickActionOrder(everything)).toBe(false);
   });
 });
 
@@ -166,11 +166,11 @@ describe('resolveQuickActions', () => {
     expect(resolveQuickActions(six, ROLES.ADMIN, CATALOG, 5)).toHaveLength(5);
   });
 
-  // With the cap off, a selection of everything draws everything — which is the
-  // point of turning it off.
-  it('draws a selection of every action while the cap is off', () => {
+  // A selection over the cap is truncated to the cap, not rejected outright —
+  // `isValidQuickActionOrder` is what refuses it before it gets this far.
+  it('truncates a selection over the cap to the cap', () => {
     const six = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'];
-    expect(keysOf(resolveQuickActions(six, ROLES.ADMIN, CATALOG))).toEqual(six);
+    expect(keysOf(resolveQuickActions(six, ROLES.ADMIN, CATALOG))).toEqual(six.slice(0, 5));
   });
 });
 

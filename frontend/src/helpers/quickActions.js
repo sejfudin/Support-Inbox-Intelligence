@@ -226,31 +226,12 @@ export const QUICK_ACTION_CATALOG = Object.freeze([
   },
 ]);
 
-/* ==========================================================================
- * TODO(quick-actions): PUT THE CAP BACK TO 5 BEFORE THIS SHIPS.
- *
- * ⚠️  `QUICK_ACTIONS_MAX` is `null` — NO LIMIT — and that is **not** the intended
- *     behaviour. It was turned off deliberately and temporarily so that every
- *     action could be put on the card at once and tested one by one.
- *
- *     The dashboard card is a rail card beside the standup: **five rows is the
- *     design**, and an admin can currently pile all fifteen onto it, which will
- *     push the standup card down and break the two-column row that is meant to
- *     end level.
- *
- * TO RE-ARM IT — two lines, nothing else:
- *   1. here:   export const QUICK_ACTIONS_MAX = 5;
- *   2. server: `QUICK_ACTIONS_MAX` in `server/constants/userPreferences.js`
- *              (it feeds `maxLength`, which is what refuses an over-long PATCH).
- *
- * Everything downstream is already written for it and comes back on its own: the
- * editor's `n / 5` counter, its "Full — take one off to make room" hint, the
- * refusal toast on a sixth drop, this module's validation (which is what stops
- * the editor caching a sixth), and the server's 400. `grep -rn "QUICK_ACTIONS_MAX"`
- * finds every site. The tests pass a cap explicitly, so they pin both behaviours
- * and will not need editing either.
- * ========================================================================== */
-export const QUICK_ACTIONS_MAX = null;
+/**
+ * The dashboard card is a rail card beside the standup: five rows is the design.
+ * Keep this in sync with `QUICK_ACTIONS_MAX` in `server/constants/userPreferences.js`,
+ * which feeds `maxLength` and is what refuses an over-long PATCH.
+ */
+export const QUICK_ACTIONS_MAX = 5;
 
 /**
  * The list is a **selection** whether or not the cap is armed: an account picks

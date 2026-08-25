@@ -147,7 +147,7 @@ export function QuickActionsCard({ role, onAction, badges = {} }) {
         <h2 className="text-base font-semibold leading-6 text-foreground">Quick actions</h2>
 
         <Link
-          to="/settings"
+          to="/settings#quick-actions"
           className="inline-flex shrink-0 items-center gap-1 rounded-[var(--r-control)] px-1.5 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           data-test="admin-dashboard-actions-customize"
         >
@@ -162,7 +162,7 @@ export function QuickActionsCard({ role, onAction, badges = {} }) {
       {actions.length === 0 ? (
         <p className="mt-3 text-[12.5px] leading-5 text-muted-foreground">
           No quick actions chosen.{' '}
-          <Link to="/settings" className="font-semibold text-primary hover:underline">
+          <Link to="/settings#quick-actions" className="font-semibold text-primary hover:underline">
             Pick some in Settings
           </Link>
           .

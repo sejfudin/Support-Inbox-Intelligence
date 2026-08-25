@@ -62,15 +62,10 @@ describe('buildUpdate', () => {
     expect(() => buildUpdate({ quickActions: 'assign-ticket' })).toThrow(/must be an array/);
   });
 
-  // The cap is off today (`QUICK_ACTIONS_MAX === null`), deliberately and
-  // temporarily, so every action can be tested on the card at once. This asserts
-  // the state we are actually in rather than a cap that is not armed — and the
-  // `maxLength` mechanism it would use has its own test below.
-  it('accepts a selection of every action while the cap is off', () => {
-    expect(QUICK_ACTIONS_MAX).toBeNull();
-    expect(
-      buildUpdate({ quickActions: QUICK_ACTION_KEYS })['preferences.quickActions']
-    ).toHaveLength(QUICK_ACTION_KEYS.length);
+  // Shipped state: the cap is armed at 5, so the whole catalog is over it.
+  it('refuses a selection over the shipped cap', () => {
+    expect(QUICK_ACTIONS_MAX).toBe(5);
+    expect(() => buildUpdate({ quickActions: QUICK_ACTION_KEYS })).toThrow(/At most 5/);
   });
 
   it('counts members, not entries — a list that repeats itself is not too long', () => {

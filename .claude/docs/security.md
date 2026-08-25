@@ -281,6 +281,11 @@ date, a status an approval already wrote for today, a cohort non-working day, th
 the window. Each refuses with 422 and a reason. The client withdraws the button on the same set,
 but that is UX only — this is where it is decided.
 
+`GET /api/attendance/today` (the dashboard's "Attendance today" dialog) is admin-only
+(`requireRole(ADMIN)`) and platform-wide, not workspace- or mentor-scoped — it names every
+in-programme intern and says who is on sick leave today. Declared above `/:internProfileId` in
+`server/routes/attendance.js` so the id route cannot shadow it.
+
 Daily standup insights. `GET /api/dailies/admin/overview` and `GET /api/dailies/admin/entry` are
 `requireRole(ADMIN)`-guarded, cross-workspace reads (the workspace is passed explicitly via
 `?workspace=`, same admin-bypass `assertWorkspaceAccess` grants elsewhere in this file) — no

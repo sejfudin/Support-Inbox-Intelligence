@@ -80,24 +80,12 @@ const MUTED_NOTIFICATION_GROUP_VALUES = [
  * action the account's role cannot see is junk in a list, not an escalation —
  * every action's target keeps its own server guard.
  */
-/* ==========================================================================
- * TODO(quick-actions): PUT THIS BACK TO 5 BEFORE THIS SHIPS.
- *
- * ⚠️  `null` means NO LIMIT, and it is not the intended behaviour. It was turned
- *     off deliberately and temporarily so every action could be put on a
- *     dashboard card at once and tested one by one.
- *
- *     This is the **server half** of the cap and it is the half that matters: a
- *     limit only the client honours is a limit until somebody posts by hand.
- *     `buildUpdate` reads it as `maxLength` and refuses an over-long selection
- *     with a 400 rather than truncating.
- *
- *     Flip it together with `QUICK_ACTIONS_MAX` in
- *     `frontend/src/helpers/quickActions.js` — that file carries the full note.
- *     Nothing else needs editing: the service branch and its test are already
- *     written for a number.
- * ========================================================================== */
-const QUICK_ACTIONS_MAX = null;
+/**
+ * Server half of the cap: `buildUpdate` reads this as `maxLength` and refuses
+ * an over-long selection with a 400 rather than truncating. Keep in sync with
+ * `QUICK_ACTIONS_MAX` in `frontend/src/helpers/quickActions.js`.
+ */
+const QUICK_ACTIONS_MAX = 5;
 
 const QUICK_ACTION_KEYS = [
   'assign-ticket',

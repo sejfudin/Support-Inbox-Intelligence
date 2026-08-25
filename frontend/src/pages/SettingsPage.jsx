@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import {
   Accessibility,
@@ -242,6 +242,16 @@ function PaletteSwatch({ theme }) {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { hash } = useLocation();
+
+  // A route change doesn't scroll to its own `#hash` on its own — the dashboard
+  // card's "Customize" link relies on this to land on the actual section instead
+  // of just opening the page at the top.
+  useEffect(() => {
+    if (!hash) return;
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [hash]);
+
   const {
     density,
     uiScale,
@@ -487,6 +497,7 @@ export default function SettingsPage() {
             them. Widen this when the mentor dashboard lands. */}
         {hasQuickActions && (
           <SettingsSection
+            id="quick-actions"
             icon={Zap}
             title="Quick actions"
             description="The shortcut list on your dashboard — which ones, and in what order."
