@@ -101,7 +101,10 @@ export function InternTechnologyDeclaration({ className }) {
           <SearchableSelect
             items={allTechnologies}
             onSelect={addTechnology}
-            filter={(tech, q) => !declaredIds.has(tech._id) && tech.name.toLowerCase().includes(q)}
+            filter={(tech, q) => tech.name.toLowerCase().includes(q)}
+            isSelected={(tech) => declaredIds.has(tech._id)}
+            keepOpenOnSelect
+            openOnFocus
             renderItem={(tech) => (
               <span className="flex items-center gap-2 font-medium">
                 <TechnologyIcon technology={tech} size={16} className="shrink-0" />
