@@ -7,8 +7,12 @@ jest.mock('./groqAiClient', () => ({
   requestGroqOutputText: jest.fn().mockRejectedValue(new Error('AI unavailable')),
   extractJsonObject: jest.fn(),
 }));
+// `dispatch` asks whether the recipient is the deleted-user tombstone before it
+// writes anything. Mocked, or every test here reaches for the users collection.
+jest.mock('../repository/tombstoneUser', () => ({ isTombstoneUser: jest.fn() }));
 
 const Notification = require('../models/Notification');
+const { isTombstoneUser } = require('../repository/tombstoneUser');
 const { sendToUser } = require('../socket/socketServer');
 const {
   notifyDailyReminder,
@@ -174,5 +178,44 @@ describe('recommendation notifications with an unknown project', () => {
         body: "Congratulations — you're now placed as Backend Developer on a project to be confirmed.",
       })
     );
+  });
+});
+
+describe('tombstone recipients', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('writes nothing when the recipient is the deleted-user tombstone', async () => {
+    // A reassigned primary mentor, or a recipient admin, can resolve to the
+    // tombstone once the repoint migration has run: the id is present and names a
+    // real document, so only this check stands between it and a notification row
+    // nobody can ever read.
+    isTombstoneUser.mockResolvedValue(true);
+
+    const result = await notifyDailyReminder({
+      internUserId: 'tombstone-id',
+      internProfileId: 'profile-1',
+      missingAttendance: true,
+      missingDaily: false,
+      dateKey: '2026-08-13',
+    });
+
+    expect(result).toEqual({ skipped: 'tombstone-recipient' });
+    expect(Notification.create).not.toHaveBeenCalled();
+    expect(sendToUser).not.toHaveBeenCalled();
+  });
+
+  it('still writes for a real recipient', async () => {
+    isTombstoneUser.mockResolvedValue(false);
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyDailyReminder({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      missingAttendance: true,
+      missingDaily: false,
+      dateKey: '2026-08-13',
+    });
+
+    expect(Notification.create).toHaveBeenCalled();
   });
 });

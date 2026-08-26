@@ -4,6 +4,7 @@ const { ROLES } = require('../constants/roles');
 const { assertInternAccess, canWriteMentorData } = require('../helpers/internAccess');
 const internNotificationService = require('./internNotificationService');
 const { userSelect } = require('../constants/userSelect');
+const { REAL_USER_FILTER } = require('../constants/userVisibility');
 
 const VIEWER_ROLES = [ROLES.ADMIN, ROLES.MENTOR, ROLES.LEADERSHIP];
 
@@ -92,14 +93,14 @@ const createComment = async (
 
   if (visibleIds.length > 0) {
     // Same exclusion as listCommentViewers (the picker that offers these ids
-    // in the first place) — a QA test account must never become a real
-    // recipient, even via a crafted id an admin could see on Platform
-    // Management's "All Users" screen (`includeTestAccounts: true` there).
+    // in the first place) — a QA test account or the deleted-user tombstone must
+    // never become a real recipient, even via a crafted id an admin could see on
+    // Platform Management's "All Users" screen (`includeTestAccounts: true` there).
     const viewers = await User.find({
       _id: { $in: visibleIds },
       role: { $in: VIEWER_ROLES },
       status: 'active',
-      isTestAccount: { $ne: true },
+      ...REAL_USER_FILTER,
     }).select('_id');
 
     if (viewers.length !== visibleIds.length) {

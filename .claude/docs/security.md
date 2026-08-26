@@ -578,11 +578,55 @@ Two defences, and both are needed:
 
   The helper is pure — filter shaping and stage building only. Reading which users are live is data
   access and lives in the repository module, which pairs the read with the shaping.
-- **Data side** — `npm run cleanup:orphaned-user-refs` (see `.claude/docs/workflows.md`). Dry-run
-  by default. Only this repairs the raw counts, since the read guards hide rows rather than
-  removing them.
+- **Data side** — two scripts, both dry-run by default (see `.claude/docs/workflows.md`). Only
+  these repair the raw counts, since the read guards hide rows rather than removing them.
+  - `npm run cleanup:orphaned-user-refs` deletes records whose whole subject is gone.
+  - `npm run migrate:tombstone-user-refs` handles what cannot be deleted or cleared — an
+    authorship or membership ref on a record that belongs to other people. See the tombstone
+    section below.
 
-If a delete-user path is ever added, it must cascade over the same set the cleanup script deletes.
+If a delete-user path is ever added, it must cascade over the same set the cleanup script deletes,
+and point the rest at the tombstone.
+
+## The deleted-user tombstone
+
+`User.isTombstone` marks one placeholder account, `fullname: "Deleted user"`, that every ref left
+behind by a hand-deleted User points at. `npm run migrate:tombstone-user-refs` creates and
+maintains it.
+
+It exists because the read guards above only cover reads rooted at `InternProfile`. The refs that
+produce the rest of the visible "Unknown" cannot be repaired any other way: `Ticket.creator`,
+`Workspace.owner`, `Invitation.invitedBy` and `InternProfile.primaryMentor` are `required: true`,
+so `$unset` through `updateMany` (no validators) leaves a document the app can never save again;
+`Workspace.members[].user` sits in a document array, where the only one-operator fix `$pull`s the
+whole membership. Deleting the record is not available either — a ticket belongs to its workspace,
+not to whoever typed it.
+
+Security-relevant properties, all of which have to hold together:
+
+- **It is not a login.** `active: false` and no `password`. `authService.login` rejects on either,
+  and the schema only requires a password when `active === true`. Do not activate it, and do not
+  give it one.
+- **It is not a person, so it stays out of every listing** — `constants/userVisibility.js` holds
+  `REAL_USER_FILTER` (excludes test accounts *and* the tombstone) and `TOMBSTONE_FILTER` (excludes
+  only the tombstone). Same query-level `{ $ne: true }` idiom as `isTestAccount`. Unlike a test
+  account there is **no bypass**: `adminService.getUsers({ includeTestAccounts: true })` widens to
+  `TOMBSTONE_FILTER`, never to `{}`, because there is nothing about the tombstone for an admin to
+  manage.
+- **A post-`populate` guard must ask `isRealUser`, not `Boolean(user)`.** This is the trap the
+  tombstone introduces. Before it existed, a ref to a deleted account populated as `null`, so a
+  truthiness check was a sufficient "a real person is here". Now it populates as a present, named
+  user. `assertActiveAdmin` and `absenceSettingsService#getSettings` were updated for exactly this;
+  any new guard of that shape needs the same treatment. (`hasLiveUser` in
+  `helpers/orphanedProfiles.js` is unaffected — `InternProfile.user` is never repointed.)
+- **No outward-facing side effect may address it.** `internNotificationService#dispatch` refuses a
+  tombstone recipient at its one chokepoint (`repository/tombstoneUser.js#isTombstoneUser`), so a
+  reassigned mentor or recipient admin resolving to the tombstone writes no notification rows.
+  Anything new that emails, notifies or otherwise reaches a user by an id read off a record must
+  ask the same question.
+- **Its role is meaningless and load-bearing on nothing.** It is `mentor` only because nothing
+  filters by that role; `role: ROLES.INTERN` *is* used as a query filter in four services. The
+  guard is the flag, never the role.
 
 ## Test accounts
 
@@ -612,9 +656,10 @@ exactly like a real one, but never appear in a listing meant for real users.
   authorship is real and stays visible on the record itself — the exclusion is about *listings of
   who mentors/leadership are*, not about hiding evidence that the account acted.
 - If you add a new listing of mentors or leadership-role users, route it through
-  `adminService.getUsers` rather than a fresh `User.find`. If that is genuinely not possible, add
-  `isTestAccount: { $ne: true }` to the new query directly — do not add a role-based or
-  name-based heuristic instead.
+  `adminService.getUsers` rather than a fresh `User.find`. If that is genuinely not possible,
+  spread `REAL_USER_FILTER` (`constants/userVisibility.js`) into the new query — do not add a
+  role-based or name-based heuristic instead, and do not hand-write the clause: the tombstone has
+  to be excluded alongside the test account, and a hand-written copy is how the two drift apart.
 
 ## Self-only endpoints carry no id
 

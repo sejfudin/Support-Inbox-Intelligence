@@ -7,12 +7,13 @@
 //    anyone else, which is what this flag decides. A leak would show up here as
 //    User.find being called.
 //
-// 2. The `isTestAccount` exclusion every one of those queries now carries by
-//    default (same idiom as `Project.isSystem`) — every internal QA account
-//    stays out of the mentor/specialization pickers and the mentor-notes
-//    audience picker for free, since they all route through this one function.
-//    `includeTestAccounts: true` is the one deliberate bypass, for Platform
-//    Management's "All Users" screen.
+// 2. The non-people exclusion every one of those queries now carries by
+//    default (`constants/userVisibility.js`, same idiom as `Project.isSystem`) —
+//    every internal QA account and the deleted-user tombstone stay out of the
+//    mentor/specialization pickers and the mentor-notes audience picker for free,
+//    since they all route through this one function. `includeTestAccounts: true`
+//    is the one deliberate bypass, for Platform Management's "All Users" screen,
+//    and it narrows the exclusion to the tombstone rather than dropping it.
 
 jest.mock('../models/User', () => ({ find: jest.fn(), countDocuments: jest.fn() }));
 jest.mock('../models/Workspace', () => ({ find: jest.fn(), findById: jest.fn() }));
@@ -20,6 +21,7 @@ jest.mock('../models/Invitation', () => ({ find: jest.fn() }));
 
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
+const { REAL_USER_FILTER, TOMBSTONE_FILTER } = require('../constants/userVisibility');
 const { getUsers } = require('./adminService');
 
 beforeEach(() => {
@@ -74,10 +76,11 @@ describe('getUsers workspace scoping', () => {
     await getUsers({ workspaceId: 'ws1', pagination: false });
 
     // Only the active member reaches the query — invited/disabled are excluded.
-    // `isTestAccount` is on every query by default — see the describe block below.
+    // The non-people exclusion is on every query by default — see the describe
+    // block below.
     expect(User.find).toHaveBeenCalledWith({
       _id: { $in: ['u1'] },
-      isTestAccount: { $ne: true },
+      ...REAL_USER_FILTER,
     });
   });
 
@@ -88,14 +91,14 @@ describe('getUsers workspace scoping', () => {
 
     await getUsers({ pagination: false });
 
-    // The admin path: an unfiltered (bar test accounts) query is the intended
+    // The admin path: an unfiltered (bar non-people) query is the intended
     // behaviour here.
-    expect(User.find).toHaveBeenCalledWith({ isTestAccount: { $ne: true } });
+    expect(User.find).toHaveBeenCalledWith({ ...REAL_USER_FILTER });
   });
 });
 
-describe('getUsers test-account exclusion', () => {
-  it('excludes test accounts by default, same idiom as Project.isSystem', async () => {
+describe('getUsers non-people exclusion', () => {
+  it('excludes test accounts and the tombstone by default, same idiom as Project.isSystem', async () => {
     User.find.mockReturnValue({
       select: () => ({ populate: () => ({ sort: () => Promise.resolve([]) }) }),
     });
@@ -104,11 +107,11 @@ describe('getUsers test-account exclusion', () => {
 
     expect(User.find).toHaveBeenCalledWith({
       role: { $in: ['admin', 'mentor'] },
-      isTestAccount: { $ne: true },
+      ...REAL_USER_FILTER,
     });
   });
 
-  it('drops the exclusion only when includeTestAccounts is explicitly true', async () => {
+  it('drops only the test-account half when includeTestAccounts is explicitly true', async () => {
     User.find.mockReturnValue({
       select: () => ({ populate: () => ({ sort: () => Promise.resolve([]) }) }),
     });
@@ -117,6 +120,19 @@ describe('getUsers test-account exclusion', () => {
 
     const queryArg = User.find.mock.calls[0][0];
     expect(queryArg).not.toHaveProperty('isTestAccount');
+  });
+
+  it('never lists the tombstone, even for the one screen that wants test accounts', async () => {
+    // The bypass exists so an admin can manage a QA account. There is nothing
+    // about the tombstone for anyone to manage, so no screen has a reason to
+    // list it — `includeTestAccounts` widens to TOMBSTONE_FILTER, not to `{}`.
+    User.find.mockReturnValue({
+      select: () => ({ populate: () => ({ sort: () => Promise.resolve([]) }) }),
+    });
+
+    await getUsers({ pagination: false, includeTestAccounts: true });
+
+    expect(User.find).toHaveBeenCalledWith({ ...TOMBSTONE_FILTER });
   });
 
   it('still excludes on the paginated path (the default the admin/mentor pickers use)', async () => {
@@ -129,7 +145,7 @@ describe('getUsers test-account exclusion', () => {
 
     await getUsers({ page: 1, limit: 10 });
 
-    expect(User.find).toHaveBeenCalledWith({ isTestAccount: { $ne: true } });
-    expect(User.countDocuments).toHaveBeenCalledWith({ isTestAccount: { $ne: true } });
+    expect(User.find).toHaveBeenCalledWith({ ...REAL_USER_FILTER });
+    expect(User.countDocuments).toHaveBeenCalledWith({ ...REAL_USER_FILTER });
   });
 });
