@@ -188,21 +188,14 @@ const emailByUserKey = () => {
 const loadLookups = async () => {
   const emails = emailByUserKey();
 
-  const [users, positions, technologies, projects, unspecified] = await Promise.all([
+  const [users, positions, technologies, projects] = await Promise.all([
     User.find({ email: { $in: [...emails.values()] } })
       .select('_id email fullname')
       .lean(),
     Position.find().select('_id slug').lean(),
     Technology.find().select('_id slug').lean(),
     Project.find().select('_id slug name').lean(),
-    Project.findOne({ slug: 'unspecified' }).select('_id').lean(),
   ]);
-
-  if (!unspecified) {
-    throw new Error(
-      'The locked "unspecified" project is missing — run `npm run seed:positions`-style reference seeding first.'
-    );
-  }
 
   const userByEmail = new Map(users.map((user) => [user.email, user]));
   const profiles = await InternProfile.find({ user: { $in: users.map((user) => user._id) } })
@@ -233,7 +226,6 @@ const loadLookups = async () => {
     positionBySlug,
     techBySlug,
     projectByDatasetKey,
-    unspecifiedId: unspecified._id,
   };
 };
 
@@ -257,10 +249,8 @@ const resolveSpec = (spec, lookups) => {
   const position = lookups.positionBySlug.get(spec.positionSlug);
   if (!position) return { skip: `position "${spec.positionSlug}" is missing` };
 
-  const projectId = spec.projectKey
-    ? lookups.projectByDatasetKey.get(spec.projectKey)?._id
-    : lookups.unspecifiedId;
-  if (!projectId) return { skip: `project "${spec.projectKey}" is missing` };
+  const projectId = spec.projectKey ? lookups.projectByDatasetKey.get(spec.projectKey)?._id : null;
+  if (spec.projectKey && !projectId) return { skip: `project "${spec.projectKey}" is missing` };
 
   const technologyIds = [];
   for (const slug of spec.technologies || []) {

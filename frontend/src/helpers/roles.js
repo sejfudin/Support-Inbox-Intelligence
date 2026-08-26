@@ -50,11 +50,25 @@ export const isAssignedMentor = (user, intern) => {
   );
 };
 
+// Narrower than `isAssignedMentor` above: specifically the PRIMARY slot, not
+// either. Used to gate the primary-mentor transfer action, which is
+// self-scoped to whoever currently holds that specific slot.
+export const isPrimaryMentor = (user, intern) => {
+  if (!user || !intern) return false;
+  const userId = resolveUserId(user);
+  if (!userId) return false;
+  return resolveUserId(intern.primaryMentor) === userId;
+};
+
 // Documentation links can be managed by admins, leadership, and the intern's assigned mentor.
 export const canManageInternDocumentationLinks = (user, intern) =>
   user?.role === ROLES.ADMIN ||
   user?.role === ROLES.LEADERSHIP ||
   (user?.role === ROLES.MENTOR && isAssignedMentor(user, intern));
+// Specializations are admin-only everywhere — every `/api/specializations` route
+// is `requireRole(ADMIN)`, and the service re-checks. Mentors receive the pairing
+// but get no control over it, on the profile or anywhere else.
+export const canManageSpecialization = (role) => role === ROLES.ADMIN;
 export const canViewFepDirectory = (role) => role === ROLES.LEADERSHIP;
 export const canWriteInternMentorData = (role) => role === ROLES.ADMIN || role === ROLES.MENTOR;
 export const canViewComments = (role) =>

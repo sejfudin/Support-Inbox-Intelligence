@@ -8,6 +8,7 @@ const {
   checkIn,
   cancelCheckIn,
   getRoster,
+  getToday,
   getInternAttendance,
 } = require('../controllers/attendance');
 
@@ -28,6 +29,11 @@ router.delete('/me/check-in', protect, requireRole(ROLES.INTERN), cancelCheckIn)
 // another's intern through this route.
 // The `/:id` route is declared last so it can't shadow `/me`.
 router.get('/', protect, requireRole(ROLES.ADMIN), getRoster);
+// Every in-programme intern's state *today*, platform-wide — the dashboard's
+// "Attendance today" dialog. Declared above `/:internProfileId` so that route
+// cannot swallow it, and admin-only for the same reason the roster is: it names
+// every intern and says who is on sick leave.
+router.get('/today', protect, requireRole(ROLES.ADMIN), getToday);
 router.get(
   '/:internProfileId',
   protect,

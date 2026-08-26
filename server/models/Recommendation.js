@@ -100,10 +100,13 @@ const recommendationSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // `null` is the stored meaning of "we don't know the project yet" — never
+    // a separate flag, and never a sentinel document. See
+    // `.claude/docs/architecture.md`.
     project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Project',
-      required: true,
+      default: null,
       index: true,
     },
     // Set when this recommendation was created by fulfilling a staffing

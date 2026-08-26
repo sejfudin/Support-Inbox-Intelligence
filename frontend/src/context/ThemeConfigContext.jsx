@@ -31,6 +31,13 @@ import {
   serializeMutedGroups,
 } from '@/helpers/notificationPreferences';
 import {
+  QUICK_ACTIONS_NONE,
+  QUICK_ACTIONS_STORAGE_KEY,
+  decodeQuickActionSelection,
+  encodeQuickActionSelection,
+  isValidQuickActionOrder,
+} from '@/helpers/quickActions';
+import {
   DESKTOP_NOTIFICATIONS_DEFAULT,
   DESKTOP_NOTIFICATIONS_STORAGE_KEY,
   isValidDesktopNotifications,
@@ -212,6 +219,30 @@ const VALUE_PREFERENCES = [
     // Cached as one comma-separated string, stored on the user as a real array.
     toServer: parseMutedGroups,
     fromServer: (value) => serializeMutedGroups(Array.isArray(value) ? value : []),
+  },
+  {
+    key: 'quickActions',
+    storageKey: QUICK_ACTIONS_STORAGE_KEY,
+    fallback: '',
+    isValid: isValidQuickActionOrder,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
+    // Cached as one comma-separated string of action keys, stored on the user as
+    // a real ordered array — the same trick as the muted groups above.
+    //
+    // Three states, not two, and the mapping is where they are kept apart:
+    //
+    // - `''` → `null`: never chosen. `null` makes the server `$unset` the key, so
+    //   Reset means "as shipped" and a later change to the catalog still reaches
+    //   this account — a stored copy of today's default would pin it forever.
+    // - `'none'` → `[]`: chose to have no quick actions. A real stored value.
+    // - a list → the keys, in order.
+    //
+    // Coming back the other way, `[]` can only be the deliberate empty selection:
+    // `hydrateFromServer` reads a preference off the record only when `storedKeys`
+    // says the account saved it, so an untouched account never lands here.
+    toServer: (value) => (value === '' ? null : decodeQuickActionSelection(value)),
+    fromServer: (value) =>
+      Array.isArray(value) ? encodeQuickActionSelection(value) : QUICK_ACTIONS_NONE,
   },
   {
     key: 'desktopNotifications',

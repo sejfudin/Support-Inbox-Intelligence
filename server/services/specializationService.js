@@ -14,6 +14,7 @@ const { emitInternDataChanged } = require('../socket/events');
 const { httpError } = require('../helpers/httpError');
 const internNotificationService = require('./internNotificationService');
 const { userSelect } = require('../constants/userSelect');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 
 const STATUSES = ['specialized', 'unspecialized', 'all'];
 
@@ -104,13 +105,18 @@ const listSpecializations = async (user, query = {}) => {
 
   const sortDirection = query.sort === 'assignedAt:asc' ? 1 : -1;
 
+  // Both the page and the count run off the same live-user-constrained filter,
+  // so a profile whose User was deleted outside the app can neither render as an
+  // "Unknown" row nor pad the total it is missing from.
+  const liveFilter = await restrictProfileFilterToLiveUsers(filter);
+
   const [profiles, total, stats] = await Promise.all([
-    InternProfile.find(filter)
+    InternProfile.find(liveFilter)
       .populate(PROFILE_POPULATE)
       .sort({ specializationAssignedAt: sortDirection, _id: sortDirection })
       .skip(skip)
       .limit(limit),
-    InternProfile.countDocuments(filter),
+    InternProfile.countDocuments(liveFilter),
     coverageStats(query.mentorId),
   ]);
 
@@ -136,11 +142,18 @@ const emptyListResult = (page, limit, stats) => ({
 // active status/search filters, so the header numbers stay stable while
 // browsing different views.
 const coverageStats = async (mentorId) => {
+  // Resolved once and spread into all three counts: these are the header numbers
+  // ("N of M specialized"), and a profile left behind by a user deleted straight
+  // from the database would otherwise inflate the denominator against a cohort
+  // that no longer contains that person.
+  const liveUserFilter = await restrictProfileFilterToLiveUsers({});
+
   const [specializedCount, totalCount, mentorLoad] = await Promise.all([
-    InternProfile.countDocuments({ specializationAssignedAt: { $ne: null } }),
-    InternProfile.countDocuments({}),
+    InternProfile.countDocuments({ ...liveUserFilter, specializationAssignedAt: { $ne: null } }),
+    InternProfile.countDocuments({ ...liveUserFilter }),
     mentorId
       ? InternProfile.countDocuments({
+          ...liveUserFilter,
           specializationAssignedAt: { $ne: null },
           secondaryMentor: mentorId,
         })
@@ -156,7 +169,9 @@ const coverageStats = async (mentorId) => {
 const listUnspecializedCandidates = async (user) => {
   assertSpecializationAccess(user);
 
-  const profiles = await InternProfile.find({ specializationAssignedAt: null })
+  const profiles = await InternProfile.find(
+    await restrictProfileFilterToLiveUsers({ specializationAssignedAt: null })
+  )
     .populate(PROFILE_POPULATE)
     .sort({ createdAt: -1 });
 

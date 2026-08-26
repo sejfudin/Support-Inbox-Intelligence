@@ -50,6 +50,19 @@ export const fetchAttendanceRoster = async (params = {}) => {
 };
 
 /**
+ * GET /api/attendance/today  (admin)
+ * Every in-programme intern's state today, **platform-wide** — not scoped to a
+ * workspace, because "who is in today" is not a per-board question.
+ * → { date, label, isWeekend, nonWorkingDay: { date, label, kind } | null,
+ *     interns: [{ id, fullname, email, avatarUrl, position, hub, status }] }
+ * `status` is one of present | remote | vacation | religious | sick | not-started | absent.
+ */
+export const fetchTodayAttendance = async () => {
+  const { data } = await apiClient.get('/attendance/today');
+  return data.data;
+};
+
+/**
  * GET /api/attendance/:internProfileId?month=YYYY-MM  (admin)
  * One intern's full attendance history for the calendar modal; `month` selects
  * the stat block (defaults server-side to the current month).
