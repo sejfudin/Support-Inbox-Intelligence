@@ -3,6 +3,7 @@ const Workspace = require('../models/Workspace');
 const Invitation = require('../models/Invitation');
 const { escapeRegex } = require('../helpers/escapeRegex');
 const { userSelect } = require('../constants/userSelect');
+const { REAL_USER_FILTER, TOMBSTONE_FILTER } = require('../constants/userVisibility');
 
 const getUserWorkspaceMemberships = async (userId) => {
   const workspaces = await Workspace.find(
@@ -111,15 +112,16 @@ const getUsers = async ({
     query.hub = hubId;
   }
 
-  // Excluded by default from every listing this function backs (mentor/
-  // specialization pickers, workspace-member/ticket-assignee pickers, the
+  // Non-people are excluded by default from every listing this function backs
+  // (mentor/specialization pickers, workspace-member/ticket-assignee pickers, the
   // unscoped platform-wide list) — same idiom as `Project`'s `isSystem` sentinel.
   // `includeTestAccounts` exists for exactly one caller, Platform Management's
   // "All Users" screen, where an admin needs to find and manage the account
   // itself; every other call site gets the exclusion for free by doing nothing.
-  if (!includeTestAccounts) {
-    query.isTestAccount = { $ne: true };
-  }
+  //
+  // It widens to `TOMBSTONE_FILTER`, never to nothing: the tombstone is not an
+  // account anyone administers, so no screen has a reason to list it.
+  Object.assign(query, includeTestAccounts ? TOMBSTONE_FILTER : REAL_USER_FILTER);
 
   if (pagination === 'false' || pagination === false) {
     const users = await User.find(query)

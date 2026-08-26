@@ -101,6 +101,8 @@ npm run cleanup:stale-recommendations   # close open recommendations of already-
 npm run cleanup:superseded-technologies # retire legacy combined catalog rows, see below
 npm run cleanup:stale-workspace-pointers # clear User.workspaceId that no membership backs, see below
 npm run cleanup:orphaned-user-refs       # remove records left behind by a user deleted in the DB, see below
+npm run migrate:tombstone-user-refs      # point what's left of a deleted user at a "Deleted user", see below
+npm run probe:orphaned-user-refs         # DEV ONLY: fabricate dangling refs to verify the above, see below
 ```
 
 ### `npm run seed:demo` — the one to reach for
@@ -404,6 +406,10 @@ that only reads top-level `options.ref` misses eight refs in the current schema 
   `Daily.entries[].member`). The dotted path is not writable, and the one-operator alternative is
   `$pull`ing the whole element — which deletes a membership or a message instead of repairing it.
 
+Both of those are what `npm run migrate:tombstone-user-refs` exists to repair — prefer it for
+authorship and membership refs, and keep `--prune-refs` for the case where an optional ref should
+genuinely read as empty.
+
 Dry-run is the default. Unlike the seeders this one does **not** refuse a production-looking
 database name — repairing production is the reason it exists — so the guard is that every write
 needs the database name asserted out loud.
@@ -417,6 +423,83 @@ npm run cleanup:orphaned-user-refs -- --apply --prune-refs  # also clear authors
 
 To point it at a database other than the one in `server/.env.development`, set `MONGODB_URI` for
 the run. Always do a plain (dry-run) pass first and read the plan.
+
+### `npm run migrate:tombstone-user-refs`
+
+The other half of the cleanup above, and the one that actually clears the visible "Unknown user".
+
+`cleanup:orphaned-user-refs` can delete a record whose whole subject is gone, and clear an optional
+ref. It cannot repair an **authorship or membership** ref, which is where the remaining ghosts live:
+`Ticket.creator` and `Workspace.owner` are `required: true`, so `$unset` leaves a document the app
+can never save again; `Workspace.members[].user` sits in a document array, where the only
+one-operator fix deletes the membership. Deleting the records instead is not an option — a ticket
+belongs to its workspace and everyone still talking in it, not to whoever typed it first.
+
+So this script gives the ref a subject that really exists: one tombstone User, `fullname:
+"Deleted user"`, `isTombstone: true`, `active: false` and no password, created on first run and
+reused after. `required` stays satisfied, `populate` resolves, and no `|| 'Unknown'` fallback fires.
+It is excluded from every listing a human picks from — see `.claude/docs/security.md`.
+
+Three write shapes, chosen per ref by the same schema walk the cleanup script uses
+(`server/seeder/lib/userRefScan.js`): `$set` for a scalar, `$pull` + `$addToSet` for a plain array
+of ids (so two departed assignees become one tombstone, not two copies), and a positional
+`arrayFilters` `$set` for a ref inside a document array, repairing the element in place.
+
+What it will **not** do: repoint `InternProfile.user`, or any of the per-user rows
+(`RefreshToken.user`, `Notification.recipient`, `AISummary.user`, `Invitation.user`). Those records
+*are* the departed person — an InternProfile owned by "Deleted user" is a ghost intern, which is the
+bug rather than the fix. It reports them and names the cleanup script.
+
+Idempotent: a second run finds nothing dangling and reuses the same tombstone. Dry-run is the
+default, and like the cleanup script it does **not** refuse a production-looking database name, so
+every write needs the database name asserted out loud.
+
+```bash
+npm run migrate:tombstone-user-refs                            # report only, change nothing
+npm run migrate:tombstone-user-refs -- --apply                 # prompts for the database name
+npm run migrate:tombstone-user-refs -- --apply --yes=<dbname>   # non-interactive (assertion required)
+```
+
+Order matters if a database has both kinds of dangling ref: run `cleanup:orphaned-user-refs` first
+so the records with no subject left are gone, then this. Running this first is harmless but leaves
+the cleanup script's work untouched.
+
+### `npm run probe:orphaned-user-refs` — verifying the migration before production
+
+The dev database has one dangling ref and it is the easy kind (an optional scalar, `$set`). The
+hard kinds only exist in production, and there is no integration suite here, so nothing otherwise
+drives the other three write shapes against Mongo. The unit tests cover which strategy gets
+*chosen*; they cannot tell you whether an `arrayFilters` update lands on the right element.
+
+This script fabricates a fixture that carries all of them — a required scalar, a plain id array
+with two dead entries, two dead members in one document array, plus one `InternProfile.user` the
+migration must refuse — then reads back what the refs point at afterwards.
+
+It writes through the **raw driver**, not Mongoose. That is the point, not a shortcut: a workspace
+whose owner does not exist is a document the schema rejects, and hand-deleting a User is exactly
+how production came to hold such documents. Every inserted document carries `probeTag`, which is
+how `--remove` finds them once the migration has rewritten the ids.
+
+**Refuses `NODE_ENV=production`.** Unlike the two repair scripts there is no case for pointing this
+one at production, so it does not offer the option.
+
+```bash
+npm run probe:orphaned-user-refs -- --insert --yes=<dbname>   # fabricate the fixture
+npm run migrate:tombstone-user-refs                            # read the plan
+npm run migrate:tombstone-user-refs -- --apply --yes=<dbname>  # write
+npm run probe:orphaned-user-refs -- --verify                   # what do the refs point at now?
+npm run probe:orphaned-user-refs -- --remove --yes=<dbname>    # delete the fixture
+```
+
+`--verify` prints what a correct run looks like beside what it found. Two things there are easy to
+misread: `workspaces.members.user` is *expected* to show two tombstone entries (the migration
+reports that and does not collapse it — that would delete a membership), while `tickets.assignedTo`
+must show exactly one (`$addToSet` collapsing two dead assignees). The live bystander member must
+come back untouched, which is what proves the positional update only wrote the elements it filtered
+for.
+
+`--remove` leaves the tombstone user in place, deliberately — once created it is a real record, and
+the dev database's own orphaned ref needs it.
 
 ### `npm run backfill:legacy-secondary-mentor` — run-when-ready, revokes access
 

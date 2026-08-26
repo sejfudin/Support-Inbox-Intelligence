@@ -34,6 +34,8 @@
     "migrate:remove-unspecified-sentinel": "node seeder/removeUnspecifiedProjectSentinel.js",
     "cleanup:invitations": "node seeder/cleanupOrphanInvitations.js",
     "cleanup:orphaned-user-refs": "node seeder/cleanupOrphanedUserRefs.js",
+    "migrate:tombstone-user-refs": "node seeder/repointOrphanedUserRefs.js",
+    "probe:orphaned-user-refs": "node seeder/probeOrphanedUserRefs.js",
     "cleanup:ready-for-placement": "node seeder/unsetReadyForPlacement.js",
     "migrate:development-merge": "node seeder/mergeDevelopmentToMaster.js",
     "cleanup:stale-recommendations": "node seeder/closeStaleRecommendations.js",
