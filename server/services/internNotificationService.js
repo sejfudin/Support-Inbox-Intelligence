@@ -8,6 +8,7 @@ const {
   buildPlacementCelebrationPrompt,
 } = require('../prompts/internNotificationPrompts');
 const { PROJECT_TO_BE_CONFIRMED_PHRASE } = require('../helpers/recommendationProjectRules');
+const { isTombstoneUser } = require('../repository/tombstoneUser');
 
 /**
  * Notifications for the intern-programme domain — the counterpart to
@@ -83,6 +84,14 @@ const dispatch = async ({
 }) => {
   const recipientId = toId(internUserId);
   if (!recipientId) return { skipped: 'no-recipient' };
+
+  // One chokepoint rather than a check per caller. Before the tombstone existed,
+  // a ref to a deleted account was `null` and `toId` already returned nothing;
+  // now it resolves to a real id belonging to "Deleted user", so every path that
+  // addresses a notification at whoever a record points to — a reassigned
+  // primary mentor, a recipient admin — could write rows nobody can ever read.
+  // Cheap to ask here, and the alternative is remembering it at each new caller.
+  if (await isTombstoneUser(recipientId)) return { skipped: 'tombstone-recipient' };
 
   const { title, body } = promptBuilder
     ? await tryWarm(promptBuilder, promptArgs, fallback)

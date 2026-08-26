@@ -74,6 +74,12 @@ AI: `AISummary`.
 - `User.isTestAccount` — marks an internal QA login (seeded by `seedTestAccounts.js`, safe on
   production) that must work exactly like a real account but is excluded, at the query, from
   every listing that surfaces mentors/leadership. See `.claude/docs/security.md` § Test accounts.
+- `User.isTombstone` — marks the single "Deleted user" placeholder that refs left behind by a
+  hand-deleted User point at (`migrate:tombstone-user-refs`). Cannot log in, and excluded from
+  every listing of users with no bypass. Its existence changes one rule: a ref to a deleted
+  account no longer populates as `null`, so a guard asserting "a real person is here" must call
+  `isRealUser` (`constants/userVisibility.js`) rather than checking truthiness. See
+  `.claude/docs/security.md` § The deleted-user tombstone.
 - `Daily` — one standup record per `(workspace, date)` (unique compound index), with embedded
   `entries` (one per reporting intern: `done`/`todo` text lists + `blockers`, each blocker an
   optional `linkedTicket` ref scoped to the same workspace). Pure edit-window/derived-count logic

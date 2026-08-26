@@ -34,6 +34,14 @@
  * arrays of ids) while keeping the records. A ref inside a sub-document array, and
  * any required field, is reported and skipped instead — see `prunePlainRefs`.
  *
+ * PREFER `npm run migrate:tombstone-user-refs` for that second half. Clearing an
+ * authorship ref is the weaker repair: it cannot touch a required field at all
+ * (`Ticket.creator`, `Workspace.owner`), it drops the fact that a ticket was ever
+ * assigned, and on a ref inside a document array it can only `$pull` the whole
+ * membership. The repoint migration points all of those at a tombstone user
+ * instead, which keeps the record valid and readable. `--prune-refs` stays for
+ * the case where an optional ref should genuinely read as empty.
+ *
  * Dry-run is the default. Nothing is written without `--apply`.
  *
  *   npm run cleanup:orphaned-user-refs                        report only (default)
@@ -48,7 +56,6 @@
 
 const path = require('path');
 const fs = require('fs');
-const readline = require('readline');
 
 // Load env the way index.js does, so this hits the database `npm run dev` reads.
 // Captured BEFORE the load: .env.development itself sets NODE_ENV, so reading
@@ -68,53 +75,22 @@ fs.readdirSync(path.join(__dirname, '..', 'models'))
 const User = mongoose.model('User');
 const InternProfile = mongoose.model('InternProfile');
 
-/**
- * The model, or null when this branch does not have it. The tables below name
- * models by string so the cascade is readable in one glance, but not every
- * branch carries every model — `master` has no Attendance or AbsenceRequest —
- * and `mongoose.model()` throws on an unregistered name. Skipping what is not
- * there beats maintaining a per-branch copy of this script.
- */
-const modelIfPresent = (name) =>
-  mongoose.modelNames().includes(name) ? mongoose.model(name) : null;
+// The scan, and the line between "this record's subject is gone" and "this
+// record describes something that happened", are shared with
+// `repointOrphanedUserRefs.js` — see `lib/userRefScan.js` for why they live
+// there rather than in either script.
+const {
+  modelIfPresent,
+  PROFILE_DEPENDENTS,
+  USER_OWNED,
+  isAuthorshipRef,
+  readPath,
+  scanDanglingUserRefs,
+  missingIdsOf,
+} = require('./lib/userRefScan');
+const { describeTarget, confirmDatabaseName } = require('./lib/targetDatabase');
 
-/**
- * Records keyed to an InternProfile. When the profile goes, these go with it —
- * each one describes that intern and nothing else, and a recommendation or an
- * attendance row pointing at a profile that no longer exists is the same ghost
- * one step removed.
- */
-const PROFILE_DEPENDENTS = [
-  ['Recommendation', 'internProfile'],
-  ['Evaluation', 'internProfile'],
-  ['MentorComment', 'internProfile'],
-  ['ReadinessFlag', 'internProfile'],
-  ['Attendance', 'intern'],
-  ['AbsenceRequest', 'intern'],
-];
-
-/**
- * Per-user rows that mean nothing once their owner is gone: a refresh token
- * nobody can present, a notification with no one to read it, a cached AI summary
- * of a deleted profile, an invitation to an account that no longer exists.
- */
-const USER_OWNED = [
-  ['RefreshToken', 'user'],
-  ['Notification', 'recipient'],
-  ['AISummary', 'user'],
-  ['Invitation', 'user'],
-];
-
-/**
- * Whether a finding is one the deletion plan deliberately leaves alone — an
- * authorship or membership ref, as opposed to `InternProfile.user` (the profile
- * itself goes) or a `USER_OWNED` row (the whole record goes). The banner, the
- * prune step and the post-prune recheck all have to agree on this, so they ask
- * here rather than each restating it.
- */
-const isAuthorshipRef = ({ modelName, refPath }) =>
-  !(modelName === 'InternProfile' && refPath === 'user') &&
-  !USER_OWNED.some(([name, field]) => name === modelName && field === refPath);
+const COMMAND = 'cleanup:orphaned-user-refs';
 
 const parseArgs = (argv) => {
   const options = { apply: false, pruneRefs: false, yes: undefined };
@@ -129,126 +105,6 @@ const parseArgs = (argv) => {
     }
   }
   return options;
-};
-
-const describeTarget = () => {
-  const uri = process.env.MONGODB_URI || '';
-  let host = '(unparseable URI)';
-  let db = '(unknown)';
-  try {
-    const parsed = new URL(uri);
-    host = parsed.hostname;
-    // No path in the URI means the driver falls back to the `test` database.
-    db = parsed.pathname.replace(/^\//, '') || 'test';
-  } catch {
-    /* leave the placeholders — the banner will show them */
-  }
-  return { host, db, isLocal: ['localhost', '127.0.0.1', '::1'].includes(host) };
-};
-
-/**
- * Every schema path on `Model` that is a `ref: 'User'` — scalar, array of ids,
- * or buried in a sub-document. Recurses, because `eachPath` reports an embedded
- * document or a document array as a single node and never yields the paths
- * inside it: without the descent, `Workspace.members[].user`,
- * `Ticket.messages[].sender` and `Ticket.reviewRequest.reviewer` are all invisible
- * and the script reports "no dangling refs" while they dangle.
- *
- * Each entry carries what the prune step needs to decide, resolved here where the
- * SchemaType is in hand: `Model.schema.path()` does not resolve a dotted
- * sub-document path, so a lookup after the fact reads `undefined` and silently
- * loses the `required` flag.
- *
- * - `isArray`    — the field itself holds a list of ids (`$pull`, not `$unset`).
- * - `inDocArray` — the field sits inside a document array, so its dotted path is
- *                  not directly writable; the prune step skips these.
- * - `isRequired` — clearing it would leave the record invalid.
- */
-const userRefPaths = (schema, prefix = '') => {
-  const paths = [];
-
-  schema.eachPath((pathName, type) => {
-    const fullPath = prefix ? `${prefix}.${pathName}` : pathName;
-
-    // Embedded document (`instance === 'Embedded'`) or document array
-    // (`instance === 'Array'` with a schema) — descend.
-    if (type.schema) {
-      const isDocArray = type.instance === 'Array';
-      paths.push(
-        ...userRefPaths(type.schema, fullPath).map((entry) => ({
-          ...entry,
-          inDocArray: entry.inDocArray || isDocArray,
-        }))
-      );
-      return;
-    }
-
-    // `[{ type: ObjectId, ref: 'User' }]` declares its ref on the array's
-    // element options. Mongoose leaves `caster.options` empty for that form, so
-    // read the declared type as well — checking only the caster misses it.
-    const elementOptions = Array.isArray(type.options?.type) ? type.options.type[0] : null;
-    const isScalarRef = type.options?.ref === 'User';
-    const isArrayRef = type.caster?.options?.ref === 'User' || elementOptions?.ref === 'User';
-
-    if (isScalarRef || isArrayRef) {
-      paths.push({
-        path: fullPath,
-        isArray: Boolean(isArrayRef),
-        inDocArray: false,
-        isRequired: Boolean(type.isRequired),
-      });
-    }
-  });
-
-  return paths;
-};
-
-/**
- * Read a possibly-dotted path out of a lean document. Walking through an array
- * — `members.user` over `members: [...]` — collects the key from every element,
- * which is how a ref inside a document array is read at all.
- */
-const readPath = (doc, pathName) =>
-  pathName.split('.').reduce((value, key) => {
-    if (value == null) return value;
-    if (Array.isArray(value)) {
-      return value.flatMap((entry) => (entry == null ? [] : [entry[key]]));
-    }
-    return value[key];
-  }, doc);
-
-/**
- * Every dangling `ref: 'User'` in the database, grouped by model and path.
- * `liveUserIds` is passed in as a Set of strings — one read of the users
- * collection serves the whole scan.
- */
-const scanDanglingUserRefs = async (liveUserIds) => {
-  const findings = [];
-
-  for (const modelName of mongoose.modelNames()) {
-    const Model = mongoose.model(modelName);
-    for (const { path: refPath, isArray, inDocArray, isRequired } of userRefPaths(Model.schema)) {
-      const docs = await Model.find({ [refPath]: { $ne: null } })
-        .select(refPath)
-        .lean();
-
-      const dangling = [];
-      for (const doc of docs) {
-        const value = readPath(doc, refPath);
-        const ids = Array.isArray(value) ? value : [value];
-        for (const id of ids) {
-          if (!id) continue;
-          const userId = String(id?._id ?? id);
-          if (!liveUserIds.has(userId)) dangling.push({ docId: String(doc._id), userId });
-        }
-      }
-
-      if (dangling.length)
-        findings.push({ modelName, refPath, isArray, inDocArray, isRequired, dangling });
-    }
-  }
-
-  return findings;
 };
 
 const printFindings = (findings) => {
@@ -347,57 +203,13 @@ const printBanner = (target, plan, findings, options) => {
       options.pruneRefs
         ? '  --prune-refs: authorship/membership refs above will also be cleared.\n'
         : '  Authorship/membership refs above are KEPT (records describe real events).\n' +
-            '  Re-run with --prune-refs to clear those individual fields too — note it\n' +
-            '  skips REQUIRED fields (Workspace.owner, Ticket.creator, InternProfile.\n' +
-            '  primaryMentor) and refs inside sub-document arrays (Workspace.members[].user,\n' +
-            '  Ticket.messages[].sender), which have to be fixed in the app instead.\n'
+            '  Run  npm run migrate:tombstone-user-refs  to repair them — it points each\n' +
+            '  one at a "Deleted user" tombstone, which works on REQUIRED fields\n' +
+            '  (Workspace.owner, Ticket.creator, InternProfile.primaryMentor) and on refs\n' +
+            '  inside sub-document arrays (Workspace.members[].user) that --prune-refs has\n' +
+            '  to skip. Use --prune-refs only where an optional ref should read as empty.\n'
     );
   }
-};
-
-const confirm = async (target, options) => {
-  // No bare `--yes`, local or not. The whole guard on this script is that a write
-  // names its own target out loud — it is the only check standing in for the
-  // production-name refusal the seeders have and this one deliberately does not.
-  // A localhost exemption is how the habit of typing `--yes` gets built, and the
-  // habit is what eventually meets a remote URI.
-  if (options.yes === true) {
-    console.error('❌ Bare --yes is not accepted. Assert the database name:');
-    console.error(`   npm run cleanup:orphaned-user-refs -- --apply --yes=${target.db}`);
-    process.exit(1);
-  }
-
-  if (typeof options.yes === 'string') {
-    if (options.yes !== target.db) {
-      console.error(`❌ --yes=${options.yes} does not match target database "${target.db}".`);
-      process.exit(1);
-    }
-    console.log(`  --yes=${target.db}: assertion matched, skipping prompt.\n`);
-    return;
-  }
-
-  if (!process.stdin.isTTY) {
-    console.error('❌ Not a TTY and no --yes given — refusing to prompt into the void.');
-    console.error(`   Use:  npm run cleanup:orphaned-user-refs -- --apply --yes=${target.db}`);
-    process.exit(1);
-  }
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const answer = await new Promise((resolve) => {
-    rl.question(
-      `  To proceed, type the database name exactly:  ${target.db}\n  (anything else cancels)\n\n> `,
-      (value) => {
-        rl.close();
-        resolve(value.trim());
-      }
-    );
-  });
-
-  if (answer !== target.db) {
-    console.log('\n  Cancelled. Nothing was written.\n');
-    process.exit(0);
-  }
-  console.log('');
 };
 
 const applyPlan = async (plan) => {
@@ -478,9 +290,7 @@ const prunePlainRefs = async (findings, liveUserIds) => {
       continue;
     }
 
-    const missingIds = [...new Set(dangling.map((entry) => entry.userId))].map(
-      (id) => new mongoose.Types.ObjectId(id)
-    );
+    const missingIds = missingIdsOf({ dangling }).map((id) => new mongoose.Types.ObjectId(id));
 
     const result = isArray
       ? await Model.updateMany(
@@ -549,7 +359,7 @@ const run = async () => {
     return;
   }
 
-  await confirm(target, options);
+  await confirmDatabaseName(target, options, COMMAND);
 
   const deleted = await applyPlan(plan);
   const pruned = options.pruneRefs ? await prunePlainRefs(findings, liveUserIds) : 0;

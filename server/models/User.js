@@ -130,6 +130,28 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // The single "Deleted user" placeholder every ref left behind by a deleted
+    // account points at. There is exactly one, created and maintained by
+    // `npm run migrate:tombstone-user-refs`.
+    //
+    // It exists because a departed user cannot simply be erased from the records
+    // they touched. A Ticket has `creator: { required: true }`, a Workspace has
+    // `owner: { required: true }` — `$unset` on those succeeds through
+    // `updateMany` (no validators) and leaves a document that can never be saved
+    // through the app again, still rendering as nothing on screen. Deleting the
+    // ticket instead would delete other people's conversation. So the ref gets a
+    // subject that really exists and is honestly labelled, `populate` resolves,
+    // and no `|| 'Unknown'` fallback fires anywhere.
+    //
+    // Not a login: `active: false` and no password, and `authService.login`
+    // rejects on either. Not a person, so it is excluded from every listing a
+    // human picks from — same `{ $ne: true }` idiom as `isTestAccount` directly
+    // above, shared through `constants/userVisibility.js`. Unlike a test account
+    // it has no "include it anyway" escape hatch: there is nothing to administer.
+    isTombstone: {
+      type: Boolean,
+      default: false,
+    },
     // Profile picture. Two fields rather than one, on purpose.
     //
     // `avatarUrl` is the public URL, denormalised so that it can ride along in
