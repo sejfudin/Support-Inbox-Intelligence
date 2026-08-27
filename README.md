@@ -67,6 +67,11 @@ The platform defines four roles (`server/constants/roles.js`). Each role lands o
   prompts/                # AI prompt templates
   seeder/                 # seedDemoData.js + demo/, seed.js, seedTestingData.js, reference data
 
+/docs                     # team-facing docs
+  TEAM_HANDBOOK.md        # roles, permissions, workflows in plain English
+  adr/                    # architecture decision records
+  design/sprints/         # Sprints design proposal: clickable mockup + work breakdown
+
 README.md
 ```
 
