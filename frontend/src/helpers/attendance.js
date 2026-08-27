@@ -15,6 +15,7 @@ import {
   eachDayOfInterval,
   differenceInCalendarDays,
   getDay,
+  addDays,
 } from 'date-fns';
 
 export const DAY_STATUS = Object.freeze({
@@ -167,12 +168,58 @@ export const isExemptToday = (placedAt, now = new Date()) => {
   return Boolean(exemptFrom) && officeDateKey(now) >= exemptFrom;
 };
 
+/**
+ * Whether today falls before the intern's first day in the programme.
+ *
+ * The mirror of `assertStarted` in `server/services/attendanceService.js`: the
+ * server refuses a check-in with a 422 until the start date arrives, so every
+ * surface that offers the button has to withdraw it on the same days. Read in
+ * office time, so the boundary flips on Sarajevo's calendar day.
+ */
+export const isBeforeStartToday = (startDate, now = new Date()) => {
+  if (!startDate) return false;
+  return officeDateKey(now) < officeDateKey(new Date(startDate));
+};
+
 const EMPTY_KEYS = new Set();
 const EMPTY_REQUESTED = Object.freeze({});
 
 /** `[{date,label}]` from the API → a Set of keys for the classifiers. */
 export const nonWorkingKeySet = (nonWorkingDays = []) =>
   new Set(nonWorkingDays.map((d) => (typeof d === 'string' ? d : d.date)));
+
+/**
+ * `InternProfile.placementExemptions` from the API → a Set of 'yyyy-MM-dd' keys.
+ *
+ * Placement stretches the intern has already come back from. Each is half-open
+ * `[from, to)`: `from` is the day they left for the project and is exempt (matching
+ * `placedAt`), `to` is the day they rejoined and owed attendance again, so it is not.
+ *
+ * `placedAt` covers only the stretch they are on *now*, so without these every day of
+ * a finished placement classifies as an absence the intern never owed. Mirrors the
+ * server's `placementExemptKeys` — the two must agree, or the calendar contradicts the
+ * percentage printed above it.
+ */
+export const placementExemptKeySet = (placementExemptions = []) => {
+  const keys = new Set();
+  for (const stint of placementExemptions) {
+    if (!stint?.from || !stint?.to) continue;
+    const endKey = officeDateKey(new Date(stint.to));
+    // Walked on local-noon Dates and compared as keys: noon cannot slip a day across
+    // a DST boundary, and 'yyyy-MM-dd' strings compare correctly as strings. No
+    // iteration cap: `to` before or equal to `from` already fails the loop condition
+    // on the first check, so an inverted or empty stint just expands to nothing.
+    let cursor = parseKey(officeDateKey(new Date(stint.from)));
+    while (toKey(cursor) < endKey) {
+      // Weekends stay out: they were nobody's working day to begin with, and a set
+      // that held them would say a Saturday inside a placement was excused work.
+      // `classifyDay` skips its placement rungs on a weekend for the same reason.
+      if (!isWeekend(cursor)) keys.add(toKey(cursor));
+      cursor = addDays(cursor, 1);
+    }
+  }
+  return keys;
+};
 
 /** Why a day is non-working ("Labour Day"), for the tooltip. */
 export const nonWorkingLabel = (nonWorkingDays = [], key) =>
@@ -207,6 +254,10 @@ export const nonWorkingKind = (nonWorkingDays = [], key) => {
  *   `Attendance.status` an approved request wrote (remote | vacation | religious |
  *   sick). One map rather than a Set per type, so adding a type is a row in
  *   `REQUESTED_STATUS_TO_DAY` and nothing else.
+ * @param {Set<string>} [placementExemptKeys] - 'yyyy-MM-dd' inside a placement the
+ *   intern has already come back from (`placementExemptKeySet`). `placedAt` only
+ *   covers the placement they are on now, so these are the finished ones — owed by
+ *   nobody, and absences if left unclassified.
  */
 export const classifyDay = (
   date,
@@ -216,14 +267,28 @@ export const classifyDay = (
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
   startDate = null,
-  requestedDays = EMPTY_REQUESTED
+  requestedDays = EMPTY_REQUESTED,
+  placementExemptKeys = EMPTY_KEYS
 ) => {
   const key = toKey(date);
+  // Both placement rungs are skipped on a Saturday or Sunday, so the day falls
+  // through to WEEKEND below. A weekend is a weekend whether or not the intern was on
+  // a project that week: labelling it "On project" reads as a day they worked, and a
+  // placement that spans three weeks would otherwise paint six of them. Costs the
+  // arithmetic nothing — `countWorkingDays` never counted a weekend on either side of
+  // the wire, and `stripAttendance` treats WEEKEND and EXEMPT as equally inert.
+  const isWeekendDay = isWeekend(date);
   // Checked ahead of everything else, including PRESENT: once an intern is on a
   // project the whole rest of the calendar is greyed out, so a stray check-in after
   // that date cannot make the day read as counted attendance.
   const exemptFrom = exemptFromKey(placedAt);
-  if (exemptFrom && key >= exemptFrom) return DAY_STATUS.EXEMPT;
+  if (!isWeekendDay && exemptFrom && key >= exemptFrom) return DAY_STATUS.EXEMPT;
+  // A placement they already returned from, and the same verdict for the same reason:
+  // the day was owed by nobody. Ranked with the open placement above rather than with
+  // the leave statuses below, because it is the same fact — the intern was on a
+  // project — and a stray check-in inside the stretch must not read as counted
+  // attendance when the server has dropped it from the rate.
+  if (!isWeekendDay && placementExemptKeys.has(key)) return DAY_STATUS.EXEMPT;
   // Also ahead of PRESENT: the day was not owed, so a check-in on it is not
   // attendance that counts — the server drops it from the rate for the same reason.
   if (nonWorkingKeys.has(key)) return DAY_STATUS.NON_WORKING;
@@ -244,7 +309,7 @@ export const classifyDay = (
   if (presentKeys.has(key)) return DAY_STATUS.PRESENT;
   const startKey = startDate ? officeDateKey(new Date(startDate)) : null;
   if (startKey && key < startKey) return DAY_STATUS.BEFORE_START;
-  if (isWeekend(date)) return DAY_STATUS.WEEKEND;
+  if (isWeekendDay) return DAY_STATUS.WEEKEND;
   // Cancelled today while the window is still open (or not yet open) can be
   // re-checked-in — treat as pending, not locked absent.
   if (cancelledKeys.has(key)) {
@@ -277,7 +342,8 @@ export const buildMonthGrid = (
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
   startDate = null,
-  requestedDays = EMPTY_REQUESTED
+  requestedDays = EMPTY_REQUESTED,
+  placementExemptKeys = EMPTY_KEYS
 ) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
@@ -301,7 +367,8 @@ export const buildMonthGrid = (
         placedAt,
         nonWorkingKeys,
         startDate,
-        requestedDays
+        requestedDays,
+        placementExemptKeys
       ),
     })
   );
@@ -316,8 +383,16 @@ export const buildMonthGrid = (
 /**
  * Current consecutive-present-working-day streak ending at the most recent
  * working day (skips weekends). Counts back from today.
+ * @param {Array<{date:string}>} [records]
+ * @param {string|Date|null} [placedAt] - the placement the intern is on now, if any
+ * @param {Set<string>} [placementExemptKeys] - days inside a placement already
+ *   returned from (`placementExemptKeySet`). Skipped like a weekend rather than
+ *   breaking the streak: a returning intern owed nothing on those days, and
+ *   without this the walk-back hits the last day of the old stint, finds no
+ *   attendance row there (there never could be one), and reads the whole streak
+ *   as broken at the placement instead of continuing through it to before.
  */
-export const computeStreak = (records = [], placedAt = null) => {
+export const computeStreak = (records = [], placedAt = null, placementExemptKeys = EMPTY_KEYS) => {
   const presentKeys = new Set(records.map((r) => r.date));
   let streak = 0;
   // A placed intern's streak is historical: count back from their last owed day,
@@ -333,6 +408,7 @@ export const computeStreak = (records = [], placedAt = null) => {
     const day = new Date(cursor);
     day.setDate(day.getDate() - i);
     if (isWeekend(day)) continue;
+    if (placementExemptKeys.has(toKey(day))) continue; // owed nothing that day either
     if (isOfficeToday(day) && !presentKeys.has(toKey(day))) continue; // today not yet in — don't break streak
     if (presentKeys.has(toKey(day))) streak += 1;
     else break;
@@ -356,7 +432,8 @@ export const buildWeekStrip = (
   placedAt = null,
   nonWorkingKeys = EMPTY_KEYS,
   startDate = null,
-  requestedDays = EMPTY_REQUESTED
+  requestedDays = EMPTY_REQUESTED,
+  placementExemptKeys = EMPTY_KEYS
 ) => {
   const presentKeys = new Set(records.map((r) => r.date));
   const cancelledKeys = new Set(cancelledDates);
@@ -381,7 +458,8 @@ export const buildWeekStrip = (
         placedAt,
         nonWorkingKeys,
         startDate,
-        requestedDays
+        requestedDays,
+        placementExemptKeys
       ),
     };
   });
@@ -599,7 +677,8 @@ export const internStatusOnDate = (entry, date, nonWorkingKeys = EMPTY_KEYS) => 
     entry.placedAt || null,
     nonWorkingKeys,
     entry.startDate || null,
-    entry.requestedDays || EMPTY_REQUESTED
+    entry.requestedDays || EMPTY_REQUESTED,
+    placementExemptKeySet(entry.placementExemptions)
   );
   const rec = (entry.records || []).find((r) => r.date === toKey(date));
   return { status, checkInTime: rec?.checkedInAt || null };

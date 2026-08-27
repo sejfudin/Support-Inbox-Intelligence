@@ -20,8 +20,16 @@ import { TodayStandupCard } from '@/components/admin/dashboard/TodayStandupCard'
 import { InternPickerModal } from '@/components/admin/dashboard/InternPickerModal';
 import { NewRecommendationDialog } from '@/components/admin/dashboard/NewRecommendationDialog';
 import { NewEvaluationDialog } from '@/components/admin/dashboard/NewEvaluationDialog';
+import { NewMentorNoteDialog } from '@/components/admin/dashboard/NewMentorNoteDialog';
+import { UpdateReadinessDialog } from '@/components/admin/dashboard/UpdateReadinessDialog';
+import { AttendanceTodayDialog } from '@/components/admin/dashboard/AttendanceTodayDialog';
+import { AssignSpecializationModal } from '@/components/interns/specialization/AssignSpecializationModal';
+import { NewProjectDialog } from '@/components/projects/NewProjectDialog';
 import LazyNewTickets from '@/components/Tickets/LazyNewTickets';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
+import { useAbsenceRequests } from '@/queries/absenceRequests';
+import { useStaffingRequestNews } from '@/queries/staffingRequests';
+import { isAdmin } from '@/helpers/roles';
 
 // The mockup's top row is four equal quarters; the second quarter holds two
 // smaller cards side by side. Below it, the same 4-column grid splits 3 / 1 into
@@ -33,6 +41,45 @@ const TOP_ROW_CLASS = 'grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4';
 // the rail's standup card flexes, the interns panel pushes its footer down — so
 // the two columns still end on the same line at any intern count.
 const BOTTOM_ROW_CLASS = 'grid grid-cols-1 gap-4 xl:grid-cols-4';
+
+/**
+ * The quick actions that pick an intern first.
+ *
+ * One table rather than a copy of `InternPickerModal` per action: the picker is
+ * generic (title, description, `actionLabel`, `onSelect`), so the only thing that
+ * differs per action is its copy and which form the pick opens next. A fifth
+ * two-stage action is a row here plus its dialog below.
+ */
+const PICKER_FLOWS = {
+  'recommend-intern': {
+    form: 'recommend-form',
+    actionLabel: 'Recommend',
+    title: 'Recommend an intern',
+    description: 'Pick the intern to recommend — the recommendation form opens next.',
+  },
+  'write-evaluation': {
+    form: 'evaluate-form',
+    actionLabel: 'Evaluate',
+    title: 'Write an evaluation',
+    description: 'Pick the intern to evaluate — the evaluation form opens next.',
+  },
+  'write-note': {
+    form: 'note-form',
+    actionLabel: 'Add note',
+    title: 'Write a note',
+    description: 'Pick the intern the note is about — the note opens next.',
+    // A note about someone who has left the programme, or who is already placed,
+    // is perfectly legitimate — that block belongs to recommendations.
+    anyIntern: true,
+  },
+  'update-readiness': {
+    form: 'readiness-form',
+    actionLabel: 'Assess',
+    title: 'Update readiness',
+    description: 'Pick the intern to assess — their declared technologies open next.',
+    anyIntern: true,
+  },
+};
 
 /**
  * Card-shaped skeleton shell, so a loading card still looks like a card.
@@ -214,8 +261,27 @@ export default function AdminDashboardPage() {
   // Picking an intern swaps the picker for the form, in place — the admin stays on
   // the dashboard rather than being thrown onto the intern's profile.
   const handleInternPicked = (intern) => {
+    const flow = PICKER_FLOWS[openAction];
+    if (!flow) return;
     setPickedIntern(intern);
-    setOpenAction(openAction === 'recommend-intern' ? 'recommend-form' : 'evaluate-form');
+    setOpenAction(flow.form);
+  };
+
+  const pickerFlow = PICKER_FLOWS[openAction];
+
+  // Both counts are already fetched by the sidebar under the same query keys, so
+  // the badges cost no extra request. Guarded on the role all the same: both
+  // endpoints are admin-only and would 403 for anybody else who reached this page.
+  const canSeeQueues = isAdmin(user?.role);
+  const { data: pendingAbsence } = useAbsenceRequests(
+    { status: 'pending' },
+    { enabled: canSeeQueues }
+  );
+  const { data: staffingNews } = useStaffingRequestNews({ enabled: canSeeQueues });
+
+  const actionBadges = {
+    'absence-requests': pendingAbsence?.pendingCount ?? 0,
+    'staffing-requests': staffingNews?.count ?? 0,
   };
 
   const closeAction = () => {
@@ -291,7 +357,7 @@ export default function AdminDashboardPage() {
               )}
 
               <div className={BOTTOM_ROW_CLASS}>
-                <div className="flex min-w-0 self-start xl:col-span-3">
+                <div className="flex min-w-0 xl:col-span-3">
                   {dashboardPending ? (
                     <InternsPanelSkeleton />
                   ) : (
@@ -304,7 +370,11 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div className="flex min-w-0 flex-col gap-4">
-                  <QuickActionsCard onAction={setOpenAction} />
+                  <QuickActionsCard
+                    role={user?.role}
+                    onAction={setOpenAction}
+                    badges={actionBadges}
+                  />
                   <TodayStandupCard
                     overview={standupResponse?.data}
                     isPending={standupPending}
@@ -328,22 +398,15 @@ export default function AdminDashboardPage() {
         contextNote={workspaceName ? `New ticket in ${workspaceName}` : undefined}
       />
 
+      {/* One picker for every two-stage action — see `PICKER_FLOWS`. */}
       <InternPickerModal
-        open={openAction === 'recommend-intern'}
+        open={Boolean(pickerFlow)}
         onClose={closeAction}
         onSelect={handleInternPicked}
-        actionLabel="Recommend"
-        title="Recommend an intern"
-        description="Pick the intern to recommend — the recommendation form opens next."
-      />
-
-      <InternPickerModal
-        open={openAction === 'write-evaluation'}
-        onClose={closeAction}
-        onSelect={handleInternPicked}
-        actionLabel="Evaluate"
-        title="Write an evaluation"
-        description="Pick the intern to evaluate — the evaluation form opens next."
+        actionLabel={pickerFlow?.actionLabel || ''}
+        title={pickerFlow?.title || ''}
+        description={pickerFlow?.description || ''}
+        restrictToRecommendable={!pickerFlow?.anyIntern}
       />
 
       <NewRecommendationDialog
@@ -356,6 +419,37 @@ export default function AdminDashboardPage() {
         internUserId={pickedIntern?.userId}
         open={openAction === 'evaluate-form'}
         onClose={closeAction}
+      />
+
+      <NewMentorNoteDialog
+        internUserId={pickedIntern?.userId}
+        open={openAction === 'note-form'}
+        onClose={closeAction}
+      />
+
+      <UpdateReadinessDialog
+        internUserId={pickedIntern?.userId}
+        open={openAction === 'readiness-form'}
+        onClose={closeAction}
+      />
+
+      {/* One-stage actions: each of these dialogs already owns whatever picker it
+          needs, so they are raised straight from the card without the intern
+          picker in front. */}
+      {/* Reads `/attendance/today` itself — platform-wide, unlike everything else
+          on this board, and only once the dialog is open. */}
+      <AttendanceTodayDialog open={openAction === 'attendance-today'} onClose={closeAction} />
+
+      <AssignSpecializationModal
+        open={openAction === 'assign-specialization'}
+        onClose={closeAction}
+      />
+
+      <NewProjectDialog
+        open={openAction === 'add-project'}
+        onClose={closeAction}
+        idPrefix="dashboard-project-create"
+        dataTestPrefix="dashboard-project"
       />
     </TooltipProvider>
   );

@@ -1,4 +1,3 @@
-import { isWeekend } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
 import { isIntern } from '@/helpers/roles';
 import { useMyAttendance } from '@/queries/attendance';
@@ -6,7 +5,11 @@ import {
   isCheckedInToday,
   checkInWindowState,
   exemptFromKey,
+  isBeforeStartToday,
+  isOfficeWeekend,
+  nonWorkingKeySet,
   officeDateKey,
+  requestedStatusToday,
   CHECK_IN_WINDOW_LABEL,
 } from '@/helpers/attendance';
 
@@ -17,9 +20,13 @@ import {
  * (including after a cancel/uncheck). It clears automatically once they check in
  * or the window closes.
  *
- * An intern already on a real project (`placedAt`) is never reminded — they owe no
- * attendance, and the server would refuse the check-in anyway. Back-dating
- * `placedAt` silences the banner and the bell from the next render.
+ * Nobody is reminded to do something they cannot do. The banner is silent on
+ * every day the server would refuse the check-in on: a day before the intern's
+ * start date, an intern already on a real project (`placedAt`), a day an approval
+ * already spoke for (vacation, sick, religious, or remote — remote is work and
+ * already counts), and a day the whole cohort was excused (public holiday,
+ * programme break, remote week). Nagging
+ * someone on approved leave to record attendance is worse than saying nothing.
  *
  * @returns {{ active: boolean, title: string, body: string, windowLabel: string }}
  */
@@ -32,13 +39,25 @@ export function useCheckInReminder() {
 
   const records = data?.records ?? [];
   const exemptFrom = exemptFromKey(data?.placedAt);
-  const onProject = Boolean(exemptFrom) && officeDateKey() >= exemptFrom;
+  const todayKey = officeDateKey();
+  const onProject = Boolean(exemptFrom) && todayKey >= exemptFrom;
+  // Truthy for remote as well as the three kinds of leave: a remote day already
+  // counts as attended, so there is nothing left to remind anyone about.
+  const onApprovedDay = Boolean(requestedStatusToday(data?.requestedDays));
+  const cohortDayOff = nonWorkingKeySet(data?.nonWorkingDays).has(todayKey);
+  // Not on the programme yet: the server refuses check-in until the start date.
+  const beforeStart = isBeforeStartToday(data?.startDate);
 
   const windowState = checkInWindowState();
   const active =
     intern &&
+    !beforeStart &&
     !onProject &&
-    !isWeekend(new Date()) &&
+    !onApprovedDay &&
+    !cohortDayOff &&
+    // Office time, not the browser's: at 22:00 in UTC-5 it is already Saturday in
+    // Sarajevo, and the reminder has to agree with the day the server is keying on.
+    !isOfficeWeekend() &&
     windowState === 'open' &&
     !isCheckedInToday(records);
 

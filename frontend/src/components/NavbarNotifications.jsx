@@ -101,7 +101,7 @@ export default function NavbarNotifications({ size = 'default', align = 'end' })
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align={align} className="w-[min(100vw-2rem,22rem)] p-0">
+      <DropdownMenuContent align={align} className="w-[min(var(--app-vw)-2rem,22rem)] p-0">
         <div className="flex items-center justify-between border-b px-3 py-2">
           <span className="text-sm font-semibold">Notifications</span>
           {unreadCount > 0 ? (

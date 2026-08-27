@@ -18,13 +18,25 @@ const {
   canEditOwnInternProfile,
   isAssignedMentor,
 } = require('../helpers/internAccess');
-const { canInternEditDeclaredPosition } = require('../helpers/specializationRules');
+const {
+  canInternEditDeclaredPosition,
+  mentorSlotsCollide,
+} = require('../helpers/specializationRules');
 const { buildCvUrl } = require('./internCvService');
 const { emitInternDataChanged } = require('../socket/events');
 const { createInternProfile } = require('./internProfileService');
 const { closeActiveRecommendationsForIntern } = require('./recommendationService');
 const internNotificationService = require('./internNotificationService');
+const { assertActiveAdmin } = require('../helpers/assertActiveAdmin');
 const { userSelect } = require('../constants/userSelect');
+const { httpError } = require('../helpers/httpError');
+const { excludeOrphanedProfileStages } = require('../helpers/orphanedProfiles');
+const { closePlacementExemption } = require('../helpers/attendanceStats');
+
+// The statuses that mean "back on the programme, owing attendance again". Moving
+// into one of these out of `placed` lifts the attendance exemption — see
+// `updateInternProgramme`. The terminal statuses are deliberately absent.
+const RETURNED_TO_PROGRAMME_STATUSES = ['active', READY_STATUS];
 
 const PROFILE_POPULATE = [
   {
@@ -50,8 +62,9 @@ const PROFILE_POPULATE = [
 
 const formatProfile = (profile, viewer = null) => {
   const plain = profile.toObject ? profile.toObject() : profile;
-  // `cvTechnologies` is internal CV-scan provenance, not part of the API surface — it only
-  // tells the server which of `selfTechnologies` a re-upload may replace.
+  // `cvTechnologies` was removed from the InternProfile schema, but Mongoose
+  // still echoes it from documents written before that change — strip it
+  // explicitly rather than relying on the schema to hide already-stored data.
   const { internalCvUrl, cvTechnologies, ...rest } = plain;
   const canSeeInternalCv =
     Boolean(viewer) && (viewer.role === ROLES.LEADERSHIP || canWriteMentorData(viewer, profile));
@@ -179,6 +192,73 @@ const getInternByUserId = async (user, internUserId) => {
   return formatProfile(profile, user);
 };
 
+/**
+ * An admin hands off one intern they currently primary-mentor to a different
+ * admin, who becomes the new primary mentor. Self-scoped by design: the
+ * caller must currently *be* this intern's `primaryMentor` — this is "give
+ * away one of mine", not a general "reassign anyone's mentor" tool, so an
+ * admin who isn't already this intern's primary mentor gets the same 403 a
+ * mentor editing someone else's intern would.
+ *
+ * The new mentor must hold the `admin` role specifically. `assertMentorUser`
+ * (used at intern creation) allows `admin` or `mentor` for `primaryMentor` in
+ * general — this handoff is narrower on purpose, because the point is
+ * platform responsibility for the intern moving from one admin to another,
+ * not a mentor pairing change (that's `changeSpecializationMentor`, which
+ * touches `secondaryMentor` and does allow either role).
+ */
+const transferPrimaryMentor = async (user, internUserId, { newAdminId } = {}) => {
+  const profile = await InternProfile.findOne({ user: internUserId });
+  if (!profile) throw httpError('Intern profile not found', 404);
+
+  if (user.role !== ROLES.ADMIN) {
+    throw httpError('Only admins can transfer a primary mentor.', 403);
+  }
+  if (String(profile.primaryMentor) !== String(user._id)) {
+    throw httpError('You can only transfer interns you are the primary mentor for.', 403);
+  }
+  if (!newAdminId) {
+    throw httpError('Choose the admin to take over.', 400);
+  }
+  if (String(newAdminId) === String(user._id)) {
+    throw httpError("You're already this intern's primary mentor.", 400);
+  }
+
+  await assertActiveAdmin(newAdminId, 'Selected user is not an active admin.');
+  // Mirrors the invariant `specializationRules.js` enforces from the other
+  // direction (`Secondary mentor must differ from primary mentor`) — without
+  // this, transferring primaryMentor onto whoever already holds
+  // secondaryMentor collapses a specialized intern's two distinct mentors
+  // into one, which is exactly what that rule exists to prevent. Shared
+  // predicate, not a re-implementation — see `mentorSlotsCollide`.
+  if (mentorSlotsCollide(newAdminId, profile.secondaryMentor)) {
+    throw httpError('This admin is already the secondary mentor — pick someone else.', 400);
+  }
+
+  profile.primaryMentor = newAdminId;
+  await profile.save();
+  // Reuse the document already in hand rather than a second
+  // `getInternByUserId` round trip — that also re-checks view access, which
+  // is already guaranteed true (the caller passed the `role === ADMIN` check
+  // above, and every admin can view every intern).
+  await profile.populate(PROFILE_POPULATE);
+
+  emitInternDataChanged();
+
+  // Fire-and-forget, same as every other mutation-triggered notification in
+  // this file — never awaited, and `notifyPrimaryMentorTransferred` catches
+  // its own errors (see `internNotificationService.js#safe`).
+  internNotificationService.notifyPrimaryMentorTransferred({
+    recipientUserId: newAdminId,
+    internUserId,
+    internProfileId: profile._id,
+    internName: profile.user?.fullname || 'an intern',
+    previousMentorName: user.fullname,
+  });
+
+  return formatProfile(profile, user);
+};
+
 const getMyInternProfile = async (user) => {
   if (user.role !== ROLES.INTERN) {
     const err = new Error('Only interns have an intern profile');
@@ -206,19 +286,32 @@ const updateSelfTechnologies = async (user, technologyIds = []) => {
     throw err;
   }
 
-  const ids = [...new Set(technologyIds)];
-  if (ids.length > 0) {
-    const count = await Technology.countDocuments({ _id: { $in: ids }, isActive: true });
-    if (count !== ids.length) throw new Error('One or more technologies are invalid');
+  // Normalised to strings so an ObjectId off the profile and an id off the wire
+  // compare as equal — the whole diff below turns on that.
+  const ids = [...new Set((technologyIds || []).map(String))];
+  const current = new Set((profile.selfTechnologies || []).map(String));
+  const added = ids.filter((id) => !current.has(id));
+
+  // **Only what is being added is validated.** Checking the whole array is what
+  // broke removal: the intern may only ever add a technology the catalog still
+  // offers, but one an admin deactivates *later* stays on the profiles that had
+  // already declared it — and is invisible on the page, which joins the
+  // declarations against the active catalog. A single such entry failed the count
+  // for the entire list, so every add and every remove was rejected because of a
+  // row the intern could not see, never mind un-declare.
+  //
+  // Deactivating a technology therefore no longer bricks the list of everyone who
+  // declared it, and it still cannot be picked up by anyone new.
+  if (added.length > 0) {
+    const count = await Technology.countDocuments({ _id: { $in: added }, isActive: true });
+    if (count !== added.length) {
+      throw httpError('One or more technologies are invalid', 400);
+    }
   }
 
+  // The only place the list ever gets shorter: a CV scan only adds to it
+  // (helpers/cvTechnologySync.js), so removing a technology is always the intern's own act here.
   profile.selfTechnologies = ids;
-  // Keep the CV-scan provenance a subset of what is actually declared: a technology the intern
-  // just removed by hand stops being the scan's to manage, so re-adding it later counts as
-  // their own declaration and a future CV can no longer take it away. See
-  // helpers/cvTechnologySync.js.
-  const declared = new Set(ids.map((id) => String(id)));
-  profile.cvTechnologies = (profile.cvTechnologies || []).filter((id) => declared.has(String(id)));
   await profile.save();
   return getMyInternProfile(user);
 };
@@ -325,6 +418,25 @@ const updateInternProgramme = async (user, internUserId, payload) => {
   // at all. Clearing it puts them back on the hook for attendance.
   if (payload.placedAt !== undefined) {
     profile.placedAt = payload.placedAt ? new Date(payload.placedAt) : null;
+  } else if (
+    previousStatus === 'placed' &&
+    RETURNED_TO_PROGRAMME_STATUSES.includes(profile.status)
+  ) {
+    // Brought back onto the programme by hand. The exemption has to go with the
+    // status, or the intern silently stays off attendance for good: the rate reads
+    // 0 present of 0 owed forever, check-in is refused with a 422, absence requests
+    // are refused, and the daily reminder skips them. Same reset
+    // `recommendationService` runs for a `not_placed` outcome — this is the one
+    // path back out of placed that had no reset at all.
+    //
+    // Scoped to the two statuses that mean "on the programme again". `completed`
+    // and `discontinued` keep their `placedAt`: those interns did leave for a real
+    // project, and they are not coming back to owe anything.
+    //
+    // `closePlacementExemption`, not a bare `placedAt = null`: the days they spent on
+    // the project were owed by nobody, and clearing the open boundary alone would
+    // reopen every one of them as an absence. It records the closed stretch first.
+    Object.assign(profile, closePlacementExemption(profile));
   }
 
   await profile.save();
@@ -579,21 +691,6 @@ const averageEvaluationScore = (scores) => {
   if (values.length === 0) return null;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10;
 };
-
-// Every InternProfile-rooted aggregate in getProgrammeStats must exclude a
-// profile whose User was removed outside the app — there is no in-app
-// "delete user" path (see .claude/docs/security.md), so nothing ever cleans
-// such a profile up, and it lingers forever inflating every leadership-
-// dashboard count built on top of it. `userLocalField` is the dotted path to
-// the InternProfile's `user` ref at whatever point in the pipeline this is
-// spliced in: 'user' when InternProfile is the aggregation root, or
-// 'profile.user' once an earlier stage has already $lookup'd/$unwind'd the
-// profile in under that alias.
-const excludeOrphanedProfileStages = (userLocalField = 'user') => [
-  { $lookup: { from: 'users', localField: userLocalField, foreignField: '_id', as: '_userDoc' } },
-  { $match: { _userDoc: { $ne: [] } } },
-  { $project: { _userDoc: 0 } },
-];
 
 const buildFunnel = (rows) => {
   const funnel = Object.fromEntries(INTERN_STATUSES.map((status) => [status, 0]));
@@ -1173,6 +1270,7 @@ module.exports = {
   updateSelfPosition,
   updateSelfSecondaryPosition,
   updateInternProgramme,
+  transferPrimaryMentor,
   updateDocumentationLinks,
   updateInternalCvLink,
   createInternProfile,

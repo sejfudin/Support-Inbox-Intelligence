@@ -21,16 +21,25 @@
 **Admin**
 - Only role with the admin dashboard as their landing page — reports on the workspace they're currently in (switch it from the sidebar): who's present today, each intern's open workload and monthly attendance, and today's standup coverage. The two placement cards are the exception: they show the latest placements across every workspace, not just the current one
 - Creates, deletes, and views all workspaces
+- Chooses which quick actions sit on their own dashboard, and in what order — **Settings → Quick actions**, or the **Customize** link on the card itself. Two lists side by side: drag an action from *Available* onto *On your dashboard* to add it, drag it back out to take it off, and drag inside the first list to order it. The `+` and `×` on each row do the same thing if you would rather click than drag. **Reset** puts the card back to the standard set
+- The choice follows your account, not the browser, so the card is the same wherever you sign in. A new admin starts with the standard five; **five is also the most you can have on the card at once**, and taking every action off is allowed too — the card then says so rather than quietly refilling itself
+- The actions now go beyond creating things: the two queues (Absence requests and Staffing requests, each showing how many are waiting), Specialization, Attendance today, Daily insights, All users, Platform management and New workspace are one click away. Two more open on the dashboard itself without leaving it — writing a note about an intern, and setting their readiness
+- **Mark absence / excuse** is still the one quick action that does nothing but say "Soon". Nothing in the app can record an absence for an intern yet: absence is the lack of a check-in, and only interns check in
 - Creates user accounts, invites new users (mentors, interns, leadership, other admins), and changes their role
 - Views and edits all intern profiles
 - Only role that manages reference data (hubs, positions, technologies, internship types) —
   positions (specializations like "Frontend Engineer") and technologies (concrete tools like
   "React") are kept as separate catalogs on purpose
+- Switching a technology off takes it out of the catalog, so nobody new can declare it — but it
+  stays on the profiles that already declared it rather than being stripped from them. Those
+  interns no longer see it in their own list, and it no longer stands in the way of the rest of
+  the list being edited
 - Only role that adds and edits projects — and must pick each project's type (client or internal) when creating it; the type can be changed later
 - Doesn't see programme-wide statistics
 - Only role that can create, edit, and delete recommendations — mentors have no access at all now, not even read
 - Only role that can assign a specialization (confirm an intern's main or secondary declared position and pair them with a dedicated mentor) — mentors receive the pairing but never create or manage it, and have no view of the Specialization tab
 - Only role that can reassign a specialization to the intern's other position, change the specialization mentor, or clear a specialization entirely
+- Can hand off their own **primary mentor** role for a specific intern to another admin, from that intern's profile — the only way `primaryMentor` changes after the account is created. Only the admin currently holding that role can start the hand-off, and the receiving admin must be an active admin (not a mentor) who isn't already that intern's specialization mentor. There's no automatic way back — reversing it means the new admin transferring the intern back the same way
 - Only role that can add evaluations to an intern (periodic assessment: technical skill, communication, ownership, growth) — note the intern now reads their own scores **and the written notes** on their My Progress page, so write them as feedback addressed to the intern
 - Only role that can set readiness (by technology or by position) for an intern — the intern now sees their own levels, and who set them, on My Progress
 - Can answer a review request an intern sent them, same as a mentor — whenever they're the primary or specialization mentor named on it
@@ -150,7 +159,9 @@
 
 **Intern**
 - Sees and edits only their own profile
-- Declares their own technologies
+- Declares their own technologies, and can drop one again. Dropping one a mentor has already
+  assessed (Learning or Ready) asks for confirmation first and names the level; an unassessed one
+  goes straight out. Either way the readiness is kept, so re-declaring brings the level back
 - Uploads their own CV
 - Has a read-only "My Progress" page with everything the programme records about them: where they stand in the programme (status, dates, mentors, hub), every evaluation, their readiness, and every recommendation. Read-only throughout — nothing there is theirs to add, change, or delete
 - Sees their own readiness, both by position and per declared technology, including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
@@ -175,6 +186,7 @@
 - Those four numbers are the starting values, not fixed rules — an admin can raise or lower how many days one request may cover, and the yearly vacation and religious allowances, from their profile. Remote work and sick days have no yearly limit and won't be given one
 - Vacation, religious holidays and sick days are **not counted against attendance** — the day leaves the sum entirely, so a week off reads as nothing owed and nothing missed rather than as a week of absences. Remote work is different: it's still work, so it counts as an attended day. Each kind shows in its own colour with its own mark on the calendar
 - Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then
+- Can only check in on a day that is actually theirs to claim. On a day off already approved for them, on a cohort non-working day (public holiday, programme break, remote week), before their start date, at the weekend or outside the 07:00–11:00 window, the check-in control is not offered at all — and if they reach it anyway, they get a message saying which of those it is rather than a button that appears to do nothing. None of those days counts as an absence
 - No access to other interns', mentors', or admin/leadership data or functions
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 

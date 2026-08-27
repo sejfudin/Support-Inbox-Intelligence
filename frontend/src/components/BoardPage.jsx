@@ -342,7 +342,9 @@ const BoardColumn = memo(function BoardColumn({
         // The ceiling lifts under a collapsed rail, so the width the rail frees
         // goes into the columns instead of sitting as dead margin on the right.
         'flex min-w-0 max-w-[var(--board-col-max)] flex-[1_1_var(--board-col-min)] flex-col overflow-hidden rounded-[var(--r-card)] border border-border bg-card',
-        flush ? 'h-full max-h-full min-h-0' : 'max-h-[min(96vh,calc(100vh-14.375rem))]',
+        flush
+          ? 'h-full max-h-full min-h-0'
+          : 'max-h-[min(calc(var(--app-vh)*0.96),calc(var(--app-vh)-14.375rem))]',
         isOver && 'border-primary/40 bg-primary/5 ring-2 ring-primary/25'
       )}
       style={{ borderTopColor: style.borderTopColor, borderTopWidth: 2 }}
@@ -596,7 +598,7 @@ export default function BoardPage({
       <div
         className={cn(
           'flex min-h-0 flex-1 flex-col',
-          flush ? 'h-full' : 'min-h-[calc(100vh-9rem)]'
+          flush ? 'h-full' : 'min-h-[calc(var(--app-vh)-9rem)]'
         )}
       >
         <DndContext
@@ -610,7 +612,7 @@ export default function BoardPage({
           {flush ? (
             <div className="h-full min-h-0 w-full flex-1 overflow-y-auto">{columnRow}</div>
           ) : (
-            <ScrollArea className="h-[calc(100vh-9rem)] min-h-0 w-full flex-1">
+            <ScrollArea className="h-[calc(var(--app-vh)-9rem)] min-h-0 w-full flex-1">
               {columnRow}
             </ScrollArea>
           )}

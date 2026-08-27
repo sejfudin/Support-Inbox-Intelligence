@@ -232,7 +232,7 @@ export const CommentItem = ({ comment, ticketId, user, isArchived, onOpenDelete 
             <img
               src={previewImageUrl}
               alt="Comment preview"
-              className="max-h-[90vh] max-w-[95vw] object-contain rounded-[var(--r-tile)]"
+              className="max-h-[calc(var(--app-vh)*0.9)] max-w-[calc(var(--app-vw)*0.95)] object-contain rounded-[var(--r-tile)]"
               onClick={(e) => e.stopPropagation()}
             />
           </div>

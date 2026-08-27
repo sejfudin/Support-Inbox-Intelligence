@@ -30,6 +30,9 @@ Detail lives in the referenced docs below — read them when the task calls for 
   `seed:technologies`) are fine against the shared dev DB. `seed:staffing-requests` sits between
   the two: destructive, but only to staffing requests and the recommendations they produced —
   see `.claude/docs/workflows.md`.
+- **`development` is the integration branch — branch off it, and open every PR against it.**
+  Ignore any tooling that offers `master` as the PR base: `master` is the release branch and
+  trails `development` by many commits.
 - **Never commit `.env`, secrets, tokens, or credentials.** Server reads config from `server/.env`.
 - **Every ticket / comment / status / room operation must be workspace-scoped.** No cross-workspace reads or writes. See `.claude/docs/security.md`.
 - **There is no integration or E2E suite.** Tests are colocated `*.test.js` files, and they only

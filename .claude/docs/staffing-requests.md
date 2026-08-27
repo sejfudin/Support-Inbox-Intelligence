@@ -57,9 +57,15 @@ re-derive them:
 - `partitionPickerCandidates` — intern profiles + their recommendations → `excluded` (discontinued,
   completed, or already put forward for this requested position) / `warned` (already placed, or in
   selection on another project, flagged with which) / `clean`. Excluded interns are dropped by the
-  service rather than returned; warned ones are shown and selectable.
-- `assertCanPutForward` — admin only, request open, project resolved. The last is not cosmetic:
-  `Recommendation.project` is a required reference.
+  service rather than returned; warned ones are shown and selectable. A `placed`/`in-selection` flag
+  carries `unknownProject: true` when one of the conflicting recommendations has no project of its
+  own — `Recommendation.project` is nullable, and two nulls are neither equal nor different, so no id
+  comparison can say whether that recommendation is the same opportunity as the one now being staffed
+  or a second one. The flag still fires (an unnamed conflict is not the same as no conflict), and the
+  client writes copy that admits the ambiguity instead of naming a project.
+- `assertCanPutForward` — admin only, request open, project resolved. The last is not about
+  `Recommendation.project` being required (it isn't) — it's that the request's own project is what
+  pre-fills every recommendation a submit creates, so there has to be one to pre-fill from.
 - `assertCanClose` / `applyClose` — close legality in one sentence: **leadership withdraws, admin
   answers**. Also takes `inSelectionCount` and requires a `notPlacedReason` exactly when that is
   above zero. The per-reason permission split, which reasons demand a stated one, and the
@@ -123,8 +129,11 @@ deliberately different shapes:
   never out of one flat list), returning rows already partitioned by `partitionPickerCandidates`
   plus the position's technologies.
 - `POST /:id/put-forward` is **request-level** and takes the whole staged cart in one body:
-  `{ groups: [{ positionId, internProfileIds }] }`. The position is still never a free choice — it is
-  the key of the group and must be one the request asked for.
+  `{ groups: [{ positionId, internProfileIds }], projectId? }`. The position is still never a free
+  choice — it is the key of the group and must be one the request asked for. Every recommendation
+  the submit creates is pre-filled with the request's own resolved `project`; sending an explicit
+  `projectId: null` deliberately discards that pre-fill for the whole submit (the admin ticked
+  "unknown" on the form) — any other value is not a legal override and is ignored.
   `createRecommendationsForStaffingRequest` `insertMany`s one recommendation per pick across every
   group in a single write, tagged with `staffingRequest`, logs each one's initial status event, and
   emits `emitInternDataChanged()`. The request itself is never written (`docs/adr/0006`).
@@ -152,8 +161,9 @@ untag/delete/third-outcome) and `docs/adr/0005` (no reopen).
   staffingRequestId, positionIds, reason, action })` — a reusable unit, called from both the close
   and the edit path. Per record it writes the result, stamps `statusDates.resulted`, and appends its
   own `recommendation` history row (shared with the placement auto-close via `resolveAsNotPlaced`);
-  then it returns each intern to the ready bench (`status: 'ready'`, `placedAt: null`) **unless they
-  hold a placement elsewhere**, and emits `emitInternDataChanged()`. It returns
+  then it returns each intern to the ready bench (`status: 'ready'`, exemption lifted via
+  `closePlacementExemption` — never a bare `placedAt = null`, see `.claude/docs/architecture.md`)
+  **unless they hold a placement elsewhere**, and emits `emitInternDataChanged()`. It returns
   `{ closedOutCount }`, which the caller names in the trail.
 - The cascade runs **after** the request is saved, so a failure leaves a closed request with a
   retryable close-out rather than a dozen resolved people on a still-open one.

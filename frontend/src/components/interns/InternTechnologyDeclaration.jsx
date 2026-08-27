@@ -1,8 +1,19 @@
+import { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { PagePanel } from '@/components/PageShell';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
+import { getReadinessLabel, isAssessedLevel, UNASSESSED_LEVEL } from '@/helpers/internProfile';
 import { useMyDeclaredTechnologies } from '@/hooks/useMyDeclaredTechnologies';
 import { useUpdateMyTechnologies } from '@/queries/interns';
 import { cn } from '@/lib/utils';
@@ -28,6 +39,12 @@ export function InternTechnologyDeclaration({ className }) {
     useMyDeclaredTechnologies();
   const { mutate: saveTechnologies, isPending: isSaving } = useUpdateMyTechnologies();
 
+  // `{ tech, level }` for the row the ✕ was pressed on, held until the intern
+  // confirms — see `requestRemoval` for which rows get that far. The level rides
+  // along because the dialog names it, and re-reading `flagMap` while the dialog is
+  // open would let the sentence change under a refetch.
+  const [pendingRemoval, setPendingRemoval] = useState(null);
+
   const addTechnology = (tech) => {
     const newIds = [...declaredIds, tech._id];
     saveTechnologies(newIds, {
@@ -39,9 +56,28 @@ export function InternTechnologyDeclaration({ className }) {
   const removeTechnology = (tech) => {
     const newIds = [...declaredIds].filter((id) => id !== tech._id);
     saveTechnologies(newIds, {
-      onSuccess: () => toast.success(`${tech.name} removed`),
+      onSuccess: () => {
+        setPendingRemoval(null);
+        toast.success(`${tech.name} removed`);
+      },
       onError: (err) => toast.error(err?.response?.data?.message || 'Failed to remove technology'),
     });
+  };
+
+  /**
+   * Confirmation is for the rows where removal actually costs something — one a
+   * mentor has already assessed (Learning or Ready). An unassessed row is the
+   * intern's own note-to-self and nothing else, so it goes straight out: making
+   * them confirm all thirty of those is how a dialog becomes a keystroke people
+   * learn to click through, which is exactly how it stops protecting the few rows
+   * that matter.
+   */
+  const requestRemoval = (tech, level) => {
+    if (isAssessedLevel(level)) {
+      setPendingRemoval({ tech, level });
+      return;
+    }
+    removeTechnology(tech);
   };
 
   return (
@@ -65,7 +101,10 @@ export function InternTechnologyDeclaration({ className }) {
           <SearchableSelect
             items={allTechnologies}
             onSelect={addTechnology}
-            filter={(tech, q) => !declaredIds.has(tech._id) && tech.name.toLowerCase().includes(q)}
+            filter={(tech, q) => tech.name.toLowerCase().includes(q)}
+            isSelected={(tech) => declaredIds.has(tech._id)}
+            keepOpenOnSelect
+            openOnFocus
             renderItem={(tech) => (
               <span className="flex items-center gap-2 font-medium">
                 <TechnologyIcon technology={tech} size={16} className="shrink-0" />
@@ -94,7 +133,7 @@ export function InternTechnologyDeclaration({ className }) {
       ) : (
         <ul>
           {declaredTechnologies.map((tech) => {
-            const level = flagMap[tech._id]?.level || 'none';
+            const level = flagMap[tech._id]?.level || UNASSESSED_LEVEL;
             return (
               <li key={tech._id} className={ROW_CLASS}>
                 <span className="flex min-w-0 items-center gap-2.5">
@@ -112,7 +151,7 @@ export function InternTechnologyDeclaration({ className }) {
                 <button
                   type="button"
                   disabled={isSaving}
-                  onClick={() => removeTechnology(tech)}
+                  onClick={() => requestRemoval(tech, level)}
                   className="flex h-[26px] w-[26px] items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-[hsl(var(--tone-danger-fg))] disabled:pointer-events-none disabled:opacity-50"
                   aria-label={`Remove ${tech.name}`}
                   data-test={`technology-remove-${tech.slug}-button`}
@@ -124,6 +163,60 @@ export function InternTechnologyDeclaration({ className }) {
           })}
         </ul>
       )}
+
+      {/* Kept mounted with the panel rather than per row, so the list does not
+          carry a dialog per technology. `pendingRemoval` is both the open flag and
+          the subject, which is what stops the two disagreeing. The failure toast
+          stays up and the dialog stays open on an error — closing it would leave
+          the intern looking at a row that is still there with no idea why. */}
+      <Dialog
+        open={Boolean(pendingRemoval)}
+        onOpenChange={(open) => {
+          if (!open && !isSaving) setPendingRemoval(null);
+        }}
+      >
+        <DialogContent data-test="technology-remove-dialog">
+          <DialogHeader>
+            <DialogTitle>Remove {pendingRemoval?.tech.name}?</DialogTitle>
+            {/* Leads with the assessment, because that is the whole reason this
+                dialog opened at all — an unassessed row never gets here.
+                Then the reassuring half, which is true: `ReadinessFlag` rows are
+                keyed by intern + technology and are NOT deleted when a declaration
+                is dropped (`readinessFlagService`), so re-declaring brings the
+                mentor's level back with it. Claiming the assessment is lost would
+                be the easier sentence to write and would be untrue. */}
+            <DialogDescription>
+              Your mentor has assessed you as{' '}
+              <span className="font-semibold text-foreground">
+                {getReadinessLabel(pendingRemoval?.level)}
+              </span>{' '}
+              for {pendingRemoval?.tech.name}. Removing it takes the technology off the ones you are
+              working toward, so it stops counting toward your readiness. The assessment itself is
+              kept — declare it again and the level comes back.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => setPendingRemoval(null)}
+              data-test="technology-remove-dialog-cancel-button"
+            >
+              Keep it
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isSaving}
+              onClick={() => removeTechnology(pendingRemoval.tech)}
+              data-test="technology-remove-dialog-confirm-button"
+            >
+              {isSaving ? 'Removing…' : 'Remove technology'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PagePanel>
   );
 }

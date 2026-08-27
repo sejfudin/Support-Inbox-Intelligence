@@ -7,6 +7,8 @@ const {
   buildStaffUpdatePrompt,
   buildPlacementCelebrationPrompt,
 } = require('../prompts/internNotificationPrompts');
+const { PROJECT_TO_BE_CONFIRMED_PHRASE } = require('../helpers/recommendationProjectRules');
+const { isTombstoneUser } = require('../repository/tombstoneUser');
 
 /**
  * Notifications for the intern-programme domain — the counterpart to
@@ -83,6 +85,14 @@ const dispatch = async ({
   const recipientId = toId(internUserId);
   if (!recipientId) return { skipped: 'no-recipient' };
 
+  // One chokepoint rather than a check per caller. Before the tombstone existed,
+  // a ref to a deleted account was `null` and `toId` already returned nothing;
+  // now it resolves to a real id belonging to "Deleted user", so every path that
+  // addresses a notification at whoever a record points to — a reassigned
+  // primary mentor, a recipient admin — could write rows nobody can ever read.
+  // Cheap to ask here, and the alternative is remembering it at each new caller.
+  if (await isTombstoneUser(recipientId)) return { skipped: 'tombstone-recipient' };
+
   const { title, body } = promptBuilder
     ? await tryWarm(promptBuilder, promptArgs, fallback)
     : fallback;
@@ -142,6 +152,7 @@ const safe = (fn) => (args) =>
 
 const notifyRecommendationCreated = safe(
   async ({ internUserId, internProfileId, position, project }) => {
+    project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
     await dispatch({
       internUserId,
       internProfileId,
@@ -164,6 +175,7 @@ const RECOMMENDATION_STAGE_LABELS = { interviewing: 'Interviewing', resulted: 'R
 
 const notifyRecommendationStatusChanged = safe(
   async ({ internUserId, internProfileId, project, newStatus }) => {
+    project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
     const label = RECOMMENDATION_STAGE_LABELS[newStatus] || newStatus;
     await dispatch({
       internUserId,
@@ -184,6 +196,7 @@ const notifyRecommendationStatusChanged = safe(
 );
 
 const notifyRecommendationNotPlaced = safe(async ({ internUserId, internProfileId, project }) => {
+  project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
   await dispatch({
     internUserId,
     internProfileId,
@@ -203,6 +216,7 @@ const notifyRecommendationNotPlaced = safe(async ({ internUserId, internProfileI
 
 const notifyInternPlaced = safe(
   async ({ internUserId, internProfileId, position, project, startDate }) => {
+    project = project || PROJECT_TO_BE_CONFIRMED_PHRASE;
     const startLabel = formatDate(startDate);
     await dispatch({
       internUserId,
@@ -211,9 +225,9 @@ const notifyInternPlaced = safe(
       link: '/dashboard#my-selection-process',
       fallback: {
         title: "You've been placed on a project!",
-        body: `Congratulations — you're now placed as ${position || 'your role'} on ${
-          project || 'a project'
-        }${startLabel ? `, starting ${startLabel}` : ''}.`,
+        body: `Congratulations — you're now placed as ${position || 'your role'} on ${project}${
+          startLabel ? `, starting ${startLabel}` : ''
+        }.`,
       },
       promptBuilder: buildPlacementCelebrationPrompt,
       promptArgs: { position, project, startDate: startLabel },
@@ -541,6 +555,30 @@ const notifyAbsenceRequestPending = safe(
   }
 );
 
+/**
+ * Staff-facing: an admin who was an intern's primary mentor hands that role
+ * to another admin — the recipient is the *new* admin, never the intern.
+ */
+const notifyPrimaryMentorTransferred = safe(
+  async ({ recipientUserId, internUserId, internProfileId, internName, previousMentorName }) => {
+    await dispatch({
+      internUserId: recipientUserId,
+      internProfileId,
+      type: 'primary_mentor_transferred',
+      link: STAFF_INTERN_LINK.admin(internUserId),
+      fallback: {
+        title: 'You are now a primary mentor',
+        body: `${previousMentorName} handed you primary-mentor responsibility for ${internName}.`,
+      },
+      promptBuilder: buildStaffUpdatePrompt,
+      promptArgs: {
+        summary: 'An admin handed primary-mentor responsibility for an intern to this admin.',
+        details: `Intern: ${internName}. Previous primary mentor: ${previousMentorName}.`,
+      },
+    });
+  }
+);
+
 /** Staff-facing: someone was named in a mentor note's visibility list — never sent to the intern. */
 const notifyMentorNoteMention = safe(
   async ({
@@ -590,4 +628,5 @@ module.exports = {
   notifyInternMentorNoteShared,
   notifyAbsenceRequestPending,
   notifyAbsenceRequestDecided,
+  notifyPrimaryMentorTransferred,
 };

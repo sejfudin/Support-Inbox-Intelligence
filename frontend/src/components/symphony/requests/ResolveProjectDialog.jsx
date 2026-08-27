@@ -158,7 +158,7 @@ export function ResolveProjectDialog({ open, onOpenChange, request }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex max-h-[65vh] flex-col gap-5 overflow-y-auto px-6 py-5">
+        <div className="flex max-h-[calc(var(--app-vh)*0.65)] flex-col gap-5 overflow-y-auto px-6 py-5">
           {mode === 'pick' ? (
             <>
               {matches.length > 0 && (

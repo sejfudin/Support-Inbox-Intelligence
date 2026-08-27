@@ -15,9 +15,12 @@ export default function SettingsSection({
   // rather than the page as a whole. Explicit rather than derived from `title`, so
   // rewording a heading cannot silently unhook a tour step. See `whatsNewSteps.js`.
   tour,
+  // Anchor for a `#hash` link into this section (e.g. the dashboard card's
+  // "Customize" link) — see `SettingsPage`'s scroll-to-hash effect.
+  id,
 }) {
   return (
-    <section className={cn('app-card overflow-hidden', className)} data-tour={tour}>
+    <section id={id} className={cn('app-card overflow-hidden', className)} data-tour={tour}>
       <header className="app-card-head">
         <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[var(--r-tile)] bg-primary/10 text-primary">
           <Icon className="h-[17px] w-[17px]" strokeWidth={1.8} />

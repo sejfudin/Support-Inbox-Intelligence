@@ -78,12 +78,20 @@ const STATUS_STYLES = {
   // ── Not owed ──
   // All four recede together, because they are the same fact: nobody owed this day.
   // On-project used to be amber, which claimed a hue for a state that means "no
-  // obligation" and left nothing for sick. It keeps its distinctness through the
-  // briefcase glyph instead, so a placed intern's month still reads as accounted
-  // for rather than blank.
+  // obligation" and left nothing for sick. It stays hue-free — a hue here would also
+  // need an entry in both colourblind palettes for a state that is the absence of
+  // one.
   [DAY_STATUS.WEEKEND]: 'bg-muted/30 text-muted-foreground/40',
   [DAY_STATUS.NON_WORKING]: 'bg-muted/30 text-muted-foreground/40',
-  [DAY_STATUS.EXEMPT]: 'bg-muted/50 text-muted-foreground/70',
+  // On a project: separated from the weekend by weight rather than by colour — a
+  // denser fill, full-strength text and a neutral inset ring, which is the device
+  // every *owed* status uses and no other not-owed status has. At `bg-muted/50` it
+  // sat one step off the weekend and read as the same cell; a returning intern's
+  // month is mostly these days, so telling them apart at a glance is the difference
+  // between "accounted for" and "blank". The briefcase glyph says which it is once
+  // the eye lands on it.
+  [DAY_STATUS.EXEMPT]:
+    'bg-muted/70 text-muted-foreground ring-1 ring-inset ring-muted-foreground/25',
   // Before the intern joined: faintest of all, and deliberately not a filled cell —
   // these days are not part of their record at all.
   [DAY_STATUS.BEFORE_START]: 'text-muted-foreground/30',
@@ -113,7 +121,10 @@ const STATUS_DOT = {
   [DAY_STATUS.RELIGIOUS]: 'bg-[hsl(var(--tone-violet))]',
   [DAY_STATUS.SICK]: 'bg-[hsl(var(--tone-orange))]',
   [DAY_STATUS.ABSENT]: 'bg-[hsl(var(--tone-danger))]',
-  [DAY_STATUS.EXEMPT]: 'bg-muted-foreground/50',
+  // Carries the same separation into the legend and the roster's day column, where
+  // there is no glyph and no fill to help — /50 against the weekend's /40 was a
+  // difference nobody could see.
+  [DAY_STATUS.EXEMPT]: 'bg-muted-foreground/70',
   [DAY_STATUS.WEEKEND]: 'bg-muted-foreground/40',
   [DAY_STATUS.NON_WORKING]: 'bg-muted-foreground/40',
 };

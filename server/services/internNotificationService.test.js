@@ -7,10 +7,20 @@ jest.mock('./groqAiClient', () => ({
   requestGroqOutputText: jest.fn().mockRejectedValue(new Error('AI unavailable')),
   extractJsonObject: jest.fn(),
 }));
+// `dispatch` asks whether the recipient is the deleted-user tombstone before it
+// writes anything. Mocked, or every test here reaches for the users collection.
+jest.mock('../repository/tombstoneUser', () => ({ isTombstoneUser: jest.fn() }));
 
 const Notification = require('../models/Notification');
+const { isTombstoneUser } = require('../repository/tombstoneUser');
 const { sendToUser } = require('../socket/socketServer');
-const { notifyDailyReminder } = require('./internNotificationService');
+const {
+  notifyDailyReminder,
+  notifyRecommendationCreated,
+  notifyRecommendationStatusChanged,
+  notifyRecommendationNotPlaced,
+  notifyInternPlaced,
+} = require('./internNotificationService');
 
 describe('notifyDailyReminder', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -93,5 +103,119 @@ describe('notifyDailyReminder', () => {
       })
     ).resolves.toEqual({ skipped: 'already-read' });
     expect(sendToUser).not.toHaveBeenCalled();
+  });
+});
+
+// A recommendation with no project reaches these functions as `project:
+// undefined` (the caller always reads `recommendation.project?.name`), and
+// the notification still has to read as a grammatical sentence.
+describe('recommendation notifications with an unknown project', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('notifyRecommendationCreated falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyRecommendationCreated({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      position: 'Backend Developer',
+      project: undefined,
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "You're being considered for Backend Developer on a project to be confirmed.",
+      })
+    );
+  });
+
+  it('notifyRecommendationStatusChanged falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyRecommendationStatusChanged({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      project: undefined,
+      newStatus: 'interviewing',
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: 'Your recommendation for a project to be confirmed is now at the Interviewing stage.',
+      })
+    );
+  });
+
+  it('notifyRecommendationNotPlaced falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyRecommendationNotPlaced({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      project: undefined,
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "You weren't placed on a project to be confirmed this time. New opportunities come up regularly.",
+      })
+    );
+  });
+
+  it('notifyInternPlaced falls back to the mid-sentence phrase', async () => {
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyInternPlaced({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      position: 'Backend Developer',
+      project: undefined,
+      startDate: null,
+    });
+
+    expect(Notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: "Congratulations — you're now placed as Backend Developer on a project to be confirmed.",
+      })
+    );
+  });
+});
+
+describe('tombstone recipients', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('writes nothing when the recipient is the deleted-user tombstone', async () => {
+    // A reassigned primary mentor, or a recipient admin, can resolve to the
+    // tombstone once the repoint migration has run: the id is present and names a
+    // real document, so only this check stands between it and a notification row
+    // nobody can ever read.
+    isTombstoneUser.mockResolvedValue(true);
+
+    const result = await notifyDailyReminder({
+      internUserId: 'tombstone-id',
+      internProfileId: 'profile-1',
+      missingAttendance: true,
+      missingDaily: false,
+      dateKey: '2026-08-13',
+    });
+
+    expect(result).toEqual({ skipped: 'tombstone-recipient' });
+    expect(Notification.create).not.toHaveBeenCalled();
+    expect(sendToUser).not.toHaveBeenCalled();
+  });
+
+  it('still writes for a real recipient', async () => {
+    isTombstoneUser.mockResolvedValue(false);
+    Notification.create.mockResolvedValue({ toObject: () => ({ _id: 'n1' }) });
+
+    await notifyDailyReminder({
+      internUserId: 'user-1',
+      internProfileId: 'profile-1',
+      missingAttendance: true,
+      missingDaily: false,
+      dateKey: '2026-08-13',
+    });
+
+    expect(Notification.create).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDebounce } from 'use-debounce';
-import { X } from 'lucide-react';
+import { HelpCircle, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -51,6 +51,11 @@ export default function LeadershipProjectsPage() {
   const isPending = useLoaderHold(isPendingRaw, { release: isError });
   const projects = data?.projects ?? [];
   const kpis = data?.kpis;
+  const unknownProjectBucket = data?.unknownProjectBucket;
+  const hasUnknownProjectWork =
+    !isPending &&
+    ((unknownProjectBucket?.placedCount ?? 0) > 0 ||
+      (unknownProjectBucket?.inSelectionCount ?? 0) > 0);
 
   // A new filter/search always starts back at the first page of results.
   useEffect(() => {
@@ -239,6 +244,37 @@ export default function LeadershipProjectsPage() {
           </div>
         )}
       </SymphonyCard>
+
+      {hasUnknownProjectWork && (
+        <SymphonyCard
+          className="flex flex-wrap items-center gap-4"
+          data-test="projects-unknown-project-bucket"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <HelpCircle className="h-5 w-5" />
+          </span>
+          <div className="flex-1">
+            <h3 className="font-semibold text-foreground">Project not known yet</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Recommendations still waiting on a project. Not a project — nothing to open here.
+            </p>
+          </div>
+          <div className="flex items-center gap-6">
+            <div>
+              <p className="text-lg font-bold leading-none text-foreground">
+                {unknownProjectBucket.placedCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">placed</p>
+            </div>
+            <div>
+              <p className="text-lg font-bold leading-none text-[hsl(var(--symphony-brand-strong))] dark:text-[hsl(var(--symphony-brand))]">
+                {unknownProjectBucket.inSelectionCount}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">in selection</p>
+            </div>
+          </div>
+        </SymphonyCard>
+      )}
 
       <div ref={gridRef} className="scroll-mt-20">
         {/* The same three-column grid the cards land in — `ProjectsKpiRow` and the demand

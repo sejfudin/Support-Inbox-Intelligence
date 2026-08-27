@@ -7,6 +7,7 @@ const { ROLES } = require('../constants/roles');
 const { slugify } = require('../helpers/slugify');
 const { httpError } = require('../helpers/httpError');
 const { userSelect } = require('../constants/userSelect');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
 
 // Same two-role read gate as recommendations (recommendationService.js
 // READ_ROLES) — leadership is stakeholder-facing read access, everyone else
@@ -55,7 +56,6 @@ const createProject = async ({ name, type, client, description, technologyIds })
   if (!name?.trim()) throw new Error('Project name is required');
   assertProjectType(type);
   const resolvedSlug = slugify(name);
-  if (resolvedSlug === 'unspecified') throw new Error('This project name is reserved');
 
   const project = await Project.create({
     name: name.trim(),
@@ -78,7 +78,6 @@ const updateProject = async (id, { name, type, client, description, status, tech
     // rename that collides with another project now hits the unique index
     // (→ 409) instead of silently creating a duplicate display name.
     const resolvedSlug = slugify(name);
-    if (resolvedSlug === 'unspecified') throw new Error('This project name is reserved');
     project.name = name.trim();
     project.slug = resolvedSlug;
   }
@@ -111,6 +110,12 @@ const RECOMMENDATION_INTERN_POPULATE = [
   { path: 'technologies', select: 'name slug' },
 ];
 
+// A recommendation whose intern's User was deleted straight from the database
+// still loads fine — `internProfile.user` just populates as `null`, and every
+// field in `internSummary` falls back to the literal "Unknown". Dropping those
+// rows at the point they are read keeps both the project rosters and the counts
+// derived from them free of people who no longer exist. The two `hasLiveUser`
+// filters below are that guard; see `helpers/orphanedProfiles.js`.
 const internSummary = (recommendation) => ({
   recommendationId: recommendation._id,
   userId: recommendation.internProfile?.user?._id || null,
@@ -149,10 +154,12 @@ const getProjectOverview = async (id, user) => {
   assertLeadershipReadAccess(user);
   const project = await getProjectById(id);
 
-  const recommendations = await Recommendation.find({ project: id })
-    .populate(RECOMMENDATION_INTERN_POPULATE)
-    .sort({ updatedAt: -1 })
-    .lean();
+  const recommendations = (
+    await Recommendation.find({ project: id })
+      .populate(RECOMMENDATION_INTERN_POPULATE)
+      .sort({ updatedAt: -1 })
+      .lean()
+  ).filter((recommendation) => hasLiveUser(recommendation.internProfile));
 
   const placed = recommendations
     .filter((rec) => rec.result?.outcome === 'placed')
@@ -194,12 +201,26 @@ const getProjectsOverview = async (user) => {
     .lean();
   const projectIds = projects.map((project) => project._id);
 
-  const recommendations = await Recommendation.find({ project: { $in: projectIds } })
-    .populate(RECOMMENDATION_INTERN_POPULATE)
-    .lean();
+  // A recommendation with no project (the "unknown project" state) is fetched
+  // alongside the rest so its placed/in-selection counts can feed the
+  // "Project not known yet" bucket below — otherwise the page KPIs (summed
+  // here) would silently omit interns this overview doesn't yet know where to
+  // put.
+  const recommendations = (
+    await Recommendation.find({
+      $or: [{ project: { $in: projectIds } }, { project: null }],
+    })
+      .populate(RECOMMENDATION_INTERN_POPULATE)
+      .lean()
+  ).filter((recommendation) => hasLiveUser(recommendation.internProfile));
 
   const recsByProject = new Map();
+  const unknownProjectRecs = [];
   recommendations.forEach((rec) => {
+    if (!rec.project) {
+      unknownProjectRecs.push(rec);
+      return;
+    }
     const key = rec.project.toString();
     if (!recsByProject.has(key)) recsByProject.set(key, []);
     recsByProject.get(key).push(rec);
@@ -281,6 +302,47 @@ const getProjectsOverview = async (user) => {
     return { ...project, placedCount, inSelectionCount: selectionRecs.length };
   });
 
+  // A computed bucket, never a document — there is no project to open, so it
+  // carries its own counts alongside the project rows rather than living in
+  // `annotatedProjects`. Folded into the page KPI totals below so those
+  // reconcile against the rows *plus* this bucket, not just the rows.
+  const UNKNOWN_PROJECT_BUCKET_LABEL = 'Project not known yet';
+  const unknownProjectPlacedRecs = unknownProjectRecs.filter(
+    (rec) => rec.result?.outcome === 'placed'
+  );
+  const unknownProjectSelectionRecs = unknownProjectRecs.filter((rec) =>
+    ['recommended', 'interviewing'].includes(rec.status)
+  );
+  const unknownProjectBucket = {
+    placedCount: unknownProjectPlacedRecs.length,
+    inSelectionCount: unknownProjectSelectionRecs.length,
+  };
+
+  internsPlaced += unknownProjectPlacedRecs.length;
+  unknownProjectPlacedRecs.forEach((rec) => {
+    placedInterns.push({
+      ...internSummary(rec),
+      projectId: null,
+      projectName: UNKNOWN_PROJECT_BUCKET_LABEL,
+      placedAt: resolvePlacementStart(rec),
+    });
+  });
+  unknownProjectSelectionRecs.forEach((rec) => {
+    const entry = {
+      ...internSummary(rec),
+      projectId: null,
+      projectName: UNKNOWN_PROJECT_BUCKET_LABEL,
+      projectClient: '',
+    };
+    if (rec.status === 'recommended') {
+      recommendedCount += 1;
+      recommendedInterns.push(entry);
+    } else {
+      interviewingCount += 1;
+      interviewingInterns.push(entry);
+    }
+  });
+
   // Full list, sorted by intern count — the KPI card shows only the top 4,
   // the "see all" modal shows the rest, both slicing the same source list.
   const skillsInSelection = [...skillInternMap.entries()]
@@ -303,6 +365,7 @@ const getProjectsOverview = async (user) => {
 
   return {
     projects: annotatedProjects,
+    unknownProjectBucket,
     kpis: {
       totalProjects: projects.length,
       byStatus,

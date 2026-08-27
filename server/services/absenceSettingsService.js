@@ -1,5 +1,6 @@
 const AbsenceRequestSettings = require('../models/AbsenceRequestSettings');
 const { ROLES } = require('../constants/roles');
+const { isRealUser } = require('../constants/userVisibility');
 const { assertActiveAdmin } = require('../helpers/assertActiveAdmin');
 const {
   REQUEST_TYPES,
@@ -85,24 +86,27 @@ const getSettings = async () => {
   const doc = await loadDoc()
     .populate([
       { path: 'updatedBy', select: 'fullname' },
-      { path: 'primaryAdmin', select: 'fullname role status isTestAccount' },
+      { path: 'primaryAdmin', select: 'fullname role status isTestAccount isTombstone' },
     ])
     .lean();
   const limits = effectiveFrom(storedLimits(doc));
 
   // Read back as unset if the stored reference no longer resolves to an active
   // admin — demoted, deactivated, or (impossible via the picker, but not via a
-  // stale id) a test account. Matches what `absenceRequestService#listAdminChoices`
-  // already does for the intern-facing form: a settings screen that kept
-  // showing a name for a primary admin who can no longer receive anything would
-  // silently disagree with the request form, which would already be showing no
-  // default at all.
+  // stale id) a test account or the deleted-user tombstone. Matches what
+  // `absenceRequestService#listAdminChoices` already does for the intern-facing
+  // form: a settings screen that kept showing a name for a primary admin who can
+  // no longer receive anything would silently disagree with the request form,
+  // which would already be showing no default at all.
+  //
+  // `isRealUser` rather than a truthiness check, because a deleted admin's id no
+  // longer populates as `null` once the migration has run — it populates as the
+  // tombstone, which is present, named, and still cannot receive a request.
   const storedPrimaryAdmin = doc?.primaryAdmin;
   const primaryAdminStillValid =
-    storedPrimaryAdmin &&
+    isRealUser(storedPrimaryAdmin) &&
     storedPrimaryAdmin.role === ROLES.ADMIN &&
-    storedPrimaryAdmin.status === 'active' &&
-    !storedPrimaryAdmin.isTestAccount;
+    storedPrimaryAdmin.status === 'active';
 
   return {
     bounds: LIMIT_BOUNDS,

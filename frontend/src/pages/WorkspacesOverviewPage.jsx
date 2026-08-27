@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Users, Ticket, Building2, Plus, CheckCircle2, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -53,7 +53,13 @@ export default function WorkspacesOverviewPage() {
   const workspaces = admin ? allWorkspaces : myWorkspaces;
   const isLoading = admin ? isLoadingAll : isLoadingMine;
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  // `?new=1` arrives with the create dialog open. The dashboard's "New workspace"
+  // quick action needs it: `/create-workspace` is the *first-workspace* page and
+  // redirects an admin who already has one straight back to the dashboard
+  // (`AppRoutes.jsx`), so a link there did nothing at all. This list, with its own
+  // Create dialog, is where an admin actually makes one.
+  const [searchParams] = useSearchParams();
+  const [isCreateOpen, setIsCreateOpen] = useState(() => searchParams.get('new') === '1');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [statusDrafts, setStatusDrafts] = useState(DEFAULT_STATUS_DRAFTS);
@@ -344,7 +350,7 @@ export default function WorkspacesOverviewPage() {
           setLogoFile(null);
         }}
       >
-        <DialogContent className="flex max-h-[min(90vh,840px)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+        <DialogContent className="flex max-h-[min(calc(var(--app-vh)*0.9),840px)] w-[calc(var(--app-vw)-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
           <DialogHeader className="shrink-0 space-y-2 border-b border-border/60 px-6 py-5 text-left">
             <DialogTitle className="text-xl">Create a new workspace</DialogTitle>
             <DialogDescription className="text-sm leading-6">

@@ -35,18 +35,38 @@ const VISIBLE_TECHNOLOGY_CHIPS = 6;
 // otherwise have to go look up. Two or more collapse to a count instead of a
 // comma-joined list, since a list of project names past the first stops being
 // something you read and starts being something you count anyway.
+//
+// `unknownProject` marks a conflicting recommendation with no project of its
+// own — two nulls are neither equal nor different, so it can never be named
+// or folded into the count as a settled fact. It's called out on its own
+// terms instead, admitting there's no way to tell if it's the same
+// opportunity or a different one.
 const describeFlag = (flag) => {
   const projects = flag.projects ?? [];
   const verb =
     flag.type === 'placed' ? 'Placed on' : flag.type === 'in-selection' ? 'Put forward on' : null;
   if (!verb) return null;
-  if (projects.length === 0) {
+
+  const total = projects.length + (flag.unknownProject ? 1 : 0);
+  if (total === 0) {
     return { prefix: flag.type === 'placed' ? 'Already placed' : 'Put forward elsewhere' };
   }
-  if (projects.length === 1) {
+  if (total === 1 && flag.unknownProject) {
+    return {
+      prefix:
+        flag.type === 'placed'
+          ? "Already placed, project not known yet — can't confirm if it's the same one"
+          : "Already put forward, project not known yet — can't confirm if it's the same one",
+    };
+  }
+  if (total === 1) {
     return { prefix: `${verb} ${projects[0]}` };
   }
-  return { prefix: `${verb} `, count: projects.length, suffix: ' other projects' };
+  return {
+    prefix: `${verb} `,
+    count: total,
+    suffix: flag.unknownProject ? ' other projects, one not known yet' : ' other projects',
+  };
 };
 
 const describeCandidate = (candidate) => (candidate.flags ?? []).map(describeFlag).filter(Boolean);
@@ -344,7 +364,7 @@ export function PutForwardDialog({ open, onOpenChange, request, row, cart, onSav
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         portalContainer={portalContainer}
-        className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-3xl"
+        className="flex max-h-[calc(var(--app-vh)*0.9)] flex-col gap-0 p-0 sm:max-w-3xl"
         data-test="put-forward-dialog"
       >
         <DialogHeader className="gap-0 space-y-0 border-b border-border/60 px-6 pb-5 pt-6 text-left">

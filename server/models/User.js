@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { ROLE_VALUES } = require('../constants/roles');
 const {
   USER_PREFERENCE_DEFINITIONS,
-  MUTED_NOTIFICATION_GROUP_VALUES,
+  USER_LIST_PREFERENCE_DEFINITIONS,
 } = require('../constants/userPreferences');
 
 /**
@@ -22,10 +22,17 @@ const userPreferencesSchema = new mongoose.Schema(
         { type: String, enum: definition.values },
       ])
     ),
-    mutedNotificationGroups: {
-      type: [{ type: String, enum: MUTED_NOTIFICATION_GROUP_VALUES }],
-      default: undefined,
-    },
+    // Every list-valued preference, built from the same table the service
+    // validates against. `default: undefined` on each is load-bearing, not
+    // decoration: presence is how `storedKeysOf` tells "the user chose this"
+    // from "never touched", and a schema default would make every account look
+    // like it had picked an order it never dragged.
+    ...Object.fromEntries(
+      Object.entries(USER_LIST_PREFERENCE_DEFINITIONS).map(([key, definition]) => [
+        key,
+        { type: [{ type: String, enum: definition.values }], default: undefined },
+      ])
+    ),
   },
   { _id: false }
 );
@@ -123,6 +130,28 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // The single "Deleted user" placeholder every ref left behind by a deleted
+    // account points at. There is exactly one, created and maintained by
+    // `npm run migrate:tombstone-user-refs`.
+    //
+    // It exists because a departed user cannot simply be erased from the records
+    // they touched. A Ticket has `creator: { required: true }`, a Workspace has
+    // `owner: { required: true }` — `$unset` on those succeeds through
+    // `updateMany` (no validators) and leaves a document that can never be saved
+    // through the app again, still rendering as nothing on screen. Deleting the
+    // ticket instead would delete other people's conversation. So the ref gets a
+    // subject that really exists and is honestly labelled, `populate` resolves,
+    // and no `|| 'Unknown'` fallback fires anywhere.
+    //
+    // Not a login: `active: false` and no password, and `authService.login`
+    // rejects on either. Not a person, so it is excluded from every listing a
+    // human picks from — same `{ $ne: true }` idiom as `isTestAccount` directly
+    // above, shared through `constants/userVisibility.js`. Unlike a test account
+    // it has no "include it anyway" escape hatch: there is nothing to administer.
+    isTombstone: {
+      type: Boolean,
+      default: false,
+    },
     // Profile picture. Two fields rather than one, on purpose.
     //
     // `avatarUrl` is the public URL, denormalised so that it can ride along in
@@ -153,6 +182,32 @@ const userSchema = new mongoose.Schema(
     // news badge (unset means "never opened", not "caught up").
     staffingRequestsLastSeenAt: {
       type: Date,
+    },
+    // The `TOUR_VERSION` of the what's-new tour this account has finished (or
+    // escaped out of). `null` means "never seen one", which is what makes a
+    // fresh account get the announcement.
+    //
+    // The version string rather than a boolean, because the tour is the release
+    // channel: bumping `TOUR_VERSION` in
+    // `frontend/src/components/onboarding/whatsNewSteps.js` re-announces to
+    // everyone exactly once, and a boolean would ship the tour once ever and
+    // silently retire that mechanism.
+    //
+    // A top-level field rather than a row in `preferences`, on purpose. That
+    // subdocument validates every write against an enum of legal values
+    // (`constants/userPreferences.js`), and a release string has no such list —
+    // it would need a branch through a validator whose whole contract is "a
+    // value from this table". This is the same shape as
+    // `staffingRequestsLastSeenAt` directly above: a marker the app writes,
+    // not a setting the user picks.
+    //
+    // Not `select: false`, and that is the load-bearing part: `getMe` spreads
+    // the whole user document, so this arrives on the payload the shell already
+    // waits for. The tour is already gated on having a user, so the seen-state
+    // needs no query and no hydration gate of its own.
+    whatsNewSeenVersion: {
+      type: String,
+      default: null,
     },
     // Appearance / workspace-default / notification preferences that follow the
     // account across browsers. Read and written through

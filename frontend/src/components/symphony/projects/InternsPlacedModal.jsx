@@ -19,7 +19,7 @@ export function InternsPlacedModal({ open, onOpenChange, interns = [] }) {
             Everyone currently placed on a project ({interns.length}).
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
+        <div className="max-h-[calc(var(--app-vh)*0.6)] space-y-2 overflow-y-auto pr-1">
           {interns.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">Nobody is placed yet.</p>
           )}

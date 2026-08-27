@@ -19,15 +19,20 @@ import { Button } from '@/components/ui/button';
 import { useChangeSpecializationMentor } from '@/queries/specializations';
 import { useMentorCandidates } from '@/queries/users';
 
-export function ChangeMentorModal({ specialization, onClose }) {
+/**
+ * `open` defaults to "there is a record to act on", which is how the
+ * Specialization tab drives this — it holds one nullable target and lets that
+ * double as the open flag. A caller that always has its record on hand (an
+ * intern's own profile) passes `open` separately instead, so it does not have to
+ * blank out the record it is still displaying just to close the dialog.
+ */
+export function ChangeMentorModal({ specialization, onClose, open = Boolean(specialization) }) {
   const [mentorId, setMentorId] = useState('');
   const [error, setError] = useState('');
 
   const { data: mentorsData } = useMentorCandidates({ hubScoped: false });
   const mentors = mentorsData?.users ?? [];
   const changeMentorMutation = useChangeSpecializationMentor();
-
-  const open = Boolean(specialization);
   const eligibleMentors = mentors.filter(
     (mentor) => mentor._id !== specialization?.primaryMentor?._id
   );

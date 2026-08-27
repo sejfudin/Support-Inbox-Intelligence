@@ -50,6 +50,7 @@ export const NOTIFICATION_GROUPS = [
       'intern_mentor_note_shared',
       'absence_request_pending',
       'absence_request_decided',
+      'primary_mentor_transferred',
     ],
   },
   {

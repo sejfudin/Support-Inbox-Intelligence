@@ -40,6 +40,22 @@ const officeDateKey = (date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
+/**
+ * A calendar day written the way a person says it — "3 September 2026".
+ *
+ * For messages the intern reads: a refusal that names the day it is talking about
+ * ("your internship starts on 3 September 2026") is answerable, where a bare
+ * 'YYYY-MM-DD' reads like a database key that leaked into a toast. Rendered in
+ * office time so the named day is the same one the stored key means.
+ */
+const officeDateLabel = (date = new Date()) =>
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: OFFICE_TIMEZONE,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date instanceof Date ? date : new Date(date));
+
 /** Office-local hour (0–23). */
 const officeHour = (date = new Date()) => Number(officeParts(date).hour);
 
@@ -87,6 +103,23 @@ const isWeekendKey = (key) => {
  * day across a DST boundary.
  */
 const previousDayKey = (key) => new Date(keyToUtcNoon(key) - DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * The 'YYYY-MM-DD' key for the day after `key`. The mirror of `previousDayKey`, and
+ * the walk step for anything that iterates a half-open key range — see
+ * `placementExemptKeys`.
+ */
+const nextDayKey = (key) => new Date(keyToUtcNoon(key) + DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * A 'YYYY-MM-DD' key back to a Date, at UTC noon.
+ *
+ * Noon rather than midnight for the usual reason: a midnight Date renders as the
+ * previous day in any timezone west of UTC, and these values are stored and read
+ * back as calendar days. Used where a key has to be persisted into a Date field
+ * (`placementExemptions`).
+ */
+const keyToDate = (key) => new Date(keyToUtcNoon(key));
 
 const NO_EXCLUSIONS = new Set();
 
@@ -156,6 +189,7 @@ module.exports = {
   CHECK_IN_WINDOW,
   CHECK_IN_WINDOW_LABEL,
   officeDateKey,
+  officeDateLabel,
   officeHour,
   officeMinute,
   isOfficeWeekend,
@@ -163,6 +197,8 @@ module.exports = {
   isWithinCheckInWindow,
   isWeekendKey,
   previousDayKey,
+  nextDayKey,
+  keyToDate,
   previousWorkingDayKey,
   countWorkingDays,
   officeMonthKey,

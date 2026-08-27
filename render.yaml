@@ -18,11 +18,11 @@ services:
       - key: PORT
         value: 4000
       - key: CLIENT_URL
-        sync: false          
+        value: https://insightdesk-app.onrender.com
       - key: SERVER_URL
-        sync: false          
+        value: https://support-inbox-intelligence-app.onrender.com
       - key: MONGODB_URI
-        sync: false          
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -129,8 +129,8 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      - key: VITE_API_BASE_URL          
-        sync: false
+      - key: VITE_API_BASE_URL
+        value: https://support-inbox-intelligence-app.onrender.com/api
 
   # ─────────────────────────────────────────────
   # DEV — Frontend (Static Site)

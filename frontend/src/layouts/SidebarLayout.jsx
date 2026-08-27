@@ -8,8 +8,8 @@ export default function SidebarLayout() {
     <SidebarProvider>
       <AppSidebar />
 
-      <SidebarInset className="min-h-screen w-full overflow-hidden bg-transparent">
-        <div className="flex min-h-screen flex-col overflow-hidden">
+      <SidebarInset className="min-h-[var(--app-vh)] w-full overflow-hidden bg-transparent">
+        <div className="flex min-h-[var(--app-vh)] flex-col overflow-hidden">
           {/* The sidebar is off-canvas on mobile, so this is its only reopen handle
               once the top bar is gone. Desktop uses the collapse toggle in the
               sidebar header instead. */}

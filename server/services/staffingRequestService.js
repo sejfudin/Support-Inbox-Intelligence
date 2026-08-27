@@ -32,6 +32,8 @@ const {
 const { emitStaffingNewsChanged, emitInternDataChanged } = require('../socket/events');
 const InternProfile = require('../models/InternProfile');
 const { userSelect } = require('../constants/userSelect');
+const { hasLiveUser } = require('../helpers/orphanedProfiles');
+const { restrictProfileFilterToLiveUsers } = require('../repository/liveUserFilter');
 
 // This is the platform's first leadership write path: no existing route
 // admits ROLES.LEADERSHIP for a write, so every guard below is explicit
@@ -215,7 +217,15 @@ const formatRequest = (request, recommendations = []) => {
     ...plain,
     id: plain._id,
     progress: deriveProgress(plain.requestedPositions, recommendations),
-    suggestions: recommendations.map(formatSuggestion),
+    // A tagged recommendation whose intern's User was deleted straight from the
+    // database populates as `internProfile.user === null` and would render as an
+    // "Unknown intern" suggestion card. `progress` above deliberately still
+    // counts it: those counts are about how much of the request has been filled,
+    // and a put-forward that happened does not un-happen because the person's
+    // account was removed. See `helpers/orphanedProfiles.js`.
+    suggestions: recommendations
+      .filter((rec) => hasLiveUser(rec.internProfile))
+      .map(formatSuggestion),
   };
 };
 
@@ -644,7 +654,6 @@ const resolveStaffingRequestProjectByCreating = async (user, requestId, payload 
   if (!PROJECT_STATUSES.includes(status)) throw httpError('Invalid project status', 400);
 
   const slug = slugify(name);
-  if (slug === 'unspecified') throw httpError('This project name is reserved', 400);
 
   const collision = await Project.findOne({ slug }).select('_id name slug').lean();
   if (collision) {
@@ -766,12 +775,13 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
   // Interns who have left the programme are filtered out in the query as well
   // as by the picker rules below — they can never appear, so there is no reason
   // to load them and their whole recommendation history first.
-  const profiles = await InternProfile.find({ status: { $nin: PICKER_EXCLUDED_INTERN_STATUSES } })
-    .select('user status startDate declaredPosition selfTechnologies cvTechnologies')
+  const profiles = await InternProfile.find(
+    await restrictProfileFilterToLiveUsers({ status: { $nin: PICKER_EXCLUDED_INTERN_STATUSES } })
+  )
+    .select('user status startDate declaredPosition selfTechnologies')
     .populate({ path: 'user', select: userSelect() })
     .populate({ path: 'declaredPosition', select: 'name' })
     .populate({ path: 'selfTechnologies', select: 'name' })
-    .populate({ path: 'cvTechnologies', select: 'name' })
     .lean();
 
   const recommendations = await Recommendation.find({
@@ -815,14 +825,12 @@ const listPutForwardCandidates = async (user, requestId, positionId) => {
       // half a row.
       startDate: profile.startDate ?? null,
       position: profile.declaredPosition?.name ?? null,
-      // Both technology lists, because a picker matching against what the
-      // request asked for should not care which of the two an intern's skill
-      // was recorded in.
+      // One list, whether the intern added an entry by hand or a CV scan did it
+      // for them — a picker matching against what the request asked for has no
+      // reason to care which.
       technologies: [
         ...new Set(
-          [...(profile.selfTechnologies ?? []), ...(profile.cvTechnologies ?? [])]
-            .map((technology) => technology?.name)
-            .filter(Boolean)
+          (profile.selfTechnologies ?? []).map((technology) => technology?.name).filter(Boolean)
         ),
       ],
       eligibility: partitioned.eligibility,
@@ -951,9 +959,16 @@ const putInternsForward = async (user, requestId, payload = {}) => {
     throw new StagedPickRejectionError(rejections);
   }
 
+  // The request's own project pre-fills every recommendation this submit
+  // creates. An admin who ticks "unknown" on the form sends an explicit
+  // `projectId: null`, deliberately discarding that pre-fill; any other value
+  // is not a legal override on this path — the project comes from the request,
+  // not from a free choice — so it is ignored rather than trusted.
+  const projectId = payload.projectId === null ? null : request.project;
+
   await createRecommendationsForStaffingRequest(user, {
     groups,
-    projectId: request.project,
+    projectId,
     staffingRequestId: request._id,
   });
 

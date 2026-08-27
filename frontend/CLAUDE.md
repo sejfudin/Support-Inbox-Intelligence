@@ -84,5 +84,15 @@ isError });` — so every use in the file inherits it and no site can forget. Wi
   table ends up half-covered.
 - **Spinners are for actions, not for arriving pages.** `Loader2` inside a button means "your click
   is working"; it stays. Don't convert those, and don't add new ones for page loads.
+- **Never size a box against the screen with `vh`/`svh`/`dvh`/`vw`. Use `var(--app-vh)`,
+  `var(--app-svh)`, `var(--app-dvh)`, `var(--app-vw)`** (defined in `index.css`), and the Tailwind
+  arbitrary-value forms `min-h-[var(--app-vh)]`, `max-h-[calc(var(--app-vh)*0.9)]`,
+  `h-[calc(var(--app-vh)-9rem)]`. Settings → Text & UI size applies `zoom` to `<body>`, and `zoom`
+  scales lengths but **not** viewport units — a raw `100vh` at the 125% setting paints 125% of the
+  screen. The variables are those units divided back down by the active zoom, and are identical to
+  the raw units at 100%, so there is no reason to reach for the raw ones. This is not cosmetic: the
+  sidebar is `position: fixed`, so an over-tall one puts the account footer permanently below the
+  fold with no scroll that can reach it, and a modal capped at `90vh` loses its top and bottom off
+  the screen.
 - Forms: React Hook Form + Zod schemas.
 - Run `npm run format` before finishing.

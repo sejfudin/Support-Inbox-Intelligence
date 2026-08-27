@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import {
   Accessibility,
@@ -15,12 +15,14 @@ import {
   SlidersHorizontal,
   Sun,
   UserRound,
+  Zap,
 } from 'lucide-react';
 
 import PageHeading from '@/components/PageHeading';
 import { PageSection, PageShell } from '@/components/PageShell';
 import SettingsSection, { SettingsRow } from '@/components/settings/SettingsSection';
 import DesktopNotificationsRow from '@/components/settings/DesktopNotificationsRow';
+import QuickActionsRows from '@/components/settings/QuickActionsRows';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -30,6 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
+import { quickActionsForRole } from '@/helpers/quickActions';
+import { ROLES } from '@/helpers/roles';
 import { useThemeConfig } from '@/context/ThemeConfigContext';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import {
@@ -238,6 +242,16 @@ function PaletteSwatch({ theme }) {
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const { hash } = useLocation();
+
+  // A route change doesn't scroll to its own `#hash` on its own — the dashboard
+  // card's "Customize" link relies on this to land on the actual section instead
+  // of just opening the page at the top.
+  useEffect(() => {
+    if (!hash) return;
+    document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [hash]);
+
   const {
     density,
     uiScale,
@@ -275,6 +289,10 @@ export default function SettingsPage() {
   );
 
   const mutedGroups = parseMutedGroups(mutedRaw);
+
+  // Admin today; the catalog is what decides, so this needs no edit when the
+  // mentor dashboard grows a card.
+  const hasQuickActions = user?.role === ROLES.ADMIN && quickActionsForRole(user?.role).length > 0;
 
   const toggleNotificationGroup = (key) =>
     setMutedRaw(
@@ -471,6 +489,22 @@ export default function SettingsPage() {
             />
           </div>
         </SettingsSection>
+
+        {/* Only for a role that actually has the card. The mentor catalog exists
+            (`helpers/quickActions.js`) but nothing renders it yet — their
+            `/dashboard` is still the assigned-tickets table — and offering to
+            configure a card they cannot see would be a settings page lying to
+            them. Widen this when the mentor dashboard lands. */}
+        {hasQuickActions && (
+          <SettingsSection
+            id="quick-actions"
+            icon={Zap}
+            title="Quick actions"
+            description="The shortcut list on your dashboard — which ones, and in what order."
+          >
+            <QuickActionsRows role={user?.role} />
+          </SettingsSection>
+        )}
 
         <SettingsSection
           icon={Bell}

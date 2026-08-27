@@ -4,7 +4,7 @@ const InternProfile = require('../models/InternProfile');
 const Technology = require('../models/Technology');
 const { extractPdfText } = require('../helpers/pdfText');
 const { matchTechnologiesInText } = require('../helpers/cvTechnologyMatcher');
-const { reconcileCvTechnologies } = require('../helpers/cvTechnologySync');
+const { mergeCvTechnologies } = require('../helpers/cvTechnologySync');
 
 const buildInternCvPath = (userId) => {
   const ts = Date.now();
@@ -23,58 +23,34 @@ const removeCvFromStorage = async (cvPath) => {
   await supabase.storage.from(supabaseCvBucket).remove([cvPath]);
 };
 
-// Fresh arrays per call — callers hand these straight to the response, so a shared constant
+// Fresh array per call — callers hand this straight to the response, so a shared constant
 // would let one request's mutation leak into the next.
-const emptySync = () => ({ addedTechnologies: [], removedTechnologies: [] });
+const emptySync = () => ({ addedTechnologies: [] });
 
-const namesForTechnologyIds = async (ids) => {
-  if (!ids.length) return [];
-  return Technology.find({ _id: { $in: ids } })
-    .select('_id name slug')
-    .lean();
-};
-
-// Best-effort: read the uploaded CV, recognize technologies from the canonical catalog, and
-// bring the intern's list in line with it — adding what the CV mentions and removing what the
-// *previous* scan added but this one no longer mentions, so a re-upload replaces rather than
-// accumulates. Manual declarations are never touched (see helpers/cvTechnologySync.js).
-// Mutates `profile.selfTechnologies` / `profile.cvTechnologies` (the caller saves) and returns
-// both deltas.
+// Best-effort: read the uploaded CV, recognize technologies from the canonical catalog, and add
+// the ones the intern has not declared yet. Adding is all a scan ever does — a re-upload never
+// removes, so nothing the intern has on their list can disappear because a newer PDF spells their
+// skills differently, omits a section, or turns out to be unreadable (see helpers/cvTechnologySync.js).
+// Mutates `profile.selfTechnologies` (the caller saves) and returns what it added.
 //
 // Recognition is a convenience, never a hard requirement — a corrupt PDF or missing text must
 // not fail the CV upload, so this swallows its own errors and changes nothing on failure.
-// Bailing out without touching the list matters on the remove path too: text we could not read
-// is not evidence that the intern dropped a technology, so an unreadable re-upload must leave
-// the previous scan's technologies in place rather than wipe them.
 const syncTechnologiesFromCv = async (profile, buffer) => {
   try {
     const text = await extractPdfText(buffer);
     if (!text) return emptySync();
 
     const technologies = await Technology.find({ isActive: true }).select('_id name slug').lean();
-    // No `if (!matched.length) return` guard: a readable CV that mentions nothing we recognize
-    // is a real result, and it still has to clear what the previous scan left behind.
     const matched = matchTechnologiesInText(text, technologies);
 
-    const next = reconcileCvTechnologies({
+    const next = mergeCvTechnologies({
       selfTechnologies: profile.selfTechnologies || [],
-      cvTechnologies: profile.cvTechnologies || [],
       matched,
     });
 
-    // Resolved before the profile is touched, and deliberately the last await in this function:
-    // everything that can throw has to happen while the list is still untouched, so the catch
-    // below can honestly report "nothing changed". A removed technology is by definition absent
-    // from the new match and may since have been deactivated, so the active-catalog lookup above
-    // cannot name it.
-    const removedTechnologies = await namesForTechnologyIds(next.removedTechnologyIds);
-
     // Adding has the same effect as a manual "Add a technology": no ReadinessFlag is created,
-    // so each new technology reads as "Not assessed" until a mentor assesses it. Removing
-    // mirrors a manual remove and likewise leaves any existing flag alone — a re-assessment
-    // is the mentor's call, and keeping the flag means re-adding the technology restores it.
+    // so each new technology reads as "Not assessed" until a mentor assesses it.
     profile.selfTechnologies = next.selfTechnologies;
-    profile.cvTechnologies = next.cvTechnologies;
 
     return {
       addedTechnologies: next.addedTechnologies.map((t) => ({
@@ -82,7 +58,6 @@ const syncTechnologiesFromCv = async (profile, buffer) => {
         name: t.name,
         slug: t.slug,
       })),
-      removedTechnologies,
     };
   } catch {
     return emptySync();
@@ -106,13 +81,10 @@ const uploadInternCv = async ({ userId, file }) => {
   }
 
   profile.cvPath = path;
-  const { addedTechnologies, removedTechnologies } = await syncTechnologiesFromCv(
-    profile,
-    file.buffer
-  );
+  const { addedTechnologies } = await syncTechnologiesFromCv(profile, file.buffer);
   await profile.save();
 
-  return { cvPath: path, cvUrl: buildCvUrl(path), addedTechnologies, removedTechnologies };
+  return { cvPath: path, cvUrl: buildCvUrl(path), addedTechnologies };
 };
 
 const deleteInternCv = async (userId) => {

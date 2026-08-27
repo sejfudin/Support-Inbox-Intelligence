@@ -21,6 +21,12 @@ export function useMyDeclaredTechnologies() {
   const { data: flags = [] } = useMyInternReadiness();
 
   // Set of declared tech IDs — fast lookup for "already declared?"
+  //
+  // Read off the profile populate, which is NOT filtered by `isActive`, while
+  // `declaredTechnologies` below joins against the active catalog only. That gap is
+  // load-bearing: a technology an admin deactivates stays declared but stops being
+  // rendered, and the save posts this set. Derive the saved ids from the rendered
+  // rows instead and every such declaration is silently dropped on the next edit.
   const declaredIds = useMemo(
     () => new Set((intern?.selfTechnologies || []).map((t) => t._id || t)),
     [intern]

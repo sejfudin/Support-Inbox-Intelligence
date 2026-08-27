@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { CHIP, chipTone } from '@/helpers/badgeTones';
 import { capitalizeFirst } from '@/helpers/capitalizeFirst';
 import { formatDate } from '@/helpers/date';
-import { getReadinessLabel } from '@/helpers/internProfile';
+import { getReadinessLabel, isAssessedLevel } from '@/helpers/internProfile';
 import { cn } from '@/lib/utils';
 import { ProgressGroupLabel } from './ProgressPanel';
 import { statusMeaning } from './programmeStatus';
@@ -302,7 +302,7 @@ export function ProgressOverview({
                 </>
               ) : (
                 <span className="text-[13px] font-medium text-foreground">
-                  {positionLevel && positionLevel !== 'none'
+                  {isAssessedLevel(positionLevel)
                     ? getReadinessLabel(positionLevel)
                     : 'Nothing declared'}
                 </span>
