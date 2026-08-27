@@ -22,7 +22,13 @@
 // retireSupersededTechnologies.js); left active, both match the same CV line and one skill is
 // auto-declared as several technologies.
 //
-// Groups below are for human readability only; the API sorts by name. Entries that predate
+// Entries may carry `category: 'ai'`, which puts them in the AI skills catalog instead of the
+// technology one — a separate search box and a separate section on the intern's page, same
+// declaration, assessment and staffing behaviour everywhere else. Omitting it means general,
+// which is what every non-AI entry does. See server/constants/technologies.js.
+//
+// Groups below are for human readability only; the API sorts by name, and `category` — NOT the
+// group a row sits in — is what splits the two catalogs. Entries that predate
 // the "Languages"/"Databases" groups keep their original section. The Design & UX, Security,
 // Game development and Embedded & hardware groups exist because the Position catalog
 // (seeder/defaultPositions.js) names those four tracks and the catalog carried nothing an
@@ -199,18 +205,65 @@ module.exports = [
   { name: 'Keras' },
   { name: 'OpenCV' },
   { name: 'Hugging Face', slug: 'hugging-face' },
-  { name: 'LangChain' },
-  { name: 'OpenAI API', slug: 'openai-api' },
   { name: 'MLflow' },
   { name: 'XGBoost' },
-  { name: 'Large Language Models', slug: 'large-language-models' },
-  { name: 'Retrieval-Augmented Generation', slug: 'rag' },
-  { name: 'Prompt Engineering', slug: 'prompt-engineering' },
   { name: 'Computer Vision', slug: 'computer-vision' },
   { name: 'Natural Language Processing', slug: 'nlp' },
   { name: 'Stable Diffusion', slug: 'stable-diffusion' },
-  { name: 'Ollama' },
   { name: 'Vector Databases', slug: 'vector-databases' },
+
+  // —— AI skills ——
+  // The `ai` category, and the only group that carries one — everything above is general by
+  // default. These are the tools an engineer works *with* rather than the ML stack they
+  // build: coding agents and assistant IDEs, the LLM APIs and agent SDKs behind them, and
+  // the practices that come with both. The line against ML & AI above is who does the
+  // learning — PyTorch trains a model, Claude Code uses one.
+  //
+  // Slugs are the stable key here too, so a rebrand ("Codeium" → "Windsurf") is a NAME edit,
+  // never a slug edit. Six entries below (LangChain, OpenAI API, LLMs, RAG, Prompt
+  // Engineering, Ollama) moved here from ML & AI keeping their original slugs, so every
+  // existing declaration and readiness flag on them still resolves — they simply list under
+  // AI skills now.
+  { name: 'Claude Code', slug: 'claude-code', category: 'ai' },
+  { name: 'Cursor', slug: 'cursor', category: 'ai' },
+  { name: 'GitHub Copilot', slug: 'github-copilot', category: 'ai' },
+  {
+    name: 'GitHub Copilot Agent Mode',
+    slug: 'github-copilot-agent-mode',
+    category: 'ai',
+  },
+  { name: 'Windsurf', slug: 'windsurf', category: 'ai' },
+  { name: 'Gemini CLI', slug: 'gemini-cli', category: 'ai' },
+  { name: 'OpenAI Codex', slug: 'openai-codex', category: 'ai' },
+  { name: 'Cline', slug: 'cline', category: 'ai' },
+  { name: 'Aider', slug: 'aider', category: 'ai' },
+  { name: 'Devin', slug: 'devin', category: 'ai' },
+  { name: 'JetBrains AI Assistant', slug: 'jetbrains-ai-assistant', category: 'ai' },
+  { name: 'Amazon Q Developer', slug: 'amazon-q-developer', category: 'ai' },
+  { name: 'Replit Agent', slug: 'replit-agent', category: 'ai' },
+  { name: 'Lovable', slug: 'lovable', category: 'ai' },
+  { name: 'Bolt.new', slug: 'bolt-new', category: 'ai' },
+  { name: 'v0', slug: 'v0', category: 'ai' },
+  { name: 'AI Code Review', slug: 'ai-code-review', category: 'ai' },
+  { name: 'ChatGPT', slug: 'chatgpt', category: 'ai' },
+  { name: 'Perplexity', slug: 'perplexity', category: 'ai' },
+  { name: 'Anthropic Claude API', slug: 'anthropic-claude-api', category: 'ai' },
+  { name: 'Google Gemini API', slug: 'google-gemini-api', category: 'ai' },
+  { name: 'OpenAI API', slug: 'openai-api', category: 'ai' },
+  { name: 'Claude Agent SDK', slug: 'claude-agent-sdk', category: 'ai' },
+  { name: 'OpenAI Agents SDK', slug: 'openai-agents-sdk', category: 'ai' },
+  { name: 'Vercel AI SDK', slug: 'vercel-ai-sdk', category: 'ai' },
+  { name: 'Model Context Protocol', slug: 'mcp', category: 'ai' },
+  { name: 'Agent Skills', slug: 'agent-skills', category: 'ai' },
+  { name: 'LangChain', slug: 'langchain', category: 'ai' },
+  { name: 'LangGraph', slug: 'langgraph', category: 'ai' },
+  { name: 'LlamaIndex', slug: 'llamaindex', category: 'ai' },
+  { name: 'AI Agent Orchestration', slug: 'ai-agent-orchestration', category: 'ai' },
+  { name: 'Large Language Models', slug: 'large-language-models', category: 'ai' },
+  { name: 'Retrieval-Augmented Generation', slug: 'rag', category: 'ai' },
+  { name: 'Prompt Engineering', slug: 'prompt-engineering', category: 'ai' },
+  { name: 'LLM Evaluation', slug: 'llm-evaluation', category: 'ai' },
+  { name: 'Ollama', slug: 'ollama', category: 'ai' },
 
   // —— QA ——
   { name: 'Manual QA', slug: 'manual-qa' },

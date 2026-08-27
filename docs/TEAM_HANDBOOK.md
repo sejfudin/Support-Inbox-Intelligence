@@ -30,6 +30,9 @@
 - Only role that manages reference data (hubs, positions, technologies, internship types) —
   positions (specializations like "Frontend Engineer") and technologies (concrete tools like
   "React") are kept as separate catalogs on purpose
+- Each technology is either a plain technology or an **AI skill** (Claude Code, Cursor, Copilot,
+  MCP, the LLM APIs). Admin picks which when adding or editing one; it decides which of the two
+  search boxes on the intern's page finds it, and nothing else
 - Switching a technology off takes it out of the catalog, so nobody new can declare it — but it
   stays on the profiles that already declared it rather than being stripped from them. Those
   interns no longer see it in their own list, and it no longer stands in the way of the rest of
@@ -170,12 +173,13 @@
 
 **Intern**
 - Sees and edits only their own profile
-- Declares their own technologies, and can drop one again. Dropping one a mentor has already
+- Declares their own technologies **and AI skills** on Position & Skills — two search boxes, two
+  lists, assessed by a mentor the same way. Can drop one again: dropping one a mentor has already
   assessed (Learning or Ready) asks for confirmation first and names the level; an unassessed one
   goes straight out. Either way the readiness is kept, so re-declaring brings the level back
 - Uploads their own CV
 - Has a read-only "My Progress" page with everything the programme records about them: where they stand in the programme (status, dates, mentors, hub), every evaluation, their readiness, and every recommendation. Read-only throughout — nothing there is theirs to add, change, or delete
-- Sees their own readiness, both by position and per declared technology, including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
+- Sees their own readiness, both by position and per declared skill — technologies and AI skills under their own headings — including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
 - Sees their own evaluations in full: the four scores per review period, the movement since the previous period, **and their mentor's written notes** (new — the notes used to be hidden from them)
 - Still doesn't see most mentor notes (the separate free-text notes admin/mentor write with their own "who else on staff can see this" list) — those stay invisible by default. The one exception: a note its author explicitly chose to share directly with them shows up on My Progress, and they get notified when one arrives
 - Sees their own recommendations: which project and position, the technologies, which stage it reached and every date along the way, the interviews, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? All of them are listed on My Progress, and arrows on the dashboard card switch between them

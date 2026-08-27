@@ -4,6 +4,7 @@ import {
   AdobeXD,
   Android,
   Angular,
+  Anthropic,
   Ansible,
   Apache,
   AppleDark,
@@ -22,10 +23,12 @@ import {
   CSharp,
   Canva,
   CassandraDB,
+  ChatGPT,
   ChakraUI,
   CircleCI,
   ClickHouse,
   Clojure,
+  ClaudeAI,
   Cloudflare,
   Cypress,
   Dart,
@@ -54,8 +57,10 @@ import {
   Git,
   GitHubDark,
   GitHubLight,
+  GitHubCopilot,
   GitLab,
   Go,
+  Google,
   GoogleCloud,
   Grafana,
   GraphQL,
@@ -173,6 +178,8 @@ import { cn } from '@/lib/utils';
 // scikit-learn, Spark, Airflow, JUnit, SQLite, Unity, Unreal Engine, Godot, Blender, Wireshark,
 // Burp Suite, Arduino, Raspberry Pi, MATLAB, …). Both fall back to a neutral code glyph via
 // TechnologyIcon below.
+//
+// The AI skills group at the bottom is the sparsest of all — see its own note there.
 //
 // The set covers the web and cloud stacks densely and the four tracks added alongside the
 // Design & UX / Security / Game development / Embedded groups only patchily — design tools have
@@ -349,6 +356,29 @@ const ICON_BY_SLUG = {
   eslint: ESLint,
   storybook: Storybook,
   nx: Nx,
+
+  // —— AI skills ——
+  // Sparser than the groups above by nature: the icon set covers the big vendors and almost
+  // none of the young agent tools (Cursor, Windsurf, Cline, Aider, Devin, Lovable, Bolt.new,
+  // Perplexity, Replit Agent, …), and the practice entries — MCP, Agent Skills, prompt
+  // engineering, evals — have no single mark to carry in the first place. All of them fall
+  // back to the neutral glyph, which is the designed outcome.
+  //
+  // Where a vendor ships several entries they share the vendor's mark: Codex and the Agents
+  // SDK are both OpenAI, the Gemini API and its CLI are both Google. Two rows with one logo
+  // is correct here — the name beside it is what distinguishes them.
+  'claude-code': ClaudeAI,
+  'anthropic-claude-api': Anthropic,
+  'claude-agent-sdk': Anthropic,
+  'github-copilot': GitHubCopilot,
+  'github-copilot-agent-mode': GitHubCopilot,
+  chatgpt: ChatGPT,
+  'openai-codex': OpenAI,
+  'openai-agents-sdk': OpenAI,
+  'google-gemini-api': Google,
+  'gemini-cli': Google,
+  v0: { onLight: VercelDark, onDark: VercelLight },
+  'vercel-ai-sdk': { onLight: VercelDark, onDark: VercelLight },
 
   // —— Specialized engineering ——
   cpp: CPlusPlus,

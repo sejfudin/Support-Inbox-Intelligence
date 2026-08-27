@@ -5,6 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -29,10 +36,21 @@ import {
   ReferenceDataTableLoading,
 } from '@/components/reference-data/ReferenceDataPanel';
 import { useCreateTechnology, useTechnologies, useUpdateTechnology } from '@/queries/technologies';
+import { AI_TECHNOLOGY_CATEGORY, isAiSkill } from '@/helpers/technologyCategories';
 import { toast } from 'sonner';
 import { useLoaderHold } from '@/components/ui/loader';
 
-const emptyForm = { name: '', isActive: true };
+// Which half of the catalog a row belongs to. The interns' page has one search box per
+// category, so a row created in the wrong one is a row nobody finds — hence a required
+// choice on create rather than a silent default to Technology.
+const CATEGORY_OPTIONS = [
+  { value: 'general', label: 'Technology' },
+  { value: AI_TECHNOLOGY_CATEGORY, label: 'AI skill' },
+];
+
+const categoryLabel = (technology) => (isAiSkill(technology) ? 'AI skill' : 'Technology');
+
+const emptyForm = { name: '', category: 'general', isActive: true };
 
 export function ReferenceDataTechnologiesPanel() {
   const {
@@ -60,6 +78,9 @@ export function ReferenceDataTechnologiesPanel() {
     setEditingId(technology._id);
     setForm({
       name: technology.name,
+      // Not `technology.category` directly: rows seeded before the field existed carry none,
+      // and an empty value would leave the trigger blank and save `undefined` back.
+      category: isAiSkill(technology) ? AI_TECHNOLOGY_CATEGORY : 'general',
       isActive: technology.isActive,
     });
     setDialogOpen(true);
@@ -89,7 +110,7 @@ export function ReferenceDataTechnologiesPanel() {
       <ReferenceDataPanel
         loading={showLoader}
         loadingLabel="Loading technologies"
-        description="Skills and stacks used for intern profiles and readiness tracking."
+        description="Technologies and AI skills used for intern profiles and readiness tracking."
         action={
           <Button
             type="button"
@@ -106,6 +127,7 @@ export function ReferenceDataTechnologiesPanel() {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>Name</TableHead>
+              <TableHead className="w-[120px]">Type</TableHead>
               <TableHead className="w-[240px]">Slug</TableHead>
               <TableHead className="w-[120px]">Status</TableHead>
               <TableHead className="w-[80px] text-right">
@@ -115,15 +137,18 @@ export function ReferenceDataTechnologiesPanel() {
           </TableHeader>
           <TableBody>
             {showLoader ? (
-              <ReferenceDataTableLoading colSpan={4} />
+              <ReferenceDataTableLoading colSpan={5} />
             ) : technologies.length === 0 ? (
-              <ReferenceDataTableMessage colSpan={4}>
+              <ReferenceDataTableMessage colSpan={5}>
                 No technologies yet.
               </ReferenceDataTableMessage>
             ) : (
               technologies.map((technology) => (
                 <TableRow key={technology._id}>
                   <TableCell className="font-medium text-foreground">{technology.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {categoryLabel(technology)}
+                  </TableCell>
                   <TableCell>
                     <ReferenceDataSlugBadge>{technology.slug}</ReferenceDataSlugBadge>
                   </TableCell>
@@ -165,6 +190,31 @@ export function ReferenceDataTechnologiesPanel() {
                 required
                 data-test="platform-management-technologies-name-input"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="technology-category">Type</Label>
+              <Select
+                value={form.category}
+                onValueChange={(value) => setForm({ ...form, category: value })}
+              >
+                <SelectTrigger
+                  id="technology-category"
+                  data-test="platform-management-technologies-category-select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[12px] leading-[1.45] text-muted-foreground">
+                Decides which search box on the intern's page finds it. Everything else — declaring,
+                assessment, staffing — is the same for both.
+              </p>
             </div>
             {editingId && (
               <div className="flex items-center gap-3 rounded-[var(--r-card)] border border-border px-4 py-3">

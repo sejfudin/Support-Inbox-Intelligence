@@ -118,13 +118,20 @@ import { resolveUserId } from '@/helpers/userIdentity';
 //   nobody knows they can change is an avatar that stays initials forever. It adds
 //   nothing else and deletes nothing: the previous entry's steps are still the first
 //   telling of most of what they cover.
-// - `2026-08-settings-cleanup` (this one): Density, Colour vision and Motion were
+// - `2026-08-settings-cleanup`: Density, Colour vision and Motion were
 //   removed from Settings. Same reasoning as `2026-08-my-progress` — the `appearance`
 //   and `accessibility` steps named all three ("plus a compact row density",
 //   "Contrast, colour vision, motion"), and leaving that copy would have shipped a
 //   correction only first-time viewers ever see. No new step; the two edited ones
 //   just stop claiming settings that no longer exist.
-export const TOUR_VERSION = '2026-08-settings-cleanup';
+// - `2026-08-ai-skills` (this one): the intern page is Position & Skills now, and the
+//   catalog has a second half — coding agents, assistant IDEs, LLM APIs — with its own
+//   search box beside the technology one. One intern step, and a bump for it, for the
+//   same reason as the avatars: a search box nobody knows about is a list that stays
+//   empty, and a mentor cannot assess an AI skill that was never declared. Deletes
+//   nothing — the two entries above are a step and a correction, and this neither
+//   repeats nor retires either.
+export const TOUR_VERSION = '2026-08-ai-skills';
 
 /**
  * Master switch for the what's-new tour. **On.**
@@ -438,6 +445,14 @@ export const WHATS_NEW_STEPS = [
     target: '[data-tour="nav-my-progress"]',
     title: 'My Progress',
     body: 'Your evaluations and scores with your mentor’s written notes, your readiness, and every project you have been put forward for.',
+    placement: 'right',
+  },
+  {
+    id: 'ai-skills',
+    roles: ['intern'],
+    target: '[data-tour="nav-my-technologies"]',
+    title: 'Position & Skills',
+    body: 'Your technologies live here, and now AI skills too — Claude Code, Cursor, Copilot, MCP and the rest, in their own search box. Declare what you use; your mentor assesses these the same way.',
     placement: 'right',
   },
   {

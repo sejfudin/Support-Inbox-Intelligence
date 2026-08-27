@@ -114,7 +114,7 @@ export const QUICK_ACTION_CATALOG = Object.freeze([
   },
   {
     key: 'update-readiness',
-    label: 'Update technology readiness',
+    label: 'Update skill readiness',
     icon: Gauge,
     roles: [ROLES.ADMIN],
     opens: true,

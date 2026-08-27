@@ -7,11 +7,21 @@
  * existing one, and it touches no other collection — safe to run against any environment,
  * including one with live intern data.
  *
+ * The one field it does re-assert on existing rows is `category`, which is what decides
+ * whether a row lists under technologies or under AI skills. Declarations, readiness flags and
+ * staffing rows key off the slug and are untouched by a category move — the row just changes
+ * which section it appears in.
+ *
  * Reach for this after adding entries to defaultTechnologies.js: the destructive `npm run seed`
  * is the only other path that seeds them, and you do not want to run that on a shared database.
  *
- *   npm run seed:technologies -- --dry-run    list what would be added, change nothing
- *   npm run seed:technologies                 add the missing technologies
+ *   npm run seed:technologies -- --dry-run           list what would be added, change nothing
+ *   npm run seed:technologies                        add the missing technologies
+ *   npm run seed:technologies -- --category=ai       only the AI skills half of the catalog
+ *
+ * `--category` narrows the run to one half (`general` | `ai`). Entries in the other half are
+ * not read and their rows are not written to at all — reach for it on a shared database when
+ * the change you are shipping is only one half of the catalog.
  */
 
 const path = require('path');
@@ -31,8 +41,26 @@ const Technology = require('../models/Technology');
 const { slugify } = require('../helpers/slugify');
 const DEFAULT_TECHNOLOGIES = require('./defaultTechnologies');
 const { seedTechnologies } = require('./referenceData');
+const { DEFAULT_TECHNOLOGY_CATEGORY, TECHNOLOGY_CATEGORIES } = require('../constants/technologies');
 
 const isDryRun = process.argv.includes('--dry-run');
+
+// `--category=ai`, or `--category ai`.
+const readCategoryArg = () => {
+  const inline = process.argv.find((arg) => arg.startsWith('--category='));
+  if (inline) return inline.slice('--category='.length);
+  const index = process.argv.indexOf('--category');
+  return index === -1 ? null : process.argv[index + 1];
+};
+
+const categoryFilter = readCategoryArg();
+
+if (categoryFilter && !TECHNOLOGY_CATEGORIES.includes(categoryFilter)) {
+  console.error(
+    `❌ Unknown --category "${categoryFilter}". Expected one of: ${TECHNOLOGY_CATEGORIES.join(', ')}.`
+  );
+  process.exit(1);
+}
 
 // Same slug resolution seedTechnologies() uses, so "missing" here means exactly what it
 // would insert.
@@ -40,7 +68,9 @@ const resolveCatalog = () =>
   DEFAULT_TECHNOLOGIES.map((entry) => {
     const name = typeof entry === 'string' ? entry : entry.name;
     const slug = typeof entry === 'string' ? slugify(name) : entry.slug || slugify(name);
-    return { name, slug };
+    const category =
+      (typeof entry === 'string' ? undefined : entry.category) || DEFAULT_TECHNOLOGY_CATEGORY;
+    return { name, slug, category };
   });
 
 const run = async () => {
@@ -48,28 +78,56 @@ const run = async () => {
     await connectDB();
     console.log(`🟢 Connected using ${ENV_FILE} — database "${mongoose.connection.name}".`);
 
-    const catalog = resolveCatalog();
-    const existing = new Set((await Technology.find({}).select('slug').lean()).map((t) => t.slug));
+    const catalog = resolveCatalog().filter(
+      (entry) => !categoryFilter || entry.category === categoryFilter
+    );
+    if (categoryFilter) console.log(`🎯 Scoped to category "${categoryFilter}".`);
+    const existing = new Map(
+      (await Technology.find({}).select('slug category').lean()).map((t) => [t.slug, t])
+    );
     const missing = catalog.filter((t) => !existing.has(t.slug));
+    // A row whose stored category no longer matches the catalog — either it predates the
+    // field entirely, or the catalog moved it between the two lists.
+    const recategorized = catalog.filter((t) => {
+      const row = existing.get(t.slug);
+      return row && (row.category || DEFAULT_TECHNOLOGY_CATEGORY) !== t.category;
+    });
 
-    console.log(`📚 Catalog: ${catalog.length} entries. In database: ${existing.size}.`);
+    console.log(
+      `📚 Catalog: ${catalog.length} entries${categoryFilter ? ' in scope' : ''}. In database: ${existing.size} (all categories).`
+    );
 
-    if (!missing.length) {
-      console.log('✅ Nothing to add — every catalog technology already exists.');
+    if (!missing.length && !recategorized.length) {
+      console.log('✅ Nothing to do — every catalog technology exists with the right category.');
       process.exit(0);
     }
 
-    console.log(`${isDryRun ? '📝 Would add' : '➕ Adding'} ${missing.length}:`);
-    for (const { name, slug } of missing) console.log(`   • ${name} (${slug})`);
+    if (missing.length) {
+      console.log(`${isDryRun ? '📝 Would add' : '➕ Adding'} ${missing.length}:`);
+      for (const { name, slug, category } of missing) {
+        console.log(`   • ${name} (${slug})${category === 'ai' ? ' — AI skill' : ''}`);
+      }
+    }
+
+    if (recategorized.length) {
+      console.log(
+        `${isDryRun ? '📝 Would recategorize' : '🔀 Recategorizing'} ${recategorized.length}:`
+      );
+      for (const { name, slug, category } of recategorized) {
+        const from = existing.get(slug).category || '(unset)';
+        console.log(`   • ${name} (${slug}): ${from} → ${category}`);
+      }
+    }
 
     if (isDryRun) {
       console.log('\n🚫 Dry run — nothing was written.');
       process.exit(0);
     }
 
-    await seedTechnologies();
+    await seedTechnologies(categoryFilter ? { category: categoryFilter } : {});
     const total = await Technology.countDocuments();
-    console.log(`\n✅ Done. ${total} technologies in the catalog.`);
+    const aiTotal = await Technology.countDocuments({ category: 'ai' });
+    console.log(`\n✅ Done. ${total} technologies in the catalog (${aiTotal} AI skills).`);
 
     process.exit(0);
   } catch (error) {

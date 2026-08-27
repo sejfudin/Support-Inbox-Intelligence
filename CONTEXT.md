@@ -100,6 +100,32 @@ _Avoid_: co-mentor, area mentor, second mentor (it is *the specialization mentor
 > `secondaryMentor`). In code and docs use the platform-role words: **admin** assigns, the
 > **specialization mentor** is assigned.
 
+## Skills
+
+**Skill**:
+The umbrella term for anything an intern declares on Position & Skills and a mentor can
+assess — one `Technology` row either way, one `InternProfile.selfTechnologies` array, one
+`ReadinessFlag` shape. Use it whenever a sentence covers both halves below ("declared
+skills", "readiness by skill").
+_Avoid_: competency, capability, tech (as a catch-all).
+
+**Technology**:
+The general half of the skill catalog: languages, frameworks, databases, tooling, design and
+QA practices — `Technology` with `category: 'general'` (or no category at all, on rows seeded
+before the field existed). Still the right word for one specific row of that half; not the
+word for the two halves together.
+_Avoid_: stack (a stack is several), tech.
+
+**AI skill**:
+The AI half of the same catalog — `Technology` with `category: 'ai'`. Coding agents and
+assistant IDEs (Claude Code, Cursor, Copilot, Windsurf), the LLM APIs and agent SDKs behind
+them, and the practices that come with both (MCP, Agent Skills, prompt engineering, evals).
+Distinct from the ML stack, which stays a technology: **PyTorch trains a model, Claude Code
+uses one.** Declared, assessed and staffed exactly like a technology — the category decides
+only which search box finds it and which section lists it.
+_Avoid_: AI tool (the practice entries are not tools), GenAI skill, AI technology (the point
+of the term is that it reads as *not* one of the technologies).
+
 ## Staffing requests
 
 **Staffing request**:

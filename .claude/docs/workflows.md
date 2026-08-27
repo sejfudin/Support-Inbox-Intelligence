@@ -89,7 +89,8 @@ npm run import:attendance               # attendance from the mentor's CSVs, see
 npm run cleanup:fep-attendance          # DELETES the seeded cohort's attendance, see below
 npm run cleanup:fep-placements          # undoes the placements seed:fep-cohort invented
 npm run seed:positions
-npm run seed:technologies               # NON-destructive: adds missing technologies, see below
+npm run seed:technologies               # NON-destructive: adds missing technologies and syncs
+                                        # their category (technology / AI skill), see below
 npm run seed:observances                # NON-destructive: 20 years of religious observances,
                                         # calendar notices only — never attendance. --dry-run /
                                         # --replace (to correct an announced Bajram date)
@@ -287,6 +288,13 @@ The odd one out: **non-destructive**. It upserts `seeder/defaultTechnologies.js`
 reactivates or removes an existing one, and touches no other collection. Like `seed:demo` it
 loads `.env.${NODE_ENV|development}`.
 
+The one exception is `category` (`general` | `ai`), which it re-asserts with `$set` on every
+run: the catalog is what decides whether a row lists under technologies or under AI skills, and
+six rows moved between the two when the AI skills group landed. A category move changes nothing
+about declarations, readiness flags or staffing rows — those key off the slug — only which
+search box and section the row appears in. Both the dry run and the summary report the moves
+separately from the additions.
+
 (One caveat on "`$setOnInsert` only": `Technology` has `timestamps: true`, and Mongoose adds
 `$set: { updatedAt }` to every `updateOne` regardless. Existing rows therefore get their
 `updatedAt` bumped on each run. Nothing reads that field today, but don't build
@@ -295,9 +303,16 @@ loads `.env.${NODE_ENV|development}`.
 Run it after adding entries to `defaultTechnologies.js`; the alternative is the destructive
 `npm run seed`, which you do not want to point at a shared database.
 
+`--category=<general|ai>` narrows the run to one half of the catalog. Entries in the other half
+are not read and their rows are not written to at all — not even the `updatedAt` bump above.
+That is the flag to reach for on a shared database when the change you are shipping only adds to
+one half: `--category=ai` seeded the 36 AI skills into the dev cluster without touching the 95
+technologies already there (or the 206 catalog technologies that cluster is still missing).
+
 ```bash
-npm run seed:technologies -- --dry-run   # list what would be added, change nothing
-npm run seed:technologies                # add the missing technologies
+npm run seed:technologies -- --dry-run   # list what would be added / recategorized, change nothing
+npm run seed:technologies                # add the missing technologies, sync their categories
+npm run seed:technologies -- --category=ai   # only the AI skills half
 ```
 
 The catalog is what bounds CV scanning — `helpers/cvTechnologyMatcher.js` can only ever

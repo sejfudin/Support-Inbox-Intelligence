@@ -33,7 +33,7 @@ const ROUTE_TITLES = [
 
   // Intern
   { path: '/my-progress', title: 'My progress' },
-  { path: '/my-technologies', title: 'Position & technologies' },
+  { path: '/my-technologies', title: 'Position & skills' },
   { path: '/my-attendance', title: 'Attendance' },
 
   // Mentor

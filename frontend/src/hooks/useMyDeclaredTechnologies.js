@@ -2,10 +2,16 @@ import { useMemo } from 'react';
 import { useMyInternProfile, useMyInternReadiness } from '@/queries/interns';
 import { useTechnologies } from '@/queries/technologies';
 import { useLoaderHold } from '@/components/ui/loader';
+import { splitByCategory } from '@/helpers/technologyCategories';
 
 /**
- * The intern's own declared technologies, in catalog order, each joined to the
+ * The intern's own declared skills, in catalog order, each joined to the
  * readiness flag a mentor set on it.
+ *
+ * Returned three ways because the page needs all three: `declaredSkills` is everything
+ * declared (what the readiness bar summarises), and the two halves below it are what the
+ * technologies and AI skills sections list. The catalog is split the same way, one half per
+ * search box.
  *
  * Shared by the declaration list and the readiness summary that sits beside it on
  * `/my-technologies`: both need the same profile → catalog → flags join, and all
@@ -39,16 +45,23 @@ export function useMyDeclaredTechnologies() {
     [flags]
   );
 
-  const declaredTechnologies = useMemo(
+  const declaredSkills = useMemo(
     () => allTechnologies.filter((t) => declaredIds.has(t._id)),
     [allTechnologies, declaredIds]
   );
 
+  const catalog = useMemo(() => splitByCategory(allTechnologies), [allTechnologies]);
+  const declared = useMemo(() => splitByCategory(declaredSkills), [declaredSkills]);
+
   return {
     intern,
     allTechnologies,
+    catalogTechnologies: catalog.technologies,
+    catalogAiSkills: catalog.aiSkills,
     declaredIds,
-    declaredTechnologies,
+    declaredSkills,
+    declaredTechnologies: declared.technologies,
+    declaredAiSkills: declared.aiSkills,
     flagMap,
     isLoadingTechnologies,
   };

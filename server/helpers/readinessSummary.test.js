@@ -25,11 +25,34 @@ describe('level vocabulary', () => {
 });
 
 describe('buildTechnologyReadiness', () => {
+  // The intern's view lists AI skills under their own heading, so the row has to say which
+  // half it came from. A row built from a technology seeded before the field existed carries
+  // no category of its own and must still read as general rather than as undefined.
+  it('carries the category through, defaulting a catalog row without one to general', () => {
+    const rows = buildTechnologyReadiness(
+      [{ ...tech('t1', 'Claude Code'), category: 'ai' }, tech('t2', 'React')],
+      []
+    );
+
+    expect(rows.map((row) => [row.name, row.category])).toEqual([
+      ['Claude Code', 'ai'],
+      ['React', 'general'],
+    ]);
+  });
+
   it('reads a declared technology with no flag as not assessed', () => {
     const rows = buildTechnologyReadiness([tech('t1', 'React')], []);
 
     expect(rows).toEqual([
-      { id: 't1', name: 'React', slug: 'react', level: 'none', assessedBy: null, assessedAt: null },
+      {
+        id: 't1',
+        name: 'React',
+        slug: 'react',
+        category: 'general',
+        level: 'none',
+        assessedBy: null,
+        assessedAt: null,
+      },
     ]);
   });
 

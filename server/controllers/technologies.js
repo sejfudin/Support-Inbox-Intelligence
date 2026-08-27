@@ -19,8 +19,8 @@ exports.createTechnology = async (req, res, next) => {
     if (error.code === 11000) {
       return res.status(409).json({ message: 'A technology with this slug already exists' });
     }
-    if (error.statusCode === 409) {
-      return res.status(409).json({ message: error.message });
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
     }
     next(error);
   }
@@ -34,8 +34,8 @@ exports.updateTechnology = async (req, res, next) => {
     if (error.message === 'Technology not found') {
       return res.status(404).json({ message: error.message });
     }
-    if (error.statusCode === 409) {
-      return res.status(409).json({ message: error.message });
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
     }
     next(error);
   }
