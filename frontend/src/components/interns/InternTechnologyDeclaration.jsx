@@ -191,16 +191,16 @@ export function InternTechnologyDeclaration({ className }) {
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {renderSearch({
-            items: catalogTechnologies,
-            placeholder: 'Add a technology…',
-            emptyMessage: 'No technologies found.',
-            dataTest: 'technology-search-input',
-          })}
-          {renderSearch({
             items: catalogAiSkills,
             placeholder: 'Add an AI skill…',
             emptyMessage: 'No AI skills found.',
             dataTest: 'ai-skill-search-input',
+          })}
+          {renderSearch({
+            items: catalogTechnologies,
+            placeholder: 'Add a technology…',
+            emptyMessage: 'No technologies found.',
+            dataTest: 'technology-search-input',
           })}
         </div>
       </div>
