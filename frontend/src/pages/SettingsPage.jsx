@@ -7,11 +7,9 @@ import {
   Circle,
   Contrast,
   KeyRound,
-  LayoutGrid,
   Monitor,
   Moon,
   Palette,
-  Rows3,
   SlidersHorizontal,
   Sun,
   UserRound,
@@ -63,6 +61,11 @@ import {
   parseMutedGroups,
   serializeMutedGroups,
 } from '@/helpers/notificationPreferences';
+import {
+  DEFAULT_ONBOARDING_ENABLED,
+  ONBOARDING_ENABLED_STORAGE_KEY,
+  isValidOnboardingEnabled,
+} from '@/helpers/onboardingTour';
 import { Switch } from '@/components/ui/switch';
 import { Switcher } from '@/components/ui/switcher';
 import { useStoredPreference } from '@/hooks/useStoredPreference';
@@ -75,18 +78,12 @@ const MODE_OPTIONS = [
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
-const DENSITY_ICONS = { comfortable: Rows3, compact: LayoutGrid };
-
 const CONTRAST_ICONS = { default: Circle, high: Contrast };
 
 /**
- * Theme, Density and Default tickets view are all "pick one of two or three,
- * and the thing being picked stays the same" — the switcher's job exactly.
- *
- * This was a fourth hand-rolled segmented control (radius 9 track, radius 7
- * 30px thumbs). Density in particular being drawn by a bespoke control was the
- * joke that wrote itself: the setting that proves no component hardcodes its
- * geometry, hardcoding its own.
+ * Theme, text size and contrast are all "pick one of two or three, and the
+ * thing being picked stays the same" — the switcher's job exactly, rather than
+ * a hand-rolled segmented control per setting.
  */
 function SegmentedControl({ label, options, value, onChange, testIdPrefix }) {
   return (
@@ -102,8 +99,8 @@ function SegmentedControl({ label, options, value, onChange, testIdPrefix }) {
   );
 }
 
-/** Label, hint and a full-width select — the field shape the defaults grid uses. */
-function SettingsField({ label, hint, value, options, onChange, dataTest }) {
+/** Label and a full-width select — the field shape the defaults grid uses. */
+function SettingsField({ label, value, options, onChange, dataTest }) {
   return (
     <label className="flex min-w-0 flex-col gap-1.5">
       <span className="text-[13px] font-medium text-foreground">{label}</span>
@@ -122,11 +119,6 @@ function SettingsField({ label, hint, value, options, onChange, dataTest }) {
           ))}
         </SelectContent>
       </Select>
-      {hint ? (
-        <span className="text-pretty text-[11.5px] leading-[1.45] text-muted-foreground">
-          {hint}
-        </span>
-      ) : null}
     </label>
   );
 }
@@ -187,7 +179,7 @@ function ThemeModeControl() {
  * Named tiles rather than bare swatches: eight unlabelled squares are a memory
  * test, and the names are how the team refers to them out loud.
  */
-function AccentSwatches({ disabled = false }) {
+function AccentSwatches() {
   const { colorTheme, setColorTheme, themes, ready } = useThemeConfig();
 
   if (!ready) {
@@ -200,7 +192,7 @@ function AccentSwatches({ disabled = false }) {
   // canvas, and the row it used to occupy was three deep. The swatch travels with
   // the name into the trigger, so the current accent is still visible closed.
   return (
-    <Select value={colorTheme} onValueChange={setColorTheme} disabled={disabled}>
+    <Select value={colorTheme} onValueChange={setColorTheme}>
       <SelectTrigger
         className="h-[34px] w-[13rem] rounded-[var(--r-control)] text-[12.5px]"
         aria-label="Accent"
@@ -252,16 +244,7 @@ export default function SettingsPage() {
     document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [hash]);
 
-  const {
-    density,
-    uiScale,
-    contrast,
-    motion,
-    colorblind,
-    setPreference,
-    preferenceOptions,
-    ready,
-  } = useThemeConfig();
+  const { uiScale, contrast, setPreference, preferenceOptions, ready } = useThemeConfig();
   const [boardSort, setBoardSort] = useStoredPreference(
     BOARD_SORT_STORAGE_KEY,
     DEFAULT_BOARD_SORT,
@@ -286,6 +269,11 @@ export default function SettingsPage() {
     NOTIFICATION_MUTED_STORAGE_KEY,
     '',
     isValidMutedGroups
+  );
+  const [onboardingEnabled, setOnboardingEnabled] = useStoredPreference(
+    ONBOARDING_ENABLED_STORAGE_KEY,
+    DEFAULT_ONBOARDING_ENABLED,
+    isValidOnboardingEnabled
   );
 
   const mutedGroups = parseMutedGroups(mutedRaw);
@@ -322,15 +310,12 @@ export default function SettingsPage() {
               {user?.fullname || 'Unknown user'}
             </span>
           </SettingsRow>
-          <SettingsRow label="Role" hint="Set by an admin — it decides what you can see and do.">
+          <SettingsRow label="Role">
             <span className="app-chip bg-muted text-muted-foreground">
               {capitalizeFirst(user?.role) || 'User'}
             </span>
           </SettingsRow>
-          <SettingsRow
-            label="Password"
-            hint="Changing it needs your current password and signs out your other devices."
-          >
+          <SettingsRow label="Password">
             <Button
               asChild
               variant="outline"
@@ -348,52 +333,24 @@ export default function SettingsPage() {
         <SettingsSection
           icon={Palette}
           title="Appearance"
-          description="Theme, accent and row density — saved to your account."
+          description="Theme and accent — saved to your account."
           tour="settings-appearance"
         >
-          <SettingsRow label="Theme" hint="Light, dark, or follow your system.">
+          <SettingsRow label="Theme">
             <ThemeModeControl />
           </SettingsRow>
-          <SettingsRow
-            label="Accent"
-            // Saying so beats a control that silently does nothing: a colour
-            // vision mode replaces the palette outright, so the picker still
-            // remembers your choice but nothing on screen moves until it is off.
-            hint={
-              colorblind === 'off'
-                ? 'Colours buttons, links, active nav and charts across the app.'
-                : 'Paused — the colour vision setting below is using its own palette. Your choice is kept for when you turn it off.'
-            }
-            className="sm:items-start"
-          >
-            <AccentSwatches disabled={colorblind !== 'off'} />
-          </SettingsRow>
-          <SettingsRow
-            label="Density"
-            hint="Compact takes table rows from 46px to 38px — roughly four more rows a screen."
-          >
-            <PreferenceControl
-              label="Density"
-              preferenceKey="density"
-              value={density}
-              options={preferenceOptions.density}
-              icons={DENSITY_ICONS}
-              onChange={setPreference}
-              ready={ready}
-            />
+          <SettingsRow label="Accent" className="sm:items-start">
+            <AccentSwatches />
           </SettingsRow>
         </SettingsSection>
 
         <SettingsSection
           icon={Accessibility}
           title="Accessibility"
-          description="Contrast, colour and motion follow your account; size stays on this device."
+          description="Contrast follows your account; size stays on this device."
           tour="settings-accessibility"
         >
-          <SettingsRow
-            label="Text & UI size"
-            hint="Scales the whole interface, not just type. Kept per device, since a laptop and a large monitor want different answers. Full-height views may gain a little scroll at 125%."
-          >
+          <SettingsRow label="Text & UI size">
             <PreferenceControl
               label="Text and UI size"
               preferenceKey="uiScale"
@@ -403,42 +360,13 @@ export default function SettingsPage() {
               ready={ready}
             />
           </SettingsRow>
-          <SettingsRow
-            label="Contrast"
-            hint="Darkens borders and secondary text, and puts a visible focus ring on everything you can tab to."
-          >
+          <SettingsRow label="Contrast">
             <PreferenceControl
               label="Contrast"
               preferenceKey="contrast"
               value={contrast}
               options={preferenceOptions.contrast}
               icons={CONTRAST_ICONS}
-              onChange={setPreference}
-              ready={ready}
-            />
-          </SettingsRow>
-          <SettingsRow
-            label="Colour vision"
-            hint="Repaints every status chip, dot and pill. Red–green covers deuteranomaly and protanomaly; Blue–yellow covers tritanopia; Complete separates the tones by lightness alone."
-          >
-            <PreferenceControl
-              label="Colour vision"
-              preferenceKey="colorblind"
-              value={colorblind}
-              options={preferenceOptions.colorblind}
-              onChange={setPreference}
-              ready={ready}
-            />
-          </SettingsRow>
-          <SettingsRow
-            label="Motion"
-            hint="Reduced turns off the theme cross-fade, panel slides and card transitions."
-          >
-            <PreferenceControl
-              label="Motion"
-              preferenceKey="motion"
-              value={motion}
-              options={preferenceOptions.motion}
               onChange={setPreference}
               ready={ready}
             />
@@ -457,7 +385,6 @@ export default function SettingsPage() {
           <div className="grid gap-x-5 gap-y-3.5 py-[15px] sm:grid-cols-2">
             <SettingsField
               label="Landing page"
-              hint="Where the logo and a bare / take you."
               value={landingPage}
               options={LANDING_PAGE_OPTIONS}
               onChange={setLandingPage}
@@ -465,7 +392,6 @@ export default function SettingsPage() {
             />
             <SettingsField
               label="Ticket view"
-              hint="Used when the link carries no view. The Tickets toggle updates this."
               value={ticketsView}
               options={TICKETS_VIEW_OPTIONS}
               onChange={setTicketsView}
@@ -473,7 +399,6 @@ export default function SettingsPage() {
             />
             <SettingsField
               label="Default assignee filter"
-              hint="Seeds the Tickets filter when you arrive without one."
               value={assigneeDefault}
               options={ASSIGNEE_DEFAULT_OPTIONS}
               onChange={setAssigneeDefault}
@@ -481,7 +406,6 @@ export default function SettingsPage() {
             />
             <SettingsField
               label="Board card order"
-              hint="The order cards take inside every board column."
               value={boardSort}
               options={BOARD_SORT_OPTIONS}
               onChange={setBoardSort}
@@ -517,7 +441,7 @@ export default function SettingsPage() {
           {NOTIFICATION_GROUPS.map((group) => {
             const enabled = !mutedGroups.includes(group.key);
             return (
-              <SettingsRow key={group.key} label={group.label} hint={group.hint}>
+              <SettingsRow key={group.key} label={group.label}>
                 <Switch
                   checked={enabled}
                   onCheckedChange={() => toggleNotificationGroup(group.key)}
@@ -527,6 +451,15 @@ export default function SettingsPage() {
               </SettingsRow>
             );
           })}
+
+          <SettingsRow label="Onboarding tour">
+            <Switch
+              checked={onboardingEnabled === 'on'}
+              onCheckedChange={(checked) => setOnboardingEnabled(checked ? 'on' : 'off')}
+              aria-label="Onboarding tour"
+              data-test="settings-onboarding-tour-switch"
+            />
+          </SettingsRow>
         </SettingsSection>
       </PageSection>
     </PageShell>

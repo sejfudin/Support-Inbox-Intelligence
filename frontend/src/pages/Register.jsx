@@ -31,7 +31,14 @@ export default function Register() {
   }
 
   return (
-    <div className="fixed inset-0 h-[var(--app-vh)] w-[var(--app-vw)] overflow-y-auto bg-transparent p-4">
+    // In flow inside `<main>`, not `fixed` — this route is always nested under
+    // `SidebarLayout` (see AppRoutes.jsx), so covering the full viewport centred
+    // the two-card grid against the whole window instead of the space beside the
+    // sidebar. `min-h-[var(--app-vh)]`, not a raw `min-h-screen`, for the same
+    // reason `PageShell` uses it: zoom scales lengths but not viewport units, so
+    // a literal `100vh` under Settings → Text & UI size would overshoot the real
+    // screen — see the comment on `--app-vh` in `index.css`.
+    <div className="min-h-[var(--app-vh)] w-full overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-6xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">
           <Card className="border-border/50 bg-muted shadow-elevated dark:border-surface-border dark:bg-surface-elevated">

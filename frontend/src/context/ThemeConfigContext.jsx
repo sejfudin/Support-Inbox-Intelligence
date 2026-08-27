@@ -38,6 +38,11 @@ import {
   isValidQuickActionOrder,
 } from '@/helpers/quickActions';
 import {
+  DEFAULT_ONBOARDING_ENABLED,
+  ONBOARDING_ENABLED_STORAGE_KEY,
+  isValidOnboardingEnabled,
+} from '@/helpers/onboardingTour';
+import {
   DESKTOP_NOTIFICATIONS_DEFAULT,
   DESKTOP_NOTIFICATIONS_STORAGE_KEY,
   isValidDesktopNotifications,
@@ -255,6 +260,13 @@ const VALUE_PREFERENCES = [
     // anyway — the table is where a preference is declared, whether or not the
     // sync layer ends up carrying it.
     scope: PREFERENCE_SCOPE.DEVICE,
+  },
+  {
+    key: 'onboardingTourEnabled',
+    storageKey: ONBOARDING_ENABLED_STORAGE_KEY,
+    fallback: DEFAULT_ONBOARDING_ENABLED,
+    isValid: isValidOnboardingEnabled,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
   },
 ];
 
