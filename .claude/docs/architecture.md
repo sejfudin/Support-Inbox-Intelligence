@@ -352,7 +352,7 @@ two browsers changing two different preferences do not clobber each other.
 One component builds the whole rail: role-filtered row arrays, a `sections` list that drops the
 empty ones, and three presentations of the same tree. `helpers/navSections.js` holds the pure part
 (the stored list, the open-set resolution and the signal rollup) and is unit-tested there.
-`components/nav/SectionIcons.jsx` holds the filled multi-colour section marks.
+`components/nav/SectionIcons.jsx` holds the filled section marks.
 
 - **Two shapes, chosen in Settings → Appearance.** `navStyle` (`labelled` | `collapsible`, default
   **`labelled`**) decides whether each group stays the plain captioned list or gets a header that
@@ -413,10 +413,21 @@ empty ones, and three presentations of the same tree. `helpers/navSections.js` h
   separate from the settings accordion's `accordion-*`: longer travel, `easeInOutCubic` matching the
   rail's own easing, and an opacity fade. Radix suppresses the animation on mount, so a page load
   does not unfurl the nav.
-- The section marks are **fixed multi-colour artwork, not tokens** — product marks, the same in
-  every theme, as Azure's are. They therefore do not follow `data-colorblind`, which is only
-  acceptable because none of them is the sole carrier of anything: every section has its label
-  beside it and status is drawn from the tone tokens. Do not start encoding meaning in those hues.
+- The section marks are the **logo's four colours under Symphony Indigo and the account's accent
+  under every other palette** — the same deal `[data-brand-mark]` strikes for the logo itself, so
+  the marks are not the one thing in the rail still wearing the house brand while the rest of the
+  chrome wears the user's accent. Nine `--nav-mark-*` tokens in `index.css` carry it: the house
+  values sit in the base block, and one rule
+  (`[data-theme]:not([data-theme='default'])`, plus `data-colorblind` when it is not `off`)
+  repaints all nine from `--sidebar-primary` — `--sidebar-primary` and not `--primary` because
+  several palettes set the two differently and these are drawn on the sidebar.
+  Tokens are named for the **job** each colour does in the drawing, not its house hue, because
+  four hues collapse to two values when the accent takes over (`lead`/`warm` full, `second`/`hot`
+  at 58% over the sidebar's ground). That loss is the flooded brand mark's loss too — shapes told
+  apart only by hue merge — and it is priced in per drawing: no mark puts two 58% shapes against
+  each other. The upside is that `data-colorblind` now reaches them, which the fixed hexes could
+  never do. They stay decorative either way: every section has its label beside the mark and
+  status comes from the tone tokens, so do not encode meaning in which shape gets `lead`.
 
 ## The what's-new tour
 

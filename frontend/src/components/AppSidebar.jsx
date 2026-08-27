@@ -504,9 +504,9 @@ function NavGroup({
           aria-label={hasSignal && signals.label ? `${title} — ${signals.label}` : undefined}
           className="flex h-[44px] min-w-0 flex-1 items-center gap-2.5 rounded-none pl-[22px] pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         >
-          {/* 26px against the rows' 16: these are filled multi-colour marks that
-          need the pixels, and the size gap is part of the hierarchy — a section
-          mark should out-weigh the line icons under it. Same `ICON_SLOT` as a
+          {/* 26px against the rows' 16: these are filled, layered accent marks
+          that need the pixels, and the size gap is part of the hierarchy — a
+          section mark should out-weigh the line icons under it. Same `ICON_SLOT` as a
           row, so the two sizes still share one centre line. See
           `nav/SectionIcons.jsx`. */}
           <span className={ICON_SLOT}>
@@ -740,10 +740,10 @@ export default function AppSidebar() {
    * fact stated five times.
    */
   const sections = [
-    // `icon` is the filled multi-colour section mark from `nav/SectionIcons.jsx`,
-    // and it is used **only by the collapsible shape**. `labelled` is a plain
-    // captioned list by design — an uppercase 10.5px caption with a 18px colour
-    // mark beside it reads as a heading that lost its row.
+    // `icon` is the filled accent section mark from `nav/SectionIcons.jsx`, and it
+    // is used **only by the collapsible shape**. `labelled` is a plain captioned
+    // list by design — an uppercase 10.5px caption with a 18px filled mark beside
+    // it reads as a heading that lost its row.
     { key: 'access', title: 'Access', icon: AccessIcon, items: invitationNav },
     ...(hasWorkspaceNav
       ? [
