@@ -154,6 +154,7 @@ export const DEFAULT_LANDING_PAGE = 'dashboard';
 
 export const LANDING_PAGE_OPTIONS = [
   { value: 'dashboard', label: 'Dashboard', path: '/dashboard', needsWorkspace: false },
+  { value: 'sprints', label: 'Sprints', path: '/sprints', needsWorkspace: true },
   { value: 'tickets', label: 'Tickets', path: '/tickets', needsWorkspace: true },
   { value: 'board', label: 'Board', path: '/tickets?view=board', needsWorkspace: true },
   { value: 'dailies', label: 'Dailies', path: '/dailies', needsWorkspace: true },

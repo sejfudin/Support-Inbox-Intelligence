@@ -57,6 +57,7 @@ const ROUTE_TITLES = [
 
   // Workspace
   { path: '/dashboard', title: 'Dashboard' },
+  { path: '/sprints', title: 'Sprints' },
   { path: '/tickets', title: 'Tickets' },
   { path: '/archive', title: 'Archive' },
   { path: '/analytics', title: 'Analytics' },

@@ -6,9 +6,9 @@ categories, workspaces, rooms, or intern data.
 
 ## Golden rule: everything is workspace-scoped
 
-Every ticket / comment / status / category / room operation must be constrained to the caller's
-workspace. Never query or mutate a resource by id alone — always also assert it belongs to the
-caller's workspace.
+Every ticket / comment / status / category / room / sprint operation must be constrained to the
+caller's workspace. Never query or mutate a resource by id alone — always also assert it belongs to
+the caller's workspace.
 
 - `server/helpers/workspaceAuthz.js`:
   - `canAccessAnyWorkspace(role)` — `admin` and `mentor` may reach any workspace.
@@ -59,6 +59,14 @@ caller's workspace.
   `assertWorkspaceAccess` first,
   same as every other ticket action — the reviewer guard is in addition to, not instead of, the
   workspace check.
+
+- **Sprints** (`server/services/sprintService.js`) follow the same pattern:
+  `assertSprintInWorkspace(sprintId, workspaceId)` fetches the sprint, 404s if absent, and rejects
+  a mismatch — same shape as `assertStatusInWorkspace`. Every route resolves its workspace through
+  `resolveActiveWorkspaceId` first, so a sprint is neither readable nor writable across workspaces.
+  No role gate: creating (and, in later tickets, editing) a sprint is authorized the same way a
+  ticket update is — active workspace membership is enough, since admins/mentors already bypass it
+  via `canAccessAnyWorkspace`.
 
 ## Socket rooms follow the same rule as HTTP
 

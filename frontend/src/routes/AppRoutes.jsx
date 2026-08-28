@@ -50,6 +50,7 @@ import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
 import AdminAbsenceRequestsPage from '@/pages/AdminAbsenceRequestsPage';
 import WorkspaceDailiesPage from '@/pages/WorkspaceDailiesPage';
+import SprintsPage from '@/pages/SprintsPage';
 import AdminDailyInsightsPage from '@/pages/AdminDailyInsightsPage';
 import AdminStaffingRequestsPage from '@/pages/AdminStaffingRequestsPage';
 
@@ -240,6 +241,7 @@ export default function AppRoutes() {
                 `/tickets?assignee=me` — the same table everyone else uses with the
                 assignee filter pre-applied, rather than a second list page to keep
                 in sync. */}
+              <Route path="/sprints" element={<SprintsPage />} />
               <Route path="/tickets" element={<TicketPage />} />
               <Route path="/archive" element={<ArchivePage />} />
               <Route path="/analytics" element={<AnalyticsDashboard />} />
