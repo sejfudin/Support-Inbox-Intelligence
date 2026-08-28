@@ -273,20 +273,7 @@ function NavGroupRows({ items, collapsed, className, labelled = false }) {
   );
 }
 
-/**
- * One section in the collapsed icon rail: just its colour mark, with the rows in a
- * flyout to the right — Azure's rail.
- *
- * **This is the one place the rail hides rows**, which is why three things here are
- * not optional. The mark is a link to the section's first row, so the common case is
- * still one click. The pending dot and counts roll up onto the mark, because a row
- * nobody can see cannot carry its own signal. And the flyout opens on focus as well
- * as hover, so the rows are not mouse-only.
- *
- * It has to be a `Popover` rather than an absolutely-positioned panel: the rail sets
- * `overflow-hidden`, so anything drawn inside it is clipped at 34px. Popover portals
- * out to the body, which is the only way past that.
- */
+/** The rows inside a flyout panel, shared by the rail and the expanded sidebar. */
 function SectionFlyoutBody({ title, items, showTitle }) {
   return (
     <>
@@ -313,6 +300,16 @@ function SectionFlyoutBody({ title, items, showTitle }) {
   );
 }
 
+/**
+ * One section in the collapsed icon rail: just its colour mark, with the rows in a
+ * flyout to the right — Azure's rail.
+ *
+ * **This is the one place the rail hides rows**, which is why three things here are
+ * not optional. The mark is a link to the section's first row, so the common case is
+ * still one click. The pending dot and counts roll up onto the mark, because a row
+ * nobody can see cannot carry its own signal. And the flyout opens on focus as well
+ * as hover, so the rows are not mouse-only.
+ */
 function RailSection({ section, active, onOpen, openFlyout, closeFlyout }) {
   const { key, title, items, icon: SectionIcon } = section;
   const visible = items.filter((item) => !item.hidden);
@@ -345,7 +342,7 @@ function RailSection({ section, active, onOpen, openFlyout, closeFlyout }) {
           className="pointer-events-none absolute right-0 top-0 flex h-2 w-2"
           aria-hidden="true"
         >
-          <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-[hsl(var(--tone-warning))] opacity-75" />
+          <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-[hsl(var(--tone-warning))] opacity-75 motion-reduce:animate-none" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(var(--tone-warning))]" />
         </span>
       ) : null}
@@ -517,7 +514,7 @@ function NavGroup({
           {/* Rolled up from the rows this section is hiding. */}
           {signals?.dot ? (
             <span className="pointer-events-none relative flex h-2 w-2 shrink-0" aria-hidden="true">
-              <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-[hsl(var(--tone-warning))] opacity-75" />
+              <span className="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-[hsl(var(--tone-warning))] opacity-75 motion-reduce:animate-none" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[hsl(var(--tone-warning))]" />
             </span>
           ) : null}
@@ -1010,7 +1007,6 @@ export default function AppSidebar() {
                 // surface rather than as a break between two groups. The header's own
                 // height, weight and colour mark are what open a new section; it does
                 // not also need a margin.
-                className={undefined}
               />
             ))}
           </AccordionPrimitive.Root>

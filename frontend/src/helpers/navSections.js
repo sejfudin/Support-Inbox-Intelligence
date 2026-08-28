@@ -40,14 +40,18 @@ export const NAV_SECTION_KEYS = [
 
 const isKnown = (key) => NAV_SECTION_KEYS.includes(key);
 
+/** A stored comma string to its trimmed, non-empty entries. */
+const splitEntries = (stored) =>
+  stored
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+
 /** A stored string, or an array, to a clean list of section keys we still ship. */
 export const parseClosedSections = (stored) => {
   if (Array.isArray(stored)) return stored.filter(isKnown);
   if (typeof stored !== 'string') return [];
-  return stored
-    .split(',')
-    .map((value) => value.trim())
-    .filter(isKnown);
+  return splitEntries(stored).filter(isKnown);
 };
 
 export const serializeClosedSections = (keys) =>
@@ -60,11 +64,7 @@ export const serializeClosedSections = (keys) =>
  */
 export const isValidClosedSections = (value) => {
   if (typeof value !== 'string') return false;
-  return value
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .every(isKnown);
+  return splitEntries(value).every(isKnown);
 };
 
 /**
