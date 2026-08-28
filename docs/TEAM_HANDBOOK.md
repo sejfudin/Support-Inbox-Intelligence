@@ -98,7 +98,12 @@
 - Can edit workspaces (add a workspace image, add backlog statuses, add categories like bug/feature/etc.)
 
 **Leadership**
-- Otherwise read-only; the one exception is staffing requests (below)
+- Otherwise read-only; the two exceptions are staffing requests (below) and sending a note
+  directly to a mentor
+- Can send a short note to any mentor from the programme dashboard ("Note a mentor") — it shows up
+  on that mentor's own dashboard. Not about any intern, and not the same thing as a mentor note on
+  an intern's profile; the recipient can be any active mentor, not just one leadership works with
+  directly. Leadership cannot read or manage anything else about a mentor's account
 - Can read a candidate's uploaded CV and its AI summary, but can't generate one — if no summary
   exists yet, the panel says so and an admin or the intern's mentor has to make it
 - Only role that can file a staffing request (recorded demand for interns on a project); can edit a
@@ -140,8 +145,14 @@
 - No access to admin panels (users, workspaces, reference data)
 
 **Mentor**
+- Has their own dashboard as their landing page: assigned interns, their own ticket work in the
+  active workspace, notes sent to them by admin/leadership, and quick actions — no programme-wide
+  statistics or activity feeds, just what's theirs
 - Sees only their assigned interns (primary or secondary mentor) — and only Overview, mentor notes, and documentation links
 - Adds mentor notes (free text, picks who else on staff can see it) only for their own interns — and can optionally share a given note directly with the intern it's about, same opt-in as admin
+- Receives notes sent directly to them by admin or leadership, on their own dashboard — distinct
+  from the mentor notes above, which are about an intern. A note here is just for them, and they
+  have no way to send one back through the same channel
 - Can't see or add evaluations (periodic progress assessment) — admin-only now
 - Can't see or set readiness (by technology or position) — admin-only now
 - Can't see or create recommendations, neither per-intern nor on the standalone "Recommendations" page — admin-only now

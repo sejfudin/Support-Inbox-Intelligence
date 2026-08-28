@@ -9,12 +9,21 @@ import { invalidateUserScope } from '@/lib/invalidationScopes';
 
 export const NOTIFICATIONS_QUERY_KEY = ['notifications'];
 
-export function useNotifications({ userId, ...options } = {}) {
-  const queryKey = userId ? [...NOTIFICATIONS_QUERY_KEY, String(userId)] : NOTIFICATIONS_QUERY_KEY;
+// `type` narrows the feed to one notification type — the mentor dashboard's
+// "notes for me" card passes `mentor_note_from_staff` so it never has to
+// client-filter the caller's normal mixed feed (ticket + programme events)
+// down to the handful of staff notes buried in it. Omitted, this is the
+// ordinary bell feed, unchanged.
+export function useNotifications({ userId, limit = 30, type, ...options } = {}) {
+  const queryKey = [
+    ...NOTIFICATIONS_QUERY_KEY,
+    ...(userId ? [String(userId)] : []),
+    { limit, type },
+  ];
 
   return useQuery({
     queryKey,
-    queryFn: () => getNotifications({ limit: 30 }),
+    queryFn: () => getNotifications({ limit, type }),
     staleTime: 0,
     refetchOnMount: 'always',
     ...options,

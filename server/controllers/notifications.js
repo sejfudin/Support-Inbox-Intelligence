@@ -16,7 +16,10 @@ const getRequesterSocketId = (req) => {
 const getNotifications = async (req, res, next) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 30;
-    const { items, unreadCount } = await notificationService.listForUser(req.user._id, { limit });
+    const { items, unreadCount } = await notificationService.listForUser(req.user._id, {
+      limit,
+      type: req.query.type,
+    });
     res.status(200).json({
       success: true,
       data: items,

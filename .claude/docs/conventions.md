@@ -125,8 +125,8 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   `Attendance page redesign/handoff/TOKENS.md`; the colours are this app's semantic tokens.
   - **`.app-panel` / `.app-panel-soft` are the pre-overhaul rounded, shadowed surfaces and are now
     used only by the three dashboards** (`AdminDashboardPage`, `InternDashboardPage`,
-    `UserDashboard` and their `components/*/dashboard/*`), which the overhaul deliberately left
-    alone. Anywhere else, a new surface is `.app-card`.
+    `MentorDashboardPage` and their `components/*/dashboard/*`), which the overhaul deliberately
+    left alone. Anywhere else, a new surface is `.app-card`.
 - **Every page header is `<PageHeading crumb title subtitle actions />`** — one flat band, closed
   by a hairline. There is no kicker badge any more: the eyebrow line is the breadcrumb, and it
   names the sidebar group the page lives in (Workspace / Internship / Admin / Account / Mentoring /

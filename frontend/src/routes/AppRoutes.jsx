@@ -13,7 +13,7 @@ import ProtectedRoute from '@/routes/ProtectedRoutes';
 import RouteTitle from '@/routes/RouteTitle';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, isAdmin, isIntern } from '@/helpers/roles';
-import UserDashboard from '@/pages/UserDashboard';
+import MentorDashboardPage from '@/pages/MentorDashboardPage';
 import AdminDashboardPage from '@/pages/AdminDashboardPage';
 import InternDashboardPage from '@/pages/InternDashboardPage';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
@@ -69,18 +69,19 @@ const WorkspaceGuard = () => {
 
 /**
  * `/dashboard` is role-split three ways: admins get the workspace-scoped admin
- * board, interns get their own board, and mentors keep the assigned-tickets
- * table that used to serve everyone.
+ * board, interns get their own board, and mentors get their own board too —
+ * their assigned interns, ticket work, notes from admin/leadership and quick
+ * actions, all already scoped server-side to the caller.
  *
  * It sits outside `WorkspaceGuard` so an admin with no active workspace ("Global
  * admin mode") gets the board's own explanation instead of being bounced to
  * `/create-workspace`, which is not what an admin without a workspace wants. The
- * intern board is outside it for the same reason: attendance, pipeline and
- * evaluations are programme-level and do not need a workspace, so an intern
- * between workspaces gets an explanation on the board rather than a redirect
- * into workspace creation, which is not theirs to do. Widening WorkspaceGuard
- * itself would let both into /tickets and /dailies without a workspace, which
- * those pages do not handle — hence the repeated check on the mentor branch only.
+ * intern and mentor boards are outside it for the same reason: a mentor between
+ * workspaces still has interns, notes and quick actions to see — only the
+ * ticket-work card and "Assign a ticket" need one, and `MentorDashboardPage`
+ * handles that itself rather than redirecting the whole board away. Widening
+ * `WorkspaceGuard` itself would let all three into /tickets and /dailies without
+ * a workspace, which those pages do not handle — hence no repeated check here.
  */
 const DashboardRoute = () => {
   const { user, loading } = useAuth();
@@ -97,10 +98,7 @@ const DashboardRoute = () => {
   if (isIntern(user?.role)) {
     return <InternDashboardPage />;
   }
-  if (!user?.workspaceId) {
-    return <Navigate to="/create-workspace" replace />;
-  }
-  return <UserDashboard />;
+  return <MentorDashboardPage />;
 };
 
 const HomeRedirect = () => {
