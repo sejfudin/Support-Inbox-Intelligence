@@ -7,6 +7,7 @@ import {
   archiveTicket,
   unarchiveTicket,
   updateTicket,
+  setSprintMembership,
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
@@ -75,6 +76,17 @@ export const useUpdateTicket = () => {
       invalidateWorkspaceTicketsScope(queryClient, workspaceId);
       queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
       invalidateAnalyticsQueries(queryClient, workspaceId);
+    },
+  });
+};
+
+export const useSetSprintMembership = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: setSprintMembership,
+    onSuccess: (_, variables) => {
+      invalidateWorkspaceTicketsScope(queryClient, variables.workspaceId);
     },
   });
 };
