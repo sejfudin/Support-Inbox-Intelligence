@@ -19,19 +19,16 @@ export const NOTIFICATION_GROUPS = [
   {
     key: 'mentions',
     label: 'Mentions and comments',
-    hint: 'Someone @mentions you, or comments on a ticket you follow.',
     types: ['ticket_mention', 'ticket_comment', 'mentor_note_mention'],
   },
   {
     key: 'assignments',
     label: 'Assigned to me',
-    hint: 'You are made the assignee of a ticket.',
     types: ['ticket_assigned'],
   },
   {
     key: 'programme',
     label: 'Programme updates',
-    hint: 'Recommendations, evaluations, readiness and specialization changes.',
     types: [
       'recommendation_created',
       'recommendation_status_changed',
@@ -56,13 +53,11 @@ export const NOTIFICATION_GROUPS = [
   {
     key: 'reviews',
     label: 'Code reviews',
-    hint: 'An intern asks you to review their work, or your own review is answered.',
     types: ['ticket_review_requested', 'ticket_review_completed'],
   },
   {
     key: 'reminders',
     label: 'Daily reminder',
-    hint: 'The nudge to record attendance and post your daily.',
     types: ['daily_attendance_reminder'],
   },
 ];

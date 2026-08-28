@@ -44,6 +44,11 @@ const USER_PREFERENCE_DEFINITIONS = {
   ticketsView: { values: ['list', 'board'], default: 'list' },
   assigneeDefault: { values: ['everyone', 'me'], default: 'everyone' },
   boardSort: { values: ['priority', 'points', 'due', 'newest'], default: 'priority' },
+  // Whether the what's-new tour is allowed to open on its own on a new release.
+  // Off does not touch `whatsNewSeenVersion` — it is a standing opt-out, not a
+  // marker that today's tour was read. Mirrors `ONBOARDING_ENABLED_STORAGE_KEY`
+  // in `frontend/src/components/onboarding/whatsNewSteps.js`.
+  onboardingTourEnabled: { values: ['on', 'off'], default: 'on' },
 };
 
 /**
