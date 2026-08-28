@@ -45,13 +45,17 @@ import {
   ASSIGNEE_DEFAULT_STORAGE_KEY,
   DEFAULT_ASSIGNEE_DEFAULT,
   DEFAULT_LANDING_PAGE,
+  DEFAULT_NAV_STYLE,
   DEFAULT_TICKETS_VIEW,
   LANDING_PAGE_OPTIONS,
   LANDING_PAGE_STORAGE_KEY,
+  NAV_STYLE_OPTIONS,
+  NAV_STYLE_STORAGE_KEY,
   TICKETS_VIEW_OPTIONS,
   TICKETS_VIEW_STORAGE_KEY,
   isValidAssigneeDefault,
   isValidLandingPage,
+  isValidNavStyle,
   isValidTicketsView,
 } from '@/helpers/uiPreferences';
 import {
@@ -260,6 +264,11 @@ export default function SettingsPage() {
     DEFAULT_LANDING_PAGE,
     isValidLandingPage
   );
+  const [navStyle, setNavStyle] = useStoredPreference(
+    NAV_STYLE_STORAGE_KEY,
+    DEFAULT_NAV_STYLE,
+    isValidNavStyle
+  );
   const [assigneeDefault, setAssigneeDefault] = useStoredPreference(
     ASSIGNEE_DEFAULT_STORAGE_KEY,
     DEFAULT_ASSIGNEE_DEFAULT,
@@ -341,6 +350,22 @@ export default function SettingsPage() {
           </SettingsRow>
           <SettingsRow label="Accent" className="sm:items-start">
             <AccentSwatches />
+          </SettingsRow>
+          <SettingsRow
+            label="Sidebar sections"
+            // Says what each choice costs rather than naming them again: the two
+            // segments are already labelled, and the only thing worth knowing is
+            // that Collapsible remembers per device while Labelled cannot hide
+            // anything.
+            hint="Collapsible gives each group a header you can open and close, remembered on this device. Labelled is the plain captioned list, always open."
+          >
+            <SegmentedControl
+              label="Sidebar sections"
+              options={NAV_STYLE_OPTIONS}
+              value={navStyle}
+              onChange={setNavStyle}
+              testIdPrefix="settings-nav-style"
+            />
           </SettingsRow>
         </SettingsSection>
 

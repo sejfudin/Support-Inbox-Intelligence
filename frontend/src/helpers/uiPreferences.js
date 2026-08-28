@@ -116,6 +116,33 @@ export const TICKETS_VIEW_OPTIONS = [
 
 export const isValidTicketsView = (value) => TICKETS_VIEW_OPTIONS.some((o) => o.value === value);
 
+// ── Sidebar sections ───────────────────────────────────────────────────────
+// How the sidebar groups its nav rows. `labelled` — the default — is the plain
+// captioned list with every group always open, which is the sidebar this app shipped
+// with. `collapsible` gives each group a header row that opens and closes, navigates
+// to the group's first page, and peeks on hover.
+//
+// Account-scoped, unlike `nav-sections-closed` (which sections you have actually
+// closed — see `helpers/navSections.js`). The two are deliberately different
+// scopes: *whether you want collapsing at all* is taste and follows you, while
+// *which groups you collapsed* is a function of how much vertical room this screen
+// has and stays on the device.
+//
+// Switching to `labelled` does not clear the closed list — turn collapsing back on
+// and your sections are where you left them.
+
+export const NAV_STYLE_STORAGE_KEY = 'nav-style';
+
+export const DEFAULT_NAV_STYLE = 'labelled';
+
+// Default first, which is also the order the segmented control renders in.
+export const NAV_STYLE_OPTIONS = [
+  { value: 'labelled', label: 'Labelled' },
+  { value: 'collapsible', label: 'Collapsible' },
+];
+
+export const isValidNavStyle = (value) => NAV_STYLE_OPTIONS.some((o) => o.value === value);
+
 // ── Landing page ───────────────────────────────────────────────────────────
 // Where `/` sends you. `routes/AppRoutes.jsx` honours it only when the account
 // can actually reach the target — leadership keeps its own home, and every

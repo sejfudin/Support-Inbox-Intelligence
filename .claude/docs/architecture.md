@@ -314,11 +314,16 @@ two browsers changing two different preferences do not clobber each other.
   only differences. On the client, the quick-actions row maps the empty cached string to `null` for
   exactly this.
 - **Not every preference is account-level.** `PREFERENCE_SCOPE.DEVICE` marks the rows that stay in
-  the browser: UI scale (a function of screen size, not taste) and the desktop-notification switch
+  the browser: UI scale (a function of screen size, not taste), the desktop-notification switch
   (`notify-desktop` — browser notification permission is granted per browser per device, so a
-  synced switch would read "on" where nothing could ever draw). Both tables are filtered to
-  `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like any other and
+  synced switch would read "on" where nothing could ever draw), and the collapsed sidebar sections
+  (`nav-sections-closed` — same reasoning as UI scale: you collapse Admin because ten rows do not
+  fit a laptop, and syncing it would carry that compromise onto a desktop). Both tables are filtered
+  to `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like any other and
   simply never pushed. Scope is what excludes it, not omission from the table.
+  A device row still gets a table row, because the table is where a preference is *declared*
+  whether or not the sync layer carries it — but it needs **no server change at all**: no
+  `userPreferences.js` row, no `User` subdocument, no `buildUpdate` branch.
 - Both responses carry `{ preferences, storedKeys }`. `storedKeys` names the
   preferences this account has actually saved; **the client reconciles per key**, so a value only
   set locally survives while the saved ones take the server's answer.
@@ -341,6 +346,88 @@ two browsers changing two different preferences do not clobber each other.
 - **UI scale stays per-device** and is deliberately absent from the server table — it is a function
   of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
   defaults so the auth screens never wear the last user's accent or accessibility settings.
+
+## Sidebar navigation (`frontend/src/components/AppSidebar.jsx`)
+
+One component builds the whole rail: role-filtered row arrays, a `sections` list that drops the
+empty ones, and three presentations of the same tree. `helpers/navSections.js` holds the pure part
+(the stored list, the open-set resolution and the signal rollup) and is unit-tested there.
+`components/nav/SectionIcons.jsx` holds the filled section marks.
+
+- **Two shapes, chosen in Settings → Appearance.** `navStyle` (`labelled` | `collapsible`, default
+  **`labelled`**) decides whether each group stays the plain captioned list or gets a header that
+  opens and closes. `labelled` is the pre-collapse sidebar and is kept **byte-for-byte** — 34px
+  rounded rows, the 3px inset active bar, `bg-primary/20`, no section marks. Someone who turns
+  collapsing off is asking for the old sidebar back; the divergence between the two branches in
+  `NavItem` is the feature, not duplication to be tidied away.
+- **The sidebar's two pieces of state are deliberately different scopes.** `navStyle` is taste, so it
+  follows the **account** (a row in `USER_PREFERENCE_DEFINITIONS` and in `VALUE_PREFERENCES`).
+  *Which* group is open is a function of screen height, so `nav-sections-closed` stays **per-device**
+  and never reaches the server. Switching to `labelled` does not clear it.
+- **Collapsible sections** are built on `@radix-ui/react-accordion` primitives directly — not on
+  `components/ui/accordion.jsx`, which is the settings pages' wrapper and must not be restyled for a
+  nav row. The accordion is **controlled**: its value is derived every render from the stored list,
+  the active route, the rail and the tour, and each interaction is read back as a diff so a section
+  opened *for* the person is never written back as a choice.
+- **One section open at a time.** Opening Boards collapses Workspace (`singleOpen` in
+  `resolveOpenSections`). The Root stays `type="multiple"` regardless, because the rail and the tour
+  need *every* section open at once and `type="single"` cannot express that state. `singleOpen` is
+  applied last, on top of the closed list, for the same reason — a store that could hold only one
+  open key could not describe the all-open case at all.
+- **The header is two controls.** The label navigates to the section's *first visible row*
+  (Workspace → Dashboard, Boards → Tickets) and opens the section; the chevron only toggles. One
+  control cannot do both — "click to open the group" and "click to collapse it" would be the same
+  gesture on the same pixel. The destination is derived from the rows, so reordering them moves it.
+- **What is stored is the closed list**, so a section added in a later release is absent from every
+  stored list and therefore open — no migration. It is read in a `useState` initialiser, not through
+  `useStoredPreference`: that hook reads storage in an effect, so the first paint would show every
+  section open and the closed ones would animate shut on every page load.
+- **A collapsed section peeks on hover** — its rows appear in a flyout to the right, which is what
+  makes single-open cheap. **There is exactly one flyout for the whole sidebar**, rendered by
+  `AppSidebar` into a portal and positioned from the hovered element's own rect. It began as a
+  `Popover` per section and that design is unfixable by timing: every move along the rail was an
+  unmount racing a mount, so a fast sweep showed the previous section's rows or an empty panel.
+  Verified with real pointer moves. A portal is also required outright — the rail sets
+  `overflow-hidden`, so anything drawn inside it is clipped at 34px.
+- **The icon rail is one mark per section, not every row.** Hovering or focusing a mark opens the
+  flyout; clicking it goes to the section's first row. This is the one place the nav hides rows, so
+  three things are load-bearing: the mark is a link (the common case stays one click), the signals
+  roll up onto it, and the flyout opens on **focus** as well as hover so the rows are not mouse-only.
+  `labelled` keeps the old rail (every row, flat). The mobile sheet is the full sidebar.
+- **A closed section must not swallow a signal.** The pending dot and the count badges roll up onto
+  the header or the rail mark, and its accessible name names them ("Admin — 1 time-away request"); a
+  dot alone says nothing about what is waiting, and a closed section is exactly where nobody can go
+  and look. The section holding the active route is forced open for the same reason.
+- **The tour forces every section open** while it runs. Five of its six nav steps point inside Admin
+  and `whatsNewSteps.js` never drops a step for a missing target — a closed section would silently
+  turn those into centred cards explaining features while pointing at nothing.
+- **The active section is a band**, not a highlighted row: a neutral `bg-foreground/5` rectangle
+  across the whole group, square and hugging its rows exactly, with the active row's own fill inside
+  it. Neutral rather than accent-tinted because an accent wash behind an accent-tinted row left the
+  row unfindable inside its own section. Nothing in the collapsible nav is rounded or gapped — rows
+  and headers run edge to edge of the sidebar and stack flush, because any gap showed as a stripe of
+  bare sidebar cutting through the band.
+- Reduced motion needs no work here: `:root[data-motion='reduced'] *` in `index.css` kills every
+  animation and transition with `!important`, the section reveal included.
+- The section reveal has its **own** keyframes (`nav-section-up` / `-down` in `tailwind.config.js`),
+  separate from the settings accordion's `accordion-*`: longer travel, `easeInOutCubic` matching the
+  rail's own easing, and an opacity fade. Radix suppresses the animation on mount, so a page load
+  does not unfurl the nav.
+- The section marks are the **logo's four colours under Symphony Indigo and the account's accent
+  under every other palette** — the same deal `[data-brand-mark]` strikes for the logo itself, so
+  the marks are not the one thing in the rail still wearing the house brand while the rest of the
+  chrome wears the user's accent. Nine `--nav-mark-*` tokens in `index.css` carry it: the house
+  values sit in the base block, and one rule
+  (`[data-theme]:not([data-theme='default'])`, plus `data-colorblind` when it is not `off`)
+  repaints all nine from `--sidebar-primary` — `--sidebar-primary` and not `--primary` because
+  several palettes set the two differently and these are drawn on the sidebar.
+  Tokens are named for the **job** each colour does in the drawing, not its house hue, because
+  four hues collapse to two values when the accent takes over (`lead`/`warm` full, `second`/`hot`
+  at 58% over the sidebar's ground). That loss is the flooded brand mark's loss too — shapes told
+  apart only by hue merge — and it is priced in per drawing: no mark puts two 58% shapes against
+  each other. The upside is that `data-colorblind` now reaches them, which the fixed hexes could
+  never do. They stay decorative either way: every section has its label beside the mark and
+  status comes from the tone tokens, so do not encode meaning in which shape gets `lead`.
 
 ## The what's-new tour
 
