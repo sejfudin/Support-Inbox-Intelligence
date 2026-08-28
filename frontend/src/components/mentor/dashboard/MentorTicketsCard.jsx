@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -44,7 +44,9 @@ function StatusBadge({ status }) {
 export function MentorTicketsCard({ hasWorkspace, onOpenTicket }) {
   const [page, setPage] = useState(1);
   const { data, isPending, isError } = useMyTickets(
-    { page, limit: ROW_LIMIT },
+    // `status: 'not_null'` excludes backlog statuses server-side — "my ticket
+    // work" is work in progress, matching the old dashboard this card replaces.
+    { page, limit: ROW_LIMIT, status: 'not_null' },
     { enabled: hasWorkspace }
   );
   // getMyTickets responds `{ success, data: [...tickets], pagination }` — the
@@ -52,6 +54,14 @@ export function MentorTicketsCard({ hasWorkspace, onOpenTicket }) {
   const tickets = data?.data ?? [];
   const total = data?.pagination?.total ?? 0;
   const pages = data?.pagination?.pages ?? 0;
+
+  // A ticket closed elsewhere can shrink the list under us — a socket refetch
+  // then returns an empty page while `total` is still positive, hiding the
+  // pager (Prev included) behind a false "nothing assigned" state. Step back
+  // onto the last real page instead.
+  useEffect(() => {
+    if (pages > 0 && page > pages) setPage(pages);
+  }, [pages, page]);
 
   return (
     <DashboardCard data-tour="mentor-dashboard-tickets" className="min-h-0 flex-1">

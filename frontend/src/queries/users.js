@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
-import { getUser, getUsers, sendMentorNote } from '@/api/users';
+import { getMentorNoteCandidates, getUser, getUsers, sendMentorNote } from '@/api/users';
 
 export const useUsers = (filters = { page: 1, limit: 10, search: '', pagination: true }) => {
   return useQuery({
@@ -49,11 +49,13 @@ export const useAdminCandidates = () =>
 // Mentors only — the picker for "send a note to a mentor". Deliberately not
 // `useMentorCandidates` above: that one is admin-or-mentor for specialization
 // assignment, a different question ("who can mentor this intern") from this
-// one ("which mentor, specifically").
+// one ("which mentor, specifically"). Its own endpoint rather than `getUsers`,
+// so leadership (a valid sender, but with no workspace) gets the full list
+// instead of the empty one `/admin/users` returns to a non-admin without scope.
 export const useMentorNoteCandidates = (options = {}) =>
   useQuery({
     queryKey: ['mentor-note-candidates'],
-    queryFn: () => getUsers({ pagination: false, roles: 'mentor', status: 'active' }),
+    queryFn: getMentorNoteCandidates,
     staleTime: 5 * 60 * 1000,
     ...options,
   });

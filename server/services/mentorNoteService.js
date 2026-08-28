@@ -18,15 +18,28 @@ const sendMentorNoteFromStaff = async ({ actor, targetUserId, body }) => {
     throw httpError(`Note must be ${MAX_BODY_LENGTH} characters or fewer.`, 400);
   }
 
-  const target = await User.findById(targetUserId).select('role fullname');
+  const target = await User.findById(targetUserId).select('role fullname status');
   if (!target) throw httpError('User not found.', 404);
   if (target.role !== ROLES.MENTOR) throw httpError('Notes can only be sent to mentors.', 400);
+  // "any *active* mentor on the platform" (security.md) — an invited-but-never-signed-in
+  // or a deactivated mentor account can't read the note, so don't create one for it.
+  if (target.status !== 'active') {
+    throw httpError('That mentor’s account is not active.', 400);
+  }
 
-  return internNotificationService.notifyMentorNoteFromStaff({
+  const result = await internNotificationService.notifyMentorNoteFromStaff({
     recipientUserId: target._id,
     authorName: actor.fullname,
     body: trimmed,
   });
+  // `notifyMentorNoteFromStaff` is the one notifier here that isn't fire-and-forget:
+  // delivering the note *is* the action, so a non-delivered result is a failed request,
+  // not a swallowed side effect.
+  if (!result?.delivered) {
+    throw httpError('Could not deliver the note. Please try again.', 502);
+  }
+
+  return { recipient: { id: String(target._id), fullname: target.fullname } };
 };
 
 module.exports = { sendMentorNoteFromStaff };

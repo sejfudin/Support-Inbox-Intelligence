@@ -8,6 +8,7 @@ const {
   updateMyPreferences,
   markWhatsNewSeen,
   sendMentorNote,
+  getMentorNoteCandidates,
 } = require('../controllers/users');
 
 // `me` is the only subject here on purpose: preferences are read and written by
@@ -23,6 +24,16 @@ router.patch('/me/whats-new-seen', protect, markWhatsNewSeen);
 // sending a note to a specific mentor. requireRole gates the sender;
 // mentorNoteService re-checks the target's role, which requireRole can't
 // express. This is the first leadership write path outside staffing requests.
+//
+// The picker behind that modal lists every active mentor platform-wide — same
+// sender gate, and deliberately NOT `GET /api/admin/users` (workspace-scoped
+// for non-admins, so leadership would get an empty list).
+router.get(
+  '/mentor-note-candidates',
+  protect,
+  requireRole(ROLES.ADMIN, ROLES.LEADERSHIP),
+  getMentorNoteCandidates
+);
 router.post(
   '/:userId/mentor-notes',
   protect,

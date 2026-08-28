@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, UserRound } from 'lucide-react';
 import { DashboardCard, DashboardCardEmpty } from '@/components/dashboard/DashboardCard';
@@ -25,10 +25,23 @@ const ROW_LIMIT = 4;
 export function MentorInternsCard() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
-  const { data, isPending, isError } = useInterns({ page, limit: ROW_LIMIT });
+  const { data, isPending, isError } = useInterns(
+    { page, limit: ROW_LIMIT },
+    // Keep the current rows on screen while the next page loads — paging is this
+    // card's primary interaction, so it shouldn't flash the skeleton each click.
+    { placeholderData: (previous) => previous }
+  );
   const interns = data?.interns ?? [];
   const total = data?.pagination?.total ?? 0;
   const pages = data?.pagination?.pages ?? 0;
+
+  // An intern reassigned elsewhere can shrink the list under us — a socket
+  // refetch then returns an empty page while `total` is still positive, which
+  // would render a false "no interns" empty state with the pager (Prev
+  // included) hidden. Step back onto the last real page instead.
+  useEffect(() => {
+    if (pages > 0 && page > pages) setPage(pages);
+  }, [pages, page]);
 
   return (
     <DashboardCard data-tour="mentor-dashboard-interns">

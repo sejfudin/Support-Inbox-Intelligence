@@ -14,6 +14,7 @@ import { NewMentorNoteDialog } from '@/components/admin/dashboard/NewMentorNoteD
 import LazyNewTickets from '@/components/Tickets/LazyNewTickets';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import { useTicketModals } from '@/hooks/useTicketModals';
+import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { ROLES } from '@/helpers/roles';
 
@@ -49,6 +50,10 @@ export default function MentorDashboardPage() {
 
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
+  // The details modal is page state, not a route — put the open ticket's name in
+  // the tab title and restore the page's own title on close, same as the intern
+  // board does.
+  useTicketModalTitle({ ticketId: selectedTicketId, isOpen: isDetailsOpen });
 
   const { helpers: ticketStatusHelpers } = useTicketStatuses(workspaceId);
 
@@ -70,14 +75,15 @@ export default function MentorDashboardPage() {
   return (
     <TooltipProvider delayDuration={200}>
       {/* Capped to the viewport, not just floored at it (PageShell's own
-          min-height): a mentor's board is meant to be read at a glance, not
-          scrolled through. There is no scroll fallback here on purpose — the
-          two list cards below page through their rows (4 at a time) instead
-          of growing, so the content is meant to always fit; `overflow-hidden`
-          is the backstop if it somehow doesn't, rather than a scrollbar
-          appearing and dragging the fixed sidebar's account footer with it. */}
+          min-height): a mentor's board is meant to be read at a glance. The
+          two list cards below page through their rows (4 at a time) instead of
+          growing, so it normally fits with no scrollbar. `overflow-hidden` on
+          the shell keeps any overflow from reaching the fixed sidebar's
+          account footer; the inner `overflow-y-auto` is the fallback so a
+          short viewport (or the 125% UI-size setting) can still scroll to the
+          rail's Notes card rather than clipping it unreachably. */}
       <PageShell className="max-h-[var(--app-vh)] overflow-hidden">
-        <PageSection className="flex min-h-0 flex-1 flex-col gap-5">
+        <PageSection className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
           <DashboardHeader user={user} />
 
           <div className={cn(GRID_CLASS, 'min-h-0 flex-1')}>
@@ -125,6 +131,7 @@ export default function MentorDashboardPage() {
         ticketId={selectedTicketId}
         isOpen={isDetailsOpen}
         onClose={closeTicketDetails}
+        onOpenTicket={openTicketDetails}
       />
     </TooltipProvider>
   );

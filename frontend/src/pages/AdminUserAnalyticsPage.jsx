@@ -235,7 +235,9 @@ export default function AdminUserAnalyticsPage() {
 
   const editUserButton = (
     <div className="flex items-center gap-2">
-      {user.role === ROLES.MENTOR && (
+      {/* `user` can still be undefined here — this is built before the
+          `isLoading || !user` guard below returns. */}
+      {user?.role === ROLES.MENTOR && (
         <Button
           type="button"
           variant="outline"

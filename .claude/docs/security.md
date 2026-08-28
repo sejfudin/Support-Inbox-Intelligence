@@ -520,7 +520,14 @@ so the route guards explicitly.
 - **No workspace scope, no author scope.** Any admin or any leadership user may note any active
   mentor on the platform — there is no "must be their assigned admin" narrowing, unlike the
   staffing-request author rule above. The note is staff-to-staff, not tied to a shared intern or
-  workspace.
+  workspace. The service also re-checks `target.status === 'active'` (not just the role): an
+  invited-but-never-signed-in or deactivated mentor account can't read the note, so none is created
+  for it.
+- **The picker is its own route**, `GET /api/users/mentor-note-candidates` — same sender gate
+  (`requireRole(ADMIN, LEADERSHIP)`), backed by `adminService.getUsers({ roles: ['mentor'],
+  status: 'active', requireWorkspaceScope: false })`. Deliberately **not** `GET /api/admin/users`:
+  that path is workspace-scoped for every non-admin, and leadership has no active workspace, so it
+  would hand them an empty mentor list and the modal would look broken.
 - **The read side is the existing self-scoped `GET /api/notifications`** (`?type=
 mentor_note_from_staff`) — no new id-based read route was added, and none was needed: a
   notification's `recipient` already is the caller, resolved off `req.user._id`, so there is
@@ -587,8 +594,9 @@ exactly like a real one, but never appear in a listing meant for real users.
   { $ne: true } }` added directly into the filter object, same idiom as `Project.isSystem`
   (`projectService.js`). `adminService.getUsers` is the one choke point almost every
   mentor/leadership-surfacing listing already shares (mentor-assignment picker, specialization
-  picker, ticket-assignee/workspace-member picker, the unscoped platform-wide list) — the
-  exclusion there covers all of them at once. `server/controllers/interns.js#listCommentViewers`
+  picker, ticket-assignee/workspace-member picker, the unscoped platform-wide list,
+  `GET /api/users/mentor-note-candidates`) — the exclusion there covers all of them at once.
+  `server/controllers/interns.js#listCommentViewers`
   (the mentor-notes "Share with" audience picker) now calls `adminService.getUsers` too rather
   than keeping its own copy of the query, so there is nowhere left with a second filter to fall
   out of sync.

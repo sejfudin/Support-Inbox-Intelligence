@@ -1,6 +1,8 @@
 const userPreferenceService = require('../services/userPreferenceService');
 const onboardingTourService = require('../services/onboardingTourService');
 const mentorNoteService = require('../services/mentorNoteService');
+const adminService = require('../services/adminService');
+const { ROLES } = require('../constants/roles');
 const { handleControllerError: handleError } = require('../helpers/controllerError');
 
 /**
@@ -49,12 +51,34 @@ exports.markWhatsNewSeen = async (req, res, next) => {
  */
 exports.sendMentorNote = async (req, res, next) => {
   try {
-    const notification = await mentorNoteService.sendMentorNoteFromStaff({
+    const result = await mentorNoteService.sendMentorNoteFromStaff({
       actor: req.user,
       targetUserId: req.params.userId,
       body: req.body?.body,
     });
-    res.json({ success: true, message: 'Note sent', data: notification });
+    res.json({ success: true, message: 'Note sent', data: result });
+  } catch (error) {
+    handleError(res, error, next);
+  }
+};
+
+/**
+ * The mentor picker behind the "send a note to a mentor" modal — every active
+ * mentor on the platform, unscoped. Same sender gate as `sendMentorNote` above
+ * (`requireRole(ADMIN, LEADERSHIP)` at the route); routed through
+ * `adminService.getUsers` so the test-account exclusion stays free. Leadership
+ * has no active workspace, so it must NOT go through the workspace-scoped
+ * `GET /api/admin/users` path, which would hand a non-admin an empty list.
+ */
+exports.getMentorNoteCandidates = async (req, res, next) => {
+  try {
+    const result = await adminService.getUsers({
+      roles: [ROLES.MENTOR],
+      status: 'active',
+      pagination: false,
+      requireWorkspaceScope: false,
+    });
+    res.json(result);
   } catch (error) {
     handleError(res, error, next);
   }
