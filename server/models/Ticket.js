@@ -126,6 +126,18 @@ const ticketSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Sprint membership lives here, as a single optional reference — the Sprint
+    // document has no ticket array. That makes "a ticket is in at most one
+    // sprint" structural rather than enforced, and makes every sprint total an
+    // aggregation over tickets. Written only through `ticketService.updateTicket`,
+    // which promotes a backlog ticket out of the backlog in the same operation
+    // (ADR 0009) and refuses an unestimated one (ADR 0011). Kept through
+    // archiving, so unarchiving puts the ticket back in the sprint it was in.
+    sprint: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Sprint',
+      default: null,
+    },
     // Why this ticket can't move, recorded while it sits in the Blocked status.
     // Both halves are optional and independent: `ticket` is another ticket in the
     // SAME workspace (enforced in `ticketService`, same rule as `category`), and
@@ -254,6 +266,9 @@ ticketSchema.index({ isArchived: 1, updatedAt: -1 });
 ticketSchema.index({ workspace: 1, isArchived: 1, archivedAt: -1 });
 ticketSchema.index({ workspace: 1, taskNumber: 1 });
 ticketSchema.index({ 'linkedPullRequest.prNumber': 1, workspace: 1 });
+// Backs both sprint reads: the sprint board and its totals (`sprint: <id>`), and
+// the planning modal's source panes (`sprint: null`).
+ticketSchema.index({ workspace: 1, sprint: 1 });
 // Backs the dashboard card and the tickets-list filter (helpers/reviewRequestRules.js#06/#07):
 // "reviews this mentor owes" is one indexed query on reviewer + pending state.
 ticketSchema.index({ 'reviewRequest.reviewer': 1, 'reviewRequest.state': 1 });

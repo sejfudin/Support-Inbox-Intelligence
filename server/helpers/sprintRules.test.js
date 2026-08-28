@@ -1,11 +1,14 @@
 const {
   SPRINT_STATES,
+  SPRINT_ESTIMATE_REQUIRED,
   SprintValidationError,
   deriveSprintState,
   pickSprintToShow,
   validateSprintDates,
   sprintsOverlap,
   findOverlappingSprint,
+  hasSprintEstimate,
+  assertTicketMayJoinSprint,
 } = require('./sprintRules');
 
 const day = (isoDate) => new Date(`${isoDate}T00:00:00.000Z`);
@@ -167,5 +170,36 @@ describe('findOverlappingSprint', () => {
     const candidate = { start: day('2026-09-01'), end: day('2026-09-10') };
     const other = { name: 'Sprint 3', start: day('2026-08-01'), end: day('2026-08-31') };
     expect(findOverlappingSprint(candidate, [other])).toBeNull();
+  });
+});
+
+describe('hasSprintEstimate', () => {
+  it('accepts a ticket carrying story points', () => {
+    expect(hasSprintEstimate({ storyPoints: 3 })).toBe(true);
+  });
+
+  it('rejects a ticket whose story points were never set', () => {
+    expect(hasSprintEstimate({ storyPoints: null })).toBe(false);
+  });
+
+  it('rejects a ticket with no story points field at all', () => {
+    expect(hasSprintEstimate({})).toBe(false);
+  });
+
+  it('rejects a zero estimate, which measures the same as no estimate', () => {
+    expect(hasSprintEstimate({ storyPoints: 0 })).toBe(false);
+  });
+});
+
+describe('assertTicketMayJoinSprint', () => {
+  it('passes an estimated ticket through', () => {
+    expect(() => assertTicketMayJoinSprint({ storyPoints: 1 })).not.toThrow();
+  });
+
+  it('refuses an unestimated ticket, naming what is missing', () => {
+    expect(() => assertTicketMayJoinSprint({ storyPoints: null })).toThrow(SprintValidationError);
+    expect(() => assertTicketMayJoinSprint({ storyPoints: null })).toThrow(
+      SPRINT_ESTIMATE_REQUIRED
+    );
   });
 });

@@ -112,10 +112,30 @@ const sprintsOverlap = (a, b) => {
 const findOverlappingSprint = (candidate, existingSprints) =>
   existingSprints.find((sprint) => sprintsOverlap(candidate, sprint)) || null;
 
+// Shown to whoever tried to add the ticket, so it says what to do about it.
+const SPRINT_ESTIMATE_REQUIRED =
+  'A ticket needs a story-point estimate before it can join a sprint.';
+
+// A sprint measures progress in story points, so an unestimated ticket would be
+// worth zero and hold its sprint below 100% forever. Estimates are therefore a
+// condition of membership rather than a nicety. See ADR 0011.
+const hasSprintEstimate = (ticket) =>
+  typeof ticket?.storyPoints === 'number' && ticket.storyPoints > 0;
+
+// Throws SprintValidationError when the ticket carries no estimate; returns
+// nothing on success. Called wherever a ticket enters a sprint, not only from
+// the planning modal.
+const assertTicketMayJoinSprint = (ticket) => {
+  if (!hasSprintEstimate(ticket)) {
+    throw new SprintValidationError(SPRINT_ESTIMATE_REQUIRED);
+  }
+};
+
 module.exports = {
   MIN_SPRINT_DAYS,
   MAX_SPRINT_DAYS,
   SPRINT_STATES,
+  SPRINT_ESTIMATE_REQUIRED,
   SprintValidationError,
   SprintOverlapError,
   toUtcDay,
@@ -124,4 +144,6 @@ module.exports = {
   validateSprintDates,
   sprintsOverlap,
   findOverlappingSprint,
+  hasSprintEstimate,
+  assertTicketMayJoinSprint,
 };

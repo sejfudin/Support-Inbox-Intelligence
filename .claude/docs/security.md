@@ -67,6 +67,12 @@ the caller's workspace.
   No role gate: creating (and, in later tickets, editing) a sprint is authorized the same way a
   ticket update is — active workspace membership is enough, since admins/mentors already bypass it
   via `canAccessAnyWorkspace`.
+- **Sprint membership** is a ticket write, so it carries the ticket rules rather than new ones.
+  `PATCH /api/tickets/:id` runs `assertWorkspaceAccess` on the ticket as it does for any field, and
+  the service refuses a sprint from another workspace (`resolveSprintForWorkspace`, the same shape
+  as the category and blocker checks). The bulk route `PATCH /api/tickets/sprint-membership`
+  resolves the caller's workspace through `resolveActiveWorkspaceId` and 404s unless **every** id
+  in the batch is a ticket in that workspace — so a foreign id can neither be written nor probed.
 
 ## Socket rooms follow the same rule as HTTP
 

@@ -57,6 +57,12 @@ AI: `AISummary`.
   out of it. See "Ticket blockers" below.
 - **`Ticket.reviewRequest`** — at most one live ask for a mentor to look at the ticket's work, or
   `null`. See "Review requests" below.
+- **`Ticket.sprint`** — the ticket's sprint, or `null`. Membership lives here and nowhere else, so
+  "a ticket is in at most one sprint" is structural and every sprint total is an aggregation over
+  tickets. Written only through `ticketService.updateTicket`, which promotes a backlog ticket into
+  the workspace's default main status in the same update (ADR-0009) and refuses a ticket with no
+  story points (ADR-0011); removal clears the field and leaves the status alone. Survives
+  archiving, so unarchiving restores the ticket to its sprint. Indexed with `workspace`.
 - `User.preferences` — one optional subdocument holding the account's UI preferences (mode,
   accent, density, contrast, colour-vision, motion, landing page, tickets view, default assignee,
   board sort, muted notification groups). Its keys and legal values are declared once in
@@ -91,9 +97,9 @@ AI: `AISummary`.
   — no lifecycle field, no ticket list, no cached counts. State (`upcoming` / `active` / `past`) is
   derived from the dates against "today" rather than stored, and no two sprints in a workspace may
   overlap (containment and shared endpoints count as overlap). Both rules live in the pure, clock-
-  free `server/helpers/sprintRules.js`. Ticket-to-sprint membership is a later ticket's addition —
-  this collection alone does not yet hold or reference any ticket. See ADR-0009, ADR-0010, ADR-0011
-  and `CONTEXT.md`'s Sprints section.
+  free `server/helpers/sprintRules.js`. Which tickets are in a sprint is read off `Ticket.sprint` —
+  this collection never references a ticket. See ADR-0009, ADR-0010, ADR-0011 and `CONTEXT.md`'s
+  Sprints section.
 
 ## Ticket blockers
 
@@ -1402,5 +1408,6 @@ vocabulary. Get the two "admin" meanings right.
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. A status's `slug` is its identity; a rename changes the label only. |
 | **Blocker** (`Ticket.blockedBy`) | Why a ticket can't move while it is **Blocked** — an optional ticket from the same workspace it waits on, plus an optional free-text note for when nothing on the board is the reason. Either half may be empty; both are cleared when the ticket leaves Blocked. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
-| **Sprint** | A named stretch of calendar time in a workspace (`server/models/Sprint.js`: name, start, end, optional goal). State (`upcoming`/`active`/`past`) is derived from its dates, never stored; two sprints in a workspace may never overlap. See `CONTEXT.md` and ADR-0009/0010/0011. |
+| **Sprint** | A named stretch of calendar time in a workspace (`server/models/Sprint.js`: name, start, end, optional goal). State (`upcoming`/`active`/`past`) is derived from its dates, never stored; two sprints in a workspace may never overlap. Membership is `Ticket.sprint`, never a list on the sprint. See `CONTEXT.md` and ADR-0009/0010/0011. |
+| **Unsprinted** | A ticket in no sprint (`Ticket.sprint` is `null`) — exactly the tickets sprint planning may still add. The ticket list takes it as a filter alongside "in this sprint". |
 | **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |
