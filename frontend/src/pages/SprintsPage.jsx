@@ -1,14 +1,14 @@
 import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { CalendarRange, Plus } from 'lucide-react';
+import { CalendarRange, Pencil, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCurrentSprint, useSprints } from '@/queries/sprints';
 import { useUpdateTicket } from '@/queries/tickets';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useTicketModals } from '@/hooks/useTicketModals';
 import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
-import { CreateSprintModal } from '@/components/sprints/CreateSprintModal';
+import { SprintModal } from '@/components/sprints/SprintModal';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import EmptyState from '@/components/EmptyState';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
@@ -32,7 +32,10 @@ const STATE_BADGE = {
 const formatDateRange = (start, end) =>
   `${format(new Date(start), 'MMM d')} – ${format(new Date(end), 'MMM d')}`;
 
-const SprintHeaderBand = ({ sprint, onCreateClick }) => {
+// The band carries BOTH actions, deliberately: planning the next sprint while
+// one is running has to stay possible, so Edit never replaces New. Edit is
+// dropped only for a past sprint, which is a record rather than a workspace.
+const SprintHeaderBand = ({ sprint, onCreateClick, onEditClick }) => {
   const badge = STATE_BADGE[sprint.state] ?? STATE_BADGE.active;
   const subtitleParts = [formatDateRange(sprint.start, sprint.end), sprint.goal].filter(Boolean);
 
@@ -49,10 +52,18 @@ const SprintHeaderBand = ({ sprint, onCreateClick }) => {
       }
       subtitle={subtitleParts.join(' · ')}
       actions={
-        <Button onClick={onCreateClick} data-test="sprint-new-button">
-          <Plus className="h-4 w-4" />
-          New sprint
-        </Button>
+        <>
+          {sprint.permissions?.canEdit ? (
+            <Button variant="outline" onClick={onEditClick} data-test="sprint-edit-button">
+              <Pencil className="h-4 w-4" />
+              Edit sprint
+            </Button>
+          ) : null}
+          <Button onClick={onCreateClick} data-test="sprint-new-button">
+            <Plus className="h-4 w-4" />
+            New sprint
+          </Button>
+        </>
       }
     />
   );
@@ -62,7 +73,15 @@ const SprintsPage = () => {
   const { user } = useAuth();
   const workspaceId = user?.workspaceId;
   const queryClient = useQueryClient();
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  // One modal, two modes. `editingSprint` null means create; set means edit that
+  // sprint, prefilled.
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSprint, setEditingSprint] = useState(null);
+
+  const openCreate = () => {
+    setEditingSprint(null);
+    setIsModalOpen(true);
+  };
 
   const { data: currentResponse, isLoading: isLoadingRaw, isError } = useCurrentSprint(workspaceId);
   const { data: sprintsResponse } = useSprints(workspaceId);
@@ -105,7 +124,14 @@ const SprintsPage = () => {
     <PageShell>
       <PageSection className="flex flex-col gap-3.5">
         {sprint ? (
-          <SprintHeaderBand sprint={sprint} onCreateClick={() => setIsCreateOpen(true)} />
+          <SprintHeaderBand
+            sprint={sprint}
+            onCreateClick={openCreate}
+            onEditClick={() => {
+              setEditingSprint(sprint);
+              setIsModalOpen(true);
+            }}
+          />
         ) : (
           <PageHeading crumb="Workspace · Sprints" title="Sprints" />
         )}
@@ -118,7 +144,7 @@ const SprintsPage = () => {
             title="No sprint yet"
             description="Create a sprint to give the team a window of committed work to plan against."
             action={
-              <Button onClick={() => setIsCreateOpen(true)} data-test="sprint-empty-create">
+              <Button onClick={openCreate} data-test="sprint-empty-create">
                 <Plus className="h-4 w-4" />
                 Create sprint
               </Button>
@@ -153,11 +179,12 @@ const SprintsPage = () => {
         )}
       </PageSection>
 
-      <CreateSprintModal
-        open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
+      <SprintModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
         workspaceId={workspaceId}
         nextSprintName={nextSprintName}
+        sprint={editingSprint}
       />
 
       <TicketDetailsModal

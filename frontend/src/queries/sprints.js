@@ -1,5 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSprints, getCurrentSprint, getSprint, createSprint } from '@/api/sprints';
+import {
+  getSprints,
+  getCurrentSprint,
+  getSprint,
+  createSprint,
+  updateSprint,
+  deleteSprint,
+} from '@/api/sprints';
+import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 
 export const SPRINTS_QUERY_KEY = 'sprints';
 
@@ -33,6 +41,31 @@ export const useCreateSprint = (workspaceId) => {
     mutationFn: (payload) => createSprint({ workspaceId, ...payload }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, workspaceId] });
+    },
+  });
+};
+
+export const useUpdateSprint = (workspaceId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, ...payload }) => updateSprint({ id, workspaceId, ...payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, workspaceId] });
+    },
+  });
+};
+
+// Deleting a sprint detaches its tickets, so the ticket caches are stale too —
+// the board and the planning modal's source panes both read off them.
+export const useDeleteSprint = (workspaceId) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id }) => deleteSprint({ id, workspaceId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY, workspaceId] });
+      invalidateWorkspaceTicketsScope(queryClient, workspaceId);
     },
   });
 };

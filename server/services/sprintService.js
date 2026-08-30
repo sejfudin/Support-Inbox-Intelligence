@@ -1,19 +1,24 @@
 const Sprint = require('../models/Sprint');
+const Ticket = require('../models/Ticket');
 const { httpError } = require('../helpers/httpError');
 const {
   deriveSprintState,
+  sprintPermissions,
   pickSprintToShow,
   validateSprintDates,
   findOverlappingSprint,
+  assertSprintEditable,
+  assertSprintDeletable,
   SprintOverlapError,
 } = require('../helpers/sprintRules');
 
-// This ticket stores nothing beyond workspace/name/start/end/goal, so the
-// derived view is just the state — later tickets add progress, working days
-// and needs-attention here.
+// The derived view: state plus what may be done to the sprint, so the screen
+// renders the actions it is allowed rather than re-deriving the rule from the
+// dates — later tickets add progress, working days and needs-attention here.
 const toSprintView = (sprint, today) => ({
   ...sprint.toObject(),
   state: deriveSprintState(sprint, today),
+  permissions: sprintPermissions(sprint, today),
 });
 
 const nextSprintName = async (workspaceId) => {
@@ -53,6 +58,18 @@ const getSprint = async (sprintId, workspaceId, today = new Date()) => {
   return toSprintView(sprint, today);
 };
 
+// Re-run on every edit as well as on create — a corrected date range can collide
+// just as easily as a new one. `sprintId` is the sprint being edited, so it is
+// not reported as overlapping itself.
+const assertNoOverlap = async ({ workspaceId, sprintId = null, start, end }) => {
+  const existingSprints = await Sprint.find({ workspace: workspaceId });
+  const collision = findOverlappingSprint({ _id: sprintId, start, end }, existingSprints);
+
+  if (collision) {
+    throw new SprintOverlapError(`This overlaps ${collision.name}.`, collision);
+  }
+};
+
 // Prefills the name with the next number in sequence when the caller doesn't
 // name the sprint explicitly, then validates dates and rejects any overlap
 // with an existing sprint in the workspace before creating it.
@@ -68,11 +85,7 @@ const createSprint = async ({ workspaceId, name, start, end, goal }, today = new
   const endDate = new Date(end);
   validateSprintDates({ start: startDate, end: endDate }, today, { isNew: true });
 
-  const existingSprints = await Sprint.find({ workspace: workspaceId });
-  const collision = findOverlappingSprint({ start: startDate, end: endDate }, existingSprints);
-  if (collision) {
-    throw new SprintOverlapError(`This overlaps ${collision.name}.`, collision);
-  }
+  await assertNoOverlap({ workspaceId, start: startDate, end: endDate });
 
   const resolvedName = name?.trim() || (await nextSprintName(workspaceId));
 
@@ -87,11 +100,81 @@ const createSprint = async ({ workspaceId, name, start, end, goal }, today = new
   return toSprintView(sprint, today);
 };
 
+// How many tickets the sprint holds right now. Archived tickets keep their
+// sprint reference but are excluded from every sprint number, so they are
+// excluded here too — the count is what a person would see on the board.
+const countSprintTickets = async (sprintId, workspaceId) =>
+  Ticket.countDocuments({ workspace: workspaceId, sprint: sprintId, isArchived: { $ne: true } });
+
+// Name, dates and goal are all correctable while the sprint is not yet past —
+// including an active sprint's start date, which is the only way out of a sprint
+// created with today's date by mistake (move it into the future, then delete it).
+//
+// Only the fields the caller sent are touched: a modal that saves the form
+// without changing the goal must not be able to blank it by omission.
+const updateSprint = async (
+  { sprintId, workspaceId, name, start, end, goal },
+  today = new Date()
+) => {
+  const sprint = await assertSprintInWorkspace(sprintId, workspaceId);
+  assertSprintEditable(sprint, today);
+
+  const startDate = start === undefined ? sprint.start : new Date(start);
+  const endDate = end === undefined ? sprint.end : new Date(end);
+
+  // `isNew: false` — an existing sprint that has already begun necessarily
+  // started in the past, so the no-backdating rule cannot apply to it.
+  validateSprintDates({ start: startDate, end: endDate }, today, { isNew: false });
+  await assertNoOverlap({ workspaceId, sprintId: sprint._id, start: startDate, end: endDate });
+
+  if (name !== undefined) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw httpError('A sprint needs a name.', 400);
+    }
+    sprint.name = trimmed;
+  }
+  if (goal !== undefined) sprint.goal = goal?.trim() || '';
+  sprint.start = startDate;
+  sprint.end = endDate;
+
+  await sprint.save();
+
+  return toSprintView(sprint, today);
+};
+
+// Deleting a sprint deletes the plan, never the work: every ticket in it has its
+// sprint reference cleared and its status left exactly where it reached. That
+// detach is a single `updateMany` rather than a pass through `updateTicket`,
+// because there is no status transition to run and no sprint left to name in a
+// history line — the frontend invalidates its ticket caches off the response.
+//
+// Archived tickets are detached too. They are excluded from the count the
+// confirmation quotes, but leaving them pointing at a deleted sprint would
+// resurrect a dangling reference the moment one was unarchived.
+const deleteSprint = async ({ sprintId, workspaceId }, today = new Date()) => {
+  const sprint = await assertSprintInWorkspace(sprintId, workspaceId);
+  assertSprintDeletable(sprint, today);
+
+  const ticketCount = await countSprintTickets(sprint._id, workspaceId);
+
+  await Ticket.updateMany(
+    { workspace: workspaceId, sprint: sprint._id },
+    { $set: { sprint: null } }
+  );
+  await sprint.deleteOne();
+
+  return { id: sprint._id, name: sprint.name, ticketsDetached: ticketCount };
+};
+
 module.exports = {
   nextSprintName,
   listSprints,
   getSprintToShow,
   getSprint,
   createSprint,
+  updateSprint,
+  deleteSprint,
+  countSprintTickets,
   assertSprintInWorkspace,
 };

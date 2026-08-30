@@ -27,6 +27,17 @@ class SprintOverlapError extends Error {
   }
 }
 
+// The sprint's own state forbids the change — not the caller's role. 409 rather
+// than 403 for exactly that reason: nobody may delete a running sprint, so this
+// is a conflict with the resource's state and not an authorization failure.
+class SprintNotMutableError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'SprintNotMutableError';
+    this.statusCode = 409;
+  }
+}
+
 // Calendar day at UTC midnight — sprint dates are plain calendar days with no
 // time-of-day meaning, so this strips whatever time component reached us
 // (including a `Date` built from a same-day-local-timezone input) rather than
@@ -108,9 +119,66 @@ const sprintsOverlap = (a, b) => {
   return aStart <= bEnd && bStart <= aEnd;
 };
 
+const sprintKey = (sprint) => {
+  const id = sprint?._id ?? sprint?.id;
+  return id ? String(id) : null;
+};
+
 // The first sprint among `existingSprints` that `candidate` overlaps, or null.
-const findOverlappingSprint = (candidate, existingSprints) =>
-  existingSprints.find((sprint) => sprintsOverlap(candidate, sprint)) || null;
+//
+// A sprint never collides with itself: when `candidate` carries an id — which it
+// does on an edit, and does not on a create — the sprint with that id is skipped.
+// Without this, saving an edit that leaves the dates alone would report the
+// sprint as overlapping itself.
+const findOverlappingSprint = (candidate, existingSprints) => {
+  const candidateKey = sprintKey(candidate);
+
+  return (
+    existingSprints.find(
+      (sprint) =>
+        !(candidateKey && sprintKey(sprint) === candidateKey) && sprintsOverlap(candidate, sprint)
+    ) || null
+  );
+};
+
+const SPRINT_NOT_EDITABLE = 'A past sprint is a record and can no longer be changed.';
+const SPRINT_NOT_DELETABLE =
+  'A sprint the team is already working in cannot be deleted. Move its start date into the future first.';
+
+// Mutability follows straight from the state, so it can never disagree with the
+// dates: upcoming is editable and deletable, active is editable but not
+// deletable (deleting it would pull the board out from under everyone), past is
+// neither — history is not rewritten.
+//
+// Editing an active sprint's START date is deliberately allowed. It is the only
+// escape hatch for a sprint created with today's date by mistake: move the start
+// into the future, which makes it upcoming, then delete it.
+const canEditSprint = (sprint, today) => deriveSprintState(sprint, today) !== SPRINT_STATES.PAST;
+
+const canDeleteSprint = (sprint, today) =>
+  deriveSprintState(sprint, today) === SPRINT_STATES.UPCOMING;
+
+// The pair the read responses carry, so the UI renders the actions it is allowed
+// rather than re-deriving the rule from the dates.
+const sprintPermissions = (sprint, today) => ({
+  canEdit: canEditSprint(sprint, today),
+  canDelete: canDeleteSprint(sprint, today),
+});
+
+// Throw on a refused change; return nothing when it is allowed.
+const assertSprintEditable = (sprint, today) => {
+  if (!canEditSprint(sprint, today)) {
+    throw new SprintNotMutableError(SPRINT_NOT_EDITABLE);
+  }
+};
+
+const assertSprintDeletable = (sprint, today) => {
+  if (!canDeleteSprint(sprint, today)) {
+    throw new SprintNotMutableError(
+      canEditSprint(sprint, today) ? SPRINT_NOT_DELETABLE : SPRINT_NOT_EDITABLE
+    );
+  }
+};
 
 // Shown to whoever tried to add the ticket, so it says what to do about it.
 const SPRINT_ESTIMATE_REQUIRED =
@@ -136,14 +204,22 @@ module.exports = {
   MAX_SPRINT_DAYS,
   SPRINT_STATES,
   SPRINT_ESTIMATE_REQUIRED,
+  SPRINT_NOT_EDITABLE,
+  SPRINT_NOT_DELETABLE,
   SprintValidationError,
   SprintOverlapError,
+  SprintNotMutableError,
   toUtcDay,
   deriveSprintState,
   pickSprintToShow,
   validateSprintDates,
   sprintsOverlap,
   findOverlappingSprint,
+  canEditSprint,
+  canDeleteSprint,
+  sprintPermissions,
+  assertSprintEditable,
+  assertSprintDeletable,
   hasSprintEstimate,
   assertTicketMayJoinSprint,
 };

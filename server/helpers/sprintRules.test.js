@@ -2,11 +2,17 @@ const {
   SPRINT_STATES,
   SPRINT_ESTIMATE_REQUIRED,
   SprintValidationError,
+  SprintNotMutableError,
   deriveSprintState,
   pickSprintToShow,
   validateSprintDates,
   sprintsOverlap,
   findOverlappingSprint,
+  canEditSprint,
+  canDeleteSprint,
+  sprintPermissions,
+  assertSprintEditable,
+  assertSprintDeletable,
   hasSprintEstimate,
   assertTicketMayJoinSprint,
 } = require('./sprintRules');
@@ -170,6 +176,112 @@ describe('findOverlappingSprint', () => {
     const candidate = { start: day('2026-09-01'), end: day('2026-09-10') };
     const other = { name: 'Sprint 3', start: day('2026-08-01'), end: day('2026-08-31') };
     expect(findOverlappingSprint(candidate, [other])).toBeNull();
+  });
+
+  it('does not report a sprint being edited as overlapping itself', () => {
+    const existing = {
+      _id: 's1',
+      name: 'Sprint 4',
+      start: day('2026-09-01'),
+      end: day('2026-09-14'),
+    };
+    const edited = { _id: 's1', start: day('2026-09-01'), end: day('2026-09-21') };
+    expect(findOverlappingSprint(edited, [existing])).toBeNull();
+  });
+
+  it('still catches an edit that collides with a different sprint', () => {
+    const edited = { _id: 's1', start: day('2026-09-01'), end: day('2026-09-21') };
+    const itself = {
+      _id: 's1',
+      name: 'Sprint 4',
+      start: day('2026-09-01'),
+      end: day('2026-09-14'),
+    };
+    const neighbour = {
+      _id: 's2',
+      name: 'Sprint 5',
+      start: day('2026-09-15'),
+      end: day('2026-09-28'),
+    };
+    expect(findOverlappingSprint(edited, [itself, neighbour])).toBe(neighbour);
+  });
+});
+
+describe('sprint mutability', () => {
+  const today = day('2026-09-06');
+  const upcoming = { start: day('2026-09-14'), end: day('2026-09-25') };
+  const active = { start: day('2026-09-01'), end: day('2026-09-12') };
+  const past = { start: day('2026-08-01'), end: day('2026-08-14') };
+  const startsToday = { start: day('2026-09-06'), end: day('2026-09-18') };
+
+  it('an upcoming sprint may be edited and deleted', () => {
+    expect(sprintPermissions(upcoming, today)).toEqual({ canEdit: true, canDelete: true });
+  });
+
+  it('an active sprint may be edited but not deleted', () => {
+    expect(sprintPermissions(active, today)).toEqual({ canEdit: true, canDelete: false });
+  });
+
+  it('a past sprint may be neither edited nor deleted', () => {
+    expect(sprintPermissions(past, today)).toEqual({ canEdit: false, canDelete: false });
+  });
+
+  it('a sprint starting today is active and therefore not deletable', () => {
+    expect(deriveSprintState(startsToday, today)).toBe(SPRINT_STATES.ACTIVE);
+    expect(canDeleteSprint(startsToday, today)).toBe(false);
+    expect(canEditSprint(startsToday, today)).toBe(true);
+  });
+
+  it('a sprint ending today is still active and therefore not deletable', () => {
+    const endsToday = { start: day('2026-08-24'), end: day('2026-09-06') };
+    expect(canDeleteSprint(endsToday, today)).toBe(false);
+  });
+
+  it('becomes deletable once its start is moved into the future', () => {
+    // The escape hatch for a sprint created with today's date by mistake.
+    const moved = { start: day('2026-09-07'), end: day('2026-09-18') };
+    expect(canDeleteSprint(moved, today)).toBe(true);
+  });
+});
+
+describe('assertSprintEditable', () => {
+  const today = day('2026-09-06');
+
+  it('lets an active sprint through', () => {
+    expect(() =>
+      assertSprintEditable({ start: day('2026-09-01'), end: day('2026-09-12') }, today)
+    ).not.toThrow();
+  });
+
+  it('refuses a past sprint', () => {
+    expect(() =>
+      assertSprintEditable({ start: day('2026-08-01'), end: day('2026-08-14') }, today)
+    ).toThrow(SprintNotMutableError);
+  });
+});
+
+describe('assertSprintDeletable', () => {
+  const today = day('2026-09-06');
+
+  it('lets an upcoming sprint through', () => {
+    expect(() =>
+      assertSprintDeletable({ start: day('2026-09-14'), end: day('2026-09-25') }, today)
+    ).not.toThrow();
+  });
+
+  it('refuses an active sprint, saying how to get out of it', () => {
+    expect(() =>
+      assertSprintDeletable({ start: day('2026-09-01'), end: day('2026-09-12') }, today)
+    ).toThrow(SprintNotMutableError);
+    expect(() =>
+      assertSprintDeletable({ start: day('2026-09-01'), end: day('2026-09-12') }, today)
+    ).toThrow('Move its start date into the future');
+  });
+
+  it('refuses a past sprint', () => {
+    expect(() =>
+      assertSprintDeletable({ start: day('2026-08-01'), end: day('2026-08-14') }, today)
+    ).toThrow(SprintNotMutableError);
   });
 });
 

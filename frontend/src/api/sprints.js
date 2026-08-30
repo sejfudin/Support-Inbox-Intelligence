@@ -27,3 +27,23 @@ export const createSprint = async ({ workspaceId, name, start, end, goal }) => {
   });
   return response.data;
 };
+
+export const updateSprint = async ({ id, workspaceId, name, start, end, goal }) => {
+  const response = await apiClient.patch(`/sprints/${id}`, {
+    workspace: workspaceId,
+    name,
+    start,
+    end,
+    goal,
+  });
+  return response.data;
+};
+
+// The workspace rides in the query string: a DELETE carries no body, and the
+// controller resolves the caller's workspace from `?workspace=` or the account.
+export const deleteSprint = async ({ id, workspaceId }) => {
+  const response = await apiClient.delete(`/sprints/${id}`, {
+    params: { workspace: workspaceId },
+  });
+  return response.data;
+};

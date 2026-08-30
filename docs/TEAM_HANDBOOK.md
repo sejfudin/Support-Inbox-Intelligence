@@ -97,6 +97,7 @@
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
 - Can edit workspaces (add a workspace image, add a backlog status, add categories like bug/feature/etc.)
 - Can create a sprint, same as any other workspace member
+- Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
 - Can put tickets into a sprint and take them out again, same as any other workspace member
 
 **Leadership**
@@ -159,6 +160,7 @@
 - Can answer a review request an intern sent them — approve it or ask for changes — from the ticket itself. No control to request a review themselves; that stays intern-only
 - Can cancel a review request addressed to them while it is still waiting. Once they answer, the answer stays — it is the record that they reviewed the work
 - Can create a sprint, same as any other workspace member
+- Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
 - Can put tickets into a sprint and take them out again, same as any other workspace member
 
 **Intern**
@@ -193,6 +195,7 @@
 - Can only check in on a day that is actually theirs to claim. On a day off already approved for them, on a cohort non-working day (public holiday, programme break, remote week), before their start date, at the weekend or outside the 07:00–11:00 window, the check-in control is not offered at all — and if they reach it anyway, they get a message saying which of those it is rather than a button that appears to do nothing. None of those days counts as an absence
 - No access to other interns', mentors', or admin/leadership data or functions
 - Can create a sprint, same as any other workspace member — not blocked on an admin to do it for them
+- Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
 - Can put their own tickets into a sprint and take them out again, same as any other workspace member. A ticket needs a story-point estimate before it can go in, and a ticket added from the backlog leaves the backlog for good
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 

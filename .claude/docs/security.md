@@ -64,9 +64,22 @@ the caller's workspace.
   `assertSprintInWorkspace(sprintId, workspaceId)` fetches the sprint, 404s if absent, and rejects
   a mismatch — same shape as `assertStatusInWorkspace`. Every route resolves its workspace through
   `resolveActiveWorkspaceId` first, so a sprint is neither readable nor writable across workspaces.
-  No role gate: creating (and, in later tickets, editing) a sprint is authorized the same way a
+  This covers `GET /api/sprints`, `/current`, `/:id`, `POST /`, `PATCH /:id` and `DELETE /:id`
+  alike. No role gate: creating, editing and deleting a sprint are authorized the same way a
   ticket update is — active workspace membership is enough, since admins/mentors already bypass it
   via `canAccessAnyWorkspace`.
+- **What may be changed about a sprint is a property of the sprint, not of the caller.** Mutability
+  is derived from its dates in `helpers/sprintRules.js` (`canEditSprint` / `canDeleteSprint`):
+  upcoming is editable and deletable, active is editable but never deletable, past is neither.
+  `assertSprintEditable` / `assertSprintDeletable` enforce it in the service and answer **409**,
+  not 403 — nobody may delete a running sprint, so it is a conflict with the resource's state
+  rather than an authorization failure. The read responses carry the same pair as
+  `permissions: { canEdit, canDelete }` so the UI only offers what the server would accept; that
+  field decides what is *rendered* and is never the check itself.
+- **Deleting a sprint detaches its tickets and stops there.** The cascade is one
+  `Ticket.updateMany` scoped to `{ workspace, sprint }` setting `sprint: null` — statuses are left
+  untouched, and the workspace filter means a sprint id can never reach a ticket in another
+  workspace even if the two ids were somehow crossed.
 - **Sprint membership** is a ticket write, so it carries the ticket rules rather than new ones.
   `PATCH /api/tickets/:id` runs `assertWorkspaceAccess` on the ticket as it does for any field, and
   the service refuses a sprint from another workspace (`resolveSprintForWorkspace`, the same shape

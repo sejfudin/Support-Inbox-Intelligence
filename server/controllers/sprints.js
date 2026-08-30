@@ -59,4 +59,42 @@ const createSprint = async (req, res, next) => {
   }
 };
 
-module.exports = { getSprints, getSprintToShow, getSprintById, createSprint };
+// The same modal that creates a sprint edits one, so this takes the same body.
+// Only the keys actually present are forwarded — an absent key leaves the stored
+// value alone rather than blanking it.
+const updateSprint = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const { name, start, end, goal } = req.body;
+    const sprint = await sprintService.updateSprint({
+      sprintId: req.params.id,
+      workspaceId,
+      name,
+      start,
+      end,
+      goal,
+    });
+    res.status(200).json({ success: true, message: 'Sprint updated', data: sprint });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
+const deleteSprint = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const result = await sprintService.deleteSprint({ sprintId: req.params.id, workspaceId });
+    res.status(200).json({ success: true, message: 'Sprint deleted', data: result });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
+module.exports = {
+  getSprints,
+  getSprintToShow,
+  getSprintById,
+  createSprint,
+  updateSprint,
+  deleteSprint,
+};

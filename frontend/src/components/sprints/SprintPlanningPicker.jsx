@@ -43,8 +43,18 @@ function Pane({ id, className, children }) {
  * The create/edit sprint modal's two-pane picker (ticket 03). Fully controlled
  * on `selectedIds` so the modal owns what gets written in the single bulk
  * membership request on save.
+ *
+ * `extraTickets` is how edit mode works: the sprint's own tickets are not in the
+ * unsprinted query — they are, by definition, sprinted — so the modal fetches
+ * them and hands them in. They then behave like any other card, which is what
+ * makes "drag one back to the left" remove it from a running sprint.
  */
-export function SprintPlanningPicker({ workspaceId, selectedIds, onSelectedIdsChange }) {
+export function SprintPlanningPicker({
+  workspaceId,
+  selectedIds,
+  onSelectedIdsChange,
+  extraTickets = [],
+}) {
   const { helpers } = useTicketStatuses(workspaceId);
   const hasBacklogStatus = Boolean(helpers.backlogStatusId);
 
@@ -82,12 +92,14 @@ export function SprintPlanningPicker({ workspaceId, selectedIds, onSelectedIdsCh
 
   const ticketsById = useMemo(() => {
     const map = new Map();
-    (ticketsQuery.data?.data || []).forEach((ticket) => {
+    // The sprint's own tickets first, so a fresher copy from the unsprinted
+    // query wins if a ticket somehow appears in both.
+    [...extraTickets, ...(ticketsQuery.data?.data || [])].forEach((ticket) => {
       const view = buildPlanningTicketView(ticket);
       map.set(view.id, view);
     });
     return map;
-  }, [ticketsQuery.data]);
+  }, [ticketsQuery.data, extraTickets]);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
