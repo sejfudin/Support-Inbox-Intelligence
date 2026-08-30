@@ -17,6 +17,7 @@ export const getAllTickets = async ({
   periodDays,
   awaitingReviewFrom,
   reviewRequestState,
+  sprintId,
   unsprinted,
 } = {}) => {
   const response = await apiClient.get('/tickets', {
@@ -37,6 +38,7 @@ export const getAllTickets = async ({
       periodDays,
       awaitingReviewFrom,
       reviewRequestState,
+      sprintId,
       unsprinted,
     },
   });
