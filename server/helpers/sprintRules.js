@@ -351,6 +351,48 @@ const sprintMetrics = (sprint, { tickets = [], statuses = [] } = {}, today) => (
   needsAttention: sprintNeedsAttention(tickets, statuses, today),
 });
 
+// Which numbers a sprint read should return, and whether reading it has to write
+// anything down. See ADR 0012.
+//
+// A running sprint's numbers follow its board, so they are recomputed on every
+// read and nothing is stored. A finished one cannot work that way: membership is
+// a single reference on the ticket, so carrying a leftover forward takes the
+// ticket out of the sprint that failed to deliver it and quietly improves that
+// sprint's record. So the first read after a sprint's end date SEALS it — the
+// live numbers are computed one last time and returned as the seal to persist —
+// and every read after that serves the seal untouched.
+//
+// The seal is produced by `sprintMetrics`, the same helper that computes the
+// live numbers, so a live sprint and a sealed one can never disagree about what
+// the numbers mean.
+//
+// Pure: it decides, and returns `seal` for the caller to persist. It never
+// writes. `seal` is null whenever nothing needs writing — which is the common
+// case, since a sprint is sealed exactly once in its life.
+const resolveSprintMetrics = (sprint, { tickets = [], statuses = [] } = {}, today) => {
+  const isPast = deriveSprintState(sprint, today) === SPRINT_STATES.PAST;
+  const sealed = sprint?.snapshot;
+
+  // Already sealed — served unchanged, never recomputed and never resealed.
+  if (isPast && sealed) {
+    return {
+      metrics: {
+        progress: sealed.progress,
+        workingDays: sealed.workingDays,
+        needsAttention: sealed.needsAttention,
+      },
+      seal: null,
+    };
+  }
+
+  const metrics = sprintMetrics(sprint, { tickets, statuses }, today);
+
+  // Upcoming and active sprints are never sealed; their numbers stay live.
+  if (!isPast) return { metrics, seal: null };
+
+  return { metrics, seal: { ...metrics, sealedAt: new Date(today) } };
+};
+
 module.exports = {
   MIN_SPRINT_DAYS,
   MAX_SPRINT_DAYS,
@@ -383,4 +425,5 @@ module.exports = {
   sprintProgress,
   sprintNeedsAttention,
   sprintMetrics,
+  resolveSprintMetrics,
 };

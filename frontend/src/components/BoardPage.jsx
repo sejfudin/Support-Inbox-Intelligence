@@ -184,6 +184,18 @@ const BoardTaskCardBody = memo(function BoardTaskCardBody({
   );
 });
 
+// The same card without the drag wrapper. A read-only board — today, a past
+// sprint's — is the same board component with `readOnly`, not a copy of it, so
+// the cards, the columns and their order are guaranteed to be the ones the
+// person is used to. Opening a ticket still works: reading history is the point.
+const StaticBoardTaskCard = memo(function StaticBoardTaskCard({ task, onOpen }) {
+  return (
+    <div data-test={`board-task-${task.id}-static`}>
+      <BoardTaskCardBody task={task} onOpen={onOpen} />
+    </div>
+  );
+});
+
 const DraggableBoardTaskCard = memo(function DraggableBoardTaskCard({ task, columnId, onOpen }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
@@ -218,6 +230,7 @@ const BoardColumn = memo(function BoardColumn({
   sortKey = DEFAULT_BOARD_SORT,
   collapsed = false,
   onToggleCollapsed,
+  readOnly = false,
 }) {
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -254,8 +267,12 @@ const BoardColumn = memo(function BoardColumn({
   const isColumnLoading = isLoading || (isFetching && tasks.length === 0);
   const totalCount = isColumnLoading ? null : (data?.pages?.[0]?.pagination?.total ?? tasks.length);
 
+  // A read-only column is never a drop target. Registering it as one would be
+  // harmless — there is nothing draggable on the board to drop — but it would
+  // also mean the guard lived in one place and the affordance in another.
   const { setNodeRef, isOver } = useDroppable({
     id: col.id,
+    disabled: readOnly,
   });
 
   useEffect(() => {
@@ -361,7 +378,7 @@ const BoardColumn = memo(function BoardColumn({
         <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground/75">
           {isColumnLoading ? '…' : (totalCount ?? tasks.length)}
         </span>
-        {columnStatusId && onNewTicketInColumn ? (
+        {columnStatusId && onNewTicketInColumn && !readOnly ? (
           <button
             type="button"
             className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
@@ -411,19 +428,26 @@ const BoardColumn = memo(function BoardColumn({
 
           {!isColumnLoading && !isError && tasks.length === 0 ? (
             <p className="rounded-[var(--r-tile)] border border-dashed border-border px-2.5 py-5 text-center text-[11.5px] text-muted-foreground/75">
-              Drop tickets here
+              {/* "Drop tickets here" is an invitation, and a read-only board is
+                  not inviting anything — it would be the one place on a frozen
+                  board that suggested it could be changed. */}
+              {readOnly ? 'No tickets' : 'Drop tickets here'}
             </p>
           ) : null}
 
           {!isColumnLoading && !isError
-            ? tasks.map((task) => (
-                <DraggableBoardTaskCard
-                  key={task.id}
-                  task={task}
-                  columnId={col.id}
-                  onOpen={onOpen}
-                />
-              ))
+            ? tasks.map((task) =>
+                readOnly ? (
+                  <StaticBoardTaskCard key={task.id} task={task} onOpen={onOpen} />
+                ) : (
+                  <DraggableBoardTaskCard
+                    key={task.id}
+                    task={task}
+                    columnId={col.id}
+                    onOpen={onOpen}
+                  />
+                )
+              )
             : null}
 
           {isFetchingNextPage ? (
@@ -454,6 +478,10 @@ export default function BoardPage({
   boardHelpers,
   flush = false,
   sortKey = DEFAULT_BOARD_SORT,
+  // A frozen board: no drag, no drop targets, no per-column `+`. The past-sprint
+  // board is this component with `readOnly`, per the spec — the same board, not
+  // a second one that has to be kept in step with it.
+  readOnly = false,
 }) {
   const [activeTaskView, setActiveTaskView] = useState(null);
   const [collapsedColumns, setCollapsedColumns] = useState(() => new Set());
@@ -521,7 +549,10 @@ export default function BoardPage({
       const { active, over } = event;
       setActiveTaskView(null);
 
-      if (!over || !boardHelpers) return;
+      // Nothing on a read-only board is draggable, so this cannot fire — the
+      // guard is here so that a future draggable added upstream cannot quietly
+      // start writing status changes to a frozen board.
+      if (readOnly || !over || !boardHelpers) return;
 
       const sourceColumnId = active.data.current?.columnId;
       const destinationColumnId = boardHelpers.boardColumns.some((column) => column.id === over.id)
@@ -532,7 +563,7 @@ export default function BoardPage({
         onStatusChange?.(active.id, destinationColumnId);
       }
     },
-    [boardHelpers, onStatusChange]
+    [boardHelpers, onStatusChange, readOnly]
   );
 
   if (showBoardLoader || !boardHelpers?.hasStatuses) {
@@ -573,6 +604,7 @@ export default function BoardPage({
           sortKey={sortKey}
           collapsed={collapsedColumns.has(col.id)}
           onToggleCollapsed={toggleColumnCollapsed}
+          readOnly={readOnly}
         />
       ))}
       {/* One mark for the whole board, not one per column. Every column fetches on its own, so

@@ -327,6 +327,7 @@ const {
   sprintProgress,
   sprintNeedsAttention,
   sprintMetrics,
+  resolveSprintMetrics,
 } = require('./sprintRules');
 
 // A default workspace workflow: one backlog status, then to do, in progress,
@@ -669,5 +670,110 @@ describe('sprintMetrics', () => {
     expect(metrics.progress.percent).toBe(0);
     expect(metrics.progress.tickets.total).toBe(0);
     expect(metrics.needsAttention.total).toBe(0);
+  });
+});
+
+// ADR 0012 — a past sprint's numbers are sealed on the first read after it ends,
+// and served from the seal from then on. Sealing is the decision; persisting the
+// returned `seal` is the caller's job, which is why these tests can be pure.
+describe('resolveSprintMetrics', () => {
+  const PAST_SPRINT = { _id: 'sprint-1', start: day('2026-09-07'), end: day('2026-09-18') };
+  const AFTER_IT_ENDED = day('2026-09-21');
+
+  const twoTickets = [
+    ticket({ status: 'done', storyPoints: 3 }),
+    ticket({ status: 'todo', storyPoints: 5 }),
+  ];
+
+  it('seals a past sprint that has never been sealed, and returns what it sealed', () => {
+    const { metrics, seal } = resolveSprintMetrics(
+      PAST_SPRINT,
+      { tickets: twoTickets, statuses: DEFAULT_STATUSES },
+      AFTER_IT_ENDED
+    );
+
+    // The seal is the live numbers, computed one last time — not a second
+    // opinion about what a sprint's numbers are.
+    expect(metrics).toEqual(
+      sprintMetrics(
+        PAST_SPRINT,
+        { tickets: twoTickets, statuses: DEFAULT_STATUSES },
+        AFTER_IT_ENDED
+      )
+    );
+    expect(seal).toMatchObject(metrics);
+    expect(seal.sealedAt).toEqual(AFTER_IT_ENDED);
+    expect(metrics.progress.tickets.total).toBe(2);
+    expect(metrics.progress.percent).toBe(38);
+  });
+
+  it('serves a sealed sprint from its seal, and does not reseal it', () => {
+    const sealed = {
+      ...PAST_SPRINT,
+      snapshot: {
+        sealedAt: day('2026-09-19'),
+        progress: { percent: 38, points: { done: 3, inProgress: 0, todo: 5, total: 8 } },
+        workingDays: { total: 10, remaining: 0 },
+        needsAttention: { total: 0, blocked: 0, overdue: 0 },
+      },
+    };
+
+    // Only one ticket is left — the other was carried into the next sprint,
+    // which is exactly the drift the seal exists to stop.
+    const { metrics, seal } = resolveSprintMetrics(
+      sealed,
+      { tickets: [ticket({ status: 'done', storyPoints: 3 })], statuses: DEFAULT_STATUSES },
+      AFTER_IT_ENDED
+    );
+
+    expect(seal).toBeNull();
+    expect(metrics.progress).toEqual(sealed.snapshot.progress);
+    expect(metrics.progress.percent).toBe(38);
+    expect(metrics.progress.points.total).toBe(8);
+  });
+
+  it('never seals an active sprint, and keeps its numbers live', () => {
+    const duringTheSprint = day('2026-09-14');
+
+    const { metrics, seal } = resolveSprintMetrics(
+      PAST_SPRINT,
+      { tickets: twoTickets, statuses: DEFAULT_STATUSES },
+      duringTheSprint
+    );
+
+    expect(seal).toBeNull();
+    expect(metrics.workingDays.remaining).toBe(5);
+    expect(metrics.progress.percent).toBe(38);
+  });
+
+  it('never seals an upcoming sprint', () => {
+    const beforeItStarts = day('2026-09-01');
+
+    expect(resolveSprintMetrics(PAST_SPRINT, {}, beforeItStarts).seal).toBeNull();
+  });
+
+  it('seals a sprint on its first read even when it ended long ago and is now empty', () => {
+    const { metrics, seal } = resolveSprintMetrics(PAST_SPRINT, {}, AFTER_IT_ENDED);
+
+    expect(seal).not.toBeNull();
+    expect(metrics.progress.percent).toBe(0);
+    expect(metrics.workingDays.remaining).toBe(0);
+  });
+
+  it('is idempotent: resolving with the seal it produced returns the same numbers', () => {
+    const first = resolveSprintMetrics(
+      PAST_SPRINT,
+      { tickets: twoTickets, statuses: DEFAULT_STATUSES },
+      AFTER_IT_ENDED
+    );
+
+    const second = resolveSprintMetrics(
+      { ...PAST_SPRINT, snapshot: first.seal },
+      { tickets: [], statuses: DEFAULT_STATUSES },
+      day('2026-10-05')
+    );
+
+    expect(second.seal).toBeNull();
+    expect(second.metrics).toEqual(first.metrics);
   });
 });

@@ -93,8 +93,9 @@ AI: `AISummary`.
   (`getWorkspaceDailyOverview`/`getMemberDailyEntry` in `dailyService.js`, routed at
   `/api/dailies/admin/*`) derives a calendar-month reporting-coverage grid and per-member entry
   detail from the same documents — no new schema. See ADR-0001.
-- `Sprint` — workspace-scoped: `name`, `start`, `end`, an optional `goal`. Nothing else is stored
-  — no lifecycle field, no ticket list, no cached counts. State (`upcoming` / `active` / `past`) is
+- `Sprint` — workspace-scoped: `name`, `start`, `end`, an optional `goal`, and `snapshot` — the one
+  stored aggregate, null until the sprint is sealed (see below). No lifecycle field, no ticket list,
+  no live counts. State (`upcoming` / `active` / `past`) is
   derived from the dates against "today" rather than stored, and no two sprints in a workspace may
   overlap (containment and shared endpoints count as overlap). Both rules live in the pure, clock-
   free `server/helpers/sprintRules.js`. Which tickets are in a sprint is read off `Ticket.sprint` —
@@ -111,18 +112,34 @@ AI: `AISummary`.
   everything else = in progress); archived tickets are excluded from every aggregation, numerator
   and denominator alike; and needs-attention means a blocker RECORD (`Ticket.blockedBy`) or an
   unfinished ticket past its due date — not the Blocked status. Create, update and delete responses
-  carry `state` and `permissions` only; they are writes, and their callers refetch. The
-  workspace-scoped resource
+  carry `state` and `permissions` only; they are writes, and their callers refetch.
+  **A past sprint's numbers are sealed, and reads are what write them** (ADR-0012). Every sprint
+  read goes through `sprintService.withSprintMetrics`, which asks `sprintRules.resolveSprintMetrics`
+  what to return: a sprint that is past and unsealed has its live numbers computed one last time by
+  the same `sprintMetrics` helper and persisted to `Sprint.snapshot` (`sealedAt` plus the three
+  metric blocks) before the response goes out; a sprint already sealed is served from the snapshot
+  and never recomputed; an upcoming or active sprint is never sealed and stays live. The write is
+  `updateOne` filtered on `snapshot: null`, so it is write-once and a retried read is harmless.
+  Responses never carry `snapshot` itself — its contents *are* the response's `progress` /
+  `workingDays` / `needsAttention` for a sealed sprint — but they do carry `sealedAt`, null when the
+  sprint is not sealed. All four reads seal: the list, `GET /sprints/current` (which derives the
+  state of every sprint in the workspace to pick one, so it seals every past one it finds, not only
+  the one it returns), read-by-id, and `GET /sprints/leftovers` — which seals the previous sprint
+  **before** it reads or returns anything to carry, so the membership write that follows cannot
+  rewrite the record it just showed. Without this, carrying a leftover out of a finished sprint
+  shrinks that sprint's total and raises its done-percentage, because membership is one reference on
+  the ticket. The workspace-scoped resource
   (`routes/sprints.js` → `controllers/sprints.js` → `services/sprintService.js`) is list, read,
   create, update and delete, plus `GET /sprints/leftovers` — the previous sprint (the most recent
   one that has already begun) and its unfinished, unarchived tickets, which the create modal offers
-  as a third source tab so leftovers are not silently dropped. That read carries no write: carrying
-  a leftover forward is a drag like any other, and moving the ticket is the ordinary membership
-  write, which takes it out of the old sprint because membership is one reference on the ticket.
+  as a third source tab so leftovers are not silently dropped. Nothing is carried across by that
+  read — carrying a leftover forward is a drag like any other, and moving the ticket is the ordinary
+  membership write, which takes it out of the old sprint because membership is one reference on the
+  ticket. The only thing it writes is the previous sprint's seal, above.
   Overlap is re-validated on every update as well as on create, with the
   colliding sprint named in the error. Deleting a sprint clears `Ticket.sprint` on its tickets in
   one `updateMany` and leaves their statuses alone — deleting a plan never undoes the work. See
-  ADR-0009, ADR-0010, ADR-0011 and `CONTEXT.md`'s Sprints section.
+  ADR-0009, ADR-0010, ADR-0011, ADR-0012 and `CONTEXT.md`'s Sprints section.
 
 ## Ticket blockers
 
@@ -1438,6 +1455,7 @@ vocabulary. Get the two "admin" meanings right.
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. A status's `slug` is its identity; a rename changes the label only. |
 | **Blocker** (`Ticket.blockedBy`) | Why a ticket can't move while it is **Blocked** — an optional ticket from the same workspace it waits on, plus an optional free-text note for when nothing on the board is the reason. Either half may be empty; both are cleared when the ticket leaves Blocked. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
-| **Sprint** | A named stretch of calendar time in a workspace (`server/models/Sprint.js`: name, start, end, optional goal). State (`upcoming`/`active`/`past`) is derived from its dates, never stored; two sprints in a workspace may never overlap. Membership is `Ticket.sprint`, never a list on the sprint. See `CONTEXT.md` and ADR-0009/0010/0011. |
+| **Sprint** | A named stretch of calendar time in a workspace (`server/models/Sprint.js`: name, start, end, optional goal, plus `snapshot` once sealed). State (`upcoming`/`active`/`past`) is derived from its dates, never stored; two sprints in a workspace may never overlap. Membership is `Ticket.sprint`, never a list on the sprint. See `CONTEXT.md` and ADR-0009/0010/0011/0012. |
+| **Sealed sprint** | A past sprint whose final numbers have been written onto it (`Sprint.snapshot`), which happens on the first read after its end date. Sealed numbers are served as-is and never recomputed, so carrying a leftover out of a finished sprint cannot rewrite what it delivered. Write-once. See ADR-0012. |
 | **Unsprinted** | A ticket in no sprint (`Ticket.sprint` is `null`) — exactly the tickets sprint planning may still add. The ticket list takes it as a filter alongside "in this sprint". |
 | **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `workspace-sprints:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |

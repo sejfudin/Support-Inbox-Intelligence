@@ -7,7 +7,7 @@ const ticketService = require('./ticketService');
 const {
   deriveSprintState,
   sprintPermissions,
-  sprintMetrics,
+  resolveSprintMetrics,
   pickSprintToShow,
   validateSprintDates,
   findOverlappingSprint,
@@ -17,27 +17,69 @@ const {
 } = require('../helpers/sprintRules');
 const { emitSprintChanged } = require('../socket/events');
 
+const toPlainSprint = (sprint) =>
+  typeof sprint?.toObject === 'function' ? sprint.toObject() : sprint;
+
 // The derived view: state plus what may be done to the sprint, so the screen
 // renders the actions it is allowed rather than re-deriving the rule from the
 // dates.
-const toSprintView = (sprint, today) => ({
-  ...sprint.toObject(),
-  state: deriveSprintState(sprint, today),
-  permissions: sprintPermissions(sprint, today),
-});
+//
+// `snapshot` never leaves the server. Its contents are already the response's
+// `progress` / `workingDays` / `needsAttention` for a sealed sprint, so shipping
+// it too would put the same numbers on the wire twice and invite a client to
+// pick the wrong copy. `sealedAt` is kept, because "these numbers are final" is
+// something the screen may legitimately want to say.
+const toSprintView = (sprint, today) => {
+  const { snapshot, ...stored } = toPlainSprint(sprint);
 
-// Everything a read response needs beyond the stored fields: progress in story
-// points, working days remaining and the needs-attention count, all computed by
-// the pure rules helper so the frontend renders rather than computes.
+  return {
+    ...stored,
+    state: deriveSprintState(sprint, today),
+    permissions: sprintPermissions(sprint, today),
+    sealedAt: snapshot?.sealedAt ?? null,
+  };
+};
+
+// Write-once, and workspace-scoped like every other sprint operation. The
+// `snapshot: null` filter is what makes it write-once rather than merely
+// idempotent: two concurrent reads of the same freshly-finished sprint both
+// compute a seal, and only the first one lands. A sealed sprint is never
+// touched again, so retrying a read that failed mid-write is harmless.
+const sealSprints = async (seals, workspaceId) => {
+  if (!seals.length) return;
+
+  await Promise.all(
+    seals.map(({ sprintId, seal }) =>
+      Sprint.updateOne(
+        { _id: sprintId, workspace: workspaceId, snapshot: null },
+        { $set: { snapshot: seal } }
+      )
+    )
+  );
+};
+
+// The read path for sprints: turns sprint documents into the views the API
+// returns, and seals any of them that turn out to be past and unsealed.
+//
+// Everything a read response needs beyond the stored fields — progress in story
+// points, working days remaining and the needs-attention count — is decided by
+// the pure rules helper, so the frontend renders rather than computes and a past
+// sprint's numbers come off its seal rather than off tickets that may since have
+// left it (ADR 0012).
+//
+// The seal is awaited before the views are returned. That ordering is the whole
+// point of ADR 0012: the leftovers read must have finished sealing the previous
+// sprint before it offers anything to carry out of it, or the membership write
+// that follows rewrites the record.
 //
 // Archived tickets are fetched rather than filtered out in the query on
 // purpose — excluding them is a sprint RULE, and the helper is where it lives,
 // once. Both queries are workspace-scoped, and the sprint ids they read were
 // themselves resolved within the workspace.
-const withSprintMetrics = async (views, workspaceId, today) => {
-  if (!views.length) return views;
+const withSprintMetrics = async (sprints, workspaceId, today) => {
+  if (!sprints.length) return [];
 
-  const sprintIds = views.map((view) => view._id);
+  const sprintIds = sprints.map((sprint) => sprint._id);
   const [statuses, tickets] = await Promise.all([
     TicketStatus.find({ workspace: workspaceId }).sort({ sortOrder: 1 }).lean(),
     Ticket.find({ workspace: workspaceId, sprint: { $in: sprintIds } })
@@ -45,17 +87,26 @@ const withSprintMetrics = async (views, workspaceId, today) => {
       .lean(),
   ]);
 
-  return views.map((view) => ({
-    ...view,
-    ...sprintMetrics(
-      view,
+  const seals = [];
+  const views = sprints.map((sprint) => {
+    const plain = toPlainSprint(sprint);
+    const { metrics, seal } = resolveSprintMetrics(
+      plain,
       {
-        tickets: tickets.filter((ticket) => String(ticket.sprint) === String(view._id)),
+        tickets: tickets.filter((ticket) => String(ticket.sprint) === String(plain._id)),
         statuses,
       },
       today
-    ),
-  }));
+    );
+
+    if (seal) seals.push({ sprintId: plain._id, seal });
+
+    return { ...toSprintView({ ...plain, snapshot: seal ?? plain.snapshot }, today), ...metrics };
+  });
+
+  await sealSprints(seals, workspaceId);
+
+  return views;
 };
 
 // A workspace's whole leftover set in one read — the modal's list scrolls
@@ -69,22 +120,25 @@ const nextSprintName = async (workspaceId) => {
 
 const listSprints = async (workspaceId, today = new Date()) => {
   const sprints = await Sprint.find({ workspace: workspaceId }).sort({ start: 1 });
-  return withSprintMetrics(
-    sprints.map((sprint) => toSprintView(sprint, today)),
-    workspaceId,
-    today
-  );
+  return withSprintMetrics(sprints, workspaceId, today);
 };
 
 // The sprint a Sprints screen should render: the active one, else the next
 // upcoming one, else null.
+//
+// Every sprint in the workspace goes through `withSprintMetrics`, not only the
+// one that is picked. Deciding which sprint to show means deriving the state of
+// all of them, and ADR 0012 puts the seal on exactly that: a read that finds a
+// sprint to be past and unsealed seals it, whether or not that sprint is the one
+// being returned.
 const getSprintToShow = async (workspaceId, today = new Date()) => {
   const sprints = await Sprint.find({ workspace: workspaceId }).sort({ start: 1 });
+  const views = await withSprintMetrics(sprints, workspaceId, today);
+
   const picked = pickSprintToShow(sprints, today);
   if (!picked) return null;
 
-  const [view] = await withSprintMetrics([toSprintView(picked, today)], workspaceId, today);
-  return view;
+  return views.find((view) => String(view._id) === String(picked._id)) ?? null;
 };
 
 const assertSprintInWorkspace = async (sprintId, workspaceId) => {
@@ -103,7 +157,7 @@ const assertSprintInWorkspace = async (sprintId, workspaceId) => {
 
 const getSprint = async (sprintId, workspaceId, today = new Date()) => {
   const sprint = await assertSprintInWorkspace(sprintId, workspaceId);
-  const [view] = await withSprintMetrics([toSprintView(sprint, today)], workspaceId, today);
+  const [view] = await withSprintMetrics([sprint], workspaceId, today);
   return view;
 };
 
@@ -253,6 +307,15 @@ const getPreviousSprintLeftovers = async (workspaceId, today = new Date()) => {
     return { sprint: null, tickets: [] };
   }
 
+  // SEAL FIRST, before a single leftover is offered. This is the ordering ADR
+  // 0012 exists for: carrying a leftover forward is the one routine way a
+  // finished sprint's membership changes, and the membership write is sent by
+  // the client that just read this response. Sealing here means the record is
+  // already written down by the time anything can move, so the sprint that
+  // failed to deliver the ticket goes on saying so. Move this below the ticket
+  // read and it still works by luck; move it out of the request and it does not.
+  const [view] = await withSprintMetrics([previous], workspaceId, today);
+
   const [{ doneIds }, page] = await Promise.all([
     statusService.getStatusIdSets(workspaceId),
     // Through the ticket list so the cards arrive in exactly the shape the
@@ -272,8 +335,6 @@ const getPreviousSprintLeftovers = async (workspaceId, today = new Date()) => {
     const statusId = ticket.status?._id ?? ticket.status;
     return !statusId || !doneKeys.has(String(statusId));
   });
-
-  const [view] = await withSprintMetrics([toSprintView(previous, today)], workspaceId, today);
 
   return { sprint: view, tickets };
 };
