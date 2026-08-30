@@ -198,6 +198,31 @@ const REVIEW_REQUEST_POPULATE = [
   { path: 'reviewRequest.requestedBy', select: userSelect('role') },
 ];
 
+// The chip beside a ticket's subject shows the sprint's name and nothing else,
+// so the list pays for one field per row.
+const SPRINT_POPULATE = { path: 'sprint', select: 'name' };
+
+// Aggregate equivalent of `SPRINT_POPULATE` — same reason as the two below: the
+// priority-ordered list sorts in Mongo, where populate does not reach. `$ifNull`
+// keeps the shape identical to the populate path for a ticket in no sprint,
+// instead of leaving the key missing on some rows and null on others.
+const sprintLookupStages = () => [
+  {
+    $lookup: {
+      from: 'sprints',
+      localField: 'sprint',
+      foreignField: '_id',
+      as: 'sprintDoc',
+      pipeline: [{ $project: { name: 1 } }],
+    },
+  },
+  {
+    $set: {
+      sprint: { $ifNull: [{ $first: '$sprintDoc' }, null] },
+    },
+  },
+];
+
 // Aggregate equivalent of BLOCKER_LIST_POPULATE — the priority-ordered list sorts
 // in Mongo, and `$match`/`$lookup` know nothing about Mongoose populate. `$ifNull`
 // keeps the shape identical to the populate path for a ticket with no blocker,
@@ -698,7 +723,11 @@ const getAllTickets = async ({
       .populate('assignedTo', userSelect('role'))
       .populate('category')
       .populate(BLOCKER_LIST_POPULATE)
-      .populate(REVIEW_REQUEST_POPULATE);
+      .populate(REVIEW_REQUEST_POPULATE)
+      // Just the name, for the chip beside the subject (ticket 11). Never
+      // crosses a workspace: a ticket can only ever reference a sprint in its
+      // own workspace, enforced in `resolveSprintTransition`/`updateTicket`.
+      .populate(SPRINT_POPULATE);
 
     if (sortField === 'subject') {
       listQuery.collation(SUBJECT_SORT_COLLATION);
@@ -774,12 +803,14 @@ const getAllTickets = async ({
         ...statusLookupStages(),
         ...blockerLookupStages(),
         ...reviewRequestLookupStages(),
+        ...sprintLookupStages(),
         // Excluding a field the pipeline never added is a no-op, so one projection
         // covers both branches.
         {
           $project: {
             priorityRank: 0,
             [ARCHIVED_AT_SORT_FIELD]: 0,
+            sprintDoc: 0,
             blockedByTicket: 0,
             reviewRequestReviewer: 0,
             reviewRequestRequestedBy: 0,
