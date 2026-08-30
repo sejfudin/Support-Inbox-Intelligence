@@ -189,7 +189,11 @@ export function SprintPlanningPicker({ workspaceId, selectedIds, onSelectedIdsCh
               </p>
             ) : (
               sourceTickets.map((ticket) => (
-                <SprintPlanningTicketCard key={ticket.id} ticket={ticket} />
+                <SprintPlanningTicketCard
+                  key={ticket.id}
+                  ticket={ticket}
+                  workspaceId={workspaceId}
+                />
               ))
             )}
           </Pane>
