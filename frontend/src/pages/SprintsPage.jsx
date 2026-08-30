@@ -9,6 +9,7 @@ import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useTicketModals } from '@/hooks/useTicketModals';
 import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 import { SprintModal } from '@/components/sprints/SprintModal';
+import { SprintProgressStrip } from '@/components/sprints/SprintProgressStrip';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import EmptyState from '@/components/EmptyState';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
@@ -155,7 +156,10 @@ const SprintsPage = () => {
           // view of. No `+` per column: a ticket created from a sprint column
           // would have to decide whether it joins the sprint, and the spec puts
           // every sprint write on the planning modal.
-          <div className="-mx-6 flex min-h-0 flex-1 flex-col px-6 pt-1">
+          <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-3.5 px-6 pt-1">
+            {/* Every number on the strip arrives on the sprint read, computed by
+                the server's sprint-rules helper. */}
+            <SprintProgressStrip sprint={sprint} />
             <Suspense
               fallback={
                 <LoadingOverlay label="Loading board">

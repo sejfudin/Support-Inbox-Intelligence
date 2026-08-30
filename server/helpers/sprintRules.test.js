@@ -315,3 +315,359 @@ describe('assertTicketMayJoinSprint', () => {
     );
   });
 });
+
+// --- Aggregations over a sprint's tickets ----------------------------------
+
+const {
+  SPRINT_BUCKETS,
+  countWorkingDays,
+  sprintWorkingDays,
+  bucketSprintTicket,
+  hasRecordedBlocker,
+  sprintProgress,
+  sprintNeedsAttention,
+  sprintMetrics,
+} = require('./sprintRules');
+
+// A default workspace workflow: one backlog status, then to do, in progress,
+// blocked, and done. Bucketing reads the flags, never these labels.
+const DEFAULT_STATUSES = [
+  { _id: 'backlog', label: 'Backlog', sortOrder: 0, isBacklog: true },
+  { _id: 'todo', label: 'To do', sortOrder: 1 },
+  { _id: 'doing', label: 'In progress', sortOrder: 2 },
+  { _id: 'blocked', label: 'Blocked', sortOrder: 3 },
+  { _id: 'done', label: 'Done', sortOrder: 4, isDone: true },
+];
+
+const ticket = (overrides = {}) => ({ status: 'todo', storyPoints: 1, ...overrides });
+
+describe('countWorkingDays', () => {
+  it('counts Monday to Friday inclusive of both ends', () => {
+    expect(countWorkingDays(day('2026-09-07'), day('2026-09-11'))).toBe(5);
+  });
+
+  it('skips the weekend inside a range', () => {
+    // Mon 7 Sep to Fri 18 Sep spans one full weekend: 10 working days of 12.
+    expect(countWorkingDays(day('2026-09-07'), day('2026-09-18'))).toBe(10);
+  });
+
+  it('does not count a Saturday end date', () => {
+    expect(countWorkingDays(day('2026-09-07'), day('2026-09-12'))).toBe(5);
+  });
+
+  it('counts a weekend-only range as no working days', () => {
+    expect(countWorkingDays(day('2026-09-12'), day('2026-09-13'))).toBe(0);
+  });
+
+  it('counts nothing when the end precedes the start', () => {
+    expect(countWorkingDays(day('2026-09-11'), day('2026-09-07'))).toBe(0);
+  });
+});
+
+describe('sprintWorkingDays', () => {
+  const sprint = { start: day('2026-09-07'), end: day('2026-09-18') };
+
+  it('counts from today once the sprint is running', () => {
+    // Mon 14 Sep to Fri 18 Sep is the second week.
+    expect(sprintWorkingDays(sprint, day('2026-09-14'))).toEqual({ total: 10, remaining: 5 });
+  });
+
+  it('leaves an upcoming sprint all of its days', () => {
+    expect(sprintWorkingDays(sprint, day('2026-09-01'))).toEqual({ total: 10, remaining: 10 });
+  });
+
+  it('leaves a past sprint none', () => {
+    expect(sprintWorkingDays(sprint, day('2026-09-21'))).toEqual({ total: 10, remaining: 0 });
+  });
+
+  it('counts the last day of the sprint as remaining', () => {
+    expect(sprintWorkingDays(sprint, day('2026-09-18')).remaining).toBe(1);
+  });
+
+  it('reports a sprint ending on a Saturday by its working days only', () => {
+    const endsSaturday = { start: day('2026-09-07'), end: day('2026-09-12') };
+    expect(sprintWorkingDays(endsSaturday, day('2026-09-07'))).toEqual({
+      total: 5,
+      remaining: 5,
+    });
+  });
+
+  it('reports no days remaining from inside the weekend a sprint ends on', () => {
+    const endsSaturday = { start: day('2026-09-07'), end: day('2026-09-12') };
+    expect(sprintWorkingDays(endsSaturday, day('2026-09-12')).remaining).toBe(0);
+  });
+});
+
+describe('bucketSprintTicket', () => {
+  it('buckets a status flagged done as done', () => {
+    expect(bucketSprintTicket(ticket({ status: 'done' }), DEFAULT_STATUSES)).toBe(
+      SPRINT_BUCKETS.DONE
+    );
+  });
+
+  it('buckets the first main status as to do', () => {
+    expect(bucketSprintTicket(ticket({ status: 'todo' }), DEFAULT_STATUSES)).toBe(
+      SPRINT_BUCKETS.TODO
+    );
+  });
+
+  it('buckets a blocked status as in progress, not as its own thing', () => {
+    expect(bucketSprintTicket(ticket({ status: 'blocked' }), DEFAULT_STATUSES)).toBe(
+      SPRINT_BUCKETS.IN_PROGRESS
+    );
+  });
+
+  it('ignores the backlog status when choosing the to-do column', () => {
+    expect(bucketSprintTicket(ticket({ status: 'backlog' }), DEFAULT_STATUSES)).toBe(
+      SPRINT_BUCKETS.IN_PROGRESS
+    );
+  });
+
+  it('reads a populated status object as well as a bare id', () => {
+    expect(bucketSprintTicket(ticket({ status: { _id: 'done' } }), DEFAULT_STATUSES)).toBe(
+      SPRINT_BUCKETS.DONE
+    );
+  });
+});
+
+describe('sprintProgress', () => {
+  it('measures done points over total points', () => {
+    const tickets = [
+      ticket({ status: 'done', storyPoints: 5 }),
+      ticket({ status: 'done', storyPoints: 3 }),
+      ticket({ status: 'doing', storyPoints: 2 }),
+      ticket({ status: 'todo', storyPoints: 2 }),
+    ];
+
+    const progress = sprintProgress(tickets, DEFAULT_STATUSES);
+
+    expect(progress.points).toEqual({ done: 8, inProgress: 2, todo: 2, total: 12 });
+    expect(progress.tickets).toEqual({ done: 2, inProgress: 1, todo: 1, total: 4 });
+    expect(progress.percent).toBe(67);
+  });
+
+  it('sits at 0% when no ticket is done', () => {
+    const tickets = [
+      ticket({ status: 'todo', storyPoints: 3 }),
+      ticket({ status: 'doing', storyPoints: 2 }),
+    ];
+
+    expect(sprintProgress(tickets, DEFAULT_STATUSES).percent).toBe(0);
+  });
+
+  it('reaches 100% when every ticket is done', () => {
+    const tickets = [
+      ticket({ status: 'done', storyPoints: 3 }),
+      ticket({ status: 'done', storyPoints: 2 }),
+    ];
+
+    const progress = sprintProgress(tickets, DEFAULT_STATUSES);
+    expect(progress.percent).toBe(100);
+    expect(progress.points.total).toBe(5);
+  });
+
+  it('excludes archived tickets from numerator and denominator alike', () => {
+    const tickets = [
+      ticket({ status: 'done', storyPoints: 3 }),
+      ticket({ status: 'todo', storyPoints: 5, isArchived: true }),
+    ];
+
+    const progress = sprintProgress(tickets, DEFAULT_STATUSES);
+
+    expect(progress.points).toEqual({ done: 3, inProgress: 0, todo: 0, total: 3 });
+    expect(progress.tickets.total).toBe(1);
+    expect(progress.percent).toBe(100);
+  });
+
+  it('reports an empty sprint rather than dividing by zero when every ticket is archived', () => {
+    const tickets = [
+      ticket({ status: 'todo', storyPoints: 3, isArchived: true }),
+      ticket({ status: 'done', storyPoints: 2, isArchived: true }),
+    ];
+
+    const progress = sprintProgress(tickets, DEFAULT_STATUSES);
+
+    expect(progress.percent).toBe(0);
+    expect(progress.points.total).toBe(0);
+    expect(progress.tickets.total).toBe(0);
+  });
+
+  it('buckets a workspace with custom statuses by their flags, not their names', () => {
+    const customStatuses = [
+      { _id: 'icebox', label: 'Icebox', sortOrder: 0, isBacklog: true },
+      { _id: 'ready', label: 'Ready to pick up', sortOrder: 1 },
+      { _id: 'building', label: 'Building', sortOrder: 2 },
+      { _id: 'staging', label: 'On staging', sortOrder: 3 },
+      { _id: 'shipped', label: 'Shipped', sortOrder: 4, isDone: true },
+    ];
+    const tickets = [
+      ticket({ status: 'ready', storyPoints: 1 }),
+      ticket({ status: 'building', storyPoints: 2 }),
+      ticket({ status: 'staging', storyPoints: 3 }),
+      ticket({ status: 'shipped', storyPoints: 4 }),
+    ];
+
+    const progress = sprintProgress(tickets, customStatuses);
+
+    expect(progress.points).toEqual({ done: 4, inProgress: 5, todo: 1, total: 10 });
+    expect(progress.percent).toBe(40);
+  });
+
+  it('leaves the done bucket empty when the workspace configured no done status', () => {
+    const noDoneStatuses = [
+      { _id: 'backlog', label: 'Backlog', sortOrder: 0, isBacklog: true },
+      { _id: 'todo', label: 'To do', sortOrder: 1 },
+      { _id: 'doing', label: 'In progress', sortOrder: 2 },
+    ];
+    const tickets = [
+      ticket({ status: 'todo', storyPoints: 2 }),
+      ticket({ status: 'doing', storyPoints: 3 }),
+    ];
+
+    const progress = sprintProgress(tickets, noDoneStatuses);
+
+    expect(progress.points).toEqual({ done: 0, inProgress: 3, todo: 2, total: 5 });
+    expect(progress.percent).toBe(0);
+  });
+
+  it('counts an unestimated ticket as a ticket worth no points', () => {
+    const tickets = [
+      ticket({ status: 'done', storyPoints: 3 }),
+      ticket({ status: 'todo', storyPoints: null }),
+    ];
+
+    const progress = sprintProgress(tickets, DEFAULT_STATUSES);
+
+    expect(progress.points.total).toBe(3);
+    expect(progress.tickets.total).toBe(2);
+  });
+});
+
+describe('hasRecordedBlocker', () => {
+  it('sees a blocker recorded as another ticket', () => {
+    expect(hasRecordedBlocker({ blockedBy: { ticket: 'abc', note: '' } })).toBe(true);
+  });
+
+  it('sees a blocker recorded as a note', () => {
+    expect(hasRecordedBlocker({ blockedBy: { ticket: null, note: 'waiting on legal' } })).toBe(
+      true
+    );
+  });
+
+  it('does not mistake the blocked STATUS for a recorded blocker', () => {
+    expect(hasRecordedBlocker({ status: 'blocked', blockedBy: { ticket: null, note: '' } })).toBe(
+      false
+    );
+  });
+});
+
+describe('sprintNeedsAttention', () => {
+  const today = day('2026-09-14');
+
+  it('counts a ticket carrying a recorded blocker', () => {
+    const tickets = [ticket({ blockedBy: { note: 'waiting on the vendor' } }), ticket()];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 1,
+      blocked: 1,
+      overdue: 0,
+    });
+  });
+
+  it('counts an unfinished ticket past its due date', () => {
+    const tickets = [
+      ticket({ dueDate: day('2026-09-11') }),
+      ticket({ dueDate: day('2026-09-20') }),
+    ];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 1,
+      blocked: 0,
+      overdue: 1,
+    });
+  });
+
+  it('does not count a ticket due today as overdue', () => {
+    const tickets = [ticket({ dueDate: today })];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today).overdue).toBe(0);
+  });
+
+  it('stops counting a ticket finished after its due date', () => {
+    const tickets = [ticket({ status: 'done', dueDate: day('2026-09-01') })];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 0,
+      blocked: 0,
+      overdue: 0,
+    });
+  });
+
+  it('counts a ticket that is both blocked and overdue once, keeping both reasons', () => {
+    const tickets = [
+      ticket({ dueDate: day('2026-09-01'), blockedBy: { note: 'waiting on the vendor' } }),
+    ];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 1,
+      blocked: 1,
+      overdue: 1,
+    });
+  });
+
+  it('excludes archived tickets', () => {
+    const tickets = [
+      ticket({ isArchived: true, dueDate: day('2026-09-01') }),
+      ticket({ isArchived: true, blockedBy: { note: 'dropped' } }),
+    ];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 0,
+      blocked: 0,
+      overdue: 0,
+    });
+  });
+
+  it('still counts a blocker on a ticket the workspace has no done status for', () => {
+    const noDoneStatuses = [
+      { _id: 'todo', label: 'To do', sortOrder: 1 },
+      { _id: 'doing', label: 'In progress', sortOrder: 2 },
+    ];
+    const tickets = [ticket({ dueDate: day('2026-09-01') })];
+
+    expect(sprintNeedsAttention(tickets, noDoneStatuses, today).overdue).toBe(1);
+  });
+});
+
+describe('sprintMetrics', () => {
+  it('carries progress, working days and needs attention in one block', () => {
+    const sprint = { start: day('2026-09-07'), end: day('2026-09-18') };
+    const tickets = [
+      ticket({ status: 'done', storyPoints: 5 }),
+      ticket({ status: 'doing', storyPoints: 3, blockedBy: { note: 'waiting' } }),
+      ticket({ status: 'todo', storyPoints: 2, dueDate: day('2026-09-10') }),
+      ticket({ status: 'todo', storyPoints: 5, isArchived: true }),
+    ];
+
+    const metrics = sprintMetrics(
+      sprint,
+      { tickets, statuses: DEFAULT_STATUSES },
+      day('2026-09-14')
+    );
+
+    expect(metrics.progress.percent).toBe(50);
+    expect(metrics.progress.tickets.total).toBe(3);
+    expect(metrics.workingDays).toEqual({ total: 10, remaining: 5 });
+    expect(metrics.needsAttention).toEqual({ total: 2, blocked: 1, overdue: 1 });
+  });
+
+  it('reports an empty sprint as zeros rather than throwing', () => {
+    const sprint = { start: day('2026-09-07'), end: day('2026-09-18') };
+
+    const metrics = sprintMetrics(sprint, {}, day('2026-09-07'));
+
+    expect(metrics.progress.percent).toBe(0);
+    expect(metrics.progress.tickets.total).toBe(0);
+    expect(metrics.needsAttention.total).toBe(0);
+  });
+});

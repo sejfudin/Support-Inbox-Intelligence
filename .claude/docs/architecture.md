@@ -101,7 +101,18 @@ AI: `AISummary`.
   this collection never references a ticket. Mutability is derived from the dates too — upcoming is
   editable and deletable, active is editable but not deletable, past is neither — and read
   responses carry it as `permissions: { canEdit, canDelete }` alongside `state`, so the frontend
-  renders rather than re-derives. The workspace-scoped resource
+  renders rather than re-derives. **Sprint reads** (list, `GET /sprints/current`, read-by-id) carry
+  the aggregations over the sprint's tickets as well — `progress` (`percent`, and `points` /
+  `tickets` split into `done` / `inProgress` / `todo` / `total`), `workingDays`
+  (`total` / `remaining`, Monday to Friday, no holiday calendar) and `needsAttention`
+  (`total` / `blocked` / `overdue`) — all computed in `sprintRules.js` so the progress strip renders
+  and computes nothing. Progress is done story points over total points (ADR-0011); buckets read
+  status FLAGS, not names (done = a status flagged done, to do = the first non-backlog status,
+  everything else = in progress); archived tickets are excluded from every aggregation, numerator
+  and denominator alike; and needs-attention means a blocker RECORD (`Ticket.blockedBy`) or an
+  unfinished ticket past its due date — not the Blocked status. Create, update and delete responses
+  carry `state` and `permissions` only; they are writes, and their callers refetch. The
+  workspace-scoped resource
   (`routes/sprints.js` → `controllers/sprints.js` → `services/sprintService.js`) is list, read,
   create, update and delete; overlap is re-validated on every update as well as on create, with the
   colliding sprint named in the error. Deleting a sprint clears `Ticket.sprint` on its tickets in

@@ -1,9 +1,11 @@
 const Sprint = require('../models/Sprint');
 const Ticket = require('../models/Ticket');
+const TicketStatus = require('../models/TicketStatus');
 const { httpError } = require('../helpers/httpError');
 const {
   deriveSprintState,
   sprintPermissions,
+  sprintMetrics,
   pickSprintToShow,
   validateSprintDates,
   findOverlappingSprint,
@@ -14,12 +16,44 @@ const {
 
 // The derived view: state plus what may be done to the sprint, so the screen
 // renders the actions it is allowed rather than re-deriving the rule from the
-// dates — later tickets add progress, working days and needs-attention here.
+// dates.
 const toSprintView = (sprint, today) => ({
   ...sprint.toObject(),
   state: deriveSprintState(sprint, today),
   permissions: sprintPermissions(sprint, today),
 });
+
+// Everything a read response needs beyond the stored fields: progress in story
+// points, working days remaining and the needs-attention count, all computed by
+// the pure rules helper so the frontend renders rather than computes.
+//
+// Archived tickets are fetched rather than filtered out in the query on
+// purpose — excluding them is a sprint RULE, and the helper is where it lives,
+// once. Both queries are workspace-scoped, and the sprint ids they read were
+// themselves resolved within the workspace.
+const withSprintMetrics = async (views, workspaceId, today) => {
+  if (!views.length) return views;
+
+  const sprintIds = views.map((view) => view._id);
+  const [statuses, tickets] = await Promise.all([
+    TicketStatus.find({ workspace: workspaceId }).sort({ sortOrder: 1 }).lean(),
+    Ticket.find({ workspace: workspaceId, sprint: { $in: sprintIds } })
+      .select('sprint status storyPoints dueDate blockedBy isArchived')
+      .lean(),
+  ]);
+
+  return views.map((view) => ({
+    ...view,
+    ...sprintMetrics(
+      view,
+      {
+        tickets: tickets.filter((ticket) => String(ticket.sprint) === String(view._id)),
+        statuses,
+      },
+      today
+    ),
+  }));
+};
 
 const nextSprintName = async (workspaceId) => {
   const count = await Sprint.countDocuments({ workspace: workspaceId });
@@ -28,7 +62,11 @@ const nextSprintName = async (workspaceId) => {
 
 const listSprints = async (workspaceId, today = new Date()) => {
   const sprints = await Sprint.find({ workspace: workspaceId }).sort({ start: 1 });
-  return sprints.map((sprint) => toSprintView(sprint, today));
+  return withSprintMetrics(
+    sprints.map((sprint) => toSprintView(sprint, today)),
+    workspaceId,
+    today
+  );
 };
 
 // The sprint a Sprints screen should render: the active one, else the next
@@ -36,7 +74,10 @@ const listSprints = async (workspaceId, today = new Date()) => {
 const getSprintToShow = async (workspaceId, today = new Date()) => {
   const sprints = await Sprint.find({ workspace: workspaceId }).sort({ start: 1 });
   const picked = pickSprintToShow(sprints, today);
-  return picked ? toSprintView(picked, today) : null;
+  if (!picked) return null;
+
+  const [view] = await withSprintMetrics([toSprintView(picked, today)], workspaceId, today);
+  return view;
 };
 
 const assertSprintInWorkspace = async (sprintId, workspaceId) => {
@@ -55,7 +96,8 @@ const assertSprintInWorkspace = async (sprintId, workspaceId) => {
 
 const getSprint = async (sprintId, workspaceId, today = new Date()) => {
   const sprint = await assertSprintInWorkspace(sprintId, workspaceId);
-  return toSprintView(sprint, today);
+  const [view] = await withSprintMetrics([toSprintView(sprint, today)], workspaceId, today);
+  return view;
 };
 
 // Re-run on every edit as well as on create — a corrected date range can collide

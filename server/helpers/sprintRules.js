@@ -199,6 +199,158 @@ const assertTicketMayJoinSprint = (ticket) => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Aggregations over a sprint's tickets — progress, days left, needs attention.
+//
+// Everything below takes plain data and returns plain data, so the read
+// response can carry the numbers and the screen can render rather than
+// compute. One implementation of each rule, tested here.
+// ---------------------------------------------------------------------------
+
+const isWeekend = (date) => {
+  const weekday = toUtcDay(date).getUTCDay();
+  return weekday === 0 || weekday === 6;
+};
+
+// Monday to Friday, inclusive of both ends, with no holiday calendar. The
+// observance calendar elsewhere in the codebase covers religious observances
+// and is deliberately not consulted here. Returns 0 when `end` precedes `start`.
+const countWorkingDays = (start, end) => {
+  const last = toUtcDay(end).getTime();
+  let cursor = toUtcDay(start);
+  let count = 0;
+
+  while (cursor.getTime() <= last) {
+    if (!isWeekend(cursor)) count += 1;
+    cursor = new Date(cursor.getTime() + MS_PER_DAY);
+  }
+
+  return count;
+};
+
+// Working days the sprint holds in total, and how many of them are left.
+// Counting starts from today once the sprint has begun, and from its start date
+// while it is still upcoming — an upcoming sprint has all of its days left, and
+// a past one has none.
+const sprintWorkingDays = ({ start, end }, today) => {
+  const startDay = toUtcDay(start);
+  const from = toUtcDay(today).getTime() > startDay.getTime() ? today : startDay;
+
+  return {
+    total: countWorkingDays(start, end),
+    remaining: countWorkingDays(from, end),
+  };
+};
+
+const SPRINT_BUCKETS = Object.freeze({
+  DONE: 'done',
+  IN_PROGRESS: 'inProgress',
+  TODO: 'todo',
+});
+
+const idKey = (value) => {
+  const id = value?._id ?? value?.id ?? value;
+  return id === null || id === undefined ? null : String(id);
+};
+
+// Buckets read status FLAGS, never status names, so a renamed or custom
+// workflow buckets the same way: `to do` is the workspace's first main
+// (non-backlog) status, `done` is any status flagged done, and everything
+// between them — staging, review, blocked — reads as in progress.
+const firstMainStatusKey = (statuses = []) => {
+  const main = statuses
+    .filter((status) => !status?.isBacklog)
+    .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
+
+  return main.length ? idKey(main[0]) : null;
+};
+
+// A workspace with no status flagged done simply has no done bucket — every
+// ticket reads as to do or in progress and progress sits at 0%, rather than
+// the aggregation throwing on a workflow somebody configured that way.
+const bucketSprintTicket = (ticket, statuses = [], todoKey = firstMainStatusKey(statuses)) => {
+  const statusKey = idKey(ticket?.status);
+  const status = statuses.find((candidate) => idKey(candidate) === statusKey);
+
+  if (status?.isDone) return SPRINT_BUCKETS.DONE;
+  if (todoKey && statusKey === todoKey) return SPRINT_BUCKETS.TODO;
+  return SPRINT_BUCKETS.IN_PROGRESS;
+};
+
+// Archived tickets keep their sprint reference but are excluded from every
+// aggregation, numerator and denominator alike, so cancelling work can never
+// hold a sprint below 100%.
+const countsTowardsSprint = (ticket) => !ticket?.isArchived;
+
+// A blocker RECORD on the ticket — not the blocked status. The two are
+// different things: a ticket can sit in Blocked with nothing written down, and
+// a ticket in any status can carry a recorded blocker.
+const hasRecordedBlocker = (ticket) =>
+  Boolean(ticket?.blockedBy?.ticket || ticket?.blockedBy?.note?.trim());
+
+// Past its due date and not finished. A ticket finished after its due date
+// stops counting — the number only shows what somebody can still act on.
+const isOverdue = (ticket, today, bucket) => {
+  if (bucket === SPRINT_BUCKETS.DONE) return false;
+  if (!ticket?.dueDate) return false;
+  return toUtcDay(ticket.dueDate).getTime() < toUtcDay(today).getTime();
+};
+
+// Progress is done story points over total story points (ADR 0011). Ticket
+// counts ride along because the strip displays them, but they are not what the
+// bar measures. An unestimated ticket contributes zero points and one ticket.
+const sprintProgress = (tickets = [], statuses = []) => {
+  const todoKey = firstMainStatusKey(statuses);
+  const points = { done: 0, inProgress: 0, todo: 0, total: 0 };
+  const ticketCounts = { done: 0, inProgress: 0, todo: 0, total: 0 };
+
+  tickets.filter(countsTowardsSprint).forEach((ticket) => {
+    const bucket = bucketSprintTicket(ticket, statuses, todoKey);
+    const estimate = typeof ticket?.storyPoints === 'number' ? ticket.storyPoints : 0;
+
+    points[bucket] += estimate;
+    points.total += estimate;
+    ticketCounts[bucket] += 1;
+    ticketCounts.total += 1;
+  });
+
+  return {
+    percent: points.total ? Math.round((points.done / points.total) * 100) : 0,
+    points,
+    tickets: ticketCounts,
+  };
+};
+
+// One ticket needing attention is one ticket, counted once, even when both
+// reasons apply — so `blocked + overdue` can exceed `total` on purpose, and
+// both reasons stay available for the detail line.
+const sprintNeedsAttention = (tickets = [], statuses = [], today) => {
+  const todoKey = firstMainStatusKey(statuses);
+  let total = 0;
+  let blocked = 0;
+  let overdue = 0;
+
+  tickets.filter(countsTowardsSprint).forEach((ticket) => {
+    const bucket = bucketSprintTicket(ticket, statuses, todoKey);
+    const isBlocked = hasRecordedBlocker(ticket);
+    const isLate = isOverdue(ticket, today, bucket);
+
+    if (isBlocked) blocked += 1;
+    if (isLate) overdue += 1;
+    if (isBlocked || isLate) total += 1;
+  });
+
+  return { total, blocked, overdue };
+};
+
+// The whole derived block a sprint read carries, so the frontend computes none
+// of it: how far along the sprint is, how long is left, and what is stuck.
+const sprintMetrics = (sprint, { tickets = [], statuses = [] } = {}, today) => ({
+  progress: sprintProgress(tickets, statuses),
+  workingDays: sprintWorkingDays(sprint, today),
+  needsAttention: sprintNeedsAttention(tickets, statuses, today),
+});
+
 module.exports = {
   MIN_SPRINT_DAYS,
   MAX_SPRINT_DAYS,
@@ -222,4 +374,13 @@ module.exports = {
   assertSprintDeletable,
   hasSprintEstimate,
   assertTicketMayJoinSprint,
+  SPRINT_BUCKETS,
+  countWorkingDays,
+  sprintWorkingDays,
+  firstMainStatusKey,
+  bucketSprintTicket,
+  hasRecordedBlocker,
+  sprintProgress,
+  sprintNeedsAttention,
+  sprintMetrics,
 };
