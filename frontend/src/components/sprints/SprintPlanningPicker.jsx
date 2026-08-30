@@ -48,12 +48,21 @@ function Pane({ id, className, children }) {
  * unsprinted query — they are, by definition, sprinted — so the modal fetches
  * them and hands them in. They then behave like any other card, which is what
  * makes "drag one back to the left" remove it from a running sprint.
+ *
+ * `leftoverTickets` is the same trick for the third source tab (ticket 08): the
+ * previous sprint's unfinished tickets, which are sprinted too. They get a tab
+ * of their own rather than falling into `Tickets`, so it stays obvious that
+ * dragging one in takes it out of the sprint it is still in. The modal passes
+ * none in edit mode, and none when there is no previous sprint, and the tab is
+ * then not rendered at all.
  */
 export function SprintPlanningPicker({
   workspaceId,
   selectedIds,
   onSelectedIdsChange,
   extraTickets = [],
+  leftoverTickets = [],
+  leftoverSprintName = '',
 }) {
   const { helpers } = useTicketStatuses(workspaceId);
   const hasBacklogStatus = Boolean(helpers.backlogStatusId);
@@ -64,9 +73,22 @@ export function SprintPlanningPicker({
   const debounceRef = useRef(null);
   const [activeTicket, setActiveTicket] = useState(null);
 
+  const leftoverViews = useMemo(
+    () => leftoverTickets.map((ticket) => buildPlanningTicketView(ticket)),
+    [leftoverTickets]
+  );
+  // Offered only when the previous sprint actually left something unfinished —
+  // an empty third tab would be noise, and no previous sprint means no tab.
+  const hasLeftovers = leftoverViews.length > 0;
+  const leftoverIdSet = useMemo(
+    () => new Set(leftoverViews.map((ticket) => ticket.id)),
+    [leftoverViews]
+  );
+
   useEffect(() => {
     if (!hasBacklogStatus && sourceTab === 'backlog') setSourceTab('tickets');
-  }, [hasBacklogStatus, sourceTab]);
+    if (!hasLeftovers && sourceTab === 'leftovers') setSourceTab('tickets');
+  }, [hasBacklogStatus, hasLeftovers, sourceTab]);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -93,22 +115,43 @@ export function SprintPlanningPicker({
   const ticketsById = useMemo(() => {
     const map = new Map();
     // The sprint's own tickets first, so a fresher copy from the unsprinted
-    // query wins if a ticket somehow appears in both.
-    [...extraTickets, ...(ticketsQuery.data?.data || [])].forEach((ticket) => {
+    // query wins if a ticket somehow appears in both. Leftovers are in here too
+    // so a dragged one resolves in the sprint pane; the source panes read them
+    // off `leftoverViews` instead, so they only ever show under their own tab.
+    [...leftoverViews, ...extraTickets.map(buildPlanningTicketView)].forEach((view) => {
+      map.set(view.id, view);
+    });
+    (ticketsQuery.data?.data || []).forEach((ticket) => {
       const view = buildPlanningTicketView(ticket);
       map.set(view.id, view);
     });
     return map;
-  }, [ticketsQuery.data, extraTickets]);
+  }, [ticketsQuery.data, extraTickets, leftoverViews]);
 
   const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   const sourceTickets = useMemo(() => {
+    if (sourceTab === 'leftovers') {
+      // Filtered here rather than by the server: leftovers are a short list
+      // already in hand, and the search box must narrow all three tabs alike.
+      const needle = debouncedSearch.toLowerCase();
+      return leftoverViews.filter(
+        (ticket) =>
+          !selectedIdSet.has(ticket.id) &&
+          (!needle ||
+            ticket.title?.toLowerCase().includes(needle) ||
+            String(ticket.taskNumber ?? '').includes(needle))
+      );
+    }
+
     const wantBacklog = sourceTab === 'backlog';
     return Array.from(ticketsById.values()).filter(
-      (ticket) => !selectedIdSet.has(ticket.id) && ticket.isBacklog === wantBacklog
+      (ticket) =>
+        !selectedIdSet.has(ticket.id) &&
+        !leftoverIdSet.has(ticket.id) &&
+        ticket.isBacklog === wantBacklog
     );
-  }, [ticketsById, selectedIdSet, sourceTab]);
+  }, [ticketsById, selectedIdSet, sourceTab, leftoverViews, leftoverIdSet, debouncedSearch]);
 
   const sprintTickets = useMemo(
     () => selectedIds.map((id) => ticketsById.get(id)).filter(Boolean),
@@ -159,6 +202,7 @@ export function SprintPlanningPicker({
               items={[
                 { value: 'backlog', label: 'Backlog', disabled: !hasBacklogStatus },
                 { value: 'tickets', label: 'Tickets' },
+                ...(hasLeftovers ? [{ value: 'leftovers', label: 'Leftovers' }] : []),
               ]}
             />
             <SearchField
@@ -172,6 +216,13 @@ export function SprintPlanningPicker({
           {!hasBacklogStatus ? (
             <p className="text-[11px] text-muted-foreground">
               This workspace has no backlog status set up, so there is nothing to plan from there.
+            </p>
+          ) : null}
+
+          {sourceTab === 'leftovers' ? (
+            <p className="text-[11px] text-muted-foreground" data-test="sprint-leftovers-hint">
+              Unfinished in {leftoverSprintName || 'the previous sprint'}. Dragging one in carries
+              it forward and takes it out of that sprint.
             </p>
           ) : null}
 

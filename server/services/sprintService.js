@@ -2,6 +2,8 @@ const Sprint = require('../models/Sprint');
 const Ticket = require('../models/Ticket');
 const TicketStatus = require('../models/TicketStatus');
 const { httpError } = require('../helpers/httpError');
+const statusService = require('./statusService');
+const ticketService = require('./ticketService');
 const {
   deriveSprintState,
   sprintPermissions,
@@ -54,6 +56,10 @@ const withSprintMetrics = async (views, workspaceId, today) => {
     ),
   }));
 };
+
+// A workspace's whole leftover set in one read — the modal's list scrolls
+// rather than paginates, and no sprint holds anything near this many tickets.
+const LEFTOVER_TICKET_LIMIT = 500;
 
 const nextSprintName = async (workspaceId) => {
   const count = await Sprint.countDocuments({ workspace: workspaceId });
@@ -209,9 +215,63 @@ const deleteSprint = async ({ sprintId, workspaceId }, today = new Date()) => {
   return { id: sprint._id, name: sprint.name, ticketsDetached: ticketCount };
 };
 
+// The sprint the one being planned follows: the most recent sprint that has
+// already begun — the running one if there is one, else the last one that ended.
+// An upcoming sprint is never "previous", since nothing has been worked in it.
+const findPreviousSprint = async (workspaceId, today) => {
+  const [previous] = await Sprint.find({ workspace: workspaceId, start: { $lte: today } })
+    .sort({ start: -1 })
+    .limit(1);
+  return previous || null;
+};
+
+// What the create modal's third source tab offers: the previous sprint's
+// unfinished tickets, so leftovers are not silently dropped between sprints.
+// Nothing is carried across here — this is a read. A human drags a card, and the
+// existing membership write moves the ticket, which is what takes it out of the
+// old sprint (membership is a single reference on the ticket).
+//
+// "Unfinished" is a status not flagged done, and archived tickets are excluded,
+// matching every other sprint number. Both reads are workspace-scoped.
+const getPreviousSprintLeftovers = async (workspaceId, today = new Date()) => {
+  if (!workspaceId) {
+    throw httpError('No workspace associated with this account.', 400);
+  }
+
+  const previous = await findPreviousSprint(workspaceId, today);
+  if (!previous) {
+    return { sprint: null, tickets: [] };
+  }
+
+  const [{ doneIds }, page] = await Promise.all([
+    statusService.getStatusIdSets(workspaceId),
+    // Through the ticket list so the cards arrive in exactly the shape the
+    // planning picker already renders, populations and all.
+    ticketService.getAllTickets({
+      workspaceId,
+      sprintId: previous._id.toString(),
+      archived: false,
+      limit: LEFTOVER_TICKET_LIMIT,
+      sortBy: 'updatedAt',
+      sortOrder: 'desc',
+    }),
+  ]);
+
+  const doneKeys = new Set(doneIds.map(String));
+  const tickets = (page.tickets || []).filter((ticket) => {
+    const statusId = ticket.status?._id ?? ticket.status;
+    return !statusId || !doneKeys.has(String(statusId));
+  });
+
+  const [view] = await withSprintMetrics([toSprintView(previous, today)], workspaceId, today);
+
+  return { sprint: view, tickets };
+};
+
 module.exports = {
   nextSprintName,
   listSprints,
+  getPreviousSprintLeftovers,
   getSprintToShow,
   getSprint,
   createSprint,

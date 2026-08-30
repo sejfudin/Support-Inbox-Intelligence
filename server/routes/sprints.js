@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   getSprints,
   getSprintToShow,
+  getPreviousSprintLeftovers,
   getSprintById,
   createSprint,
   updateSprint,
@@ -16,6 +17,8 @@ const { protect } = require('../middleware/auth');
 // the sprint's own state, not of the caller — enforced in helpers/sprintRules.js.
 router.get('/', protect, getSprints);
 router.get('/current', protect, getSprintToShow);
+// Both fixed paths stay above '/:id', which would otherwise swallow them.
+router.get('/leftovers', protect, getPreviousSprintLeftovers);
 router.get('/:id', protect, getSprintById);
 router.post('/', protect, createSprint);
 router.patch('/:id', protect, updateSprint);

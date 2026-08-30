@@ -64,8 +64,9 @@ the caller's workspace.
   `assertSprintInWorkspace(sprintId, workspaceId)` fetches the sprint, 404s if absent, and rejects
   a mismatch — same shape as `assertStatusInWorkspace`. Every route resolves its workspace through
   `resolveActiveWorkspaceId` first, so a sprint is neither readable nor writable across workspaces.
-  This covers `GET /api/sprints`, `/current`, `/:id`, `POST /`, `PATCH /:id` and `DELETE /:id`
-  alike. No role gate: creating, editing and deleting a sprint are authorized the same way a
+  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/:id`, `POST /`, `PATCH /:id` and
+  `DELETE /:id` alike — `/leftovers` takes no id at all: it picks the previous sprint by querying
+  `{ workspace }` and reads its tickets through the workspace-scoped ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
   ticket update is — active workspace membership is enough, since admins/mentors already bypass it
   via `canAccessAnyWorkspace`.
 - **What may be changed about a sprint is a property of the sprint, not of the caller.** Mutability

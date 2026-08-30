@@ -114,7 +114,12 @@ AI: `AISummary`.
   carry `state` and `permissions` only; they are writes, and their callers refetch. The
   workspace-scoped resource
   (`routes/sprints.js` → `controllers/sprints.js` → `services/sprintService.js`) is list, read,
-  create, update and delete; overlap is re-validated on every update as well as on create, with the
+  create, update and delete, plus `GET /sprints/leftovers` — the previous sprint (the most recent
+  one that has already begun) and its unfinished, unarchived tickets, which the create modal offers
+  as a third source tab so leftovers are not silently dropped. That read carries no write: carrying
+  a leftover forward is a drag like any other, and moving the ticket is the ordinary membership
+  write, which takes it out of the old sprint because membership is one reference on the ticket.
+  Overlap is re-validated on every update as well as on create, with the
   colliding sprint named in the error. Deleting a sprint clears `Ticket.sprint` on its tickets in
   one `updateMany` and leaves their statuses alone — deleting a plan never undoes the work. See
   ADR-0009, ADR-0010, ADR-0011 and `CONTEXT.md`'s Sprints section.

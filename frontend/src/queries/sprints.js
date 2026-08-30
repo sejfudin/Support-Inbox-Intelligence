@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getSprints,
   getCurrentSprint,
+  getSprintLeftovers,
   getSprint,
   createSprint,
   updateSprint,
@@ -23,6 +24,16 @@ export const useCurrentSprint = (workspaceId, options = {}) =>
   useQuery({
     queryKey: [SPRINTS_QUERY_KEY, workspaceId, 'current'],
     queryFn: () => getCurrentSprint({ workspaceId }),
+    enabled: Boolean(workspaceId),
+    ...options,
+  });
+
+// Keyed under the workspace's sprints so a sprint change invalidates it with
+// everything else: carrying a leftover forward changes what is left over.
+export const useSprintLeftovers = (workspaceId, options = {}) =>
+  useQuery({
+    queryKey: [SPRINTS_QUERY_KEY, workspaceId, 'leftovers'],
+    queryFn: () => getSprintLeftovers({ workspaceId }),
     enabled: Boolean(workspaceId),
     ...options,
   });

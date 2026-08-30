@@ -38,6 +38,19 @@ const getSprintToShow = async (req, res, next) => {
   }
 };
 
+// The previous sprint's unfinished tickets, offered by the create modal's third
+// source tab. `data.sprint` is null when there is no previous sprint, which is
+// how the modal knows to leave the tab out rather than show an empty one.
+const getPreviousSprintLeftovers = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const leftovers = await sprintService.getPreviousSprintLeftovers(workspaceId);
+    res.status(200).json({ success: true, message: 'Sprint leftovers fetched', data: leftovers });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
 const getSprintById = async (req, res, next) => {
   try {
     const workspaceId = await resolveWorkspaceId(req);
@@ -93,6 +106,7 @@ const deleteSprint = async (req, res, next) => {
 module.exports = {
   getSprints,
   getSprintToShow,
+  getPreviousSprintLeftovers,
   getSprintById,
   createSprint,
   updateSprint,

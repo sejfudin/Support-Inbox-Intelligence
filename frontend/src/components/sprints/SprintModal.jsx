@@ -16,7 +16,12 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { ConfirmModal } from '@/components/Modals/ConfirmModal';
-import { useCreateSprint, useDeleteSprint, useUpdateSprint } from '@/queries/sprints';
+import {
+  useCreateSprint,
+  useDeleteSprint,
+  useSprintLeftovers,
+  useUpdateSprint,
+} from '@/queries/sprints';
 import { useSetSprintMembership, useTickets } from '@/queries/tickets';
 import { SprintPlanningPicker } from '@/components/sprints/SprintPlanningPicker';
 
@@ -86,6 +91,21 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
     () => (sprintId ? sprintTicketsQuery.data?.data || [] : []),
     [sprintId, sprintTicketsQuery.data]
   );
+
+  // Create mode only (ticket 08): the previous sprint's unfinished tickets, so
+  // leftovers are offered rather than silently dropped. Editing an existing
+  // sprint does not fetch them and does not show the tab — the picker leaves it
+  // out when it is handed none, which is also what happens when the workspace
+  // has no previous sprint.
+  const leftoversQuery = useSprintLeftovers(workspaceId, {
+    enabled: Boolean(open && workspaceId && !isEdit),
+  });
+
+  const leftoverTickets = useMemo(
+    () => (isEdit ? [] : leftoversQuery.data?.data?.tickets || []),
+    [isEdit, leftoversQuery.data]
+  );
+  const leftoverSprintName = isEdit ? '' : leftoversQuery.data?.data?.sprint?.name || '';
 
   const {
     register,
@@ -325,6 +345,8 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
               selectedIds={selectedTicketIds}
               onSelectedIdsChange={setSelectedTicketIds}
               extraTickets={sprintTickets}
+              leftoverTickets={leftoverTickets}
+              leftoverSprintName={leftoverSprintName}
             />
           </div>
 
