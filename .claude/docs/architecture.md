@@ -496,9 +496,16 @@ is the pulsing way back in from the sidebar footer.
 - `events.js` — event names + emit helpers.
 - `invalidationScopes.js` — room key builders that drive React Query cache invalidation:
   - `user:<id>`, `workspace:<id>`, `workspace-tickets:<id>`, `ticket:<id>`,
-    `workspace-dailies:<id>`, `intern:all`, `staffing-news:all`.
+    `workspace-dailies:<id>`, `workspace-sprints:<id>`, `intern:all`, `staffing-news:all`.
   - `intern:all` and `staffing-news:all` are global (not workspace-scoped) — broadcast to every
     connected client via `broadcastToAll`, since there's no room to target.
+- **Sprints** use the lightweight invalidation pattern, not the ticket-event one: creating, editing
+  and deleting a sprint each call `emitSprintChanged(workspaceId)` (`events.js`), which broadcasts
+  one `CACHE_INVALIDATED` carrying `workspace-sprints:<id>` **into that workspace's room only** —
+  the event carries no sprint body, so the client refetches. Delete additionally carries
+  `workspace-tickets:<id>`, because detaching the sprint's tickets changes what every other
+  client's board shows. Sprint **membership** emits nothing of its own: it is written through the
+  ticket-update path, so it already produces `ticket:updated` with the ticket scopes.
 - Frontend consumes via `src/context/SocketContext.jsx`, invalidating query keys on events.
 
 ## Integrations
@@ -1433,4 +1440,4 @@ vocabulary. Get the two "admin" meanings right.
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
 | **Sprint** | A named stretch of calendar time in a workspace (`server/models/Sprint.js`: name, start, end, optional goal). State (`upcoming`/`active`/`past`) is derived from its dates, never stored; two sprints in a workspace may never overlap. Membership is `Ticket.sprint`, never a list on the sprint. See `CONTEXT.md` and ADR-0009/0010/0011. |
 | **Unsprinted** | A ticket in no sprint (`Ticket.sprint` is `null`) — exactly the tickets sprint planning may still add. The ticket list takes it as a filter alongside "in this sprint". |
-| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |
+| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `workspace-sprints:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |

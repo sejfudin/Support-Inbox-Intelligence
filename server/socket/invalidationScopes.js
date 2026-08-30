@@ -4,6 +4,9 @@ const invalidationScopes = {
   workspaceTickets: (workspaceId) => `workspace-tickets:${String(workspaceId)}`,
   ticket: (ticketId) => `ticket:${String(ticketId)}`,
   workspaceDailies: (workspaceId) => `workspace-dailies:${String(workspaceId)}`,
+  // Sprints are workspace-scoped, so this scope is only ever emitted into that
+  // workspace's room — a sprint is never visible to another tenant.
+  workspaceSprints: (workspaceId) => `workspace-sprints:${String(workspaceId)}`,
   // FEP interns/recommendations are a global (non-workspace) module, so this
   // scope carries a fixed id and every subscribed client invalidates its
   // ['interns'] queries (directory + leadership stats).

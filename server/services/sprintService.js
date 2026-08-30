@@ -15,6 +15,7 @@ const {
   assertSprintDeletable,
   SprintOverlapError,
 } = require('../helpers/sprintRules');
+const { emitSprintChanged } = require('../socket/events');
 
 // The derived view: state plus what may be done to the sprint, so the screen
 // renders the actions it is allowed rather than re-deriving the rule from the
@@ -145,6 +146,8 @@ const createSprint = async ({ workspaceId, name, start, end, goal }, today = new
     goal: goal?.trim() || '',
   });
 
+  emitSprintChanged(workspaceId);
+
   return toSprintView(sprint, today);
 };
 
@@ -188,6 +191,8 @@ const updateSprint = async (
 
   await sprint.save();
 
+  emitSprintChanged(sprint.workspace);
+
   return toSprintView(sprint, today);
 };
 
@@ -211,6 +216,11 @@ const deleteSprint = async ({ sprintId, workspaceId }, today = new Date()) => {
     { $set: { sprint: null } }
   );
   await sprint.deleteOne();
+
+  // The detach moved tickets out of the sprint, so every other client's ticket
+  // caches are stale too — the deleting client invalidates its own off the
+  // response.
+  emitSprintChanged(sprint.workspace, { detachedTickets: true });
 
   return { id: sprint._id, name: sprint.name, ticketsDetached: ticketCount };
 };
