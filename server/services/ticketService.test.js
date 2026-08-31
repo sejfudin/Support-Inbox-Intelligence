@@ -56,7 +56,13 @@ jest.mock('../socket/events', () => ({
 const Ticket = require('../models/Ticket');
 const Sprint = require('../models/Sprint');
 const statusService = require('./statusService');
-const { updateTicket, setSprintMembership } = require('./ticketService');
+const {
+  updateTicket,
+  setSprintMembership,
+  bulkUpdateTicketStatus,
+  bulkArchiveTickets,
+  MAX_BULK_TICKETS,
+} = require('./ticketService');
 const { SPRINT_ESTIMATE_REQUIRED } = require('../helpers/sprintRules');
 
 const WORKSPACE = '507f1f77bcf86cd799439011';
@@ -281,5 +287,115 @@ describe('setSprintMembership', () => {
       })
     ).rejects.toMatchObject({ statusCode: 404 });
     expect(Ticket.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+});
+
+// A board column's selection moved or archived in one request. What matters here
+// is that the batch reuses the single-ticket paths (so history, sockets and the
+// status rules cannot drift), that it writes nothing when any id is not a ticket
+// of this workspace, and that it skips the tickets the operation is a no-op for.
+describe('bulk column actions', () => {
+  const lean = (value) => ({ select: () => ({ lean: () => Promise.resolve(value) }) });
+
+  beforeEach(() => {
+    Ticket.findById.mockResolvedValue(mockTicket({ status: MAIN_STATUS_ID }));
+  });
+
+  it('moves every selected ticket through the same update path', async () => {
+    Ticket.find.mockReturnValue(
+      lean([
+        { _id: TICKET_ID, status: MAIN_STATUS_ID, isArchived: false },
+        { _id: OTHER_TICKET_ID, status: MAIN_STATUS_ID, isArchived: false },
+      ])
+    );
+
+    const result = await bulkUpdateTicketStatus({
+      ticketIds: [TICKET_ID, OTHER_TICKET_ID],
+      statusId: IN_PROGRESS_STATUS_ID,
+      workspaceId: WORKSPACE,
+      actorUserId: ACTOR,
+    });
+
+    expect(result).toHaveLength(2);
+    expect(Ticket.findByIdAndUpdate).toHaveBeenCalledTimes(2);
+    expect(writtenUpdate()).toMatchObject({ status: IN_PROGRESS_STATUS_ID });
+  });
+
+  it('skips the tickets already sitting in the destination status', async () => {
+    Ticket.find.mockReturnValue(
+      lean([
+        { _id: TICKET_ID, status: IN_PROGRESS_STATUS_ID, isArchived: false },
+        { _id: OTHER_TICKET_ID, status: MAIN_STATUS_ID, isArchived: false },
+      ])
+    );
+
+    await bulkUpdateTicketStatus({
+      ticketIds: [TICKET_ID, OTHER_TICKET_ID],
+      statusId: IN_PROGRESS_STATUS_ID,
+      workspaceId: WORKSPACE,
+      actorUserId: ACTOR,
+    });
+
+    expect(Ticket.findByIdAndUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes nothing when one id is not a ticket of this workspace', async () => {
+    Ticket.find.mockReturnValue(lean([{ _id: TICKET_ID, status: MAIN_STATUS_ID }]));
+
+    await expect(
+      bulkUpdateTicketStatus({
+        ticketIds: [TICKET_ID, OTHER_TICKET_ID],
+        statusId: IN_PROGRESS_STATUS_ID,
+        workspaceId: WORKSPACE,
+        actorUserId: ACTOR,
+      })
+    ).rejects.toMatchObject({ statusCode: 404 });
+    expect(Ticket.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('refuses the backlog as a bulk destination, as a single move does', async () => {
+    Ticket.find.mockReturnValue(lean([{ _id: TICKET_ID, status: MAIN_STATUS_ID }]));
+
+    await expect(
+      bulkUpdateTicketStatus({
+        ticketIds: [TICKET_ID],
+        statusId: BACKLOG_STATUS_ID,
+        workspaceId: WORKSPACE,
+        actorUserId: ACTOR,
+      })
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(Ticket.findByIdAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('refuses a selection larger than the batch cap before reading anything', async () => {
+    const ids = Array.from({ length: MAX_BULK_TICKETS + 1 }, (_, index) =>
+      String(index).padStart(24, '0')
+    );
+
+    await expect(
+      bulkArchiveTickets({ ticketIds: ids, workspaceId: WORKSPACE, actorUserId: ACTOR })
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(Ticket.find).not.toHaveBeenCalled();
+  });
+
+  it('archives only the tickets that are not archived yet', async () => {
+    Ticket.find.mockReturnValue(
+      lean([
+        { _id: TICKET_ID, status: MAIN_STATUS_ID, isArchived: false },
+        { _id: OTHER_TICKET_ID, status: MAIN_STATUS_ID, isArchived: true },
+      ])
+    );
+    Ticket.findById.mockReturnValue({
+      select: () => Promise.resolve({ reviewRequest: null }),
+    });
+
+    const result = await bulkArchiveTickets({
+      ticketIds: [TICKET_ID, OTHER_TICKET_ID],
+      workspaceId: WORKSPACE,
+      actorUserId: ACTOR,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(writtenUpdate()).toMatchObject({ isArchived: true });
   });
 });

@@ -11,7 +11,17 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { format } from 'date-fns';
-import { ChevronLeft, ChevronRight, Loader2, Plus } from 'lucide-react';
+import {
+  Archive,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  Loader2,
+  Plus,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 import { PR_STATE_CONFIG } from '@/components/PRCard';
 import PriorityIndicator from '@/components/PriorityIndicator';
@@ -22,6 +32,15 @@ import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
 import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import { getColumnStyle } from '@/helpers/ticketStatus';
 import { useThemeConfig } from '@/context/ThemeConfigContext';
 import { sortBoardTasksByPriorityOrder } from '@/helpers/boardTicketsQuery';
@@ -29,6 +48,7 @@ import { DEFAULT_BOARD_SORT, sortBoardCards } from '@/helpers/boardCardSort';
 import { normalizeTicket } from '@/helpers/normalizeTicket';
 import { cn } from '@/lib/utils';
 import { useBoardColumnTickets } from '@/queries/boardTickets';
+import { useBulkArchiveTickets, useBulkTicketStatus } from '@/queries/tickets';
 import { Loader, LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 // Category chip tints, per the mockup: Bug → error, Feature → info, Refactor →
@@ -196,6 +216,43 @@ const StaticBoardTaskCard = memo(function StaticBoardTaskCard({ task, onOpen }) 
   );
 });
 
+/**
+ * The same card while its column is in selection mode: a checkbox on the left,
+ * and the click selects instead of opening.
+ *
+ * Not draggable — one card under the pointer and a set of selected cards are two
+ * different answers to "what am I moving?", and a drag that silently ignored the
+ * selection would be the wrong one. The column's action bar is the move while a
+ * selection is up.
+ */
+const SelectableBoardTaskCard = memo(function SelectableBoardTaskCard({
+  task,
+  selected,
+  onToggle,
+}) {
+  return (
+    <div className="relative" data-test={`board-task-${task.id}-selectable`}>
+      <BoardTaskCardBody
+        task={task}
+        onOpen={() => onToggle(task.id)}
+        cardClassName={cn(
+          'pl-8 hover:border-border hover:bg-accent/50',
+          selected && 'border-primary/50 bg-primary/5'
+        )}
+      />
+      {/* Inert on purpose: the whole card is the hit target, so the box only
+          reports the state — same pattern as the assignee list in the create modal. */}
+      <Checkbox
+        checked={selected}
+        onCheckedChange={() => onToggle(task.id)}
+        aria-label={`Select ${task.title}`}
+        className="pointer-events-none absolute left-2.5 top-[13px]"
+        data-test={`board-task-${task.id}-checkbox`}
+      />
+    </div>
+  );
+});
+
 const DraggableBoardTaskCard = memo(function DraggableBoardTaskCard({ task, columnId, onOpen }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: task.id,
@@ -231,6 +288,9 @@ const BoardColumn = memo(function BoardColumn({
   collapsed = false,
   onToggleCollapsed,
   readOnly = false,
+  onBulkMove,
+  onBulkArchive,
+  isBulkPending = false,
 }) {
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -263,6 +323,54 @@ const BoardColumn = memo(function BoardColumn({
   }, [data?.pages, boardHelpers, queryFilters.priorityOrder, sortKey]);
 
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks]);
+
+  // Selection is per column, and deliberately so: the whole point of the feature
+  // is "everything in this status goes somewhere else", and a set spanning
+  // columns would have no single move to offer.
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setIsSelecting(false);
+  }, []);
+
+  const toggleSelected = useCallback((taskId) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }, []);
+
+  // A card that has left the column — moved by this batch, by a drag, or by
+  // somebody else's socket event — is no longer selectable, so it drops out of
+  // the selection rather than travelling in the next batch as an id the column
+  // no longer shows.
+  useEffect(() => {
+    setSelectedIds((current) => {
+      if (current.size === 0) return current;
+      const visible = new Set(taskIds);
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [taskIds]);
+
+  const selectedList = useMemo(() => [...selectedIds], [selectedIds]);
+  const allSelected = tasks.length > 0 && selectedIds.size === tasks.length;
+  const moveTargets = useMemo(
+    () => (boardHelpers?.statusOptions || []).filter((option) => option.value !== columnStatusId),
+    [boardHelpers, columnStatusId]
+  );
+
+  // Nothing to select on a frozen board, and nothing to select in a column that
+  // has no cards yet.
+  const canSelect = !readOnly && Boolean(onBulkMove) && tasks.length > 0;
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((current) => (current.size === taskIds.length ? new Set() : new Set(taskIds)));
+  }, [taskIds]);
 
   // `!data`, not `tasks.length === 0`: the test is whether this column has
   // anything to show yet, not whether it happens to be empty. An empty column is
@@ -375,40 +483,77 @@ const BoardColumn = memo(function BoardColumn({
       style={{ borderTopColor: style.borderTopColor, borderTopWidth: 2 }}
     >
       <div className="flex shrink-0 items-center gap-1.5 border-b border-separator px-2.5 pb-2.5 pt-[11px]">
-        <span
-          className="h-2 w-2 shrink-0 rounded-full"
-          style={{ background: style.borderTopColor }}
-          aria-hidden
-        />
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-foreground">
-          {col.title}
-        </span>
-        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground/75">
-          {isColumnLoading ? '…' : (totalCount ?? tasks.length)}
-        </span>
-        {columnStatusId && onNewTicketInColumn && !readOnly ? (
-          <button
-            type="button"
-            className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
-            aria-label={`New ticket in ${col.title}`}
-            onClick={() => onNewTicketInColumn(columnStatusId)}
-            data-test={`board-column-${col.id}-new-button`}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
-        {onToggleCollapsed ? (
-          <button
-            type="button"
-            onClick={() => onToggleCollapsed(col.id)}
-            aria-label={`Collapse ${col.title} column`}
-            aria-expanded
-            data-test={`board-column-${col.id}-collapse-button`}
-            className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
+        {isSelecting ? (
+          <>
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={toggleSelectAll}
+              aria-label={`Select every loaded ticket in ${col.title}`}
+              data-test={`board-column-${col.id}-select-all`}
+            />
+            <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-foreground">
+              {selectedIds.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={clearSelection}
+              aria-label={`Cancel selecting tickets in ${col.title}`}
+              data-test={`board-column-${col.id}-selection-cancel-button`}
+              className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </>
+        ) : (
+          <>
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ background: style.borderTopColor }}
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-foreground">
+              {col.title}
+            </span>
+            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground/75">
+              {isColumnLoading ? '…' : (totalCount ?? tasks.length)}
+            </span>
+            {canSelect ? (
+              <button
+                type="button"
+                onClick={() => setIsSelecting(true)}
+                aria-label={`Select tickets in ${col.title}`}
+                title="Select tickets"
+                data-test={`board-column-${col.id}-select-button`}
+                className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <ListChecks className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+            {columnStatusId && onNewTicketInColumn && !readOnly ? (
+              <button
+                type="button"
+                className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
+                aria-label={`New ticket in ${col.title}`}
+                onClick={() => onNewTicketInColumn(columnStatusId)}
+                data-test={`board-column-${col.id}-new-button`}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+            {onToggleCollapsed ? (
+              <button
+                type="button"
+                onClick={() => onToggleCollapsed(col.id)}
+                aria-label={`Collapse ${col.title} column`}
+                aria-expanded
+                data-test={`board-column-${col.id}-collapse-button`}
+                className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </>
+        )}
       </div>
       <p className="sr-only">{countLabel}</p>
 
@@ -444,8 +589,18 @@ const BoardColumn = memo(function BoardColumn({
           ) : null}
 
           {!isColumnLoading && !isError
-            ? tasks.map((task) =>
-                readOnly ? (
+            ? tasks.map((task) => {
+                if (isSelecting) {
+                  return (
+                    <SelectableBoardTaskCard
+                      key={task.id}
+                      task={task}
+                      selected={selectedIds.has(task.id)}
+                      onToggle={toggleSelected}
+                    />
+                  );
+                }
+                return readOnly ? (
                   <StaticBoardTaskCard key={task.id} task={task} onOpen={onOpen} />
                 ) : (
                   <DraggableBoardTaskCard
@@ -454,8 +609,8 @@ const BoardColumn = memo(function BoardColumn({
                     columnId={col.id}
                     onOpen={onOpen}
                   />
-                )
-              )
+                );
+              })
             : null}
 
           {isFetchingNextPage ? (
@@ -467,6 +622,63 @@ const BoardColumn = memo(function BoardColumn({
 
           <div ref={sentinelRef} className="h-1 shrink-0" aria-hidden />
         </div>
+
+        {/* The bar appears with the first selected card and belongs to this
+            column, not to the page: it says what happens to THESE tickets, and
+            it sits where they are. */}
+        {isSelecting && selectedIds.size > 0 ? (
+          <div
+            className="flex shrink-0 flex-wrap items-center gap-1.5 border-t border-separator bg-muted/30 px-2.5 py-2"
+            data-test={`board-column-${col.id}-selection-actions`}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  type="button"
+                  disabled={isBulkPending || moveTargets.length === 0}
+                  data-test={`board-column-${col.id}-move-trigger`}
+                >
+                  Move to
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {moveTargets.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onSelect={() => onBulkMove?.(selectedList, option.value, clearSelection)}
+                    data-test={`board-column-${col.id}-move-to-${option.value}`}
+                  >
+                    <span
+                      className="mr-2 h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: option.color }}
+                      aria-hidden
+                    />
+                    {option.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              disabled={isBulkPending}
+              onClick={() => onBulkArchive?.(selectedList, clearSelection)}
+              data-test={`board-column-${col.id}-archive-button`}
+            >
+              <Archive className="h-3.5 w-3.5" />
+              Archive
+            </Button>
+
+            {isBulkPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden />
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -524,6 +736,65 @@ export default function BoardPage({
     if (columnsHaveFetched.current) setColumnsSettled(true);
   }, [columnsFetching]);
   const showColumnsLoader = useLoaderHold(!columnsSettled && columnsFetching > 0);
+
+  // The bulk actions live here rather than in the column so that one request is
+  // in flight at a time across the board, and so the archive confirm is a single
+  // dialog instead of one per column.
+  const { mutate: bulkMoveTickets, isPending: isMovingBulk } = useBulkTicketStatus();
+  const { mutate: bulkArchiveTickets, isPending: isArchivingBulk } = useBulkArchiveTickets();
+  const [pendingArchive, setPendingArchive] = useState(null);
+  const isBulkPending = isMovingBulk || isArchivingBulk;
+
+  // `onDone` is the column's own "clear the selection", called only on success:
+  // a failed batch keeps the selection so the action can be retried without
+  // picking the cards again.
+  const handleBulkMove = useCallback(
+    (ticketIds, statusId, onDone) => {
+      if (!ticketIds?.length) return;
+      bulkMoveTickets(
+        { ticketIds, statusId, workspaceId },
+        {
+          onSuccess: (response) => {
+            const moved = response?.data?.length ?? ticketIds.length;
+            toast.success(moved === 1 ? '1 ticket moved.' : `${moved} tickets moved.`);
+            onDone?.();
+          },
+          onError: (error) => {
+            toast.error(
+              error?.response?.data?.message || 'Could not move the selected tickets. Try again.'
+            );
+          },
+        }
+      );
+    },
+    [bulkMoveTickets, workspaceId]
+  );
+
+  const handleBulkArchive = useCallback((ticketIds, onDone) => {
+    if (!ticketIds?.length) return;
+    setPendingArchive({ ticketIds, onDone });
+  }, []);
+
+  const confirmBulkArchive = useCallback(() => {
+    if (!pendingArchive) return;
+    const { ticketIds, onDone } = pendingArchive;
+    bulkArchiveTickets(
+      { ticketIds, workspaceId },
+      {
+        onSuccess: (response) => {
+          const archived = response?.data?.length ?? ticketIds.length;
+          toast.success(archived === 1 ? '1 ticket archived.' : `${archived} tickets archived.`);
+          setPendingArchive(null);
+          onDone?.();
+        },
+        onError: (error) => {
+          toast.error(
+            error?.response?.data?.message || 'Could not archive the selected tickets. Try again.'
+          );
+        },
+      }
+    );
+  }, [bulkArchiveTickets, pendingArchive, workspaceId]);
 
   const toggleColumnCollapsed = useCallback((columnId) => {
     setCollapsedColumns((current) => {
@@ -613,6 +884,9 @@ export default function BoardPage({
           collapsed={collapsedColumns.has(col.id)}
           onToggleCollapsed={toggleColumnCollapsed}
           readOnly={readOnly}
+          onBulkMove={readOnly ? undefined : handleBulkMove}
+          onBulkArchive={readOnly ? undefined : handleBulkArchive}
+          isBulkPending={isBulkPending}
         />
       ))}
       {/* One mark for the whole board, not one per column. Every column fetches on its own, so
@@ -671,6 +945,23 @@ export default function BoardPage({
           </DragOverlay>
         </DndContext>
       </div>
+
+      {/* Archiving a batch takes cards off the board in one gesture, so it asks
+          first — a move does not, because a wrong move is one more move back. */}
+      <ConfirmModal
+        isOpen={Boolean(pendingArchive)}
+        onClose={() => setPendingArchive(null)}
+        onConfirm={confirmBulkArchive}
+        isLoading={isArchivingBulk}
+        title="Archive selected tickets"
+        description={
+          pendingArchive?.ticketIds.length === 1
+            ? 'Archive this ticket? It leaves the board and can be restored from the archive.'
+            : `Archive these ${pendingArchive?.ticketIds.length ?? 0} tickets? They leave the board and can be restored from the archive.`
+        }
+        confirmLabel="Archive"
+        loadingLabel="Archiving..."
+      />
     </div>
   );
 }

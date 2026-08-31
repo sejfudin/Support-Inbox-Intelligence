@@ -7,6 +7,8 @@ const {
   getAllTickets,
   updateTicket,
   setSprintMembership,
+  bulkUpdateTicketStatus,
+  bulkArchiveTickets,
   archiveTicket,
   unarchiveTicket,
   getMyTickets,
@@ -44,6 +46,12 @@ router.delete('/:ticketId/description/images', protect, deleteAllTicketDescripti
 // Before `/:id` so the literal path is not captured as a ticket id. Bulk, but
 // no role gate: sprint membership is authorized as any ticket update is.
 router.patch('/sprint-membership', protect, setSprintMembership);
+
+// Same reasoning as the line above — literal paths before `/:id`, and no role
+// gate: a board selection may do in one request only what its owner could
+// already do card by card.
+router.patch('/bulk-status', protect, bulkUpdateTicketStatus);
+router.patch('/bulk-archive', protect, bulkArchiveTickets);
 
 router.get('/:id', protect, getTicketById);
 router.patch('/:id', protect, updateTicket);

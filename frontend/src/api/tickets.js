@@ -67,6 +67,26 @@ export const updateTicket = async (ticketId, updates) => {
   return response.data;
 };
 
+// One request for a whole board-column selection: every selected ticket moves to
+// `statusId`, or is archived. Same shape (and same authorization) as the sprint
+// membership call below — see `server/controllers/tickets.js`.
+export const bulkUpdateTicketStatus = async ({ ticketIds, statusId, workspaceId }) => {
+  const response = await apiClient.patch('/tickets/bulk-status', {
+    ticketIds,
+    statusId,
+    workspaceId,
+  });
+  return response.data;
+};
+
+export const bulkArchiveTickets = async ({ ticketIds, workspaceId }) => {
+  const response = await apiClient.patch('/tickets/bulk-archive', {
+    ticketIds,
+    workspaceId,
+  });
+  return response.data;
+};
+
 // One request for the whole planning-modal selection: `sprint` set moves every
 // ticket into it, `null` clears it. See `server/controllers/tickets.js`.
 export const setSprintMembership = async ({ ticketIds, sprint, workspaceId }) => {

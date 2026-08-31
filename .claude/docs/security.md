@@ -762,6 +762,22 @@ exactly like a real one, but never appear in a listing meant for real users.
   enum-checked — the server holds no copy of `TOUR_VERSION` on purpose. Nothing may read
   `whatsNewSeenVersion` to decide what a caller can see or do; like preferences, it is UI
   state, not authorization.
+- `GET`/`PUT`/`DELETE /api/ticket-drafts` is the same shape once more: the account comes
+  from `req.user._id`, no id travels in any path, and there is no read path to anybody
+  else's draft. What it stores is a workspace-scoped resource as well as a self-only one,
+  so both rules apply at once:
+  - The workspace is resolved with `resolveActiveWorkspaceId` (an admin-only `workspaceId`
+    override, exactly as on `/api/tickets`), and `null` answers "no draft" rather than
+    reaching into a workspace the caller has since left.
+  - **Every reference in a draft is re-scoped to that workspace on write** — status,
+    category, assignees, blocking ticket. A draft is populated and rendered back to its
+    owner, so an unscoped ref stored here would be a cross-workspace read through the
+    populate, the same leak `ensureCategoryBelongsToWorkspace` exists to prevent on a
+    ticket. It **drops** the foreign ref instead of rejecting the request, because autosave
+    runs on a timer and a 400 would silently stop saving what is being typed — dropping
+    still stores nothing foreign, which is the property that matters here.
+  - The description is rich text and is sanitized on the way in (`helpers/htmlSanitize.js`),
+    like a ticket description; it goes back out to a `dangerouslySetInnerHTML` sink.
 - `POST`/`DELETE /api/auth/me/avatar` follow the same shape — the account comes from
   `req.user._id`, so there is no id to aim at somebody else's record. `PATCH /auth/:id`
   builds its update from an explicit allow-list and so cannot write `avatarUrl` or
@@ -828,6 +844,23 @@ exactly like a real one, but never appear in a listing meant for real users.
 - JWT secrets: `JWT_SECRET`, `JWT_REFRESH_SECRET`.
 - Supabase bucket names are config, not secrets, but `SUPABASE_PROFILE_BUCKET` is **required** —
   see `workflows.md`. Pointing it at the workspace-logo bucket breaks valid uploads.
+
+## Bulk ticket endpoints
+
+`PATCH /api/tickets/sprint-membership`, `PATCH /api/tickets/bulk-status` and
+`PATCH /api/tickets/bulk-archive` each act on a list of ticket ids in one request. All three are
+`protect` with **no role gate**, deliberately: a workspace member can already move or archive each
+of those tickets one at a time, so a tighter gate here would guard nothing.
+
+- The scoping is the same as everywhere else, done once for the batch: the workspace comes from
+  `resolveActiveWorkspaceId`, and the service reads the tickets with
+  `Ticket.find({ _id: { $in: ids }, workspace })` and refuses the whole batch with a 404 if the
+  count does not match. **Never loop over the ids fetching them by id alone** — that is how a
+  batch becomes a cross-workspace write with one foreign id smuggled into the array.
+- Nothing is written until every id has passed that check, and the batch is capped
+  (`MAX_BULK_TICKETS`).
+- Each id then goes through the single-ticket service path, so the rules that path enforces (the
+  backlog is not a destination, the sprint estimate rule) apply to a batch unchanged.
 
 ## When reviewing / writing an endpoint, checklist
 

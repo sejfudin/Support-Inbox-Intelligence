@@ -8,6 +8,8 @@ import {
   unarchiveTicket,
   updateTicket,
   setSprintMembership,
+  bulkUpdateTicketStatus,
+  bulkArchiveTickets,
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
@@ -163,6 +165,40 @@ export const useUnarchiveTicket = () => {
       const workspaceId = ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
       invalidateTicketScope(queryClient, ticketId);
       invalidateWorkspaceTicketsScope(queryClient, workspaceId);
+    },
+  });
+};
+
+/**
+ * A board column's selection, moved to another status or archived in one request.
+ *
+ * Not optimistic, unlike a drag (`useBoardStatusMove`): a drag moves one card the
+ * person is holding, where the card snapping back IS the error message. A batch
+ * moves cards across two columns at once, and rolling that back convincingly
+ * costs more than the refetch it would save.
+ */
+export const useBulkTicketStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkUpdateTicketStatus,
+    onSuccess: (_response, variables) => {
+      invalidateWorkspaceTicketsScope(queryClient, variables.workspaceId);
+      queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+      invalidateAnalyticsQueries(queryClient, variables.workspaceId);
+    },
+  });
+};
+
+export const useBulkArchiveTickets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkArchiveTickets,
+    onSuccess: (_response, variables) => {
+      invalidateWorkspaceTicketsScope(queryClient, variables.workspaceId);
+      queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+      invalidateAnalyticsQueries(queryClient, variables.workspaceId);
     },
   });
 };

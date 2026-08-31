@@ -32,8 +32,8 @@ Roles are assigned at the **user** level and drive route landing + guards.
 
 ## Data model (Mongoose, `server/models/`)
 
-Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
-`Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`, `Counter`.
+Core: `User`, `Workspace`, `Ticket`, `TicketDraft`, `TicketStatus`, `Category`, `Comment`,
+`History`, `Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`, `Counter`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
 `Attendance`, `NonWorkingDay`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`,
 `Invitation`, `StaffingRequest`.
@@ -162,6 +162,52 @@ AI: `AISummary`.
   colliding sprint named in the error. Deleting a sprint clears `Ticket.sprint` on its tickets in
   one `updateMany` and leaves their statuses alone — deleting a plan never undoes the work. See
   ADR-0009, ADR-0010, ADR-0011, ADR-0012 and `CONTEXT.md`'s Sprints section.
+
+## Ticket drafts
+
+The unsent New-ticket form, kept so that closing the modal — or the tab — does not throw away what
+was typed. `TicketDraft` (`server/models/TicketDraft.js`), one row per **(user, workspace)** under a
+compound unique index, holding one field per control in the modal. Pure normalization lives in
+`server/helpers/ticketDraftRules.js`; the client mirror is `frontend/src/helpers/ticketDraft.js`
+over `hooks/useTicketDraftAutosave.js`.
+
+- **Its own collection, not a flagged `Ticket`.** A draft has no task number, no history, no
+  comments and no board column, and every ticket query in the app would otherwise have to learn to
+  exclude it.
+- **One draft per workspace per account.** The modal is a single form, so a second draft would be
+  one nothing can reopen. Saving is a whole-form replace; an emptied form deletes the row, so an
+  abandoned modal leaves nothing behind. What counts as "empty" ignores status and priority —
+  the modal arrives with both already set.
+- **Self-only, at `GET|PUT|DELETE /api/ticket-drafts`.** The account comes from the token and no id
+  travels in any path; the workspace goes through `resolveActiveWorkspaceId`. See
+  `.claude/docs/security.md`.
+- **References are scoped to the workspace on write, and dropped rather than rejected** when they
+  do not belong to it (a deleted category, a revoked membership). Autosave runs on a timer, and an
+  autosave that answers 400 stops saving silently — the one failure this feature cannot have. The
+  description is sanitized on the way in like any other rich text.
+- **`dueDate` is stored as the input's own `YYYY-MM-DD` string**, not a `Date`: it is a calendar day
+  the form hands back verbatim, and parsing it into an instant is what shifts it by a day.
+- The client restores once per opening, autosaves on a debounce, flushes on close, and deletes the
+  draft once the ticket it was a draft of exists.
+
+## Bulk column actions
+
+A board column can select its cards and move them to another status, or archive them, in one
+request: `PATCH /api/tickets/bulk-status` and `PATCH /api/tickets/bulk-archive` (both before
+`/:id` in `server/routes/ticket.js`, both `protect` only). Same shape as
+`PATCH /api/tickets/sprint-membership`, and for the same reasons:
+
+- **Every id is validated against the caller's workspace before anything is written** — a batch is
+  not a transaction, and a half-applied move is worth one read to avoid. The batch is capped at
+  `MAX_BULK_TICKETS` (200).
+- **Each ticket still goes through `updateTicket` / `archiveTicket`.** The status rules, the
+  time-in-status bookkeeping, the history lines and the socket events live there; duplicating them
+  is how a bulk move starts behaving differently from a drag of the same card.
+- Tickets already in the destination status (or already archived) are skipped, and the backlog is
+  refused as a destination up front — the same rule a single move enforces.
+- No role gate: a member can already move or archive each of these tickets one at a time.
+- The frontend selection is per column (`components/BoardPage.jsx`) and is not optimistic, unlike a
+  drag — see the note on `useBulkTicketStatus` in `frontend/src/queries/tickets.js`.
 
 ## Ticket blockers
 
