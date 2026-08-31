@@ -33,13 +33,23 @@ Roles are assigned at the **user** level and drive route landing + guards.
 ## Data model (Mongoose, `server/models/`)
 
 Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
-`Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`.
+`Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`, `Counter`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
 `Attendance`, `NonWorkingDay`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`,
 `Invitation`, `StaffingRequest`.
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
+- **`Counter` hands out `Ticket.taskNumber`** — one document per `(workspace, name)`, incremented
+  with an atomic `findOneAndUpdate` + `$inc` in `server/services/ticketNumberService.js`. It
+  replaced a `max(taskNumber) + 1` read-then-write that gave concurrent creates in one workspace
+  the same number. Two consequences to know before touching ticket numbering: **gaps are expected**
+  (a number is claimed before the save, so a rejected create burns it), and **uniqueness is not
+  enforced by an index** — `{ workspace, taskNumber }` on `Ticket` is deliberately non-unique, so
+  any write path that sets `taskNumber` without going through `nextTaskNumber` reintroduces
+  duplicates silently. Seeders that write `taskNumber` themselves call `syncTaskNumberCounter`
+  afterwards; a counter that is missing altogether is seeded from the workspace's current maximum
+  on the next create.
 - **`Technology.category` (`general` | `ai`) splits one collection into two catalogs.** AI skills
   are technologies in every functional respect — same declaration array
   (`InternProfile.selfTechnologies`), same `ReadinessFlag` rows, same staffing requests — and the

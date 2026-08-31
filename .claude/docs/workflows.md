@@ -97,6 +97,9 @@ npm run seed:observances                # NON-destructive: 20 years of religious
 npm run backfill:intern-positions
 npm run backfill:legacy-secondary-mentor # RUN-WHEN-READY: revokes ad-hoc mentor access, see below
 npm run backfill:project-types          # ADDITIVE: types pre-existing projects (client / internal)
+npm run backfill:task-counters          # ADDITIVE: sets each workspace's ticket-number counter to
+                                        # its highest existing taskNumber. Optional (the create
+                                        # path self-heals) and idempotent — only ever raises.
 npm run cleanup:invitations
 npm run cleanup:stale-recommendations   # close open recommendations of already-placed interns
 npm run cleanup:superseded-technologies # retire legacy combined catalog rows, see below

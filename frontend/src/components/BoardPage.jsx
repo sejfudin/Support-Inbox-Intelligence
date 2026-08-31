@@ -264,7 +264,15 @@ const BoardColumn = memo(function BoardColumn({
 
   const taskIds = useMemo(() => tasks.map((t) => t.id), [tasks]);
 
-  const isColumnLoading = isLoading || (isFetching && tasks.length === 0);
+  // `!data`, not `tasks.length === 0`: the test is whether this column has
+  // anything to show yet, not whether it happens to be empty. An empty column is
+  // a real answer, and `isFetching` is true for background refetches too — so
+  // keying on the card count put a skeleton over every empty column each time
+  // anything invalidated the board, which after an optimistic drag is
+  // immediately. Dragging the last card out of a column flashed a skeleton in
+  // place of the empty state it had just been given. Same reasoning as the
+  // board-level latch below, one level down.
+  const isColumnLoading = isLoading || (isFetching && !data);
   const totalCount = isColumnLoading ? null : (data?.pages?.[0]?.pagination?.total ?? tasks.length);
 
   // A read-only column is never a drop target. Registering it as one would be

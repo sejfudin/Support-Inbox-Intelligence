@@ -18,6 +18,7 @@ const confirm = () =>
 const User = require('../models/User');
 const Workspace = require('../models/Workspace');
 const Ticket = require('../models/Ticket');
+const Counter = require('../models/Counter');
 const TicketStatus = require('../models/TicketStatus');
 const Hub = require('../models/Hub');
 const InternshipType = require('../models/InternshipType');
@@ -53,6 +54,9 @@ const seedData = async () => {
     await Notification.deleteMany();
     await History.deleteMany();
     await Ticket.deleteMany();
+    // Per-workspace ticket-number counters. A destructive wipe must clear them
+    // too, or the fresh dataset inherits the previous run's sequence.
+    await Counter.deleteMany();
     await TicketStatus.deleteMany();
     await Recommendation.deleteMany();
     await ReadinessFlag.deleteMany();
