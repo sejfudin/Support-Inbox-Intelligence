@@ -45,20 +45,24 @@ const { DEFAULT_TECHNOLOGY_CATEGORY, TECHNOLOGY_CATEGORIES } = require('../const
 
 const isDryRun = process.argv.includes('--dry-run');
 
-// `--category=ai`, or `--category ai`.
+// `--category=ai`, or `--category ai`. Returns null when the flag is absent and the raw value
+// (possibly '') when it is present — a present-but-empty flag (`--category`, `--category=`) is
+// rejected below rather than falling through to an unscoped full run over the whole catalog.
 const readCategoryArg = () => {
   const inline = process.argv.find((arg) => arg.startsWith('--category='));
   if (inline) return inline.slice('--category='.length);
   const index = process.argv.indexOf('--category');
-  return index === -1 ? null : process.argv[index + 1];
+  if (index === -1) return null;
+  return process.argv[index + 1] ?? '';
 };
 
 const categoryFilter = readCategoryArg();
 
-if (categoryFilter && !TECHNOLOGY_CATEGORIES.includes(categoryFilter)) {
-  console.error(
-    `❌ Unknown --category "${categoryFilter}". Expected one of: ${TECHNOLOGY_CATEGORIES.join(', ')}.`
-  );
+if (categoryFilter !== null && !TECHNOLOGY_CATEGORIES.includes(categoryFilter)) {
+  const reason = categoryFilter
+    ? `Unknown --category "${categoryFilter}"`
+    : '--category needs a value';
+  console.error(`❌ ${reason}. Expected one of: ${TECHNOLOGY_CATEGORIES.join(', ')}.`);
   process.exit(1);
 }
 

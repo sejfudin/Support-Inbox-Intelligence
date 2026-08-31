@@ -50,7 +50,9 @@ const CATEGORY_OPTIONS = [
 
 const categoryLabel = (technology) => (isAiSkill(technology) ? 'AI skill' : 'Technology');
 
-const emptyForm = { name: '', category: 'general', isActive: true };
+// `category` starts unset so create forces a choice — see CATEGORY_OPTIONS. The Select shows
+// its placeholder and the submit button stays disabled until one of the two is picked.
+const emptyForm = { name: '', category: '', isActive: true };
 
 export function ReferenceDataTechnologiesPanel() {
   const {
@@ -88,6 +90,7 @@ export function ReferenceDataTechnologiesPanel() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (!form.category) return;
     const toastId = toast.loading(editingId ? 'Updating technology...' : 'Creating technology...');
 
     try {
@@ -201,7 +204,7 @@ export function ReferenceDataTechnologiesPanel() {
                   id="technology-category"
                   data-test="platform-management-technologies-category-select"
                 >
-                  <SelectValue />
+                  <SelectValue placeholder="Select a type" />
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORY_OPTIONS.map((option) => (
@@ -228,7 +231,11 @@ export function ReferenceDataTechnologiesPanel() {
               </div>
             )}
             <DialogFooter>
-              <Button type="submit" data-test="platform-management-technologies-save-button">
+              <Button
+                type="submit"
+                disabled={!form.category}
+                data-test="platform-management-technologies-save-button"
+              >
                 {editingId ? 'Save changes' : 'Create technology'}
               </Button>
             </DialogFooter>

@@ -41,6 +41,7 @@ const SECTION_LABEL_CLASS =
 
 export function InternTechnologyDeclaration({ className }) {
   const {
+    intern,
     catalogTechnologies,
     catalogAiSkills,
     declaredIds,
@@ -62,6 +63,11 @@ export function InternTechnologyDeclaration({ className }) {
   // carry the general declarations along with it, which is why these read the ids off
   // `declaredIds` (every declaration, both halves) rather than off the section they sit in.
   const addTechnology = (tech) => {
+    // `declaredIds` is derived from the intern profile; until it has loaded the set is empty
+    // and this save would drop every existing declaration. The search is disabled while
+    // `isLoadingTechnologies` (which now waits on the profile too), so this only guards a
+    // race where the query settles between render and click.
+    if (!intern) return;
     const newIds = [...declaredIds, tech._id];
     saveTechnologies(newIds, {
       onSuccess: () => toast.success(`${tech.name} added`),
