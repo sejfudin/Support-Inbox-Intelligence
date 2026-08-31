@@ -13,7 +13,9 @@
 // Adding an entry: give it an explicit `slug` whenever slugify(name) would be lossy or
 // collide (`C#` and `C++` both slugify to `c`). Then add the CV aliases for that slug in
 // helpers/cvTechnologyMatcher.js, and optionally a brand logo in
-// frontend/src/helpers/technologyIcons.jsx. Finish with `npm run seed:technologies` to
+// frontend/src/helpers/technologyIcons.jsx (which draws from `developer-icons` for the
+// mainstream stacks, `simple-icons` for most AI tooling, and helpers/aiBrandMarks.js for the
+// three marks neither package carries). Finish with `npm run seed:technologies` to
 // backfill databases that were already seeded — a non-destructive upsert.
 //
 // Slugs are the stable key — ReadinessFlags, CV aliases and icons all reference them, so

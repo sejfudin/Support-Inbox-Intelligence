@@ -1,4 +1,19 @@
-import { Code2 } from 'lucide-react';
+import { Code2, Sparkles, Zap } from 'lucide-react';
+import {
+  siClaudecode,
+  siCline,
+  siCoderabbit,
+  siCursor,
+  siGooglegemini,
+  siJetbrains,
+  siLangchain,
+  siLanggraph,
+  siModelcontextprotocol,
+  siOllama,
+  siPerplexity,
+  siReplit,
+  siWindsurf,
+} from 'simple-icons';
 import {
   AWS,
   AdobeXD,
@@ -165,6 +180,8 @@ import {
   Xamarin,
 } from 'developer-icons';
 import { cn } from '@/lib/utils';
+import { isAiSkill } from '@/helpers/technologyCategories';
+import { AI_BRAND_MARKS } from '@/helpers/aiBrandMarks';
 
 // Maps a Technology (by its stable slug) to a brand logo from `developer-icons`.
 //
@@ -172,6 +189,51 @@ import { cn } from '@/lib/utils';
 // solid black or solid white — `developer-icons` ships those as two variants, and picking
 // one would make the logo invisible in the other theme.
 //
+/**
+ * A path-data mark as a component, so the map can hold it like any other icon.
+ *
+ * `developer-icons` carries the mainstream stacks but almost none of the AI tooling — no
+ * Cursor, Windsurf, Cline, Perplexity, Replit, LangChain or MCP — which is why this file now
+ * draws from two more sources. Both are data rather than components (`simple-icons` entries
+ * are `{ title, hex, path }`; `aiBrandMarks.js` holds `{ paths }`), so the SVG shell is ours
+ * to write, and one shell serves both.
+ *
+ * Rendered in `currentColor`, NOT a brand `hex`. Half of these marks are near-black
+ * (Anthropic, Cursor, Vercel) and would vanish against a dark panel, and the alternative is
+ * the onLight/onDark pair every monochrome logo above needs. Inheriting the text colour makes
+ * the theme problem disappear instead of solving it twice per icon.
+ *
+ * `evenodd` because the marks that carry a cut-out (Devin's stacked tiles, LlamaIndex's loop)
+ * are drawn expecting it; it is harmless for the single-path ones.
+ *
+ * A `<title>` is deliberately omitted: every call site already renders the technology's name
+ * beside the mark, so one would have a screen reader read it twice.
+ */
+const pathIcon =
+  (paths) =>
+  ({ size = 14, className }) => (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="currentColor"
+      fillRule="evenodd"
+      className={className}
+      aria-hidden="true"
+      focusable="false"
+    >
+      {paths.map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
+
+/** A `simple-icons` entry (single path) as a component. */
+const simpleIcon = ({ path }) => pathIcon([path]);
+
+/** One of the marks transcribed in `aiBrandMarks.js`, by catalog slug. */
+const brandMark = (slug) => pathIcon(AI_BRAND_MARKS[slug].paths);
+
 // Technologies that are conceptual rather than a single product (Manual QA, SQL, Wireframing,
 // Penetration Testing, Microservices, …) intentionally have no entry, and neither do the many
 // products the icon set does not cover (Selenium, Tableau, Power BI, Nginx, pandas,
@@ -292,7 +354,7 @@ const ICON_BY_SLUG = {
   tensorflow: Tensorflow,
   pytorch: PyTorch,
   'hugging-face': HuggingFace,
-  'openai-api': OpenAI,
+  // `openai-api` used to live here; it is in the AI skills group below now, with the catalog.
 
   // —— QA ——
   cypress: Cypress,
@@ -358,16 +420,19 @@ const ICON_BY_SLUG = {
   nx: Nx,
 
   // —— AI skills ——
-  // Sparser than the groups above by nature: the icon set covers the big vendors and almost
-  // none of the young agent tools (Cursor, Windsurf, Cline, Aider, Devin, Lovable, Bolt.new,
-  // Perplexity, Replit Agent, …), and the practice entries — MCP, Agent Skills, prompt
-  // engineering, evals — have no single mark to carry in the first place. All of them fall
-  // back to the neutral glyph, which is the designed outcome.
+  // Two sets feed this group. The vendor marks below come from `developer-icons` like every
+  // group above; the young agent tools come from `simple-icons` through `simpleIcon()`, which
+  // is the whole reason that dependency is here — `developer-icons` carries none of them.
   //
   // Where a vendor ships several entries they share the vendor's mark: Codex and the Agents
-  // SDK are both OpenAI, the Gemini API and its CLI are both Google. Two rows with one logo
-  // is correct here — the name beside it is what distinguishes them.
-  'claude-code': ClaudeAI,
+  // SDK are both OpenAI, v0 and the AI SDK are both Vercel, the Gemini API and its CLI are
+  // both Gemini. Two rows with one logo is correct here — the name beside it distinguishes
+  // them. Claude Code is the exception: it has a mark of its own, so it does not borrow
+  // Anthropic's.
+  //
+  // Amazon Q Developer takes the AWS mark on the same principle — it is an AWS product and
+  // the Q logo is not in either set.
+  'claude-code': simpleIcon(siClaudecode),
   'anthropic-claude-api': Anthropic,
   'claude-agent-sdk': Anthropic,
   'github-copilot': GitHubCopilot,
@@ -375,10 +440,31 @@ const ICON_BY_SLUG = {
   chatgpt: ChatGPT,
   'openai-codex': OpenAI,
   'openai-agents-sdk': OpenAI,
-  'google-gemini-api': Google,
-  'gemini-cli': Google,
+  'openai-api': OpenAI,
+  'google-gemini-api': simpleIcon(siGooglegemini),
+  'gemini-cli': simpleIcon(siGooglegemini),
+  cursor: simpleIcon(siCursor),
+  windsurf: simpleIcon(siWindsurf),
+  cline: simpleIcon(siCline),
+  perplexity: simpleIcon(siPerplexity),
+  'jetbrains-ai-assistant': simpleIcon(siJetbrains),
+  'replit-agent': simpleIcon(siReplit),
+  'amazon-q-developer': AWS,
+  mcp: simpleIcon(siModelcontextprotocol),
+  langchain: simpleIcon(siLangchain),
+  langgraph: simpleIcon(siLanggraph),
+  ollama: simpleIcon(siOllama),
+  'ai-code-review': simpleIcon(siCoderabbit),
   v0: { onLight: VercelDark, onDark: VercelLight },
   'vercel-ai-sdk': { onLight: VercelDark, onDark: VercelLight },
+  devin: brandMark('devin'),
+  llamaindex: brandMark('llamaindex'),
+  lovable: brandMark('lovable'),
+  // No mark exists for Bolt.new in any of the three sources, but its name *is* the glyph.
+  // Aider has neither, and falls through to the AI fallback below along with the practice
+  // rows (Agent Skills, prompt engineering, RAG, evals, orchestration, LLMs) — those name a
+  // way of working rather than a product, so there is no logo to be missing.
+  'bolt-new': Zap,
 
   // —— Specialized engineering ——
   cpp: CPlusPlus,
@@ -417,6 +503,12 @@ export const buildTechnologyIndex = (technologies = []) =>
  *
  * Monochrome logos render as a pair — one per theme, swapped with `dark:` utilities rather
  * than a theme hook, so the icon is correct on first paint and during hydration.
+ *
+ * The fallback forks on the category: an AI skill with no mark gets a spark rather than the
+ * `</>` glyph, because most of the unmarked entries in that half are practices (Agent Skills,
+ * prompt engineering, evals, agent orchestration) and a code glyph reads as "a framework I
+ * have not heard of". A row that arrives as a bare name — several screens carry only the
+ * technology's name — has no category to fork on and keeps the code glyph.
  */
 export function TechnologyIcon({ technology, size = 14, className }) {
   const icon = getTechnologyIcon(technology);
@@ -433,5 +525,7 @@ export function TechnologyIcon({ technology, size = 14, className }) {
 
   const Icon = icon;
   if (Icon) return <Icon size={size} className={className} />;
-  return <Code2 size={size} className={className} />;
+
+  const Fallback = isAiSkill(technology) ? Sparkles : Code2;
+  return <Fallback size={size} className={className} />;
 }
