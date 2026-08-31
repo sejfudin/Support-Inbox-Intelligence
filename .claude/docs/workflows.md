@@ -89,7 +89,8 @@ npm run import:attendance               # attendance from the mentor's CSVs, see
 npm run cleanup:fep-attendance          # DELETES the seeded cohort's attendance, see below
 npm run cleanup:fep-placements          # undoes the placements seed:fep-cohort invented
 npm run seed:positions
-npm run seed:technologies               # NON-destructive: adds missing technologies, see below
+npm run seed:technologies               # NON-destructive: adds missing technologies and syncs
+                                        # their category (technology / AI skill), see below
 npm run seed:observances                # NON-destructive: 20 years of religious observances,
                                         # calendar notices only — never attendance. --dry-run /
                                         # --replace (to correct an announced Bajram date)
@@ -287,17 +288,34 @@ The odd one out: **non-destructive**. It upserts `seeder/defaultTechnologies.js`
 reactivates or removes an existing one, and touches no other collection. Like `seed:demo` it
 loads `.env.${NODE_ENV|development}`.
 
+`category` (`general` | `ai`) is set on insert and **backfilled** onto rows that predate the
+field — they carry no category at all, so the AI-half entries the group moved out of the
+technology catalog (LangChain, OpenAI API, RAG, and three more) land in the right list on
+existing databases. It is **not** re-asserted on a row that already has a category: an admin
+can move a row between the two halves from Reference Data, and that choice survives every later
+sync. The catalog file is the seed, not the ongoing owner. A category change touches nothing
+about declarations, readiness flags or staffing rows — those key off the slug — only which
+search box and section the row appears in. The dry run lists the backfills separately from the
+additions, and flags any row whose admin-set category the catalog disagrees with (left as-is).
+
 (One caveat on "`$setOnInsert` only": `Technology` has `timestamps: true`, and Mongoose adds
-`$set: { updatedAt }` to every `updateOne` regardless. Existing rows therefore get their
-`updatedAt` bumped on each run. Nothing reads that field today, but don't build
+`$set: { updatedAt }` to the upsert regardless, so existing rows get their `updatedAt` bumped
+on each run even when nothing else changes. Nothing reads that field today, but don't build
 "recently added" sorting on it.)
 
 Run it after adding entries to `defaultTechnologies.js`; the alternative is the destructive
 `npm run seed`, which you do not want to point at a shared database.
 
+`--category=<general|ai>` narrows the run to one half of the catalog. Entries in the other half
+are not read and their rows are not written to at all — not even the `updatedAt` bump above.
+That is the flag to reach for on a shared database when the change you are shipping only adds to
+one half: `--category=ai` seeded the 36 AI skills into the dev cluster without touching the 95
+technologies already there (or the 206 catalog technologies that cluster is still missing).
+
 ```bash
-npm run seed:technologies -- --dry-run   # list what would be added, change nothing
-npm run seed:technologies                # add the missing technologies
+npm run seed:technologies -- --dry-run   # list what would be added / backfilled, change nothing
+npm run seed:technologies                # add the missing technologies, backfill missing categories
+npm run seed:technologies -- --category=ai   # only the AI skills half
 ```
 
 The catalog is what bounds CV scanning — `helpers/cvTechnologyMatcher.js` can only ever

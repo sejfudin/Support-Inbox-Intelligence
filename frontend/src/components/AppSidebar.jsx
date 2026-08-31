@@ -662,7 +662,7 @@ export default function AppSidebar() {
         // programme records about them, and the two rows below it are the parts they
         // can act on (declare a technology, check in).
         { label: 'My Progress', to: '/my-progress', icon: TrendingUp },
-        { label: 'Position & Technologies', to: '/my-technologies', icon: Code2 },
+        { label: 'Position & Skills', to: '/my-technologies', icon: Code2 },
         { label: 'Attendance', to: '/my-attendance', icon: CalendarCheck },
       ]
     : [];

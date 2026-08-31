@@ -40,6 +40,15 @@ Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Rec
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
+- **`Technology.category` (`general` | `ai`) splits one collection into two catalogs.** AI skills
+  are technologies in every functional respect — same declaration array
+  (`InternProfile.selfTechnologies`), same `ReadinessFlag` rows, same staffing requests — and the
+  category decides only which search box finds a row and which section lists it (the intern's
+  `/my-technologies` page, the declared chips on a profile, the readiness groups). Vocabulary is
+  in `server/constants/technologies.js` and mirrored in
+  `frontend/src/helpers/technologyCategories.js`. **Rows seeded before the field existed carry no
+  `category` at all, so read the general half as "not `ai`" — never filter it with
+  `category: 'general'`.**
 - `User.preferences` — one optional subdocument (`_id: false`) holding the UI preferences that
   follow the account. Every field is optional and **absent means "never chosen"**, which is what
   the sync layer keys off; see "UI preferences" below.
@@ -566,10 +575,14 @@ See `services/internCvService.js#syncTechnologiesFromCv`.
     add; that is the accepted cost of scans never removing.
 - **The catalog is the ceiling.** A skill with no `Technology` row is invisible to the scan however
   it is spelled, so a thin catalog reads as a broken scanner. Adding one takes three steps in the
-  same change: `seeder/defaultTechnologies.js` (the entry), `helpers/cvTechnologyMatcher.js`
-  (`TECHNOLOGY_ALIASES` — real-world spellings; version-suffixed forms like `html5`/`python3` need
-  their own alias), and `npm run seed:technologies` to backfill existing databases.
-  `cvTechnologyMatcher.test.js` fails if a seeded slug has no alias entry.
+  same change: `seeder/defaultTechnologies.js` (the entry, with `category: 'ai'` when it belongs
+  in the AI half), `helpers/cvTechnologyMatcher.js` (`TECHNOLOGY_ALIASES` — real-world spellings;
+  version-suffixed forms like `html5`/`python3` need their own alias), and
+  `npm run seed:technologies` to backfill existing databases. `cvTechnologyMatcher.test.js` fails
+  if a seeded slug has no alias entry.
+  - A product name that is also an ordinary word ("Cursor", "Devin", "Lovable", "v0") belongs in
+    `AMBIGUOUS_MATCHERS`, not in `TECHNOLOGY_ALIASES` — it then counts only in a skills-list
+    shape, never in prose. The AI half is where most of these live.
 
 ## Notifications
 
@@ -1445,7 +1458,8 @@ vocabulary. Get the two "admin" meanings right.
 | **InternshipType** | The programme track an intern is on — reference data keyed by `slug`. E.g. `fep`, `shadow`. |
 | **FEP** | **Future Experts Program** — the standard internship track (`slug: 'fep'`). Common in seed data and intern emails (`intern.active.fep@…`). |
 | **Position** | A target job role (`slug` + `name`) an intern is training toward — e.g. QA, Frontend. Reference data. |
-| **Technology** | A tech skill (React, Node, …). Reference data; attached to intern profiles and readiness flags. |
+| **Technology** | A tech skill (React, Node, …). Reference data; attached to intern profiles and readiness flags. Carries `category`: `general` or `ai`. |
+| **AI skill** | A `Technology` with `category: 'ai'` — coding agents, assistant IDEs, LLM APIs and agent SDKs (Claude Code, Cursor, Copilot, MCP, …). Declared, assessed and staffed exactly like any other technology; the category only splits the search boxes and the list sections. |
 | **Readiness flag** | Per-intern assessment of readiness for a specific **technology** or **position**, level `none \| learning \| ready`, recorded by a user (`ReadinessFlag`). Admin-only (view and set). Feeds placement decisions. |
 | **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. Changing it is admin-only, even for the intern's assigned mentor. |
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). The secondary is now *only* the specialization mentor — see ADR-0002. |

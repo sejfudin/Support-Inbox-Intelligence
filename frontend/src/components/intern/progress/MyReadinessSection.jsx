@@ -6,6 +6,7 @@ import { formatDate } from '@/helpers/date';
 import { getReadinessBadgeClassName, isAssessedLevel } from '@/helpers/internProfile';
 import { ReadinessLevelBadge } from '@/components/interns/ReadinessLevelBadge';
 import { TechnologyIcon } from '@/helpers/technologyIcons';
+import { splitByCategory } from '@/helpers/technologyCategories';
 import { ProgressGroupLabel, ProgressPanel } from './ProgressPanel';
 
 const ACTION_CLASS = 'h-[34px] shrink-0 rounded-[var(--r-control)] px-3.5 text-[12.5px]';
@@ -87,8 +88,39 @@ function DeclarePrompt({ children, action, variant }) {
 }
 
 /**
+ * One half of the declared list — the rows, or the prompt that fills it.
+ *
+ * Rows arrive ready first, then learning, then unassessed: the order the server sorts them
+ * in, matching the admin's own grid so the two views of the same assessment read the same way.
+ */
+function SkillGroup({ rows, empty, emptyAction }) {
+  if (rows.length === 0) {
+    return (
+      <div className="px-[18px] py-3.5">
+        <DeclarePrompt variant="outline" action={emptyAction}>
+          {empty}
+        </DeclarePrompt>
+      </div>
+    );
+  }
+
+  return (
+    <ul>
+      {rows.map((row) => (
+        <ReadinessRow
+          key={row.id}
+          name={row.name}
+          row={row}
+          icon={<TechnologyIcon technology={row} size={17} className="shrink-0" />}
+        />
+      ))}
+    </ul>
+  );
+}
+
+/**
  * "Placement readiness" — the levels a mentor has recorded for the intern's
- * position and each technology they have declared.
+ * position and each skill they have declared.
  *
  * Read-only: setting a level is admin-only (`readinessFlagService.upsertReadinessFlag`).
  * The rows come from what the intern has *declared*, so a technology nobody has
@@ -97,14 +129,18 @@ function DeclarePrompt({ children, action, variant }) {
  */
 export function MyReadinessSection({ readiness }) {
   const position = readiness?.position || null;
-  const technologies = readiness?.technologies || [];
+  const declaredSkills = readiness?.technologies || [];
   const summary = readiness?.summary || { total: 0, ready: 0, learning: 0, none: 0 };
+  // Server-side the two halves are one list — same join, same level order. The split is for
+  // reading: the intern's AI skills are a shorter, newer list and get lost interleaved
+  // alphabetically among thirty frameworks.
+  const { technologies, aiSkills } = splitByCategory(declaredSkills);
 
   return (
     <ProgressPanel
       id="my-progress-readiness"
       title="Placement readiness"
-      description="How ready your mentor considers you for your position and for each technology you have declared."
+      description="How ready your mentor considers you for your position and for each skill you have declared."
       action={
         summary.total > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5">
@@ -131,39 +167,29 @@ export function MyReadinessSection({ readiness }) {
       )}
 
       <ProgressGroupLabel>Technologies</ProgressGroupLabel>
-      {technologies.length === 0 ? (
-        <div className="px-[18px] py-3.5">
-          <DeclarePrompt variant="outline" action="Add technologies">
-            You haven&apos;t declared any technologies yet. Add the ones you are working toward —
-            each one your mentor assesses shows up here.
-          </DeclarePrompt>
-        </div>
-      ) : (
-        /* Ready first, then learning, then unassessed — the order the server sorts
-           them in, matching the admin's own grid so the two views of the same
-           assessment read the same way. */
-        <ul>
-          {technologies.map((row) => (
-            <ReadinessRow
-              key={row.id}
-              name={row.name}
-              row={row}
-              icon={<TechnologyIcon technology={row} size={17} className="shrink-0" />}
-            />
-          ))}
-        </ul>
-      )}
+      <SkillGroup
+        rows={technologies}
+        emptyAction="Add technologies"
+        empty="You haven't declared any technologies yet. Add the ones you are working toward — each one your mentor assesses shows up here."
+      />
+
+      <ProgressGroupLabel>AI skills</ProgressGroupLabel>
+      <SkillGroup
+        rows={aiSkills}
+        emptyAction="Add AI skills"
+        empty="You haven't declared any AI skills yet. Add the AI tools you work with — your mentor assesses these the same way."
+      />
 
       {summary.none > 0 && (
         <p className="flex flex-wrap items-center gap-1.5 border-t border-separator px-[18px] py-3 text-[11.5px] leading-[1.5] text-muted-foreground">
-          {summary.none} of your {summary.total} technolog{summary.total === 1 ? 'y' : 'ies'}{' '}
+          {summary.none} of your {summary.total} skill{summary.total === 1 ? '' : 's'}{' '}
           {summary.none === 1 ? 'has' : 'have'} not been assessed yet — worth raising at your next
           1-on-1.
           <Link
             to="/my-technologies"
             className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
           >
-            Manage my technologies
+            Manage my skills
             <ArrowRight className="h-3 w-3" />
           </Link>
         </p>

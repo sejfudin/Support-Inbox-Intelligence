@@ -310,8 +310,8 @@ export function ProgressOverview({
             }
             hint={
               summary.total > 0
-                ? 'Technologies your mentor has assessed'
-                : 'Declare a position and technologies'
+                ? 'Skills your mentor has assessed'
+                : 'Declare a position and skills'
             }
           />
 
@@ -422,7 +422,7 @@ export function ProgressOverview({
           <Button asChild variant="outline" className={ACTION_CLASS}>
             <Link to="/my-technologies">
               <Code2 />
-              Position &amp; technologies
+              Position &amp; skills
             </Link>
           </Button>
         </div>

@@ -34,9 +34,22 @@ const ROW_CLASS =
 
 const BODY_MESSAGE_CLASS = 'px-[18px] py-[15px] text-[12.5px] text-muted-foreground';
 
+// The band that names a section. Reads as a divider with a label rather than as a second card
+// header — the panel has one title ("My skills") and these two are subordinate to it.
+const SECTION_LABEL_CLASS =
+  'flex items-center gap-2 border-b border-separator bg-muted/40 px-[18px] py-[7px] text-[10.5px] font-semibold uppercase tracking-[0.07em] text-muted-foreground/75';
+
 export function InternTechnologyDeclaration({ className }) {
-  const { allTechnologies, declaredIds, declaredTechnologies, flagMap, isLoadingTechnologies } =
-    useMyDeclaredTechnologies();
+  const {
+    intern,
+    catalogTechnologies,
+    catalogAiSkills,
+    declaredIds,
+    declaredTechnologies,
+    declaredAiSkills,
+    flagMap,
+    isLoadingTechnologies,
+  } = useMyDeclaredTechnologies();
   const { mutate: saveTechnologies, isPending: isSaving } = useUpdateMyTechnologies();
 
   // `{ tech, level }` for the row the ✕ was pressed on, held until the intern
@@ -45,7 +58,16 @@ export function InternTechnologyDeclaration({ className }) {
   // open would let the sentence change under a refetch.
   const [pendingRemoval, setPendingRemoval] = useState(null);
 
+  // Both searches and both lists write the same `selfTechnologies` array — the category
+  // splits what each one *shows*, never what gets saved. Adding an AI skill therefore has to
+  // carry the general declarations along with it, which is why these read the ids off
+  // `declaredIds` (every declaration, both halves) rather than off the section they sit in.
   const addTechnology = (tech) => {
+    // `declaredIds` is derived from the intern profile; until it has loaded the set is empty
+    // and this save would drop every existing declaration. The search is disabled while
+    // `isLoadingTechnologies` (which now waits on the profile too), so this only guards a
+    // race where the query settles between render and click.
+    if (!intern) return;
     const newIds = [...declaredIds, tech._id];
     saveTechnologies(newIds, {
       onSuccess: () => toast.success(`${tech.name} added`),
@@ -80,88 +102,134 @@ export function InternTechnologyDeclaration({ className }) {
     removeTechnology(tech);
   };
 
+  const renderSearch = ({ items, placeholder, emptyMessage, dataTest }) => (
+    <div className="relative w-full shrink-0 sm:w-[218px]">
+      <Search
+        className="pointer-events-none absolute left-[11px] top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/75"
+        aria-hidden="true"
+      />
+      <SearchableSelect
+        items={items}
+        onSelect={addTechnology}
+        filter={(tech, q) => tech.name.toLowerCase().includes(q)}
+        isSelected={(tech) => declaredIds.has(tech._id)}
+        keepOpenOnSelect
+        openOnFocus
+        renderItem={(tech) => (
+          <span className="flex items-center gap-2 font-medium">
+            <TechnologyIcon technology={tech} size={16} className="shrink-0" />
+            {tech.name}
+          </span>
+        )}
+        getItemDataTest={(tech) => `technology-add-${tech.slug}-button`}
+        placeholder={isSaving ? 'Saving…' : placeholder}
+        emptyMessage={emptyMessage}
+        busy={isSaving}
+        disabled={isSaving || isLoadingTechnologies}
+        dataTest={dataTest}
+        inputClassName="h-[34px] rounded-[var(--r-control)] pl-[34px] text-[12.5px]"
+      />
+    </div>
+  );
+
+  const renderRows = (skills) =>
+    skills.map((tech) => {
+      const level = flagMap[tech._id]?.level || UNASSESSED_LEVEL;
+      return (
+        <li key={tech._id} className={ROW_CLASS}>
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-tile)] bg-muted">
+              <TechnologyIcon technology={tech} size={13} />
+            </span>
+            <span className="truncate text-[13px] font-medium text-foreground">{tech.name}</span>
+          </span>
+          <ReadinessLevelBadge
+            level={level}
+            className="justify-self-end rounded-full border-transparent px-[9px] py-[3px] text-[11px] sm:justify-self-start"
+          />
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => requestRemoval(tech, level)}
+            className="flex h-[26px] w-[26px] items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-[hsl(var(--tone-danger-fg))] disabled:pointer-events-none disabled:opacity-50"
+            aria-label={`Remove ${tech.name}`}
+            data-test={`technology-remove-${tech.slug}-button`}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </li>
+      );
+    });
+
+  // Both sections are always rendered, empty or not: they are the map of what this page is
+  // for, and a section that appears only once something is in it leaves an intern who has
+  // declared no AI skills with no clue that half of the catalog exists.
+  const renderSection = ({ key, label, skills, empty }) => (
+    <div key={key} data-test={`skills-section-${key}`}>
+      <div className={SECTION_LABEL_CLASS}>
+        <span>{label}</span>
+        {skills.length > 0 && (
+          <span className="tabular-nums text-muted-foreground/60">{skills.length}</span>
+        )}
+      </div>
+      {skills.length === 0 ? (
+        <p className={BODY_MESSAGE_CLASS}>{empty}</p>
+      ) : (
+        <ul>{renderRows(skills)}</ul>
+      )}
+    </div>
+  );
+
   return (
     <PagePanel className={className}>
-      {/* Adding a technology is the same act as maintaining the list, so the search
-          sits in this card's header band instead of in a panel of its own above it —
-          that second panel is what the redesign removed. */}
-      <div className="flex flex-col gap-3 border-b border-separator px-[18px] pb-[13px] pt-[14px] sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      {/* Adding a skill is the same act as maintaining the list, so the searches
+          sit in this card's header band instead of in a panel of their own above it —
+          that second panel is what the redesign removed. Two boxes rather than one
+          filtered list: the AI catalog is the half an intern is least likely to know by
+          name, and a box labelled for it is what tells them it is there to search. */}
+      <div className="flex flex-col gap-3 border-b border-separator px-[18px] pb-[13px] pt-[14px] lg:flex-row lg:items-center lg:justify-between lg:gap-4">
         <div className="min-w-0">
-          <h2 className="app-card-title">My technologies</h2>
+          <h2 className="app-card-title">My skills</h2>
           <p className="mt-0.5 text-[12.5px] leading-[1.45] text-muted-foreground">
             Your mentor assesses your readiness for each.
           </p>
         </div>
 
-        <div className="relative w-full shrink-0 sm:w-[250px]">
-          <Search
-            className="pointer-events-none absolute left-[11px] top-1/2 z-10 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/75"
-            aria-hidden="true"
-          />
-          <SearchableSelect
-            items={allTechnologies}
-            onSelect={addTechnology}
-            filter={(tech, q) => tech.name.toLowerCase().includes(q)}
-            isSelected={(tech) => declaredIds.has(tech._id)}
-            keepOpenOnSelect
-            openOnFocus
-            renderItem={(tech) => (
-              <span className="flex items-center gap-2 font-medium">
-                <TechnologyIcon technology={tech} size={16} className="shrink-0" />
-                {tech.name}
-              </span>
-            )}
-            getItemDataTest={(tech) => `technology-add-${tech.slug}-button`}
-            placeholder={isSaving ? 'Saving…' : 'Add a technology…'}
-            emptyMessage="No technologies found."
-            busy={isSaving}
-            disabled={isSaving || isLoadingTechnologies}
-            dataTest="technology-search-input"
-            inputClassName="h-[34px] rounded-[var(--r-control)] pl-[34px] text-[12.5px]"
-          />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {renderSearch({
+            items: catalogAiSkills,
+            placeholder: 'Add an AI skill…',
+            emptyMessage: 'No AI skills found.',
+            dataTest: 'ai-skill-search-input',
+          })}
+          {renderSearch({
+            items: catalogTechnologies,
+            placeholder: 'Add a technology…',
+            emptyMessage: 'No technologies found.',
+            dataTest: 'technology-search-input',
+          })}
         </div>
       </div>
 
       {isLoadingTechnologies ? (
-        <LoadingOverlay size="sm" label="Loading technologies">
+        <LoadingOverlay size="sm" label="Loading skills">
           <PanelBodySkeleton rows={3} className="px-[18px] pb-5" />
         </LoadingOverlay>
-      ) : declaredTechnologies.length === 0 ? (
-        <p className={BODY_MESSAGE_CLASS}>
-          No technologies yet. Search above to add the ones you are working toward.
-        </p>
       ) : (
-        <ul>
-          {declaredTechnologies.map((tech) => {
-            const level = flagMap[tech._id]?.level || UNASSESSED_LEVEL;
-            return (
-              <li key={tech._id} className={ROW_CLASS}>
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[var(--r-tile)] bg-muted">
-                    <TechnologyIcon technology={tech} size={13} />
-                  </span>
-                  <span className="truncate text-[13px] font-medium text-foreground">
-                    {tech.name}
-                  </span>
-                </span>
-                <ReadinessLevelBadge
-                  level={level}
-                  className="justify-self-end rounded-full border-transparent px-[9px] py-[3px] text-[11px] sm:justify-self-start"
-                />
-                <button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={() => requestRemoval(tech, level)}
-                  className="flex h-[26px] w-[26px] items-center justify-center rounded-[var(--r-badge)] text-muted-foreground/75 transition-colors hover:bg-accent hover:text-[hsl(var(--tone-danger-fg))] disabled:pointer-events-none disabled:opacity-50"
-                  aria-label={`Remove ${tech.name}`}
-                  data-test={`technology-remove-${tech.slug}-button`}
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </li>
-            );
+        <>
+          {renderSection({
+            key: 'technologies',
+            label: 'Technologies',
+            skills: declaredTechnologies,
+            empty: 'No technologies yet. Search above to add the ones you are working toward.',
           })}
-        </ul>
+          {renderSection({
+            key: 'ai',
+            label: 'AI skills',
+            skills: declaredAiSkills,
+            empty: 'No AI skills yet. Search above to add the AI tools you work with.',
+          })}
+        </>
       )}
 
       {/* Kept mounted with the panel rather than per row, so the list does not

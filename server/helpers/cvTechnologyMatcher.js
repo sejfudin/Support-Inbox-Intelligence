@@ -245,17 +245,11 @@ const TECHNOLOGY_ALIASES = {
   keras: ['keras'],
   opencv: ['opencv', 'open cv'],
   'hugging-face': ['hugging face', 'huggingface'],
-  langchain: ['langchain', 'lang chain'],
-  'openai-api': ['openai api', 'openai', 'open ai'],
   mlflow: ['mlflow', 'ml flow'],
   xgboost: ['xgboost', 'xg boost'],
-  'large-language-models': ['large language models', 'large language model', 'llm', 'llms'],
-  // Bare "rag" is ambiguous (a piece of cloth, "rags to riches") — see AMBIGUOUS_MATCHERS.
-  'prompt-engineering': ['prompt engineering'],
   'computer-vision': ['computer vision'],
   nlp: ['natural language processing', 'nlp'],
   'stable-diffusion': ['stable diffusion'],
-  ollama: ['ollama'],
   'vector-databases': [
     'vector databases',
     'vector database',
@@ -264,6 +258,58 @@ const TECHNOLOGY_ALIASES = {
     'weaviate',
     'qdrant',
   ],
+
+  // —— AI skills ——
+  // The `category: 'ai'` half of the catalog. Product names here are young and rebrand often
+  // ("Codeium" → "Windsurf", "Bard" → "Gemini"), so the retired name stays on as an alias —
+  // a CV written two years ago still says it.
+  //
+  // Bare one-word forms are the trap in this group: "Cursor", "Devin", "Lovable", "Aider" and
+  // "v0" are all ordinary words, names or version strings, so they live in AMBIGUOUS_MATCHERS
+  // and only count in a skills-list shape. Bare "claude", "gemini" and "codex" are left out
+  // entirely — a given name, a star sign and a manuscript — and are reached only through the
+  // qualified spellings below.
+  'claude-code': ['claude code', 'claude cli'],
+  'github-copilot': ['github copilot', 'copilot'],
+  // Matches "Copilot" too via the entry above — someone running agent mode does use Copilot,
+  // so declaring both off one line is right rather than a leak.
+  'github-copilot-agent-mode': ['copilot agent mode', 'copilot coding agent', 'copilot agents'],
+  windsurf: ['windsurf', 'codeium'],
+  'gemini-cli': ['gemini cli'],
+  'openai-codex': ['openai codex', 'codex cli', 'codex agent'],
+  cline: ['cline'],
+  'jetbrains-ai-assistant': ['jetbrains ai assistant', 'jetbrains ai', 'junie'],
+  'amazon-q-developer': ['amazon q developer', 'amazon q', 'aws q developer'],
+  'replit-agent': ['replit agent', 'replit ai'],
+  'bolt-new': ['bolt.new', 'bolt new'],
+  'ai-code-review': ['ai code review', 'coderabbit', 'greptile', 'ai pull request review'],
+  chatgpt: ['chatgpt', 'chat gpt'],
+  perplexity: ['perplexity', 'perplexity ai'],
+  'anthropic-claude-api': ['anthropic api', 'claude api', 'anthropic claude', 'messages api'],
+  'google-gemini-api': ['gemini api', 'google gemini', 'vertex ai'],
+  'openai-api': ['openai api', 'openai', 'open ai'],
+  'claude-agent-sdk': ['claude agent sdk', 'claude code sdk', 'anthropic agent sdk'],
+  'openai-agents-sdk': ['openai agents sdk', 'openai agent sdk', 'assistants api'],
+  'vercel-ai-sdk': ['vercel ai sdk', 'ai sdk'],
+  // Bare "mcp" is deliberately absent: it is also the old Microsoft Certified Professional,
+  // which real CVs still list.
+  mcp: ['model context protocol', 'mcp server', 'mcp servers', 'mcp tools', 'mcp client'],
+  'agent-skills': ['agent skills', 'skill.md', 'skills md', 'agent skill'],
+  langchain: ['langchain', 'lang chain'],
+  langgraph: ['langgraph', 'lang graph'],
+  llamaindex: ['llamaindex', 'llama index'],
+  'ai-agent-orchestration': [
+    'ai agent orchestration',
+    'agent orchestration',
+    'multi agent systems',
+    'multi agent orchestration',
+    'agentic workflows',
+  ],
+  'large-language-models': ['large language models', 'large language model', 'llm', 'llms'],
+  // Bare "rag" is ambiguous (a piece of cloth, "rags to riches") — see AMBIGUOUS_MATCHERS.
+  'prompt-engineering': ['prompt engineering', 'context engineering'],
+  'llm-evaluation': ['llm evaluation', 'llm evals', 'llm eval', 'ai evals'],
+  ollama: ['ollama'],
 
   // —— QA ——
   'manual-qa': ['manual qa', 'manual testing', 'manual tester'],
@@ -546,6 +592,34 @@ const AMBIGUOUS_MATCHERS = {
   confluence: {
     lower: [],
     cased: buildListContextRegexes('Confluence'),
+  },
+  // "Cursor" — the blinking one in an editor, and the database kind. Both turn up in the very
+  // CVs that would also mention the IDE.
+  cursor: {
+    lower: ['cursor ide', 'cursor ai', 'cursor editor', 'cursor.sh'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Cursor'),
+  },
+  // "Devin" — a given name, and CVs carry names (see Julia above).
+  devin: {
+    lower: ['devin ai', 'cognition devin'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Devin'),
+  },
+  // "Lovable" — an everyday adjective, and a flattering one, so cover letters use it.
+  lovable: {
+    lower: ['lovable.dev', 'lovable dev', 'lovable ai'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Lovable'),
+  },
+  // "Aider" — reads as an English/French word ("aide", "aider"), and the tool is lowercase in
+  // its own docs, so capitalization carries less signal than the list shape does.
+  aider: {
+    lower: ['aider chat', 'aider ai'].map(buildAliasRegex),
+    cased: buildListContextRegexes('Aider', { flags: 'i' }),
+  },
+  // "v0" — every version string ever written ("v0.9", "v0 of the API"). The alias boundary
+  // rejects a trailing letter or digit but NOT a dot, so a plain alias would match "v0.9".
+  v0: {
+    lower: ['v0.dev', 'v0 dev', 'vercel v0'].map(buildAliasRegex),
+    cased: buildListContextRegexes('v0', { reject: '.' }),
   },
 };
 

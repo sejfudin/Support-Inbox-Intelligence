@@ -19,8 +19,8 @@ export function InternCandidateOverview({
           so it sits in the Overview sidebar with the programme controls. This
           card carries the candidate's own material. */}
       <InternOverviewSection
-        title="Declared technologies"
-        description="Stacks the candidate selected on their profile."
+        title="Declared skills"
+        description="Stacks and AI tools the candidate selected on their profile."
         className="pb-4"
       >
         <InternDeclaredTechnologies technologies={intern.selfTechnologies || []} />

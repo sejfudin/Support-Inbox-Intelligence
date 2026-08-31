@@ -8,7 +8,7 @@ import { InternMentorsCard } from '@/components/interns/InternMentorsCard';
 
 /**
  * Two columns, not the centred single column this page used to be: the left is
- * what the intern edits (position, the technology list), the right is what the
+ * what the intern edits (position, the skills list), the right is what the
  * programme knows about them (CV, how the assessments stand, who assesses).
  * The declaration list is the tallest thing here, so the rail is what fills the
  * space beside it instead of leaving a page of whitespace.
@@ -30,8 +30,8 @@ const MyTechnologiesPage = () => {
       <PageSection className="space-y-3.5">
         <PageHeading
           crumb="Internship"
-          title="Position & technologies"
-          subtitle="Declare your position and the technologies you are working toward."
+          title="Position & skills"
+          subtitle="Declare your position, the technologies and the AI skills you are working toward."
         />
 
         <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">

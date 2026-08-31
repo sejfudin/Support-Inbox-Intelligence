@@ -84,14 +84,14 @@ export function InternReadinessPanel({
 
   return (
     <InternPanel dense className={className}>
-      <h3 className="app-card-title">Readiness by technology</h3>
+      <h3 className="app-card-title">Readiness by skill</h3>
       <p className="mt-0.5 text-[12.5px] text-muted-foreground">
         Mentor-assessed readiness for client placement tracks.
       </p>
 
       {declaredTechnologies.length === 0 && (
         <p className="pt-3 text-[12.5px] text-muted-foreground">
-          This intern hasn't declared any technologies yet.
+          This intern hasn't declared any skills yet.
         </p>
       )}
       {isPending && declaredTechnologies.length > 0 && (
