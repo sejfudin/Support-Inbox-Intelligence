@@ -1,18 +1,100 @@
 import { Code2, Sparkles, Zap } from 'lucide-react';
 import {
+  siAlpinedotjs,
+  siAntdesign,
+  siApacheairflow,
+  siApachecouchdb,
+  siApacheflink,
+  siApachegroovy,
+  siApachehadoop,
+  siApachejmeter,
+  siApachemaven,
+  siApachespark,
+  siApachetomcat,
+  siAppium,
+  siArduino,
+  siArgo,
+  siBlazor,
+  siBlender,
+  siBurpsuite,
+  siCapacitor,
+  siChartdotjs,
   siClaudecode,
   siCline,
   siCoderabbit,
+  siConfluence,
+  siCucumber,
   siCursor,
+  siD3,
+  siDatabricks,
+  siDrupal,
+  siEspressif,
+  siExpo,
+  siFastify,
+  siFsharp,
+  siGodotengine,
+  siGooglebigquery,
   siGooglegemini,
+  siGradle,
+  siHelm,
+  siHibernate,
+  siInfluxdb,
   siJetbrains,
+  siJulia,
+  siJunit5,
+  siKalilinux,
+  siKeras,
+  siKeycloak,
+  siKoa,
   siLangchain,
   siLanggraph,
+  siLogstash,
+  siLooker,
+  siMetasploit,
+  siMlflow,
   siModelcontextprotocol,
+  siMqtt,
+  siNeo4j,
+  siNewrelic,
+  siNginx,
   siOllama,
+  siOpencv,
+  siPandas,
+  siPerl,
   siPerplexity,
+  siPrometheus,
+  siQlik,
+  siQuarkus,
+  siRabbitmq,
+  siRaspberrypi,
+  siReactivex,
   siReplit,
+  siRobotframework,
+  siScikitlearn,
+  siScipy,
+  siSelenium,
+  siSentry,
+  siSequelize,
+  siShopify,
+  siSnowflake,
+  siSocketdotio,
+  siSonarqubeserver,
+  siSplunk,
+  siSqlite,
+  siStmicroelectronics,
+  siStrapi,
+  siStyledcomponents,
+  siTestinglibrary,
+  siTrello,
+  siTurborepo,
+  siTypeorm,
+  siUnity,
+  siUnrealengine,
+  siVault,
+  siWebcomponentsdotorg,
   siWindsurf,
+  siWireshark,
+  siZap,
 } from 'simple-icons';
 import {
   AWS,
@@ -235,18 +317,25 @@ const simpleIcon = ({ path }) => pathIcon([path]);
 const brandMark = (slug) => pathIcon(AI_BRAND_MARKS[slug].paths);
 
 // Technologies that are conceptual rather than a single product (Manual QA, SQL, Wireframing,
-// Penetration Testing, Microservices, …) intentionally have no entry, and neither do the many
-// products the icon set does not cover (Selenium, Tableau, Power BI, Nginx, pandas,
-// scikit-learn, Spark, Airflow, JUnit, SQLite, Unity, Unreal Engine, Godot, Blender, Wireshark,
-// Burp Suite, Arduino, Raspberry Pi, MATLAB, …). Both fall back to a neutral code glyph via
-// TechnologyIcon below.
+// Penetration Testing, Microservices, TDD, Scrum, …) intentionally have no entry: there is no
+// logo to be missing. They fall back to a glyph via TechnologyIcon below.
 //
-// The AI skills group at the bottom is the sparsest of all — see its own note there.
+// The other entries with no line here are the products whose owners publish no mark either set
+// carries — Adobe pulled its logos out of `simple-icons`, and Amazon, Microsoft and Tableau
+// took theirs with them, so Illustrator, After Effects, Power BI, Tableau and MATLAB have
+// nothing to point at. Same for the smaller ones nobody has drawn (Zustand, gRPC, dbt,
+// matplotlib, TestNG, Phaser, FreeRTOS, Ghidra, Nmap, VHDL, Verilog, …). That is expected, not
+// a gap to chase.
 //
-// The set covers the web and cloud stacks densely and the four tracks added alongside the
-// Design & UX / Security / Game development / Embedded groups only patchily — design tools have
-// logos here, security and embedded tools almost entirely do not. That is expected, not a gap
-// to chase: the fallback glyph is the designed outcome for anything without a brand mark.
+// Where a vendor has a mark but the product does not, the product borrows the vendor's: AWS for
+// Lambda, DynamoDB and Redshift, Azure for Azure DevOps, Kotlin for Kotlin Multiplatform,
+// Bitbucket for its Pipelines. Several rows sharing one logo is fine — the name beside it is
+// what distinguishes them.
+//
+// Coverage as it stands: roughly four fifths of the catalog. The web, cloud, database and QA
+// stacks are dense; security, game and embedded tools are now covered where `simple-icons` has
+// them (Wireshark, Burp Suite, Kali, Metasploit, Unity, Unreal, Godot, Blender, Arduino,
+// Raspberry Pi, STM32, ESP32); the AI skills group at the bottom has its own note.
 const ICON_BY_SLUG = {
   // —— Languages ——
   javascript: JavaScript,
@@ -269,6 +358,10 @@ const ICON_BY_SLUG = {
   bash: Bash,
   powershell: PowerShell,
   'visual-basic': VisualBasic,
+  perl: simpleIcon(siPerl),
+  fsharp: simpleIcon(siFsharp),
+  groovy: simpleIcon(siApachegroovy),
+  julia: simpleIcon(siJulia),
 
   // —— Frontend ——
   react: ReactIcon,
@@ -301,6 +394,14 @@ const ICON_BY_SLUG = {
   'shadcn-ui': ShadcnUI,
   'radix-ui': RadixUI,
   less: Less,
+  'alpine-js': simpleIcon(siAlpinedotjs),
+  'web-components': simpleIcon(siWebcomponentsdotorg),
+  rxjs: simpleIcon(siReactivex),
+  'styled-components': simpleIcon(siStyledcomponents),
+  'ant-design': simpleIcon(siAntdesign),
+  'd3-js': simpleIcon(siD3),
+  'chart-js': simpleIcon(siChartdotjs),
+  'framer-motion': { onLight: FramerDark, onDark: FramerLight },
 
   // —— Backend ——
   'node-js': NodeJs,
@@ -323,6 +424,19 @@ const ICON_BY_SLUG = {
   wordpress: WordPress,
   'apache-http-server': Apache,
   swagger: Swagger,
+  fastify: simpleIcon(siFastify),
+  koa: simpleIcon(siKoa),
+  quarkus: simpleIcon(siQuarkus),
+  blazor: simpleIcon(siBlazor),
+  hibernate: simpleIcon(siHibernate),
+  sequelize: simpleIcon(siSequelize),
+  typeorm: simpleIcon(siTypeorm),
+  strapi: simpleIcon(siStrapi),
+  drupal: simpleIcon(siDrupal),
+  shopify: simpleIcon(siShopify),
+  'socket-io': simpleIcon(siSocketdotio),
+  rabbitmq: simpleIcon(siRabbitmq),
+  'apache-tomcat': simpleIcon(siApachetomcat),
 
   // —— Databases ——
   postgresql: PostgreSQL,
@@ -337,6 +451,14 @@ const ICON_BY_SLUG = {
   firebase: Firebase,
   supabase: Supabase,
   clickhouse: ClickHouse,
+  sqlite: simpleIcon(siSqlite),
+  neo4j: simpleIcon(siNeo4j),
+  dynamodb: AWS,
+  influxdb: simpleIcon(siInfluxdb),
+  couchdb: simpleIcon(siApachecouchdb),
+  snowflake: simpleIcon(siSnowflake),
+  bigquery: simpleIcon(siGooglebigquery),
+  redshift: AWS,
 
   // —— Mobile ——
   kotlin: Kotlin,
@@ -347,6 +469,9 @@ const ICON_BY_SLUG = {
   flutter: Flutter,
   ionic: Ionic,
   xamarin: Xamarin,
+  expo: simpleIcon(siExpo),
+  capacitor: simpleIcon(siCapacitor),
+  'kotlin-multiplatform': Kotlin,
 
   // —— Data, analytics & ML ——
   numpy: NumPy,
@@ -355,6 +480,19 @@ const ICON_BY_SLUG = {
   pytorch: PyTorch,
   'hugging-face': HuggingFace,
   // `openai-api` used to live here; it is in the AI skills group below now, with the catalog.
+  pandas: simpleIcon(siPandas),
+  'apache-spark': simpleIcon(siApachespark),
+  'apache-airflow': simpleIcon(siApacheairflow),
+  'apache-hadoop': simpleIcon(siApachehadoop),
+  'apache-flink': simpleIcon(siApacheflink),
+  databricks: simpleIcon(siDatabricks),
+  looker: simpleIcon(siLooker),
+  'qlik-sense': simpleIcon(siQlik),
+  scipy: simpleIcon(siScipy),
+  'scikit-learn': simpleIcon(siScikitlearn),
+  keras: simpleIcon(siKeras),
+  opencv: simpleIcon(siOpencv),
+  mlflow: simpleIcon(siMlflow),
 
   // —— QA ——
   cypress: Cypress,
@@ -365,6 +503,14 @@ const ICON_BY_SLUG = {
   mocha: MochaJS,
   k6: K6,
   insomnia: Insomnia,
+  selenium: simpleIcon(siSelenium),
+  junit: simpleIcon(siJunit5),
+  'testing-library': simpleIcon(siTestinglibrary),
+  cucumber: simpleIcon(siCucumber),
+  appium: simpleIcon(siAppium),
+  'robot-framework': simpleIcon(siRobotframework),
+  jmeter: simpleIcon(siApachejmeter),
+  sonarqube: simpleIcon(siSonarqubeserver),
 
   // —— DevOps & cloud ——
   docker: Docker,
@@ -390,6 +536,17 @@ const ICON_BY_SLUG = {
   netlify: Netlify,
   heroku: Heroku,
   digitalocean: DigitalOcean,
+  nginx: simpleIcon(siNginx),
+  helm: simpleIcon(siHelm),
+  'argo-cd': simpleIcon(siArgo),
+  prometheus: simpleIcon(siPrometheus),
+  logstash: simpleIcon(siLogstash),
+  splunk: simpleIcon(siSplunk),
+  sentry: simpleIcon(siSentry),
+  'new-relic': simpleIcon(siNewrelic),
+  'azure-devops': Azure,
+  'bitbucket-pipelines': Bitbucket,
+  'aws-lambda': AWS,
 
   // —— Design & UX ——
   figma: Figma,
@@ -402,9 +559,29 @@ const ICON_BY_SLUG = {
   miro: Miro,
   'axure-rp': Axure,
 
+  // —— Security ——
+  wireshark: simpleIcon(siWireshark),
+  'burp-suite': simpleIcon(siBurpsuite),
+  'kali-linux': simpleIcon(siKalilinux),
+  metasploit: simpleIcon(siMetasploit),
+  'owasp-zap': simpleIcon(siZap),
+  'hashicorp-vault': simpleIcon(siVault),
+  keycloak: simpleIcon(siKeycloak),
+
   // —— Game development ——
   'three-js': { onLight: ThreeJsDark, onDark: ThreeJsLight },
   pixijs: PixiJS,
+  unity: simpleIcon(siUnity),
+  'unreal-engine': simpleIcon(siUnrealengine),
+  godot: simpleIcon(siGodotengine),
+  blender: simpleIcon(siBlender),
+
+  // —— Embedded & hardware ——
+  arduino: simpleIcon(siArduino),
+  'raspberry-pi': simpleIcon(siRaspberrypi),
+  stm32: simpleIcon(siStmicroelectronics),
+  esp32: simpleIcon(siEspressif),
+  mqtt: simpleIcon(siMqtt),
 
   // —— Tooling ——
   git: Git,
@@ -418,6 +595,11 @@ const ICON_BY_SLUG = {
   eslint: ESLint,
   storybook: Storybook,
   nx: Nx,
+  confluence: simpleIcon(siConfluence),
+  trello: simpleIcon(siTrello),
+  maven: simpleIcon(siApachemaven),
+  gradle: simpleIcon(siGradle),
+  turborepo: simpleIcon(siTurborepo),
 
   // —— AI skills ——
   // Two sets feed this group. The vendor marks below come from `developer-icons` like every
