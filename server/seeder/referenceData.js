@@ -65,10 +65,12 @@ const seedInternshipTypes = async () => {
 const technologyCategory = (entry) =>
   (typeof entry === 'string' ? undefined : entry.category) || DEFAULT_TECHNOLOGY_CATEGORY;
 
-// `category` is the one field this re-asserts on every run ($set, not $setOnInsert): the
-// catalog is what decides which of the two lists a seeded row belongs in, and six rows moved
-// from general to AI when the AI skills group landed. Name and slug stay insert-only so a
-// rename made in the app is never stomped.
+// `category` is written on insert and BACKFILLED onto rows that predate the field (they carry
+// none at all) — that is what moves the six entries the AI skills group pulled out of the
+// technology half into the right catalog on databases seeded before it. It is NOT re-asserted
+// on a row that already has a category: an admin can move a row between the two halves from
+// Reference Data, and the next sync has to leave that choice alone. Name and slug are
+// insert-only for the same reason — a rename made in the app is never stomped.
 //
 // `category` as an ARGUMENT narrows which catalog entries are considered at all — the rest are
 // not read, not upserted, and their existing rows are not written to. That is the difference
@@ -82,9 +84,16 @@ const seedTechnologies = async ({ category: only } = {}) => {
     const slug = typeof entry === 'string' ? slugify(name) : entry.slug || slugify(name);
     await Technology.updateOne(
       { slug },
-      { $setOnInsert: { name, slug }, $set: { category } },
+      { $setOnInsert: { name, slug, category } },
       { upsert: true }
     );
+    // Backfill onto a row seeded before the field existed. Only the non-default half needs it —
+    // a missing category already reads as `general` everywhere (see constants/technologies) —
+    // and `{ category: null }` matches missing-or-null only, so a row an admin has categorised
+    // is never touched.
+    if (category !== DEFAULT_TECHNOLOGY_CATEGORY) {
+      await Technology.updateOne({ slug, category: null }, { $set: { category } });
+    }
   }
 };
 

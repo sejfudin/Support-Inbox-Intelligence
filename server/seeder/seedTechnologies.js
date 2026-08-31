@@ -7,10 +7,10 @@
  * existing one, and it touches no other collection — safe to run against any environment,
  * including one with live intern data.
  *
- * The one field it does re-assert on existing rows is `category`, which is what decides
- * whether a row lists under technologies or under AI skills. Declarations, readiness flags and
- * staffing rows key off the slug and are untouched by a category move — the row just changes
- * which section it appears in.
+ * `category` is filled in on insert and backfilled onto rows seeded before the field existed
+ * (they carry none). A row that already has a category — from an earlier run or the Reference
+ * Data editor — is left alone; the catalog no longer overrides it. Declarations, readiness
+ * flags and staffing rows key off the slug and are untouched either way.
  *
  * Reach for this after adding entries to defaultTechnologies.js: the destructive `npm run seed`
  * is the only other path that seeds them, and you do not want to run that on a shared database.
@@ -90,19 +90,29 @@ const run = async () => {
       (await Technology.find({}).select('slug category').lean()).map((t) => [t.slug, t])
     );
     const missing = catalog.filter((t) => !existing.has(t.slug));
-    // A row whose stored category no longer matches the catalog — either it predates the
-    // field entirely, or the catalog moved it between the two lists.
-    const recategorized = catalog.filter((t) => {
+    // Rows seeded before `category` existed — stored value is missing/null and the catalog
+    // gives them a non-default one. These get filled on the next run.
+    const backfilling = catalog.filter((t) => {
       const row = existing.get(t.slug);
-      return row && (row.category || DEFAULT_TECHNOLOGY_CATEGORY) !== t.category;
+      return row && row.category == null && t.category !== DEFAULT_TECHNOLOGY_CATEGORY;
+    });
+    // Rows with an explicit category the catalog disagrees with. The sync leaves these alone —
+    // the value was set deliberately, by an earlier run or the Reference Data editor — so they
+    // are reported, not changed.
+    const overridden = catalog.filter((t) => {
+      const row = existing.get(t.slug);
+      return row && row.category != null && row.category !== t.category;
     });
 
     console.log(
       `📚 Catalog: ${catalog.length} entries${categoryFilter ? ' in scope' : ''}. In database: ${existing.size} (all categories).`
     );
 
-    if (!missing.length && !recategorized.length) {
-      console.log('✅ Nothing to do — every catalog technology exists with the right category.');
+    if (!missing.length && !backfilling.length) {
+      const kept = overridden.length
+        ? ` ${overridden.length} row(s) carry an admin category the catalog disagrees with — left as-is.`
+        : '';
+      console.log(`✅ Nothing to add or backfill.${kept}`);
       process.exit(0);
     }
 
@@ -113,13 +123,23 @@ const run = async () => {
       }
     }
 
-    if (recategorized.length) {
+    if (backfilling.length) {
       console.log(
-        `${isDryRun ? '📝 Would recategorize' : '🔀 Recategorizing'} ${recategorized.length}:`
+        `${isDryRun ? '📝 Would backfill category on' : '🩹 Backfilling category on'} ${backfilling.length} (seeded before the field):`
       );
-      for (const { name, slug, category } of recategorized) {
-        const from = existing.get(slug).category || '(unset)';
-        console.log(`   • ${name} (${slug}): ${from} → ${category}`);
+      for (const { name, slug, category } of backfilling) {
+        console.log(`   • ${name} (${slug}) → ${category}`);
+      }
+    }
+
+    if (overridden.length) {
+      console.log(
+        `ℹ️  ${overridden.length} with an admin category the catalog disagrees with — left unchanged:`
+      );
+      for (const { name, slug, category } of overridden) {
+        console.log(
+          `   • ${name} (${slug}): ${existing.get(slug).category} in db, ${category} in catalog`
+        );
       }
     }
 
