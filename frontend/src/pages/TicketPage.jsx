@@ -22,6 +22,9 @@ import {
   isValidBoardSort,
 } from '@/helpers/boardCardSort';
 import TicketsTabs from '@/components/Tickets/TicketsTabs';
+import TicketBulkActionsBar from '@/components/Tickets/TicketBulkActionsBar';
+import { ConfirmModal } from '@/components/Modals/ConfirmModal';
+import { useTicketBulkActions } from '@/hooks/useTicketBulkActions';
 import TableSkeleton from '@/components/Skeletons/TableSkeleton';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
 import { getTicketsQueryParams } from '@/helpers/ticketsQuery';
@@ -523,6 +526,53 @@ export default function TicketPage() {
     [helpers, timeSpentTick, openTicketDetails]
   );
 
+  // List selection. Scoped to the page on screen: the header box can only speak
+  // for the rows it sits on, and a selection that survived paging would report a
+  // count for tickets nobody can see. Paging, filtering, searching or switching
+  // to the board therefore drops it, through the prune below.
+  const [selectedListIds, setSelectedListIds] = useState(() => new Set());
+
+  const listRowIds = useMemo(
+    () => listTickets.map((ticket) => ticket.id ?? ticket._id),
+    [listTickets]
+  );
+
+  const clearListSelection = useCallback(() => setSelectedListIds(new Set()), []);
+
+  const toggleListSelection = useCallback((ticketId) => {
+    setSelectedListIds((current) => {
+      const next = new Set(current);
+      if (next.has(ticketId)) next.delete(ticketId);
+      else next.add(ticketId);
+      return next;
+    });
+  }, []);
+
+  const toggleAllListSelection = useCallback(() => {
+    setSelectedListIds((current) =>
+      listRowIds.every((id) => current.has(id)) ? new Set() : new Set(listRowIds)
+    );
+  }, [listRowIds]);
+
+  useEffect(() => {
+    setSelectedListIds((current) => {
+      if (current.size === 0) return current;
+      if (isBoard) return new Set();
+      const visible = new Set(listRowIds);
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [listRowIds, isBoard]);
+
+  const {
+    moveTickets: moveSelectedTickets,
+    requestArchive: archiveSelectedTickets,
+    archiveConfirmProps: listArchiveConfirmProps,
+    isPending: isListBulkPending,
+  } = useTicketBulkActions({ workspaceId: effectiveWorkspaceId });
+
+  const selectedListArray = useMemo(() => [...selectedListIds], [selectedListIds]);
+
   const runWithListReset =
     (callback) =>
     (...args) => {
@@ -832,6 +882,25 @@ export default function TicketPage() {
         // 24px the header and band both use.
         <PageSection className="flex-1 py-0">
           <div className={cn('-mx-6 bg-card', isPlaceholderData && 'opacity-60')}>
+            {/* Above the rows rather than in a column header: the list has no
+                single status to act within, so the bar has to say how many
+                tickets it is speaking for and offer the way out of the
+                selection itself. */}
+            {selectedListArray.length > 0 ? (
+              <TicketBulkActionsBar
+                count={selectedListArray.length}
+                statusOptions={helpers.statusOptions}
+                onMove={(statusId) =>
+                  moveSelectedTickets(selectedListArray, statusId, clearListSelection)
+                }
+                onArchive={() => archiveSelectedTickets(selectedListArray, clearListSelection)}
+                onClear={clearListSelection}
+                isPending={isListBulkPending}
+                showCount
+                idPrefix="tickets-table"
+                className="border-b border-separator bg-muted/30 px-6 py-2"
+              />
+            ) : null}
             <TicketsState
               isLoading={isLoading}
               isError={isError}
@@ -849,11 +918,19 @@ export default function TicketPage() {
                 pagination={pagination}
                 onPageChange={(newPage) => listData.setPage(newPage)}
                 meta={{ onRowClick: openTicketDetails }}
+                selection={{
+                  selectedIds: selectedListIds,
+                  onToggle: toggleListSelection,
+                  onToggleAll: toggleAllListSelection,
+                  idPrefix: 'tickets-table',
+                }}
               />
             </TicketsState>
           </div>
         </PageSection>
       )}
+
+      <ConfirmModal {...listArchiveConfirmProps} />
 
       <TicketDetailsModal
         ticketId={selectedTicketId}

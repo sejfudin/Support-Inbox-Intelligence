@@ -190,9 +190,9 @@ over `hooks/useTicketDraftAutosave.js`.
 - The client restores once per opening, autosaves on a debounce, flushes on close, and deletes the
   draft once the ticket it was a draft of exists.
 
-## Bulk column actions
+## Bulk ticket actions
 
-A board column can select its cards and move them to another status, or archive them, in one
+Both ticket surfaces can select tickets and move them to another status, or archive them, in one
 request: `PATCH /api/tickets/bulk-status` and `PATCH /api/tickets/bulk-archive` (both before
 `/:id` in `server/routes/ticket.js`, both `protect` only). Same shape as
 `PATCH /api/tickets/sprint-membership`, and for the same reasons:
@@ -206,8 +206,22 @@ request: `PATCH /api/tickets/bulk-status` and `PATCH /api/tickets/bulk-archive` 
 - Tickets already in the destination status (or already archived) are skipped, and the backlog is
   refused as a destination up front — the same rule a single move enforces.
 - No role gate: a member can already move or archive each of these tickets one at a time.
-- The frontend selection is per column (`components/BoardPage.jsx`) and is not optimistic, unlike a
-  drag — see the note on `useBulkTicketStatus` in `frontend/src/queries/tickets.js`.
+- Nothing is optimistic here, unlike a board drag — see the note on `useBulkTicketStatus` in
+  `frontend/src/queries/tickets.js`.
+
+On the frontend, **what a batch does** lives once in `hooks/useTicketBulkActions.js` (the two
+mutations, the toasts, the archive confirmation) and is rendered once by
+`components/Tickets/TicketBulkActionsBar.jsx`. **Which tickets are selected** is the surface's own
+business, and the two answer it differently:
+
+- **The board** (`components/BoardPage.jsx`) selects inside one column: a tick-list button in the
+  column header turns selection on, cards get a checkbox and stop being draggable while it is on,
+  and the bar sits under that column's cards. The destination menu drops the column's own status.
+- **The list** (`components/Tickets/TicketsTable.jsx`, wired in `pages/TicketPage.jsx`) selects
+  inside one page: an opt-in `selection` prop adds a checkbox column, and the bar sits above the
+  rows carrying the count and a Clear. Rows can be in any status, so the menu drops nothing. The
+  header checkbox speaks for the page it is on, and paging, filtering, searching or switching to
+  the board drops the selection rather than letting it name rows nobody can see.
 
 ## Ticket blockers
 

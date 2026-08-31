@@ -21,10 +21,12 @@
     open New ticket in that workspace it comes back exactly as you left it — the header says when
     it was last saved, and **Discard draft** throws it away. One draft per workspace, kept on your
     account rather than the browser, and cleared the moment the ticket is created
-  - **A board column can be worked in bulk.** The tick-list icon in a column header turns on
-    selection: pick cards (or tick the header box for all of them), then **Move to** another status
-    or **Archive** the lot in one go. Archiving asks first; moving does not, since a wrong move is
-    just one more move back
+  - **Tickets can be worked in bulk, on the board and in the list.** On the board, the tick-list
+    icon in a column header turns on selection and you pick cards within that column; in the list
+    view there is a checkbox on every row (and one in the header for the whole page). Either way:
+    **Move to** another status or **Archive** the lot in one go. Archiving asks first; moving does
+    not, since a wrong move is just one more move back. The list selection covers the page you are
+    on, so it clears when you page, filter or search
 - One exception worth knowing: **leadership has no profile page yet** (they land on the programme
   dashboard), so they can be shown a picture but cannot upload one until they get that page. The
   same gap already applies to changing their password
