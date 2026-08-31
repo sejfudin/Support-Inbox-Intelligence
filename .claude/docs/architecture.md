@@ -119,8 +119,11 @@ AI: `AISummary`.
   and computes nothing. Progress is done story points over total points (ADR-0011); buckets read
   status FLAGS, not names (done = a status flagged done, to do = the first non-backlog status,
   everything else = in progress); archived tickets are excluded from every aggregation, numerator
-  and denominator alike; and needs-attention means a blocker RECORD (`Ticket.blockedBy`) or an
-  unfinished ticket past its due date — not the Blocked status. Create, update and delete responses
+  and denominator alike; and needs-attention means blocked or an
+  unfinished ticket past its due date. Blocked is read the way the rest of the app reads it — the
+  ticket sits in the status whose SLUG is `blocked` (a renamed column still counts), or it carries a
+  blocker RECORD (`Ticket.blockedBy`) in any status. The record is the optional "why", so a ticket
+  parked in Blocked with nothing written down still counts. Create, update and delete responses
   carry `state` and `permissions` only; they are writes, and their callers refetch.
   **A past sprint's numbers are sealed, and reads are what write them** (ADR-0012). Every sprint
   read goes through `sprintService.withSprintMetrics`, which asks `sprintRules.resolveSprintMetrics`

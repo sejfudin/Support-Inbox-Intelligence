@@ -3,6 +3,8 @@
 // fake timers. See ADR 0010 — a sprint stores only its dates; state, overlap
 // and validation are all derived here rather than stored.
 
+const { isBlockedStatusSlug } = require('./ticketBlocker');
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const MIN_SPRINT_DAYS = 7; // one week
@@ -268,9 +270,14 @@ const firstMainStatusKey = (statuses = []) => {
 // A workspace with no status flagged done simply has no done bucket — every
 // ticket reads as to do or in progress and progress sits at 0%, rather than
 // the aggregation throwing on a workflow somebody configured that way.
+const findTicketStatus = (ticket, statuses = []) => {
+  const statusKey = idKey(ticket?.status);
+  return statuses.find((candidate) => idKey(candidate) === statusKey) ?? null;
+};
+
 const bucketSprintTicket = (ticket, statuses = [], todoKey = firstMainStatusKey(statuses)) => {
   const statusKey = idKey(ticket?.status);
-  const status = statuses.find((candidate) => idKey(candidate) === statusKey);
+  const status = findTicketStatus(ticket, statuses);
 
   if (status?.isDone) return SPRINT_BUCKETS.DONE;
   if (todoKey && statusKey === todoKey) return SPRINT_BUCKETS.TODO;
@@ -282,11 +289,19 @@ const bucketSprintTicket = (ticket, statuses = [], todoKey = firstMainStatusKey(
 // hold a sprint below 100%.
 const countsTowardsSprint = (ticket) => !ticket?.isArchived;
 
-// A blocker RECORD on the ticket — not the blocked status. The two are
-// different things: a ticket can sit in Blocked with nothing written down, and
-// a ticket in any status can carry a recorded blocker.
+// A blocker RECORD on the ticket — the "why", which is optional. A ticket can
+// sit in Blocked with nothing written down, and a ticket in any status can carry
+// a recorded blocker, so this is only half of the question.
 const hasRecordedBlocker = (ticket) =>
   Boolean(ticket?.blockedBy?.ticket || ticket?.blockedBy?.note?.trim());
+
+// Blocked as the board means it: the ticket sits in the Blocked status, whether
+// or not anybody recorded a reason. Read off the status SLUG, never the label,
+// so a workspace that renamed the column keeps counting (`helpers/ticketBlocker.js`).
+// The recorded blocker is kept as a second route in, because a ticket parked in
+// another column with a written-down blocker is stuck just the same.
+const isSprintTicketBlocked = (ticket, statuses = []) =>
+  isBlockedStatusSlug(findTicketStatus(ticket, statuses)?.slug) || hasRecordedBlocker(ticket);
 
 // Past its due date and not finished. A ticket finished after its due date
 // stops counting — the number only shows what somebody can still act on.
@@ -332,7 +347,7 @@ const sprintNeedsAttention = (tickets = [], statuses = [], today) => {
 
   tickets.filter(countsTowardsSprint).forEach((ticket) => {
     const bucket = bucketSprintTicket(ticket, statuses, todoKey);
-    const isBlocked = hasRecordedBlocker(ticket);
+    const isBlocked = isSprintTicketBlocked(ticket, statuses);
     const isLate = isOverdue(ticket, today, bucket);
 
     if (isBlocked) blocked += 1;
@@ -422,6 +437,7 @@ module.exports = {
   firstMainStatusKey,
   bucketSprintTicket,
   hasRecordedBlocker,
+  isSprintTicketBlocked,
   sprintProgress,
   sprintNeedsAttention,
   sprintMetrics,
