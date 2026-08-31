@@ -163,6 +163,27 @@ const emitDailyChanged = (workspaceId) => {
   });
 };
 
+// A sprint mutation carries no payload — the client refetches, same lightweight
+// pattern as `emitDailyChanged`. It goes to the workspace room and nowhere else:
+// a sprint is workspace-scoped, so a client in another workspace must never see
+// that anything changed here.
+//
+// `detachedTickets` widens it to the ticket caches as well, for the one mutation
+// that touches tickets: deleting a sprint clears the sprint reference on every
+// ticket in it, which changes what the board and the planning panes show.
+const emitSprintChanged = (workspaceId, { detachedTickets = false } = {}) => {
+  const resolvedWorkspaceId = toSocketId(workspaceId);
+  if (!resolvedWorkspaceId) return false;
+
+  const scopes = [invalidationScopes.workspaceSprints(resolvedWorkspaceId)];
+
+  if (detachedTickets) {
+    scopes.push(invalidationScopes.workspaceTickets(resolvedWorkspaceId));
+  }
+
+  return broadcastToWorkspace(resolvedWorkspaceId, 'CACHE_INVALIDATED', { scopes });
+};
+
 module.exports = {
   toSocketId,
   emitTicketEvent,
@@ -170,4 +191,5 @@ module.exports = {
   emitInternDataChanged,
   emitStaffingNewsChanged,
   emitDailyChanged,
+  emitSprintChanged,
 };

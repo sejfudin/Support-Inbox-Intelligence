@@ -228,3 +228,69 @@ A review request being dropped because the work it asked about is over — the t
 done status, or was archived. Not an answer and not a cancellation: nobody acted, so nobody is
 notified.
 _Avoid_: expiring (no clock is involved), auto-declining, timing out.
+
+## Sprints
+
+**Sprint**:
+A named stretch of calendar time in a **workspace**, holding the tickets the team has committed to
+finishing within it. Belongs to a workspace, never to a project — every ticket in the workspace
+competes for the same sprint. A sprint holds no list of its own: which tickets are in it is always
+read off the tickets. Two sprints in one workspace may never overlap in time, so "the sprint running
+today" is never ambiguous.
+_Avoid_: iteration, cycle, milestone, epic.
+
+**Sprint goal**:
+One optional sentence saying what should be true when the sprint ends. Purely descriptive — no rule,
+filter or statistic depends on it.
+_Avoid_: objective, theme, commitment.
+
+**Active / upcoming / past sprint**:
+A sprint's state, read off today's date against its start and end. **Upcoming** has not started,
+**active** is running, **past** has ended. Nobody starts or finishes a sprint by hand, so a sprint
+can never disagree with the calendar. Upcoming and active sprints can be edited; a past sprint is
+frozen, which is what makes it a record. Only an upcoming sprint can be deleted.
+_Avoid_: open/closed, current (ambiguous between active and upcoming), completed, archived (a ticket
+is archived; a sprint is past).
+
+**Unsprinted**:
+A ticket in no sprint. Every ticket is in at most one sprint, so unsprinted is a plain fact about the
+ticket, not a computed set. The tickets available to add to a sprint are exactly the unsprinted ones.
+_Avoid_: unassigned (that is about people), free, available.
+
+**Adding a ticket to a sprint**:
+Committing a ticket to be finished within that sprint. It is also the sanctioned way for a ticket to
+**leave the backlog** — adding promotes it onto the board. The reverse is not true: taking a ticket
+out of a sprint leaves it where it is on the board and never returns it to the backlog. A ticket
+cannot be added without an estimate.
+_Avoid_: assigning (that is about people), scheduling, planning, committing.
+
+**Sprint progress**:
+How much of a sprint's committed work is finished, measured in **story points**, never in ticket
+count. Tickets split three ways: **done**, **in progress** — anything neither done nor still in the
+first board status — and **to do**. Archived tickets keep their sprint but count towards nothing, so
+cancelling work never holds a sprint below 100%.
+_Avoid_: completion, velocity (velocity compares finished points *across* sprints; progress is
+within one).
+
+**Needs attention**:
+The tickets in the active sprint that are not moving on their own: those with a **blocker** recorded,
+and those whose due date has passed while unfinished. A count meant to be acted on, not a status.
+_Avoid_: at risk, stale, flagged.
+
+## Ticketing terms this feature pinned down
+
+These predate sprints but were never written down, and sprints made the ambiguity load-bearing.
+
+**Backlog**:
+Work that has been filed but not yet taken on. A workspace has exactly one backlog, and a ticket is
+in it by **sitting in the backlog status** — there is no separate backlog list. The backlog is not
+part of the board and is excluded from board counts. Leaving the backlog is one-way: a ticket can
+never be moved back into it.
+_Avoid_: icebox, inbox (the support inbox is a different thing), triage queue, unplanned.
+
+**Blocker**:
+A recorded reason one ticket cannot proceed — the ticket that is in the way, plus an optional note.
+A property of the ticket, independent of where it sits on the board: a ticket may carry a blocker
+while in progress, and may sit in a **blocked status** with no blocker recorded. When something
+counts "blocked tickets", it means the ones carrying a blocker.
+_Avoid_: dependency, blocked (bare — that names the status, not the record).

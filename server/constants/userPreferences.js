@@ -50,7 +50,10 @@ const USER_PREFERENCE_DEFINITIONS = {
   // (`nav-sections-closed`), because it is a function of screen height. Whether you
   // want collapsing at all is taste, so it follows the account and is stored here.
   navStyle: { values: ['collapsible', 'labelled'], default: 'labelled' },
-  landingPage: { values: ['dashboard', 'tickets', 'board', 'dailies'], default: 'dashboard' },
+  landingPage: {
+    values: ['dashboard', 'sprints', 'tickets', 'board', 'dailies'],
+    default: 'dashboard',
+  },
   ticketsView: { values: ['list', 'board'], default: 'list' },
   assigneeDefault: { values: ['everyone', 'me'], default: 'everyone' },
   boardSort: { values: ['priority', 'points', 'due', 'newest'], default: 'priority' },

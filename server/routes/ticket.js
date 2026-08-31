@@ -6,6 +6,7 @@ const {
   getTicketById,
   getAllTickets,
   updateTicket,
+  setSprintMembership,
   archiveTicket,
   unarchiveTicket,
   getMyTickets,
@@ -39,6 +40,10 @@ router.get('/:ticketId/description/images', protect, getTicketDescriptionImages)
 router.post('/:ticketId/description/images', protect, uploadImages, uploadTicketDescriptionImages);
 router.delete('/:ticketId/description/images/:imageId', protect, deleteTicketDescriptionImage);
 router.delete('/:ticketId/description/images', protect, deleteAllTicketDescriptionImages);
+
+// Before `/:id` so the literal path is not captured as a ticket id. Bulk, but
+// no role gate: sprint membership is authorized as any ticket update is.
+router.patch('/sprint-membership', protect, setSprintMembership);
 
 router.get('/:id', protect, getTicketById);
 router.patch('/:id', protect, updateTicket);

@@ -6,9 +6,9 @@ categories, workspaces, rooms, or intern data.
 
 ## Golden rule: everything is workspace-scoped
 
-Every ticket / comment / status / category / room operation must be constrained to the caller's
-workspace. Never query or mutate a resource by id alone — always also assert it belongs to the
-caller's workspace.
+Every ticket / comment / status / category / room / sprint operation must be constrained to the
+caller's workspace. Never query or mutate a resource by id alone — always also assert it belongs to
+the caller's workspace.
 
 - `server/helpers/workspaceAuthz.js`:
   - `canAccessAnyWorkspace(role)` — `admin` and `mentor` may reach any workspace.
@@ -59,6 +59,34 @@ caller's workspace.
   `assertWorkspaceAccess` first,
   same as every other ticket action — the reviewer guard is in addition to, not instead of, the
   workspace check.
+
+- **Sprints** (`server/services/sprintService.js`) follow the same pattern:
+  `assertSprintInWorkspace(sprintId, workspaceId)` fetches the sprint, 404s if absent, and rejects
+  a mismatch — same shape as `assertStatusInWorkspace`. Every route resolves its workspace through
+  `resolveActiveWorkspaceId` first, so a sprint is neither readable nor writable across workspaces.
+  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/:id`, `POST /`, `PATCH /:id` and
+  `DELETE /:id` alike — `/leftovers` takes no id at all: it picks the previous sprint by querying
+  `{ workspace }` and reads its tickets through the workspace-scoped ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
+  ticket update is — active workspace membership is enough, since admins/mentors already bypass it
+  via `canAccessAnyWorkspace`.
+- **What may be changed about a sprint is a property of the sprint, not of the caller.** Mutability
+  is derived from its dates in `helpers/sprintRules.js` (`canEditSprint` / `canDeleteSprint`):
+  upcoming is editable and deletable, active is editable but never deletable, past is neither.
+  `assertSprintEditable` / `assertSprintDeletable` enforce it in the service and answer **409**,
+  not 403 — nobody may delete a running sprint, so it is a conflict with the resource's state
+  rather than an authorization failure. The read responses carry the same pair as
+  `permissions: { canEdit, canDelete }` so the UI only offers what the server would accept; that
+  field decides what is *rendered* and is never the check itself.
+- **Deleting a sprint detaches its tickets and stops there.** The cascade is one
+  `Ticket.updateMany` scoped to `{ workspace, sprint }` setting `sprint: null` — statuses are left
+  untouched, and the workspace filter means a sprint id can never reach a ticket in another
+  workspace even if the two ids were somehow crossed.
+- **Sprint membership** is a ticket write, so it carries the ticket rules rather than new ones.
+  `PATCH /api/tickets/:id` runs `assertWorkspaceAccess` on the ticket as it does for any field, and
+  the service refuses a sprint from another workspace (`resolveSprintForWorkspace`, the same shape
+  as the category and blocker checks). The bulk route `PATCH /api/tickets/sprint-membership`
+  resolves the caller's workspace through `resolveActiveWorkspaceId` and 404s unless **every** id
+  in the batch is a ticket in that workspace — so a foreign id can neither be written nor probed.
 
 ## Socket rooms follow the same rule as HTTP
 

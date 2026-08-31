@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  activeUnknownProjectRecommendations,
-  recommendationProjectLabel,
-} from './recommendations';
+import { activeUnknownProjectRecommendations, recommendationProjectLabel } from './recommendations';
 
 describe('recommendationProjectLabel', () => {
   it('returns the project name when known', () => {

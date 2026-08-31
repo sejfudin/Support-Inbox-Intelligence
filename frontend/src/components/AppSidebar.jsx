@@ -19,6 +19,7 @@ import {
   CalendarDays,
   CalendarClock,
   CalendarOff,
+  CalendarRange,
   Target,
   TrendingUp,
   LogOut,
@@ -632,6 +633,7 @@ export default function AppSidebar() {
   ];
 
   const boardsNav = [
+    { label: 'Sprints', to: '/sprints', icon: CalendarRange },
     { label: 'Tickets', to: '/tickets', icon: ClipboardList },
     {
       label: 'Backlog',

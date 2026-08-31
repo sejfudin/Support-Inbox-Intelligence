@@ -77,6 +77,9 @@ export const normalizeTicket = (ticket = {}) => {
   // `blockedBy.ticket` through `helpers/ticketBlocker.js` either way.
   const blockedBy = ticket.blockedBy ?? null;
   const reviewRequest = ticket.reviewRequest ?? null;
+  // Kept as the API returned it — the list endpoints populate the sprint's name
+  // and nothing else, which is all the chip beside the subject draws.
+  const sprint = ticket.sprint ?? null;
   const dueDate = ticket.dueDate ?? ticket.due ?? null;
   const totalTimeSpent = ticket.totalTimeSpent ?? 0;
   const inProgressAt = ticket.inProgressAt ?? null;
@@ -102,6 +105,7 @@ export const normalizeTicket = (ticket = {}) => {
     taskNumber,
     blockedBy,
     reviewRequest,
+    sprint,
     // Comes from the list endpoint (see `attachCommentCounts`), so the table can
     // show a thread's size without fetching its comments.
     commentCount: ticket.commentCount ?? 0,

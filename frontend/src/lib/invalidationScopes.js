@@ -4,6 +4,7 @@ import { adminDashboardKeys } from '@/queries/adminDashboard';
 import { internDashboardKeys } from '@/queries/internDashboard';
 import { internProgressKeys } from '@/queries/internProgress';
 import { STAFFING_REQUEST_NEWS_QUERY_KEY } from '@/queries/staffingRequests';
+import { SPRINTS_QUERY_KEY } from '@/queries/sprints';
 
 export const invalidationScopes = {
   user: (userId) => `user:${String(userId)}`,
@@ -12,6 +13,7 @@ export const invalidationScopes = {
   ticket: (ticketId) => `ticket:${String(ticketId)}`,
   intern: () => 'intern:all',
   workspaceDailies: (workspaceId) => `workspace-dailies:${String(workspaceId)}`,
+  workspaceSprints: (workspaceId) => `workspace-sprints:${String(workspaceId)}`,
   staffingNews: () => 'staffing-news:all',
 };
 
@@ -78,6 +80,12 @@ export const invalidateWorkspaceTicketsScope = (queryClient, workspaceId) => {
   // board, for yourself on the intern one — so a ticket moving between statuses
   // changes them.
   invalidateDashboards(queryClient);
+  // Every sprint number is an aggregation over its tickets — points done, tickets
+  // needing attention — so a teammate moving a ticket between statuses, or into or
+  // out of the sprint, changes what the sprint read returns. Sprint membership
+  // emits no event of its own; it arrives on this scope, through the ticket-update
+  // path, which is why the sprint queries have to be refreshed from here too.
+  queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY] });
 };
 
 export const invalidateTicketScope = (queryClient, ticketId) => {
@@ -125,6 +133,16 @@ export const invalidateWorkspaceDailiesScope = (queryClient, workspaceId) => {
   invalidateDashboards(queryClient);
 };
 
+// A teammate created, edited or deleted a sprint. The event carries no sprint
+// body, so everything sprint-shaped refetches: prefix invalidation covers the
+// list, the shown sprint (`[key, workspaceId, 'current']`) and any single sprint
+// read under `[key, id]` at once. Deleting also detaches tickets, but that
+// arrives as its own `workspace-tickets` scope on the same event rather than
+// being assumed here.
+export const invalidateWorkspaceSprintsScope = (queryClient) => {
+  queryClient.invalidateQueries({ queryKey: [SPRINTS_QUERY_KEY] });
+};
+
 export const invalidateScope = (queryClient, scope) => {
   const parsed = parseScope(scope);
   if (!parsed) return false;
@@ -156,6 +174,11 @@ export const invalidateScope = (queryClient, scope) => {
 
   if (parsed.type === 'workspace-dailies') {
     invalidateWorkspaceDailiesScope(queryClient, parsed.id);
+    return true;
+  }
+
+  if (parsed.type === 'workspace-sprints') {
+    invalidateWorkspaceSprintsScope(queryClient, parsed.id);
     return true;
   }
 

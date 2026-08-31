@@ -17,6 +17,8 @@ export const getAllTickets = async ({
   periodDays,
   awaitingReviewFrom,
   reviewRequestState,
+  sprintId,
+  unsprinted,
 } = {}) => {
   const response = await apiClient.get('/tickets', {
     params: {
@@ -36,6 +38,8 @@ export const getAllTickets = async ({
       periodDays,
       awaitingReviewFrom,
       reviewRequestState,
+      sprintId,
+      unsprinted,
     },
   });
   return response.data;
@@ -60,6 +64,17 @@ export const createTicket = async (ticketData) => {
 
 export const updateTicket = async (ticketId, updates) => {
   const response = await apiClient.patch(`/tickets/${ticketId}`, updates);
+  return response.data;
+};
+
+// One request for the whole planning-modal selection: `sprint` set moves every
+// ticket into it, `null` clears it. See `server/controllers/tickets.js`.
+export const setSprintMembership = async ({ ticketIds, sprint, workspaceId }) => {
+  const response = await apiClient.patch('/tickets/sprint-membership', {
+    ticketIds,
+    sprint,
+    workspaceId,
+  });
   return response.data;
 };
 
