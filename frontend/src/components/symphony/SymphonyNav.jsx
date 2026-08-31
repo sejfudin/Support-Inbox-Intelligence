@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { ChevronDown, LogOut, Moon, Sun } from 'lucide-react';
+import { ChevronDown, LogOut, Moon, Settings, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
   DropdownMenu,
@@ -103,6 +103,12 @@ export function SymphonyNav() {
                 </span>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild data-test="symphony-nav-settings-link">
+                <NavLink to="/programme/settings" end className="flex items-center gap-2">
+                  <Settings className="h-4 w-4 shrink-0" />
+                  Settings
+                </NavLink>
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={(event) => {
                   event.preventDefault();

@@ -19,6 +19,7 @@ const ROUTE_TITLES = [
   { path: '/create-workspace', title: 'Create workspace' },
 
   // Leadership (Symphony)
+  { path: '/programme/settings', title: 'Settings' },
   { path: '/programme', title: 'Programme dashboard' },
   { path: '/interns/:userId', title: 'Candidate' },
   { path: '/interns', title: 'Candidates' },

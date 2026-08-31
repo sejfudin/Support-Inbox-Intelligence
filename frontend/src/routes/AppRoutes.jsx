@@ -40,6 +40,7 @@ import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
 import LeadershipProjectsPage from '@/pages/fep/LeadershipProjectsPage';
 import LeadershipProjectPage from '@/pages/fep/LeadershipProjectPage';
 import LeadershipRequestsPage from '@/pages/fep/LeadershipRequestsPage';
+import LeadershipSettingsPage from '@/pages/fep/LeadershipSettingsPage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
@@ -175,6 +176,14 @@ export default function AppRoutes() {
               <Route path="/projects" element={<LeadershipProjectsPage />} />
               <Route path="/projects/:id" element={<LeadershipProjectPage />} />
               <Route path="/requests" element={<LeadershipRequestsPage />} />
+
+              {/* Reached from the account menu in the navbar, not from a nav row —
+                  settings are per-person. Namespaced under `/programme` rather than
+                  sharing the sidebar surface's `/settings`, because the two pages are
+                  not the same page: leadership has no workspace, so it gets the
+                  account-level subset (`LeadershipSettingsPage`). `/settings` itself
+                  redirects a leadership account here. */}
+              <Route path="/programme/settings" element={<LeadershipSettingsPage />} />
             </Route>
           </Route>
 
@@ -192,8 +201,19 @@ export default function AppRoutes() {
             />
 
             {/* Reached from the account menu in the sidebar footer, not from a nav
-              row — settings are per-person, not a place in the workspace. */}
-            <Route path="/settings" element={<SettingsPage />} />
+              row — settings are per-person, not a place in the workspace. This page
+              configures workspace defaults leadership has none of, so they go to
+              their own — same shape as the `/profile` redirect above. */}
+            <Route
+              path="/settings"
+              element={
+                user?.role === ROLES.LEADERSHIP ? (
+                  <Navigate to="/programme/settings" replace />
+                ) : (
+                  <SettingsPage />
+                )
+              }
+            />
 
             <Route path="/invitations" element={<UserInvitationsPage />} />
 
