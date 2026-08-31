@@ -1,4 +1,4 @@
-import { readStoredPreference } from '@/hooks/useStoredPreference';
+import { isOnOffValue, readStoredPreference } from '@/hooks/useStoredPreference';
 import {
   NOTIFICATION_MUTED_STORAGE_KEY,
   filterNotifications,
@@ -31,7 +31,7 @@ const OFF = 'off';
 /** Off unless asked for — a banner nobody requested is an interruption. */
 export const DESKTOP_NOTIFICATIONS_DEFAULT = OFF;
 
-export const isValidDesktopNotifications = (value) => value === ON || value === OFF;
+export const isValidDesktopNotifications = isOnOffValue;
 
 export const isDesktopNotificationsOn = (stored) => stored === ON;
 

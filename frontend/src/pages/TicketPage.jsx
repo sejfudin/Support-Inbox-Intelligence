@@ -33,10 +33,8 @@ import { ArrowLeft, Building2 } from 'lucide-react';
 import { PageSection, PageShell } from '@/components/PageShell';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useQueryClient } from '@tanstack/react-query';
-import { useTickets, useUpdateTicket } from '@/queries/tickets';
+import { useBoardStatusMove, useTickets } from '@/queries/tickets';
 import { useTicketModalTitle } from '@/hooks/useTicketModalTitle';
-import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 import { getAllTickets as getAllTicketsApi } from '@/api/tickets';
 import { useUsers } from '@/queries/users';
 import {
@@ -348,8 +346,7 @@ export default function TicketPage() {
 
   const listStatusFilter = activeTab === 'all' ? 'not_null' : activeTab;
 
-  const queryClient = useQueryClient();
-  const updateTicketMutation = useUpdateTicket();
+  const boardStatusMove = useBoardStatusMove();
 
   const assigneeOptions = useMemo(
     () => buildAssigneeFilterOptions(usersData?.users || []),
@@ -610,22 +607,19 @@ export default function TicketPage() {
     setSearchParams,
   ]);
 
+  // A drop on the board. The card moves in the cache immediately and the request
+  // runs behind it; `useBoardStatusMove` owns the rollback and the error toast, so
+  // there is nothing to handle per call site.
   const handleStatusChange = (ticketId, columnId) => {
     const statusId = helpers.resolveStatusFromColumnId(columnId);
     if (!statusId) return;
 
-    updateTicketMutation.mutate(
-      {
-        ticketId,
-        updates: { statusId },
-      },
-      {
-        onSuccess: () => {
-          invalidateWorkspaceTicketsScope(queryClient, effectiveWorkspaceId);
-        },
-        onError: (err) => console.error('Error updating ticket: ', err),
-      }
-    );
+    boardStatusMove.mutate({
+      ticketId,
+      statusId,
+      statusDoc: helpers.resolveStatusDocFromColumnId(columnId),
+      workspaceId: effectiveWorkspaceId,
+    });
   };
 
   const ticketFiltersPanelProps = {

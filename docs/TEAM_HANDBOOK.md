@@ -30,6 +30,9 @@
 - Only role that manages reference data (hubs, positions, technologies, internship types) —
   positions (specializations like "Frontend Engineer") and technologies (concrete tools like
   "React") are kept as separate catalogs on purpose
+- Each technology is either a plain technology or an **AI skill** (Claude Code, Cursor, Copilot,
+  MCP, the LLM APIs). Admin picks which when adding or editing one; it decides which of the two
+  search boxes on the intern's page finds it, and nothing else
 - Switching a technology off takes it out of the catalog, so nobody new can declare it — but it
   stays on the profiles that already declared it rather than being stripped from them. Those
   interns no longer see it in their own list, and it no longer stands in the way of the rest of
@@ -95,10 +98,18 @@
 - Manages documentation links on intern profiles
 - Works with tickets like everyone else, plus can cross workspace boundaries (view tickets/analytics of any workspace, not just their own)
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
-- Can edit workspaces (add a workspace image, add backlog statuses, add categories like bug/feature/etc.)
+- Can edit workspaces (add a workspace image, add a backlog status, add categories like bug/feature/etc.)
+- Can create a sprint, same as any other workspace member
+- Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
+- Can put tickets into a sprint and take them out again, same as any other workspace member
 
 **Leadership**
-- Otherwise read-only; the one exception is staffing requests (below)
+- Otherwise read-only; the two exceptions are staffing requests (below) and sending a note
+  directly to a mentor
+- Can send a short note to any mentor from the programme dashboard ("Note a mentor") — it shows up
+  on that mentor's own dashboard. Not about any intern, and not the same thing as a mentor note on
+  an intern's profile; the recipient can be any active mentor, not just one leadership works with
+  directly. Leadership cannot read or manage anything else about a mentor's account
 - Can read a candidate's uploaded CV and its AI summary, but can't generate one — if no summary
   exists yet, the panel says so and an admin or the intern's mentor has to make it
 - Only role that can file a staffing request (recorded demand for interns on a project); can edit a
@@ -136,12 +147,23 @@
 - Each project shows its type (client or internal) next to its status, on both the list and the project page
 - The Projects list opens on "With interns" (projects with someone placed or in selection);
   switching to "All projects" shows the empty ones too
+- Has a Settings page of its own, from the avatar menu in the navbar: theme, accent, text size,
+  contrast, notification switches, and changing their own password. Only the account-level
+  settings — the workspace defaults, sidebar and quick-action settings the other roles get
+  configure things leadership does not have. This is also where leadership changes their password,
+  since they have no Profile page
 - No access to the workspace/ticket side of the platform (project work)
 - No access to admin panels (users, workspaces, reference data)
 
 **Mentor**
+- Has their own dashboard as their landing page: assigned interns, their own ticket work in the
+  active workspace, notes sent to them by admin/leadership, and quick actions — no programme-wide
+  statistics or activity feeds, just what's theirs
 - Sees only their assigned interns (primary or secondary mentor) — and only Overview, mentor notes, and documentation links
 - Adds mentor notes (free text, picks who else on staff can see it) only for their own interns — and can optionally share a given note directly with the intern it's about, same opt-in as admin
+- Receives notes sent directly to them by admin or leadership, on their own dashboard — distinct
+  from the mentor notes above, which are about an intern. A note here is just for them, and they
+  have no way to send one back through the same channel
 - Can't see or add evaluations (periodic progress assessment) — admin-only now
 - Can't see or set readiness (by technology or position) — admin-only now
 - Can't see or create recommendations, neither per-intern nor on the standalone "Recommendations" page — admin-only now
@@ -156,15 +178,19 @@
 - Also works on tickets/projects within the workspace they belong to, independent of the mentor role — creates tickets, comments, tracks time, exports to CSV, uses AI assistance (summaries, description suggestions), and sees their workspace's analytics
 - Can answer a review request an intern sent them — approve it or ask for changes — from the ticket itself. No control to request a review themselves; that stays intern-only
 - Can cancel a review request addressed to them while it is still waiting. Once they answer, the answer stays — it is the record that they reviewed the work
+- Can create a sprint, same as any other workspace member
+- Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
+- Can put tickets into a sprint and take them out again, same as any other workspace member
 
 **Intern**
 - Sees and edits only their own profile
-- Declares their own technologies, and can drop one again. Dropping one a mentor has already
+- Declares their own technologies **and AI skills** on Position & Skills — two search boxes, two
+  lists, assessed by a mentor the same way. Can drop one again: dropping one a mentor has already
   assessed (Learning or Ready) asks for confirmation first and names the level; an unassessed one
   goes straight out. Either way the readiness is kept, so re-declaring brings the level back
 - Uploads their own CV
 - Has a read-only "My Progress" page with everything the programme records about them: where they stand in the programme (status, dates, mentors, hub), every evaluation, their readiness, and every recommendation. Read-only throughout — nothing there is theirs to add, change, or delete
-- Sees their own readiness, both by position and per declared technology, including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
+- Sees their own readiness, both by position and per declared skill — technologies and AI skills under their own headings — including which ones nobody has assessed yet and who did the assessing. Still can't set a level — that stays admin-only
 - Sees their own evaluations in full: the four scores per review period, the movement since the previous period, **and their mentor's written notes** (new — the notes used to be hidden from them)
 - Still doesn't see most mentor notes (the separate free-text notes admin/mentor write with their own "who else on staff can see this" list) — those stay invisible by default. The one exception: a note its author explicitly chose to share directly with them shows up on My Progress, and they get notified when one arrives
 - Sees their own recommendations: which project and position, the technologies, which stage it reached and every date along the way, the interviews, and the final result — but not the recommendation write-up, interviewer feedback, or the reasoning behind the decision. Put forward for more than one project? All of them are listed on My Progress, and arrows on the dashboard card switch between them
@@ -188,6 +214,9 @@
 - Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then
 - Can only check in on a day that is actually theirs to claim. On a day off already approved for them, on a cohort non-working day (public holiday, programme break, remote week), before their start date, at the weekend or outside the 07:00–11:00 window, the check-in control is not offered at all — and if they reach it anyway, they get a message saying which of those it is rather than a button that appears to do nothing. None of those days counts as an absence
 - No access to other interns', mentors', or admin/leadership data or functions
+- Can create a sprint, same as any other workspace member — not blocked on an admin to do it for them
+- Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
+- Can put their own tickets into a sprint and take them out again, same as any other workspace member. A ticket needs a story-point estimate before it can go in, and a ticket added from the backlog leaves the backlog for good
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 
 > **Note:** changing your own password now asks for your current one first, on every role. It's a

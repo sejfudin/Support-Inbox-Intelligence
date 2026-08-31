@@ -21,7 +21,7 @@ Roles are assigned at the **user** level and drive route landing + guards.
 | Role | Lands on | Capability |
 |---|---|---|
 | Admin | `/dashboard` (admin dashboard) if they have an active workspace, else `/admin/workspaces` | Full access. Manages users, workspaces, reference data. **Bypasses workspace membership checks** for tickets/rooms. |
-| Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. |
+| Mentor | `/my-interns` | Guides assigned interns via mentor notes and documentation links only. Evaluations, readiness, recommendations, the attendance roster, the internal CV link, and lifecycle status changes are admin-only — see `.claude/docs/security.md` ("Intern access"). Works in workspaces on tickets. Can create workspaces (becomes owner) and manage/delete the ones they own or workspace-admin — no global workspace list. `/dashboard` (`MentorDashboardPage`) is their own board — assigned interns, ticket work, quick actions, and notes sent to them by admin/leadership (see security.md, "Sending a note to a mentor"). |
 | Leadership | `/programme` | Read-oriented stakeholder view, plus the one leadership write path (staffing requests). No ticket/workspace workflow — redirected to `/programme`. |
 | Intern | `/dashboard` or `/create-workspace` | Manages own profile; works on assigned tickets in their workspace. Reads — read-only, self only — their own evaluations (notes included), readiness and recommendations on `/my-progress`. |
 
@@ -33,13 +33,32 @@ Roles are assigned at the **user** level and drive route landing + guards.
 ## Data model (Mongoose, `server/models/`)
 
 Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
-`Notification`, `RefreshToken`, `Integration`, `Daily`.
+`Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`, `Counter`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
 `Attendance`, `NonWorkingDay`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`,
 `Invitation`, `StaffingRequest`.
 AI: `AISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
+- **`Counter` hands out `Ticket.taskNumber`** — one document per `(workspace, name)`, incremented
+  with an atomic `findOneAndUpdate` + `$inc` in `server/services/ticketNumberService.js`. It
+  replaced a `max(taskNumber) + 1` read-then-write that gave concurrent creates in one workspace
+  the same number. Two consequences to know before touching ticket numbering: **gaps are expected**
+  (a number is claimed before the save, so a rejected create burns it), and **uniqueness is not
+  enforced by an index** — `{ workspace, taskNumber }` on `Ticket` is deliberately non-unique, so
+  any write path that sets `taskNumber` without going through `nextTaskNumber` reintroduces
+  duplicates silently. Seeders that write `taskNumber` themselves call `syncTaskNumberCounter`
+  afterwards; a counter that is missing altogether is seeded from the workspace's current maximum
+  on the next create.
+- **`Technology.category` (`general` | `ai`) splits one collection into two catalogs.** AI skills
+  are technologies in every functional respect — same declaration array
+  (`InternProfile.selfTechnologies`), same `ReadinessFlag` rows, same staffing requests — and the
+  category decides only which search box finds a row and which section lists it (the intern's
+  `/my-technologies` page, the declared chips on a profile, the readiness groups). Vocabulary is
+  in `server/constants/technologies.js` and mirrored in
+  `frontend/src/helpers/technologyCategories.js`. **Rows seeded before the field existed carry no
+  `category` at all, so read the general half as "not `ai`" — never filter it with
+  `category: 'general'`.**
 - `User.preferences` — one optional subdocument (`_id: false`) holding the UI preferences that
   follow the account. Every field is optional and **absent means "never chosen"**, which is what
   the sync layer keys off; see "UI preferences" below.
@@ -57,6 +76,12 @@ AI: `AISummary`.
   out of it. See "Ticket blockers" below.
 - **`Ticket.reviewRequest`** — at most one live ask for a mentor to look at the ticket's work, or
   `null`. See "Review requests" below.
+- **`Ticket.sprint`** — the ticket's sprint, or `null`. Membership lives here and nowhere else, so
+  "a ticket is in at most one sprint" is structural and every sprint total is an aggregation over
+  tickets. Written only through `ticketService.updateTicket`, which promotes a backlog ticket into
+  the workspace's default main status in the same update (ADR-0009) and refuses a ticket with no
+  story points (ADR-0011); removal clears the field and leaves the status alone. Survives
+  archiving, so unarchiving restores the ticket to its sprint. Indexed with `workspace`.
 - `User.preferences` — one optional subdocument holding the account's UI preferences (mode,
   accent, density, contrast, colour-vision, motion, landing page, tickets view, default assignee,
   board sort, muted notification groups). Its keys and legal values are declared once in
@@ -87,6 +112,56 @@ AI: `AISummary`.
   (`getWorkspaceDailyOverview`/`getMemberDailyEntry` in `dailyService.js`, routed at
   `/api/dailies/admin/*`) derives a calendar-month reporting-coverage grid and per-member entry
   detail from the same documents — no new schema. See ADR-0001.
+- `Sprint` — workspace-scoped: `name`, `start`, `end`, an optional `goal`, and `snapshot` — the one
+  stored aggregate, null until the sprint is sealed (see below). No lifecycle field, no ticket list,
+  no live counts. State (`upcoming` / `active` / `past`) is
+  derived from the dates against "today" rather than stored, and no two sprints in a workspace may
+  overlap (containment and shared endpoints count as overlap). Both rules live in the pure, clock-
+  free `server/helpers/sprintRules.js`. Which tickets are in a sprint is read off `Ticket.sprint` —
+  this collection never references a ticket. Mutability is derived from the dates too — upcoming is
+  editable and deletable, active is editable but not deletable, past is neither — and read
+  responses carry it as `permissions: { canEdit, canDelete }` alongside `state`, so the frontend
+  renders rather than re-derives. **Sprint reads** (list, `GET /sprints/current`, read-by-id) carry
+  the aggregations over the sprint's tickets as well — `progress` (`percent`, and `points` /
+  `tickets` split into `done` / `inProgress` / `todo` / `total`), `workingDays`
+  (`total` / `remaining`, Monday to Friday, no holiday calendar) and `needsAttention`
+  (`total` / `blocked` / `overdue`) — all computed in `sprintRules.js` so the progress strip renders
+  and computes nothing. Progress is done story points over total points (ADR-0011); buckets read
+  status FLAGS, not names (done = a status flagged done, to do = the first non-backlog status,
+  everything else = in progress); archived tickets are excluded from every aggregation, numerator
+  and denominator alike; and needs-attention means blocked or an
+  unfinished ticket past its due date. Blocked is read the way the rest of the app reads it — the
+  ticket sits in the status whose SLUG is `blocked` (a renamed column still counts), or it carries a
+  blocker RECORD (`Ticket.blockedBy`) in any status. The record is the optional "why", so a ticket
+  parked in Blocked with nothing written down still counts. Create, update and delete responses
+  carry `state` and `permissions` only; they are writes, and their callers refetch.
+  **A past sprint's numbers are sealed, and reads are what write them** (ADR-0012). Every sprint
+  read goes through `sprintService.withSprintMetrics`, which asks `sprintRules.resolveSprintMetrics`
+  what to return: a sprint that is past and unsealed has its live numbers computed one last time by
+  the same `sprintMetrics` helper and persisted to `Sprint.snapshot` (`sealedAt` plus the three
+  metric blocks) before the response goes out; a sprint already sealed is served from the snapshot
+  and never recomputed; an upcoming or active sprint is never sealed and stays live. The write is
+  `updateOne` filtered on `snapshot: null`, so it is write-once and a retried read is harmless.
+  Responses never carry `snapshot` itself — its contents *are* the response's `progress` /
+  `workingDays` / `needsAttention` for a sealed sprint — but they do carry `sealedAt`, null when the
+  sprint is not sealed. All four reads seal: the list, `GET /sprints/current` (which derives the
+  state of every sprint in the workspace to pick one, so it seals every past one it finds, not only
+  the one it returns), read-by-id, and `GET /sprints/leftovers` — which seals the previous sprint
+  **before** it reads or returns anything to carry, so the membership write that follows cannot
+  rewrite the record it just showed. Without this, carrying a leftover out of a finished sprint
+  shrinks that sprint's total and raises its done-percentage, because membership is one reference on
+  the ticket. The workspace-scoped resource
+  (`routes/sprints.js` → `controllers/sprints.js` → `services/sprintService.js`) is list, read,
+  create, update and delete, plus `GET /sprints/leftovers` — the previous sprint (the most recent
+  one that has already begun) and its unfinished, unarchived tickets, which the create modal offers
+  as a third source tab so leftovers are not silently dropped. Nothing is carried across by that
+  read — carrying a leftover forward is a drag like any other, and moving the ticket is the ordinary
+  membership write, which takes it out of the old sprint because membership is one reference on the
+  ticket. The only thing it writes is the previous sprint's seal, above.
+  Overlap is re-validated on every update as well as on create, with the
+  colliding sprint named in the error. Deleting a sprint clears `Ticket.sprint` on its tickets in
+  one `updateMany` and leaves their statuses alone — deleting a plan never undoes the work. See
+  ADR-0009, ADR-0010, ADR-0011, ADR-0012 and `CONTEXT.md`'s Sprints section.
 
 ## Ticket blockers
 
@@ -314,11 +389,16 @@ two browsers changing two different preferences do not clobber each other.
   only differences. On the client, the quick-actions row maps the empty cached string to `null` for
   exactly this.
 - **Not every preference is account-level.** `PREFERENCE_SCOPE.DEVICE` marks the rows that stay in
-  the browser: UI scale (a function of screen size, not taste) and the desktop-notification switch
+  the browser: UI scale (a function of screen size, not taste), the desktop-notification switch
   (`notify-desktop` — browser notification permission is granted per browser per device, so a
-  synced switch would read "on" where nothing could ever draw). Both tables are filtered to
-  `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like any other and
+  synced switch would read "on" where nothing could ever draw), and the collapsed sidebar sections
+  (`nav-sections-closed` — same reasoning as UI scale: you collapse Admin because ten rows do not
+  fit a laptop, and syncing it would carry that compromise onto a desktop). Both tables are filtered
+  to `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like any other and
   simply never pushed. Scope is what excludes it, not omission from the table.
+  A device row still gets a table row, because the table is where a preference is *declared*
+  whether or not the sync layer carries it — but it needs **no server change at all**: no
+  `userPreferences.js` row, no `User` subdocument, no `buildUpdate` branch.
 - Both responses carry `{ preferences, storedKeys }`. `storedKeys` names the
   preferences this account has actually saved; **the client reconciles per key**, so a value only
   set locally survives while the saved ones take the server's answer.
@@ -341,6 +421,88 @@ two browsers changing two different preferences do not clobber each other.
 - **UI scale stays per-device** and is deliberately absent from the server table — it is a function
   of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
   defaults so the auth screens never wear the last user's accent or accessibility settings.
+
+## Sidebar navigation (`frontend/src/components/AppSidebar.jsx`)
+
+One component builds the whole rail: role-filtered row arrays, a `sections` list that drops the
+empty ones, and three presentations of the same tree. `helpers/navSections.js` holds the pure part
+(the stored list, the open-set resolution and the signal rollup) and is unit-tested there.
+`components/nav/SectionIcons.jsx` holds the filled section marks.
+
+- **Two shapes, chosen in Settings → Appearance.** `navStyle` (`labelled` | `collapsible`, default
+  **`labelled`**) decides whether each group stays the plain captioned list or gets a header that
+  opens and closes. `labelled` is the pre-collapse sidebar and is kept **byte-for-byte** — 34px
+  rounded rows, the 3px inset active bar, `bg-primary/20`, no section marks. Someone who turns
+  collapsing off is asking for the old sidebar back; the divergence between the two branches in
+  `NavItem` is the feature, not duplication to be tidied away.
+- **The sidebar's two pieces of state are deliberately different scopes.** `navStyle` is taste, so it
+  follows the **account** (a row in `USER_PREFERENCE_DEFINITIONS` and in `VALUE_PREFERENCES`).
+  *Which* group is open is a function of screen height, so `nav-sections-closed` stays **per-device**
+  and never reaches the server. Switching to `labelled` does not clear it.
+- **Collapsible sections** are built on `@radix-ui/react-accordion` primitives directly — not on
+  `components/ui/accordion.jsx`, which is the settings pages' wrapper and must not be restyled for a
+  nav row. The accordion is **controlled**: its value is derived every render from the stored list,
+  the active route, the rail and the tour, and each interaction is read back as a diff so a section
+  opened *for* the person is never written back as a choice.
+- **One section open at a time.** Opening Boards collapses Workspace (`singleOpen` in
+  `resolveOpenSections`). The Root stays `type="multiple"` regardless, because the rail and the tour
+  need *every* section open at once and `type="single"` cannot express that state. `singleOpen` is
+  applied last, on top of the closed list, for the same reason — a store that could hold only one
+  open key could not describe the all-open case at all.
+- **The header is two controls.** The label navigates to the section's *first visible row*
+  (Workspace → Dashboard, Boards → Tickets) and opens the section; the chevron only toggles. One
+  control cannot do both — "click to open the group" and "click to collapse it" would be the same
+  gesture on the same pixel. The destination is derived from the rows, so reordering them moves it.
+- **What is stored is the closed list**, so a section added in a later release is absent from every
+  stored list and therefore open — no migration. It is read in a `useState` initialiser, not through
+  `useStoredPreference`: that hook reads storage in an effect, so the first paint would show every
+  section open and the closed ones would animate shut on every page load.
+- **A collapsed section peeks on hover** — its rows appear in a flyout to the right, which is what
+  makes single-open cheap. **There is exactly one flyout for the whole sidebar**, rendered by
+  `AppSidebar` into a portal and positioned from the hovered element's own rect. It began as a
+  `Popover` per section and that design is unfixable by timing: every move along the rail was an
+  unmount racing a mount, so a fast sweep showed the previous section's rows or an empty panel.
+  Verified with real pointer moves. A portal is also required outright — the rail sets
+  `overflow-hidden`, so anything drawn inside it is clipped at 34px.
+- **The icon rail is one mark per section, not every row.** Hovering or focusing a mark opens the
+  flyout; clicking it goes to the section's first row. This is the one place the nav hides rows, so
+  three things are load-bearing: the mark is a link (the common case stays one click), the signals
+  roll up onto it, and the flyout opens on **focus** as well as hover so the rows are not mouse-only.
+  `labelled` keeps the old rail (every row, flat). The mobile sheet is the full sidebar.
+- **A closed section must not swallow a signal.** The pending dot and the count badges roll up onto
+  the header or the rail mark, and its accessible name names them ("Admin — 1 time-away request"); a
+  dot alone says nothing about what is waiting, and a closed section is exactly where nobody can go
+  and look. The section holding the active route is forced open for the same reason.
+- **The tour forces every section open** while it runs. Five of its six nav steps point inside Admin
+  and `whatsNewSteps.js` never drops a step for a missing target — a closed section would silently
+  turn those into centred cards explaining features while pointing at nothing.
+- **The active section is a band**, not a highlighted row: a neutral `bg-foreground/5` rectangle
+  across the whole group, square and hugging its rows exactly, with the active row's own fill inside
+  it. Neutral rather than accent-tinted because an accent wash behind an accent-tinted row left the
+  row unfindable inside its own section. Nothing in the collapsible nav is rounded or gapped — rows
+  and headers run edge to edge of the sidebar and stack flush, because any gap showed as a stripe of
+  bare sidebar cutting through the band.
+- Reduced motion needs no work here: `:root[data-motion='reduced'] *` in `index.css` kills every
+  animation and transition with `!important`, the section reveal included.
+- The section reveal has its **own** keyframes (`nav-section-up` / `-down` in `tailwind.config.js`),
+  separate from the settings accordion's `accordion-*`: longer travel, `easeInOutCubic` matching the
+  rail's own easing, and an opacity fade. Radix suppresses the animation on mount, so a page load
+  does not unfurl the nav.
+- The section marks are the **logo's four colours under Symphony Indigo and the account's accent
+  under every other palette** — the same deal `[data-brand-mark]` strikes for the logo itself, so
+  the marks are not the one thing in the rail still wearing the house brand while the rest of the
+  chrome wears the user's accent. Nine `--nav-mark-*` tokens in `index.css` carry it: the house
+  values sit in the base block, and one rule
+  (`[data-theme]:not([data-theme='default'])`, plus `data-colorblind` when it is not `off`)
+  repaints all nine from `--sidebar-primary` — `--sidebar-primary` and not `--primary` because
+  several palettes set the two differently and these are drawn on the sidebar.
+  Tokens are named for the **job** each colour does in the drawing, not its house hue, because
+  four hues collapse to two values when the accent takes over (`lead`/`warm` full, `second`/`hot`
+  at 58% over the sidebar's ground). That loss is the flooded brand mark's loss too — shapes told
+  apart only by hue merge — and it is priced in per drawing: no mark puts two 58% shapes against
+  each other. The upside is that `data-colorblind` now reaches them, which the fixed hexes could
+  never do. They stay decorative either way: every section has its label beside the mark and
+  status comes from the tone tokens, so do not encode meaning in which shape gets `lead`.
 
 ## The what's-new tour
 
@@ -373,9 +535,16 @@ is the pulsing way back in from the sidebar footer.
 - `events.js` — event names + emit helpers.
 - `invalidationScopes.js` — room key builders that drive React Query cache invalidation:
   - `user:<id>`, `workspace:<id>`, `workspace-tickets:<id>`, `ticket:<id>`,
-    `workspace-dailies:<id>`, `intern:all`, `staffing-news:all`.
+    `workspace-dailies:<id>`, `workspace-sprints:<id>`, `intern:all`, `staffing-news:all`.
   - `intern:all` and `staffing-news:all` are global (not workspace-scoped) — broadcast to every
     connected client via `broadcastToAll`, since there's no room to target.
+- **Sprints** use the lightweight invalidation pattern, not the ticket-event one: creating, editing
+  and deleting a sprint each call `emitSprintChanged(workspaceId)` (`events.js`), which broadcasts
+  one `CACHE_INVALIDATED` carrying `workspace-sprints:<id>` **into that workspace's room only** —
+  the event carries no sprint body, so the client refetches. Delete additionally carries
+  `workspace-tickets:<id>`, because detaching the sprint's tickets changes what every other
+  client's board shows. Sprint **membership** emits nothing of its own: it is written through the
+  ticket-update path, so it already produces `ticket:updated` with the ticket scopes.
 - Frontend consumes via `src/context/SocketContext.jsx`, invalidating query keys on events.
 
 ## Integrations
@@ -419,10 +588,14 @@ See `services/internCvService.js#syncTechnologiesFromCv`.
     add; that is the accepted cost of scans never removing.
 - **The catalog is the ceiling.** A skill with no `Technology` row is invisible to the scan however
   it is spelled, so a thin catalog reads as a broken scanner. Adding one takes three steps in the
-  same change: `seeder/defaultTechnologies.js` (the entry), `helpers/cvTechnologyMatcher.js`
-  (`TECHNOLOGY_ALIASES` — real-world spellings; version-suffixed forms like `html5`/`python3` need
-  their own alias), and `npm run seed:technologies` to backfill existing databases.
-  `cvTechnologyMatcher.test.js` fails if a seeded slug has no alias entry.
+  same change: `seeder/defaultTechnologies.js` (the entry, with `category: 'ai'` when it belongs
+  in the AI half), `helpers/cvTechnologyMatcher.js` (`TECHNOLOGY_ALIASES` — real-world spellings;
+  version-suffixed forms like `html5`/`python3` need their own alias), and
+  `npm run seed:technologies` to backfill existing databases. `cvTechnologyMatcher.test.js` fails
+  if a seeded slug has no alias entry.
+  - A product name that is also an ordinary word ("Cursor", "Devin", "Lovable", "v0") belongs in
+    `AMBIGUOUS_MATCHERS`, not in `TECHNOLOGY_ALIASES` — it then counts only in a skills-list
+    shape, never in prose. The AI half is where most of these live.
 
 ## Notifications
 
@@ -1038,11 +1211,11 @@ The admin landing board: one workspace at a time — the caller's **active** wor
 
 - **`/dashboard` is role-split three ways**, not separate routes: `DashboardRoute` in
   `routes/AppRoutes.jsx` renders `AdminDashboardPage` for admins, `InternDashboardPage` for interns,
-  and `UserDashboard` (assigned tickets) for mentors. It sits **outside `WorkspaceGuard`** so neither
-  an admin nor an intern without an active workspace is redirected to `/create-workspace` — each
-  board explains the state instead. The guard's redirects are repeated inside `DashboardRoute` for
-  the mentor branch only. **Don't widen `WorkspaceGuard` instead**: `/tickets`, `/dailies` and
-  `/analytics` all assume a resolved `user.workspaceId`.
+  and `MentorDashboardPage` for mentors. It sits **outside `WorkspaceGuard`** so no role without an
+  active workspace is redirected to `/create-workspace` — each board explains the state instead
+  (the mentor board only for its ticket-work card and "Assign a ticket" action; its other cards need
+  no workspace). **Don't widen `WorkspaceGuard` instead**: `/tickets`, `/dailies` and `/analytics`
+  all assume a resolved `user.workspaceId`.
 - **The page has no workspace picker of its own** — it reads `user.workspaceId`; switching is the
   sidebar's `WorkspaceSwitcher`, which already `refetchUser()`s and navigates to `/dashboard`, so the
   board re-keys and refetches by itself. The switcher lists only workspaces the caller is a *member*
@@ -1135,9 +1308,10 @@ The admin landing board: one workspace at a time — the caller's **active** wor
     to its copy and the form its pick opens; `InternPickerModal` takes `restrictToRecommendable`,
     because "already placed / has left" disqualifies an intern from being *recommended* and from
     nothing else — a note or a readiness assessment about them is legitimate.
-  - **The mentor's rows are declared but nothing renders them yet.** The mentor's `/dashboard` is
-    still `UserDashboard` (assigned tickets), so the card has nowhere to live; the rebuild mounts this
-    one instead of inventing a second list, and must supply a picker scoped to *its* interns.
+  - **The mentor's rows are mounted on `MentorDashboardPage`**, the same `QuickActionsCard` the
+    admin board uses (`role={ROLES.MENTOR}`). No mentor-specific picker was needed: `InternPickerModal`
+    calls `useInterns()` with no id/role param, and `GET /api/interns` already scopes to the caller's
+    own primary/secondary interns server-side for a mentor caller.
 - **Not implemented**: the *Mark absence / excuse* quick action is a "Soon" placeholder — `Attendance`
   has no write path for absence at all (absence is the lack of a check-in, and only interns check in),
   and `POST /api/absence-requests/me` is intern-only too, so an admin cannot even file on someone's
@@ -1297,7 +1471,8 @@ vocabulary. Get the two "admin" meanings right.
 | **InternshipType** | The programme track an intern is on — reference data keyed by `slug`. E.g. `fep`, `shadow`. |
 | **FEP** | **Future Experts Program** — the standard internship track (`slug: 'fep'`). Common in seed data and intern emails (`intern.active.fep@…`). |
 | **Position** | A target job role (`slug` + `name`) an intern is training toward — e.g. QA, Frontend. Reference data. |
-| **Technology** | A tech skill (React, Node, …). Reference data; attached to intern profiles and readiness flags. |
+| **Technology** | A tech skill (React, Node, …). Reference data; attached to intern profiles and readiness flags. Carries `category`: `general` or `ai`. |
+| **AI skill** | A `Technology` with `category: 'ai'` — coding agents, assistant IDEs, LLM APIs and agent SDKs (Claude Code, Cursor, Copilot, MCP, …). Declared, assessed and staffed exactly like any other technology; the category only splits the search boxes and the list sections. |
 | **Readiness flag** | Per-intern assessment of readiness for a specific **technology** or **position**, level `none \| learning \| ready`, recorded by a user (`ReadinessFlag`). Admin-only (view and set). Feeds placement decisions. |
 | **Intern status** | Lifecycle of an `InternProfile`: `active → ready → placed → completed`, or `discontinued`. Changing it is admin-only, even for the intern's assigned mentor. |
 | **Primary / secondary mentor** | An intern has a primary mentor and optionally a secondary; both gate mentor access (`server/helpers/internAccess.js`). The secondary is now *only* the specialization mentor — see ADR-0002. |
@@ -1308,4 +1483,7 @@ vocabulary. Get the two "admin" meanings right.
 | **Ticket status** | **Per-workspace, customizable** — not a global enum. Statuses live in `TicketStatus`, validated via `statusValidation` / `statusSlugAliases`. A status's `slug` is its identity; a rename changes the label only. |
 | **Blocker** (`Ticket.blockedBy`) | Why a ticket can't move while it is **Blocked** — an optional ticket from the same workspace it waits on, plus an optional free-text note for when nothing on the board is the reason. Either half may be empty; both are cleared when the ticket leaves Blocked. |
 | **Story points / time-in-status** | Ticket estimation field; time-in-status tracks how long a ticket sits in each status column. |
-| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |
+| **Sprint** | A named stretch of calendar time in a workspace (`server/models/Sprint.js`: name, start, end, optional goal, plus `snapshot` once sealed). State (`upcoming`/`active`/`past`) is derived from its dates, never stored; two sprints in a workspace may never overlap. Membership is `Ticket.sprint`, never a list on the sprint. See `CONTEXT.md` and ADR-0009/0010/0011/0012. |
+| **Sealed sprint** | A past sprint whose final numbers have been written onto it (`Sprint.snapshot`), which happens on the first read after its end date. Sealed numbers are served as-is and never recomputed, so carrying a leftover out of a finished sprint cannot rewrite what it delivered. Write-once. See ADR-0012. |
+| **Unsprinted** | A ticket in no sprint (`Ticket.sprint` is `null`) — exactly the tickets sprint planning may still add. The ticket list takes it as a filter alongside "in this sprint". |
+| **Invalidation scope** | Socket.IO room key (`user:` / `workspace:` / `workspace-tickets:` / `ticket:` / `workspace-dailies:` / `workspace-sprints:` / `intern:all` / `staffing-news:all`) that drives React Query cache invalidation. |

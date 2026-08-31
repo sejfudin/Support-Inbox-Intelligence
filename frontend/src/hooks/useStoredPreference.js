@@ -3,6 +3,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { broadcastPreference, pushPreference, subscribeToPreference } from '@/lib/preferenceSync';
 
 /**
+ * The `isValid` for any preference whose whole domain is the two strings `'on'`
+ * and `'off'` — shared so a two-state preference does not grow its own copy of
+ * this check. `helpers/desktopNotifications.js` and
+ * `components/onboarding/whatsNewSteps.js` both delegate to it.
+ */
+export const isOnOffValue = (value) => value === 'on' || value === 'off';
+
+/**
  * The same read, synchronously, for the callers that need the stored value
  * *before* the first paint — a `useState` initialiser whose value decides which
  * of two surfaces renders. Going through the hook there would paint the default

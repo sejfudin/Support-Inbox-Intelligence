@@ -2,6 +2,18 @@ const Technology = require('../models/Technology');
 const Position = require('../models/Position');
 const { slugify } = require('../helpers/slugify');
 const { roleRoot } = require('../helpers/roleCatalog');
+const { httpError } = require('../helpers/httpError');
+const { TECHNOLOGY_CATEGORIES, DEFAULT_TECHNOLOGY_CATEGORY } = require('../constants/technologies');
+
+// An unknown category would land in the catalog as an invisible row: neither search box
+// filters for it, so nobody could ever declare it. Reject instead of coercing.
+const resolveCategory = (category) => {
+  if (category === undefined) return DEFAULT_TECHNOLOGY_CATEGORY;
+  if (!TECHNOLOGY_CATEGORIES.includes(category)) {
+    throw httpError(`Category must be one of: ${TECHNOLOGY_CATEGORIES.join(', ')}`, 400);
+  }
+  return category;
+};
 
 // Technologies are concrete tools/languages/frameworks; positions are role specializations.
 // Someone naming a technology after the bare discipline ("DevOps") is really describing a
@@ -24,14 +36,18 @@ const getAllTechnologies = async ({ includeInactive = false } = {}) => {
   return Technology.find(filter).sort({ name: 1 }).lean();
 };
 
-const createTechnology = async ({ name, slug }) => {
+const createTechnology = async ({ name, slug, category }) => {
   if (!name?.trim()) throw new Error('Technology name is required');
   await assertNotAPosition(name);
   const resolvedSlug = slugify(slug || name);
-  return Technology.create({ name: name.trim(), slug: resolvedSlug });
+  return Technology.create({
+    name: name.trim(),
+    slug: resolvedSlug,
+    category: resolveCategory(category),
+  });
 };
 
-const updateTechnology = async (id, { name, isActive }) => {
+const updateTechnology = async (id, { name, isActive, category }) => {
   const technology = await Technology.findById(id);
   if (!technology) throw new Error('Technology not found');
 
@@ -39,6 +55,7 @@ const updateTechnology = async (id, { name, isActive }) => {
     await assertNotAPosition(name);
     technology.name = name.trim();
   }
+  if (category !== undefined) technology.category = resolveCategory(category);
   if (isActive !== undefined) technology.isActive = isActive;
 
   await technology.save();

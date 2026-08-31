@@ -10,6 +10,10 @@ export const serializeBoardQueryFilters = (queryFilters = {}) =>
     priorityOrder: queryFilters.priorityOrder ?? '',
     sortBy: queryFilters.sortBy ?? '',
     sortOrder: queryFilters.sortOrder ?? '',
+    // The sprint board is the same component with a sprint filter, so the key
+    // has to carry it — without this every sprint's board reads the previous
+    // sprint's cached columns.
+    sprintId: queryFilters.sprintId ?? '',
   });
 
 /** Keep board column requests aligned with list view sorting/filter params. */

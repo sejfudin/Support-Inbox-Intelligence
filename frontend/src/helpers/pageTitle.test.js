@@ -41,6 +41,8 @@ describe('resolveRouteTitle', () => {
     expect(resolveRouteTitle('/admin/workspaces')).toBe('All workspaces');
     expect(resolveRouteTitle('/admin/workspaces/abc123')).toBe('Workspace');
     expect(resolveRouteTitle('/admin/workspaces/abc123/settings')).toBe('Workspace settings');
+    expect(resolveRouteTitle('/programme')).toBe('Programme dashboard');
+    expect(resolveRouteTitle('/programme/settings')).toBe('Settings');
   });
 
   it('returns nothing for an unmapped path', () => {

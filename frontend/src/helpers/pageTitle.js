@@ -19,6 +19,7 @@ const ROUTE_TITLES = [
   { path: '/create-workspace', title: 'Create workspace' },
 
   // Leadership (Symphony)
+  { path: '/programme/settings', title: 'Settings' },
   { path: '/programme', title: 'Programme dashboard' },
   { path: '/interns/:userId', title: 'Candidate' },
   { path: '/interns', title: 'Candidates' },
@@ -33,7 +34,7 @@ const ROUTE_TITLES = [
 
   // Intern
   { path: '/my-progress', title: 'My progress' },
-  { path: '/my-technologies', title: 'Position & technologies' },
+  { path: '/my-technologies', title: 'Position & skills' },
   { path: '/my-attendance', title: 'Attendance' },
 
   // Mentor
@@ -57,6 +58,7 @@ const ROUTE_TITLES = [
 
   // Workspace
   { path: '/dashboard', title: 'Dashboard' },
+  { path: '/sprints', title: 'Sprints' },
   { path: '/tickets', title: 'Tickets' },
   { path: '/archive', title: 'Archive' },
   { path: '/analytics', title: 'Analytics' },

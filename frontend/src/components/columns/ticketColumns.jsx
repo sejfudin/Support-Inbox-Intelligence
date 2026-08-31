@@ -11,6 +11,7 @@ import { isSortableTicketColumn } from '@/helpers/ticketSort';
 import StoryPointsIndicator from '../StoryPointsIndicator';
 import BlockedByChip from '../Tickets/BlockedByChip';
 import TicketReviewChip from '../Tickets/TicketReviewChip';
+import SprintChip from '../Tickets/SprintChip';
 
 const stripHtml = (html) => {
   if (!html) return '';
@@ -99,6 +100,7 @@ export function createTicketColumns({
               className="shrink-0"
             />
             <TicketReviewChip reviewRequest={row.original.reviewRequest} className="shrink-0" />
+            <SprintChip sprint={row.original.sprint} className="shrink-0" />
             {comments > 0 ? (
               <span className="flex shrink-0 items-center gap-[3px] text-[11px] text-muted-foreground/75">
                 <MessageSquare className="h-3 w-3" aria-hidden />

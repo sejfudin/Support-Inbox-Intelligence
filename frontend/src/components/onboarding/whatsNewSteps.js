@@ -112,13 +112,26 @@ import { resolveUserId } from '@/helpers/userIdentity';
 //   rather than something to walk them through. The bell keeps a step, but about
 //   what it now carries instead of where it sits. What that buys is a tour short
 //   enough to finish, on the surfaces nobody has been shown even once.
-// - `2026-08-profile-pictures` (this one): everyone can set a profile picture, and it
+// - `2026-08-profile-pictures`: everyone can set a profile picture, and it
 //   stands in for their initials everywhere they appear. One step, and a bump for it,
 //   because the feature is opt-in and invisible until somebody uses it — an avatar
 //   nobody knows they can change is an avatar that stays initials forever. It adds
 //   nothing else and deletes nothing: the previous entry's steps are still the first
 //   telling of most of what they cover.
-export const TOUR_VERSION = '2026-08-profile-pictures';
+// - `2026-08-settings-cleanup`: Density, Colour vision and Motion were
+//   removed from Settings. Same reasoning as `2026-08-my-progress` — the `appearance`
+//   and `accessibility` steps named all three ("plus a compact row density",
+//   "Contrast, colour vision, motion"), and leaving that copy would have shipped a
+//   correction only first-time viewers ever see. No new step; the two edited ones
+//   just stop claiming settings that no longer exist.
+// - `2026-08-ai-skills` (this one): the intern page is Position & Skills now, and the
+//   catalog has a second half — coding agents, assistant IDEs, LLM APIs — with its own
+//   search box beside the technology one. One intern step, and a bump for it, for the
+//   same reason as the avatars: a search box nobody knows about is a list that stays
+//   empty, and a mentor cannot assess an AI skill that was never declared. Deletes
+//   nothing — the two entries above are a step and a correction, and this neither
+//   repeats nor retires either.
+export const TOUR_VERSION = '2026-08-ai-skills';
 
 /**
  * Master switch for the what's-new tour. **On.**
@@ -349,14 +362,14 @@ export const WHATS_NEW_STEPS = [
     target: '[data-tour="settings-appearance"]',
     swatches: true,
     title: 'New themes!',
-    body: 'Eleven accents, in light or dark, plus a compact row density.',
+    body: 'Eleven accents, in light or dark.',
     placement: 'right',
   },
   {
     id: 'accessibility',
     target: '[data-tour="settings-accessibility"]',
-    title: 'Contrast, colour vision, motion',
-    body: 'Plus a text size control. Red text that was unreadable on dark is repaired everywhere, not only in high contrast.',
+    title: 'Contrast and text size',
+    body: 'Red text that was unreadable on dark is repaired everywhere, not only in high contrast.',
     placement: 'right',
   },
   {
@@ -432,6 +445,14 @@ export const WHATS_NEW_STEPS = [
     target: '[data-tour="nav-my-progress"]',
     title: 'My Progress',
     body: 'Your evaluations and scores with your mentor’s written notes, your readiness, and every project you have been put forward for.',
+    placement: 'right',
+  },
+  {
+    id: 'ai-skills',
+    roles: ['intern'],
+    target: '[data-tour="nav-my-technologies"]',
+    title: 'Position & Skills',
+    body: 'Your technologies live here, and now AI skills too — Claude Code, Cursor, Copilot, MCP and the rest, in their own search box. Declare what you use; your mentor assesses these the same way.',
     placement: 'right',
   },
   {

@@ -17,18 +17,19 @@ const LEVELS = [
 
 /**
  * How the declared list is going, in one bar: a mentor's assessments summarised
- * across every technology on it.
+ * across every skill on it — technologies and AI skills together, because a mentor
+ * assesses both the same way and this is the one "how am I doing" number.
  *
  * Renders nothing until something is declared — an empty bar over three zeroes
  * says less than the list's own empty state already does.
  */
 export function InternReadinessSummary() {
-  const { declaredTechnologies, flagMap } = useMyDeclaredTechnologies();
-  const total = declaredTechnologies.length;
+  const { declaredSkills, flagMap } = useMyDeclaredTechnologies();
+  const total = declaredSkills.length;
 
   if (total === 0) return null;
 
-  const counts = declaredTechnologies.reduce(
+  const counts = declaredSkills.reduce(
     (acc, tech) => {
       const level = flagMap[tech._id]?.level || 'none';
       acc[level] = (acc[level] || 0) + 1;
@@ -41,7 +42,7 @@ export function InternReadinessSummary() {
     <PagePanel className="px-[18px] pb-[18px] pt-[15px]">
       <h2 className="app-card-title">Readiness</h2>
       <p className="mt-0.5 text-[12.5px] leading-[1.45] text-muted-foreground">
-        Across your {total} declared {total === 1 ? 'technology' : 'technologies'}.
+        Across your {total} declared {total === 1 ? 'skill' : 'skills'}.
       </p>
 
       <div

@@ -38,10 +38,16 @@ import {
   isValidQuickActionOrder,
 } from '@/helpers/quickActions';
 import {
+  DEFAULT_ONBOARDING_ENABLED,
+  ONBOARDING_ENABLED_STORAGE_KEY,
+  isValidOnboardingEnabled,
+} from '@/helpers/onboardingTour';
+import {
   DESKTOP_NOTIFICATIONS_DEFAULT,
   DESKTOP_NOTIFICATIONS_STORAGE_KEY,
   isValidDesktopNotifications,
 } from '@/helpers/desktopNotifications';
+import { NAV_SECTIONS_STORAGE_KEY, isValidClosedSections } from '@/helpers/navSections';
 import {
   ASSIGNEE_DEFAULT_STORAGE_KEY,
   COLORBLIND_OPTIONS,
@@ -56,9 +62,11 @@ import {
   DEFAULT_MOTION,
   DEFAULT_TICKETS_VIEW,
   DEFAULT_UI_SCALE,
+  DEFAULT_NAV_STYLE,
   DENSITY_OPTIONS,
   DENSITY_STORAGE_KEY,
   LANDING_PAGE_STORAGE_KEY,
+  NAV_STYLE_STORAGE_KEY,
   MOTION_OPTIONS,
   MOTION_STORAGE_KEY,
   TICKETS_VIEW_STORAGE_KEY,
@@ -70,6 +78,7 @@ import {
   isValidDensity,
   isValidLandingPage,
   isValidMotion,
+  isValidNavStyle,
   isValidTicketsView,
   isValidUiScale,
 } from '@/helpers/uiPreferences';
@@ -183,6 +192,16 @@ const VALUE_PREFERENCES = [
     scope: PREFERENCE_SCOPE.ACCOUNT,
   },
   {
+    // Collapsible vs labelled sidebar groups. Taste, so it follows the account —
+    // unlike `navSections` below it, which records *which* groups are closed and
+    // stays per-device.
+    key: 'navStyle',
+    storageKey: NAV_STYLE_STORAGE_KEY,
+    fallback: DEFAULT_NAV_STYLE,
+    isValid: isValidNavStyle,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
+  },
+  {
     key: 'landingPage',
     storageKey: LANDING_PAGE_STORAGE_KEY,
     fallback: DEFAULT_LANDING_PAGE,
@@ -245,6 +264,22 @@ const VALUE_PREFERENCES = [
       Array.isArray(value) ? encodeQuickActionSelection(value) : QUICK_ACTIONS_NONE,
   },
   {
+    key: 'navSections',
+    storageKey: NAV_SECTIONS_STORAGE_KEY,
+    // Nothing closed. Stored as one comma-separated list of the sections that
+    // *are* closed, so a section added in a later release is absent from every
+    // stored list and therefore open — no migration, same trick as the muted
+    // notification groups above.
+    fallback: '',
+    isValid: isValidClosedSections,
+    // The third per-device row, and for the `uiScale` reason rather than the
+    // `desktopNotifications` one: which sections you collapse is a function of how
+    // much vertical room the screen has, not of taste. Ten admin rows do not fit a
+    // 13" laptop and need no fixing on a 27" monitor, so syncing it would carry
+    // the laptop's compromise onto the desktop.
+    scope: PREFERENCE_SCOPE.DEVICE,
+  },
+  {
     key: 'desktopNotifications',
     storageKey: DESKTOP_NOTIFICATIONS_STORAGE_KEY,
     fallback: DESKTOP_NOTIFICATIONS_DEFAULT,
@@ -255,6 +290,13 @@ const VALUE_PREFERENCES = [
     // anyway — the table is where a preference is declared, whether or not the
     // sync layer ends up carrying it.
     scope: PREFERENCE_SCOPE.DEVICE,
+  },
+  {
+    key: 'onboardingTourEnabled',
+    storageKey: ONBOARDING_ENABLED_STORAGE_KEY,
+    fallback: DEFAULT_ONBOARDING_ENABLED,
+    isValid: isValidOnboardingEnabled,
+    scope: PREFERENCE_SCOPE.ACCOUNT,
   },
 ];
 

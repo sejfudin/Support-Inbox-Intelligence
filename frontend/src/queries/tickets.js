@@ -7,6 +7,7 @@ import {
   archiveTicket,
   unarchiveTicket,
   updateTicket,
+  setSprintMembership,
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
@@ -18,7 +19,9 @@ import {
   answerReview,
   cancelReview,
 } from '@/api/tickets';
+import { toast } from 'sonner';
 import { invalidateAnalyticsQueries } from '@/lib/analyticsQueryCache';
+import { applyOptimisticBoardMove, rollbackOptimisticBoardMove } from '@/lib/boardOptimisticMove';
 import { invalidateTicketScope, invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 import { BOARD_COLUMN_QUERY_KEY } from '@/queries/boardTickets';
 
@@ -75,6 +78,65 @@ export const useUpdateTicket = () => {
       invalidateWorkspaceTicketsScope(queryClient, workspaceId);
       queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
       invalidateAnalyticsQueries(queryClient, workspaceId);
+    },
+  });
+};
+
+/**
+ * A board drag: the same `PATCH /tickets/:id` as `useUpdateTicket`, but optimistic.
+ *
+ * Separate from `useUpdateTicket` on purpose — that hook is shared by the details
+ * modal and every other ticket edit, none of which move a card between columns, so
+ * none of them want this cache surgery.
+ *
+ * `statusDoc` is the destination status as a populated object, from
+ * `helpers.resolveStatusDocFromColumnId(columnId)`. Passing the id alone would put
+ * the card in the first column instead of the one it was dropped in.
+ */
+export const useBoardStatusMove = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ticketId, statusId }) => updateTicket(ticketId, { statusId }),
+    onMutate: async ({ ticketId, statusId, statusDoc }) => {
+      // Board columns run at `staleTime: 0`, so a refetch is very often already in
+      // flight when a card is dropped. Cancelling first is what stops that response
+      // from landing after the optimistic write and putting the card back.
+      await queryClient.cancelQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+
+      return {
+        snapshot: applyOptimisticBoardMove(queryClient, {
+          ticketId,
+          destinationStatusId: statusId,
+          destinationStatusDoc: statusDoc,
+        }),
+      };
+    },
+    onError: (_error, _variables, context) => {
+      rollbackOptimisticBoardMove(queryClient, context?.snapshot);
+      toast.error('Could not move ticket. Please try again.');
+    },
+    // On `onSettled` rather than `onSuccess`, so a failed move also reconciles
+    // against the server once the card has snapped back — the rollback restores
+    // what the client believed, not what the server holds.
+    onSettled: (ticket, _error, variables) => {
+      const workspaceId =
+        variables.workspaceId ?? ticket?.workspace?._id ?? ticket?.workspace ?? ticket?.workspaceId;
+      invalidateTicketScope(queryClient, variables.ticketId);
+      invalidateWorkspaceTicketsScope(queryClient, workspaceId);
+      queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+      invalidateAnalyticsQueries(queryClient, workspaceId);
+    },
+  });
+};
+
+export const useSetSprintMembership = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: setSprintMembership,
+    onSuccess: (_, variables) => {
+      invalidateWorkspaceTicketsScope(queryClient, variables.workspaceId);
     },
   });
 };

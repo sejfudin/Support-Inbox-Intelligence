@@ -62,6 +62,33 @@
     --tone-indigo: 239 84% 67%;
     --tone-indigo-fg: 244 55% 41%;
 
+    /* ── The sidebar's section marks ─────────────────────────────────────────
+       The nine colours `components/nav/SectionIcons.jsx` paints its section
+       artwork with. Named by the job each does in the drawing, not by hue,
+       because half of them stop being that hue under any palette but the house
+       one — see the flatten rule below.
+
+       These values ARE the house artwork: blue, purple, amber and red, the four
+       colours of the logo the sidebar is standing under. Symphony Indigo keeps
+       them exactly, which is the same deal `[data-brand-mark]` strikes further
+       down this file — the brand mark is a background image under the house
+       palette and a flooded mask under every other one, and these marks now
+       answer to the same rule rather than being the one place a four-colour
+       drawing survives a palette change.
+
+       As tokens rather than literals in the JSX for one reason: the flatten
+       below is then nine declarations in one place instead of thirty fill
+       attributes to hunt through six components. */
+    --nav-mark-lead: hsl(217 91% 60%); /* the leading shape — logo blue */
+    --nav-mark-second: hsl(258 80% 61%); /* the shape behind or under it — purple */
+    --nav-mark-warm: hsl(43 96% 58%); /* the warm counterweight — amber */
+    --nav-mark-hot: hsl(0 85% 58%); /* the small punctuating shape — red */
+    --nav-mark-inlay: hsl(43 96% 58%); /* content drawn *inside* a filled shape */
+    --nav-mark-knockout: hsl(0 0% 100%); /* holes punched through one */
+    --nav-mark-rail: hsl(218 29% 67%); /* a neutral track */
+    --nav-mark-empty: hsl(217 48% 84%); /* a slot with nothing in it yet */
+    --nav-mark-empty-ink: hsl(217 19% 44%); /* and the mark on that slot */
+
     /* ── Control geometry ────────────────────────────────────────────────────
        The component library's geometry, as tokens rather than literals. Every
        shared control in `components/ui/` reads these; none of them may hardcode
@@ -359,6 +386,44 @@
 
   #root {
     min-height: var(--app-vh);
+  }
+}
+
+@layer base {
+  /* Every palette but Symphony Indigo re-paints the section marks in its own accent, and
+     `data-colorblind` does the same on top of any palette (the attribute is always
+     present and reads `off` when the preference is unset, so the selector tests the value
+     and not the attribute) — the mechanism the brand mark
+     uses in the block below, applied to inline SVG instead of a mask. `--sidebar-primary`
+     rather than `--primary` because these are drawn on the sidebar, and several palettes
+     set the two differently; `data-colorblind` redefines it too, which is how a set of
+     fixed hexes that could never follow the colour-vision palette now does.
+
+     **Four hues collapse to two values.** `lead` and `warm` take the accent, `second` and
+     `hot` take it at 58% over the sidebar's own ground, so hierarchy is carried by value
+     where it used to be carried by hue. That is a real loss and the same one the flooded
+     brand mark takes: shapes told apart only by hue merge. It is priced in per drawing —
+     no mark places two 58% shapes against each other, and the pairs that do touch (a
+     front sheet on a back one, two overlapping figures) are a full value apart.
+
+     Alpha over the sidebar rather than mixed-down colours, so one set of numbers works on
+     a white sidebar and a near-black one with no dark variant to keep in sync. Anything
+     opaque drawn on top stays its own value, which is why the drawings order the 58%
+     shapes first. */
+  [data-theme]:not([data-theme='default']),
+  :root[data-colorblind]:not([data-colorblind='off']) {
+    --nav-mark-lead: hsl(var(--sidebar-primary));
+    --nav-mark-second: hsl(var(--sidebar-primary) / 0.58);
+    --nav-mark-warm: hsl(var(--sidebar-primary));
+    --nav-mark-hot: hsl(var(--sidebar-primary) / 0.58);
+    /* Content inside a filled shape cannot be the accent it is sitting on, so it becomes a
+       knockout — and the knockouts themselves stop being white, which was a hole in a light
+       theme and a glare spot in a dark one. */
+    --nav-mark-inlay: hsl(var(--sidebar-background) / 0.85);
+    --nav-mark-knockout: hsl(var(--sidebar-background));
+    --nav-mark-rail: hsl(var(--sidebar-foreground) / 0.3);
+    --nav-mark-empty: hsl(var(--sidebar-foreground) / 0.14);
+    --nav-mark-empty-ink: hsl(var(--sidebar-foreground) / 0.5);
   }
 }
 

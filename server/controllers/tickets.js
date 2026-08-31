@@ -14,6 +14,11 @@ const {
 
 const STORY_POINTS_ERROR = 'Story points must be an integer between 1 and 5';
 
+// Clearing an optional reference — a ticket's category, its sprint. Clients
+// spell "none" three ways; all three mean the same write.
+const normalizeOptionalRef = (value) =>
+  value === null || value === '' || value === 'none' ? null : value;
+
 const getAllTickets = async (req, res) => {
   try {
     const {
@@ -33,6 +38,8 @@ const getAllTickets = async (req, res) => {
       periodDays,
       awaitingReviewFrom,
       reviewRequestState,
+      sprintId,
+      unsprinted,
     } = req.query;
 
     const workspaceId = await resolveActiveWorkspaceId({
@@ -58,6 +65,8 @@ const getAllTickets = async (req, res) => {
       // Resolved here, not in the service, which stays ignorant of "current user".
       awaitingReviewFromUserId: awaitingReviewFrom === 'me' ? req.user._id : undefined,
       reviewRequestState: reviewRequestState || '',
+      sprintId: sprintId || '',
+      unsprinted: unsprinted === 'true',
     });
 
     res.status(200).json({
@@ -246,6 +255,7 @@ const updateTicket = async (req, res, next) => {
       'storyPoints',
       'category',
       'blockedBy',
+      'sprint',
     ];
     const filteredUpdate = Object.keys(updateData)
       .filter((key) => allowedUpdates.includes(key))
@@ -259,9 +269,8 @@ const updateTicket = async (req, res, next) => {
           obj[key] = v === null || v === '' ? null : v;
         } else if (key === 'storyPoints') {
           obj[key] = normalizedStoryPoints;
-        } else if (key === 'category') {
-          const v = updateData[key];
-          obj[key] = v === null || v === '' || v === 'none' ? null : v;
+        } else if (key === 'category' || key === 'sprint') {
+          obj[key] = normalizeOptionalRef(updateData[key]);
         } else {
           obj[key] = updateData[key];
         }
@@ -305,6 +314,35 @@ const updateTicket = async (req, res, next) => {
     }
 
     next(error);
+  }
+};
+
+// Planning commits a batch of tickets to a sprint, or takes a batch out, in one
+// request. Authorized exactly as a single ticket update is — active membership
+// of the workspace, no manager gate — because a member can already move a ticket
+// between statuses, so a tighter gate here would guard nothing.
+const setSprintMembership = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: req.body?.workspaceId,
+    });
+
+    const { ticketIds, sprint } = req.body;
+    if (!Array.isArray(ticketIds)) {
+      return res.status(400).json({ success: false, message: 'ticketIds must be an array' });
+    }
+
+    const tickets = await ticketService.setSprintMembership({
+      ticketIds,
+      sprintId: normalizeOptionalRef(sprint ?? null),
+      workspaceId,
+      actorUserId: req.user._id,
+    });
+
+    res.status(200).json({ success: true, message: 'Sprint membership updated', data: tickets });
+  } catch (error) {
+    handleControllerError(res, error, next);
   }
 };
 
@@ -549,6 +587,7 @@ module.exports = {
   getTicketById,
   createTicket,
   updateTicket,
+  setSprintMembership,
   archiveTicket,
   unarchiveTicket,
   getMyTickets,

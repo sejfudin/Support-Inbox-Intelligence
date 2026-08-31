@@ -142,7 +142,9 @@ export function NewRecommendationDialog({ internUserId, open, onClose }) {
         setDuplicateWarn({
           payload,
           existingProjectNames: [
-            ...new Set(conflicts.map((recommendation) => recommendationProjectLabel(recommendation))),
+            ...new Set(
+              conflicts.map((recommendation) => recommendationProjectLabel(recommendation))
+            ),
           ],
           targetProjectName:
             projects.find((project) => project._id === form.projectId)?.name || 'this project',

@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
+import { MessageSquarePlus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SymphonyCard } from '@/components/symphony/SymphonyCard';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
 import { CohortSummaryBar } from '@/components/symphony/dashboard/CohortSummaryBar';
@@ -6,12 +9,14 @@ import { PipelineCard } from '@/components/symphony/dashboard/PipelineCard';
 import { ProgrammeBreakdowns } from '@/components/symphony/dashboard/ProgrammeBreakdowns';
 import { ProgrammeKpiRow } from '@/components/symphony/dashboard/ProgrammeKpiRow';
 import { TechnologySupply } from '@/components/symphony/dashboard/TechnologySupply';
+import { SendMentorNoteModal } from '@/components/SendMentorNoteModal';
 import { useInternStats } from '@/queries/interns';
 
 export default function LeadershipDashboardPage() {
   const { data: stats, isPending, isError } = useInternStats();
   const todayLabel = format(new Date(), 'EEEE, MMMM d, yyyy');
   const summary = stats?.summary ?? {};
+  const [sendingNote, setSendingNote] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -19,7 +24,20 @@ export default function LeadershipDashboardPage() {
         kicker="Future Experts Programme"
         title="Programme dashboard"
         subtitle={`Supply to pitch and placements in flight. ${todayLabel}.`}
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setSendingNote(true)}
+            data-test="leadership-dashboard-note-mentor-button"
+          >
+            <MessageSquarePlus className="mr-2 h-4 w-4" />
+            Note a mentor
+          </Button>
+        }
       />
+
+      <SendMentorNoteModal open={sendingNote} onClose={() => setSendingNote(false)} />
 
       {isError && (
         <SymphonyCard>

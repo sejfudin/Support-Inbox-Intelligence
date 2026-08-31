@@ -1,6 +1,7 @@
 const Ticket = require('../models/Ticket');
 const Comment = require('../models/Comment');
 const Category = require('../models/Category');
+const Sprint = require('../models/Sprint');
 const Workspace = require('../models/Workspace');
 const InternProfile = require('../models/InternProfile');
 const User = require('../models/User');
@@ -12,6 +13,7 @@ const {
 } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
+const { nextTaskNumber } = require('./ticketNumberService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
 const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
 const { escapeRegex } = require('../helpers/escapeRegex');
@@ -42,6 +44,7 @@ const {
   resolveReviewerCandidates,
   REVIEW_REQUEST_STATES,
 } = require('../helpers/reviewRequestRules');
+const { assertTicketMayJoinSprint } = require('../helpers/sprintRules');
 
 const PRIORITY_RANK = {
   low: 1,
@@ -83,6 +86,7 @@ const normalizePriorityOrder = (value) => {
 
 const INVALID_ASSIGNEE_ERROR = 'Assigned users must be active members of this workspace';
 const INVALID_CATEGORY_ERROR = 'Category is not valid for this workspace';
+const INVALID_SPRINT_ERROR = 'Sprint is not valid for this workspace';
 
 const extractUserId = (value) => {
   if (!value) return null;
@@ -193,6 +197,31 @@ const BLOCKER_LIST_POPULATE = {
 const REVIEW_REQUEST_POPULATE = [
   { path: 'reviewRequest.reviewer', select: userSelect('role') },
   { path: 'reviewRequest.requestedBy', select: userSelect('role') },
+];
+
+// The chip beside a ticket's subject shows the sprint's name and nothing else,
+// so the list pays for one field per row.
+const SPRINT_POPULATE = { path: 'sprint', select: 'name' };
+
+// Aggregate equivalent of `SPRINT_POPULATE` — same reason as the two below: the
+// priority-ordered list sorts in Mongo, where populate does not reach. `$ifNull`
+// keeps the shape identical to the populate path for a ticket in no sprint,
+// instead of leaving the key missing on some rows and null on others.
+const sprintLookupStages = () => [
+  {
+    $lookup: {
+      from: 'sprints',
+      localField: 'sprint',
+      foreignField: '_id',
+      as: 'sprintDoc',
+      pipeline: [{ $project: { name: 1 } }],
+    },
+  },
+  {
+    $set: {
+      sprint: { $ifNull: [{ $first: '$sprintDoc' }, null] },
+    },
+  },
 ];
 
 // Aggregate equivalent of BLOCKER_LIST_POPULATE — the priority-ordered list sorts
@@ -421,6 +450,28 @@ const ensureCategoryBelongsToWorkspace = async ({ workspaceId, categoryId }) => 
   }
 };
 
+// Sprints are workspace-scoped, same rule and same reason as categories above:
+// without this a caller could attach a foreign sprint id and read that
+// workspace's sprint back off its own ticket.
+// The status rides on the error rather than being recovered from its message,
+// so the controller maps it without a string match — the newer of the two
+// patterns in this file.
+const resolveSprintForWorkspace = async ({ workspaceId, sprintId }) => {
+  if (!workspaceId || !mongoose.Types.ObjectId.isValid(sprintId)) {
+    throw httpError(INVALID_SPRINT_ERROR, 400);
+  }
+
+  const sprint = await Sprint.findOne({ _id: sprintId, workspace: workspaceId })
+    .select('_id name')
+    .lean();
+
+  if (!sprint) {
+    throw httpError(INVALID_SPRINT_ERROR, 400);
+  }
+
+  return sprint;
+};
+
 // Follows the chain the candidate blocker itself waits on. Two tickets each
 // claiming the other blocks them is not an error the database can catch, and it
 // reads as a deadlock nobody put there — so the link is refused at write time.
@@ -522,6 +573,13 @@ const attachCommentCounts = async (tickets = []) => {
   });
 };
 
+// The shape `getAllTickets` answers with when the filters can match nothing at
+// all — no workspace to read, or a sprint id Mongo cannot cast.
+const emptyTicketPage = (page, limit) => ({
+  tickets: [],
+  pagination: { total: 0, page: Number(page), limit: Number(limit), pages: 0 },
+});
+
 const getAllTickets = async ({
   page = 1,
   limit = 10,
@@ -539,17 +597,11 @@ const getAllTickets = async ({
   periodDays,
   awaitingReviewFromUserId,
   reviewRequestState = '',
+  sprintId = '',
+  unsprinted = false,
 }) => {
   if (!workspaceId) {
-    return {
-      tickets: [],
-      pagination: {
-        total: 0,
-        page: Number(page),
-        limit: Number(limit),
-        pages: 0,
-      },
-    };
+    return emptyTicketPage(page, limit);
   }
 
   const safeLimit = Number(limit) || 10;
@@ -563,6 +615,21 @@ const getAllTickets = async ({
   }
 
   applyCreatedAtPeriodFilter(query, periodDays);
+
+  // The two sprint reads. `sprintId` is the sprint board and the sprint's own
+  // totals; `unsprinted` is what planning may still add — `{ sprint: null }`
+  // matches both an explicit null and a ticket predating the field. A caller
+  // sending both means the sprint, since it named one.
+  if (sprintId) {
+    // An id Mongo cannot cast would throw out of the query as a 500. No sprint
+    // has it, so the honest answer is an empty page.
+    if (!mongoose.Types.ObjectId.isValid(sprintId)) {
+      return emptyTicketPage(safePage, safeLimit);
+    }
+    query.sprint = sprintId;
+  } else if (unsprinted) {
+    query.sprint = null;
+  }
 
   if (search) {
     const escapedSearch = escapeRegex(search);
@@ -657,7 +724,11 @@ const getAllTickets = async ({
       .populate('assignedTo', userSelect('role'))
       .populate('category')
       .populate(BLOCKER_LIST_POPULATE)
-      .populate(REVIEW_REQUEST_POPULATE);
+      .populate(REVIEW_REQUEST_POPULATE)
+      // Just the name, for the chip beside the subject (ticket 11). Never
+      // crosses a workspace: a ticket can only ever reference a sprint in its
+      // own workspace, enforced in `resolveSprintTransition`/`updateTicket`.
+      .populate(SPRINT_POPULATE);
 
     if (sortField === 'subject') {
       listQuery.collation(SUBJECT_SORT_COLLATION);
@@ -733,12 +804,14 @@ const getAllTickets = async ({
         ...statusLookupStages(),
         ...blockerLookupStages(),
         ...reviewRequestLookupStages(),
+        ...sprintLookupStages(),
         // Excluding a field the pipeline never added is a no-op, so one projection
         // covers both branches.
         {
           $project: {
             priorityRank: 0,
             [ARCHIVED_AT_SORT_FIELD]: 0,
+            sprintDoc: 0,
             blockedByTicket: 0,
             reviewRequestReviewer: 0,
             reviewRequestRequestedBy: 0,
@@ -793,13 +866,6 @@ const createTicket = async (ticketData) => {
     categoryId: ticketData.category,
   });
 
-  const lastTicket = await Ticket.findOne({ workspace: ticketData.workspaceId })
-    .sort('-taskNumber')
-    .select('taskNumber')
-    .lean();
-
-  const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
-
   let statusDoc;
   if (ticketData.statusId) {
     statusDoc = await statusService.resolveStatusForWorkspace(
@@ -852,6 +918,12 @@ const createTicket = async (ticketData) => {
       })
     : null;
 
+  // Claimed last, after everything that can throw: the counter is atomic and
+  // never rewinds, so a number taken before a rejected create is a permanent
+  // gap. Gaps are tolerated (a failed `save()` still burns one) but free to
+  // avoid here.
+  const taskNumber = await nextTaskNumber(ticketData.workspaceId);
+
   const ticket = new Ticket({
     subject: sanitizedSubject,
     description: sanitizeDescriptionHtml(ticketData.description),
@@ -861,7 +933,7 @@ const createTicket = async (ticketData) => {
     storyPoints: ticketData.storyPoints ?? null,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
-    taskNumber: nextTaskNumber,
+    taskNumber,
     category: ticketData.category || null,
     inProgressAt: statusFlags.tracksTime ? new Date() : undefined,
     doneAt: statusFlags.isDone ? new Date() : undefined,
@@ -946,6 +1018,66 @@ const applyValidatedFieldUpdates = async (updateData, oldTicket) => {
       }
     }
   }
+};
+
+// Sprint membership, resolved BEFORE the status transition below because adding
+// a backlog ticket to a sprint is also a status change: it promotes the ticket
+// into the workspace's default main status in the same operation (ADR 0009).
+// Writing the promotion into `updateData.status` here, rather than moving the
+// ticket separately, is what makes the lifecycle side effects, the history line
+// and the socket events happen exactly as they do for any other status change.
+//
+// Removal is deliberately not the inverse: it clears the sprint and leaves the
+// status alone, so a ticket taken out of a sprint stays where it reached on the
+// board. Nothing sends a ticket back to the backlog.
+//
+// Mutates updateData.sprint/status; returns the history line (held, not logged —
+// same reason as the status one below).
+const resolveSprintTransition = async ({ oldTicket, updateData }) => {
+  if (!Object.prototype.hasOwnProperty.call(updateData, 'sprint')) {
+    return { sprintHistoryEntry: null };
+  }
+
+  const currentSprintId = oldTicket.sprint ? oldTicket.sprint.toString() : null;
+  const requestedSprintId = updateData.sprint ? updateData.sprint.toString() : null;
+
+  if (currentSprintId === requestedSprintId) {
+    delete updateData.sprint;
+    return { sprintHistoryEntry: null };
+  }
+
+  if (!requestedSprintId) {
+    updateData.sprint = null;
+    const previous = await Sprint.findById(currentSprintId).select('name').lean();
+    return { sprintHistoryEntry: `Removed from sprint "${previous?.name || 'Unknown'}"` };
+  }
+
+  const sprint = await resolveSprintForWorkspace({
+    workspaceId: oldTicket.workspace,
+    sprintId: requestedSprintId,
+  });
+
+  // Read off the update when the same request also sets the estimate, so
+  // "estimate it and add it" is one call rather than two.
+  const storyPoints = Object.prototype.hasOwnProperty.call(updateData, 'storyPoints')
+    ? updateData.storyPoints
+    : oldTicket.storyPoints;
+  assertTicketMayJoinSprint({ storyPoints });
+
+  updateData.sprint = sprint._id;
+
+  // Unconditional: a backlog ticket joining a sprint is promoted, whatever else
+  // the same request asked for. A status the caller sent alongside the sprint is
+  // overwritten rather than honoured, because "added to a sprint but still in
+  // the backlog" is the one state ADR 0009 exists to make unreachable.
+  const currentStatusDoc = await statusService.getStatusDocFromTicketRef(oldTicket.status);
+  if (currentStatusDoc?.isBacklog) {
+    const mainStatus = await statusService.resolveDefaultStatus(oldTicket.workspace);
+    updateData.status = mainStatus._id;
+    delete updateData.statusId;
+  }
+
+  return { sprintHistoryEntry: `Added to sprint "${sprint.name}"` };
 };
 
 // Mutates updateData.status/statusId and returns what the rest of updateTicket
@@ -1283,6 +1415,11 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
 
     await applyValidatedFieldUpdates(updateData, oldTicket);
 
+    // Before the status transition: adding a backlog ticket to a sprint sets the
+    // status this step then applies, so the promotion is one status change and
+    // not a second write behind the first.
+    const { sprintHistoryEntry } = await resolveSprintTransition({ oldTicket, updateData });
+
     const { statusChanged, nextStatusDoc, statusHistoryEntry } = await resolveStatusTransition({
       oldTicket,
       updateData,
@@ -1322,6 +1459,9 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     // Logged only now, after the ticket is actually persisted — a rejected update
     // that left "Status changed from X to Y" in the history would have the log
     // claiming a move the database never made.
+    if (sprintHistoryEntry) {
+      historyService.logEvent(ticketId, actorUserId, sprintHistoryEntry);
+    }
     if (statusHistoryEntry) {
       historyService.logEvent(ticketId, actorUserId, statusHistoryEntry);
     }
@@ -1356,6 +1496,63 @@ const updateTicket = async (ticketId, updateData, actorUserId) => {
     }
     throw error;
   }
+};
+
+// Planning moves a batch of tickets at once, so the modal saves in ONE request
+// rather than one per ticket — but each ticket still goes through
+// `updateTicket`, because the promotion rule, the history lines and the socket
+// events live there and must not be duplicated here.
+//
+// Everything that can be checked up front is checked before anything is
+// written: that every id is a ticket in this workspace, and that every one of
+// them may join the sprint. A batch is not a transaction, and a half-applied
+// batch caused by the fourth ticket lacking an estimate is exactly the failure
+// worth spending a read to avoid.
+//
+// Sequential, not parallel: the updates share a workspace and each one reads
+// statuses, so a burst of concurrent writes buys nothing over a batch this size.
+// `updateTicket` re-reads the sprint per ticket. That repetition is the price of
+// keeping ONE membership path; the alternative is a second write path here that
+// could drift from it.
+const setSprintMembership = async ({
+  ticketIds = [],
+  sprintId = null,
+  workspaceId,
+  actorUserId,
+}) => {
+  if (!workspaceId) {
+    throw httpError('No workspace associated with this account.', 400);
+  }
+
+  const ids = [...new Set(ticketIds.map(String).filter(Boolean))];
+  if (ids.length === 0) {
+    return [];
+  }
+  if (ids.some((id) => !mongoose.Types.ObjectId.isValid(id))) {
+    throw httpError('Ticket not found', 404);
+  }
+
+  const tickets = await Ticket.find({ _id: { $in: ids }, workspace: workspaceId })
+    .select('_id storyPoints sprint')
+    .lean();
+
+  if (tickets.length !== ids.length) {
+    throw httpError('Ticket not found', 404);
+  }
+
+  if (sprintId) {
+    await resolveSprintForWorkspace({ workspaceId, sprintId });
+    tickets
+      .filter((ticket) => String(ticket.sprint || '') !== String(sprintId))
+      .forEach((ticket) => assertTicketMayJoinSprint(ticket));
+  }
+
+  const updated = [];
+  for (const id of ids) {
+    updated.push(await updateTicket(id, { sprint: sprintId || null }, actorUserId));
+  }
+
+  return updated;
 };
 
 const archiveTicket = async (ticketId, actorUserId) => {
@@ -1723,6 +1920,7 @@ module.exports = {
   createTicket,
   getTicketById,
   updateTicket,
+  setSprintMembership,
   archiveTicket,
   unarchiveTicket,
   getMyTickets,
@@ -1732,4 +1930,5 @@ module.exports = {
   cancelReview,
   INVALID_ASSIGNEE_ERROR,
   INVALID_CATEGORY_ERROR,
+  INVALID_SPRINT_ERROR,
 };

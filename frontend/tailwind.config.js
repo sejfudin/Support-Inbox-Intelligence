@@ -76,6 +76,21 @@ export default {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        // The sidebar's collapsible sections. Separate from `accordion-*` above on
+        // purpose: that pair is the settings pages' accordion, where a snappy 0.2s
+        // on a large panel is right. A nav section is a short stack of 34px rows
+        // right under the pointer, so it gets longer travel, `easeInOutCubic` (the
+        // same curve as `RAIL_EASE` in `AppSidebar.jsx`, so the panel slide and the
+        // section reveal move alike), and an opacity fade — height alone reads as
+        // rows being shoved out of a slot rather than a group opening.
+        'nav-section-down': {
+          from: { height: '0', opacity: '0' },
+          to: { height: 'var(--radix-accordion-content-height)', opacity: '1' },
+        },
+        'nav-section-up': {
+          from: { height: 'var(--radix-accordion-content-height)', opacity: '1' },
+          to: { height: '0', opacity: '0' },
+        },
         // The "you have not seen the tour yet" pulse on the dashboard's what's-new
         // button: a glow breathing in and out.
         //
@@ -99,6 +114,8 @@ export default {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'nav-section-down': 'nav-section-down 280ms cubic-bezier(0.65, 0, 0.35, 1)',
+        'nav-section-up': 'nav-section-up 240ms cubic-bezier(0.65, 0, 0.35, 1)',
         'attention-glow': 'attention-glow 2s ease-in-out infinite',
       },
     },

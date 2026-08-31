@@ -338,6 +338,30 @@
   box-shadow: var(--symphony-card-shadow);
 }
 
+/* The leadership settings page (`pages/fep/LeadershipSettingsPage.jsx`) reuses
+   the shared `app-card` sections and `ChangePasswordPanel` rather than cloning
+   them per surface. Those read the app-wide card tokens, which this surface does
+   not remap, so give them the symphony card's own shape here. `--separator` is
+   set on the card so its row hairlines inherit it. No symphony component of its
+   own uses `.app-card`, so this rule reaches nothing else. */
+[data-surface='symphony'] .app-card {
+  --separator: var(--symphony-border);
+  border-radius: var(--symphony-radius-lg);
+  border: 1px solid hsl(var(--symphony-border));
+  background: hsl(var(--symphony-surface-elevated));
+  color: hsl(var(--symphony-foreground));
+  box-shadow: var(--symphony-card-shadow);
+}
+
+[data-surface='symphony'] .app-card-head {
+  border-bottom-color: hsl(var(--symphony-border));
+  background-image: linear-gradient(
+    180deg,
+    hsl(var(--symphony-surface)),
+    hsl(var(--symphony-surface-elevated))
+  );
+}
+
 /* Same shape as .symphony-card but a shade darker — for cards nested inside an
    elevated container so they read as a distinct inner layer. */
 [data-surface='symphony'] .symphony-card-muted {

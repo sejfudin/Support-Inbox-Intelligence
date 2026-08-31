@@ -2,10 +2,16 @@ import { useMemo } from 'react';
 import { useMyInternProfile, useMyInternReadiness } from '@/queries/interns';
 import { useTechnologies } from '@/queries/technologies';
 import { useLoaderHold } from '@/components/ui/loader';
+import { splitByCategory } from '@/helpers/technologyCategories';
 
 /**
- * The intern's own declared technologies, in catalog order, each joined to the
+ * The intern's own declared skills, in catalog order, each joined to the
  * readiness flag a mentor set on it.
+ *
+ * Returned three ways because the page needs all three: `declaredSkills` is everything
+ * declared (what the readiness bar summarises), and the two halves below it are what the
+ * technologies and AI skills sections list. The catalog is split the same way, one half per
+ * search box.
  *
  * Shared by the declaration list and the readiness summary that sits beside it on
  * `/my-technologies`: both need the same profile → catalog → flags join, and all
@@ -13,11 +19,22 @@ import { useLoaderHold } from '@/components/ui/loader';
  * join and nothing else.
  */
 export function useMyDeclaredTechnologies() {
-  const { data: intern } = useMyInternProfile();
+  const {
+    data: intern,
+    isPending: isProfilePending,
+    isError: isProfileError,
+  } = useMyInternProfile();
   const { data: allTechnologies = [], isPending, isError } = useTechnologies();
   // Held here rather than at each caller: this is the flag both the declaration list and the
   // readiness summary render their loaders off, so gating it once covers every use.
-  const isLoadingTechnologies = useLoaderHold(isPending, { release: isError });
+  //
+  // The profile is folded in because `declaredIds` is read off it: an edit made while the
+  // profile is still pending would see an empty set and save a single-id `selfTechnologies`
+  // over the real list. Both queries are cached under their own keys and fetched together on
+  // this page, so waiting on the pair here rarely adds a visible beat.
+  const isLoadingTechnologies = useLoaderHold(isPending || isProfilePending, {
+    release: isError || isProfileError,
+  });
   const { data: flags = [] } = useMyInternReadiness();
 
   // Set of declared tech IDs — fast lookup for "already declared?"
@@ -39,16 +56,23 @@ export function useMyDeclaredTechnologies() {
     [flags]
   );
 
-  const declaredTechnologies = useMemo(
+  const declaredSkills = useMemo(
     () => allTechnologies.filter((t) => declaredIds.has(t._id)),
     [allTechnologies, declaredIds]
   );
 
+  const catalog = useMemo(() => splitByCategory(allTechnologies), [allTechnologies]);
+  const declared = useMemo(() => splitByCategory(declaredSkills), [declaredSkills]);
+
   return {
     intern,
     allTechnologies,
+    catalogTechnologies: catalog.technologies,
+    catalogAiSkills: catalog.aiSkills,
     declaredIds,
-    declaredTechnologies,
+    declaredSkills,
+    declaredTechnologies: declared.technologies,
+    declaredAiSkills: declared.aiSkills,
     flagMap,
     isLoadingTechnologies,
   };

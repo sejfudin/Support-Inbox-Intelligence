@@ -13,7 +13,7 @@ import ProtectedRoute from '@/routes/ProtectedRoutes';
 import RouteTitle from '@/routes/RouteTitle';
 import { useAuth } from '@/context/AuthContext';
 import { ROLES, isAdmin, isIntern } from '@/helpers/roles';
-import UserDashboard from '@/pages/UserDashboard';
+import MentorDashboardPage from '@/pages/MentorDashboardPage';
 import AdminDashboardPage from '@/pages/AdminDashboardPage';
 import InternDashboardPage from '@/pages/InternDashboardPage';
 import SetupPasswordWrapper from '@/pages/SetupPasswordWrapper';
@@ -40,6 +40,7 @@ import LeadershipCandidatePage from '@/pages/fep/LeadershipCandidatePage';
 import LeadershipProjectsPage from '@/pages/fep/LeadershipProjectsPage';
 import LeadershipProjectPage from '@/pages/fep/LeadershipProjectPage';
 import LeadershipRequestsPage from '@/pages/fep/LeadershipRequestsPage';
+import LeadershipSettingsPage from '@/pages/fep/LeadershipSettingsPage';
 import MentorInternsPage from '@/pages/MentorInternsPage';
 import MentorInternProfilePage from '@/pages/MentorInternProfilePage';
 import MentorRecommendationsPage from '@/pages/MentorRecommendationsPage';
@@ -50,6 +51,7 @@ import MyAttendancePage from '@/pages/MyAttendancePage';
 import AttendanceOverviewPage from '@/pages/AttendanceOverviewPage';
 import AdminAbsenceRequestsPage from '@/pages/AdminAbsenceRequestsPage';
 import WorkspaceDailiesPage from '@/pages/WorkspaceDailiesPage';
+import SprintsPage from '@/pages/SprintsPage';
 import AdminDailyInsightsPage from '@/pages/AdminDailyInsightsPage';
 import AdminStaffingRequestsPage from '@/pages/AdminStaffingRequestsPage';
 
@@ -69,18 +71,19 @@ const WorkspaceGuard = () => {
 
 /**
  * `/dashboard` is role-split three ways: admins get the workspace-scoped admin
- * board, interns get their own board, and mentors keep the assigned-tickets
- * table that used to serve everyone.
+ * board, interns get their own board, and mentors get their own board too —
+ * their assigned interns, ticket work, notes from admin/leadership and quick
+ * actions, all already scoped server-side to the caller.
  *
  * It sits outside `WorkspaceGuard` so an admin with no active workspace ("Global
  * admin mode") gets the board's own explanation instead of being bounced to
  * `/create-workspace`, which is not what an admin without a workspace wants. The
- * intern board is outside it for the same reason: attendance, pipeline and
- * evaluations are programme-level and do not need a workspace, so an intern
- * between workspaces gets an explanation on the board rather than a redirect
- * into workspace creation, which is not theirs to do. Widening WorkspaceGuard
- * itself would let both into /tickets and /dailies without a workspace, which
- * those pages do not handle — hence the repeated check on the mentor branch only.
+ * intern and mentor boards are outside it for the same reason: a mentor between
+ * workspaces still has interns, notes and quick actions to see — only the
+ * ticket-work card and "Assign a ticket" need one, and `MentorDashboardPage`
+ * handles that itself rather than redirecting the whole board away. Widening
+ * `WorkspaceGuard` itself would let all three into /tickets and /dailies without
+ * a workspace, which those pages do not handle — hence no repeated check here.
  */
 const DashboardRoute = () => {
   const { user, loading } = useAuth();
@@ -97,10 +100,7 @@ const DashboardRoute = () => {
   if (isIntern(user?.role)) {
     return <InternDashboardPage />;
   }
-  if (!user?.workspaceId) {
-    return <Navigate to="/create-workspace" replace />;
-  }
-  return <UserDashboard />;
+  return <MentorDashboardPage />;
 };
 
 const HomeRedirect = () => {
@@ -176,6 +176,14 @@ export default function AppRoutes() {
               <Route path="/projects" element={<LeadershipProjectsPage />} />
               <Route path="/projects/:id" element={<LeadershipProjectPage />} />
               <Route path="/requests" element={<LeadershipRequestsPage />} />
+
+              {/* Reached from the account menu in the navbar, not from a nav row —
+                  settings are per-person. Namespaced under `/programme` rather than
+                  sharing the sidebar surface's `/settings`, because the two pages are
+                  not the same page: leadership has no workspace, so it gets the
+                  account-level subset (`LeadershipSettingsPage`). `/settings` itself
+                  redirects a leadership account here. */}
+              <Route path="/programme/settings" element={<LeadershipSettingsPage />} />
             </Route>
           </Route>
 
@@ -193,8 +201,19 @@ export default function AppRoutes() {
             />
 
             {/* Reached from the account menu in the sidebar footer, not from a nav
-              row — settings are per-person, not a place in the workspace. */}
-            <Route path="/settings" element={<SettingsPage />} />
+              row — settings are per-person, not a place in the workspace. This page
+              configures workspace defaults leadership has none of, so they go to
+              their own — same shape as the `/profile` redirect above. */}
+            <Route
+              path="/settings"
+              element={
+                user?.role === ROLES.LEADERSHIP ? (
+                  <Navigate to="/programme/settings" replace />
+                ) : (
+                  <SettingsPage />
+                )
+              }
+            />
 
             <Route path="/invitations" element={<UserInvitationsPage />} />
 
@@ -240,6 +259,7 @@ export default function AppRoutes() {
                 `/tickets?assignee=me` — the same table everyone else uses with the
                 assignee filter pre-applied, rather than a second list page to keep
                 in sync. */}
+              <Route path="/sprints" element={<SprintsPage />} />
               <Route path="/tickets" element={<TicketPage />} />
               <Route path="/archive" element={<ArchivePage />} />
               <Route path="/analytics" element={<AnalyticsDashboard />} />

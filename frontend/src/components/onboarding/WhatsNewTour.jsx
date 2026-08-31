@@ -9,6 +9,12 @@ import { isIntern } from '@/helpers/roles';
 import { resolveUserId } from '@/helpers/userIdentity';
 import { THEMES } from '@/lib/themes';
 import { cn } from '@/lib/utils';
+import { readStoredPreference } from '@/hooks/useStoredPreference';
+import {
+  DEFAULT_ONBOARDING_ENABLED,
+  ONBOARDING_ENABLED_STORAGE_KEY,
+  isValidOnboardingEnabled,
+} from '@/helpers/onboardingTour';
 import {
   TOUR_ENABLED,
   TOUR_REPLAY_EVENT,
@@ -182,15 +188,15 @@ const placeCard = (rect, card, preferred) => {
  * - **Two ways in**: it opens itself once on the first load after a `TOUR_VERSION`
  *   bump, and the pulsing button in the sidebar footer reopens it any time. See
  *   `whatsNewSteps.js`.
- * - **No Skip control.** There used to be one, and it made the tour opt-out on step
- *   one — which for a release nobody has been told about is the same as not shipping
- *   the announcement. The walkthrough is short enough to finish (9–15 steps by role,
- *   fewer for a viewer a `needsWorkspace` or `needsAttendance` step does not apply
- *   to), the counter says how much is left, and Back covers moving too fast. Escape
- *   still ends it, deliberately unadvertised: it keeps this from being a trap for
- *   someone who cannot deal with it right now, without offering the bail-out as the
- *   obvious first move. Escaping counts as seen, exactly as Skip did, so nobody is
- *   interrupted twice.
+ * - **Skip, Escape, and a standing opt-out.** A visible Skip button and Escape both
+ *   end the tour early and count it as seen, same as finishing it — so nobody is
+ *   interrupted twice by a release they already walked away from. Settings →
+ *   Notifications also carries a standing "Onboarding tour" switch
+ *   (`ONBOARDING_ENABLED_STORAGE_KEY` in `whatsNewSteps.js`): turning it off stops
+ *   the *automatic* open on future releases without touching Skip, Escape or the
+ *   sidebar's replay button, any of which can still open the tour on request. Read
+ *   with a plain `readStoredPreference` call inside the auto-open effect below
+ *   rather than through a reactive hook — see the comment on that effect.
  * - **No step is ever skipped for not having rendered yet.** The step count is
  *   exactly the number of entries in the script that apply to the viewer — so admin
  *   and intern legitimately see different totals, but neither ever loses a step they
@@ -331,9 +337,23 @@ export function WhatsNewTour() {
   // Without that, a returning viewer would be re-interrupted on every single login.
   // With `TOUR_ENABLED` off there is no auto-open and no replay, so the tour stays
   // `dismissed`, `step` is null, and this component renders nothing.
+  // `onboardingEnabled` is read fresh from storage here rather than through the
+  // reactive `useStoredPreference` hook, and deliberately left out of the
+  // dependency array, for two reasons: `useStoredPreference` answers with the
+  // default for one render before its own effect corrects it, which raced this
+  // effect on a mount where every other gate was already satisfied; and making
+  // it a dependency would re-run this effect — and pop the tour open on whatever
+  // page the reader is standing on — the instant they flip the Settings switch
+  // back on, which only means "allow the *next* automatic open," not "open now."
   useEffect(() => {
     if (!TOUR_ENABLED) return;
     if (autoOpenedRef.current || seen || !user || loading || steps.length === 0) return;
+    const onboardingEnabled = readStoredPreference(
+      ONBOARDING_ENABLED_STORAGE_KEY,
+      DEFAULT_ONBOARDING_ENABLED,
+      isValidOnboardingEnabled
+    );
+    if (onboardingEnabled !== 'on') return;
     autoOpenedRef.current = true;
     setIndex(0);
     setDismissed(false);
@@ -628,6 +648,17 @@ export function WhatsNewTour() {
             >
               <ArrowLeft className="h-4 w-4" />
               Back
+            </button>
+          )}
+
+          {!isLast && (
+            <button
+              type="button"
+              onClick={finish}
+              data-test="whats-new-skip"
+              className="ml-auto inline-flex items-center gap-1.5 rounded-[var(--r-card)] px-3 py-2.5 text-sm font-semibold text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/40"
+            >
+              Skip
             </button>
           )}
         </div>

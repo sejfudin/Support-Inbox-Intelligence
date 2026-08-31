@@ -49,7 +49,11 @@ const assessment = (flag) => ({
  * declared technology nobody has looked at yet still needs its "Not assessed"
  * row.
  *
- * @param {Array<{ _id: any, name: string, slug?: string }>} declaredTechnologies
+ * `category` rides along so the intern's view can list AI skills under their own
+ * heading. It is display grouping only — the join, the levels and the order are the
+ * same for both halves.
+ *
+ * @param {Array<{ _id: any, name: string, slug?: string, category?: string }>} declaredTechnologies
  * @param {Array<{ technology?: any, level?: string, setBy?: object }>} flags
  */
 const buildTechnologyReadiness = (declaredTechnologies = [], flags = []) => {
@@ -64,6 +68,8 @@ const buildTechnologyReadiness = (declaredTechnologies = [], flags = []) => {
       id: refId(technology),
       name: technology?.name || '',
       slug: technology?.slug || '',
+      // Rows seeded before the field existed have none — read as general, never as ''.
+      category: technology?.category || 'general',
       ...assessment(byTechnology.get(refId(technology))),
     }))
     .sort((a, b) => {

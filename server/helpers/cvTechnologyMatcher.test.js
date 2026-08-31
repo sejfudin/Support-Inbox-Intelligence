@@ -293,6 +293,22 @@ describe('everyday words from the four newly covered tracks', () => {
 // implicit, because the catalog header warns that one CV line matching two technologies is
 // normally a bug — these are the cases where it is not.
 describe('deliberate overlaps', () => {
+  // "OpenAI Codex" carries the word "OpenAI", which is also how CVs spell the API. Both are
+  // OpenAI products and an engineer running Codex is working against that platform, so the
+  // second hit is a fair declaration rather than a leak — and dropping the bare "openai"
+  // alias to avoid it would lose every CV that lists the API by that name alone.
+  it('reads OpenAI Codex as both Codex and the OpenAI API', () => {
+    expect(slugsIn('AI: OpenAI Codex')).toEqual(
+      expect.arrayContaining(['openai-codex', 'openai-api'])
+    );
+  });
+
+  it('reads Copilot agent mode as both agent mode and GitHub Copilot', () => {
+    expect(slugsIn('AI: Copilot agent mode')).toEqual(
+      expect.arrayContaining(['github-copilot-agent-mode', 'github-copilot'])
+    );
+  });
+
   it('reads Kali Linux as both Kali Linux and Linux', () => {
     expect(slugsIn('Security: Kali Linux, Nmap')).toEqual(
       expect.arrayContaining(['kali-linux', 'linux'])
@@ -401,6 +417,51 @@ describe('spelling variants', () => {
     expect(slugsIn(text)).toEqual(
       expect.arrayContaining(['react-native', 'tailwind-css', 'next-js'])
     );
+  });
+});
+
+// The AI skills half of the catalog. Its product names are the youngest in the file and the
+// most collision-prone — five of them are ordinary English words — so the two directions are
+// asserted separately: the tools are found where a CV lists them, and the words are not
+// mistaken for tools in prose.
+describe('AI skills', () => {
+  it('recognizes the coding agents and assistant IDEs from a tools line', () => {
+    expect(slugsIn('Tools: Claude Code, Cursor, GitHub Copilot, Windsurf, Gemini CLI')).toEqual(
+      expect.arrayContaining(['claude-code', 'cursor', 'github-copilot', 'windsurf', 'gemini-cli'])
+    );
+  });
+
+  it('recognizes the LLM APIs, SDKs and agent plumbing', () => {
+    expect(
+      slugsIn('Built agents on the Anthropic Claude API and the Claude Agent SDK, with MCP tools')
+    ).toEqual(expect.arrayContaining(['anthropic-claude-api', 'claude-agent-sdk', 'mcp']));
+  });
+
+  it('reads Windsurf out of its retired Codeium name', () => {
+    expect(slugsIn('Editors: Codeium')).toEqual(['windsurf']);
+  });
+
+  // Each of these is the everyday reading of a word that is also an AI product. A CV that
+  // says any of them means the word, and declaring the tool off it would be a silent wrong
+  // declaration on the intern's profile.
+  it('does not read the ambiguous product names out of ordinary prose', () => {
+    expect(
+      slugsIn('Shipped v0.9 after moving the cursor handling into a database cursor.')
+    ).toEqual([]);
+    expect(slugsIn('Devin mentored me, and the team was lovable.')).toEqual([]);
+    expect(slugsIn('MCP (Microsoft Certified Professional), 2014')).toEqual([]);
+  });
+
+  it('still reads those names when a skills list gives them the shape', () => {
+    expect(slugsIn('AI tools: Cursor, Devin, Lovable, v0, Aider')).toEqual(
+      expect.arrayContaining(['cursor', 'devin', 'lovable', 'v0', 'aider'])
+    );
+  });
+
+  it('reads the qualified spellings anywhere, not only in a list', () => {
+    expect(
+      slugsIn('Prototyped the marketing site in v0.dev and refined it in Cursor IDE.')
+    ).toEqual(expect.arrayContaining(['v0', 'cursor']));
   });
 });
 

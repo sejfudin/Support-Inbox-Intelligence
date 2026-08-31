@@ -160,7 +160,13 @@ const normalizeBlockers = async (blockers, workspaceId) => {
   const normalized = [];
   for (const blocker of blockers) {
     const text = String(blocker?.text ?? '').trim();
-    if (!text) continue;
+    // Rejected, not skipped. Skipping is what made a blocker submitted without
+    // text vanish silently — the entry saved, the caller was told it worked, and
+    // nothing rendered. A linked ticket does not excuse missing text: the text
+    // is the blocker, and it is all the intern dashboard and the AI summary get.
+    if (!text) {
+      throw new DailyValidationError('A blocker needs a description.');
+    }
 
     let linkedTicket = null;
     if (blocker?.linkedTicket) {

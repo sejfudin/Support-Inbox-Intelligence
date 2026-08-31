@@ -40,10 +40,28 @@ const USER_PREFERENCE_DEFINITIONS = {
   contrast: { values: ['default', 'high'], default: 'default' },
   colorblind: { values: ['off', 'redgreen', 'blueyellow', 'grayscale'], default: 'off' },
   motion: { values: ['full', 'reduced'], default: 'full' },
-  landingPage: { values: ['dashboard', 'tickets', 'board', 'dailies'], default: 'dashboard' },
+  // How the sidebar groups its nav rows: `labelled` (the default) is the plain
+  // captioned list this app shipped with, `collapsible` gives every group a header
+  // that opens and closes. Mirrors `NAV_STYLE_OPTIONS` in
+  // `frontend/src/helpers/uiPreferences.js`.
+  //
+  // Note the division of labour with the sidebar's *other* piece of state: which
+  // groups you have collapsed is per-device and lives only in `localStorage`
+  // (`nav-sections-closed`), because it is a function of screen height. Whether you
+  // want collapsing at all is taste, so it follows the account and is stored here.
+  navStyle: { values: ['collapsible', 'labelled'], default: 'labelled' },
+  landingPage: {
+    values: ['dashboard', 'sprints', 'tickets', 'board', 'dailies'],
+    default: 'dashboard',
+  },
   ticketsView: { values: ['list', 'board'], default: 'list' },
   assigneeDefault: { values: ['everyone', 'me'], default: 'everyone' },
   boardSort: { values: ['priority', 'points', 'due', 'newest'], default: 'priority' },
+  // Whether the what's-new tour is allowed to open on its own on a new release.
+  // Off does not touch `whatsNewSeenVersion` — it is a standing opt-out, not a
+  // marker that today's tour was read. Mirrors `ONBOARDING_ENABLED_STORAGE_KEY`
+  // in `frontend/src/components/onboarding/whatsNewSteps.js`.
+  onboardingTourEnabled: { values: ['on', 'off'], default: 'on' },
 };
 
 /**

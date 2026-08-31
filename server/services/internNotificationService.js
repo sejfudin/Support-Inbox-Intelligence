@@ -16,15 +16,17 @@ const { isTombstoneUser } = require('../repository/tombstoneUser');
  * separate module because the recipient shape and event set are unrelated:
  * these never carry a `ticket`/`workspace`.
  *
- * Two recipient axes share this module and its dispatch/tryWarm/safe
+ * Three recipient axes share this module and its dispatch/tryWarm/safe
  * machinery: most functions notify **the intern** about a change to their own
  * record (recommendations, evaluations, readiness, specialization, lifecycle
  * status, the 10:30 daily/attendance reminder); a couple notify **staff**
  * (admin/mentor/leadership) about an intern-programme event that isn't the
  * intern's to see — a mentor note they were tagged on, a leadership staffing
- * request. Every function still carries `internProfile` when the event is
+ * request; and one (`notifyMentorNoteFromStaff`) is **staff-to-staff**, not
+ * about any intern at all — admin/leadership sending a note directly to a
+ * mentor. Every function still carries `internProfile` when the event is
  * about one specific intern, `null` when it isn't (e.g. a project-level
- * staffing request).
+ * staffing request, or the staff-to-staff note).
  *
  * Every exported function is safe to call **without `await`** (fire-and-
  * forget) from a mutation service — it never throws and never rejects, so an
@@ -609,6 +611,28 @@ const notifyMentorNoteMention = safe(
   }
 );
 
+/**
+ * Staff-to-staff: admin or leadership sending a note directly to a mentor —
+ * not about any intern (`internProfileId` is always null). Delivers the
+ * sender's own words verbatim: unlike every other notifier here, this one
+ * skips `promptBuilder` on purpose, since the point is passing on what they
+ * actually wrote, not an AI paraphrase of it. Exported un-wrapped (not
+ * `safe`) because sending the notification *is* the action here, not a side
+ * effect of some other write — a swallowed failure would report success to
+ * the sender while the mentor never sees anything.
+ */
+const notifyMentorNoteFromStaff = async ({ recipientUserId, authorName, body }) =>
+  dispatch({
+    internUserId: recipientUserId,
+    internProfileId: null,
+    type: 'mentor_note_from_staff',
+    link: '/dashboard',
+    fallback: {
+      title: `${authorName} sent you a note`,
+      body,
+    },
+  });
+
 module.exports = {
   notifyRecommendationCreated,
   notifyRecommendationStatusChanged,
@@ -629,4 +653,5 @@ module.exports = {
   notifyAbsenceRequestPending,
   notifyAbsenceRequestDecided,
   notifyPrimaryMentorTransferred,
+  notifyMentorNoteFromStaff,
 };

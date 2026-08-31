@@ -375,7 +375,9 @@ export function InternRecommendationsPanel({ userId, readOnly = false }) {
           const targetProject =
             projects.find((project) => project._id === form.projectId)?.name || 'this project';
           const existingProjectNames = [
-            ...new Set(conflicts.map((recommendation) => recommendationProjectLabel(recommendation))),
+            ...new Set(
+              conflicts.map((recommendation) => recommendationProjectLabel(recommendation))
+            ),
           ];
           setDuplicateWarn({ payload, existingProjectNames, targetProjectName: targetProject });
           return;

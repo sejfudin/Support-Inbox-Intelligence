@@ -211,6 +211,37 @@ export const buildTicketStatusHelpers = (statuses = []) => {
 
   const resolveStatusFromColumnId = (columnId) => columnToStatusId[columnId] ?? null;
 
+  /**
+   * The destination column's status as a *populated* status object, shaped like the
+   * one the list endpoints send (`STATUS_POPULATE_SELECT` in
+   * `server/services/ticketService.js`).
+   *
+   * This exists for the optimistic board move, which has to write a ticket's new
+   * status into the column caches before the server answers. Writing the bare id
+   * string there silently sends the card to the wrong column:
+   * `extractStatusSlug` returns `''` for an ObjectId string, and
+   * `resolveBoardColumnId` then falls through to `firstColumnId`. So the shape has
+   * to match, not just the id.
+   *
+   * `sortOrder` is part of the server's projection but is deliberately absent
+   * here — it is not in `mapStatusOption` and nothing on the client reads it off a
+   * ticket's status. The refetch that follows the move restores it.
+   */
+  const resolveStatusDocFromColumnId = (columnId) => {
+    const option = allStatusOptions.find((o) => o.columnId === String(columnId));
+    if (!option) return null;
+
+    return {
+      _id: option.value,
+      slug: option.slug,
+      label: option.label,
+      color: option.color,
+      isBacklog: option.isBacklog,
+      tracksTime: option.tracksTime,
+      isDone: option.isDone,
+    };
+  };
+
   const resolveSlugFromStatusId = (statusId) => {
     const match = allStatusOptions.find((o) => o.value === String(statusId));
     return match?.slug ?? '';
@@ -255,6 +286,7 @@ export const buildTicketStatusHelpers = (statuses = []) => {
     resolveBoardColumnId,
     columnToStatusId,
     resolveStatusFromColumnId,
+    resolveStatusDocFromColumnId,
     resolveSlugFromStatusId,
     resolveStatusLabel: (statusRef) => resolveStatusLabel(statusRef, statuses),
     getDetailStatusOptions: (currentStatusId) =>

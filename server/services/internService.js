@@ -55,7 +55,7 @@ const PROFILE_POPULATE = [
     select: userSelect('role', 'hub'),
     populate: { path: 'hub', select: 'name' },
   },
-  { path: 'selfTechnologies', select: 'name slug' },
+  { path: 'selfTechnologies', select: 'name slug category' },
   { path: 'declaredPosition', select: 'name slug' },
   { path: 'secondaryPosition', select: 'name slug' },
 ];

@@ -47,6 +47,9 @@ const notificationSchema = new mongoose.Schema(
         'intern_request_from_leadership',
         'absence_request_pending',
         'primary_mentor_transferred',
+        // Staff-to-staff — not about any intern. Admin/leadership sending a note
+        // directly to a mentor.
+        'mentor_note_from_staff',
       ],
       required: true,
     },
