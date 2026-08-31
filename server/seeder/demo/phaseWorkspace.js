@@ -14,6 +14,7 @@ const History = require('../../models/History');
 const Notification = require('../../models/Notification');
 const Daily = require('../../models/Daily');
 const { slugify } = require('../../helpers/slugify');
+const { syncTaskNumberCounter } = require('../../services/ticketNumberService');
 const { stableId } = require('./clock');
 
 const createProjects = async (ctx) => {
@@ -35,9 +36,10 @@ const createProjects = async (ctx) => {
 const createTickets = async (ctx) => {
   const { data, clock } = ctx;
 
-  // Ticket.taskNumber is `immutable` with no auto-increment hook — the service
-  // computes max+1 per workspace. The wipe leaves the collection empty, so a
-  // simple per-workspace counter is enough.
+  // Ticket.taskNumber is `immutable` with no auto-increment hook — the create
+  // service claims it from a per-workspace `Counter` document. The wipe leaves
+  // both collections empty, so a simple in-memory counter is enough here; the
+  // `Counter` docs are set from these numbers once the loop is done.
   const taskNumbers = new Map();
   const nextTaskNumber = (workspaceKey) => {
     const next = (taskNumbers.get(workspaceKey) || 0) + 1;
@@ -122,6 +124,13 @@ const createTickets = async (ctx) => {
 
   await Comment.insertMany(commentDocs);
   await History.insertMany(historyDocs);
+
+  // Hand the sequence over to the `Counter` documents the create service reads.
+  // Skip this and the first ticket created in the app reuses a seeded number.
+  for (const workspaceKey of taskNumbers.keys()) {
+    await syncTaskNumberCounter(ctx.workspaces.get(workspaceKey)._id);
+  }
+
   ctx.counts.tickets = data.tickets.length;
   ctx.counts.comments = commentDocs.length;
   ctx.counts.history = historyDocs.length;
