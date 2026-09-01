@@ -14,6 +14,20 @@
   nobody has to upload anything
 - Nobody can set or remove **someone else's** picture, admins included. There is no need for it —
   unlike a forgotten password, nobody is ever locked out of a photo
+- Anyone who works on tickets in a workspace (admin, mentor, intern — not leadership, who have no
+  ticket workflow) gets two things on the board that need no permission of their own, because they
+  are the same actions everyone could already do one ticket at a time:
+  - **A new ticket is saved as you type it.** Close the modal, or the tab, and the next time you
+    open New ticket in that workspace it comes back exactly as you left it — the header says when
+    it was last saved, and **Discard draft** throws it away. One draft per workspace, kept on your
+    account rather than the browser, and cleared the moment the ticket is created
+  - **Tickets can be worked in bulk, on the board and in the list.** On the board, the tick-list
+    icon in a column header turns on selection and you pick cards within that column; in the list
+    view the same icon sits above the table and turns on a checkbox on every row (plus one in the
+    header for the whole page) — until you press it, the rows look as they always did. Either way:
+    **Move to** another status or **Archive** the lot in one go. Archiving asks first; moving does
+    not, since a wrong move is just one more move back. The list selection covers the page you are
+    on, so it clears when you page, filter or search
 - One exception worth knowing: **leadership has no profile page yet** (they land on the programme
   dashboard), so they can be shown a picture but cannot upload one until they get that page. The
   same gap already applies to changing their password

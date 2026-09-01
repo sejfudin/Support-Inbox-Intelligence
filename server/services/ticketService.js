@@ -1555,6 +1555,96 @@ const setSprintMembership = async ({
   return updated;
 };
 
+// A board column's selection is moved, or archived, in ONE request rather than
+// one per card. The batch is capped: the loops below are sequential (see
+// `setSprintMembership` for why), and a selection this large is a person having
+// scrolled a very long column rather than a case worth optimising for.
+const MAX_BULK_TICKETS = 200;
+const BULK_LIMIT_ERROR = `Select at most ${MAX_BULK_TICKETS} tickets at a time`;
+
+// Shared front half of both bulk operations: the ids are real, distinct, and all
+// in the caller's workspace — checked before anything is written. A batch is not
+// a transaction, so a half-applied move caused by the fortieth id belonging to
+// another workspace is exactly the failure worth spending one read to avoid.
+const resolveBulkTickets = async ({ ticketIds, workspaceId }) => {
+  if (!workspaceId) {
+    throw httpError('No workspace associated with this account.', 400);
+  }
+
+  const ids = [...new Set((ticketIds || []).map(String).filter(Boolean))];
+  if (ids.length === 0) {
+    return [];
+  }
+  if (ids.length > MAX_BULK_TICKETS) {
+    throw httpError(BULK_LIMIT_ERROR, 400);
+  }
+  if (ids.some((id) => !mongoose.Types.ObjectId.isValid(id))) {
+    throw httpError('Ticket not found', 404);
+  }
+
+  const tickets = await Ticket.find({ _id: { $in: ids }, workspace: workspaceId })
+    .select('_id status isArchived')
+    .lean();
+
+  if (tickets.length !== ids.length) {
+    throw httpError('Ticket not found', 404);
+  }
+
+  return tickets;
+};
+
+// Every ticket still goes through `updateTicket`, which is where the status
+// transition rules, the time-in-status bookkeeping, the history lines and the
+// socket events live. Duplicating any of that here is how a bulk move starts
+// behaving differently from a drag of the same card.
+const bulkUpdateTicketStatus = async ({ ticketIds = [], statusId, workspaceId, actorUserId }) => {
+  const tickets = await resolveBulkTickets({ ticketIds, workspaceId });
+  if (tickets.length === 0) {
+    return [];
+  }
+
+  if (!statusId) {
+    throw httpError('A destination status is required', 400);
+  }
+
+  const statusDoc = await statusService.resolveStatusForWorkspace(workspaceId, statusId);
+
+  // The same rule a single move enforces, asserted once up front rather than
+  // discovered on the first ticket: nothing is ever sent back to the backlog.
+  // The board never offers it either — backlog is not a column.
+  if (statusDoc.isBacklog) {
+    throw httpError('Tickets cannot be moved back to the backlog.', 400);
+  }
+
+  // Archived tickets are not on the board and a column selection can never
+  // legitimately include one, so a batch that carries an archived id (a crafted
+  // request, or a stale client) skips it rather than restatusing it and emitting
+  // board events for a card nobody can see. Tickets already sitting in the
+  // destination are dropped for the same "don't rewrite what did not move"
+  // reason — a select-all over a column always includes them.
+  const movable = tickets.filter(
+    (ticket) => !ticket.isArchived && !statusService.statusIdsMatch(ticket.status, statusDoc._id)
+  );
+
+  const updated = [];
+  for (const ticket of movable) {
+    updated.push(await updateTicket(ticket._id, { statusId: String(statusDoc._id) }, actorUserId));
+  }
+
+  return updated;
+};
+
+const bulkArchiveTickets = async ({ ticketIds = [], workspaceId, actorUserId }) => {
+  const tickets = await resolveBulkTickets({ ticketIds, workspaceId });
+
+  const updated = [];
+  for (const ticket of tickets.filter((candidate) => !candidate.isArchived)) {
+    updated.push(await archiveTicket(ticket._id, actorUserId));
+  }
+
+  return updated;
+};
+
 const archiveTicket = async (ticketId, actorUserId) => {
   const existing = await Ticket.findById(ticketId).select('reviewRequest');
   if (!existing) {
@@ -1921,6 +2011,8 @@ module.exports = {
   getTicketById,
   updateTicket,
   setSprintMembership,
+  bulkUpdateTicketStatus,
+  bulkArchiveTickets,
   archiveTicket,
   unarchiveTicket,
   getMyTickets,
@@ -1931,4 +2023,6 @@ module.exports = {
   INVALID_ASSIGNEE_ERROR,
   INVALID_CATEGORY_ERROR,
   INVALID_SPRINT_ERROR,
+  MAX_BULK_TICKETS,
+  BULK_LIMIT_ERROR,
 };
