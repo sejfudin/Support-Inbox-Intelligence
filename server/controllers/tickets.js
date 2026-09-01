@@ -373,10 +373,12 @@ const bulkUpdateTicketStatus = async (req, res, next) => {
     res.status(200).json({ success: true, message: 'Tickets moved', data: tickets });
   } catch (error) {
     // `updateTicket`'s own rules travel as plain errors, so the ones a caller can
-    // act on are mapped here the same way the single-ticket PATCH maps them.
+    // act on are mapped here the same way the single-ticket PATCH maps them —
+    // including the slug-shaped `Status "<x>" is not valid for this workspace`,
+    // which the exact-match line alone would miss and answer as a 500.
     if (
       error.message === 'Tickets cannot be moved back to the backlog.' ||
-      error.message === 'Status is not valid for this workspace' ||
+      error.message?.includes('is not valid for this workspace') ||
       error.message === 'Invalid status' ||
       error.name === 'StatusValidationError'
     ) {

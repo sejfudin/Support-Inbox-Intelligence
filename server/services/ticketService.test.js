@@ -339,6 +339,25 @@ describe('bulk column actions', () => {
     expect(Ticket.findByIdAndUpdate).toHaveBeenCalledTimes(1);
   });
 
+  it('skips archived tickets — they are not on the board to move', async () => {
+    Ticket.find.mockReturnValue(
+      lean([
+        { _id: TICKET_ID, status: MAIN_STATUS_ID, isArchived: true },
+        { _id: OTHER_TICKET_ID, status: MAIN_STATUS_ID, isArchived: false },
+      ])
+    );
+
+    const result = await bulkUpdateTicketStatus({
+      ticketIds: [TICKET_ID, OTHER_TICKET_ID],
+      statusId: IN_PROGRESS_STATUS_ID,
+      workspaceId: WORKSPACE,
+      actorUserId: ACTOR,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(Ticket.findByIdAndUpdate).toHaveBeenCalledTimes(1);
+  });
+
   it('writes nothing when one id is not a ticket of this workspace', async () => {
     Ticket.find.mockReturnValue(lean([{ _id: TICKET_ID, status: MAIN_STATUS_ID }]));
 

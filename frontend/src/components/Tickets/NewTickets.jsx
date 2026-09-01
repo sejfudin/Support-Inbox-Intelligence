@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useCreateTicket } from '@/queries/tickets';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import {
@@ -85,8 +85,11 @@ const NewTickets = ({
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
+  const [draftJustRestored, setDraftJustRestored] = useState(false);
   const [descriptionEditorKey, setDescriptionEditorKey] = useState(0);
   const appliedTemplateHtmlRef = useRef('');
+
+  const statusValues = useMemo(() => statusOptions.map((option) => option.value), [statusOptions]);
 
   // The draft: restored into the form when the modal opens, written back as it
   // is typed in, and thrown away once the ticket it was a draft of exists. The
@@ -94,10 +97,31 @@ const NewTickets = ({
   // it — the same key bump a category template does below.
   const handleDraftRestore = useCallback(
     (restoredForm) => {
-      setForm(restoredForm);
+      // One draft is shared across every New-ticket surface, so a draft started
+      // on the Backlog page can carry a backlog status id into the board modal,
+      // which has no such column. Fall back to the surface's own initial status
+      // when the stored one is not one this picker can show.
+      const restoredStatus =
+        !hideStatus && statusValues.length && !statusValues.includes(restoredForm.status)
+          ? resolvedInitialStatus
+          : restoredForm.status;
+
+      setForm({ ...restoredForm, status: restoredStatus });
       setDescriptionEditorKey((key) => key + 1);
+
+      // The restored priority and points are choices the user already made in a
+      // previous session; treat them as user-locked so the metadata
+      // auto-suggestion cannot quietly overwrite them when the modal reopens
+      // with enough text to fire.
+      if (restoredForm.priority && restoredForm.priority !== 'medium') {
+        setPriorityLockedByUser(true);
+      }
+      if (restoredForm.storyPoints != null) {
+        setStoryPointsLockedByUser(true);
+      }
+      setDraftJustRestored(true);
     },
-    [setForm]
+    [setForm, hideStatus, statusValues, resolvedInitialStatus]
   );
 
   const {
@@ -151,11 +175,16 @@ const NewTickets = ({
     storyPointsLockedByUser,
     updateField,
     isPaused: shouldPauseMetadataSuggestion,
+    // A restored draft arrives with its subject and description already long
+    // enough to trigger the first auto-suggestion; skip that one pass so it
+    // cannot rewrite fields the user set last session.
+    skipInitialAutoSuggestion: draftJustRestored,
   });
 
   const resetSuggestionState = () => {
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
+    setDraftJustRestored(false);
     appliedTemplateHtmlRef.current = '';
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();

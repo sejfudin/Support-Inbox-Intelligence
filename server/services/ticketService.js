@@ -1616,11 +1616,14 @@ const bulkUpdateTicketStatus = async ({ ticketIds = [], statusId, workspaceId, a
     throw httpError('Tickets cannot be moved back to the backlog.', 400);
   }
 
-  // Tickets already sitting in the destination are dropped rather than rewritten:
-  // "moved" history on a ticket that did not move is noise, and a select-all over
-  // a column always includes them.
+  // Archived tickets are not on the board and a column selection can never
+  // legitimately include one, so a batch that carries an archived id (a crafted
+  // request, or a stale client) skips it rather than restatusing it and emitting
+  // board events for a card nobody can see. Tickets already sitting in the
+  // destination are dropped for the same "don't rewrite what did not move"
+  // reason — a select-all over a column always includes them.
   const movable = tickets.filter(
-    (ticket) => !statusService.statusIdsMatch(ticket.status, statusDoc._id)
+    (ticket) => !ticket.isArchived && !statusService.statusIdsMatch(ticket.status, statusDoc._id)
   );
 
   const updated = [];

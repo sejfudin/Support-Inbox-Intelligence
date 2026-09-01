@@ -16,6 +16,14 @@ const BLOCKER_POPULATE = {
   populate: { path: 'status', select: 'slug label color isDone' },
 };
 
+const sameRef = (a, b) => String(a ?? '') === String(b ?? '');
+
+const sameIdSet = (a = [], b = []) => {
+  if (a.length !== b.length) return false;
+  const setB = new Set(b.map(String));
+  return a.every((id) => setB.has(String(id)));
+};
+
 /**
  * Every reference in a draft, reduced to the ones that actually belong to this
  * workspace. Anything else becomes `null` (or drops out of `assignedTo`).
@@ -31,39 +39,85 @@ const BLOCKER_POPULATE = {
  *   an assignee whose membership was just revoked, would otherwise turn every
  *   subsequent keystroke into a 400 and silently stop saving what is being typed.
  *   Losing the chip is recoverable; losing the paragraph is not.
+ *
+ * `previous` is the draft as it is currently stored. A ref that is byte-identical
+ * to the stored one was already validated against this same workspace on its own
+ * write, and a status/category/ticket cannot move between workspaces — so it is
+ * kept without another round trip. That collapses the common autosave (typing the
+ * description, refs untouched) from up to four extra reads to none. A ref deleted
+ * mid-session survives in the draft until the next open or the create attempt,
+ * both of which re-check from scratch (`getDraft` passes no `previous`).
  */
-const scopeDraftRefsToWorkspace = async (draft, workspaceId) => {
+const scopeDraftRefsToWorkspace = async (draft, workspaceId, previous = null) => {
+  const statusUnchanged = Boolean(previous) && sameRef(previous.status, draft.status);
+  const categoryUnchanged = Boolean(previous) && sameRef(previous.category, draft.category);
+  const blockerUnchanged =
+    Boolean(previous) && sameRef(previous.blockedBy?.ticket, draft.blockedBy.ticket);
+  const assigneesUnchanged =
+    Boolean(previous) && sameIdSet(previous.assignedTo || [], draft.assignedTo);
+
   const [status, category, blockingTicket, workspace] = await Promise.all([
-    draft.status
+    draft.status && !statusUnchanged
       ? TicketStatus.findOne({ _id: draft.status, workspace: workspaceId }).select('_id').lean()
       : null,
-    draft.category
+    draft.category && !categoryUnchanged
       ? Category.findOne({ _id: draft.category, workspace: workspaceId }).select('_id').lean()
       : null,
-    draft.blockedBy.ticket
+    draft.blockedBy.ticket && !blockerUnchanged
       ? Ticket.findOne({ _id: draft.blockedBy.ticket, workspace: workspaceId }).select('_id').lean()
       : null,
-    draft.assignedTo.length > 0
+    draft.assignedTo.length > 0 && !assigneesUnchanged
       ? Workspace.findById(workspaceId).select('members.user members.status').lean()
       : null,
   ]);
 
-  const activeMemberIds = new Set(
-    (workspace?.members || [])
-      .filter((member) => member.status === 'active' && member.user)
-      .map((member) => String(member.user))
-  );
+  const keepStatus = Boolean(draft.status) && (statusUnchanged || Boolean(status));
+  const keepCategory = Boolean(draft.category) && (categoryUnchanged || Boolean(category));
+  const keepBlocker =
+    Boolean(draft.blockedBy.ticket) && (blockerUnchanged || Boolean(blockingTicket));
+
+  let assignedTo;
+  if (draft.assignedTo.length === 0) {
+    assignedTo = [];
+  } else if (assigneesUnchanged) {
+    assignedTo = draft.assignedTo;
+  } else {
+    const activeMemberIds = new Set(
+      (workspace?.members || [])
+        .filter((member) => member.status === 'active' && member.user)
+        .map((member) => String(member.user))
+    );
+    assignedTo = draft.assignedTo.filter((userId) => activeMemberIds.has(String(userId)));
+  }
 
   return {
     ...draft,
-    status: status ? draft.status : null,
-    category: category ? draft.category : null,
-    assignedTo: draft.assignedTo.filter((userId) => activeMemberIds.has(userId)),
+    status: keepStatus ? draft.status : null,
+    category: keepCategory ? draft.category : null,
+    assignedTo,
     blockedBy: {
-      ticket: blockingTicket ? draft.blockedBy.ticket : null,
+      ticket: keepBlocker ? draft.blockedBy.ticket : null,
       note: draft.blockedBy.note,
     },
   };
+};
+
+const DRAFT_UPSERT_OPTS = { new: true, upsert: true, setDefaultsOnInsert: true };
+
+// Autosave holds no lock against overlapping in-flight saves and marks a payload
+// sent before the request returns, so two upserts can race the { user, workspace }
+// unique index before any row exists. The loser gets E11000 — by then the row is
+// there, so a plain update lands it, rather than the driver error surfacing as a
+// 500.
+const upsertDraft = async (filter, update) => {
+  try {
+    return await TicketDraft.findOneAndUpdate(filter, update, DRAFT_UPSERT_OPTS).populate(
+      BLOCKER_POPULATE
+    );
+  } catch (err) {
+    if (err?.code !== 11000) throw err;
+    return TicketDraft.findOneAndUpdate(filter, update, { new: true }).populate(BLOCKER_POPULATE);
+  }
 };
 
 const assertWorkspace = (workspaceId) => {
@@ -72,13 +126,27 @@ const assertWorkspace = (workspaceId) => {
   }
 };
 
-/** The account's draft in this workspace, or `null` — "no draft" is not an error. */
+/**
+ * The account's draft in this workspace, or `null` — "no draft" is not an error.
+ *
+ * The stored refs are re-scoped on the way out, not only on the way in: a status,
+ * category, blocker ticket or assignee deleted since the last save would
+ * otherwise be handed back as a dangling id that the form cannot render and the
+ * create call then rejects. No `previous` is passed, so every ref is re-checked.
+ */
 const getDraft = async ({ userId, workspaceId }) => {
   assertWorkspace(workspaceId);
 
-  return TicketDraft.findOne({ user: userId, workspace: workspaceId })
-    .populate(BLOCKER_POPULATE)
-    .lean();
+  const stored = await TicketDraft.findOne({ user: userId, workspace: workspaceId }).lean();
+  if (!stored) {
+    return null;
+  }
+
+  const scoped = await scopeDraftRefsToWorkspace(stored, workspaceId);
+  if (scoped.blockedBy.ticket) {
+    await TicketDraft.populate(scoped, BLOCKER_POPULATE);
+  }
+  return scoped;
 };
 
 /**
@@ -108,13 +176,16 @@ const saveDraft = async ({ userId, workspaceId, input }) => {
     return null;
   }
 
-  const scoped = await scopeDraftRefsToWorkspace(normalized, workspaceId);
+  const previous = await TicketDraft.findOne({ user: userId, workspace: workspaceId })
+    .select('status category blockedBy.ticket assignedTo')
+    .lean();
 
-  const draft = await TicketDraft.findOneAndUpdate(
+  const scoped = await scopeDraftRefsToWorkspace(normalized, workspaceId, previous);
+
+  const draft = await upsertDraft(
     { user: userId, workspace: workspaceId },
-    { $set: { ...scoped, user: userId, workspace: workspaceId } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  ).populate(BLOCKER_POPULATE);
+    { $set: { ...scoped, user: userId, workspace: workspaceId } }
+  );
 
   return draft.toObject();
 };

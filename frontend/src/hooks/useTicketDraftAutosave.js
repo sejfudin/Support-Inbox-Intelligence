@@ -71,7 +71,17 @@ export function useTicketDraftAutosave({
         { draft: nextPayload, workspaceId },
         {
           onSuccess: (response) => {
-            setSavedAt(response?.data?.updatedAt ?? new Date().toISOString());
+            const saved = response?.data ?? null;
+            // An emptied form is a real save whose result is "the row is gone".
+            // Without this the header would keep advertising "Draft saved" and a
+            // Discard button for a draft that no longer exists.
+            if (!saved) {
+              lastSavedRef.current = null;
+              setSavedAt(null);
+              setWasRestored(false);
+              return;
+            }
+            setSavedAt(saved.updatedAt ?? new Date().toISOString());
             // The header stops saying "restored" as soon as this opening has
             // written something of its own.
             setWasRestored(false);
@@ -90,12 +100,18 @@ export function useTicketDraftAutosave({
 
   // One restore per opening. A failed fetch counts as "no draft": the modal opens
   // empty rather than not at all, and the first save writes a fresh one.
+  //
+  // "Not active yet" is split in two: the draft feature being switched off for
+  // this mount latches hydrated (there is nothing to wait for), but a workspace
+  // id that has not resolved yet does NOT — latching there would skip the restore
+  // for the whole opening once the id finally arrived.
   useEffect(() => {
     if (!isOpen || isHydrated) return;
-    if (!isActive) {
+    if (!enabled) {
       setIsHydrated(true);
       return;
     }
+    if (!workspaceId) return;
     if (draftQuery.isPending) return;
 
     const draft = draftQuery.isError ? null : draftQuery.data;
@@ -110,7 +126,8 @@ export function useTicketDraftAutosave({
   }, [
     isOpen,
     isHydrated,
-    isActive,
+    enabled,
+    workspaceId,
     draftQuery.isPending,
     draftQuery.isError,
     draftQuery.data,
@@ -147,16 +164,26 @@ export function useTicketDraftAutosave({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // Mirrors `savedAt` so `discardDraft` can tell "there is a draft to delete"
+  // without taking `savedAt` as a dependency and churning its identity.
+  const hasStoredDraftRef = useRef(false);
+  hasStoredDraftRef.current = savedAt !== null || lastSavedRef.current !== null;
+
   /**
    * Throw the draft away — the explicit "Discard draft" button, and the implicit
    * discard that follows a successful create. The caller resets the form; this
    * only settles what the server holds.
+   *
+   * The DELETE goes out only when something was actually stored: creating a
+   * ticket faster than the autosave debounce would otherwise fire a delete for a
+   * draft that never existed, once per ticket created.
    */
   const discardDraft = useCallback(() => {
+    const hadDraft = hasStoredDraftRef.current;
     lastSavedRef.current = null;
     setWasRestored(false);
     setSavedAt(null);
-    if (isActive) deleteDraft(workspaceId);
+    if (isActive && hadDraft) deleteDraft(workspaceId);
   }, [deleteDraft, isActive, workspaceId]);
 
   return {
