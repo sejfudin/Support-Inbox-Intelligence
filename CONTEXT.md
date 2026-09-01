@@ -299,9 +299,23 @@ _Avoid_: completion, velocity (velocity compares finished points *across* sprint
 within one).
 
 **Needs attention**:
-The tickets in the active sprint that are not moving on their own: those with a **blocker** recorded,
-and those whose due date has passed while unfinished. A count meant to be acted on, not a status.
+The tickets in the active sprint that are not moving on their own: those sitting in the **blocked
+status** or with a **blocker** recorded, and those whose due date has passed while unfinished. A
+count meant to be acted on, not a status. This is the one place a bare blocked status counts
+without a recorded blocker — a card parked in Blocked still needs a look.
 _Avoid_: at risk, stale, flagged.
+
+**Sprint summary**:
+A short AI recap of one sprint, shown on the Sprints → Summary tab, for the whole team or per
+person. It groups the tickets that landed into a handful of named **themes** — each one a short
+`Title Case Headline - what changed, what changed` line, one per group, not a line per ticket. The
+recap is always in English, even when the tickets are not. The carry-over list beside it is not
+AI: it is derived from the tickets that did not reach done. Finished sprints are listed
+most-recently-finished first, and a finished sprint's recap is generated automatically the first
+time its tab is opened, then kept until someone regenerates it; the active sprint's is a manual
+live **preview**. Draft, not record — the tab says so. The sprint's numbers live on the progress
+strip, not here.
+_Avoid_: report, retro/retrospective (no meeting is implied), review, standup.
 
 ## Ticketing terms this feature pinned down
 
@@ -318,5 +332,6 @@ _Avoid_: icebox, inbox (the support inbox is a different thing), triage queue, u
 A recorded reason one ticket cannot proceed — the ticket that is in the way, plus an optional note.
 A property of the ticket, independent of where it sits on the board: a ticket may carry a blocker
 while in progress, and may sit in a **blocked status** with no blocker recorded. When something
-counts "blocked tickets", it means the ones carrying a blocker.
+counts "blocked tickets" it means the ones carrying a blocker — the sole exception is the sprint
+**needs-attention** count, which also counts a ticket parked in the blocked status.
 _Avoid_: dependency, blocked (bare — that names the status, not the record).
