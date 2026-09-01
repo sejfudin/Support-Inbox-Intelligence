@@ -322,6 +322,8 @@ const {
   SPRINT_BUCKETS,
   countWorkingDays,
   sprintWorkingDays,
+  emptyBuckets,
+  resolveTicketStatus,
   bucketSprintTicket,
   hasRecordedBlocker,
   sprintProgress,
@@ -331,13 +333,14 @@ const {
 } = require('./sprintRules');
 
 // A default workspace workflow: one backlog status, then to do, in progress,
-// blocked, and done. Bucketing reads the flags, never these labels.
+// blocked, and done. Bucketing reads the flags, never these labels — but
+// needs-attention reads the `blocked` slug, so the fixtures carry slugs too.
 const DEFAULT_STATUSES = [
-  { _id: 'backlog', label: 'Backlog', sortOrder: 0, isBacklog: true },
-  { _id: 'todo', label: 'To do', sortOrder: 1 },
-  { _id: 'doing', label: 'In progress', sortOrder: 2 },
-  { _id: 'blocked', label: 'Blocked', sortOrder: 3 },
-  { _id: 'done', label: 'Done', sortOrder: 4, isDone: true },
+  { _id: 'backlog', slug: 'backlog', label: 'Backlog', sortOrder: 0, isBacklog: true },
+  { _id: 'todo', slug: 'to do', label: 'To do', sortOrder: 1 },
+  { _id: 'doing', slug: 'in progress', label: 'In progress', sortOrder: 2 },
+  { _id: 'blocked', slug: 'blocked', label: 'Blocked', sortOrder: 3 },
+  { _id: 'done', slug: 'done', label: 'Done', sortOrder: 4, isDone: true },
 ];
 
 const ticket = (overrides = {}) => ({ status: 'todo', storyPoints: 1, ...overrides });
@@ -428,6 +431,43 @@ describe('bucketSprintTicket', () => {
     expect(bucketSprintTicket(ticket({ status: { _id: 'done' } }), DEFAULT_STATUSES)).toBe(
       SPRINT_BUCKETS.DONE
     );
+  });
+
+  it('accepts a pre-resolved status and does not re-scan the list', () => {
+    const done = DEFAULT_STATUSES.find((status) => status._id === 'done');
+    // The ticket points at 'todo', but the caller passes the resolved 'done'
+    // status — bucketing trusts what it is handed for the done/blocked check.
+    expect(bucketSprintTicket(ticket({ status: 'todo' }), [], undefined, done)).toBe(
+      SPRINT_BUCKETS.DONE
+    );
+  });
+});
+
+describe('resolveTicketStatus', () => {
+  it('returns the matching status document for a bare id', () => {
+    expect(resolveTicketStatus(ticket({ status: 'doing' }), DEFAULT_STATUSES)).toMatchObject({
+      _id: 'doing',
+      slug: 'in progress',
+    });
+  });
+
+  it('returns the match for a populated status object too', () => {
+    expect(
+      resolveTicketStatus(ticket({ status: { _id: 'blocked' } }), DEFAULT_STATUSES)
+    ).toMatchObject({ _id: 'blocked' });
+  });
+
+  it('is null when the ticket points at a status the workspace does not have', () => {
+    expect(resolveTicketStatus(ticket({ status: 'ghost' }), DEFAULT_STATUSES)).toBeNull();
+  });
+});
+
+describe('emptyBuckets', () => {
+  it('is a fresh zeroed done/inProgress/todo/total object each call', () => {
+    expect(emptyBuckets()).toEqual({ done: 0, inProgress: 0, todo: 0, total: 0 });
+    const a = emptyBuckets();
+    a.done = 5;
+    expect(emptyBuckets().done).toBe(0);
   });
 });
 
@@ -571,6 +611,39 @@ describe('sprintNeedsAttention', () => {
     expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
       total: 1,
       blocked: 1,
+      overdue: 0,
+    });
+  });
+
+  it('counts a ticket parked in the Blocked status with no blocker recorded', () => {
+    const tickets = [
+      ticket({ status: 'blocked', blockedBy: { ticket: null, note: '' } }),
+      ticket(),
+    ];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 1,
+      blocked: 1,
+      overdue: 0,
+    });
+  });
+
+  it('counts a blocked-status ticket that also carries a recorded blocker once', () => {
+    const tickets = [ticket({ status: 'blocked', blockedBy: { note: 'waiting on the vendor' } })];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 1,
+      blocked: 1,
+      overdue: 0,
+    });
+  });
+
+  it('does not count a non-blocked ticket whose blocker record is empty', () => {
+    const tickets = [ticket({ status: 'doing', blockedBy: { ticket: null, note: '' } })];
+
+    expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
+      total: 0,
+      blocked: 0,
       overdue: 0,
     });
   });

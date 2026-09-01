@@ -11,6 +11,7 @@ import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 import { SprintModal } from '@/components/sprints/SprintModal';
 import { SprintProgressStrip } from '@/components/sprints/SprintProgressStrip';
 import { PastSprintList } from '@/components/sprints/PastSprintList';
+import SprintSummaryTab from '@/components/sprints/SprintSummaryTab';
 import TicketDetailsModal from '@/components/Modals/LazyTicketDetailsModal';
 import EmptyState from '@/components/EmptyState';
 import BoardSkeleton from '@/components/Skeletons/BoardSkeleton';
@@ -23,11 +24,13 @@ import { Loader, LoadingOverlay, useLoaderHold } from '@/components/ui/loader';
 
 const BoardPage = lazy(() => import('@/components/BoardPage'));
 
-// Two tabs, and only two. The mockup's third `Backlog` tab was rejected: the
-// existing Backlog page stays the one place the backlog lives.
+// The mockup's `Backlog` tab was rejected: the existing Backlog page stays the
+// one place the backlog lives. `Summary` is the AI sprint recap — team-wide and
+// per person — for the active sprint (a live preview) and every finished one.
 const TABS = {
   SPRINT: 'sprint',
   PAST: 'past',
+  SUMMARY: 'summary',
 };
 
 // upcoming/active/past mirror server/helpers/sprintRules.js's SPRINT_STATES —
@@ -181,6 +184,9 @@ const SprintsPage = () => {
         <TabsTrigger value={TABS.PAST} data-test="sprints-tab-past">
           Past
         </TabsTrigger>
+        <TabsTrigger value={TABS.SUMMARY} data-test="sprints-tab-summary">
+          Summary
+        </TabsTrigger>
       </TabsList>
     </Tabs>
   );
@@ -221,45 +227,50 @@ const SprintsPage = () => {
     </div>
   );
 
-  const headerBand = shownSprint ? (
-    <SprintHeaderBand
-      sprint={shownSprint}
-      tabs={tabStrip}
-      // Nothing on a past sprint can be created FROM it either — the create
-      // action belongs to the Sprint tab, where planning happens.
-      onCreateClick={isReadOnlyBoard ? null : openCreate}
-      onEditClick={() => {
-        setEditingSprint(shownSprint);
-        setIsModalOpen(true);
-      }}
-      backAction={
-        isReadOnlyBoard ? (
-          <Button
-            variant="outline"
-            onClick={() => setOpenPastSprintId(null)}
-            data-test="past-sprint-back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            All past sprints
-          </Button>
-        ) : null
-      }
-    />
-  ) : (
-    <PageHeading
-      crumb="Workspace · Sprints"
-      title={tab === TABS.PAST ? 'Past sprints' : 'Sprints'}
-      tabs={tabStrip}
-      actions={
-        tab === TABS.PAST ? null : (
-          <Button onClick={openCreate} data-test="sprint-new-button">
-            <Plus className="h-4 w-4" />
-            New sprint
-          </Button>
-        )
-      }
-    />
-  );
+  // The Summary tab is not a board and carries no sprint-level actions — it picks
+  // its own sprint — so it always gets the plain heading, never the header band.
+  const headerBand =
+    shownSprint && tab !== TABS.SUMMARY ? (
+      <SprintHeaderBand
+        sprint={shownSprint}
+        tabs={tabStrip}
+        // Nothing on a past sprint can be created FROM it either — the create
+        // action belongs to the Sprint tab, where planning happens.
+        onCreateClick={isReadOnlyBoard ? null : openCreate}
+        onEditClick={() => {
+          setEditingSprint(shownSprint);
+          setIsModalOpen(true);
+        }}
+        backAction={
+          isReadOnlyBoard ? (
+            <Button
+              variant="outline"
+              onClick={() => setOpenPastSprintId(null)}
+              data-test="past-sprint-back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              All past sprints
+            </Button>
+          ) : null
+        }
+      />
+    ) : (
+      <PageHeading
+        crumb="Workspace · Sprints"
+        title={
+          tab === TABS.PAST ? 'Past sprints' : tab === TABS.SUMMARY ? 'Sprint summary' : 'Sprints'
+        }
+        tabs={tabStrip}
+        actions={
+          tab === TABS.SPRINT ? (
+            <Button onClick={openCreate} data-test="sprint-new-button">
+              <Plus className="h-4 w-4" />
+              New sprint
+            </Button>
+          ) : null
+        }
+      />
+    );
 
   const sprintTabBody = isLoading ? (
     <Loader variant="panel" label="Loading sprint…" />
@@ -287,11 +298,25 @@ const SprintsPage = () => {
     <PastSprintList sprints={pastSprints} onOpen={setOpenPastSprintId} />
   );
 
+  const summaryTabBody =
+    isLoading || isLoadingSprints ? (
+      <Loader variant="panel" label="Loading sprints…" />
+    ) : (
+      <SprintSummaryTab
+        workspaceId={workspaceId}
+        pastSprints={pastSprints}
+        currentSprint={currentSprint}
+      />
+    );
+
+  const tabBody =
+    tab === TABS.PAST ? pastTabBody : tab === TABS.SUMMARY ? summaryTabBody : sprintTabBody;
+
   return (
     <PageShell>
       <PageSection className="flex flex-col gap-3.5">
         {headerBand}
-        {tab === TABS.PAST ? pastTabBody : sprintTabBody}
+        {tabBody}
       </PageSection>
 
       <SprintModal

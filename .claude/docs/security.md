@@ -64,11 +64,19 @@ the caller's workspace.
   `assertSprintInWorkspace(sprintId, workspaceId)` fetches the sprint, 404s if absent, and rejects
   a mismatch — same shape as `assertStatusInWorkspace`. Every route resolves its workspace through
   `resolveActiveWorkspaceId` first, so a sprint is neither readable nor writable across workspaces.
-  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/:id`, `POST /`, `PATCH /:id` and
-  `DELETE /:id` alike — `/leftovers` takes no id at all: it picks the previous sprint by querying
-  `{ workspace }` and reads its tickets through the workspace-scoped ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
+  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/:id`, `GET|POST /:id/summary`,
+  `POST /`, `PATCH /:id` and `DELETE /:id` alike — `/leftovers` takes no id at all: it picks the
+  previous sprint by querying `{ workspace }` and reads its tickets through the workspace-scoped
+  ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
   ticket update is — active workspace membership is enough, since admins/mentors already bypass it
   via `canAccessAnyWorkspace`.
+- **The sprint AI recap** (`GET|POST /api/sprints/:id/summary`, `services/sprintSummaryService.js`)
+  adds no authorization of its own: it calls `sprintService.assertSprintInWorkspace` on the
+  resolved workspace like every read above, and any active member may generate or regenerate —
+  the same rule as editing a sprint. The `POST` is Groq-gated; an unconfigured or failing provider
+  answers with a status code (503/502) and writes nothing. `SprintAISummary` carries the model's
+  prose only — every number in the response is recomputed from the sprint's tickets within the
+  workspace scope, so the cached document cannot leak counts from anywhere else.
 - **What may be changed about a sprint is a property of the sprint, not of the caller.** Mutability
   is derived from its dates in `helpers/sprintRules.js` (`canEditSprint` / `canDeleteSprint`):
   upcoming is editable and deletable, active is editable but never deletable, past is neither.

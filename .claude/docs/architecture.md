@@ -37,7 +37,7 @@ Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `His
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
 `Attendance`, `NonWorkingDay`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`,
 `Invitation`, `StaffingRequest`.
-AI: `AISummary`.
+AI: `AISummary`, `SprintAISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
 - **`Technology.category` (`general` | `ai`) splits one collection into two catalogs.** AI skills
@@ -119,8 +119,10 @@ AI: `AISummary`.
   and computes nothing. Progress is done story points over total points (ADR-0011); buckets read
   status FLAGS, not names (done = a status flagged done, to do = the first non-backlog status,
   everything else = in progress); archived tickets are excluded from every aggregation, numerator
-  and denominator alike; and needs-attention means a blocker RECORD (`Ticket.blockedBy`) or an
-  unfinished ticket past its due date — not the Blocked status. Create, update and delete responses
+  and denominator alike; and needs-attention counts a ticket as blocked when it sits in the Blocked
+  status (matched by the `blocked` slug, via `isBlockedStatusSlug`) OR carries a blocker RECORD
+  (`Ticket.blockedBy`), plus separately any unfinished ticket past its due date — a card dropped
+  into Blocked with no reason written down still needs a look. Create, update and delete responses
   carry `state` and `permissions` only; they are writes, and their callers refetch.
   **A past sprint's numbers are sealed, and reads are what write them** (ADR-0012). Every sprint
   read goes through `sprintService.withSprintMetrics`, which asks `sprintRules.resolveSprintMetrics`
@@ -149,6 +151,33 @@ AI: `AISummary`.
   colliding sprint named in the error. Deleting a sprint clears `Ticket.sprint` on its tickets in
   one `updateMany` and leaves their statuses alone — deleting a plan never undoes the work. See
   ADR-0009, ADR-0010, ADR-0011, ADR-0012 and `CONTEXT.md`'s Sprints section.
+- `SprintAISummary` — the AI recap behind the Sprints → **Summary** tab, one document per sprint
+  (`sprint` unique), replaced wholesale on regenerate. Stores only the model's prose:
+  `team.themes` and `perUser[].themes` per assignee — each theme one `Title Case Headline - lower-case
+  detail, detail` line grouping shipped tickets (format enforced by the prompt, capped in
+  `sprintSummaryService.js`; the tab bolds the headline and shows the rest as a caption). Always
+  written in English, even when the tickets are not.
+  **No numbers are stored** — story points and ticket counts, team-wide and per person, are
+  recomputed from `Ticket.sprint` on every read by the same `sprintRules.js` helper the progress
+  strip uses (the response carries them; the tab currently renders only the per-person split, not
+  a team points block); the carry-over list is derived the same way. `sourceHash` is a digest of the sprint's
+  ticket state at generation time (`helpers/sprintSummaryData.js`, the freshness mechanism from
+  `helpers/standupNote.js`); a read recomputes it and marks the recap `stale` when they diverge —
+  in practice only for the active-sprint preview, since a sealed past sprint's tickets barely
+  move. Resource: `GET|POST /api/sprints/:id/summary` → `controllers/sprints.js` →
+  `services/sprintSummaryService.js`. Any active workspace member may generate; workspace scope is
+  the whole authorization, same as every other sprint route. One Groq call, gated on the env vars
+  like the rest of the AI surface — an unconfigured or failing provider answers with a status code
+  and nothing is persisted (the carry-over list and the per-person numbers still render without it).
+  A sprint with **nothing in the done bucket** is summarised with no Groq call at all: the recap is
+  legitimately empty and is stored as such, so the tab settles on "nothing finished" instead of
+  erroring on every auto-fire. The first-generate upsert is workspace-scoped and tolerates the
+  unique-index race (two people opening the tab at once) by returning the row the other write
+  landed.
+  **The Summary tab lists finished sprints most-recently-finished first and auto-fires the `POST`
+  the first time a finished sprint with no recap is opened** — the client does this, once per sprint,
+  since there is no server-side "sprint ended" event to hang a job on (same reason ADR-0012 seals on
+  read). The active-sprint preview stays manual. See ADR-0013.
 
 ## Ticket blockers
 
@@ -536,9 +565,11 @@ is the pulsing way back in from the sidebar footer.
 
 ## Integrations
 
-- **Groq AI** (`server/services/groqAiClient.js` + `aiSummaryService`, `ticketDescriptionGenerationService`,
-  `ticketMetadataSuggestionService`, `internCvSummaryService`; prompts in `server/prompts/`).
-  Optional — gated on env vars.
+- **Groq AI** (`server/services/groqAiClient.js` + `aiSummaryService`, `sprintSummaryService`,
+  `ticketDescriptionGenerationService`, `ticketMetadataSuggestionService`, `internCvSummaryService`,
+  `standupSummaryService`, `internNotificationService`; prompts in `server/prompts/`).
+  Optional — gated on env vars. One request helper (`requestGroqOutputText({ prompt })`), plus
+  `extractJsonObject` for the prompts that return a JSON contract.
   - **Intern CV summary** — `GET|POST /api/interns/:userId/cv-summary`, admin/mentor only via
     `assertInternAccess`. The POST downloads the intern's uploaded CV from Supabase, runs
     `helpers/pdfText.js` over it and prompts Groq; the GET only reads the cache. Cached on

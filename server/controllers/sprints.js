@@ -1,4 +1,5 @@
 const sprintService = require('../services/sprintService');
+const sprintSummaryService = require('../services/sprintSummaryService');
 const { handleControllerError } = require('../helpers/controllerError');
 const { httpError } = require('../helpers/httpError');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
@@ -103,6 +104,38 @@ const deleteSprint = async (req, res, next) => {
   }
 };
 
+// The cached AI recap for one sprint. `data.hasSummary` is false when nothing has
+// been generated yet — the numbers (`data.team.points`, `data.perUser`) are still
+// there, since those are computed from the tickets, not from the model.
+const getSprintSummary = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const data = await sprintSummaryService.getSprintSummary({
+      sprintId: req.params.id,
+      workspaceId,
+    });
+    res.status(200).json({ success: true, message: 'Sprint summary fetched', data });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
+// Generate or regenerate the recap. One Groq call; an AI failure carries a
+// statusCode and is answered as-is, with nothing persisted.
+const generateSprintSummary = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const data = await sprintSummaryService.generateSprintSummary({
+      sprintId: req.params.id,
+      workspaceId,
+      requesterId: req.user._id,
+    });
+    res.status(201).json({ success: true, message: 'Sprint summary generated', data });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
 module.exports = {
   getSprints,
   getSprintToShow,
@@ -111,4 +144,6 @@ module.exports = {
   createSprint,
   updateSprint,
   deleteSprint,
+  getSprintSummary,
+  generateSprintSummary,
 };

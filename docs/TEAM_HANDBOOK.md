@@ -102,6 +102,7 @@
 - Can create a sprint, same as any other workspace member
 - Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
 - Can put tickets into a sprint and take them out again, same as any other workspace member
+- Can open the **Summary** tab on Sprints for an AI recap of any past sprint or the running one — what shipped (grouped into a few short themes) plus a carry-over list, team-wide and per person. A finished sprint's recap is generated automatically the first time its tab is opened; anyone can regenerate it. It's a draft to check before sharing, not an official record
 
 **Leadership**
 - Otherwise read-only; the two exceptions are staffing requests (below) and sending a note
@@ -176,6 +177,7 @@
 - Can create a sprint, same as any other workspace member
 - Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
 - Can put tickets into a sprint and take them out again, same as any other workspace member
+- Can open the **Summary** tab on Sprints for an AI recap of any past sprint or the running one — what shipped (grouped into a few short themes) plus a carry-over list, team-wide and per person. A finished sprint's recap is generated automatically the first time its tab is opened; anyone can regenerate it. It's a draft to check before sharing, not an official record
 
 **Intern**
 - Sees and edits only their own profile
@@ -212,6 +214,7 @@
 - Can create a sprint, same as any other workspace member — not blocked on an admin to do it for them
 - Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
 - Can put their own tickets into a sprint and take them out again, same as any other workspace member. A ticket needs a story-point estimate before it can go in, and a ticket added from the backlog leaves the backlog for good
+- Can open the **Summary** tab on Sprints for an AI recap of any past sprint or the running one — what shipped (grouped into a few short themes) plus a carry-over list, team-wide and per person including their own. A finished sprint's recap is generated automatically the first time its tab is opened; anyone can regenerate it. It's a draft to check before sharing, not an official record
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 
 > **Note:** changing your own password now asks for your current one first, on every role. It's a

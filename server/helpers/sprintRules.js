@@ -3,6 +3,8 @@
 // fake timers. See ADR 0010 — a sprint stores only its dates; state, overlap
 // and validation are all derived here rather than stored.
 
+const { isBlockedStatusSlug } = require('./ticketBlocker');
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const MIN_SPRINT_DAYS = 7; // one week
@@ -253,6 +255,19 @@ const idKey = (value) => {
   return id === null || id === undefined ? null : String(id);
 };
 
+// A zeroed points/counts bucket in the shape every sprint aggregation returns.
+// One definition, imported by `sprintSummaryData.js` and the summary service so
+// the three of them cannot disagree about the shape.
+const emptyBuckets = () => ({ done: 0, inProgress: 0, todo: 0, total: 0 });
+
+// The status document a ticket points at, out of the workspace's status list.
+// Resolved once and passed to `bucketSprintTicket` / `isInBlockedStatus` by a
+// caller that needs both, so the `.find` is not run twice for one ticket.
+const resolveTicketStatus = (ticket, statuses = []) => {
+  const statusKey = idKey(ticket?.status);
+  return statuses.find((candidate) => idKey(candidate) === statusKey) ?? null;
+};
+
 // Buckets read status FLAGS, never status names, so a renamed or custom
 // workflow buckets the same way: `to do` is the workspace's first main
 // (non-backlog) status, `done` is any status flagged done, and everything
@@ -268,12 +283,14 @@ const firstMainStatusKey = (statuses = []) => {
 // A workspace with no status flagged done simply has no done bucket — every
 // ticket reads as to do or in progress and progress sits at 0%, rather than
 // the aggregation throwing on a workflow somebody configured that way.
-const bucketSprintTicket = (ticket, statuses = [], todoKey = firstMainStatusKey(statuses)) => {
-  const statusKey = idKey(ticket?.status);
-  const status = statuses.find((candidate) => idKey(candidate) === statusKey);
-
+const bucketSprintTicket = (
+  ticket,
+  statuses = [],
+  todoKey = firstMainStatusKey(statuses),
+  status = resolveTicketStatus(ticket, statuses)
+) => {
   if (status?.isDone) return SPRINT_BUCKETS.DONE;
-  if (todoKey && statusKey === todoKey) return SPRINT_BUCKETS.TODO;
+  if (todoKey && idKey(ticket?.status) === todoKey) return SPRINT_BUCKETS.TODO;
   return SPRINT_BUCKETS.IN_PROGRESS;
 };
 
@@ -288,6 +305,25 @@ const countsTowardsSprint = (ticket) => !ticket?.isArchived;
 const hasRecordedBlocker = (ticket) =>
   Boolean(ticket?.blockedBy?.ticket || ticket?.blockedBy?.note?.trim());
 
+// Whether the ticket sits in the workspace's Blocked status. Reads the status
+// SLUG via `isBlockedStatusSlug` — the one test the rest of the codebase uses,
+// so a workspace that renamed "Blocked" to "Stuck" still matches and one that
+// deleted the status does not. `status` may be passed pre-resolved by a caller
+// that already looked it up for the bucket.
+const isInBlockedStatus = (ticket, statuses = [], status = resolveTicketStatus(ticket, statuses)) =>
+  isBlockedStatusSlug(status?.slug);
+
+// Needs-attention counts a ticket as blocked when it is parked in the Blocked
+// status OR carries a recorded blocker. A card dropped into Blocked with no
+// reason written down still needs somebody to look at it; a recorded blocker
+// still counts on a ticket that has moved on to another status without it being
+// cleared.
+const isBlockedForAttention = (
+  ticket,
+  statuses = [],
+  status = resolveTicketStatus(ticket, statuses)
+) => isInBlockedStatus(ticket, statuses, status) || hasRecordedBlocker(ticket);
+
 // Past its due date and not finished. A ticket finished after its due date
 // stops counting — the number only shows what somebody can still act on.
 const isOverdue = (ticket, today, bucket) => {
@@ -301,8 +337,8 @@ const isOverdue = (ticket, today, bucket) => {
 // bar measures. An unestimated ticket contributes zero points and one ticket.
 const sprintProgress = (tickets = [], statuses = []) => {
   const todoKey = firstMainStatusKey(statuses);
-  const points = { done: 0, inProgress: 0, todo: 0, total: 0 };
-  const ticketCounts = { done: 0, inProgress: 0, todo: 0, total: 0 };
+  const points = emptyBuckets();
+  const ticketCounts = emptyBuckets();
 
   tickets.filter(countsTowardsSprint).forEach((ticket) => {
     const bucket = bucketSprintTicket(ticket, statuses, todoKey);
@@ -331,8 +367,9 @@ const sprintNeedsAttention = (tickets = [], statuses = [], today) => {
   let overdue = 0;
 
   tickets.filter(countsTowardsSprint).forEach((ticket) => {
-    const bucket = bucketSprintTicket(ticket, statuses, todoKey);
-    const isBlocked = hasRecordedBlocker(ticket);
+    const status = resolveTicketStatus(ticket, statuses);
+    const bucket = bucketSprintTicket(ticket, statuses, todoKey, status);
+    const isBlocked = isBlockedForAttention(ticket, statuses, status);
     const isLate = isOverdue(ticket, today, bucket);
 
     if (isBlocked) blocked += 1;
@@ -419,9 +456,15 @@ module.exports = {
   SPRINT_BUCKETS,
   countWorkingDays,
   sprintWorkingDays,
+  emptyBuckets,
+  idKey,
+  countsTowardsSprint,
+  resolveTicketStatus,
   firstMainStatusKey,
   bucketSprintTicket,
   hasRecordedBlocker,
+  isInBlockedStatus,
+  isBlockedForAttention,
   sprintProgress,
   sprintNeedsAttention,
   sprintMetrics,
