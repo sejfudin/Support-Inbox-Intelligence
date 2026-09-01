@@ -83,6 +83,10 @@ const WIPE_PLAN = [
   ['AbsenceRequest', {}],
   ['Daily', {}],
   ['Ticket', {}],
+  // Per-workspace ticket-number counters. Wiped with the tickets they count, or
+  // a fresh dataset inherits the previous run's sequence; phaseWorkspace resets
+  // each workspace's counter to its highest seeded number.
+  ['Counter', {}],
   ['TicketStatus', {}],
   ['Category', {}],
   ['Integration', {}],

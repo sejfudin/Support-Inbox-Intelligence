@@ -14,6 +14,7 @@ const connectDB = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { ROLES } = require('../constants/roles');
 const { seedDefaultStatuses } = require('../services/statusService');
+const { syncTaskNumberCounter } = require('../services/ticketNumberService');
 const { encrypt } = require('../helpers/crypto');
 
 const User = require('../models/User');
@@ -415,6 +416,12 @@ const seedTestingData = async () => {
       assignedTo: [leadership._id],
       dueDate: daysFromNow(5),
     });
+
+    // These tickets got their `taskNumber` written directly, so the per-workspace
+    // counter the create service increments knows nothing about them. Without this
+    // the next ticket created through the app reuses a seeded number.
+    await syncTaskNumberCounter(demoWorkspace._id);
+    await syncTaskNumberCounter(qaWorkspace._id);
 
     const comment1 = await Comment.create({
       content: 'Added logs from payment service — spike at 14:00 UTC.',

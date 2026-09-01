@@ -326,6 +326,7 @@ const {
   resolveTicketStatus,
   bucketSprintTicket,
   hasRecordedBlocker,
+  isSprintTicketBlocked,
   sprintProgress,
   sprintNeedsAttention,
   sprintMetrics,
@@ -595,10 +596,37 @@ describe('hasRecordedBlocker', () => {
     );
   });
 
-  it('does not mistake the blocked STATUS for a recorded blocker', () => {
+  it('reads the record only, not the status the ticket sits in', () => {
     expect(hasRecordedBlocker({ status: 'blocked', blockedBy: { ticket: null, note: '' } })).toBe(
       false
     );
+  });
+});
+
+describe('isSprintTicketBlocked', () => {
+  it('counts a ticket in the Blocked status with no reason written down', () => {
+    expect(
+      isSprintTicketBlocked(
+        { status: 'blocked', blockedBy: { ticket: null, note: '' } },
+        DEFAULT_STATUSES
+      )
+    ).toBe(true);
+  });
+
+  it('reads the slug, so a renamed Blocked column still counts', () => {
+    const renamed = [{ _id: 'stuck', slug: 'blocked', label: 'Stuck', sortOrder: 3 }];
+
+    expect(isSprintTicketBlocked({ status: 'stuck' }, renamed)).toBe(true);
+  });
+
+  it('counts a recorded blocker on a ticket in another status', () => {
+    expect(
+      isSprintTicketBlocked({ status: 'doing', blockedBy: { note: 'waiting' } }, DEFAULT_STATUSES)
+    ).toBe(true);
+  });
+
+  it('leaves an unblocked ticket alone', () => {
+    expect(isSprintTicketBlocked({ status: 'doing' }, DEFAULT_STATUSES)).toBe(false);
   });
 });
 
@@ -615,11 +643,8 @@ describe('sprintNeedsAttention', () => {
     });
   });
 
-  it('counts a ticket parked in the Blocked status with no blocker recorded', () => {
-    const tickets = [
-      ticket({ status: 'blocked', blockedBy: { ticket: null, note: '' } }),
-      ticket(),
-    ];
+  it('counts a ticket sitting in the Blocked status with no reason written down', () => {
+    const tickets = [ticket({ status: 'blocked' }), ticket()];
 
     expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
       total: 1,
@@ -628,8 +653,8 @@ describe('sprintNeedsAttention', () => {
     });
   });
 
-  it('counts a blocked-status ticket that also carries a recorded blocker once', () => {
-    const tickets = [ticket({ status: 'blocked', blockedBy: { note: 'waiting on the vendor' } })];
+  it('counts a ticket in Blocked that also carries a record once', () => {
+    const tickets = [ticket({ status: 'blocked', blockedBy: { note: 'waiting on legal' } })];
 
     expect(sprintNeedsAttention(tickets, DEFAULT_STATUSES, today)).toEqual({
       total: 1,

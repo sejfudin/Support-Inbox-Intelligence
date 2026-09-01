@@ -13,6 +13,7 @@ const {
 } = require('./notificationService');
 const historyService = require('./historyService');
 const statusService = require('./statusService');
+const { nextTaskNumber } = require('./ticketNumberService');
 const { emitTicketEvent, toSocketId } = require('../socket/events');
 const { sanitizeDescriptionHtml } = require('../helpers/htmlSanitize');
 const { escapeRegex } = require('../helpers/escapeRegex');
@@ -865,13 +866,6 @@ const createTicket = async (ticketData) => {
     categoryId: ticketData.category,
   });
 
-  const lastTicket = await Ticket.findOne({ workspace: ticketData.workspaceId })
-    .sort('-taskNumber')
-    .select('taskNumber')
-    .lean();
-
-  const nextTaskNumber = lastTicket && lastTicket.taskNumber ? lastTicket.taskNumber + 1 : 1;
-
   let statusDoc;
   if (ticketData.statusId) {
     statusDoc = await statusService.resolveStatusForWorkspace(
@@ -924,6 +918,12 @@ const createTicket = async (ticketData) => {
       })
     : null;
 
+  // Claimed last, after everything that can throw: the counter is atomic and
+  // never rewinds, so a number taken before a rejected create is a permanent
+  // gap. Gaps are tolerated (a failed `save()` still burns one) but free to
+  // avoid here.
+  const taskNumber = await nextTaskNumber(ticketData.workspaceId);
+
   const ticket = new Ticket({
     subject: sanitizedSubject,
     description: sanitizeDescriptionHtml(ticketData.description),
@@ -933,7 +933,7 @@ const createTicket = async (ticketData) => {
     storyPoints: ticketData.storyPoints ?? null,
     assignedTo: ticketData.assignedTo,
     workspace: ticketData.workspaceId,
-    taskNumber: nextTaskNumber,
+    taskNumber,
     category: ticketData.category || null,
     inProgressAt: statusFlags.tracksTime ? new Date() : undefined,
     doneAt: statusFlags.isDone ? new Date() : undefined,

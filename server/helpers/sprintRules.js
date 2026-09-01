@@ -261,7 +261,7 @@ const idKey = (value) => {
 const emptyBuckets = () => ({ done: 0, inProgress: 0, todo: 0, total: 0 });
 
 // The status document a ticket points at, out of the workspace's status list.
-// Resolved once and passed to `bucketSprintTicket` / `isInBlockedStatus` by a
+// Resolved once and passed to `bucketSprintTicket` / `isSprintTicketBlocked` by a
 // caller that needs both, so the `.find` is not run twice for one ticket.
 const resolveTicketStatus = (ticket, statuses = []) => {
   const statusKey = idKey(ticket?.status);
@@ -299,30 +299,23 @@ const bucketSprintTicket = (
 // hold a sprint below 100%.
 const countsTowardsSprint = (ticket) => !ticket?.isArchived;
 
-// A blocker RECORD on the ticket — not the blocked status. The two are
-// different things: a ticket can sit in Blocked with nothing written down, and
-// a ticket in any status can carry a recorded blocker.
+// A blocker RECORD on the ticket — the "why", which is optional. A ticket can
+// sit in Blocked with nothing written down, and a ticket in any status can carry
+// a recorded blocker, so this is only half of the question.
 const hasRecordedBlocker = (ticket) =>
   Boolean(ticket?.blockedBy?.ticket || ticket?.blockedBy?.note?.trim());
 
-// Whether the ticket sits in the workspace's Blocked status. Reads the status
-// SLUG via `isBlockedStatusSlug` — the one test the rest of the codebase uses,
-// so a workspace that renamed "Blocked" to "Stuck" still matches and one that
-// deleted the status does not. `status` may be passed pre-resolved by a caller
-// that already looked it up for the bucket.
-const isInBlockedStatus = (ticket, statuses = [], status = resolveTicketStatus(ticket, statuses)) =>
-  isBlockedStatusSlug(status?.slug);
-
-// Needs-attention counts a ticket as blocked when it is parked in the Blocked
-// status OR carries a recorded blocker. A card dropped into Blocked with no
-// reason written down still needs somebody to look at it; a recorded blocker
-// still counts on a ticket that has moved on to another status without it being
-// cleared.
-const isBlockedForAttention = (
+// Blocked as the board means it: the ticket sits in the Blocked status, whether
+// or not anybody recorded a reason. Read off the status SLUG, never the label,
+// so a workspace that renamed the column keeps counting (`helpers/ticketBlocker.js`).
+// The recorded blocker is kept as a second route in, because a ticket parked in
+// another column with a written-down blocker is stuck just the same. `status` may
+// be passed pre-resolved by a caller that already looked it up for the bucket.
+const isSprintTicketBlocked = (
   ticket,
   statuses = [],
   status = resolveTicketStatus(ticket, statuses)
-) => isInBlockedStatus(ticket, statuses, status) || hasRecordedBlocker(ticket);
+) => isBlockedStatusSlug(status?.slug) || hasRecordedBlocker(ticket);
 
 // Past its due date and not finished. A ticket finished after its due date
 // stops counting — the number only shows what somebody can still act on.
@@ -369,7 +362,7 @@ const sprintNeedsAttention = (tickets = [], statuses = [], today) => {
   tickets.filter(countsTowardsSprint).forEach((ticket) => {
     const status = resolveTicketStatus(ticket, statuses);
     const bucket = bucketSprintTicket(ticket, statuses, todoKey, status);
-    const isBlocked = isBlockedForAttention(ticket, statuses, status);
+    const isBlocked = isSprintTicketBlocked(ticket, statuses, status);
     const isLate = isOverdue(ticket, today, bucket);
 
     if (isBlocked) blocked += 1;
@@ -463,8 +456,7 @@ module.exports = {
   firstMainStatusKey,
   bucketSprintTicket,
   hasRecordedBlocker,
-  isInBlockedStatus,
-  isBlockedForAttention,
+  isSprintTicketBlocked,
   sprintProgress,
   sprintNeedsAttention,
   sprintMetrics,

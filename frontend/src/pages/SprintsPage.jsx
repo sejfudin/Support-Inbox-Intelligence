@@ -1,13 +1,11 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { ArrowLeft, CalendarRange, Pencil, Plus } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCurrentSprint, useSprints } from '@/queries/sprints';
-import { useUpdateTicket } from '@/queries/tickets';
+import { useBoardStatusMove } from '@/queries/tickets';
 import { useTicketStatuses } from '@/hooks/useTicketStatuses';
 import { useTicketModals } from '@/hooks/useTicketModals';
-import { invalidateWorkspaceTicketsScope } from '@/lib/invalidationScopes';
 import { SprintModal } from '@/components/sprints/SprintModal';
 import { SprintProgressStrip } from '@/components/sprints/SprintProgressStrip';
 import { PastSprintList } from '@/components/sprints/PastSprintList';
@@ -91,7 +89,6 @@ const SprintHeaderBand = ({ sprint, onCreateClick, onEditClick, tabs, backAction
 const SprintsPage = () => {
   const { user } = useAuth();
   const workspaceId = user?.workspaceId;
-  const queryClient = useQueryClient();
   // One modal, two modes. `editingSprint` null means create; set means edit that
   // sprint, prefilled.
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -153,26 +150,29 @@ const SprintsPage = () => {
   } = useTicketStatuses(workspaceId);
   const { selectedTicketId, isDetailsOpen, openTicketDetails, closeTicketDetails } =
     useTicketModals();
-  const updateTicketMutation = useUpdateTicket();
+  const boardStatusMove = useBoardStatusMove();
 
   // The sprint board is the ordinary board with one filter on it, so the columns
   // stay the workspace's own statuses in the workspace's own order.
   const queryFilters = useMemo(() => ({ sprintId }), [sprintId]);
 
+  // A drop on the sprint board, which is the ordinary board with a filter on it —
+  // so the same optimistic move. `useBoardStatusMove` owns the rollback and the
+  // error toast. A past (read-only) sprint never gets here: it passes
+  // `onStatusChange={undefined}` and `BoardPage` guards on `readOnly` as well.
   const handleStatusChange = useCallback(
     (ticketId, columnId) => {
       const statusId = helpers.resolveStatusFromColumnId(columnId);
       if (!statusId) return;
 
-      updateTicketMutation.mutate(
-        { ticketId, updates: { statusId } },
-        {
-          onSuccess: () => invalidateWorkspaceTicketsScope(queryClient, workspaceId),
-          onError: (err) => console.error('Error updating ticket: ', err),
-        }
-      );
+      boardStatusMove.mutate({
+        ticketId,
+        statusId,
+        statusDoc: helpers.resolveStatusDocFromColumnId(columnId),
+        workspaceId,
+      });
     },
-    [helpers, updateTicketMutation, queryClient, workspaceId]
+    [helpers, boardStatusMove, workspaceId]
   );
 
   const tabStrip = (

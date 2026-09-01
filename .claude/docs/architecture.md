@@ -33,13 +33,23 @@ Roles are assigned at the **user** level and drive route landing + guards.
 ## Data model (Mongoose, `server/models/`)
 
 Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
-`Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`.
+`Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`, `Counter`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
 `Attendance`, `NonWorkingDay`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`,
 `Invitation`, `StaffingRequest`.
 AI: `AISummary`, `SprintAISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
+- **`Counter` hands out `Ticket.taskNumber`** — one document per `(workspace, name)`, incremented
+  with an atomic `findOneAndUpdate` + `$inc` in `server/services/ticketNumberService.js`. It
+  replaced a `max(taskNumber) + 1` read-then-write that gave concurrent creates in one workspace
+  the same number. Two consequences to know before touching ticket numbering: **gaps are expected**
+  (a number is claimed before the save, so a rejected create burns it), and **uniqueness is not
+  enforced by an index** — `{ workspace, taskNumber }` on `Ticket` is deliberately non-unique, so
+  any write path that sets `taskNumber` without going through `nextTaskNumber` reintroduces
+  duplicates silently. Seeders that write `taskNumber` themselves call `syncTaskNumberCounter`
+  afterwards; a counter that is missing altogether is seeded from the workspace's current maximum
+  on the next create.
 - **`Technology.category` (`general` | `ai`) splits one collection into two catalogs.** AI skills
   are technologies in every functional respect — same declaration array
   (`InternProfile.selfTechnologies`), same `ReadinessFlag` rows, same staffing requests — and the
@@ -119,10 +129,11 @@ AI: `AISummary`, `SprintAISummary`.
   and computes nothing. Progress is done story points over total points (ADR-0011); buckets read
   status FLAGS, not names (done = a status flagged done, to do = the first non-backlog status,
   everything else = in progress); archived tickets are excluded from every aggregation, numerator
-  and denominator alike; and needs-attention counts a ticket as blocked when it sits in the Blocked
-  status (matched by the `blocked` slug, via `isBlockedStatusSlug`) OR carries a blocker RECORD
-  (`Ticket.blockedBy`), plus separately any unfinished ticket past its due date — a card dropped
-  into Blocked with no reason written down still needs a look. Create, update and delete responses
+  and denominator alike; and needs-attention means blocked or an
+  unfinished ticket past its due date. Blocked is read the way the rest of the app reads it — the
+  ticket sits in the status whose SLUG is `blocked` (a renamed column still counts), or it carries a
+  blocker RECORD (`Ticket.blockedBy`) in any status. The record is the optional "why", so a ticket
+  parked in Blocked with nothing written down still counts. Create, update and delete responses
   carry `state` and `permissions` only; they are writes, and their callers refetch.
   **A past sprint's numbers are sealed, and reads are what write them** (ADR-0012). Every sprint
   read goes through `sprintService.withSprintMetrics`, which asks `sprintRules.resolveSprintMetrics`
