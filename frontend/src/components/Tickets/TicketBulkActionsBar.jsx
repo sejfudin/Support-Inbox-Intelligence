@@ -22,6 +22,11 @@ import { cn } from '@/lib/utils';
  * `currentStatusId` drops one status from the menu — the column's own, which is
  * not a destination. The list passes nothing: its rows can be in any status, so
  * every status is a real move for some of them (the server skips the rest).
+ *
+ * The bar is shown for as long as the surface is in selection mode, which is why
+ * the two actions disable themselves at zero rather than the bar disappearing:
+ * a bar that came and went with the first tick would move the rows under the
+ * pointer every time somebody changed their mind.
  */
 export default function TicketBulkActionsBar({
   count,
@@ -32,9 +37,13 @@ export default function TicketBulkActionsBar({
   onClear,
   isPending = false,
   showCount = false,
+  // "Clear" where the selection is all there is to leave behind, "Cancel" where
+  // this is also the way out of the selection mode itself.
+  clearLabel = 'Clear',
   idPrefix,
   className,
 }) {
+  const hasSelection = count > 0;
   const moveTargets = currentStatusId
     ? statusOptions.filter((option) => option.value !== currentStatusId)
     : statusOptions;
@@ -56,7 +65,7 @@ export default function TicketBulkActionsBar({
             variant="secondary"
             size="sm"
             type="button"
-            disabled={isPending || moveTargets.length === 0}
+            disabled={isPending || !hasSelection || moveTargets.length === 0}
             data-test={`${idPrefix}-move-trigger`}
           >
             Move to
@@ -85,7 +94,7 @@ export default function TicketBulkActionsBar({
         variant="outline"
         size="sm"
         type="button"
-        disabled={isPending}
+        disabled={isPending || !hasSelection}
         onClick={() => onArchive?.()}
         data-test={`${idPrefix}-archive-button`}
       >
@@ -101,7 +110,7 @@ export default function TicketBulkActionsBar({
           onClick={onClear}
           data-test={`${idPrefix}-clear-selection-button`}
         >
-          Clear
+          {clearLabel}
         </Button>
       ) : null}
 

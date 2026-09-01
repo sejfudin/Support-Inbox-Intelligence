@@ -23,7 +23,8 @@
     account rather than the browser, and cleared the moment the ticket is created
   - **Tickets can be worked in bulk, on the board and in the list.** On the board, the tick-list
     icon in a column header turns on selection and you pick cards within that column; in the list
-    view there is a checkbox on every row (and one in the header for the whole page). Either way:
+    view the same icon sits above the table and turns on a checkbox on every row (plus one in the
+    header for the whole page) — until you press it, the rows look as they always did. Either way:
     **Move to** another status or **Archive** the lot in one go. Archiving asks first; moving does
     not, since a wrong move is just one more move back. The list selection covers the page you are
     on, so it clears when you page, filter or search

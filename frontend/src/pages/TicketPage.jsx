@@ -59,7 +59,7 @@ import TicketFiltersPanel from '@/components/Tickets/TicketsFiltersPanel';
 import { useTicketFiltersControls } from '@/hooks/useTicketFiltersControls';
 import { buildCsv, downloadCsvFile, formatCsvDate } from '@/helpers/csvExport';
 import { Button } from '@/components/ui/button';
-import { Download, MoreHorizontal } from 'lucide-react';
+import { Download, ListChecks, MoreHorizontal } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -530,6 +530,10 @@ export default function TicketPage() {
   // for the rows it sits on, and a selection that survived paging would report a
   // count for tickets nobody can see. Paging, filtering, searching or switching
   // to the board therefore drops it, through the prune below.
+  // Selection is a mode here as it is on the board, and off by default: the
+  // checkbox column would otherwise sit in front of every row on the screen
+  // people read most, for the one visit in ten that acts on several tickets.
+  const [isSelectingList, setIsSelectingList] = useState(false);
   const [selectedListIds, setSelectedListIds] = useState(() => new Set());
 
   const listRowIds = useMemo(
@@ -538,6 +542,21 @@ export default function TicketPage() {
   );
 
   const clearListSelection = useCallback(() => setSelectedListIds(new Set()), []);
+
+  // Leaving the mode drops the selection with it — a set nobody can see is not a
+  // selection, and coming back to a checked row from twenty minutes ago is worse
+  // than starting again.
+  const exitListSelection = useCallback(() => {
+    setIsSelectingList(false);
+    setSelectedListIds(new Set());
+  }, []);
+
+  const toggleListSelectionMode = useCallback(() => {
+    setIsSelectingList((current) => {
+      if (current) setSelectedListIds(new Set());
+      return !current;
+    });
+  }, []);
 
   const toggleListSelection = useCallback((ticketId) => {
     setSelectedListIds((current) => {
@@ -555,9 +574,13 @@ export default function TicketPage() {
   }, [listRowIds]);
 
   useEffect(() => {
+    if (isBoard) {
+      setIsSelectingList(false);
+      setSelectedListIds((current) => (current.size === 0 ? current : new Set()));
+      return;
+    }
     setSelectedListIds((current) => {
       if (current.size === 0) return current;
-      if (isBoard) return new Set();
       const visible = new Set(listRowIds);
       const next = new Set([...current].filter((id) => visible.has(id)));
       return next.size === current.size ? current : next;
@@ -829,6 +852,23 @@ export default function TicketPage() {
           }
           rightSlot={
             <div className="flex items-center gap-2" data-test="ticket-tabs-controls">
+              {/* The list's equivalent of the board column's tick-list button:
+                  the same icon, the same meaning, and the checkbox column only
+                  exists while it is on. */}
+              {!isBoard ? (
+                <Button
+                  variant={isSelectingList ? 'primary' : 'outline'}
+                  size="icon"
+                  type="button"
+                  aria-pressed={isSelectingList}
+                  aria-label={isSelectingList ? 'Stop selecting tickets' : 'Select tickets'}
+                  title={isSelectingList ? 'Stop selecting tickets' : 'Select tickets'}
+                  onClick={toggleListSelectionMode}
+                  data-test="tickets-table-select-button"
+                >
+                  <ListChecks className="h-4 w-4" />
+                </Button>
+              ) : null}
               <TicketFiltersPanel {...ticketFiltersPanelProps} activeFilterChips={[]} />
               {!isBoard ? (
                 <TicketExportMenu
@@ -886,15 +926,16 @@ export default function TicketPage() {
                 single status to act within, so the bar has to say how many
                 tickets it is speaking for and offer the way out of the
                 selection itself. */}
-            {selectedListArray.length > 0 ? (
+            {isSelectingList ? (
               <TicketBulkActionsBar
                 count={selectedListArray.length}
                 statusOptions={helpers.statusOptions}
                 onMove={(statusId) =>
-                  moveSelectedTickets(selectedListArray, statusId, clearListSelection)
+                  moveSelectedTickets(selectedListArray, statusId, exitListSelection)
                 }
-                onArchive={() => archiveSelectedTickets(selectedListArray, clearListSelection)}
-                onClear={clearListSelection}
+                onArchive={() => archiveSelectedTickets(selectedListArray, exitListSelection)}
+                onClear={exitListSelection}
+                clearLabel="Cancel"
                 isPending={isListBulkPending}
                 showCount
                 idPrefix="tickets-table"
@@ -918,12 +959,16 @@ export default function TicketPage() {
                 pagination={pagination}
                 onPageChange={(newPage) => listData.setPage(newPage)}
                 meta={{ onRowClick: openTicketDetails }}
-                selection={{
-                  selectedIds: selectedListIds,
-                  onToggle: toggleListSelection,
-                  onToggleAll: toggleAllListSelection,
-                  idPrefix: 'tickets-table',
-                }}
+                selection={
+                  isSelectingList
+                    ? {
+                        selectedIds: selectedListIds,
+                        onToggle: toggleListSelection,
+                        onToggleAll: toggleAllListSelection,
+                        idPrefix: 'tickets-table',
+                      }
+                    : null
+                }
               />
             </TicketsState>
           </div>

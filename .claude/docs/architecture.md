@@ -218,10 +218,13 @@ business, and the two answer it differently:
   column header turns selection on, cards get a checkbox and stop being draggable while it is on,
   and the bar sits under that column's cards. The destination menu drops the column's own status.
 - **The list** (`components/Tickets/TicketsTable.jsx`, wired in `pages/TicketPage.jsx`) selects
-  inside one page: an opt-in `selection` prop adds a checkbox column, and the bar sits above the
-  rows carrying the count and a Clear. Rows can be in any status, so the menu drops nothing. The
-  header checkbox speaks for the page it is on, and paging, filtering, searching or switching to
-  the board drops the selection rather than letting it name rows nobody can see.
+  inside one page, and is a mode there too: the same tick-list button, in the tab band, and
+  `DataTable`'s opt-in `selection` prop is passed only while it is on, so the checkbox column does
+  not exist the rest of the time. The bar sits above the rows carrying the count and the way out;
+  its two actions are disabled at zero rather than the bar appearing with the first tick, which
+  would shift the rows under the pointer. Rows can be in any status, so the menu drops nothing.
+  The header checkbox speaks for the page it is on, and paging, filtering, searching or switching
+  to the board drops the selection rather than letting it name rows nobody can see.
 
 ## Ticket blockers
 
