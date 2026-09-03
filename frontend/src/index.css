@@ -25,9 +25,9 @@
        same values that read clearly on a dark background are almost invisible
        here. Set per light/dark rather than per palette — every theme's `--primary`
        faces the same problem against its own background. */
-    --attention-glow-alpha: 0.95;
-    --attention-glow-blur: 20px;
-    --attention-glow-spread: 6px;
+    --attention-glow-alpha: 0.4;
+    --attention-glow-blur: 12px;
+    --attention-glow-spread: 2px;
 
     /* How much of the page the brand loader's backdrop hides. Same reasoning as the glow
        above — set per light/dark, not per palette.
@@ -168,9 +168,9 @@
     --shadow-elevated: 0 1px 0 hsl(0 0% 100% / 0.05), 0 10px 28px -10px hsl(0 0% 0% / 0.35);
     --shadow-elevated-sm: 0 1px 0 hsl(0 0% 100% / 0.04), 0 4px 14px -6px hsl(0 0% 0% / 0.28);
 
-    --attention-glow-alpha: 0.75;
-    --attention-glow-blur: 16px;
-    --attention-glow-spread: 4px;
+    --attention-glow-alpha: 0.32;
+    --attention-glow-blur: 10px;
+    --attention-glow-spread: 1px;
   }
 }
 
@@ -483,6 +483,76 @@
   100% {
     transform: rotate(115deg) scale(0.55);
     opacity: 0;
+  }
+}
+
+/* ── The What's new sheen ──────────────────────────────────────────────────────
+   A highlight travelling left to right across the sidebar's What's new button
+   while there is an unread release, so the surface reads as glass with light
+   moving over it rather than as a flat fill that happens to pulse.
+
+   **It lives here and not in `tailwind.config.js`, and that is not a style
+   choice.** It was written there first, as an `attention-sheen` keyframe plus an
+   `animation` entry, and a dev server that had been running since before the
+   config changed never picked either of them up: the class was on the element,
+   no rule existed behind it, and the older `attention-glow` — already in the
+   config — went on pulsing. So the button looked like it had one animation
+   instead of two, on the one machine it mattered on. A plain CSS file rebuilds
+   through HMR on every save, which is worth more here than living next to the
+   glow it is paired with.
+
+   `translateX` is in multiples of the band's OWN width (45% of the button), so
+   -140% parks it off the leading edge and 240% clears the trailing one — the
+   distance stays proportional to the button rather than a pixel count, and
+   `overflow-hidden` on the button clips it to the rounded corners.
+
+   The hold at `38%` is what separates a gleam from a loading bar: the light
+   crosses in a little over a second, then the button is simply a button for
+   twice that. Not a multiple of the glow's 3.2s either, so the two drift in and
+   out of phase instead of thumping together on every beat.
+
+   Keyframes outside `@layer components` for the same reason `logo-unfurl` is:
+   a layered `@keyframes` is legal but its precedence is layer-dependent. */
+@keyframes whats-new-sheen {
+  0% {
+    transform: translateX(-140%) skewX(-12deg);
+  }
+  38%,
+  100% {
+    transform: translateX(240%) skewX(-12deg);
+  }
+}
+
+@layer components {
+  .whats-new-sheen {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    pointer-events: none;
+    /* **White, and not `--primary-foreground`.** The first version used that token
+       on the reasoning that it is the colour of everything else on this button — and
+       it is, because it is the *ink*. In half the palettes (any light accent: the
+       corals, the ambers, the limes) that ink is near-black, so the "shine" swept a
+       dark band across the button. A specular highlight is light by definition: it is
+       the fill catching more light, which is lighter than the fill in every theme
+       this app ships. So it is plain white, and only its alpha is tuned.
+
+       Skewed in the keyframe rather than here, so the transform is written in one
+       place and the two halves cannot disagree. */
+    background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.38), transparent);
+    animation: whats-new-sheen 3.4s ease-in-out infinite;
+  }
+
+  /* Hidden rather than merely stopped: a stationary bright band parked on the
+     button is worse than no band at all. The in-app `[data-motion='reduced']`
+     rule near the top of this file flattens the animation instead, which leaves
+     the band at its base position — off-canvas to the left, so invisible. */
+  @media (prefers-reduced-motion: reduce) {
+    .whats-new-sheen {
+      display: none;
+    }
   }
 }
 

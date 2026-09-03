@@ -158,17 +158,27 @@ export const clampBadge = (count) => (count > 99 ? '99+' : String(count));
  * `label` names them, because a dot on its own says nothing about what is
  * waiting. It feeds the header's accessible name, the way `NavItem` builds its
  * rail tooltip's suffix out of `dotLabel`.
+ *
+ * `isNew` rides along for the same reason and is the weakest of the three: a row a
+ * release added or changed carries a NEW pill (see `useNewFeatureRoutes`), and a
+ * folded section would otherwise be exactly where nobody finds out. It is deliberately
+ * *not* summed or named per row — "something in here is new" is the whole message, and
+ * a header listing which rows are new would be a changelog in a nav.
  */
 export const rollupSignals = (items) => {
   const visible = (Array.isArray(items) ? items : []).filter((item) => item && !item.hidden);
 
   const dotted = visible.filter((item) => item.dot);
+  const anyNew = visible.some((item) => item.isNew);
   const badged = visible.filter((item) => Number.isFinite(item.badge) && item.badge > 0);
   const badge = badged.reduce((sum, item) => sum + item.badge, 0);
 
   const label = [
     ...dotted.map((item) => item.dotLabel || item.label),
     ...badged.map((item) => `${clampBadge(item.badge)} ${item.label}`),
+    // Last, and unqualified: it is the least urgent of the three and the only one
+    // that is about the app rather than about work waiting for this person.
+    ...(anyNew ? ['something new'] : []),
   ]
     .filter(Boolean)
     .join(', ');
@@ -177,6 +187,7 @@ export const rollupSignals = (items) => {
     dot: dotted.length > 0,
     badge: badge > 0 ? badge : undefined,
     badgeText: badge > 0 ? clampBadge(badge) : '',
+    isNew: anyNew,
     label,
   };
 };

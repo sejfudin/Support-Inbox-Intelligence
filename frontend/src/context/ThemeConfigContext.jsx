@@ -38,9 +38,9 @@ import {
   isValidQuickActionOrder,
 } from '@/helpers/quickActions';
 import {
-  DEFAULT_ONBOARDING_ENABLED,
-  ONBOARDING_ENABLED_STORAGE_KEY,
-  isValidOnboardingEnabled,
+  DEFAULT_ONBOARDING_HIGHLIGHT,
+  ONBOARDING_HIGHLIGHT_STORAGE_KEY,
+  isValidOnboardingHighlight,
 } from '@/helpers/onboardingTour';
 import {
   DESKTOP_NOTIFICATIONS_DEFAULT,
@@ -274,9 +274,9 @@ const VALUE_PREFERENCES = [
   },
   {
     key: 'onboardingTourEnabled',
-    storageKey: ONBOARDING_ENABLED_STORAGE_KEY,
-    fallback: DEFAULT_ONBOARDING_ENABLED,
-    isValid: isValidOnboardingEnabled,
+    storageKey: ONBOARDING_HIGHLIGHT_STORAGE_KEY,
+    fallback: DEFAULT_ONBOARDING_HIGHLIGHT,
+    isValid: isValidOnboardingHighlight,
     scope: PREFERENCE_SCOPE.ACCOUNT,
   },
 ];

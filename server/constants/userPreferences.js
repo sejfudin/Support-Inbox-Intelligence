@@ -57,10 +57,15 @@ const USER_PREFERENCE_DEFINITIONS = {
   ticketsView: { values: ['list', 'board'], default: 'list' },
   assigneeDefault: { values: ['everyone', 'me'], default: 'everyone' },
   boardSort: { values: ['priority', 'points', 'due', 'newest'], default: 'priority' },
-  // Whether the what's-new tour is allowed to open on its own on a new release.
-  // Off does not touch `whatsNewSeenVersion` — it is a standing opt-out, not a
-  // marker that today's tour was read. Mirrors `ONBOARDING_ENABLED_STORAGE_KEY`
-  // in `frontend/src/components/onboarding/whatsNewSteps.js`.
+  // Whether the app may point at release news it has not read yet: the glow on the
+  // sidebar's What's new button, and the NEW pills beside the rows a release
+  // touched. Off does not touch `whatsNewSeenVersion` — it is a standing opt-out
+  // from the signal, not a marker that today's tour was read, and the tour itself
+  // stays reachable either way. Named `onboardingTourEnabled` because it used to
+  // gate the tour opening itself, which nothing does any more; the name is kept so
+  // the value on every account that has touched the switch keeps meaning what it
+  // meant. Mirrors `ONBOARDING_HIGHLIGHT_STORAGE_KEY` in
+  // `frontend/src/helpers/onboardingTour.js`.
   onboardingTourEnabled: { values: ['on', 'off'], default: 'on' },
 };
 
