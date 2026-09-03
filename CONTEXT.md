@@ -270,6 +270,13 @@ One optional sentence saying what should be true when the sprint ends. Purely de
 filter or statistic depends on it.
 _Avoid_: objective, theme, commitment.
 
+**Sprint cadence**:
+How long a sprint runs when nobody picks dates — **two weeks** unless the workspace says otherwise.
+Picking dates is optional: left alone, a new sprint runs one cadence from the day after the
+latest-ending sprint ends. It only ever decides a *default*; a sprint dated by hand is unaffected,
+and both are held to the same rules (a week to eight weeks, no overlap, no backdating).
+*Avoid*: sprint duration (that is one sprint's actual length), velocity, interval.
+
 **Active / upcoming / past sprint**:
 A sprint's state, read off today's date against its start and end. **Upcoming** has not started,
 **active** is running, **past** has ended. Nobody starts or finishes a sprint by hand, so a sprint
@@ -289,6 +296,22 @@ Committing a ticket to be finished within that sprint. It is also the sanctioned
 out of a sprint leaves it where it is on the board and never returns it to the backlog. A ticket
 cannot be added without an estimate.
 _Avoid_: assigning (that is about people), scheduling, planning, committing.
+
+**Rollover**:
+What happens when a sprint ends and nothing follows it: the finished sprint's numbers are **sealed**,
+a successor is created on the cadence, and every ticket that is not done **carries over** into it
+keeping the status it was in — in progress stays in progress, to do stays to do. Done tickets and
+archived ones stay behind. It happens the next time somebody reads the sprints, not on a clock, so
+nothing happens in a workspace nobody opens. A team that has already planned its next sprint gets no
+rollover at all — nothing is added to a sprint a person planned.
+*Avoid*: closing or completing a sprint (nobody does either), rolling forward, auto-sprint.
+
+**Carrying over**:
+Moving an unfinished ticket out of the sprint that did not deliver it and into the next one. Done by
+hand from the create modal's leftovers tab, or by the **rollover**. Either way it moves the ticket,
+because a ticket is in at most one sprint — which is why the sprint being left is sealed first, so
+its record still says it missed the work.
+*Avoid*: rescheduling, deferring, re-committing, spillover (that names the tickets, not the act).
 
 **Sprint progress**:
 How much of a sprint's committed work is finished, measured in **story points**, never in ticket

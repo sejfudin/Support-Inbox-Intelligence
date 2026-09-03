@@ -15,6 +15,12 @@ const {
   assertSprintDeletable,
   hasSprintEstimate,
   assertTicketMayJoinSprint,
+  DEFAULT_SPRINT_DAYS,
+  latestEndingSprint,
+  defaultSprintWindow,
+  resolveSprintWindow,
+  resolveRollover,
+  partitionSprintCarry,
 } = require('./sprintRules');
 
 const day = (isoDate) => new Date(`${isoDate}T00:00:00.000Z`);
@@ -78,6 +84,20 @@ describe('validateSprintDates', () => {
     expect(() =>
       validateSprintDates({ start: day('2026-09-01'), end: day('2026-09-12') }, today)
     ).not.toThrow();
+  });
+
+  // Every rule in the validator is a comparison, and NaN loses every comparison
+  // — so an unparseable date used to pass all of them and fail later in
+  // Mongoose's cast, surfacing as `Cast to date failed` inside a form. The edit
+  // form's date inputs submit `''` when cleared, so this is a reachable input,
+  // not a defensive one.
+  it.each([
+    ['an empty start', { start: '', end: day('2026-09-12') }],
+    ['an empty end', { start: day('2026-09-01'), end: '' }],
+    ['an unparseable start', { start: 'soon', end: day('2026-09-12') }],
+    ['a missing end', { start: day('2026-09-01'), end: undefined }],
+  ])('rejects %s rather than letting NaN through every rule', (_label, window) => {
+    expect(() => validateSprintDates(window, today)).toThrow('valid start and end date');
   });
 
   it('rejects an end date before the start date', () => {
@@ -873,5 +893,338 @@ describe('resolveSprintMetrics', () => {
 
     expect(second.seal).toBeNull();
     expect(second.metrics).toEqual(first.metrics);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Default dates and rollover.
+// ---------------------------------------------------------------------------
+
+// Inclusive length, the same way `validateSprintDates` measures it.
+const lengthOf = ({ start, end }) =>
+  Math.round((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+
+describe('latestEndingSprint', () => {
+  it('is null for no sprints', () => {
+    expect(latestEndingSprint([])).toBeNull();
+  });
+
+  it('picks the sprint ending latest, not the one starting latest', () => {
+    // A long sprint can end after one that starts later, which is exactly the
+    // case sorting by `start` would get wrong.
+    const long = { _id: 'long', start: day('2026-09-01'), end: day('2026-10-26') };
+    const short = { _id: 'short', start: day('2026-08-01'), end: day('2026-08-14') };
+    expect(latestEndingSprint([short, long])).toBe(long);
+  });
+
+  it('ignores entries with no end date', () => {
+    const real = { _id: 'real', start: day('2026-09-01'), end: day('2026-09-14') };
+    expect(latestEndingSprint([{ _id: 'junk' }, real])).toBe(real);
+  });
+});
+
+describe('defaultSprintWindow', () => {
+  const today = day('2026-09-03');
+
+  it('starts today when the workspace has no sprints', () => {
+    const window = defaultSprintWindow(null, today);
+    expect(window.start).toEqual(day('2026-09-03'));
+  });
+
+  it('is exactly two weeks, inclusive of both endpoints', () => {
+    // The off-by-one that a length assertion is the only way to catch: `+ 14`
+    // days produces a 15-day sprint that still passes every other rule.
+    expect(lengthOf(defaultSprintWindow(null, today))).toBe(14);
+    expect(DEFAULT_SPRINT_DAYS).toBe(14);
+    expect(defaultSprintWindow(null, today).end).toEqual(day('2026-09-16'));
+  });
+
+  it('starts the day AFTER the last sprint ends, never on its end date', () => {
+    // A shared endpoint is an overlap (`sprintsOverlap` is inclusive), so the
+    // day after is the earliest legal start and sprints run back to back.
+    const latest = { start: day('2026-09-01'), end: day('2026-09-14') };
+    expect(defaultSprintWindow(latest, today).start).toEqual(day('2026-09-15'));
+    expect(defaultSprintWindow(latest, today).end).toEqual(day('2026-09-28'));
+  });
+
+  it('starts today rather than backdating when the last sprint ended long ago', () => {
+    // `validateSprintDates` refuses to backdate a new sprint, so "the day after
+    // July" would be a window the create path rejects.
+    const stale = { start: day('2026-07-01'), end: day('2026-07-14') };
+    expect(defaultSprintWindow(stale, today).start).toEqual(day('2026-09-03'));
+  });
+
+  it('chains off an upcoming sprint when that is the one ending latest', () => {
+    // The trap this whole helper exists for: defaulting off the ACTIVE sprint
+    // while a planned one exists produces a window on top of the planned one.
+    const active = { _id: 'active', start: day('2026-09-01'), end: day('2026-09-14') };
+    const upcoming = { _id: 'upcoming', start: day('2026-09-15'), end: day('2026-09-28') };
+    const window = defaultSprintWindow(latestEndingSprint([active, upcoming]), today);
+    expect(window.start).toEqual(day('2026-09-29'));
+  });
+
+  it('honours a workspace cadence other than two weeks', () => {
+    expect(lengthOf(defaultSprintWindow(null, today, 7))).toBe(7);
+    expect(lengthOf(defaultSprintWindow(null, today, 21))).toBe(21);
+  });
+
+  it('clamps a cadence that could never produce a legal sprint', () => {
+    // A stored 3 would otherwise make every defaulted create fail the one-week
+    // minimum on a window the server itself picked.
+    expect(lengthOf(defaultSprintWindow(null, today, 3))).toBe(7);
+    expect(lengthOf(defaultSprintWindow(null, today, 400))).toBe(56);
+    expect(lengthOf(defaultSprintWindow(null, today, undefined))).toBe(14);
+  });
+
+  it('produces a window that always passes validateSprintDates', () => {
+    const latest = { start: day('2026-09-01'), end: day('2026-09-14') };
+    expect(() =>
+      validateSprintDates(defaultSprintWindow(latest, today), today, { isNew: true })
+    ).not.toThrow();
+    expect(() =>
+      validateSprintDates(defaultSprintWindow(null, today), today, { isNew: true })
+    ).not.toThrow();
+  });
+});
+
+describe('resolveSprintWindow', () => {
+  const today = day('2026-09-03');
+  const latest = { start: day('2026-09-01'), end: day('2026-09-14') };
+
+  it('passes both dates through untouched when both are given', () => {
+    const window = resolveSprintWindow({ start: '2026-10-01', end: '2026-10-14' }, latest, today);
+    expect(window.start).toEqual(day('2026-10-01'));
+    expect(window.end).toEqual(day('2026-10-14'));
+  });
+
+  it('fills both from the cadence when neither is given', () => {
+    expect(resolveSprintWindow({}, latest, today)).toEqual(defaultSprintWindow(latest, today));
+    expect(resolveSprintWindow(undefined, latest, today)).toEqual(
+      defaultSprintWindow(latest, today)
+    );
+  });
+
+  it('runs the cadence from a start date given without an end', () => {
+    const window = resolveSprintWindow({ start: '2026-11-02' }, latest, today);
+    expect(window.start).toEqual(day('2026-11-02'));
+    expect(window.end).toEqual(day('2026-11-15'));
+    expect(lengthOf(window)).toBe(14);
+  });
+
+  it('starts an end-only sprint where the default would, not at today', () => {
+    // Today would collide with the running sprint. The default start is the one
+    // date that cannot.
+    const window = resolveSprintWindow({ end: '2026-10-05' }, latest, today);
+    expect(window.start).toEqual(day('2026-09-15'));
+    expect(window.end).toEqual(day('2026-10-05'));
+  });
+
+  it('treats an empty string as absent, which is what a cleared picker sends', () => {
+    expect(resolveSprintWindow({ start: '', end: '' }, latest, today)).toEqual(
+      defaultSprintWindow(latest, today)
+    );
+  });
+
+  it('does not rescue a window the rules refuse — it only fills blanks', () => {
+    // Backwards dates stay backwards, so `validateSprintDates` still speaks.
+    const window = resolveSprintWindow({ start: '2026-10-14', end: '2026-10-01' }, latest, today);
+    expect(() => validateSprintDates(window, today, { isNew: true })).toThrow(
+      SprintValidationError
+    );
+  });
+});
+
+describe('overlap, in the terms the brief asks for', () => {
+  const today = day('2026-09-20');
+  // A workspace mid-cadence: one finished sprint, one running.
+  const pastSprint = { _id: 'past', start: day('2026-09-01'), end: day('2026-09-14') };
+  const activeSprint = { _id: 'active', start: day('2026-09-15'), end: day('2026-09-28') };
+  const existing = [pastSprint, activeSprint];
+
+  it('refuses a new sprint landing on the sprint in progress', () => {
+    const candidate = { start: day('2026-09-22'), end: day('2026-10-05') };
+    expect(findOverlappingSprint(candidate, existing)).toBe(activeSprint);
+  });
+
+  it('refuses a new sprint landing on a finished sprint', () => {
+    const candidate = { start: day('2026-09-08'), end: day('2026-09-21') };
+    expect(findOverlappingSprint(candidate, existing)).toBe(pastSprint);
+  });
+
+  it('though a NEW sprint never gets as far as the past-overlap rule', () => {
+    // Reaching back over a finished sprint means starting in the past, and that
+    // is refused first — so a create answers 400 "may not start in the past",
+    // not 409 "overlaps". The overlap-with-a-past-sprint case is only reachable
+    // by EDITING a sprint backwards, where `isNew: false` lifts the date floor.
+    const candidate = { start: day('2026-09-08'), end: day('2026-09-21') };
+    expect(() => validateSprintDates(candidate, today, { isNew: true })).toThrow(
+      SprintValidationError
+    );
+    expect(() => validateSprintDates(candidate, today, { isNew: false })).not.toThrow();
+  });
+
+  it('refuses a new sprint that swallows the running one whole', () => {
+    const candidate = { start: day('2026-09-10'), end: day('2026-10-10') };
+    expect(findOverlappingSprint(candidate, existing)).not.toBeNull();
+  });
+
+  it('refuses a new sprint that merely SHARES the running sprint’s end date', () => {
+    const candidate = { start: day('2026-09-28'), end: day('2026-10-11') };
+    expect(findOverlappingSprint(candidate, existing)).toBe(activeSprint);
+  });
+
+  it('allows a new sprint starting the day after the running one ends', () => {
+    const candidate = { start: day('2026-09-29'), end: day('2026-10-12') };
+    expect(findOverlappingSprint(candidate, existing)).toBeNull();
+  });
+
+  it('a DEFAULTED window never collides, even with both a running and a planned sprint', () => {
+    // The one case that ties the two asks together: the default has to chain off
+    // whichever sprint ends last, or the server refuses a date it chose itself.
+    const upcoming = { _id: 'upcoming', start: day('2026-09-29'), end: day('2026-10-12') };
+    const all = [pastSprint, activeSprint, upcoming];
+    const window = defaultSprintWindow(latestEndingSprint(all), today);
+
+    expect(findOverlappingSprint(window, all)).toBeNull();
+    expect(() => validateSprintDates(window, today, { isNew: true })).not.toThrow();
+  });
+});
+
+describe('partitionSprintCarry', () => {
+  const carryTicket = (id, overrides = {}) => ({ _id: id, storyPoints: 1, ...overrides });
+
+  it('carries unfinished work and leaves finished work behind', () => {
+    const tickets = [
+      carryTicket('a', { status: 'todo' }),
+      carryTicket('b', { status: 'doing' }),
+      carryTicket('c', { status: 'done' }),
+    ];
+    const { carry, stay } = partitionSprintCarry(tickets, DEFAULT_STATUSES);
+    expect(carry).toEqual(['a', 'b']);
+    expect(stay).toEqual(['c']);
+  });
+
+  it('carries a blocked ticket — it is the work that most needs to follow you', () => {
+    const { carry } = partitionSprintCarry(
+      [carryTicket('a', { status: 'blocked' })],
+      DEFAULT_STATUSES
+    );
+    expect(carry).toEqual(['a']);
+  });
+
+  it('leaves an archived ticket behind even when it is unfinished', () => {
+    const tickets = [
+      carryTicket('a', { status: 'doing', isArchived: true }),
+      carryTicket('b', { status: 'doing' }),
+    ];
+    const { carry, stay } = partitionSprintCarry(tickets, DEFAULT_STATUSES);
+    expect(carry).toEqual(['b']);
+    expect(stay).toEqual(['a']);
+  });
+
+  it('reads done off the status FLAG, so a renamed done column still stays', () => {
+    const renamed = [
+      { _id: 'todo', slug: 'to do', label: 'To do', sortOrder: 1 },
+      { _id: 'shipped', slug: 'shipped', label: 'Shipped \u{1F680}', sortOrder: 2, isDone: true },
+    ];
+    const { carry, stay } = partitionSprintCarry(
+      [carryTicket('a', { status: 'shipped' }), carryTicket('b', { status: 'todo' })],
+      renamed
+    );
+    expect(stay).toEqual(['a']);
+    expect(carry).toEqual(['b']);
+  });
+
+  it('carries everything, without throwing, in a workspace with no done status', () => {
+    const noDone = [
+      { _id: 'todo', slug: 'to do', label: 'To do', sortOrder: 1 },
+      { _id: 'doing', slug: 'in progress', label: 'In progress', sortOrder: 2 },
+    ];
+    const { carry, stay } = partitionSprintCarry(
+      [carryTicket('a', { status: 'todo' }), carryTicket('b', { status: 'doing' })],
+      noDone
+    );
+    expect(carry).toEqual(['a', 'b']);
+    expect(stay).toEqual([]);
+  });
+
+  it('is empty for no tickets and does not throw on junk', () => {
+    expect(partitionSprintCarry([], DEFAULT_STATUSES)).toEqual({ carry: [], stay: [] });
+    expect(partitionSprintCarry([null, undefined], DEFAULT_STATUSES)).toEqual({
+      carry: [],
+      stay: [],
+    });
+  });
+
+  it('does not depend on story points — an unestimated ticket still carries', () => {
+    const { carry } = partitionSprintCarry([{ _id: 'a', status: 'doing' }], DEFAULT_STATUSES);
+    expect(carry).toEqual(['a']);
+  });
+});
+
+describe('resolveRollover', () => {
+  const finished = { _id: 'finished', start: day('2026-09-01'), end: day('2026-09-14') };
+  // One day after `finished` ended.
+  const today = day('2026-09-15');
+
+  it('rolls over a finished sprint with nothing after it', () => {
+    const due = resolveRollover([finished], today);
+    expect(due.endedSprint).toBe(finished);
+    expect(due.window.start).toEqual(day('2026-09-15'));
+    expect(due.window.end).toEqual(day('2026-09-28'));
+  });
+
+  it('does nothing while a sprint is running', () => {
+    const active = { _id: 'active', start: day('2026-09-15'), end: day('2026-09-28') };
+    expect(resolveRollover([finished, active], today)).toBeNull();
+  });
+
+  it('does nothing when the team has already planned the next sprint', () => {
+    // Silently pouring tickets nobody chose into a sprint somebody did plan is
+    // worse than doing nothing; the leftovers tab stays the only way in.
+    const upcoming = { _id: 'upcoming', start: day('2026-09-20'), end: day('2026-10-03') };
+    expect(resolveRollover([finished, upcoming], today)).toBeNull();
+  });
+
+  it('does nothing in a workspace that has never run a sprint', () => {
+    expect(resolveRollover([], today)).toBeNull();
+    expect(resolveRollover([{ _id: 'junk' }], today)).toBeNull();
+  });
+
+  it('rolls over off the sprint that ended LAST when several have finished', () => {
+    const older = { _id: 'older', start: day('2026-08-01'), end: day('2026-08-14') };
+    expect(resolveRollover([older, finished], today).endedSprint).toBe(finished);
+  });
+
+  it('still rolls over at exactly one sprint length of silence', () => {
+    expect(resolveRollover([finished], day('2026-09-28'))).not.toBeNull();
+  });
+
+  it('stops once the workspace has gone dormant', () => {
+    // The guard that stops a workspace which ran one sprint in March growing a
+    // fresh empty sprint every fortnight forever, off nothing but a page load.
+    expect(resolveRollover([finished], day('2026-09-29'))).toBeNull();
+    expect(resolveRollover([finished], day('2027-03-01'))).toBeNull();
+  });
+
+  it('measures dormancy in the workspace’s own cadence', () => {
+    expect(resolveRollover([finished], day('2026-09-25'), { lengthDays: 7 })).toBeNull();
+    expect(resolveRollover([finished], day('2026-09-25'), { lengthDays: 28 })).not.toBeNull();
+  });
+
+  it('does nothing when the workspace turned it off', () => {
+    expect(resolveRollover([finished], today, { autoRollover: false })).toBeNull();
+  });
+
+  it('never proposes a window that its own create path would refuse', () => {
+    const due = resolveRollover([finished], today);
+    expect(() => validateSprintDates(due.window, today, { isNew: true })).not.toThrow();
+    expect(findOverlappingSprint(due.window, [finished])).toBeNull();
+  });
+
+  it('starts the successor today rather than in the gap it is closing', () => {
+    // A sprint backdated into the gap would arrive already part-consumed.
+    const due = resolveRollover([finished], day('2026-09-20'));
+    expect(due.window.start).toEqual(day('2026-09-20'));
   });
 });

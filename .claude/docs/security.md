@@ -64,10 +64,10 @@ the caller's workspace.
   `assertSprintInWorkspace(sprintId, workspaceId)` fetches the sprint, 404s if absent, and rejects
   a mismatch — same shape as `assertStatusInWorkspace`. Every route resolves its workspace through
   `resolveActiveWorkspaceId` first, so a sprint is neither readable nor writable across workspaces.
-  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/:id`, `GET|POST /:id/summary`,
-  `POST /`, `PATCH /:id` and `DELETE /:id` alike — `/leftovers` takes no id at all: it picks the
-  previous sprint by querying `{ workspace }` and reads its tickets through the workspace-scoped
-  ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
+  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/next-window`, `/:id`,
+  `GET|POST /:id/summary`, `POST /`, `PATCH /:id` and `DELETE /:id` alike — `/leftovers` and
+  `/next-window` take no id at all: they query `{ workspace }` and read tickets through the
+  workspace-scoped ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
   ticket update is — active workspace membership is enough, since admins/mentors already bypass it
   via `canAccessAnyWorkspace`.
 - **The sprint AI recap** (`GET|POST /api/sprints/:id/summary`, `services/sprintSummaryService.js`)
@@ -85,6 +85,14 @@ the caller's workspace.
   rather than an authorization failure. The read responses carry the same pair as
   `permissions: { canEdit, canDelete }` so the UI only offers what the server would accept; that
   field decides what is *rendered* and is never the check itself.
+- **A sprint read can create a sprint and move tickets** (`rolloverIfDue`, ADR-0014), so the three
+  read paths carry a write's exposure. Every query in it is workspace-scoped: the sprints it decides
+  from, the `Workspace` settings lookup, the successor it inserts, and the `Ticket.updateMany` carry
+  — which is filtered on `{ workspace, sprint: <the ended sprint>, _id: { $in: … } }`, so a rollover
+  in one workspace cannot reach a ticket in another even if an id were forged. It is authorized by
+  nothing more than the read that triggered it, which is the same posture as ADR-0012's seal: any
+  active member's `GET` may cause it. `Workspace.sprintSettings.autoRollover` / `lengthDays` gate the
+  behaviour but **no endpoint writes them**, so they add no authorization surface.
 - **Deleting a sprint detaches its tickets and stops there.** The cascade is one
   `Ticket.updateMany` scoped to `{ workspace, sprint }` setting `sprint: null` — statuses are left
   untouched, and the workspace filter means a sprint id can never reach a ticket in another

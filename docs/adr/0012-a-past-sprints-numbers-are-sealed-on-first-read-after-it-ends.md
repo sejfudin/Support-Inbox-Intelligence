@@ -44,6 +44,9 @@ write that would have rewritten it.
 
 ## Consequences
 
+- **ADR-0014 depends on the ordering here.** The rollover it describes seals the ending sprint
+  before it creates a successor or moves a single ticket, for exactly the reason set out above.
+
 - **The seal captures the state at first read, not at midnight on the end date.** If nothing reads a
   sprint between its end and some later change to its tickets, the snapshot records the later state.
   In practice the leftovers read closes the path that matters, because carrying forward is the only

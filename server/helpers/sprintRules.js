@@ -10,6 +10,13 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const MIN_SPRINT_DAYS = 7; // one week
 const MAX_SPRINT_DAYS = 56; // eight weeks
 
+// The cadence a sprint gets when nobody picks dates. Two weeks, INCLUSIVE of
+// both endpoints — `validateSprintDates` measures length the same way — so the
+// window is `start + 13 days`, not `start + 14`. A workspace may override it
+// (`Workspace.sprintSettings.lengthDays`), which is why every helper below takes
+// the length as an argument rather than reading this constant directly.
+const DEFAULT_SPRINT_DAYS = 14; // two weeks
+
 class SprintValidationError extends Error {
   constructor(message) {
     super(message);
@@ -50,6 +57,18 @@ const toUtcDay = (value) => {
 };
 
 const dayDiff = (a, b) => Math.round((toUtcDay(a).getTime() - toUtcDay(b).getTime()) / MS_PER_DAY);
+
+// Calendar-day arithmetic, at UTC midnight like everything else here.
+const addDays = (value, days) => new Date(toUtcDay(value).getTime() + days * MS_PER_DAY);
+
+// A configured length is held inside the bounds `validateSprintDates` enforces,
+// so a workspace setting of 3 days degrades to the minimum rather than making
+// every create fail on a window the server itself chose.
+const clampSprintLength = (lengthDays) => {
+  const length = Number(lengthDays);
+  if (!Number.isFinite(length)) return DEFAULT_SPRINT_DAYS;
+  return Math.min(MAX_SPRINT_DAYS, Math.max(MIN_SPRINT_DAYS, Math.round(length)));
+};
 
 const SPRINT_STATES = Object.freeze({
   UPCOMING: 'upcoming',
@@ -92,6 +111,14 @@ const pickSprintToShow = (sprints, today) => {
 const validateSprintDates = ({ start, end }, today, { isNew = true } = {}) => {
   const startDay = toUtcDay(start);
   const endDay = toUtcDay(end);
+
+  // An unparseable date has to be refused first, because every rule below is a
+  // comparison and every comparison against NaN is false — so `''` or `'soon'`
+  // would walk through all of them and only fail later, in Mongoose's cast, as
+  // `Cast to date failed for value "Invalid Date"` in the middle of a form.
+  if (Number.isNaN(startDay.getTime()) || Number.isNaN(endDay.getTime())) {
+    throw new SprintValidationError('A sprint needs a valid start and end date.');
+  }
 
   if (endDay.getTime() < startDay.getTime()) {
     throw new SprintValidationError('A sprint must end on or after its start date.');
@@ -141,6 +168,94 @@ const findOverlappingSprint = (candidate, existingSprints) => {
         !(candidateKey && sprintKey(sprint) === candidateKey) && sprintsOverlap(candidate, sprint)
     ) || null
   );
+};
+
+// ---------------------------------------------------------------------------
+// Default dates. Picking dates is optional; leaving them out gives a sprint of
+// the workspace's configured length that starts where the last one ends.
+//
+// One rule, used by the create path AND by the rollover, so the sprint a person
+// asks for and the sprint that appears on its own can never be different shapes.
+// ---------------------------------------------------------------------------
+
+// The sprint a new one has to be planned AFTER: the one ending latest, whatever
+// its state.
+//
+// Deliberately NOT `findPreviousSprint`, which skips upcoming sprints because
+// "nothing has been worked in them" — right for offering leftovers, wrong here.
+// Chaining a default off the ACTIVE sprint's end while an upcoming sprint
+// already exists lands the new window straight on top of it, and the create
+// then fails the overlap check against a date the server itself chose.
+const latestEndingSprint = (sprints = []) =>
+  sprints.reduce((latest, sprint) => {
+    if (!sprint?.end) return latest;
+    if (!latest) return sprint;
+    return toUtcDay(sprint.end).getTime() > toUtcDay(latest.end).getTime() ? sprint : latest;
+  }, null);
+
+// The window a sprint gets when nobody picks one: the day after the last sprint
+// ends, for `lengthDays` inclusive.
+//
+// Two rules are doing real work here.
+//
+// `+ 1` day, because `sprintsOverlap` is inclusive on both ends — a shared
+// endpoint IS an overlap — so the day after is the earliest legal start and
+// sprints run back to back with no gap.
+//
+// And `max(…, today)`: `validateSprintDates` refuses to backdate a NEW sprint,
+// so if the last sprint ended in July and it is now September, the day after it
+// is a date the create would reject. Today wins in that case, leaving the gap
+// where it already is rather than planning a sprint that is half over.
+const defaultSprintWindow = (latestSprint, today, lengthDays = DEFAULT_SPRINT_DAYS) => {
+  const length = clampSprintLength(lengthDays);
+  const floor = toUtcDay(today);
+  const afterLatest = latestSprint?.end ? addDays(latestSprint.end, 1) : null;
+  const start = afterLatest && afterLatest.getTime() > floor.getTime() ? afterLatest : floor;
+
+  return { start, end: addDays(start, length - 1) };
+};
+
+// "The caller gave a date." Empty string counts as *not* given: that is what an
+// untouched date picker submits, and both the create and the update path have to
+// read it the same way — see `resolveSprintWindow` below and `updateSprint`.
+const hasDate = (value) => value !== undefined && value !== null && value !== '';
+
+// What the caller asked for, with whatever they left out filled in. Either date
+// may be omitted, or both.
+//
+// A date that WAS given is passed through as `new Date(value)` untouched, so
+// this changes nothing about how a typed date is stored; only defaults are
+// normalised to UTC midnight.
+//
+// One date given fills the other from the same rule rather than from today:
+// a start with no end runs the configured length from that start, and an end
+// with no start begins where the default would. Anything the two of them make
+// still goes through `validateSprintDates` and the overlap check, so a default
+// can never reach the database by skipping a rule.
+const resolveSprintWindow = (
+  { start, end } = {},
+  latestSprint,
+  today,
+  lengthDays = DEFAULT_SPRINT_DAYS
+) => {
+  const length = clampSprintLength(lengthDays);
+
+  if (hasDate(start) && hasDate(end)) {
+    return { start: new Date(start), end: new Date(end) };
+  }
+
+  if (hasDate(start)) {
+    const startDate = new Date(start);
+    return { start: startDate, end: addDays(startDate, length - 1) };
+  }
+
+  const fallback = defaultSprintWindow(latestSprint, today, length);
+
+  if (hasDate(end)) {
+    return { start: fallback.start, end: new Date(end) };
+  }
+
+  return fallback;
 };
 
 const SPRINT_NOT_EDITABLE = 'A past sprint is a record and can no longer be changed.';
@@ -423,9 +538,95 @@ const resolveSprintMetrics = (sprint, { tickets = [], statuses = [] } = {}, toda
   return { metrics, seal: { ...metrics, sealedAt: new Date(today) } };
 };
 
+// ---------------------------------------------------------------------------
+// Rollover — what happens when a sprint ends and nothing follows it.
+//
+// Pure, like everything else here: these two decide, and the service writes.
+// See ADR 0014.
+// ---------------------------------------------------------------------------
+
+// Which of a finished sprint's tickets follow it into the next one.
+//
+// Buckets come from `bucketSprintTicket`, so "done" is the status FLAG and never
+// a status name — a workspace that renamed its done column, or has none at all,
+// behaves identically. That shared helper is the point: the carry and the sprint
+// numbers cannot end up disagreeing about which tickets were finished.
+//
+// Done stays, because a finished ticket belongs to the sprint that finished it.
+// Archived stays, because `countsTowardsSprint` already excludes it from every
+// sprint number and carrying it would put cancelled work back on the board.
+// Everything else follows — to do, in progress, review, and blocked most of all,
+// since a blocked ticket is exactly the work that has to come with you.
+//
+// Statuses are NOT rewritten. A carried ticket keeps the column it reached,
+// which is what makes this a membership change with no transition to run.
+const partitionSprintCarry = (tickets = [], statuses = []) => {
+  const todoKey = firstMainStatusKey(statuses);
+  const carry = [];
+  const stay = [];
+
+  tickets.forEach((ticket) => {
+    const id = idKey(ticket);
+    if (!id) return;
+
+    if (!countsTowardsSprint(ticket)) {
+      stay.push(id);
+      return;
+    }
+
+    const bucket = bucketSprintTicket(ticket, statuses, todoKey);
+    (bucket === SPRINT_BUCKETS.DONE ? stay : carry).push(id);
+  });
+
+  return { carry, stay };
+};
+
+// Whether a workspace is due a new sprint, and what its window would be.
+// Returns null — meaning "do nothing" — far more often than not.
+//
+// `{ endedSprint, window }` when every sprint in the workspace is past and the
+// most recent one ended recently enough to still be a cadence.
+//
+// The four ways this returns null are each load-bearing:
+//
+//  - An ACTIVE or UPCOMING sprint exists. One test covers both, because either
+//    one means the workspace already has a next sprint: the team is working in
+//    it, or the team planned it. Pouring tickets nobody chose into a sprint
+//    somebody did plan is worse than doing nothing, and the create modal's
+//    leftovers tab stays the only way in.
+//  - No sprints at all. Rollover continues a cadence; it does not start one.
+//  - The workspace has gone DORMANT. Without this a workspace that ran one
+//    sprint in March and stopped would grow a fresh empty sprint every fortnight
+//    forever, off nothing but a page load. One sprint length of grace: past
+//    that, the team has stopped running sprints and a read must not restart them.
+//  - The workspace turned it off (`autoRollover: false`).
+const resolveRollover = (
+  sprints = [],
+  today,
+  { lengthDays = DEFAULT_SPRINT_DAYS, autoRollover = true } = {}
+) => {
+  if (!autoRollover) return null;
+
+  const dated = sprints.filter((sprint) => sprint?.start && sprint?.end);
+  if (dated.length === 0) return null;
+
+  // Anything not past is a successor already, whether it is running or planned.
+  if (dated.some((sprint) => deriveSprintState(sprint, today) !== SPRINT_STATES.PAST)) {
+    return null;
+  }
+
+  const endedSprint = latestEndingSprint(dated);
+  const length = clampSprintLength(lengthDays);
+
+  if (dayDiff(today, endedSprint.end) > length) return null;
+
+  return { endedSprint, window: defaultSprintWindow(endedSprint, today, length) };
+};
+
 module.exports = {
   MIN_SPRINT_DAYS,
   MAX_SPRINT_DAYS,
+  DEFAULT_SPRINT_DAYS,
   SPRINT_STATES,
   SPRINT_ESTIMATE_REQUIRED,
   SPRINT_NOT_EDITABLE,
@@ -434,11 +635,17 @@ module.exports = {
   SprintOverlapError,
   SprintNotMutableError,
   toUtcDay,
+  addDays,
+  clampSprintLength,
   deriveSprintState,
   pickSprintToShow,
   validateSprintDates,
   sprintsOverlap,
   findOverlappingSprint,
+  latestEndingSprint,
+  defaultSprintWindow,
+  resolveSprintWindow,
+  hasDate,
   canEditSprint,
   canDeleteSprint,
   sprintPermissions,
@@ -461,4 +668,6 @@ module.exports = {
   sprintNeedsAttention,
   sprintMetrics,
   resolveSprintMetrics,
+  partitionSprintCarry,
+  resolveRollover,
 };

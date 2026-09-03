@@ -3,6 +3,7 @@ import {
   getSprints,
   getCurrentSprint,
   getSprintLeftovers,
+  getNextSprintWindow,
   getSprint,
   createSprint,
   updateSprint,
@@ -34,6 +35,16 @@ export const useSprintLeftovers = (workspaceId, options = {}) =>
   useQuery({
     queryKey: [SPRINTS_QUERY_KEY, workspaceId, 'leftovers'],
     queryFn: () => getSprintLeftovers({ workspaceId }),
+    enabled: Boolean(workspaceId),
+    ...options,
+  });
+
+// Keyed under the workspace's sprints like the leftovers read, and for the same
+// reason: creating or deleting a sprint moves where the next one would start.
+export const useNextSprintWindow = (workspaceId, options = {}) =>
+  useQuery({
+    queryKey: [SPRINTS_QUERY_KEY, workspaceId, 'next-window'],
+    queryFn: () => getNextSprintWindow({ workspaceId }),
     enabled: Boolean(workspaceId),
     ...options,
   });

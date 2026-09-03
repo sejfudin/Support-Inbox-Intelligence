@@ -22,6 +22,17 @@ export const getSprintLeftovers = async ({ workspaceId } = {}) => {
   return response.data;
 };
 
+// The name and dates a new sprint would get if nobody picked any. Prefills the
+// create modal, so the person edits a real window instead of filling a blank
+// one — and so the two-week rule lives on the server, where the rollover shares
+// it, rather than being derived a second time here.
+export const getNextSprintWindow = async ({ workspaceId } = {}) => {
+  const response = await apiClient.get('/sprints/next-window', {
+    params: { workspace: workspaceId },
+  });
+  return response.data;
+};
+
 export const getSprint = async (id) => {
   const response = await apiClient.get(`/sprints/${id}`);
   return response.data;

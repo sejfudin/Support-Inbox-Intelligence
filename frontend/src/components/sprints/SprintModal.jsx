@@ -19,16 +19,26 @@ import { ConfirmModal } from '@/components/Modals/ConfirmModal';
 import {
   useCreateSprint,
   useDeleteSprint,
+  useNextSprintWindow,
   useSprintLeftovers,
   useUpdateSprint,
 } from '@/queries/sprints';
 import { useSetSprintMembership, useTickets } from '@/queries/tickets';
 import { SprintPlanningPicker } from '@/components/sprints/SprintPlanningPicker';
 
+// Dates are OPTIONAL. Leave either one out and the server fills it from the
+// workspace's cadence (`resolveSprintWindow`) — a two-week sprint starting where
+// the last one ends. The pickers are prefilled with exactly that window, so an
+// untouched form is not a blank one, but a person who clears a picker still gets
+// a legal sprint rather than a validation error.
+//
+// The range rules — end on or after start, one to eight weeks, no overlap with
+// another sprint — are deliberately NOT restated here. They are the server's,
+// and `applyServerError` below puts its answer in the form.
 const schema = z.object({
   name: z.string().trim().min(1, 'Give the sprint a name'),
-  start: z.string().min(1, 'Pick a start date'),
-  end: z.string().min(1, 'Pick an end date'),
+  start: z.string().optional(),
+  end: z.string().optional(),
   goal: z.string().trim().optional(),
 });
 
@@ -101,6 +111,15 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
     enabled: Boolean(open && workspaceId && !isEdit),
   });
 
+  // Create mode only, like the leftovers read above: the name and dates a new
+  // sprint would get if nobody picked any. Editing an existing sprint has its
+  // own dates and must never be re-seeded from the cadence.
+  const nextWindowQuery = useNextSprintWindow(workspaceId, {
+    enabled: Boolean(open && workspaceId && !isEdit),
+  });
+
+  const nextWindow = isEdit ? null : nextWindowQuery.data?.data || null;
+
   const leftoverTickets = useMemo(
     () => (isEdit ? [] : leftoversQuery.data?.data?.tickets || []),
     [isEdit, leftoversQuery.data]
@@ -112,12 +131,24 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
     control,
     handleSubmit,
     reset,
+    setValue,
+    setError,
+    getValues,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues: buildDefaults(sprint, nextSprintName),
   });
 
+  // Resets when the modal OPENS, or switches to a different sprint — and on
+  // nothing else.
+  //
+  // `nextSprintName` used to be a dependency here, which made this effect fire
+  // whenever that prop changed identity. It is derived in `SprintsPage` from the
+  // sprints query, so anybody else creating or deleting a sprint invalidates
+  // that query over the socket, the prop changes, and this used to re-run and
+  // `reset()` the form out from under whoever was filling it in. Harmless while
+  // the pickers started empty; with dates prefilled it silently blanked them.
   useEffect(() => {
     if (open) {
       reset(buildDefaults(sprint, nextSprintName));
@@ -126,7 +157,41 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
       setDeleteError('');
       setIsConfirmingDelete(false);
     }
-  }, [open, sprintId, nextSprintName, reset]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, sprintId, reset]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prefills the two pickers once the suggested window arrives, so the form shows
+  // the sprint it is about to create rather than two empty fields.
+  //
+  // `setValue` on the two date fields rather than a `reset`, and guarded by a ref
+  // so it happens once per open: the window lands a moment after the modal does,
+  // and a reset then would discard a name or goal already being typed. If the
+  // read fails the pickers simply stay empty, which is the same request the
+  // server fills in — the prefill is a courtesy, not the mechanism.
+  const windowSeededRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      windowSeededRef.current = false;
+      return;
+    }
+    if (isEdit || !nextWindow || windowSeededRef.current) return;
+
+    windowSeededRef.current = true;
+    setValue('start', toDateValue(nextWindow.start));
+    setValue('end', toDateValue(nextWindow.end));
+
+    // The response's name is the authoritative one — it is counted in the
+    // database, while the page's `nextSprintName` is counted off a query that may
+    // not have answered yet and falls back to "Sprint 1". So it replaces a name
+    // nobody has touched, and leaves alone one that has been typed into.
+    //
+    // The test is against the page's guess rather than emptiness: the field is
+    // never empty (the reset seeds it with that guess), so `!getValues('name')`
+    // could not fire, and a modal opened before the sprints query resolved kept
+    // "Sprint 1" — creating a second one in a workspace that already had five.
+    const typedName = getValues('name');
+    if (!typedName || typedName === nextSprintName) setValue('name', nextWindow.name);
+  }, [open, isEdit, nextWindow, nextSprintName, setValue, getValues]);
 
   // Seeds the right pane once the sprint's tickets arrive. `committedTicketIds`
   // is the saved membership; `selectedTicketIds` is what the person has dragged
@@ -154,6 +219,32 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
     createMutation.isPending || updateMutation.isPending || membershipMutation.isPending;
 
   const describeError = (error, fallback) => error?.response?.data?.message || fallback;
+
+  // Where a refused save is shown. The two the server can answer with are both
+  // about what is in this form, so they belong IN it rather than in a toast that
+  // scrolls away:
+  //
+  //  - 409, the overlap refusal. The server already built the message naming the
+  //    sprint in the way (`This overlaps Sprint 4.`) and even ships the colliding
+  //    sprint in `data.collidingSprint`; putting that in a toast throws away the
+  //    only part that tells you what to change.
+  //  - 400, the date rules (end before start, shorter than a week, longer than
+  //    eight) and the empty name.
+  //
+  // A form-level `root` error rather than one pinned to `start` or `end`, because
+  // every one of these is about the RANGE, not about one endpoint. Anything else
+  // — a 500, a dropped connection — is not about the form and stays a toast.
+  const applyServerError = (error, fallbackTitle) => {
+    const status = error?.response?.status;
+    const message = error?.response?.data?.message;
+
+    if (message && (status === 409 || status === 400)) {
+      setError('root', { type: 'server', message });
+      return;
+    }
+
+    toast.error(fallbackTitle, { description: describeError(error) });
+  };
 
   // Two requests at most, and only for what actually changed: one batch joining
   // the sprint, one batch leaving it. Removal clears the sprint and leaves the
@@ -222,8 +313,7 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
               committedTicketIds,
               finish('Sprint updated')
             ),
-          onError: (error) =>
-            toast.error('Could not save sprint', { description: describeError(error) }),
+          onError: (error) => applyServerError(error, 'Could not save sprint'),
         }
       );
       return;
@@ -238,8 +328,7 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
         }
         writeMembership(createdId, selectedTicketIds, [], finish('Sprint created'));
       },
-      onError: (error) =>
-        toast.error('Could not create sprint', { description: describeError(error) }),
+      onError: (error) => applyServerError(error, 'Could not create sprint'),
     });
   };
 
@@ -327,6 +416,27 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
                 )}
               </div>
             </div>
+
+            {/* The range refusals the server owns — overlap, and the length and
+                ordering rules — shown once, under the dates they are about,
+                rather than pinned to one endpoint or lost in a toast. */}
+            {errors.root && (
+              <p
+                className="text-xs text-[hsl(var(--tone-danger-fg))]"
+                data-test="sprint-form-error"
+                role="alert"
+              >
+                {errors.root.message}
+              </p>
+            )}
+
+            {!isEdit && (
+              <p className="text-[11.5px] text-muted-foreground">
+                Dates are optional — left alone, a sprint runs{' '}
+                {nextWindow?.lengthDays ? `${nextWindow.lengthDays} days` : 'two weeks'} from where
+                the last one ends.
+              </p>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="sprint-goal">
