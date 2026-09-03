@@ -112,9 +112,18 @@ AI: `AISummary`, `SprintAISummary`.
   (`getWorkspaceDailyOverview`/`getMemberDailyEntry` in `dailyService.js`, routed at
   `/api/dailies/admin/*`) derives a calendar-month reporting-coverage grid and per-member entry
   detail from the same documents — no new schema. See ADR-0001.
-- `Sprint` — workspace-scoped: `name`, `start`, `end`, an optional `goal`, and `snapshot` — the one
-  stored aggregate, null until the sprint is sealed (see below). No lifecycle field, no ticket list,
-  no live counts. State (`upcoming` / `active` / `past`) is
+- `Sprint` — workspace-scoped: `name`, `start`, `end`, an optional `goal`, `snapshot` — the one
+  stored aggregate, null until the sprint is sealed (see below) — and `rolledOverFrom`, the sprint
+  this one succeeds when the rollover created it rather than a person (null otherwise; ADR-0014). No
+  lifecycle field, no ticket list, no live counts. **Both dates are optional on create**: omit them
+  and the sprint runs the workspace's cadence (two weeks by default) from the day after the
+  latest-ending sprint ends, clamped forward to today so a stale cadence cannot produce a backdated
+  window; omit one and the other is filled from the same rule. The window is decided by
+  `resolveSprintWindow` / `defaultSprintWindow` in `sprintRules.js` and then goes through exactly the
+  same validation and overlap check as a typed one, so a default can never reach the database by
+  skipping a rule. It chains off the sprint ending **latest**, upcoming ones included — deliberately
+  not `findPreviousSprint`, which skips upcoming sprints and would default a window straight on top
+  of a sprint the team already planned. State (`upcoming` / `active` / `past`) is
   derived from the dates against "today" rather than stored, and no two sprints in a workspace may
   overlap (containment and shared endpoints count as overlap). Both rules live in the pure, clock-
   free `server/helpers/sprintRules.js`. Which tickets are in a sprint is read off `Ticket.sprint` —
@@ -150,9 +159,31 @@ AI: `AISummary`, `SprintAISummary`.
   **before** it reads or returns anything to carry, so the membership write that follows cannot
   rewrite the record it just showed. Without this, carrying a leftover out of a finished sprint
   shrinks that sprint's total and raises its done-percentage, because membership is one reference on
-  the ticket. The workspace-scoped resource
+  the ticket.
+  **A sprint also rolls over on read** (ADR-0014). The same three reads call
+  `sprintService.rolloverIfDue` first, which asks the pure `sprintRules.resolveRollover` whether the
+  workspace is due a successor — it is only when **every** sprint in the workspace is past (an active
+  *or* an upcoming sprint means one already exists), the most recent one ended within one sprint
+  length (past that the workspace is dormant and a read must not restart a cadence), and
+  `Workspace.sprintSettings.autoRollover` is on. When it is due, three writes happen **in this
+  order**: the ending sprint is **sealed**, the successor is **created** from `defaultSprintWindow`,
+  and the tickets that are not done are **carried** into it. Inverting the first and third is the
+  ADR-0012 bug — it would rewrite the record of the sprint being closed. Concurrency is the unique
+  partial index on `{ workspace, rolledOverFrom }` rather than a lock: two racing reads both reach
+  the insert, one lands and the other takes a duplicate-key error and re-reads. The carry is a single
+  `Ticket.updateMany` that sets only `sprint`, **not** a pass through `updateTicket` — a carried
+  ticket keeps the status it reached, so there is no transition, no `doneAt`, no time-in-status and
+  no history line, exactly as `deleteSprint` detaches. Which tickets follow comes from
+  `partitionSprintCarry`, sharing `bucketSprintTicket` with the aggregations so the carry and the
+  numbers cannot disagree about "done": done stays, archived stays, everything else (including
+  blocked) carries. `Workspace.sprintSettings` (`autoRollover`, `lengthDays`) is the switch and the
+  cadence; **no endpoint writes it yet** — the field exists so both are configuration rather than
+  constants. The workspace-scoped resource
   (`routes/sprints.js` → `controllers/sprints.js` → `services/sprintService.js`) is list, read,
-  create, update and delete, plus `GET /sprints/leftovers` — the previous sprint (the most recent
+  create, update and delete, plus `GET /sprints/next-window` — the name and dates a new sprint would
+  get if nobody picked any, which the create modal prefills its pickers with so the two-week rule
+  lives on the server (shared with the rollover) rather than being derived a second time in the
+  frontend — and `GET /sprints/leftovers` — the previous sprint (the most recent
   one that has already begun) and its unfinished, unarchived tickets, which the create modal offers
   as a third source tab so leftovers are not silently dropped. Nothing is carried across by that
   read — carrying a leftover forward is a drag like any other, and moving the ticket is the ordinary

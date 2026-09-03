@@ -39,6 +39,19 @@ const getSprintToShow = async (req, res, next) => {
   }
 };
 
+// The name and dates a new sprint would get if nobody picked any, so the create
+// modal prefills a real window rather than showing empty pickers and then saving
+// dates the person never saw.
+const getNextSprintWindow = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const window = await sprintService.getNextSprintWindow(workspaceId);
+    res.status(200).json({ success: true, message: 'Next sprint window fetched', data: window });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
 // The previous sprint's unfinished tickets, offered by the create modal's third
 // source tab. `data.sprint` is null when there is no previous sprint, which is
 // how the modal knows to leave the tab out rather than show an empty one.
@@ -62,6 +75,9 @@ const getSprintById = async (req, res, next) => {
   }
 };
 
+// `start` and `end` are both OPTIONAL — absent, they are filled from the
+// workspace's cadence by `resolveSprintWindow` in the service, which is also
+// what fills the other one in when a caller sends only one.
 const createSprint = async (req, res, next) => {
   try {
     const workspaceId = await resolveWorkspaceId(req);
@@ -139,6 +155,7 @@ const generateSprintSummary = async (req, res, next) => {
 module.exports = {
   getSprints,
   getSprintToShow,
+  getNextSprintWindow,
   getPreviousSprintLeftovers,
   getSprintById,
   createSprint,

@@ -56,6 +56,16 @@ const sprintSchema = new mongoose.Schema(
       type: sprintSnapshotSchema,
       default: null,
     },
+    // The sprint this one succeeds, when it was created by the rollover rather
+    // than by a person. Null for every hand-made sprint. See ADR 0014.
+    //
+    // It is the audit trail — "nobody planned this" is worth knowing on the Past
+    // tab — but its load-bearing job is the unique index below.
+    rolledOverFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Sprint',
+      default: null,
+    },
   },
   { timestamps: true }
 );
@@ -63,5 +73,30 @@ const sprintSchema = new mongoose.Schema(
 // Backs both the sprint board and the "which sprints exist in this workspace"
 // overlap/listing queries.
 sprintSchema.index({ workspace: 1, start: 1 });
+
+// Backs the "what does a new sprint have to start after" read, which sorts by
+// end rather than by start — a long sprint can end after one that starts later.
+sprintSchema.index({ workspace: 1, end: -1 });
+
+// A sprint may be rolled over from ONCE, and the database is what guarantees it.
+//
+// This is the whole concurrency story for ADR 0014. Rollover happens on read, so
+// two simultaneous first-reads-after-a-sprint-ends both decide to create the
+// successor; one insert lands and the other takes a duplicate-key error and
+// simply re-reads. A process-level lock could not promise this across workers,
+// and an in-memory guard (as `dailyReminderService` uses for reminders) is
+// explicitly scoped there to work that cannot corrupt data — a duplicate sprint
+// with tickets moved into it can.
+//
+// Partial on `$type: 'objectId'` rather than `$exists: true`, because every
+// hand-made sprint stores an explicit null and `$exists` would match all of them
+// — making the second manually created sprint in a workspace unsaveable.
+sprintSchema.index(
+  { workspace: 1, rolledOverFrom: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { rolledOverFrom: { $type: 'objectId' } },
+  }
+);
 
 module.exports = mongoose.model('Sprint', sprintSchema);
