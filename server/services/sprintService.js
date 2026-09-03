@@ -21,6 +21,8 @@ const {
   resolveSprintWindow,
   resolveRollover,
   partitionSprintCarry,
+  clampSprintLength,
+  hasDate,
 } = require('../helpers/sprintRules');
 const { emitSprintChanged } = require('../socket/events');
 
@@ -128,12 +130,18 @@ const nextSprintName = async (workspaceId) => {
 // How this workspace runs sprints, with the shipped cadence standing in for a
 // workspace saved before the field existed. Read through one function so the
 // two defaults are stated once.
+//
+// `lengthDays` is clamped here rather than at each use: every window builder
+// clamps it anyway (`resolveSprintWindow`, `defaultSprintWindow`, the rollover),
+// so a value that survived un-clamped could only ever reach a caller that merely
+// *reports* it — which is what made `/sprints/next-window` tell the modal "a
+// sprint runs 3 days" beside a 7-day window it had already clamped.
 const getWorkspaceSprintSettings = async (workspaceId) => {
   const workspace = await Workspace.findById(workspaceId).select('sprintSettings').lean();
 
   return {
     autoRollover: workspace?.sprintSettings?.autoRollover ?? true,
-    lengthDays: workspace?.sprintSettings?.lengthDays ?? DEFAULT_SPRINT_DAYS,
+    lengthDays: clampSprintLength(workspace?.sprintSettings?.lengthDays ?? DEFAULT_SPRINT_DAYS),
   };
 };
 
@@ -160,6 +168,13 @@ const getNextSprintWindow = async (workspaceId, today = new Date()) => {
   if (!workspaceId) {
     throw httpError('No workspace associated with this account.', 400);
   }
+
+  // Rolls over first, like every other sprint read (ADR 0014). Skipping it was
+  // not a saved query: a modal opened while `GET /sprints` was mid-rollover got
+  // prefilled with the very window the rollover was claiming, so the create then
+  // failed with a 409 on dates the server itself had supplied — and the modal's
+  // seed-once guard meant the stale dates stayed in the form.
+  await rolloverIfDue(workspaceId, today);
 
   const [latest, settings, name] = await Promise.all([
     findLatestEndingSprint(workspaceId),
@@ -404,8 +419,13 @@ const updateSprint = async (
   const sprint = await assertSprintInWorkspace(sprintId, workspaceId);
   assertSprintEditable(sprint, today);
 
-  const startDate = start === undefined ? sprint.start : new Date(start);
-  const endDate = end === undefined ? sprint.end : new Date(end);
+  // `hasDate`, not `!== undefined`: the edit form's date inputs submit `''` when
+  // cleared, and `new Date('')` is an Invalid Date that used to reach `save()`.
+  // Empty means "not given" here for the same reason it does on create, so the
+  // sprint keeps the date it has; a date that is present but unparseable is
+  // refused by `validateSprintDates` below with a message a form can show.
+  const startDate = hasDate(start) ? new Date(start) : sprint.start;
+  const endDate = hasDate(end) ? new Date(end) : sprint.end;
 
   // `isNew: false` — an existing sprint that has already begun necessarily
   // started in the past, so the no-backdating rule cannot apply to it.

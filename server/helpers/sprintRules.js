@@ -112,6 +112,14 @@ const validateSprintDates = ({ start, end }, today, { isNew = true } = {}) => {
   const startDay = toUtcDay(start);
   const endDay = toUtcDay(end);
 
+  // An unparseable date has to be refused first, because every rule below is a
+  // comparison and every comparison against NaN is false — so `''` or `'soon'`
+  // would walk through all of them and only fail later, in Mongoose's cast, as
+  // `Cast to date failed for value "Invalid Date"` in the middle of a form.
+  if (Number.isNaN(startDay.getTime()) || Number.isNaN(endDay.getTime())) {
+    throw new SprintValidationError('A sprint needs a valid start and end date.');
+  }
+
   if (endDay.getTime() < startDay.getTime()) {
     throw new SprintValidationError('A sprint must end on or after its start date.');
   }
@@ -207,6 +215,9 @@ const defaultSprintWindow = (latestSprint, today, lengthDays = DEFAULT_SPRINT_DA
   return { start, end: addDays(start, length - 1) };
 };
 
+// "The caller gave a date." Empty string counts as *not* given: that is what an
+// untouched date picker submits, and both the create and the update path have to
+// read it the same way — see `resolveSprintWindow` below and `updateSprint`.
 const hasDate = (value) => value !== undefined && value !== null && value !== '';
 
 // What the caller asked for, with whatever they left out filled in. Either date
@@ -634,6 +645,7 @@ module.exports = {
   latestEndingSprint,
   defaultSprintWindow,
   resolveSprintWindow,
+  hasDate,
   canEditSprint,
   canDeleteSprint,
   sprintPermissions,

@@ -160,8 +160,10 @@ AI: `AISummary`, `SprintAISummary`.
   rewrite the record it just showed. Without this, carrying a leftover out of a finished sprint
   shrinks that sprint's total and raises its done-percentage, because membership is one reference on
   the ticket.
-  **A sprint also rolls over on read** (ADR-0014). The same three reads call
-  `sprintService.rolloverIfDue` first, which asks the pure `sprintRules.resolveRollover` whether the
+  **A sprint also rolls over on read** (ADR-0014). **Every** sprint read calls
+  `sprintService.rolloverIfDue` first — the three above plus `GET /sprints/next-window`, whose
+  prefill would otherwise hand the create modal the very window the rollover was about to claim —
+  which asks the pure `sprintRules.resolveRollover` whether the
   workspace is due a successor — it is only when **every** sprint in the workspace is past (an active
   *or* an upcoming sprint means one already exists), the most recent one ended within one sprint
   length (past that the workspace is dormant and a read must not restart a cadence), and

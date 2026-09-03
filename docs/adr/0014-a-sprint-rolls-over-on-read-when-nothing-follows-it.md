@@ -40,7 +40,10 @@ though it never had it. ADR-0012 records that as observed, not theorised.
 sealed, a successor is created from the same default window the create path uses, and the tickets
 that are not done are moved into it with their statuses untouched.**
 
-- The trigger is a read (`GET /sprints`, `/sprints/current`, `/sprints/leftovers`), not a clock.
+- The trigger is a read (`GET /sprints`, `/sprints/current`, `/sprints/leftovers`,
+  `/sprints/next-window`), not a clock. **Every** sprint read, including the one that only
+  prefills the create form: a prefill taken before the rollover hands back the window the
+  rollover is about to claim, and the create then fails on dates the server itself supplied.
 - **The three writes happen in one order, and it is not negotiable:** seal the ending sprint, create
   the successor, then carry. Steps one and three inverted is the ADR-0012 bug.
 - **Concurrency is a unique partial index on `{ workspace, rolledOverFrom }`**, not a lock. Two

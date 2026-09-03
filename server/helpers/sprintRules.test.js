@@ -86,6 +86,20 @@ describe('validateSprintDates', () => {
     ).not.toThrow();
   });
 
+  // Every rule in the validator is a comparison, and NaN loses every comparison
+  // — so an unparseable date used to pass all of them and fail later in
+  // Mongoose's cast, surfacing as `Cast to date failed` inside a form. The edit
+  // form's date inputs submit `''` when cleared, so this is a reachable input,
+  // not a defensive one.
+  it.each([
+    ['an empty start', { start: '', end: day('2026-09-12') }],
+    ['an empty end', { start: day('2026-09-01'), end: '' }],
+    ['an unparseable start', { start: 'soon', end: day('2026-09-12') }],
+    ['a missing end', { start: day('2026-09-01'), end: undefined }],
+  ])('rejects %s rather than letting NaN through every rule', (_label, window) => {
+    expect(() => validateSprintDates(window, today)).toThrow('valid start and end date');
+  });
+
   it('rejects an end date before the start date', () => {
     expect(() =>
       validateSprintDates({ start: day('2026-09-12'), end: day('2026-09-01') }, today)

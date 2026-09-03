@@ -180,12 +180,18 @@ export const SprintModal = ({ open, onOpenChange, workspaceId, nextSprintName, s
     setValue('start', toDateValue(nextWindow.start));
     setValue('end', toDateValue(nextWindow.end));
 
-    // The response's name is the authoritative one, but it only fills a field
-    // that is still empty — which happens when the modal opens before the page's
-    // sprints query has answered. Overwriting a name already on screen would
-    // undo whatever the person had started typing.
-    if (!getValues('name')) setValue('name', nextWindow.name);
-  }, [open, isEdit, nextWindow, setValue, getValues]);
+    // The response's name is the authoritative one — it is counted in the
+    // database, while the page's `nextSprintName` is counted off a query that may
+    // not have answered yet and falls back to "Sprint 1". So it replaces a name
+    // nobody has touched, and leaves alone one that has been typed into.
+    //
+    // The test is against the page's guess rather than emptiness: the field is
+    // never empty (the reset seeds it with that guess), so `!getValues('name')`
+    // could not fire, and a modal opened before the sprints query resolved kept
+    // "Sprint 1" — creating a second one in a workspace that already had five.
+    const typedName = getValues('name');
+    if (!typedName || typedName === nextSprintName) setValue('name', nextWindow.name);
+  }, [open, isEdit, nextWindow, nextSprintName, setValue, getValues]);
 
   // Seeds the right pane once the sprint's tickets arrive. `committedTicketIds`
   // is the saved membership; `selectedTicketIds` is what the person has dragged
