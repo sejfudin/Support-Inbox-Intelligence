@@ -19,7 +19,7 @@ export function RegisterSuccess({ createdUser, onCreateAnother }) {
   return (
     // Same fix as `pages/Register.jsx`: in flow inside `<main>`, not `fixed` —
     // this screen replaces the same nested route, so it needs the same
-    // `min-h-[var(--app-vh)]` zoom-safety without breaking out over the sidebar.
+    // `min-h-[var(--app-vh)]` sizing without breaking out over the sidebar.
     <div className="min-h-[var(--app-vh)] w-full overflow-y-auto bg-transparent p-4">
       <div className="mx-auto flex min-h-full w-full max-w-5xl items-center justify-center py-6 sm:py-10">
         <div className="grid w-full gap-6 lg:grid-cols-[0.92fr_1.08fr]">

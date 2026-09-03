@@ -9,10 +9,10 @@
  * notification groups, quick-action order) in `USER_LIST_PREFERENCE_DEFINITIONS`
  * further down.
  *
- * Deliberately absent: **UI scale**. It is the one preference that is a function
- * of physical screen size and viewing distance rather than of the person's
- * taste, so it stays per-device in `localStorage`. See the matching comment in
- * `frontend/src/context/ThemeConfigContext.jsx`.
+ * A few preferences stay per-device in `localStorage` instead (the
+ * desktop-notification switch, the collapsed sidebar sections) — they carry
+ * `PREFERENCE_SCOPE.DEVICE` in `frontend/src/context/ThemeConfigContext.jsx` and
+ * never reach this table.
  */
 
 /** Single-valued preferences: an enum and the value a fresh account starts on. */

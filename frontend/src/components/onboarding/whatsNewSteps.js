@@ -124,14 +124,20 @@ import { resolveUserId } from '@/helpers/userIdentity';
 //   "Contrast, colour vision, motion"), and leaving that copy would have shipped a
 //   correction only first-time viewers ever see. No new step; the two edited ones
 //   just stop claiming settings that no longer exist.
-// - `2026-08-ai-skills` (this one): the intern page is Position & Skills now, and the
+// - `2026-08-ai-skills`: the intern page is Position & Skills now, and the
 //   catalog has a second half — coding agents, assistant IDEs, LLM APIs — with its own
 //   search box beside the technology one. One intern step, and a bump for it, for the
 //   same reason as the avatars: a search box nobody knows about is a list that stays
 //   empty, and a mentor cannot assess an AI skill that was never declared. Deletes
 //   nothing — the two entries above are a step and a correction, and this neither
 //   repeats nor retires either.
-export const TOUR_VERSION = '2026-08-ai-skills';
+// - `2026-09-appearance-cleanup` (this one): "Text & UI size" is gone from Settings
+//   (it scaled the app with `zoom`, which broke dropdown positioning), and Leadership's
+//   own Settings no longer offers an accent — that surface is brand-locked, so the
+//   picker never did anything there. Same reasoning as `2026-08-settings-cleanup`: the
+//   `accessibility` step's title named "text size", and leaving it would ship a
+//   correction only first-time viewers ever see. No new step; one edited title.
+export const TOUR_VERSION = '2026-09-appearance-cleanup';
 
 /**
  * Master switch for the what's-new tour. **On.**
@@ -368,7 +374,7 @@ export const WHATS_NEW_STEPS = [
   {
     id: 'accessibility',
     target: '[data-tour="settings-accessibility"]',
-    title: 'Contrast and text size',
+    title: 'Contrast',
     body: 'Red text that was unreadable on dark is repaired everywhere, not only in high contrast.',
     placement: 'right',
   },

@@ -106,7 +106,7 @@ export default function SettingsPage() {
     document.querySelector(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [hash]);
 
-  const { uiScale, contrast, setPreference, preferenceOptions, ready } = useThemeConfig();
+  const { contrast, setPreference, preferenceOptions, ready } = useThemeConfig();
   const [boardSort, setBoardSort] = useStoredPreference(
     BOARD_SORT_STORAGE_KEY,
     DEFAULT_BOARD_SORT,
@@ -230,19 +230,9 @@ export default function SettingsPage() {
         <SettingsSection
           icon={Accessibility}
           title="Accessibility"
-          description="Contrast follows your account; size stays on this device."
+          description="Contrast follows your account."
           tour="settings-accessibility"
         >
-          <SettingsRow label="Text & UI size">
-            <PreferenceControl
-              label="Text and UI size"
-              preferenceKey="uiScale"
-              value={uiScale}
-              options={preferenceOptions.uiScale}
-              onChange={setPreference}
-              ready={ready}
-            />
-          </SettingsRow>
           <SettingsRow label="Contrast">
             <PreferenceControl
               label="Contrast"

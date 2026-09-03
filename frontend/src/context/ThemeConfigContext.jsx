@@ -61,7 +61,6 @@ import {
   DEFAULT_LANDING_PAGE,
   DEFAULT_MOTION,
   DEFAULT_TICKETS_VIEW,
-  DEFAULT_UI_SCALE,
   DEFAULT_NAV_STYLE,
   DENSITY_OPTIONS,
   DENSITY_STORAGE_KEY,
@@ -70,8 +69,6 @@ import {
   MOTION_OPTIONS,
   MOTION_STORAGE_KEY,
   TICKETS_VIEW_STORAGE_KEY,
-  UI_SCALE_OPTIONS,
-  UI_SCALE_STORAGE_KEY,
   isValidAssigneeDefault,
   isValidColorblind,
   isValidContrast,
@@ -80,7 +77,6 @@ import {
   isValidMotion,
   isValidNavStyle,
   isValidTicketsView,
-  isValidUiScale,
 } from '@/helpers/uiPreferences';
 import {
   cacheStoredPreference,
@@ -119,20 +115,6 @@ const DOM_PREFERENCES = [
     isValid: isValidDensity,
     options: DENSITY_OPTIONS,
     scope: PREFERENCE_SCOPE.ACCOUNT,
-  },
-  {
-    key: 'uiScale',
-    attribute: 'data-ui-scale',
-    storageKey: UI_SCALE_STORAGE_KEY,
-    fallback: DEFAULT_UI_SCALE,
-    isValid: isValidUiScale,
-    options: UI_SCALE_OPTIONS,
-    // The one preference that stays per-device. It is a function of physical
-    // screen size and viewing distance, not of the person's taste — the answer a
-    // 13" laptop wants is not the answer a 27" monitor wants, and syncing it
-    // would make one of the two wrong. Everything else on this screen is taste
-    // and follows the account. Please do not "fix" this by moving it.
-    scope: PREFERENCE_SCOPE.DEVICE,
   },
   {
     key: 'contrast',
@@ -272,11 +254,11 @@ const VALUE_PREFERENCES = [
     // notification groups above.
     fallback: '',
     isValid: isValidClosedSections,
-    // The third per-device row, and for the `uiScale` reason rather than the
-    // `desktopNotifications` one: which sections you collapse is a function of how
-    // much vertical room the screen has, not of taste. Ten admin rows do not fit a
-    // 13" laptop and need no fixing on a 27" monitor, so syncing it would carry
-    // the laptop's compromise onto the desktop.
+    // One of the two per-device rows, and for the layout reason rather than the
+    // `desktopNotifications` browser-permission one: which sections you collapse
+    // is a function of how much vertical room the screen has, not of taste. Ten
+    // admin rows do not fit a 13" laptop and need no fixing on a 27" monitor, so
+    // syncing it would carry the laptop's compromise onto the desktop.
     scope: PREFERENCE_SCOPE.DEVICE,
   },
   {
@@ -284,11 +266,10 @@ const VALUE_PREFERENCES = [
     storageKey: DESKTOP_NOTIFICATIONS_STORAGE_KEY,
     fallback: DESKTOP_NOTIFICATIONS_DEFAULT,
     isValid: isValidDesktopNotifications,
-    // The second per-device row, for the same reason as `uiScale`: the browser
-    // grants notification permission per browser, per device, so a synced switch
-    // would read "on" where nothing could ever draw. It sits in the table
-    // anyway — the table is where a preference is declared, whether or not the
-    // sync layer ends up carrying it.
+    // The other per-device row: the browser grants notification permission per
+    // browser, per device, so a synced switch would read "on" where nothing could
+    // ever draw. It sits in the table anyway — the table is where a preference is
+    // declared, whether or not the sync layer ends up carrying it.
     scope: PREFERENCE_SCOPE.DEVICE,
   },
   {
@@ -387,10 +368,9 @@ export function ThemeConfigProvider({ children }) {
 
     const stored = {};
     DOM_PREFERENCES.forEach((preference) => {
-      // A device-scoped row (UI scale) is nobody's secret and is a property of
-      // this screen, so it is read either way.
-      const trustCache = signedIn || preference.scope === PREFERENCE_SCOPE.DEVICE;
-      const value = trustCache
+      // Every row here is account-scoped, so a browser with no session shows the
+      // house default rather than whatever the last person to sign in here left.
+      const value = signedIn
         ? readStoredPreference(preference.storageKey, preference.fallback, preference.isValid)
         : preference.fallback;
       stored[preference.key] = value;
@@ -597,7 +577,7 @@ export function ThemeConfigProvider({ children }) {
       colorTheme,
       setColorTheme,
       themes: THEMES,
-      // Spread so callers read `density` / `uiScale` / … directly, the way they
+      // Spread so callers read `density` / `contrast` / … directly, the way they
       // did before there was more than one of them.
       ...preferences,
       setPreference,

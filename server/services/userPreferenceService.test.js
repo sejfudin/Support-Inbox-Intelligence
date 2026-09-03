@@ -30,8 +30,11 @@ describe('buildUpdate', () => {
     expect(() => buildUpdate({ density: 'roomy' })).toThrow(/Invalid value/);
   });
 
-  it('never writes uiScale — that one stays per-device', () => {
-    expect(buildUpdate({ uiScale: 'larger' })).toEqual({});
+  it('ignores a per-device key that never belongs on the record', () => {
+    // The desktop-notification switch and the collapsed sidebar sections are
+    // `PREFERENCE_SCOPE.DEVICE` on the client and never pushed; if one arrives
+    // anyway it is just an unknown key and is dropped, not an error.
+    expect(buildUpdate({ desktopNotifications: false })).toEqual({});
   });
 
   it('de-duplicates muted notification groups and refuses unknown ones', () => {
