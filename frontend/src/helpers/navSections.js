@@ -1,12 +1,11 @@
 /**
  * Which sidebar sections are collapsed, and what a collapsed one still has to say.
  *
- * **Per device, not per account.** Same reasoning as `uiScale` in
- * `context/ThemeConfigContext.jsx`, which states it verbatim: it is a function of
- * physical screen size rather than of taste. You close Admin on a 13" laptop
- * because ten rows do not fit; on a 27" monitor there is nothing to fix, and an
- * account preference would carry the laptop's compromise onto the desktop. The
- * row is declared in that file's table anyway with `PREFERENCE_SCOPE.DEVICE` —
+ * **Per device, not per account.** It is a function of physical screen size
+ * rather than of taste: you close Admin on a 13" laptop because ten rows do not
+ * fit; on a 27" monitor there is nothing to fix, and an account preference would
+ * carry the laptop's compromise onto the desktop. The row is declared in
+ * `context/ThemeConfigContext.jsx`'s table anyway with `PREFERENCE_SCOPE.DEVICE` —
  * the table is where a preference is declared whether or not the sync layer
  * carries it.
  *

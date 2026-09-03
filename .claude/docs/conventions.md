@@ -84,9 +84,9 @@ Follow a working example over an abstract rule. When you add a new piece, mirror
   syncs to the user record and reaches the other components holding the same key.
   A per-device setting is still a row — it carries `scope: PREFERENCE_SCOPE.DEVICE`, which
   `ACCOUNT_PREFERENCES` filters out, and costs no row on the server. Reach for it only when the
-  right answer genuinely differs per machine (`uiScale` follows screen size; `desktopNotifications`
-  follows a browser permission granted per browser). Skipping the table instead is the thing to
-  avoid: a key enumerated nowhere is a key the next reader cannot find.
+  right answer genuinely differs per machine (`desktopNotifications` follows a browser permission
+  granted per browser; `navSections` follows how much vertical room the screen has). Skipping the
+  table instead is the thing to avoid: a key enumerated nowhere is a key the next reader cannot find.
   See architecture.md → "UI preferences" before adding one.
 - **Routing**: `src/routes/` — `AppRoutes.jsx`, `ProtectedRoutes.jsx`, `WorkspaceManagementRoute.jsx`.
   Add new guarded routes through these, not ad-hoc.

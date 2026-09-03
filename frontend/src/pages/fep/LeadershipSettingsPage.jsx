@@ -2,7 +2,7 @@ import { Accessibility, Bell, Palette, UserRound } from 'lucide-react';
 
 import SettingsSection, { SettingsRow } from '@/components/settings/SettingsSection';
 import DesktopNotificationsRow from '@/components/settings/DesktopNotificationsRow';
-import { AccentSelect, ThemeModeControl } from '@/components/settings/AppearanceControls';
+import { ThemeModeControl } from '@/components/settings/AppearanceControls';
 import PreferenceControl from '@/components/settings/PreferenceControl';
 import { ChangePasswordPanel } from '@/components/profile/ChangePasswordPanel';
 import { SymphonyPageHeader } from '@/components/symphony/SymphonyPageHeader';
@@ -29,6 +29,11 @@ import { useStoredPreference } from '@/hooks/useStoredPreference';
  * order), "Sidebar sections", "Quick actions", and the onboarding-tour switch
  * (the tour mounts in `SidebarLayout` only).
  *
+ * Accent is left out too: the leadership surface is brand-locked in
+ * `styles/symphony.css` (`[data-surface='symphony']` pins `--primary` / `--ring`
+ * to the Symphony brand), so an accent picker here would set a value nothing on
+ * this surface reads. Light/dark still applies and stays.
+ *
  * The two pages share their controls rather than their layout — see
  * `components/settings/`. A new *account-level* setting belongs in both; a
  * workspace one belongs in `SettingsPage` alone.
@@ -46,7 +51,7 @@ const LEADERSHIP_NOTIFICATION_KEYS = ['mentions', 'programme'];
 
 export default function LeadershipSettingsPage() {
   const { user } = useAuth();
-  const { uiScale, contrast, setPreference, preferenceOptions, ready } = useThemeConfig();
+  const { contrast, setPreference, preferenceOptions, ready } = useThemeConfig();
 
   const [mutedRaw, setMutedRaw] = useStoredPreference(
     NOTIFICATION_MUTED_STORAGE_KEY,
@@ -104,31 +109,18 @@ export default function LeadershipSettingsPage() {
         <SettingsSection
           icon={Palette}
           title="Appearance"
-          description="Theme and accent — saved to your account."
+          description="Theme — saved to your account."
         >
           <SettingsRow label="Theme">
             <ThemeModeControl />
-          </SettingsRow>
-          <SettingsRow label="Accent" className="sm:items-start">
-            <AccentSelect />
           </SettingsRow>
         </SettingsSection>
 
         <SettingsSection
           icon={Accessibility}
           title="Accessibility"
-          description="Contrast follows your account; size stays on this device."
+          description="Contrast follows your account."
         >
-          <SettingsRow label="Text & UI size">
-            <PreferenceControl
-              label="Text and UI size"
-              preferenceKey="uiScale"
-              value={uiScale}
-              options={preferenceOptions.uiScale}
-              onChange={setPreference}
-              ready={ready}
-            />
-          </SettingsRow>
           <SettingsRow label="Contrast">
             <PreferenceControl
               label="Contrast"

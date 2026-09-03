@@ -88,8 +88,9 @@ AI: `AISummary`, `SprintAISummary`.
   `server/constants/userPreferences.js`, which the schema and the service both build from.
   Every field is optional: absent means "never chosen", and the read merges the defaults in.
   Read/written by their owner only, at `GET|PATCH /api/users/me/preferences` — the PATCH is a
-  dot-notation partial merge, last-write-wins. **UI scale is deliberately not in it** and stays
-  per-device in the browser. See "UI preferences" below.
+  dot-notation partial merge, last-write-wins. A couple of preferences (the desktop-notification
+  switch, the collapsed sidebar sections) are per-device and deliberately not in it. See "UI
+  preferences" below.
 - `User.whatsNewSeenVersion` — the `TOUR_VERSION` of the what's-new tour this account has
   finished, or `null` for "never seen one". A top-level field rather than a `preferences` row
   because `preferences` validates every write against an enum table and a release string has no
@@ -479,13 +480,12 @@ two browsers changing two different preferences do not clobber each other.
   only differences. On the client, the quick-actions row maps the empty cached string to `null` for
   exactly this.
 - **Not every preference is account-level.** `PREFERENCE_SCOPE.DEVICE` marks the rows that stay in
-  the browser: UI scale (a function of screen size, not taste), the desktop-notification switch
-  (`notify-desktop` — browser notification permission is granted per browser per device, so a
-  synced switch would read "on" where nothing could ever draw), and the collapsed sidebar sections
-  (`nav-sections-closed` — same reasoning as UI scale: you collapse Admin because ten rows do not
-  fit a laptop, and syncing it would carry that compromise onto a desktop). Both tables are filtered
-  to `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like any other and
-  simply never pushed. Scope is what excludes it, not omission from the table.
+  the browser: the desktop-notification switch (`notify-desktop` — browser notification permission
+  is granted per browser per device, so a synced switch would read "on" where nothing could ever
+  draw), and the collapsed sidebar sections (`nav-sections-closed` — you collapse Admin because ten
+  rows do not fit a laptop, and syncing it would carry that compromise onto a desktop). Both tables
+  are filtered to `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like
+  any other and simply never pushed. Scope is what excludes it, not omission from the table.
   A device row still gets a table row, because the table is where a preference is *declared*
   whether or not the sync layer carries it — but it needs **no server change at all**: no
   `userPreferences.js` row, no `User` subdocument, no `buildUpdate` branch.
@@ -508,9 +508,8 @@ two browsers changing two different preferences do not clobber each other.
   a stranger's values on a shared browser. When an account's record is still empty, that migration
   adopts whatever the browser already had cached and saves it as the account's first set
   (`hasStoredPreferences` on the GET) — moving to account-level preferences does not reset anyone.
-- **UI scale stays per-device** and is deliberately absent from the server table — it is a function
-  of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
-  defaults so the auth screens never wear the last user's accent or accessibility settings.
+- Signed out, the account-scoped attributes fall back to the house defaults so the auth screens
+  never wear the last user's accent or accessibility settings.
 
 ## Sidebar navigation (`frontend/src/components/AppSidebar.jsx`)
 

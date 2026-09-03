@@ -175,46 +175,23 @@
 }
 
 /* ── Accessibility preferences ──────────────────────────────────────────────
-   Four independent attributes on <html>, written by `ThemeConfigProvider` from
-   the Settings → Accessibility card. Each one is opt-in and none of them changes
-   anything at its default value, so the resting app is byte-identical to before
-   the card existed. */
+   Three independent attributes on <html> (`data-contrast`, `data-motion`,
+   `data-colorblind`), written by `ThemeConfigProvider`. Each one is opt-in and
+   none of them changes anything at its default value, so the resting app is
+   byte-identical to before the card existed. The viewport-unit aliases lead the
+   block because they share the layer, not because they are one of the three. */
 @layer base {
-  /* Text & UI size. `zoom` rather than a root `font-size`, because this design
-     sizes almost everything in px literals — a rem change would scale the few
-     rem values and leave every table row exactly where it was.
-
-     `zoom` scales lengths but NOT viewport units: `100vh` inside the zoomed body
-     still resolves against the unzoomed viewport, so at 125% it paints 125% of
-     the screen. That is why nothing in this app measures itself against the
-     screen with `vh`/`svh`/`dvh`/`vw` directly — it uses the four variables
-     below, which are those units divided back down by whatever zoom is active.
-     Getting this wrong is not cosmetic: the sidebar is `position: fixed`, so an
-     over-tall one puts the account footer permanently below the fold with no
-     scroll that can reach it. */
+  /* Viewport-unit aliases. These used to divide the raw units back down by the
+     `zoom` the "Text & UI size" preference applied to <body>; that preference is
+     gone, so they are now plain aliases of the raw units. They are kept because
+     ~50 call sites reference them and a straight alias is a smaller, safer change
+     than reverting every one — and because a single seam is the place to reach
+     for if a viewport-scaling feature ever comes back. */
   :root {
-    /* The one place a scale step is named. `--app-zoom` is what <body> zooms by
-       and what the four units divide back down by, so the two can never drift. */
-    --app-zoom: 1;
-    --app-vh: calc(100vh / var(--app-zoom));
-    --app-svh: calc(100svh / var(--app-zoom));
-    --app-dvh: calc(100dvh / var(--app-zoom));
-    --app-vw: calc(100vw / var(--app-zoom));
-  }
-
-  :root[data-ui-scale='large'] {
-    --app-zoom: 1.1;
-  }
-
-  :root[data-ui-scale='larger'] {
-    --app-zoom: 1.25;
-  }
-
-  /* On <body>, not :root — zooming the root element scales the scrollbar and the
-     fixed-position containing block with it. */
-  :root[data-ui-scale='large'] body,
-  :root[data-ui-scale='larger'] body {
-    zoom: var(--app-zoom);
+    --app-vh: 100vh;
+    --app-svh: 100svh;
+    --app-dvh: 100dvh;
+    --app-vw: 100vw;
   }
 
   /* High contrast. Borders and secondary text are what fail WCAG on a light

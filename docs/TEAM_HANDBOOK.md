@@ -162,11 +162,12 @@
 - Each project shows its type (client or internal) next to its status, on both the list and the project page
 - The Projects list opens on "With interns" (projects with someone placed or in selection);
   switching to "All projects" shows the empty ones too
-- Has a Settings page of its own, from the avatar menu in the navbar: theme, accent, text size,
+- Has a Settings page of its own, from the avatar menu in the navbar: theme (light/dark),
   contrast, notification switches, and changing their own password. Only the account-level
   settings — the workspace defaults, sidebar and quick-action settings the other roles get
-  configure things leadership does not have. This is also where leadership changes their password,
-  since they have no Profile page
+  configure things leadership does not have. Accent is not offered: the leadership surface is
+  brand-locked. This is also where leadership changes their password, since they have no Profile
+  page
 - No access to the workspace/ticket side of the platform (project work)
 - No access to admin panels (users, workspaces, reference data)
 

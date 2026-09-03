@@ -11,7 +11,7 @@ const {
  * Every field is optional — an absent one means "never chosen", and the service
  * fills it from `DEFAULT_USER_PREFERENCES` on read.
  *
- * UI scale is intentionally not here; it stays per-device. See
+ * A few preferences are intentionally not here; they stay per-device. See
  * `server/constants/userPreferences.js`.
  */
 const userPreferencesSchema = new mongoose.Schema(

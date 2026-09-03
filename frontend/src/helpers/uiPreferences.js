@@ -3,15 +3,14 @@
  * place so Settings and the screen that obeys the preference can never disagree
  * about what a valid value is.
  *
- * **Where they live.** All but one follow the *account*: the `preferences`
- * subdocument on `server/models/User.js` is the source of truth and
+ * **Where they live.** The ones defined here follow the *account*: the
+ * `preferences` subdocument on `server/models/User.js` is the source of truth and
  * `localStorage` is a write-through cache in front of it, because a server round
- * trip cannot beat the first paint. Which of them is which is declared by the
- * `scope` column of the tables in `context/ThemeConfigContext.jsx` — that file,
- * not this one, is the place that knows.
- *
- * The one exception is **UI scale**, which stays per-device. See the comment on
- * its row over there.
+ * trip cannot beat the first paint. A handful of preferences are per-device
+ * instead (the desktop-notification switch, the collapsed sidebar sections);
+ * which is which is declared by the `scope` column of the tables in
+ * `context/ThemeConfigContext.jsx` — that file, not this one, is the place that
+ * knows.
  */
 
 // ── Density ────────────────────────────────────────────────────────────────
@@ -30,28 +29,10 @@ export const DENSITY_OPTIONS = [
 export const isValidDensity = (value) => DENSITY_OPTIONS.some((o) => o.value === value);
 
 // ── Accessibility ──────────────────────────────────────────────────────────
-// All four are attributes on <html>, applied by `ThemeConfigProvider` and read
-// by the `[data-…]` blocks in `index.css`. Attributes rather than classes so a
-// value is legible in devtools and only one can be active at a time.
-
-// The one preference that never leaves this browser: it answers to physical
-// screen size and viewing distance rather than to taste, so a 13" laptop and a
-// 27" monitor genuinely want different values and syncing it would make one of
-// them wrong. See the `scope` column in `context/ThemeConfigContext.jsx`.
-export const UI_SCALE_STORAGE_KEY = 'ui-scale';
-
-export const DEFAULT_UI_SCALE = 'default';
-
-// Applied as `zoom` on <body>, which is the only mechanism that actually moves
-// this app: nearly every size in the design is a px literal, so a root
-// `font-size` change would scale the handful of rem values and nothing else.
-export const UI_SCALE_OPTIONS = [
-  { value: 'default', label: '100%' },
-  { value: 'large', label: '110%' },
-  { value: 'larger', label: '125%' },
-];
-
-export const isValidUiScale = (value) => UI_SCALE_OPTIONS.some((o) => o.value === value);
+// All three (contrast, motion, colour vision) are attributes on <html>, applied
+// by `ThemeConfigProvider` and read by the `[data-…]` blocks in `index.css`.
+// Attributes rather than classes so a value is legible in devtools and only one
+// can be active at a time.
 
 export const CONTRAST_STORAGE_KEY = 'ui-contrast';
 
