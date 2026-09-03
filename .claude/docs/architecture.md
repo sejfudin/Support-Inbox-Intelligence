@@ -631,8 +631,24 @@ empty ones, and three presentations of the same tree. `helpers/navSections.js` h
 A full-screen walkthrough that announces a release by spotlighting the controls that changed. It
 lives entirely in `frontend/src/components/onboarding/` — `whatsNewSteps.js` is the script plus
 every read and write of the seen-state, `WhatsNewTour.jsx` is the overlay, and `WhatsNewButton.jsx`
-is the pulsing way back in from the sidebar footer.
+is the glowing "What's new" button in the sidebar footer.
 
+- **Nothing opens it. The button is the only way in.** It used to open itself on the first load
+  after a version bump; it does not any more, and the tour's own first step says so. What replaced
+  the interruption is a signal: the footer button glows and sheens while there is something unread,
+  and the nav rows a release touched carry a **NEW** pill (`useNewFeatureRoutes` derives those from
+  the script, so a row cannot be badged without a step explaining it). Both go quiet the moment the
+  tour is finished or escaped out of. `useWhatsNewHighlight` is the one answer both read, and it
+  folds in the account's standing opt-out (Settings → Notifications → "Highlight what's new",
+  stored as `onboardingTourEnabled` — the key predates the rename and is deliberately unchanged).
+- **The script is one release wide.** A bump deletes the previous release's steps and writes the new
+  ones. It used to accumulate — a release was announced "as one story" including older steps —
+  which was right while the tour opened itself at people who had never been walked through
+  anything. Now that it is only ever opened deliberately, the question it answers is "what changed
+  recently", so a viewer who missed a release is pointed at `docs/TEAM_HANDBOOK.md` instead.
+  Consequence worth knowing: a one-release script can be **empty** for some viewer (every step in
+  it needing a workspace, say), so `useHasWhatsNewSteps` hides the button rather than letting it
+  glow and then open nothing.
 - **Versioned, not boolean, everywhere — server included.** Shipping a release through it is two
   steps: edit the steps, then bump `TOUR_VERSION`. The bump is what re-announces to everyone
   exactly once. The server deliberately holds **no copy** of that constant (it validates only that
@@ -645,10 +661,10 @@ is the pulsing way back in from the sidebar footer.
   per-account local key (`whatsNewTour:<userId>`) is written first and synchronously, and is what
   keeps a failed or offline PATCH from turning into a tour that reopens on every load. **Where the
   two disagree, seen wins.**
-- `TOUR_ENABLED` in `whatsNewSteps.js` is the master switch and is a plain constant on purpose —
-  flipping it is how you get an automated run past the scrim, the alternative being to drive as an
-  account already marked seen. It gates both ways in, so `false` means the overlay cannot mount and
-  the button renders nothing.
+- `TOUR_ENABLED` in `whatsNewSteps.js` is the master switch and is a plain constant on purpose, so
+  turning the feature off for a deploy is a one-line diff. It gates the only way in, so `false`
+  means the button renders nothing and the overlay cannot mount. An automated run no longer needs
+  it: nothing opens the tour, so nothing puts a scrim in front of a browser pass.
 
 ## Real-time (Socket.IO, `server/socket/`)
 

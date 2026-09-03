@@ -865,6 +865,10 @@ export default function TicketPage() {
                   title={isSelectingList ? 'Stop selecting tickets' : 'Select tickets'}
                   onClick={toggleListSelectionMode}
                   data-test="tickets-table-select-button"
+                  // Tour anchor for the bulk-actions step. The board's equivalent
+                  // lives on each column, so the tour points at this one and the copy
+                  // names the other — see `whatsNewSteps.js`.
+                  data-tour="tickets-select"
                 >
                   <ListChecks className="h-4 w-4" />
                 </Button>

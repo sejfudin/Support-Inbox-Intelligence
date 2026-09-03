@@ -6,15 +6,16 @@
  * **Shipping a release through this is two steps, and both are required:**
  *
  * 1. Add or edit the steps below.
- * 2. Bump `TOUR_VERSION`. This is what makes the dashboard's "Notice some
- *    changes?" button glow again for everyone, exactly once — the string is the
- *    localStorage value, so a new one puts every viewer back into "not seen yet".
- *    Editing steps *without* bumping it ships copy that only people who have
- *    never opened the tour will ever see. The closing step promises the button
- *    starts glowing when something new lands; the bump is that promise.
+ * 2. Bump `TOUR_VERSION`. This is what makes the sidebar's "What's new" button
+ *    glow again for everyone, exactly once, and what puts the NEW pills back on
+ *    this release's nav rows — the string is the stored seen-value, so a new one
+ *    puts every viewer back into "not seen yet". Editing steps *without* bumping it
+ *    ships copy that only people who have never opened the tour will ever see. The
+ *    closing step promises the button starts glowing when something new lands; the
+ *    bump is that promise.
  *
- * Nothing here opens itself. The button is the only way in — see the comment on
- * `TOUR_REPLAY_EVENT` for why.
+ * Nothing here opens itself, and that is the whole design: the glow asks, the click
+ * answers. See the comment on `TOUR_REPLAY_EVENT`.
  *
  * **The fields a step can carry:**
  *
@@ -41,10 +42,23 @@
  *   no attendance from `placedAt`, so `MyAttendancePage` withdraws the request panel
  *   and any copy about asking for days off is false for them. Costs the overlay a
  *   `useMyAttendance` read, so only put it on a step that genuinely needs it.
- * - `swatches` — paints the eleven `THEMES` gradients under the copy. Specific to
- *   the accents step; showing them beats claiming they exist.
+ * - `swatches` — paints the eleven `THEMES` gradients under the copy, for a step
+ *   announcing accents: showing them beats claiming they exist. **No step in the
+ *   current script uses it** — the accents step was deleted with the rest of the
+ *   2026-08 release — so do not go looking for the example. Kept because it is part of
+ *   this script's vocabulary rather than code of its own: the overlay spends one
+ *   truthy check on it, and the next release to retune the palettes wants it back.
  * - `placement` — the preferred side for the card. A hint, not a guarantee: the
  *   overlay overrides it when that side would cover the target.
+ * - `navRoute` — the sidebar route this step announces, for a step whose subject *is*
+ *   a nav row. Paired with `since` it also paints the row's NEW pill; see
+ *   `useNewFeatureRoutes`. Must be a nav item's `to` in `AppSidebar` verbatim, since
+ *   that is what it is matched against.
+ * - `since` — the `TOUR_VERSION` string this step shipped in. Read for one thing only:
+ *   a step whose `since` is the *current* version badges its `navRoute` row as NEW.
+ *   A step with no `since`, or one from an older release, never badges — which is why
+ *   a bump needs no cleanup pass over the steps below. Set it on what you add, leave
+ *   the rest alone.
  * - `roles` — see below.
  *
  * **`roles` decides who sees a step; `needsWorkspace` and `needsAttendance` are the
@@ -60,8 +74,8 @@
  * about the tour surviving its own navigation. A step routing behind
  * `WorkspaceGuard` sends a viewer with no `workspaceId` to `/create-workspace`,
  * which `SidebarLayout` does not serve. The overlay unmounts, `markWhatsNewSeen`
- * never runs, and the next load auto-opens the same tour into the same bounce —
- * an announcement that can never be finished or dismissed. Dropping the step is the
+ * never runs, and the glow the viewer just answered is still glowing — an
+ * announcement that can never be finished or dismissed. Dropping the step is the
  * lesser loss: that viewer has no board to be shown. This is not a role check —
  * interns between workspaces, mentors without one and admins in Global admin mode
  * all sit in this state.
@@ -81,10 +95,17 @@
  * long, delete steps from it rather than hiding them from some viewers.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { markWhatsNewSeenOnAccount } from '@/api/onboardingTour';
 import { useAuth } from '@/context/AuthContext';
+import {
+  DEFAULT_ONBOARDING_HIGHLIGHT,
+  isValidOnboardingHighlight,
+  ONBOARDING_HIGHLIGHT_STORAGE_KEY,
+} from '@/helpers/onboardingTour';
 import { resolveUserId } from '@/helpers/userIdentity';
+import { readStoredPreference } from '@/hooks/useStoredPreference';
+import { subscribeToPreference } from '@/lib/preferenceSync';
 
 // Bump history, newest last. Each entry is the reason the re-announcement was
 // worth interrupting people for — a bump with no reason here is a nag.
@@ -131,49 +152,101 @@ import { resolveUserId } from '@/helpers/userIdentity';
 //   empty, and a mentor cannot assess an AI skill that was never declared. Deletes
 //   nothing — the two entries above are a step and a correction, and this neither
 //   repeats nor retires either.
-// - `2026-09-appearance-cleanup` (this one): "Text & UI size" is gone from Settings
+// - `2026-09-appearance-cleanup`: "Text & UI size" is gone from Settings
 //   (it scaled the app with `zoom`, which broke dropdown positioning), and Leadership's
 //   own Settings no longer offers an accent — that surface is brand-locked, so the
 //   picker never did anything there. Same reasoning as `2026-08-settings-cleanup`: the
 //   `accessibility` step's title named "text size", and leaving it would ship a
-//   correction only first-time viewers ever see. No new step; one edited title.
-export const TOUR_VERSION = '2026-09-appearance-cleanup';
+//   correction only first-time viewers ever see. No new step; one edited title — a
+//   step the entry below then deleted along with the rest of that script, so do not
+//   go looking for it.
+// - `2026-09-sprints-and-drafts` (this one): sprints — planning on the board,
+//   optional dates with a two-week default, the successor sprint that grows itself and
+//   carries the unfinished work across, and the AI recap on the Summary tab — plus the
+//   two things the ticket board gained (a draft that survives a closed modal, and bulk
+//   status/archive on a selection) and the collapsible sidebar sections from #312,
+//   which shipped opt-in and default-off and so are invisible to everybody who has not
+//   already gone looking in Settings. None of it has been announced to anybody. The
+//   list came out of `docs/TEAM_HANDBOOK.md`'s diff since the last bump, which is the
+//   cheapest way to find what shipped without a step: the handbook is updated per
+//   change and this script is not.
+//
+//   Two steps in it are not about a feature. The opener says out loud that the tour
+//   stopped opening itself, because for anyone who resented the old one that *is* the
+//   news — and it is what makes the glow legible as an offer. And the mentor dashboard
+//   step pays a debt from #307: mentors were given a real dashboard in August and no
+//   script ever mentioned it.
+//
+//   Three things shipped in this window and are deliberately **not** in the script:
+//   the atomic task-number counter and optimistic board drag-and-drop (#318) and the
+//   Blocked-status fix's plumbing, which are repairs — people meet a repair when they
+//   need it, the way the current-password change was handled two entries above; the
+//   Settings controls #323 *removed*, since no step claims them any more; and the
+//   leadership Settings page (#319), which this channel cannot reach at all —
+//   leadership is served outside `SidebarLayout`, so the What's new button does not
+//   render for them and every route here would bounce them. If leadership is ever to
+//   be announced to, it needs its own entry point on that surface.
+//
+//   **It also deletes every step that came before it**, which is a change of policy
+//   and not a trim. The note above prescribes announcing a release "as one story",
+//   earlier releases included, and that was right while the tour opened itself: a
+//   viewer met it once, unprompted, and it had to make sense of a whole shell they had
+//   never been walked through.
+//
+//   Nothing opens itself now (see `TOUR_REPLAY_EVENT`), and that inverts the reasoning.
+//   The tour is only ever on screen because somebody clicked a button that says
+//   What's new, so the question it has to answer is "what changed *recently*" — not
+//   "what has this app ever done". Twenty-four steps of accumulated history is the
+//   wrong answer to that question, and it is also the answer nobody finishes. So the
+//   script is one release at a time from here on, and a bump means: delete the last
+//   one, write this one.
+//
+//   What that costs is real and worth naming: the 2026-08 steps were the only telling
+//   several surfaces ever got — Settings, the accents, profile pictures, My Progress,
+//   the absence queue, the positions catalog. Deleting them means a viewer who never
+//   opened the old tour will not now be told about any of it here. They are in git,
+//   and `docs/TEAM_HANDBOOK.md` is where a person who missed a release is supposed to
+//   look; this channel is for what is new.
+export const TOUR_VERSION = '2026-09-sprints-and-drafts';
 
 /**
  * Master switch for the what's-new tour. **On.**
  *
- * It gates both ways in — the auto-open in `WhatsNewTour` and the sidebar's "Notice
- * some changes?" button — so `false` here means the overlay cannot mount at all and
- * the button renders nothing, rather than a control that does nothing.
+ * It gates the only way in — the sidebar's "What's new" button — so `false` here means
+ * the button renders nothing at all, rather than a control that does nothing. It also
+ * silences the NEW pills, since the tour they point at cannot be opened.
  *
- * **If you are driving the app and the screen is covered, this is why.** The tour is
- * a full-screen overlay whose scrim swallows every click until the script is walked
- * to the end, so an automated run against an account that has not seen the current
- * `TOUR_VERSION` will stall on it. Two ways past it, in order of preference:
+ * Deliberately a plain constant and not an env var, a query param or a storage key:
+ * each of those costs something outside this file — a row in `.env.example` and the
+ * workflows doc, a param that leaks through a shared link, or app state a real user
+ * could land in — to replace an edit that takes one line and is visible in the diff.
  *
- * 1. **Drive as an account that has already seen it.** Since the seen-state moved to
- *    the user record (see `tourStorageKey` below) this survives a fresh browser
- *    profile, so it is a property of the fixture rather than of the machine.
- * 2. **Flip this constant to `false` for the run.** Deliberately a plain constant and
- *    not an env var, a query param or a storage key: each of those costs something
- *    outside this file — a row in `.env.example` and the workflows doc, a param that
- *    leaks through a shared link, or app state a real user could land in — to replace
- *    an edit that takes one line and is visible in the diff.
+ * **An automated run no longer has to care about this.** The overlay used to open
+ * itself on the first load after a bump and swallow every click until the script was
+ * walked to the end, so a browser pass on a fresh account stalled on it and this
+ * constant was the escape hatch. Nothing opens itself now: the tour is on screen only
+ * because something clicked the button.
  */
 export const TOUR_ENABLED = true;
 
 /**
- * Opening the tour. Two ways in, and they answer different needs:
+ * Opening the tour. **One way in: the "What's new" button** in the sidebar footer,
+ * just above the account row.
  *
- * 1. **Automatically, once, on the first load after a `TOUR_VERSION` bump.** A
- *    redesign that nobody is told about generates support questions instead of
- *    discovery, and the people most likely to be confused are the least likely to go
- *    hunting for a button. Gated on the versioned seen-state, so it interrupts a
- *    given account exactly once per release and never again — on any browser.
- * 2. **The "Notice some changes?" button** in the sidebar footer, just above the
- *    account row, which pulses until the tour has been used. This is the way back in
- *    for anyone who escaped the automatic showing without reading it, or who only
- *    wonders what moved a week later.
+ * It used to be two. The overlay also opened itself on the first load after a
+ * `TOUR_VERSION` bump, on the reasoning that the people most likely to be confused by
+ * a redesign are the least likely to go hunting for a button. That reasoning is not
+ * wrong, but the price was: every viewer, on a load they chose for some other purpose,
+ * met a full-screen scrim that swallowed every click until they had walked the script
+ * or found Skip. A release nobody asked to hear about is an interruption, and an
+ * interruption is skipped rather than read — which loses the announcement *and* marks
+ * it seen, so the one telling it got was the one nobody looked at.
+ *
+ * What replaces it is an invitation rather than a demand: the button glows while there
+ * is something unread (`useWhatsNewHighlight`), the nav rows this release added carry a
+ * NEW pill beside their label (`useNewFeatureRoutes`), and the tour opens when — and
+ * only when — somebody clicks. Reading it stops both signals; so does escaping out of
+ * it, because a person who opened it and left has answered the question the glow asks.
  *
  * Window events rather than a context: the publishers and subscribers are one button
  * and one overlay, so a provider wrapping the whole app would be plumbing for its own
@@ -260,10 +333,9 @@ const readSeenVersion = (userId) => {
  * seen wins a disagreement.
  *
  * No user yet (the `/me` fetch is still in flight) counts as seen: it keeps the button
- * from pulsing for a frame before we know who is looking, and the overlay's auto-open
- * is gated on having a user anyway. That gate is also what removes any need for a
- * separate one here — by the time there is a user to read, the server's answer has
- * arrived on the same payload.
+ * from glowing for a frame before we know who is looking. Nothing is lost by waiting —
+ * the account's own answer arrives on the same `/me` payload as the user, so the first
+ * read that can happen is already the right one rather than this browser's guess.
  */
 const hasSeenWhatsNew = (user) => {
   const userId = resolveUserId(user);
@@ -337,192 +409,297 @@ export const useWhatsNewSeen = () => {
   return seen;
 };
 
+/**
+ * Whether the "there is something here you have not read" signals should be showing:
+ * the glow on the sidebar's What's new button, and the NEW pills beside the nav rows
+ * this release added.
+ *
+ * Three answers ANDed together — is the tour shipped at all, has this viewer already
+ * read the current one, and do they want to be told (Settings → Notifications →
+ * "Highlight what's new"). Since nothing opens itself any more, this preference is the
+ * whole of the opt-out: switching it off does not hide the tour, it stops the app
+ * pointing at it, and the button stays exactly where it was for anyone who goes
+ * looking.
+ *
+ * The preference is read synchronously in the state initialiser rather than through
+ * `useStoredPreference`, which reads storage in an effect and so answers with the
+ * default for one render. For a viewer who has switched the highlight off that render
+ * would paint a glowing button and a NEW pill inside a nav row, then take both away on
+ * the next frame — a flash, and one that shifts the nav row's layout as it goes.
+ * Subscribed all the same, so flipping the switch in Settings quiets the sidebar
+ * immediately instead of at the next reload.
+ */
+export const useWhatsNewHighlight = () => {
+  const seen = useWhatsNewSeen();
+  const [highlight, setHighlight] = useState(() =>
+    readStoredPreference(
+      ONBOARDING_HIGHLIGHT_STORAGE_KEY,
+      DEFAULT_ONBOARDING_HIGHLIGHT,
+      isValidOnboardingHighlight
+    )
+  );
+
+  useEffect(
+    () =>
+      subscribeToPreference(ONBOARDING_HIGHLIGHT_STORAGE_KEY, (next) => {
+        if (!isValidOnboardingHighlight(next)) return;
+        setHighlight(next);
+      }),
+    []
+  );
+
+  return TOUR_ENABLED && !seen && highlight === 'on';
+};
+
+/**
+ * Whether one step applies to a given viewer — the role narrowing plus the two
+ * `needs*` escapes, in one place because two things ask the question. The overlay asks
+ * it to build the list it walks; the sidebar button asks it to find out whether it has
+ * anything to open at all, and the two disagreeing is exactly the bug where a button
+ * glows for attention and then opens an empty tour.
+ *
+ * `onProject` defaults to `false` — "we do not know yet" — because the button asking
+ * cannot know: `placedAt` lives behind a query the overlay only fires once it is open.
+ * So the button can over-count by at most the `needsAttendance` steps, which is safe
+ * as long as no release makes those a viewer's *whole* script. Don't write that
+ * release; a tour whose every step can vanish on a query landing is a tour that can
+ * open empty.
+ */
+export const stepAppliesTo = (step, { role, hasWorkspace, onProject = false }) => {
+  if (step.roles && !step.roles.includes(role)) return false;
+  if (step.needsWorkspace && !hasWorkspace) return false;
+  if (step.needsAttendance && onProject) return false;
+  return true;
+};
+
 export const WHATS_NEW_STEPS = [
-  {
-    id: 'overhaul',
-    title: 'New UI overhaul',
-    body: 'Every button, badge, table and input rebuilt on one shared set. Same features, same places — it just reads as one app now.',
-  },
-  // The Settings walk. One route, then a section at a time — the reader is standing
-  // on the page while it is described, so "under Accessibility" means the card they
-  // are looking at, not somewhere to go and find later.
+  // ── `2026-09-sprints-and-drafts` ─────────────────────────────────────────────
   //
-  // Only the opener carries the `route`: the rest are already there, and re-navigating
-  // on every step would reset the page's scroll out from under the spotlight.
+  // The whole script is this one release. Everything before it was deleted the day
+  // this shipped — see the bump history above for why, and read that before adding
+  // a step from an older release back in.
   //
-  // The opener is deliberately un-targeted. Its subject is the page as a whole, and a
-  // spotlight on any one card would crop the thing it is introducing — so the whole
-  // page shows through the dim, and the sections get their own steps below it.
-  {
-    id: 'settings',
-    route: '/settings',
-    title: 'Settings',
-    body: 'A page of your own, and it opens from your name in the sidebar. Here is what is on it.',
-  },
-  // `swatches` paints the real `THEMES` gradients under the copy — eleven squares say
-  // "eleven palettes" faster than the sentence does. Pointed at the Appearance card
-  // rather than the account menu, so the control that changes them is under the
-  // reader's eyes while they read about them.
-  {
-    id: 'appearance',
-    target: '[data-tour="settings-appearance"]',
-    swatches: true,
-    title: 'New themes!',
-    body: 'Eleven accents, in light or dark.',
-    placement: 'right',
-  },
-  {
-    id: 'accessibility',
-    target: '[data-tour="settings-accessibility"]',
-    title: 'Contrast',
-    body: 'Red text that was unreadable on dark is repaired everywhere, not only in high contrast.',
-    placement: 'right',
-  },
-  {
-    id: 'defaults',
-    target: '[data-tour="settings-defaults"]',
-    title: 'What the app opens on',
-    body: 'Your landing page, list or board, whether Tickets arrives filtered to you, and how board cards sort.',
-    placement: 'right',
-  },
-  {
-    id: 'notifications-new',
-    target: '[data-tour="settings-notifications"]',
-    title: 'More notifications',
-    body: 'Programme changes, and a 10:30 nudge when a check-in or daily is missing. Mute any group right here.',
-    placement: 'right',
-  },
-  // The one row worth its own step: it is the only setting on the page that needs a
-  // browser permission, so it is the only one that does nothing until it is clicked
-  // deliberately. Pointed at the row rather than the section above, which the
-  // previous step already spotlights.
-  {
-    id: 'desktop-notifications',
-    target: '[data-tour="settings-desktop-notifications"]',
-    title: 'Keep forgetting check-ins?',
-    body: 'Or just have FOMO? Switch on desktop notifications and you get a banner outside the browser, even when this tab is in the background.',
-    placement: 'right',
-  },
-  {
-    id: 'preferences-sync',
-    title: 'All of it follows your account',
-    body: 'Every setting on this page used to be per-browser, lost in a private window. Now it travels with you.',
-  },
-  // Sits at the end of the account-level run, before the walkthrough moves out into
-  // the workspace — a picture is the last thing on this page that is *yours*.
+  // Two steps here carry no `needs*` flag — the opener and the sidebar one at the end
+  // — so a viewer with no workspace still gets a tour rather than nothing. That is a
+  // property of this script and not a guarantee: `useHasWhatsNewSteps` is what keeps
+  // the button from glowing at somebody a future script has nothing to show.
+
+  // The opener, and the only step about the tour rather than about the app. It is here
+  // because the thing most worth telling people is that this stopped being something
+  // done *to* them: the previous version opened itself on the first load after every
+  // release, over whatever they had come to the app to do. Saying so is also the only
+  // way the glow gets understood as an offer rather than as a nag in waiting.
   //
-  // `roles` excludes leadership, and that is not a copy judgement: `/profile` renders
-  // `<Navigate to="/programme">` for them, and `/programme` is served by the
-  // leadership layout rather than `SidebarLayout`. Routing them here would unmount the
-  // overlay mid-tour, so `markWhatsNewSeen` would never run and the next load would
-  // re-open the same tour into the same bounce — the failure `needsWorkspace` exists
-  // to prevent, arrived at through a role instead. Leadership genuinely has no profile
-  // page to be shown; when they get one, drop the filter.
-  //
-  // Spotlights the picture at rest, where the camera is not yet showing, so the copy
-  // has to name the way in rather than say "here".
+  // Un-targeted (a centred card) and carries no `needs*` flag, so it opens the tour
+  // for every viewer including one with no workspace, whose script is otherwise only
+  // the sidebar step at the end.
   {
-    id: 'profile-picture',
-    roles: ['admin', 'mentor', 'intern'],
-    route: '/profile',
-    target: '[data-tour="profile-avatar"]',
-    title: 'Profile pictures',
-    body: 'Set yours under Edit profile, and it follows you everywhere you appear — dashboards, comments, standups, rosters. Initials stand in until you do.',
+    id: 'we-heard-you',
+    since: TOUR_VERSION,
+    title: 'We heard you',
+    body: 'Onboarding tours are tedious, and this one used to open itself on you. Not any more — nothing here will ever pop up again. The button in the sidebar glows when something ships, and you decide whether and when to read it. Like now.',
+  },
+  // The release's headline, and the only thing in it that added a page. Spotlights the
+  // nav row rather than the board it routes to, because the row *is* the news for
+  // anyone who has not noticed it — and it is where the NEW pill the reader may have
+  // just clicked through from is sitting. The board shows through the dim behind it
+  // either way.
+  {
+    id: 'sprints',
+    since: TOUR_VERSION,
+    navRoute: '/sprints',
+    route: '/sprints',
+    needsWorkspace: true,
+    target: '[data-tour="nav-sprints"]',
+    title: 'Sprints',
+    body: 'Plan one from the board — anyone in the workspace can, not just an admin: pick its tickets, set a goal, watch the points come down. Dates are optional now; leave them blank and you get the next two weeks.',
     placement: 'right',
+  },
+  // Un-targeted on purpose: its subject is what happens when a sprint *ends*, which
+  // is a behaviour rather than a control. There is nothing on screen to point at, and
+  // pointing at the progress strip would attach the copy to the wrong thing.
+  {
+    id: 'sprint-rollover',
+    since: TOUR_VERSION,
+    needsWorkspace: true,
+    title: 'Nothing is left behind',
+    body: 'When a sprint ends the next one appears on its own and the unfinished tickets move across. Anything parked in Blocked counts as needing attention, so it shows on the strip.',
+  },
+  // No `route`: the sprints step already put the reader on `/sprints`, and
+  // re-navigating would reset the page's scroll out from under the spotlight.
+  {
+    id: 'sprint-summary',
+    since: TOUR_VERSION,
+    needsWorkspace: true,
+    target: '[data-tour="sprints-tab-summary"]',
+    title: 'AI sprint recap',
+    body: 'Summary writes the sprint up — themes, who carried what, what rolled over. A finished sprint recaps itself the first time you open the tab. It is a draft to read before you share it, not a record.',
+    placement: 'bottom',
   },
 
-  // `?view=board` opens the board without writing the view preference — see the
-  // comment on `viewParam` in `TicketPage`. So the tour can show someone the board
-  // without quietly changing what Tickets opens on for them afterwards.
+  // The two things the ticket board gained. Drafts before bulk: one is about writing a
+  // single ticket, the other about handling a pile of them.
+  //
+  // Drafts is un-targeted for a reason that is not laziness — the form it describes
+  // exists only while the modal is open, and the tour cannot open a modal without
+  // taking over the screen it also has to dim. So it routes to the board and reads as
+  // a notice about the thing behind it.
   {
-    id: 'tickets-board',
+    id: 'ticket-drafts',
+    since: TOUR_VERSION,
     route: '/tickets?view=board',
     needsWorkspace: true,
-    target: '[data-tour="tickets-board"]',
-    title: 'Tickets: list and board',
-    body: 'Both screens rebuilt. Switch view from the header — and the board widens its columns when you collapse the sidebar.',
-    placement: 'left',
+    title: 'Your half-written ticket is safe',
+    body: 'Start a new ticket, close the modal, close the tab — the form comes back the way you left it, because the draft is kept on your account and not in this browser. Discard draft throws it away; creating the ticket clears it.',
+  },
+  // `?view=list` for the same reason the step above uses `?view=board`: it shows the
+  // list without writing the view preference (see `viewParam` in `TicketPage`). The
+  // board's own version of this control is per column, so the copy names it rather
+  // than the tour visiting four columns to show the same button four times.
+  // `navRoute` here even though Tickets is not a *new* row: the pill marks "something
+  // in here is new", which is true of the page (drafts and bulk actions) and is what a
+  // reader scanning the sidebar for what changed actually wants to know. Carried by
+  // this step rather than the drafts one because a route can only be badged once.
+  {
+    id: 'tickets-bulk',
+    since: TOUR_VERSION,
+    navRoute: '/tickets',
+    route: '/tickets?view=list',
+    needsWorkspace: true,
+    target: '[data-tour="tickets-select"]',
+    title: 'Work a batch at once',
+    body: 'Turn selection on and move or archive every ticket you tick in one go. Board columns have the same button, on the column.',
+    placement: 'bottom',
   },
 
-  // Intern-only.
+  // Intern-only. The logos landed in this release too (#316's two follow-ups), and
+  // they are announced to the people who use the *picker*: 268 catalog entries stopped
+  // rendering a neutral `</>` and now carry their real mark, which is the difference
+  // between scanning a list and reading it. An admin or mentor meets the same marks on
+  // an intern's profile without needing to be told they arrived.
+  //
+  // Pointed at the nav row rather than routed, because the news is not the page — it
+  // is what the page looks like now, and a step that navigates there would spend a
+  // load to say so.
   {
-    id: 'nav-my-progress',
+    id: 'skill-logos',
+    since: TOUR_VERSION,
     roles: ['intern'],
-    target: '[data-tour="nav-my-progress"]',
-    title: 'My Progress',
-    body: 'Your evaluations and scores with your mentor’s written notes, your readiness, and every project you have been put forward for.',
-    placement: 'right',
-  },
-  {
-    id: 'ai-skills',
-    roles: ['intern'],
+    navRoute: '/my-technologies',
     target: '[data-tour="nav-my-technologies"]',
-    title: 'Position & Skills',
-    body: 'Your technologies live here, and now AI skills too — Claude Code, Cursor, Copilot, MCP and the rest, in their own search box. Declare what you use; your mentor assesses these the same way.',
-    placement: 'right',
-  },
-  {
-    id: 'attendance-intern',
-    roles: ['intern'],
-    route: '/my-attendance',
-    needsAttendance: true,
-    target: '[data-tour="absence-requests"]',
-    title: 'Remote work?',
-    body: 'Ask for remote days, vacation, a religious holiday or a sick day here. An admin decides each one.',
-    placement: 'left',
-  },
-
-  // Admin-only, in sidebar order. These stay pointed at their nav row rather than
-  // navigating: the news is that the row exists, and four page loads in a row would
-  // turn the tail of the tour into a slideshow.
-  {
-    id: 'nav-attendance-admin',
-    roles: ['admin'],
-    target: '[data-tour="nav-attendance"]',
-    title: 'Attendance roster',
-    body: 'Every intern by month. A placement start date now ends their attendance obligation from that day.',
-    placement: 'right',
-  },
-  {
-    id: 'nav-absence-requests',
-    roles: ['admin'],
-    target: '[data-tour="nav-admin-absence-requests"]',
-    title: 'Absence requests',
-    body: 'Remote work, vacation, holidays and sick days in one queue. The dot means something is waiting. Limits live on their own tab.',
-    placement: 'right',
-  },
-  {
-    id: 'nav-staffing-requests',
-    roles: ['admin'],
-    target: '[data-tour="nav-admin-staffing-requests"]',
-    title: 'Staffing requests',
-    body: 'Leadership records demand for a project. You put interns forward seat by seat, then close it fulfilled or declined.',
-    placement: 'right',
-  },
-  {
-    id: 'nav-platform-management',
-    roles: ['admin'],
-    target: '[data-tour="nav-admin-platform-management"]',
-    title: 'Positions catalog',
-    body: 'Positions are their own list now, separate from technologies. New projects also carry a client or internal type.',
-    placement: 'right',
-  },
-  {
-    id: 'nav-specialization',
-    roles: ['admin'],
-    target: '[data-tour="nav-specialization"]',
-    title: 'Specializations',
-    body: 'Confirm one of an intern’s declared positions as their focus and pair them with a 1-on-1 mentor, in one action.',
+    title: 'Skills with their real logos',
+    body: 'Position & Skills, and every picker in it, now shows the actual brand mark for most of the catalog — the AI half included — instead of a neutral code glyph.',
     placement: 'right',
   },
 
-  // Un-targeted: the panel sits on an intern's profile Overview, which an admin
-  // reaches from All Users and a mentor from My Interns. No single nav row is the
-  // way in for both roles.
+  // Mentor-only, and the one step in this script that is *not* from this release —
+  // #307 gave mentors a real dashboard back in August and no tour has ever mentioned
+  // it, because the release that followed it announced everything except that. The
+  // one-release rule above is about not re-telling what was already told; a debt like
+  // this is the opposite case, so it is paid here and then gone.
+  //
+  // It badges `/dashboard` all the same, even though the row is months old and the
+  // page is not from this release. The pill does not claim "this shipped today", it
+  // claims "there is something in here you have not been shown" — which for a mentor
+  // and this page is exactly true, and is the whole reason the step exists.
   {
-    id: 'cv-summary',
-    roles: ['admin', 'mentor'],
-    title: 'AI CV summary',
-    body: 'On an intern’s profile: a description of what their CV says. Never a score, a ranking or a verdict on fit. The intern never sees it.',
+    id: 'mentor-dashboard',
+    since: TOUR_VERSION,
+    navRoute: '/dashboard',
+    roles: ['mentor'],
+    route: '/dashboard',
+    needsWorkspace: true,
+    target: '[data-tour="mentor-dashboard-interns"]',
+    title: 'Your dashboard',
+    body: 'No longer a bare ticket table: your interns and where each of them is, the tickets you are watching, the notes you have written, and your own quick actions.',
+    placement: 'right',
+  },
+
+  // Last, and the only step that is not about the boards: it ends the tour standing in
+  // front of a switch the reader can flip while they are looking at it, which is worth
+  // more than any amount of copy describing a sidebar shape.
+  //
+  // Pointed at the Appearance card rather than at a section header in the sidebar
+  // itself, even though the sidebar is the subject. The collapsible shape is opt-in and
+  // `labelled` is still the default, so for most viewers there is no section header to
+  // spotlight — only a 10.5px caption, and one with no `[data-tour]` on it. The card
+  // that turns it on is on screen for everybody.
+  //
+  // Also the one step with no `needsWorkspace`: `/settings` sits outside
+  // `WorkspaceGuard`, so this is the whole tour — rather than nothing at all — for an
+  // intern between workspaces, a mentor without one, or an admin in Global admin mode.
+  {
+    id: 'nav-sections',
+    since: TOUR_VERSION,
+    route: '/settings',
+    target: '[data-tour="settings-appearance"]',
+    title: 'A sidebar that folds up',
+    body: 'Nav groups can become sections that open one at a time, peek on hover, and collapse to a rail of marks — Azure’s sidebar, if that is how you like to work. Pick the shape here; the flat list stays the default.',
+    placement: 'right',
   },
 ];
+
+/**
+ * Does this viewer have anything to be shown at all?
+ *
+ * The script is one release wide (see the note at the top of the array), so "nothing
+ * new for you" is a state that can genuinely happen — every step in this one is
+ * `needsWorkspace`, which is the empty script for an intern between workspaces, a
+ * mentor without one, or an admin in Global admin mode. The button renders nothing in
+ * that case rather than glowing for attention and then opening a tour with no steps
+ * in it, which is the one way this feature can look broken rather than quiet.
+ *
+ * Same predicate the overlay filters with, so the two cannot disagree.
+ */
+export const useHasWhatsNewSteps = () => {
+  const { user } = useAuth();
+  const role = user?.role;
+  const hasWorkspace = Boolean(user?.workspaceId);
+
+  return useMemo(
+    () => WHATS_NEW_STEPS.some((step) => stepAppliesTo(step, { role, hasWorkspace })),
+    [role, hasWorkspace]
+  );
+};
+
+/**
+ * Stable identity for "nothing to badge", so a sidebar that has no NEW pills to paint
+ * is not handed a fresh `Set` on every render.
+ */
+const NO_NEW_ROUTES = new Set();
+
+/**
+ * The nav routes to mark NEW — a `Set` for `AppSidebar` to test each row's `to`
+ * against.
+ *
+ * Derived from the script above rather than listed separately, which is the point: a
+ * release announces a nav row in exactly one place, and the pill beside that row and
+ * the step that explains it cannot drift apart or be added without each other. A step
+ * qualifies when it names a `navRoute`, its `since` is the *current* `TOUR_VERSION`,
+ * and its `roles` (if any) include the viewer — the same role rule the overlay applies,
+ * so nobody gets a pill on a row leading to a step they will not be shown.
+ *
+ * `since` rather than "whatever the newest steps are" is what keeps a bump from needing
+ * a cleanup pass: last release's steps still carry last release's string, so they stop
+ * badging on their own the moment `TOUR_VERSION` moves.
+ *
+ * Goes quiet the instant the tour is read (or the highlight switched off) — see
+ * `useWhatsNewHighlight`.
+ */
+export const useNewFeatureRoutes = () => {
+  const highlight = useWhatsNewHighlight();
+  const { user } = useAuth();
+  const role = user?.role;
+  const hasWorkspace = Boolean(user?.workspaceId);
+
+  return useMemo(() => {
+    if (!highlight) return NO_NEW_ROUTES;
+
+    const routes = WHATS_NEW_STEPS.filter(
+      (step) =>
+        step.navRoute && step.since === TOUR_VERSION && stepAppliesTo(step, { role, hasWorkspace })
+    ).map((step) => step.navRoute);
+
+    return routes.length ? new Set(routes) : NO_NEW_ROUTES;
+  }, [highlight, role, hasWorkspace]);
+};
