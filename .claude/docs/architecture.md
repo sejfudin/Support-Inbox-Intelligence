@@ -32,12 +32,12 @@ Roles are assigned at the **user** level and drive route landing + guards.
 
 ## Data model (Mongoose, `server/models/`)
 
-Core: `User`, `Workspace`, `Ticket`, `TicketStatus`, `Category`, `Comment`, `History`,
-`Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`, `Counter`.
+Core: `User`, `Workspace`, `Ticket`, `TicketDraft`, `TicketStatus`, `Category`, `Comment`,
+`History`, `Notification`, `RefreshToken`, `Integration`, `Daily`, `Sprint`, `Counter`.
 Programme: `InternProfile`, `Evaluation`, `MentorComment`, `ReadinessFlag`, `Recommendation`,
 `Attendance`, `NonWorkingDay`, `Position`, `Project`, `Hub`, `Technology`, `InternshipType`,
 `Invitation`, `StaffingRequest`.
-AI: `AISummary`.
+AI: `AISummary`, `SprintAISummary`.
 
 - Tickets, statuses, categories, comments all carry a `workspace` ref — the scoping anchor.
 - **`Counter` hands out `Ticket.taskNumber`** — one document per `(workspace, name)`, incremented
@@ -88,8 +88,9 @@ AI: `AISummary`.
   `server/constants/userPreferences.js`, which the schema and the service both build from.
   Every field is optional: absent means "never chosen", and the read merges the defaults in.
   Read/written by their owner only, at `GET|PATCH /api/users/me/preferences` — the PATCH is a
-  dot-notation partial merge, last-write-wins. **UI scale is deliberately not in it** and stays
-  per-device in the browser. See "UI preferences" below.
+  dot-notation partial merge, last-write-wins. A couple of preferences (the desktop-notification
+  switch, the collapsed sidebar sections) are per-device and deliberately not in it. See "UI
+  preferences" below.
 - `User.whatsNewSeenVersion` — the `TOUR_VERSION` of the what's-new tour this account has
   finished, or `null` for "never seen one". A top-level field rather than a `preferences` row
   because `preferences` validates every write against an enum table and a release string has no
@@ -112,9 +113,18 @@ AI: `AISummary`.
   (`getWorkspaceDailyOverview`/`getMemberDailyEntry` in `dailyService.js`, routed at
   `/api/dailies/admin/*`) derives a calendar-month reporting-coverage grid and per-member entry
   detail from the same documents — no new schema. See ADR-0001.
-- `Sprint` — workspace-scoped: `name`, `start`, `end`, an optional `goal`, and `snapshot` — the one
-  stored aggregate, null until the sprint is sealed (see below). No lifecycle field, no ticket list,
-  no live counts. State (`upcoming` / `active` / `past`) is
+- `Sprint` — workspace-scoped: `name`, `start`, `end`, an optional `goal`, `snapshot` — the one
+  stored aggregate, null until the sprint is sealed (see below) — and `rolledOverFrom`, the sprint
+  this one succeeds when the rollover created it rather than a person (null otherwise; ADR-0014). No
+  lifecycle field, no ticket list, no live counts. **Both dates are optional on create**: omit them
+  and the sprint runs the workspace's cadence (two weeks by default) from the day after the
+  latest-ending sprint ends, clamped forward to today so a stale cadence cannot produce a backdated
+  window; omit one and the other is filled from the same rule. The window is decided by
+  `resolveSprintWindow` / `defaultSprintWindow` in `sprintRules.js` and then goes through exactly the
+  same validation and overlap check as a typed one, so a default can never reach the database by
+  skipping a rule. It chains off the sprint ending **latest**, upcoming ones included — deliberately
+  not `findPreviousSprint`, which skips upcoming sprints and would default a window straight on top
+  of a sprint the team already planned. State (`upcoming` / `active` / `past`) is
   derived from the dates against "today" rather than stored, and no two sprints in a workspace may
   overlap (containment and shared endpoints count as overlap). Both rules live in the pure, clock-
   free `server/helpers/sprintRules.js`. Which tickets are in a sprint is read off `Ticket.sprint` —
@@ -150,9 +160,33 @@ AI: `AISummary`.
   **before** it reads or returns anything to carry, so the membership write that follows cannot
   rewrite the record it just showed. Without this, carrying a leftover out of a finished sprint
   shrinks that sprint's total and raises its done-percentage, because membership is one reference on
-  the ticket. The workspace-scoped resource
+  the ticket.
+  **A sprint also rolls over on read** (ADR-0014). **Every** sprint read calls
+  `sprintService.rolloverIfDue` first — the three above plus `GET /sprints/next-window`, whose
+  prefill would otherwise hand the create modal the very window the rollover was about to claim —
+  which asks the pure `sprintRules.resolveRollover` whether the
+  workspace is due a successor — it is only when **every** sprint in the workspace is past (an active
+  *or* an upcoming sprint means one already exists), the most recent one ended within one sprint
+  length (past that the workspace is dormant and a read must not restart a cadence), and
+  `Workspace.sprintSettings.autoRollover` is on. When it is due, three writes happen **in this
+  order**: the ending sprint is **sealed**, the successor is **created** from `defaultSprintWindow`,
+  and the tickets that are not done are **carried** into it. Inverting the first and third is the
+  ADR-0012 bug — it would rewrite the record of the sprint being closed. Concurrency is the unique
+  partial index on `{ workspace, rolledOverFrom }` rather than a lock: two racing reads both reach
+  the insert, one lands and the other takes a duplicate-key error and re-reads. The carry is a single
+  `Ticket.updateMany` that sets only `sprint`, **not** a pass through `updateTicket` — a carried
+  ticket keeps the status it reached, so there is no transition, no `doneAt`, no time-in-status and
+  no history line, exactly as `deleteSprint` detaches. Which tickets follow comes from
+  `partitionSprintCarry`, sharing `bucketSprintTicket` with the aggregations so the carry and the
+  numbers cannot disagree about "done": done stays, archived stays, everything else (including
+  blocked) carries. `Workspace.sprintSettings` (`autoRollover`, `lengthDays`) is the switch and the
+  cadence; **no endpoint writes it yet** — the field exists so both are configuration rather than
+  constants. The workspace-scoped resource
   (`routes/sprints.js` → `controllers/sprints.js` → `services/sprintService.js`) is list, read,
-  create, update and delete, plus `GET /sprints/leftovers` — the previous sprint (the most recent
+  create, update and delete, plus `GET /sprints/next-window` — the name and dates a new sprint would
+  get if nobody picked any, which the create modal prefills its pickers with so the two-week rule
+  lives on the server (shared with the rollover) rather than being derived a second time in the
+  frontend — and `GET /sprints/leftovers` — the previous sprint (the most recent
   one that has already begun) and its unfinished, unarchived tickets, which the create modal offers
   as a third source tab so leftovers are not silently dropped. Nothing is carried across by that
   read — carrying a leftover forward is a drag like any other, and moving the ticket is the ordinary
@@ -162,6 +196,96 @@ AI: `AISummary`.
   colliding sprint named in the error. Deleting a sprint clears `Ticket.sprint` on its tickets in
   one `updateMany` and leaves their statuses alone — deleting a plan never undoes the work. See
   ADR-0009, ADR-0010, ADR-0011, ADR-0012 and `CONTEXT.md`'s Sprints section.
+- `SprintAISummary` — the AI recap behind the Sprints → **Summary** tab, one document per sprint
+  (`sprint` unique), replaced wholesale on regenerate. Stores only the model's prose:
+  `team.themes` and `perUser[].themes` per assignee — each theme one `Title Case Headline - lower-case
+  detail, detail` line grouping shipped tickets (format enforced by the prompt, capped in
+  `sprintSummaryService.js`; the tab bolds the headline and shows the rest as a caption). Always
+  written in English, even when the tickets are not.
+  **No numbers are stored** — story points and ticket counts, team-wide and per person, are
+  recomputed from `Ticket.sprint` on every read by the same `sprintRules.js` helper the progress
+  strip uses (the response carries them; the tab currently renders only the per-person split, not
+  a team points block); the carry-over list is derived the same way. `sourceHash` is a digest of the sprint's
+  ticket state at generation time (`helpers/sprintSummaryData.js`, the freshness mechanism from
+  `helpers/standupNote.js`); a read recomputes it and marks the recap `stale` when they diverge —
+  in practice only for the active-sprint preview, since a sealed past sprint's tickets barely
+  move. Resource: `GET|POST /api/sprints/:id/summary` → `controllers/sprints.js` →
+  `services/sprintSummaryService.js`. Any active workspace member may generate; workspace scope is
+  the whole authorization, same as every other sprint route. One Groq call, gated on the env vars
+  like the rest of the AI surface — an unconfigured or failing provider answers with a status code
+  and nothing is persisted (the carry-over list and the per-person numbers still render without it).
+  A sprint with **nothing in the done bucket** is summarised with no Groq call at all: the recap is
+  legitimately empty and is stored as such, so the tab settles on "nothing finished" instead of
+  erroring on every auto-fire. The first-generate upsert is workspace-scoped and tolerates the
+  unique-index race (two people opening the tab at once) by returning the row the other write
+  landed.
+  **The Summary tab lists finished sprints most-recently-finished first and auto-fires the `POST`
+  the first time a finished sprint with no recap is opened** — the client does this, once per sprint,
+  since there is no server-side "sprint ended" event to hang a job on (same reason ADR-0012 seals on
+  read). The active-sprint preview stays manual. See ADR-0013.
+
+## Ticket drafts
+
+The unsent New-ticket form, kept so that closing the modal — or the tab — does not throw away what
+was typed. `TicketDraft` (`server/models/TicketDraft.js`), one row per **(user, workspace)** under a
+compound unique index, holding one field per control in the modal. Pure normalization lives in
+`server/helpers/ticketDraftRules.js`; the client mirror is `frontend/src/helpers/ticketDraft.js`
+over `hooks/useTicketDraftAutosave.js`.
+
+- **Its own collection, not a flagged `Ticket`.** A draft has no task number, no history, no
+  comments and no board column, and every ticket query in the app would otherwise have to learn to
+  exclude it.
+- **One draft per workspace per account.** The modal is a single form, so a second draft would be
+  one nothing can reopen. Saving is a whole-form replace; an emptied form deletes the row, so an
+  abandoned modal leaves nothing behind. What counts as "empty" ignores status and priority —
+  the modal arrives with both already set.
+- **Self-only, at `GET|PUT|DELETE /api/ticket-drafts`.** The account comes from the token and no id
+  travels in any path; the workspace goes through `resolveActiveWorkspaceId`. See
+  `.claude/docs/security.md`.
+- **References are scoped to the workspace on write, and dropped rather than rejected** when they
+  do not belong to it (a deleted category, a revoked membership). Autosave runs on a timer, and an
+  autosave that answers 400 stops saving silently — the one failure this feature cannot have. The
+  description is sanitized on the way in like any other rich text.
+- **`dueDate` is stored as the input's own `YYYY-MM-DD` string**, not a `Date`: it is a calendar day
+  the form hands back verbatim, and parsing it into an instant is what shifts it by a day.
+- The client restores once per opening, autosaves on a debounce, flushes on close, and deletes the
+  draft once the ticket it was a draft of exists.
+
+## Bulk ticket actions
+
+Both ticket surfaces can select tickets and move them to another status, or archive them, in one
+request: `PATCH /api/tickets/bulk-status` and `PATCH /api/tickets/bulk-archive` (both before
+`/:id` in `server/routes/ticket.js`, both `protect` only). Same shape as
+`PATCH /api/tickets/sprint-membership`, and for the same reasons:
+
+- **Every id is validated against the caller's workspace before anything is written** — a batch is
+  not a transaction, and a half-applied move is worth one read to avoid. The batch is capped at
+  `MAX_BULK_TICKETS` (200).
+- **Each ticket still goes through `updateTicket` / `archiveTicket`.** The status rules, the
+  time-in-status bookkeeping, the history lines and the socket events live there; duplicating them
+  is how a bulk move starts behaving differently from a drag of the same card.
+- Tickets already in the destination status (or already archived) are skipped, and the backlog is
+  refused as a destination up front — the same rule a single move enforces.
+- No role gate: a member can already move or archive each of these tickets one at a time.
+- Nothing is optimistic here, unlike a board drag — see the note on `useBulkTicketStatus` in
+  `frontend/src/queries/tickets.js`.
+
+On the frontend, **what a batch does** lives once in `hooks/useTicketBulkActions.js` (the two
+mutations, the toasts, the archive confirmation) and is rendered once by
+`components/Tickets/TicketBulkActionsBar.jsx`. **Which tickets are selected** is the surface's own
+business, and the two answer it differently:
+
+- **The board** (`components/BoardPage.jsx`) selects inside one column: a tick-list button in the
+  column header turns selection on, cards get a checkbox and stop being draggable while it is on,
+  and the bar sits under that column's cards. The destination menu drops the column's own status.
+- **The list** (`components/Tickets/TicketsTable.jsx`, wired in `pages/TicketPage.jsx`) selects
+  inside one page, and is a mode there too: the same tick-list button, in the tab band, and
+  `DataTable`'s opt-in `selection` prop is passed only while it is on, so the checkbox column does
+  not exist the rest of the time. The bar sits above the rows carrying the count and the way out;
+  its two actions are disabled at zero rather than the bar appearing with the first tick, which
+  would shift the rows under the pointer. Rows can be in any status, so the menu drops nothing.
+  The header checkbox speaks for the page it is on, and paging, filtering, searching or switching
+  to the board drops the selection rather than letting it name rows nobody can see.
 
 ## Ticket blockers
 
@@ -389,13 +513,12 @@ two browsers changing two different preferences do not clobber each other.
   only differences. On the client, the quick-actions row maps the empty cached string to `null` for
   exactly this.
 - **Not every preference is account-level.** `PREFERENCE_SCOPE.DEVICE` marks the rows that stay in
-  the browser: UI scale (a function of screen size, not taste), the desktop-notification switch
-  (`notify-desktop` — browser notification permission is granted per browser per device, so a
-  synced switch would read "on" where nothing could ever draw), and the collapsed sidebar sections
-  (`nav-sections-closed` — same reasoning as UI scale: you collapse Admin because ten rows do not
-  fit a laptop, and syncing it would carry that compromise onto a desktop). Both tables are filtered
-  to `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like any other and
-  simply never pushed. Scope is what excludes it, not omission from the table.
+  the browser: the desktop-notification switch (`notify-desktop` — browser notification permission
+  is granted per browser per device, so a synced switch would read "on" where nothing could ever
+  draw), and the collapsed sidebar sections (`nav-sections-closed` — you collapse Admin because ten
+  rows do not fit a laptop, and syncing it would carry that compromise onto a desktop). Both tables
+  are filtered to `ACCOUNT` when `ACCOUNT_PREFERENCES` is built, so a device row is declared like
+  any other and simply never pushed. Scope is what excludes it, not omission from the table.
   A device row still gets a table row, because the table is where a preference is *declared*
   whether or not the sync layer carries it — but it needs **no server change at all**: no
   `userPreferences.js` row, no `User` subdocument, no `buildUpdate` branch.
@@ -418,9 +541,8 @@ two browsers changing two different preferences do not clobber each other.
   a stranger's values on a shared browser. When an account's record is still empty, that migration
   adopts whatever the browser already had cached and saves it as the account's first set
   (`hasStoredPreferences` on the GET) — moving to account-level preferences does not reset anyone.
-- **UI scale stays per-device** and is deliberately absent from the server table — it is a function
-  of screen size, not of taste. Signed out, the account-scoped attributes fall back to the house
-  defaults so the auth screens never wear the last user's accent or accessibility settings.
+- Signed out, the account-scoped attributes fall back to the house defaults so the auth screens
+  never wear the last user's accent or accessibility settings.
 
 ## Sidebar navigation (`frontend/src/components/AppSidebar.jsx`)
 
@@ -509,8 +631,24 @@ empty ones, and three presentations of the same tree. `helpers/navSections.js` h
 A full-screen walkthrough that announces a release by spotlighting the controls that changed. It
 lives entirely in `frontend/src/components/onboarding/` — `whatsNewSteps.js` is the script plus
 every read and write of the seen-state, `WhatsNewTour.jsx` is the overlay, and `WhatsNewButton.jsx`
-is the pulsing way back in from the sidebar footer.
+is the glowing "What's new" button in the sidebar footer.
 
+- **Nothing opens it. The button is the only way in.** It used to open itself on the first load
+  after a version bump; it does not any more, and the tour's own first step says so. What replaced
+  the interruption is a signal: the footer button glows and sheens while there is something unread,
+  and the nav rows a release touched carry a **NEW** pill (`useNewFeatureRoutes` derives those from
+  the script, so a row cannot be badged without a step explaining it). Both go quiet the moment the
+  tour is finished or escaped out of. `useWhatsNewHighlight` is the one answer both read, and it
+  folds in the account's standing opt-out (Settings → Notifications → "Highlight what's new",
+  stored as `onboardingTourEnabled` — the key predates the rename and is deliberately unchanged).
+- **The script is one release wide.** A bump deletes the previous release's steps and writes the new
+  ones. It used to accumulate — a release was announced "as one story" including older steps —
+  which was right while the tour opened itself at people who had never been walked through
+  anything. Now that it is only ever opened deliberately, the question it answers is "what changed
+  recently", so a viewer who missed a release is pointed at `docs/TEAM_HANDBOOK.md` instead.
+  Consequence worth knowing: a one-release script can be **empty** for some viewer (every step in
+  it needing a workspace, say), so `useHasWhatsNewSteps` hides the button rather than letting it
+  glow and then open nothing.
 - **Versioned, not boolean, everywhere — server included.** Shipping a release through it is two
   steps: edit the steps, then bump `TOUR_VERSION`. The bump is what re-announces to everyone
   exactly once. The server deliberately holds **no copy** of that constant (it validates only that
@@ -523,10 +661,10 @@ is the pulsing way back in from the sidebar footer.
   per-account local key (`whatsNewTour:<userId>`) is written first and synchronously, and is what
   keeps a failed or offline PATCH from turning into a tour that reopens on every load. **Where the
   two disagree, seen wins.**
-- `TOUR_ENABLED` in `whatsNewSteps.js` is the master switch and is a plain constant on purpose —
-  flipping it is how you get an automated run past the scrim, the alternative being to drive as an
-  account already marked seen. It gates both ways in, so `false` means the overlay cannot mount and
-  the button renders nothing.
+- `TOUR_ENABLED` in `whatsNewSteps.js` is the master switch and is a plain constant on purpose, so
+  turning the feature off for a deploy is a one-line diff. It gates the only way in, so `false`
+  means the button renders nothing and the overlay cannot mount. An automated run no longer needs
+  it: nothing opens the tour, so nothing puts a scrim in front of a browser pass.
 
 ## Real-time (Socket.IO, `server/socket/`)
 
@@ -549,9 +687,11 @@ is the pulsing way back in from the sidebar footer.
 
 ## Integrations
 
-- **Groq AI** (`server/services/groqAiClient.js` + `aiSummaryService`, `ticketDescriptionGenerationService`,
-  `ticketMetadataSuggestionService`, `internCvSummaryService`; prompts in `server/prompts/`).
-  Optional — gated on env vars.
+- **Groq AI** (`server/services/groqAiClient.js` + `aiSummaryService`, `sprintSummaryService`,
+  `ticketDescriptionGenerationService`, `ticketMetadataSuggestionService`, `internCvSummaryService`,
+  `standupSummaryService`, `internNotificationService`; prompts in `server/prompts/`).
+  Optional — gated on env vars. One request helper (`requestGroqOutputText({ prompt })`), plus
+  `extractJsonObject` for the prompts that return a JSON contract.
   - **Intern CV summary** — `GET|POST /api/interns/:userId/cv-summary`, admin/mentor only via
     `assertInternAccess`. The POST downloads the intern's uploaded CV from Supabase, runs
     `helpers/pdfText.js` over it and prompts Groq; the GET only reads the cache. Cached on

@@ -8,6 +8,8 @@ import {
   unarchiveTicket,
   updateTicket,
   setSprintMembership,
+  bulkUpdateTicketStatus,
+  bulkArchiveTickets,
   getMyTickets,
   suggestTicketMetadata,
   generateTicketDescription,
@@ -164,6 +166,44 @@ export const useUnarchiveTicket = () => {
       invalidateTicketScope(queryClient, ticketId);
       invalidateWorkspaceTicketsScope(queryClient, workspaceId);
     },
+  });
+};
+
+/**
+ * A board column's selection, moved to another status or archived in one request.
+ *
+ * Not optimistic, unlike a drag (`useBoardStatusMove`): a drag moves one card the
+ * person is holding, where the card snapping back IS the error message. A batch
+ * moves cards across two columns at once, and rolling that back convincingly
+ * costs more than the refetch it would save.
+ */
+// The server loops one `updateTicket` per ticket and a batch is not a
+// transaction, so a failure on the 40th id leaves 39 already moved. Invalidate on
+// settle rather than only on success, or a partial failure leaves those 39 cards
+// showing in their old columns until some unrelated refetch.
+const invalidateBulkTicketScopes = (queryClient, workspaceId) => {
+  invalidateWorkspaceTicketsScope(queryClient, workspaceId);
+  queryClient.invalidateQueries({ queryKey: [BOARD_COLUMN_QUERY_KEY] });
+  invalidateAnalyticsQueries(queryClient, workspaceId);
+};
+
+export const useBulkTicketStatus = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkUpdateTicketStatus,
+    onSettled: (_response, _error, variables) =>
+      invalidateBulkTicketScopes(queryClient, variables.workspaceId),
+  });
+};
+
+export const useBulkArchiveTickets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkArchiveTickets,
+    onSettled: (_response, _error, variables) =>
+      invalidateBulkTicketScopes(queryClient, variables.workspaceId),
   });
 };
 

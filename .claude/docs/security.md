@@ -64,11 +64,19 @@ the caller's workspace.
   `assertSprintInWorkspace(sprintId, workspaceId)` fetches the sprint, 404s if absent, and rejects
   a mismatch — same shape as `assertStatusInWorkspace`. Every route resolves its workspace through
   `resolveActiveWorkspaceId` first, so a sprint is neither readable nor writable across workspaces.
-  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/:id`, `POST /`, `PATCH /:id` and
-  `DELETE /:id` alike — `/leftovers` takes no id at all: it picks the previous sprint by querying
-  `{ workspace }` and reads its tickets through the workspace-scoped ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
+  This covers `GET /api/sprints`, `/current`, `/leftovers`, `/next-window`, `/:id`,
+  `GET|POST /:id/summary`, `POST /`, `PATCH /:id` and `DELETE /:id` alike — `/leftovers` and
+  `/next-window` take no id at all: they query `{ workspace }` and read tickets through the
+  workspace-scoped ticket list. No role gate: creating, editing and deleting a sprint are authorized the same way a
   ticket update is — active workspace membership is enough, since admins/mentors already bypass it
   via `canAccessAnyWorkspace`.
+- **The sprint AI recap** (`GET|POST /api/sprints/:id/summary`, `services/sprintSummaryService.js`)
+  adds no authorization of its own: it calls `sprintService.assertSprintInWorkspace` on the
+  resolved workspace like every read above, and any active member may generate or regenerate —
+  the same rule as editing a sprint. The `POST` is Groq-gated; an unconfigured or failing provider
+  answers with a status code (503/502) and writes nothing. `SprintAISummary` carries the model's
+  prose only — every number in the response is recomputed from the sprint's tickets within the
+  workspace scope, so the cached document cannot leak counts from anywhere else.
 - **What may be changed about a sprint is a property of the sprint, not of the caller.** Mutability
   is derived from its dates in `helpers/sprintRules.js` (`canEditSprint` / `canDeleteSprint`):
   upcoming is editable and deletable, active is editable but never deletable, past is neither.
@@ -77,6 +85,14 @@ the caller's workspace.
   rather than an authorization failure. The read responses carry the same pair as
   `permissions: { canEdit, canDelete }` so the UI only offers what the server would accept; that
   field decides what is *rendered* and is never the check itself.
+- **A sprint read can create a sprint and move tickets** (`rolloverIfDue`, ADR-0014), so the three
+  read paths carry a write's exposure. Every query in it is workspace-scoped: the sprints it decides
+  from, the `Workspace` settings lookup, the successor it inserts, and the `Ticket.updateMany` carry
+  — which is filtered on `{ workspace, sprint: <the ended sprint>, _id: { $in: … } }`, so a rollover
+  in one workspace cannot reach a ticket in another even if an id were forged. It is authorized by
+  nothing more than the read that triggered it, which is the same posture as ADR-0012's seal: any
+  active member's `GET` may cause it. `Workspace.sprintSettings.autoRollover` / `lengthDays` gate the
+  behaviour but **no endpoint writes them**, so they add no authorization surface.
 - **Deleting a sprint detaches its tickets and stops there.** The cascade is one
   `Ticket.updateMany` scoped to `{ workspace, sprint }` setting `sprint: null` — statuses are left
   untouched, and the workspace filter means a sprint id can never reach a ticket in another
@@ -762,6 +778,22 @@ exactly like a real one, but never appear in a listing meant for real users.
   enum-checked — the server holds no copy of `TOUR_VERSION` on purpose. Nothing may read
   `whatsNewSeenVersion` to decide what a caller can see or do; like preferences, it is UI
   state, not authorization.
+- `GET`/`PUT`/`DELETE /api/ticket-drafts` is the same shape once more: the account comes
+  from `req.user._id`, no id travels in any path, and there is no read path to anybody
+  else's draft. What it stores is a workspace-scoped resource as well as a self-only one,
+  so both rules apply at once:
+  - The workspace is resolved with `resolveActiveWorkspaceId` (an admin-only `workspaceId`
+    override, exactly as on `/api/tickets`), and `null` answers "no draft" rather than
+    reaching into a workspace the caller has since left.
+  - **Every reference in a draft is re-scoped to that workspace on write** — status,
+    category, assignees, blocking ticket. A draft is populated and rendered back to its
+    owner, so an unscoped ref stored here would be a cross-workspace read through the
+    populate, the same leak `ensureCategoryBelongsToWorkspace` exists to prevent on a
+    ticket. It **drops** the foreign ref instead of rejecting the request, because autosave
+    runs on a timer and a 400 would silently stop saving what is being typed — dropping
+    still stores nothing foreign, which is the property that matters here.
+  - The description is rich text and is sanitized on the way in (`helpers/htmlSanitize.js`),
+    like a ticket description; it goes back out to a `dangerouslySetInnerHTML` sink.
 - `POST`/`DELETE /api/auth/me/avatar` follow the same shape — the account comes from
   `req.user._id`, so there is no id to aim at somebody else's record. `PATCH /auth/:id`
   builds its update from an explicit allow-list and so cannot write `avatarUrl` or
@@ -828,6 +860,23 @@ exactly like a real one, but never appear in a listing meant for real users.
 - JWT secrets: `JWT_SECRET`, `JWT_REFRESH_SECRET`.
 - Supabase bucket names are config, not secrets, but `SUPABASE_PROFILE_BUCKET` is **required** —
   see `workflows.md`. Pointing it at the workspace-logo bucket breaks valid uploads.
+
+## Bulk ticket endpoints
+
+`PATCH /api/tickets/sprint-membership`, `PATCH /api/tickets/bulk-status` and
+`PATCH /api/tickets/bulk-archive` each act on a list of ticket ids in one request. All three are
+`protect` with **no role gate**, deliberately: a workspace member can already move or archive each
+of those tickets one at a time, so a tighter gate here would guard nothing.
+
+- The scoping is the same as everywhere else, done once for the batch: the workspace comes from
+  `resolveActiveWorkspaceId`, and the service reads the tickets with
+  `Ticket.find({ _id: { $in: ids }, workspace })` and refuses the whole batch with a 404 if the
+  count does not match. **Never loop over the ids fetching them by id alone** — that is how a
+  batch becomes a cross-workspace write with one foreign id smuggled into the array.
+- Nothing is written until every id has passed that check, and the batch is capped
+  (`MAX_BULK_TICKETS`).
+- Each id then goes through the single-ticket service path, so the rules that path enforces (the
+  backlog is not a destination, the sprint estimate rule) apply to a batch unchanged.
 
 ## When reviewing / writing an endpoint, checklist
 

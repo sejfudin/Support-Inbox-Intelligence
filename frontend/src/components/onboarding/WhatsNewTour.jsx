@@ -9,18 +9,12 @@ import { isIntern } from '@/helpers/roles';
 import { resolveUserId } from '@/helpers/userIdentity';
 import { THEMES } from '@/lib/themes';
 import { cn } from '@/lib/utils';
-import { readStoredPreference } from '@/hooks/useStoredPreference';
-import {
-  DEFAULT_ONBOARDING_ENABLED,
-  ONBOARDING_ENABLED_STORAGE_KEY,
-  isValidOnboardingEnabled,
-} from '@/helpers/onboardingTour';
 import {
   TOUR_ENABLED,
   TOUR_REPLAY_EVENT,
   WHATS_NEW_STEPS,
   markWhatsNewSeen,
-  useWhatsNewSeen,
+  stepAppliesTo,
 } from './whatsNewSteps';
 import { emitTourActive } from './tourPreview';
 
@@ -31,6 +25,13 @@ const CARD_WIDTH = 464;
 const GAP = 14; // between the highlighted element and the card
 const PAD = 8; // breathing room around the spotlight cut-out
 const EDGE = 12; // minimum distance from the viewport edge
+
+// Whether anything in the current script is conditioned on `placedAt`. A release
+// whose steps do not use `needsAttendance` should not cost an intern a request to
+// find out that nothing depended on the answer — and with the script now one release
+// wide (see `whatsNewSteps.js`), most releases will not use it. Read at module scope
+// because the script is a module constant: it cannot change under a mounted tour.
+const SCRIPT_NEEDS_ATTENDANCE = WHATS_NEW_STEPS.some((step) => step.needsAttendance);
 
 // How long a step waits for its target to appear before settling for a centred
 // card. Longer than a dashboard round-trip so a cold open still lights every
@@ -185,18 +186,16 @@ const placeCard = (rect, card, preferred) => {
  * no extra dependency) and parking an explanatory card beside it.
  *
  * Deliberate choices:
- * - **Two ways in**: it opens itself once on the first load after a `TOUR_VERSION`
- *   bump, and the pulsing button in the sidebar footer reopens it any time. See
- *   `whatsNewSteps.js`.
- * - **Skip, Escape, and a standing opt-out.** A visible Skip button and Escape both
- *   end the tour early and count it as seen, same as finishing it — so nobody is
- *   interrupted twice by a release they already walked away from. Settings →
- *   Notifications also carries a standing "Onboarding tour" switch
- *   (`ONBOARDING_ENABLED_STORAGE_KEY` in `whatsNewSteps.js`): turning it off stops
- *   the *automatic* open on future releases without touching Skip, Escape or the
- *   sidebar's replay button, any of which can still open the tour on request. Read
- *   with a plain `readStoredPreference` call inside the auto-open effect below
- *   rather than through a reactive hook — see the comment on that effect.
+ * - **One way in, and it is a click.** The glowing button in the sidebar footer opens
+ *   it; nothing else does. It used to also open itself on the first load after a
+ *   `TOUR_VERSION` bump — see `TOUR_REPLAY_EVENT` in `whatsNewSteps.js` for what that
+ *   cost and why an invitation replaced it.
+ * - **Skip and Escape both count as read.** Either ends the tour early and marks the
+ *   version seen, same as finishing it: somebody who opened this and walked away has
+ *   answered the question the glow was asking, and re-asking it would make the signal
+ *   worthless. Settings → Notifications carries the standing opt-out from the signal
+ *   itself ("Highlight what's new"), which does not touch this overlay — the button
+ *   still opens it on request.
  * - **No step is ever skipped for not having rendered yet.** The step count is
  *   exactly the number of entries in the script that apply to the viewer — so admin
  *   and intern legitimately see different totals, but neither ever loses a step they
@@ -220,24 +219,23 @@ const placeCard = (rect, card, preferred) => {
  *   preference for a one-time walkthrough.
  */
 export function WhatsNewTour() {
-  // `loading` (the /me fetch), not `isLoginPending` (the login mutation): the tour
-  // must not measure anything until the shell has a user and has painted.
-  const { user, loading } = useAuth();
-  const seen = useWhatsNewSeen();
+  // The user is still needed — for the role filter, for `markWhatsNewSeen`, and for
+  // the intern attendance read — but not as a gate any more. Nothing opens this
+  // overlay except a click on a button that only exists inside the signed-in shell,
+  // so by the time it can mount there is a user and the shell has painted.
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Starts closed and is opened by one of two things: the sidebar's what's-new
-  // button, or the first-login effect below. It is never open before there is a
-  // user, so nothing measures against a half-built shell.
+  // Starts closed, and the sidebar's What's new button is the only thing that opens
+  // it. So it is never on screen unasked-for, and — since that button only renders
+  // inside the signed-in shell — never open before there is a user, which is what
+  // keeps it from measuring against a half-built shell.
   const [dismissed, setDismissed] = useState(true);
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState(null);
   const [cardBox, setCardBox] = useState({ width: CARD_WIDTH, height: 250 });
   const cardRef = useRef(null);
-  // One auto-open per mount. Without this, finishing the tour and then having
-  // `seen` briefly disagree (or a refetch re-running the effect) would reopen it.
-  const autoOpenedRef = useRef(false);
   // The last route this tour tried to send the reader to. Keyed by route rather
   // than by step so a guard that refuses the navigation is a single failed attempt
   // instead of a redirect loop — see the effect below.
@@ -254,7 +252,7 @@ export function WhatsNewTour() {
   // for a banner shown once a release. The page this step routes to uses the same
   // query key, so an intern who has been there already pays nothing.
   const { data: attendance } = useMyAttendance({
-    enabled: isIntern(role) && !dismissed,
+    enabled: isIntern(role) && !dismissed && SCRIPT_NEEDS_ATTENDANCE,
   });
   const onProject = isExemptToday(attendance?.placedAt ?? null);
   // The seen-state is keyed per account, so marking it needs to know whose it is.
@@ -285,10 +283,10 @@ export function WhatsNewTour() {
    * `needsWorkspace` is the one exception, and it exists because of the navigation
    * effect rather than the copy. A step routing behind `WorkspaceGuard` bounces a
    * viewer with no `workspaceId` to `/create-workspace`, which `SidebarLayout` does
-   * not serve — so this overlay unmounts mid-walkthrough, `finish` never runs, and
-   * the next load auto-opens the same tour into the same bounce. Keeping the step
-   * would make the announcement unfinishable for that viewer; dropping it costs them
-   * a step about a board they cannot open. Not a role check: interns between
+   * not serve — so this overlay unmounts mid-walkthrough and `finish` never runs, which
+   * leaves the version unread and the button still glowing at somebody who did in fact
+   * click it. Keeping the step would make the announcement unfinishable for that
+   * viewer; dropping it costs them a step about a board they cannot open. Not a role check: interns between
    * workspaces, mentors without one and admins in Global admin mode are all here.
    *
    * `needsAttendance` is the same kind of exception for the same kind of reason. An
@@ -298,13 +296,7 @@ export function WhatsNewTour() {
    * A second anchor would only spotlight the notice that says the opposite.
    */
   const steps = useMemo(
-    () =>
-      WHATS_NEW_STEPS.filter((step) => {
-        if (step.roles && !step.roles.includes(role)) return false;
-        if (step.needsWorkspace && !hasWorkspace) return false;
-        if (step.needsAttendance && onProject) return false;
-        return true;
-      }),
+    () => WHATS_NEW_STEPS.filter((step) => stepAppliesTo(step, { role, hasWorkspace, onProject })),
     [role, hasWorkspace, onProject]
   );
 
@@ -316,48 +308,12 @@ export function WhatsNewTour() {
   // The step list can shrink under an open tour: the attendance query lands and a
   // `needsAttendance` step drops, or the viewer's role or workspace changes. If that
   // leaves `index` past the end, `step` is undefined and the render below bails to
-  // `null` — a tour that is on screen, unreadable and never marked seen, so the next
-  // load auto-opens it into the same dead end. Count it finished instead: everything
-  // still on the list has already been read.
+  // `null` — a scrim on screen with no card in it, holding the app hostage behind an
+  // overlay that can never be finished or marked seen. Count it finished instead:
+  // everything still on the list has already been read.
   useEffect(() => {
     if (!dismissed && steps.length && index >= steps.length) finish();
   }, [dismissed, index, steps.length, finish]);
-
-  // First login on a new design: show the tour unprompted, once. Gated on the
-  // *versioned* seen-state, so bumping TOUR_VERSION re-announces to everyone
-  // exactly once and a returning viewer is never re-interrupted.
-  //
-  // Opening while dashboard data is still in flight is safe now: no step is
-  // dropped for a missing target, so the only effect of an early open is that the
-  // first card or two are centred until their element lands.
-  //
-  // `!user` is the gate that matters since the seen-state moved to the account: the
-  // stored version arrives on the same `/me` payload as the user, so by the time this
-  // can fire, `seen` is already the account's answer and not just this browser's.
-  // Without that, a returning viewer would be re-interrupted on every single login.
-  // With `TOUR_ENABLED` off there is no auto-open and no replay, so the tour stays
-  // `dismissed`, `step` is null, and this component renders nothing.
-  // `onboardingEnabled` is read fresh from storage here rather than through the
-  // reactive `useStoredPreference` hook, and deliberately left out of the
-  // dependency array, for two reasons: `useStoredPreference` answers with the
-  // default for one render before its own effect corrects it, which raced this
-  // effect on a mount where every other gate was already satisfied; and making
-  // it a dependency would re-run this effect — and pop the tour open on whatever
-  // page the reader is standing on — the instant they flip the Settings switch
-  // back on, which only means "allow the *next* automatic open," not "open now."
-  useEffect(() => {
-    if (!TOUR_ENABLED) return;
-    if (autoOpenedRef.current || seen || !user || loading || steps.length === 0) return;
-    const onboardingEnabled = readStoredPreference(
-      ONBOARDING_ENABLED_STORAGE_KEY,
-      DEFAULT_ONBOARDING_ENABLED,
-      isValidOnboardingEnabled
-    );
-    if (onboardingEnabled !== 'on') return;
-    autoOpenedRef.current = true;
-    setIndex(0);
-    setDismissed(false);
-  }, [seen, user, loading, steps.length]);
 
   const tourActive = !dismissed && steps.length > 0;
 
@@ -620,11 +576,12 @@ export function WhatsNewTour() {
             who know what it means are the ones who will click it next time. */}
         {isLast && (
           <p className="mt-3.5 text-[13px] leading-5 text-white/65">
-            This is how we will show you what&apos;s new from now on. The{' '}
-            <span className="font-medium text-white/90">Notice some changes?</span> button just
-            above your name, at the bottom of the sidebar, reopens this any time — and whenever we
-            ship something new it will start glowing again to let you know there is something to
-            read.
+            This is how we will show you what&apos;s new from now on, and we will never open it on
+            you unasked. The <span className="font-medium text-white/90">What&apos;s new</span>{' '}
+            button just above your name, at the bottom of the sidebar, reopens this any time — and
+            whenever we ship something it starts glowing again, with a{' '}
+            <span className="font-medium text-white/90">New</span> pill beside any page we have
+            added, until you have had a look.
           </p>
         )}
 

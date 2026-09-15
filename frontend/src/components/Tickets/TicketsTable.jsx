@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ChevronsUpDown } from 'l
 import React from 'react';
 
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 
@@ -31,6 +32,11 @@ export function DataTable({
   // 840px is the mockup's floor for the seven-column grid; below it the section
   // scrolls inside itself rather than letting the subject column collapse.
   tableClassName = 'min-w-[840px] table-fixed',
+  // Opt-in row selection: `{ selectedIds: Set, onToggle(id), onToggleAll(), idPrefix }`.
+  // A prop rather than a column definition, so the callers that don't select
+  // (the backlog, the archive) are untouched, and so the checkbox column cannot
+  // be reordered into the middle of the mockup's grid by accident.
+  selection = null,
 }) {
   // Sorting exists only when the caller owns the state and sends it to the API.
   // A paginated list can only be sorted by the API: ordering the 25 rows this page
@@ -51,6 +57,13 @@ export function DataTable({
 
   const from = totalResults === 0 ? 0 : (currentPage - 1) * limit + 1;
   const to = Math.min(currentPage * limit, totalResults);
+
+  const selectionPrefix = selection?.idPrefix || 'tickets-table';
+  const rowIds = data.map((ticket) => ticket.id ?? ticket._id);
+  // "All" means the page, not the result set — the header box can only speak for
+  // the rows it is on top of, and the count in the bar has to match what it ticks.
+  const allRowsSelected =
+    Boolean(selection) && rowIds.length > 0 && rowIds.every((id) => selection.selectedIds.has(id));
 
   const table = useReactTable({
     data,
@@ -93,6 +106,16 @@ export function DataTable({
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
+                  {selection ? (
+                    <TableHead className="app-table-head sticky top-0 z-[2] w-[44px] border-b border-separator pl-6 pr-0">
+                      <Checkbox
+                        checked={allRowsSelected}
+                        onCheckedChange={selection.onToggleAll}
+                        aria-label="Select every ticket on this page"
+                        data-test={`${selectionPrefix}-select-all`}
+                      />
+                    </TableHead>
+                  ) : null}
                   {headerGroup.headers.map((header) => {
                     const canSort = header.column.getCanSort();
                     const sorted = header.column.getIsSorted();
@@ -167,6 +190,28 @@ export function DataTable({
                       table.options.meta?.onRowClick?.(rowId, row.original);
                     }}
                   >
+                    {selection ? (
+                      // Its own click target, and it stops there: the row still
+                      // opens the ticket, so ticking a box must not also open it.
+                      <TableCell
+                        className="app-table-cell w-[44px] pl-6 pr-0"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          selection.onToggle(rowId);
+                        }}
+                      >
+                        {/* Inert: the cell around it is the hit target, so the
+                            box only reports the state. Handing the click to both
+                            would toggle the row twice and leave it unchanged. */}
+                        <Checkbox
+                          checked={selection.selectedIds.has(rowId)}
+                          onCheckedChange={() => selection.onToggle(rowId)}
+                          aria-label={`Select ${row.original.subject || row.original.title || 'ticket'}`}
+                          className="pointer-events-none"
+                          data-test={`tickets-table-row-${rowId}-checkbox`}
+                        />
+                      </TableCell>
+                    ) : null}
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
@@ -188,7 +233,10 @@ export function DataTable({
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length + (selection ? 1 : 0)}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>

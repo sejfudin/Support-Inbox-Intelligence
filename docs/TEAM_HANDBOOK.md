@@ -14,6 +14,20 @@
   nobody has to upload anything
 - Nobody can set or remove **someone else's** picture, admins included. There is no need for it —
   unlike a forgotten password, nobody is ever locked out of a photo
+- Anyone who works on tickets in a workspace (admin, mentor, intern — not leadership, who have no
+  ticket workflow) gets two things on the board that need no permission of their own, because they
+  are the same actions everyone could already do one ticket at a time:
+  - **A new ticket is saved as you type it.** Close the modal, or the tab, and the next time you
+    open New ticket in that workspace it comes back exactly as you left it — the header says when
+    it was last saved, and **Discard draft** throws it away. One draft per workspace, kept on your
+    account rather than the browser, and cleared the moment the ticket is created
+  - **Tickets can be worked in bulk, on the board and in the list.** On the board, the tick-list
+    icon in a column header turns on selection and you pick cards within that column; in the list
+    view the same icon sits above the table and turns on a checkbox on every row (plus one in the
+    header for the whole page) — until you press it, the rows look as they always did. Either way:
+    **Move to** another status or **Archive** the lot in one go. Archiving asks first; moving does
+    not, since a wrong move is just one more move back. The list selection covers the page you are
+    on, so it clears when you page, filter or search
 - One exception worth knowing: **leadership has no profile page yet** (they land on the programme
   dashboard), so they can be shown a picture but cannot upload one until they get that page. The
   same gap already applies to changing their password
@@ -99,9 +113,11 @@
 - Works with tickets like everyone else, plus can cross workspace boundaries (view tickets/analytics of any workspace, not just their own)
 - Manages the GitHub integration of any workspace (connect/disconnect the repo)
 - Can edit workspaces (add a workspace image, add a backlog status, add categories like bug/feature/etc.)
-- Can create a sprint, same as any other workspace member
+- Can create a sprint, same as any other workspace member. Picking dates is optional — left alone, a sprint runs two weeks from where the last one ends
 - Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
+- When a sprint ends with nothing planned after it, the next one appears on its own and everything not finished moves across, keeping the column it was in. Plan the next sprint yourself and that does not happen — nothing is ever added to a sprint someone planned
 - Can put tickets into a sprint and take them out again, same as any other workspace member
+- Can open the **Summary** tab on Sprints for an AI recap of any past sprint or the running one — what shipped (grouped into a few short themes) plus a carry-over list, team-wide and per person. A finished sprint's recap is generated automatically the first time its tab is opened; anyone can regenerate it. It's a draft to check before sharing, not an official record
 
 **Leadership**
 - Otherwise read-only; the two exceptions are staffing requests (below) and sending a note
@@ -147,11 +163,12 @@
 - Each project shows its type (client or internal) next to its status, on both the list and the project page
 - The Projects list opens on "With interns" (projects with someone placed or in selection);
   switching to "All projects" shows the empty ones too
-- Has a Settings page of its own, from the avatar menu in the navbar: theme, accent, text size,
+- Has a Settings page of its own, from the avatar menu in the navbar: theme (light/dark),
   contrast, notification switches, and changing their own password. Only the account-level
   settings — the workspace defaults, sidebar and quick-action settings the other roles get
-  configure things leadership does not have. This is also where leadership changes their password,
-  since they have no Profile page
+  configure things leadership does not have. Accent is not offered: the leadership surface is
+  brand-locked. This is also where leadership changes their password, since they have no Profile
+  page
 - No access to the workspace/ticket side of the platform (project work)
 - No access to admin panels (users, workspaces, reference data)
 
@@ -178,9 +195,11 @@
 - Also works on tickets/projects within the workspace they belong to, independent of the mentor role — creates tickets, comments, tracks time, exports to CSV, uses AI assistance (summaries, description suggestions), and sees their workspace's analytics
 - Can answer a review request an intern sent them — approve it or ask for changes — from the ticket itself. No control to request a review themselves; that stays intern-only
 - Can cancel a review request addressed to them while it is still waiting. Once they answer, the answer stays — it is the record that they reviewed the work
-- Can create a sprint, same as any other workspace member
+- Can create a sprint, same as any other workspace member. Picking dates is optional — left alone, a sprint runs two weeks from where the last one ends
 - Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
+- When a sprint ends with nothing planned after it, the next one appears on its own and everything not finished moves across, keeping the column it was in. Plan the next sprint yourself and that does not happen — nothing is ever added to a sprint someone planned
 - Can put tickets into a sprint and take them out again, same as any other workspace member
+- Can open the **Summary** tab on Sprints for an AI recap of any past sprint or the running one — what shipped (grouped into a few short themes) plus a carry-over list, team-wide and per person. A finished sprint's recap is generated automatically the first time its tab is opened; anyone can regenerate it. It's a draft to check before sharing, not an official record
 
 **Intern**
 - Sees and edits only their own profile
@@ -214,9 +233,11 @@
 - Records their own daily office check-in — but from the day they start on a real project this stops: check-in is switched off, those days show in their own colour rather than absent, and the month reads "—" instead of 0%. Their earlier attendance is unaffected. Being told they are placed does not stop it — the start date does, so an intern placed today who starts in two weeks keeps checking in until then
 - Can only check in on a day that is actually theirs to claim. On a day off already approved for them, on a cohort non-working day (public holiday, programme break, remote week), before their start date, at the weekend or outside the 07:00–11:00 window, the check-in control is not offered at all — and if they reach it anyway, they get a message saying which of those it is rather than a button that appears to do nothing. None of those days counts as an absence
 - No access to other interns', mentors', or admin/leadership data or functions
-- Can create a sprint, same as any other workspace member — not blocked on an admin to do it for them
+- Can create a sprint, same as any other workspace member — not blocked on an admin to do it for them. Picking dates is optional — left alone, a sprint runs two weeks from where the last one ends
 - Can correct a sprint that has not finished, and delete one the team has not started yet — never the sprint in progress
+- When a sprint ends with nothing planned after it, the next one appears on its own and everything not finished moves across, keeping the column it was in. Plan the next sprint yourself and that does not happen — nothing is ever added to a sprint someone planned
 - Can put their own tickets into a sprint and take them out again, same as any other workspace member. A ticket needs a story-point estimate before it can go in, and a ticket added from the backlog leaves the backlog for good
+- Can open the **Summary** tab on Sprints for an AI recap of any past sprint or the running one — what shipped (grouped into a few short themes) plus a carry-over list, team-wide and per person including their own. A finished sprint's recap is generated automatically the first time its tab is opened; anyone can regenerate it. It's a draft to check before sharing, not an official record
 - **Interesting:** can't edit their own documentation links either — only Admin, Leadership, and the assigned mentor can; not even the profile owner (the intern)
 
 > **Note:** changing your own password now asks for your current one first, on every role. It's a

@@ -1,6 +1,7 @@
 const Sprint = require('../models/Sprint');
 const Ticket = require('../models/Ticket');
 const TicketStatus = require('../models/TicketStatus');
+const Workspace = require('../models/Workspace');
 const { httpError } = require('../helpers/httpError');
 const statusService = require('./statusService');
 const ticketService = require('./ticketService');
@@ -14,6 +15,14 @@ const {
   assertSprintEditable,
   assertSprintDeletable,
   SprintOverlapError,
+  DEFAULT_SPRINT_DAYS,
+  latestEndingSprint,
+  defaultSprintWindow,
+  resolveSprintWindow,
+  resolveRollover,
+  partitionSprintCarry,
+  clampSprintLength,
+  hasDate,
 } = require('../helpers/sprintRules');
 const { emitSprintChanged } = require('../socket/events');
 
@@ -118,7 +127,68 @@ const nextSprintName = async (workspaceId) => {
   return `Sprint ${count + 1}`;
 };
 
+// How this workspace runs sprints, with the shipped cadence standing in for a
+// workspace saved before the field existed. Read through one function so the
+// two defaults are stated once.
+//
+// `lengthDays` is clamped here rather than at each use: every window builder
+// clamps it anyway (`resolveSprintWindow`, `defaultSprintWindow`, the rollover),
+// so a value that survived un-clamped could only ever reach a caller that merely
+// *reports* it — which is what made `/sprints/next-window` tell the modal "a
+// sprint runs 3 days" beside a 7-day window it had already clamped.
+const getWorkspaceSprintSettings = async (workspaceId) => {
+  const workspace = await Workspace.findById(workspaceId).select('sprintSettings').lean();
+
+  return {
+    autoRollover: workspace?.sprintSettings?.autoRollover ?? true,
+    lengthDays: clampSprintLength(workspace?.sprintSettings?.lengthDays ?? DEFAULT_SPRINT_DAYS),
+  };
+};
+
+// The sprint a new one must be planned after — the one ending LATEST, upcoming
+// sprints included. See `latestEndingSprint`'s comment for why this is not
+// `findPreviousSprint`: that one skips upcoming sprints, and defaulting off the
+// active sprint while a planned one exists produces a window that collides.
+//
+// Sorted in Mongo rather than in `latestEndingSprint` so the index does the work
+// and only one document comes back.
+const findLatestEndingSprint = async (workspaceId) => {
+  const [latest] = await Sprint.find({ workspace: workspaceId }).sort({ end: -1 }).limit(1);
+  return latest || null;
+};
+
+// What the create modal prefills its form with: the name and window a sprint
+// would get if nobody touched anything.
+//
+// It comes off the server rather than being derived in the frontend because the
+// window is a RULE — shared with the rollover — not display data, and because a
+// modal that shows empty pickers and then saves dates the person never saw is
+// worse than having no default at all.
+const getNextSprintWindow = async (workspaceId, today = new Date()) => {
+  if (!workspaceId) {
+    throw httpError('No workspace associated with this account.', 400);
+  }
+
+  // Rolls over first, like every other sprint read (ADR 0014). Skipping it was
+  // not a saved query: a modal opened while `GET /sprints` was mid-rollover got
+  // prefilled with the very window the rollover was claiming, so the create then
+  // failed with a 409 on dates the server itself had supplied — and the modal's
+  // seed-once guard meant the stale dates stayed in the form.
+  await rolloverIfDue(workspaceId, today);
+
+  const [latest, settings, name] = await Promise.all([
+    findLatestEndingSprint(workspaceId),
+    getWorkspaceSprintSettings(workspaceId),
+    nextSprintName(workspaceId),
+  ]);
+
+  const { start, end } = defaultSprintWindow(latest, today, settings.lengthDays);
+
+  return { name, start, end, lengthDays: settings.lengthDays };
+};
+
 const listSprints = async (workspaceId, today = new Date()) => {
+  await rolloverIfDue(workspaceId, today);
   const sprints = await Sprint.find({ workspace: workspaceId }).sort({ start: 1 });
   return withSprintMetrics(sprints, workspaceId, today);
 };
@@ -132,6 +202,7 @@ const listSprints = async (workspaceId, today = new Date()) => {
 // sprint to be past and unsealed seals it, whether or not that sprint is the one
 // being returned.
 const getSprintToShow = async (workspaceId, today = new Date()) => {
+  await rolloverIfDue(workspaceId, today);
   const sprints = await Sprint.find({ workspace: workspaceId }).sort({ start: 1 });
   const views = await withSprintMetrics(sprints, workspaceId, today);
 
@@ -173,19 +244,33 @@ const assertNoOverlap = async ({ workspaceId, sprintId = null, start, end }) => 
   }
 };
 
-// Prefills the name with the next number in sequence when the caller doesn't
-// name the sprint explicitly, then validates dates and rejects any overlap
-// with an existing sprint in the workspace before creating it.
+// Prefills whatever the caller left out — the name from the next number in
+// sequence, and the DATES from the workspace's cadence — then validates and
+// rejects any overlap with an existing sprint before creating it.
+//
+// Both dates are optional, and so is either one alone: `resolveSprintWindow`
+// owns that. The filled window then goes through exactly the same
+// `validateSprintDates` and `assertNoOverlap` as a typed one, which is what
+// stops a default reaching the database by skipping a rule — and is why the
+// no-backdating rule is what pushes a stale cadence forward to today rather
+// than something this function has to know about.
 const createSprint = async ({ workspaceId, name, start, end, goal }, today = new Date()) => {
   if (!workspaceId) {
     throw httpError('No workspace associated with this account.', 400);
   }
-  if (!start || !end) {
-    throw httpError('A sprint needs a start and an end date.', 400);
-  }
 
-  const startDate = new Date(start);
-  const endDate = new Date(end);
+  const [latest, settings] = await Promise.all([
+    findLatestEndingSprint(workspaceId),
+    getWorkspaceSprintSettings(workspaceId),
+  ]);
+
+  const { start: startDate, end: endDate } = resolveSprintWindow(
+    { start, end },
+    latest,
+    today,
+    settings.lengthDays
+  );
+
   validateSprintDates({ start: startDate, end: endDate }, today, { isNew: true });
 
   await assertNoOverlap({ workspaceId, start: startDate, end: endDate });
@@ -203,6 +288,116 @@ const createSprint = async ({ workspaceId, name, start, end, goal }, today = new
   emitSprintChanged(workspaceId);
 
   return toSprintView(sprint, today);
+};
+
+// ---------------------------------------------------------------------------
+// Rollover. A finished sprint with nothing after it grows its own successor,
+// and the work that did not get done follows it across. See ADR 0014.
+// ---------------------------------------------------------------------------
+
+// Called at the top of every sprint read, and does nothing on almost all of
+// them — `resolveRollover` returns null unless every sprint in the workspace is
+// past and the most recent one ended recently. Returns null when it did
+// nothing, so a caller can tell.
+//
+// THE ORDER OF THE THREE WRITES IS THE WHOLE THING, and it is ADR 0012's order:
+//
+//   1. SEAL the ending sprint, before a single ticket can move.
+//   2. CREATE the successor.
+//   3. CARRY the unfinished tickets into it.
+//
+// Steps 1 and 3 the other way round and the rollover rewrites the history of the
+// sprint it is closing: membership is one reference on the ticket, so carrying a
+// leftover out of a finished sprint shrinks its total and RAISES its
+// done-percentage — the sprint that missed the work ends up looking as though it
+// never had it. ADR 0012 records that as observed, not theorised.
+//
+// Concurrency is the unique partial index on `{ workspace, rolledOverFrom }`
+// (see `models/Sprint.js`), not anything in this function. Two reads racing here
+// both get as far as the insert; one lands, the other takes an E11000 and bails,
+// and its caller re-reads and sees the sprint the winner made.
+//
+// Every query is workspace-scoped, including the ticket carry.
+const rolloverIfDue = async (workspaceId, today = new Date()) => {
+  if (!workspaceId) return null;
+
+  const [sprints, settings] = await Promise.all([
+    Sprint.find({ workspace: workspaceId }).sort({ start: 1 }),
+    getWorkspaceSprintSettings(workspaceId),
+  ]);
+
+  const due = resolveRollover(sprints, today, settings);
+  if (!due) return null;
+
+  const { endedSprint, window } = due;
+
+  // 1. Seal first. `withSprintMetrics` is what writes the snapshot, and it has
+  //    to have finished before step 3 changes any membership.
+  await withSprintMetrics([endedSprint], workspaceId, today);
+
+  // 2. The successor goes through the same rules a hand-made sprint does. This
+  //    one is a genuine invariant and never fires: the window comes from the
+  //    same helper the create path uses. It stays an assert because a rollover
+  //    that silently wrote a sprint the API would have refused is worse than one
+  //    that throws.
+  validateSprintDates(window, today, { isNew: true });
+
+  let created;
+  try {
+    // The overlap check and the insert are ONE unit, because both of their
+    // failures mean the same thing: another request rolled this sprint over
+    // while we were deciding to. Neither is an error to report — the caller
+    // re-reads and finds the winner's sprint.
+    //
+    // This is the whole reason they are inside the try. `rolloverIfDue` runs on
+    // a GET, and a read that answers 409 because it raced another read is a
+    // broken page. Nothing else can make either of them fire: `resolveRollover`
+    // returns a window only when EVERY sprint in the workspace is already past,
+    // so the window starts today and cannot collide with anything that was there
+    // when we looked. If it collides now, the set changed underneath us.
+    await assertNoOverlap({ workspaceId, start: window.start, end: window.end });
+
+    created = await Sprint.create({
+      workspace: workspaceId,
+      name: await nextSprintName(workspaceId),
+      start: window.start,
+      end: window.end,
+      goal: '',
+      rolledOverFrom: endedSprint._id,
+    });
+  } catch (error) {
+    if (error?.code === 11000 || error?.name === 'SprintOverlapError') return null;
+    throw error;
+  }
+
+  // 3. Carry, as ONE `updateMany` rather than a pass through `updateTicket`.
+  //    The usual rule in this codebase is the opposite, because `updateTicket`
+  //    owns status transitions, time-in-status, history lines and socket events.
+  //    None of those apply here: a carried ticket KEEPS its status, so there is
+  //    no transition to run. `deleteSprint` below detaches for exactly the same
+  //    reason and in exactly the same way — and one bulk write is also what
+  //    keeps this off the critical path of a GET.
+  const [statuses, tickets] = await Promise.all([
+    TicketStatus.find({ workspace: workspaceId }).sort({ sortOrder: 1 }).lean(),
+    Ticket.find({ workspace: workspaceId, sprint: endedSprint._id })
+      .select('status isArchived')
+      .lean(),
+  ]);
+
+  const { carry } = partitionSprintCarry(tickets, statuses);
+
+  if (carry.length > 0) {
+    await Ticket.updateMany(
+      { workspace: workspaceId, sprint: endedSprint._id, _id: { $in: carry } },
+      { $set: { sprint: created._id } }
+    );
+  }
+
+  // A sprint appearing and tickets moving is the largest change the board can
+  // undergo with nobody having clicked anything, so both cache scopes go.
+  emitSprintChanged(workspaceId, { detachedTickets: carry.length > 0 });
+
+  return { sprint: created, carriedTicketCount: carry.length, sealedSprintId: endedSprint._id };
 };
 
 // How many tickets the sprint holds right now. Archived tickets keep their
@@ -224,8 +419,13 @@ const updateSprint = async (
   const sprint = await assertSprintInWorkspace(sprintId, workspaceId);
   assertSprintEditable(sprint, today);
 
-  const startDate = start === undefined ? sprint.start : new Date(start);
-  const endDate = end === undefined ? sprint.end : new Date(end);
+  // `hasDate`, not `!== undefined`: the edit form's date inputs submit `''` when
+  // cleared, and `new Date('')` is an Invalid Date that used to reach `save()`.
+  // Empty means "not given" here for the same reason it does on create, so the
+  // sprint keeps the date it has; a date that is present but unparseable is
+  // refused by `validateSprintDates` below with a message a form can show.
+  const startDate = hasDate(start) ? new Date(start) : sprint.start;
+  const endDate = hasDate(end) ? new Date(end) : sprint.end;
 
   // `isNew: false` — an existing sprint that has already begun necessarily
   // started in the past, so the no-backdating rule cannot apply to it.
@@ -302,6 +502,11 @@ const getPreviousSprintLeftovers = async (workspaceId, today = new Date()) => {
     throw httpError('No workspace associated with this account.', 400);
   }
 
+  // Before `findPreviousSprint`, so this read sees the world the rollover left
+  // rather than the one it found — otherwise the modal would offer leftovers out
+  // of a sprint the same request is about to move them out of.
+  await rolloverIfDue(workspaceId, today);
+
   const previous = await findPreviousSprint(workspaceId, today);
   if (!previous) {
     return { sprint: null, tickets: [] };
@@ -341,6 +546,10 @@ const getPreviousSprintLeftovers = async (workspaceId, today = new Date()) => {
 
 module.exports = {
   nextSprintName,
+  getNextSprintWindow,
+  getWorkspaceSprintSettings,
+  findLatestEndingSprint,
+  rolloverIfDue,
   listSprints,
   getPreviousSprintLeftovers,
   getSprintToShow,

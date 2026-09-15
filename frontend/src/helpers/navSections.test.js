@@ -231,6 +231,7 @@ describe('rollupSignals', () => {
       dot: false,
       badge: undefined,
       badgeText: '',
+      isNew: false,
       label: '',
     });
   });
@@ -283,6 +284,34 @@ describe('rollupSignals', () => {
 
   it('treats a zero or absent badge as no badge', () => {
     expect(rollupSignals([{ label: 'A', badge: 0 }, { label: 'B' }]).badge).toBeUndefined();
+  });
+
+  it('rolls a new row up so a folded section cannot hide its pill', () => {
+    const result = rollupSignals([{ label: 'Tickets' }, { label: 'Sprints', isNew: true }]);
+    expect(result.isNew).toBe(true);
+    expect(result.label).toBe('something new');
+  });
+
+  it('names new last, after the work waiting in the section', () => {
+    const result = rollupSignals([
+      { label: 'Sprints', isNew: true },
+      { label: 'Absence Requests', dot: true, dotLabel: '1 time-away request' },
+      { label: 'Requests', badge: 2 },
+    ]);
+    expect(result.label).toBe('1 time-away request, 2 Requests, something new');
+  });
+
+  it('says nothing about which rows are new — one section, one message', () => {
+    const result = rollupSignals([
+      { label: 'Sprints', isNew: true },
+      { label: 'Tickets', isNew: true },
+    ]);
+    expect(result.isNew).toBe(true);
+    expect(result.label).toBe('something new');
+  });
+
+  it('ignores a hidden new row, the way it ignores a hidden count', () => {
+    expect(rollupSignals([{ label: 'Backlog', isNew: true, hidden: true }]).isNew).toBe(false);
   });
 
   it.each([null, undefined, 'nope', 42])('survives %s', (value) => {

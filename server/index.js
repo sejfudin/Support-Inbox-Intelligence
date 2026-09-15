@@ -10,6 +10,7 @@ const { startDailyReminderScheduler } = require('./services/dailyReminderService
 
 const authRoutes = require('./routes/auth');
 const ticketRoutes = require('./routes/ticket');
+const ticketDraftRoutes = require('./routes/ticketDrafts');
 const adminRoutes = require('./routes/admin');
 const workspaceRoutes = require('./routes/workspace');
 const invitationRoutes = require('./routes/invitation');
@@ -71,6 +72,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/ticket-statuses', ticketStatusRoutes);
+app.use('/api/ticket-drafts', ticketDraftRoutes);
 app.use('/api/ai-summaries', aiSummaryRoutes);
 app.use('/api/hubs', hubsRoutes);
 app.use('/api/internship-types', internshipTypesRoutes);

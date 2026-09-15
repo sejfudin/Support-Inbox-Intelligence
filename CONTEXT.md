@@ -270,6 +270,13 @@ One optional sentence saying what should be true when the sprint ends. Purely de
 filter or statistic depends on it.
 _Avoid_: objective, theme, commitment.
 
+**Sprint cadence**:
+How long a sprint runs when nobody picks dates — **two weeks** unless the workspace says otherwise.
+Picking dates is optional: left alone, a new sprint runs one cadence from the day after the
+latest-ending sprint ends. It only ever decides a *default*; a sprint dated by hand is unaffected,
+and both are held to the same rules (a week to eight weeks, no overlap, no backdating).
+*Avoid*: sprint duration (that is one sprint's actual length), velocity, interval.
+
 **Active / upcoming / past sprint**:
 A sprint's state, read off today's date against its start and end. **Upcoming** has not started,
 **active** is running, **past** has ended. Nobody starts or finishes a sprint by hand, so a sprint
@@ -290,6 +297,22 @@ out of a sprint leaves it where it is on the board and never returns it to the b
 cannot be added without an estimate.
 _Avoid_: assigning (that is about people), scheduling, planning, committing.
 
+**Rollover**:
+What happens when a sprint ends and nothing follows it: the finished sprint's numbers are **sealed**,
+a successor is created on the cadence, and every ticket that is not done **carries over** into it
+keeping the status it was in — in progress stays in progress, to do stays to do. Done tickets and
+archived ones stay behind. It happens the next time somebody reads the sprints, not on a clock, so
+nothing happens in a workspace nobody opens. A team that has already planned its next sprint gets no
+rollover at all — nothing is added to a sprint a person planned.
+*Avoid*: closing or completing a sprint (nobody does either), rolling forward, auto-sprint.
+
+**Carrying over**:
+Moving an unfinished ticket out of the sprint that did not deliver it and into the next one. Done by
+hand from the create modal's leftovers tab, or by the **rollover**. Either way it moves the ticket,
+because a ticket is in at most one sprint — which is why the sprint being left is sealed first, so
+its record still says it missed the work.
+*Avoid*: rescheduling, deferring, re-committing, spillover (that names the tickets, not the act).
+
 **Sprint progress**:
 How much of a sprint's committed work is finished, measured in **story points**, never in ticket
 count. Tickets split three ways: **done**, **in progress** — anything neither done nor still in the
@@ -299,9 +322,23 @@ _Avoid_: completion, velocity (velocity compares finished points *across* sprint
 within one).
 
 **Needs attention**:
-The tickets in the active sprint that are not moving on their own: those with a **blocker** recorded,
-and those whose due date has passed while unfinished. A count meant to be acted on, not a status.
+The tickets in the active sprint that are not moving on their own: those sitting in the **blocked
+status** or with a **blocker** recorded, and those whose due date has passed while unfinished. A
+count meant to be acted on, not a status. This is the one place a bare blocked status counts
+without a recorded blocker — a card parked in Blocked still needs a look.
 _Avoid_: at risk, stale, flagged.
+
+**Sprint summary**:
+A short AI recap of one sprint, shown on the Sprints → Summary tab, for the whole team or per
+person. It groups the tickets that landed into a handful of named **themes** — each one a short
+`Title Case Headline - what changed, what changed` line, one per group, not a line per ticket. The
+recap is always in English, even when the tickets are not. The carry-over list beside it is not
+AI: it is derived from the tickets that did not reach done. Finished sprints are listed
+most-recently-finished first, and a finished sprint's recap is generated automatically the first
+time its tab is opened, then kept until someone regenerates it; the active sprint's is a manual
+live **preview**. Draft, not record — the tab says so. The sprint's numbers live on the progress
+strip, not here.
+_Avoid_: report, retro/retrospective (no meeting is implied), review, standup.
 
 ## Ticketing terms this feature pinned down
 
@@ -318,5 +355,6 @@ _Avoid_: icebox, inbox (the support inbox is a different thing), triage queue, u
 A recorded reason one ticket cannot proceed — the ticket that is in the way, plus an optional note.
 A property of the ticket, independent of where it sits on the board: a ticket may carry a blocker
 while in progress, and may sit in a **blocked status** with no blocker recorded. When something
-counts "blocked tickets", it means the ones carrying a blocker.
+counts "blocked tickets" it means the ones carrying a blocker — the sole exception is the sprint
+**needs-attention** count, which also counts a ticket parked in the blocked status.
 _Avoid_: dependency, blocked (bare — that names the status, not the record).

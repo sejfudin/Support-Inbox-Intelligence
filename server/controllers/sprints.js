@@ -1,4 +1,5 @@
 const sprintService = require('../services/sprintService');
+const sprintSummaryService = require('../services/sprintSummaryService');
 const { handleControllerError } = require('../helpers/controllerError');
 const { httpError } = require('../helpers/httpError');
 const { resolveActiveWorkspaceId } = require('../helpers/workspaceAuthz');
@@ -38,6 +39,19 @@ const getSprintToShow = async (req, res, next) => {
   }
 };
 
+// The name and dates a new sprint would get if nobody picked any, so the create
+// modal prefills a real window rather than showing empty pickers and then saving
+// dates the person never saw.
+const getNextSprintWindow = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const window = await sprintService.getNextSprintWindow(workspaceId);
+    res.status(200).json({ success: true, message: 'Next sprint window fetched', data: window });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
 // The previous sprint's unfinished tickets, offered by the create modal's third
 // source tab. `data.sprint` is null when there is no previous sprint, which is
 // how the modal knows to leave the tab out rather than show an empty one.
@@ -61,6 +75,9 @@ const getSprintById = async (req, res, next) => {
   }
 };
 
+// `start` and `end` are both OPTIONAL — absent, they are filled from the
+// workspace's cadence by `resolveSprintWindow` in the service, which is also
+// what fills the other one in when a caller sends only one.
 const createSprint = async (req, res, next) => {
   try {
     const workspaceId = await resolveWorkspaceId(req);
@@ -103,12 +120,47 @@ const deleteSprint = async (req, res, next) => {
   }
 };
 
+// The cached AI recap for one sprint. `data.hasSummary` is false when nothing has
+// been generated yet — the numbers (`data.team.points`, `data.perUser`) are still
+// there, since those are computed from the tickets, not from the model.
+const getSprintSummary = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const data = await sprintSummaryService.getSprintSummary({
+      sprintId: req.params.id,
+      workspaceId,
+    });
+    res.status(200).json({ success: true, message: 'Sprint summary fetched', data });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
+// Generate or regenerate the recap. One Groq call; an AI failure carries a
+// statusCode and is answered as-is, with nothing persisted.
+const generateSprintSummary = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveWorkspaceId(req);
+    const data = await sprintSummaryService.generateSprintSummary({
+      sprintId: req.params.id,
+      workspaceId,
+      requesterId: req.user._id,
+    });
+    res.status(201).json({ success: true, message: 'Sprint summary generated', data });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
 module.exports = {
   getSprints,
   getSprintToShow,
+  getNextSprintWindow,
   getPreviousSprintLeftovers,
   getSprintById,
   createSprint,
   updateSprint,
   deleteSprint,
+  getSprintSummary,
+  generateSprintSummary,
 };

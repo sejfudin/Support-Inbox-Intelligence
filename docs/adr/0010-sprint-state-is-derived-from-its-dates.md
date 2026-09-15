@@ -37,6 +37,12 @@ in a workspace may overlap.**
 
 ## Consequences
 
+- **Revisited by ADR-0014**, which adds a lifecycle transition this ADR did not anticipate: when
+  every sprint in a workspace is past, a *read* creates the successor and carries the unfinished
+  tickets into it. The bet here survives — there is still no state field and still no scheduled job,
+  and state is still read off the calendar — but "nothing ever happens to a sprint on its own" is no
+  longer true.
+
 - Sprints cannot be run back to back with no gap unless the dates are set adjacently, and during a
   gap no sprint is active. The Sprints page falls back to the next upcoming sprint, so a planned gap
   reads as "starts in 2 days" rather than as an error.

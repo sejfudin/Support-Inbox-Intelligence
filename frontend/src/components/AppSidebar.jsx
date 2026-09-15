@@ -77,6 +77,7 @@ import {
   WorkspaceIcon,
 } from '@/components/nav/SectionIcons';
 import { useTourActive } from '@/components/onboarding/tourPreview';
+import { useNewFeatureRoutes } from '@/components/onboarding/whatsNewSteps';
 import {
   readStoredPreference,
   useStoredPreference,
@@ -147,6 +148,7 @@ function RailTooltip({ label, children }) {
 function NavItem({ item, collapsed, labelled = false }) {
   const Icon = item.icon;
   const isActive = Boolean(useMatch({ path: item.to, end: true }));
+  const showNew = Boolean(item.isNew) && !item.dot && !item.badge;
 
   const link = (
     <NavLink
@@ -210,6 +212,28 @@ function NavItem({ item, collapsed, labelled = false }) {
       {/* No weight of its own — it inherits the row's, so the active row's
           `font-bold` actually reaches the label instead of being overridden. */}
       <span className={cn('min-w-0 flex-1 truncate', collapsibleLabel)}>{item.label}</span>
+      {/* "This row is new in the release you have not read yet." Derived from the
+          what's-new script rather than configured here (see `useNewFeatureRoutes`),
+          so a feature cannot be badged without also being explained, and it goes
+          quiet for good the moment the tour is read.
+
+          Rendered only when the row has no dot and no count, and that is a priority
+          rule rather than a layout dodge: the dot is absolutely positioned at the
+          same right edge, and "three requests are waiting" outranks "this is new"
+          for the same square of sidebar. A row is only ever both for one release.
+
+          `collapsibleLabel` rather than `hidden` in the rail, so it squeezes away
+          with the label instead of snapping — the tooltip says "(new)" there. */}
+      {showNew ? (
+        <span
+          className={cn(
+            'flex h-[15px] shrink-0 items-center rounded-full bg-primary/15 px-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-primary',
+            collapsibleLabel
+          )}
+        >
+          New
+        </span>
+      ) : null}
       {/* "Something here needs you", with no number attached — used where a count
           would be noise (one pending remote-work request is as actionable as four).
           Positioned absolutely rather than in the flow so it survives the rail:
@@ -251,7 +275,9 @@ function NavItem({ item, collapsed, labelled = false }) {
     ? ` (${item.badge})`
     : item.dotLabel && item.dot
       ? ` — ${item.dotLabel}`
-      : '';
+      : showNew
+        ? ' (new)'
+        : '';
 
   return <RailTooltip label={`${item.label}${suffix}`}>{link}</RailTooltip>;
 }
@@ -355,6 +381,16 @@ function RailSection({ section, active, onOpen, openFlyout, closeFlyout }) {
           {signals.badgeText}
         </span>
       ) : null}
+      {/* No room for the word here, so "new" becomes a dot in the accent — and only
+          when neither work signal is already using that corner, since an amber dot
+          meaning "act on this" must not be confused with a primary one meaning "have
+          a look sometime". The accessible name carries it either way. */}
+      {signals.isNew && !signals.dot && !signals.badge ? (
+        <span
+          className="pointer-events-none absolute right-0 top-0 size-2 rounded-full bg-primary ring-2 ring-sidebar"
+          aria-hidden="true"
+        />
+      ) : null}
     </NavLink>
   );
 }
@@ -424,7 +460,7 @@ function NavGroup({
   // Only when closed. Open, the rows carry their own dot and counts, and showing
   // them twice reads as two separate things needing attention.
   const signals = open ? null : rollupSignals(visible);
-  const hasSignal = Boolean(signals?.dot || signals?.badge);
+  const hasSignal = Boolean(signals?.dot || signals?.badge || signals?.isNew);
 
   return (
     <AccordionPrimitive.Item
@@ -525,6 +561,18 @@ function NavGroup({
               aria-hidden="true"
             >
               {signals.badgeText}
+            </span>
+          ) : null}
+          {/* Same pill as on the row it is standing in for — a folded section is
+              exactly where a NEW pill would otherwise go unseen. Shown only when the
+              section is closed (`signals` is null while open), so the pill is never
+              on the header and the row at once. */}
+          {signals?.isNew ? (
+            <span
+              className="flex h-[15px] shrink-0 items-center rounded-full bg-primary/15 px-1.5 text-[9px] font-bold uppercase tracking-[0.08em] text-primary"
+              aria-hidden="true"
+            >
+              New
             </span>
           ) : null}
         </NavLink>
@@ -728,6 +776,9 @@ export default function AppSidebar() {
     : [];
 
   const hasWorkspaceNav = Boolean(user?.workspaceId);
+  // The rows this release added, for as long as this viewer has not read the tour
+  // that explains them — one `Set` for the whole sidebar rather than a hook per row.
+  const newRoutes = useNewFeatureRoutes();
   const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
   /**
@@ -753,7 +804,18 @@ export default function AppSidebar() {
     { key: 'mentoring', title: 'Mentoring', icon: MentoringIcon, items: mentorNav },
     { key: 'internship', title: 'Internship', icon: InternshipIcon, items: internNav },
     { key: 'admin', title: 'Admin', icon: AdminIcon, items: adminNav },
-  ].filter((section) => section.items.some((item) => !item.hidden));
+  ]
+    .filter((section) => section.items.some((item) => !item.hidden))
+    // Marked here rather than on each nav array above for two reasons: the rows are
+    // built in five places and would each need the same line, and both render paths
+    // (the panel and the rail's flyout) map the *same* item objects — so a flag on
+    // the object reaches both without either of them learning about the tour.
+    .map((section) => ({
+      ...section,
+      items: section.items.map((item) =>
+        newRoutes.has(item.to) ? { ...item, isNew: true } : item
+      ),
+    }));
 
   /**
    * Which sections this person has collapsed. Per device — see the header comment

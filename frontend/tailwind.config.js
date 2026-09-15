@@ -91,7 +91,7 @@ export default {
           from: { height: 'var(--radix-accordion-content-height)', opacity: '1' },
           to: { height: '0', opacity: '0' },
         },
-        // The "you have not seen the tour yet" pulse on the dashboard's what's-new
+        // The "you have not seen the tour yet" pulse on the sidebar's What's new
         // button: a glow breathing in and out.
         //
         // Strength comes from `--attention-glow-*` in index.css, because light and
@@ -116,7 +116,12 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
         'nav-section-down': 'nav-section-down 280ms cubic-bezier(0.65, 0, 0.35, 1)',
         'nav-section-up': 'nav-section-up 240ms cubic-bezier(0.65, 0, 0.35, 1)',
-        'attention-glow': 'attention-glow 2s ease-in-out infinite',
+        // Slow on purpose. At 2s it read as a notification demanding an answer; the
+        // button is an offer, and an offer can afford to breathe. Its partner, the
+        // `whats-new-sheen` sweep, lives in `index.css` — see the note there — and
+        // runs at 3.4s so the two drift in and out of phase rather than thumping
+        // together on every beat.
+        'attention-glow': 'attention-glow 3.2s ease-in-out infinite',
       },
     },
   },

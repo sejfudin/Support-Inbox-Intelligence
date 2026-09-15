@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useCreateTicket } from '@/queries/tickets';
 import { useAiTicketSuggestion } from '@/hooks/useAiTicketSuggestion';
 import {
@@ -10,6 +10,7 @@ import { useUsers } from '@/queries/users';
 import { useAuth } from '@/context/AuthContext';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useTicketForm } from '@/hooks/useTicketForm';
+import { useTicketDraftAutosave } from '@/hooks/useTicketDraftAutosave';
 import { useCategories } from '@/queries/categories';
 import { toast } from 'sonner';
 import { Sparkles, User, X } from 'lucide-react';
@@ -30,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { CHIP } from '@/helpers/badgeTones';
+import { formatDraftSavedAt } from '@/helpers/ticketDraft';
 
 /**
  * Category chip geometry, taken from `helpers/badgeTones` so these sit at the
@@ -76,15 +78,71 @@ const NewTickets = ({
   const categories = categoriesData?.data || [];
 
   const resolvedInitialStatus = initialStatus ?? statusOptions[0]?.value ?? '';
-  const { form: newTicket, updateField, resetForm } = useTicketForm(resolvedInitialStatus);
+  const { form: newTicket, setForm, updateField, resetForm } = useTicketForm(resolvedInitialStatus);
 
   const isBlockedSelected = !hideStatus && isBlockedStatusId(statusOptions, newTicket.status);
 
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
   const [priorityLockedByUser, setPriorityLockedByUser] = useState(false);
   const [storyPointsLockedByUser, setStoryPointsLockedByUser] = useState(false);
+  const [draftJustRestored, setDraftJustRestored] = useState(false);
   const [descriptionEditorKey, setDescriptionEditorKey] = useState(0);
   const appliedTemplateHtmlRef = useRef('');
+
+  const statusValues = useMemo(() => statusOptions.map((option) => option.value), [statusOptions]);
+
+  // The draft: restored into the form when the modal opens, written back as it
+  // is typed in, and thrown away once the ticket it was a draft of exists. The
+  // editor is uncontrolled once mounted, so restoring into it means remounting
+  // it — the same key bump a category template does below.
+  const handleDraftRestore = useCallback(
+    (restoredForm) => {
+      // One draft is shared across every New-ticket surface, so a draft started
+      // on the Backlog page can carry a backlog status id into the board modal,
+      // which has no such column. Fall back to the surface's own initial status
+      // when the stored one is not one this picker can show.
+      const restoredStatus =
+        !hideStatus && statusValues.length && !statusValues.includes(restoredForm.status)
+          ? resolvedInitialStatus
+          : restoredForm.status;
+
+      setForm({ ...restoredForm, status: restoredStatus });
+      setDescriptionEditorKey((key) => key + 1);
+
+      // The restored priority and points are choices the user already made in a
+      // previous session; treat them as user-locked so the metadata
+      // auto-suggestion cannot quietly overwrite them when the modal reopens
+      // with enough text to fire.
+      if (restoredForm.priority && restoredForm.priority !== 'medium') {
+        setPriorityLockedByUser(true);
+      }
+      if (restoredForm.storyPoints != null) {
+        setStoryPointsLockedByUser(true);
+      }
+      setDraftJustRestored(true);
+    },
+    [setForm, hideStatus, statusValues, resolvedInitialStatus]
+  );
+
+  const {
+    isSaving: isSavingDraft,
+    savedAt: draftSavedAt,
+    wasRestored: draftWasRestored,
+    hasDraft,
+    discardDraft,
+  } = useTicketDraftAutosave({
+    isOpen,
+    workspaceId: effectiveWorkspaceId,
+    form: newTicket,
+    fallbackStatus: resolvedInitialStatus,
+    onRestore: handleDraftRestore,
+  });
+
+  const draftStatusLabel = isSavingDraft
+    ? 'Saving draft…'
+    : draftSavedAt
+      ? `${draftWasRestored ? 'Draft restored' : 'Draft saved'} · ${formatDraftSavedAt(draftSavedAt)}`
+      : '';
 
   const {
     isPromptPanelVisible,
@@ -117,14 +175,27 @@ const NewTickets = ({
     storyPointsLockedByUser,
     updateField,
     isPaused: shouldPauseMetadataSuggestion,
+    // A restored draft arrives with its subject and description already long
+    // enough to trigger the first auto-suggestion; skip that one pass so it
+    // cannot rewrite fields the user set last session.
+    skipInitialAutoSuggestion: draftJustRestored,
   });
 
   const resetSuggestionState = () => {
     setPriorityLockedByUser(false);
     setStoryPointsLockedByUser(false);
+    setDraftJustRestored(false);
     appliedTemplateHtmlRef.current = '';
     resetMetadataSuggestionState();
     resetDescriptionGenerationState();
+  };
+
+  const handleDiscardDraft = () => {
+    discardDraft();
+    resetForm();
+    setDescriptionEditorKey((key) => key + 1);
+    resetSuggestionState();
+    toast.success('Draft discarded');
   };
 
   const handleUseAiSuggestion = () => {
@@ -200,6 +271,8 @@ const NewTickets = ({
         });
         resetForm();
         resetSuggestionState();
+        // The draft was a draft *of this ticket*, and the ticket now exists.
+        discardDraft();
         onClose();
       },
       onError: (error) => {
@@ -274,20 +347,45 @@ const NewTickets = ({
                 admin who manages several should not have to guess where this
                 ticket is about to land. Sentence case: `contextNote` is a
                 sentence ("New ticket in Acme"), not an eyebrow. */}
-            <span className="text-[11.5px] font-semibold text-muted-foreground">
+            <span className="min-w-0 truncate text-[11.5px] font-semibold text-muted-foreground">
               {contextNote || 'New Ticket'}
             </span>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              type="button"
-              tabIndex={-1}
-              onClick={() => handleDialogOpenChange(false)}
-              aria-label="Close new ticket modal"
-              data-test="ticket-new-close-button"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            {/* The draft line sits in the header rather than by the Create
+                button: it reports on the whole form, and it must not read as a
+                second thing to press next to the one button that submits. */}
+            <span className="ml-auto flex shrink-0 items-center gap-1.5">
+              {draftStatusLabel ? (
+                <span
+                  className="text-[11px] text-muted-foreground/75"
+                  aria-live="polite"
+                  data-test="ticket-new-draft-status"
+                >
+                  {draftStatusLabel}
+                </span>
+              ) : null}
+              {hasDraft ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  data-test="ticket-new-discard-draft-button"
+                >
+                  Discard draft
+                </Button>
+              ) : null}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                type="button"
+                tabIndex={-1}
+                onClick={() => handleDialogOpenChange(false)}
+                aria-label="Close new ticket modal"
+                data-test="ticket-new-close-button"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </span>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">

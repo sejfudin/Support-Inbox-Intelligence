@@ -92,8 +92,9 @@ export default function UserPreferencesSync() {
 
     const uninstall = setPreferencePusher((storageKey, value) => {
       const preference = BY_STORAGE_KEY.get(storageKey);
-      // Not an account preference: a per-device one like UI scale, or a one-off
-      // view toggle that was never a setting. Those stay in the cache and stop here.
+      // Not an account preference: a per-device one (the desktop-notification
+      // switch, the collapsed sidebar sections), or a one-off view toggle that
+      // was never a setting. Those stay in the cache and stop here.
       if (!preference) return;
 
       pendingRef.current = {

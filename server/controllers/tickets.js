@@ -346,6 +346,73 @@ const setSprintMembership = async (req, res, next) => {
   }
 };
 
+// The board's column selection: move every selected ticket to another status, or
+// archive the lot, in one request. Authorized exactly as a single ticket update
+// is — the workspace is resolved from the caller and every id is constrained to
+// it in the service — because a member can already move or archive each of these
+// tickets one at a time, so a tighter gate here would guard nothing.
+const bulkUpdateTicketStatus = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: req.body?.workspaceId,
+    });
+
+    const { ticketIds, statusId } = req.body;
+    if (!Array.isArray(ticketIds)) {
+      return res.status(400).json({ success: false, message: 'ticketIds must be an array' });
+    }
+
+    const tickets = await ticketService.bulkUpdateTicketStatus({
+      ticketIds,
+      statusId,
+      workspaceId,
+      actorUserId: req.user._id,
+    });
+
+    res.status(200).json({ success: true, message: 'Tickets moved', data: tickets });
+  } catch (error) {
+    // `updateTicket`'s own rules travel as plain errors, so the ones a caller can
+    // act on are mapped here the same way the single-ticket PATCH maps them —
+    // including the slug-shaped `Status "<x>" is not valid for this workspace`,
+    // which the exact-match line alone would miss and answer as a 500.
+    if (
+      error.message === 'Tickets cannot be moved back to the backlog.' ||
+      error.message?.includes('is not valid for this workspace') ||
+      error.message === 'Invalid status' ||
+      error.name === 'StatusValidationError'
+    ) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+
+    handleControllerError(res, error, next);
+  }
+};
+
+const bulkArchiveTickets = async (req, res, next) => {
+  try {
+    const workspaceId = await resolveActiveWorkspaceId({
+      user: req.user,
+      override: req.body?.workspaceId,
+    });
+
+    const { ticketIds } = req.body;
+    if (!Array.isArray(ticketIds)) {
+      return res.status(400).json({ success: false, message: 'ticketIds must be an array' });
+    }
+
+    const tickets = await ticketService.bulkArchiveTickets({
+      ticketIds,
+      workspaceId,
+      actorUserId: req.user._id,
+    });
+
+    res.status(200).json({ success: true, message: 'Tickets archived', data: tickets });
+  } catch (error) {
+    handleControllerError(res, error, next);
+  }
+};
+
 const archiveTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -588,6 +655,8 @@ module.exports = {
   createTicket,
   updateTicket,
   setSprintMembership,
+  bulkUpdateTicketStatus,
+  bulkArchiveTickets,
   archiveTicket,
   unarchiveTicket,
   getMyTickets,
