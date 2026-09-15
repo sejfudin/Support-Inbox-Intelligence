@@ -395,15 +395,19 @@ const applyApproval = async (request, now) => {
  *
  * Approval re-runs the day rules on **every** day before writing any of them. The
  * world moves between asking and answering: the intern may have been placed on a
- * project, a day may have become a cohort holiday, or they may have checked in for
- * one in person. Trusting the verdict recorded at request time would write
- * attendance the rules would now refuse.
+ * project, or a day may have become a cohort holiday. Trusting the verdict
+ * recorded at request time would write attendance the rules would now refuse.
  *
  * The backdating window is deliberately NOT re-applied here. A sick day filed
  * legitimately on Wednesday for Monday would fall out of its own two-day window by
  * Thursday, and an admin who takes a day to answer must not thereby destroy the
  * request. The window bounds what an intern may *ask* for; the admin's judgement
  * bounds what is granted.
+ *
+ * The already-recorded check is skipped here too, on purpose: an admin approving
+ * a request is allowed to overwrite whatever attendance row already sits on that
+ * day — a check-in, a different request's day, or nothing at all. `applyApproval`
+ * below does the actual overwrite.
  */
 const decideRequest = async (user, requestId, { decision, note } = {}) => {
   if (decision !== APPROVED && decision !== REJECTED) {
@@ -426,8 +430,15 @@ const decideRequest = async (user, requestId, { decision, note } = {}) => {
     for (const date of request.dates) {
       // `todayKey: date` neutralises the past/future checks for exactly the reason
       // in the doc-comment above, while leaving every other rule — weekend,
-      // holiday, before-start, placed, already-recorded — fully in force.
-      const refusal = requestDayRefusal(date, { ...context, type: request.type, todayKey: date });
+      // holiday, before-start, placed — fully in force. `takenKeys` is cleared too:
+      // an admin approving a request is allowed to overwrite whatever attendance
+      // row already sits on that day, since the approval is the record now.
+      const refusal = requestDayRefusal(date, {
+        ...context,
+        type: request.type,
+        todayKey: date,
+        takenKeys: new Set(),
+      });
       if (refusal) {
         throw httpError(
           `Cannot approve ${date}: ${refusal.replace(/^You /, 'the intern ').toLowerCase()}`,
